@@ -3736,28 +3736,16 @@ const SynEditor = (() => {
 
     } else if (n.cat === 'spk') {
       if (n.powered) {
-        // ── Enceinte active (autoamplifié / Dante) ──────────────
-        let chBlock = '';
-        if (n.biamp) {
-          const ch1 = `<span class="syn-ch-tag" style="background:${z.color}22;color:${z.color};border-color:${z.color}55">CH1 HF</span>`;
-          const ch2 = `<span class="syn-ch-tag" style="background:var(--surf3);color:var(--txt2);border-color:var(--bdr2)">CH2 LF</span>`;
-          const lnk = n.chLink ? `<span class="syn-ch-link-badge">🔗 CH1+2 liés</span>` : '';
-          chBlock = `<div class="syn-ch-row">${ch1}${ch2}${lnk}</div>`;
-        } else {
-          chBlock = `<div style="padding:2px 10px 7px;font-size:9px;color:var(--muted)">Full range · Dante</div>`;
-        }
-        inner = `<div class="syn-node-hd">
-          <span class="syn-node-ico">${spec(n.type).icon}</span>
-          <div><div class="syn-node-title">${esc(n.label)}</div>
-          <div class="syn-node-sub">${esc(z.label)}${n.side ? ' · ' + n.side : ''}</div></div>
-        </div>
-        ${chBlock}
-        <div class="syn-side-badge"><span class="syn-active-badge">⚡ ACTIF</span></div>`;
+        // ── Enceinte actif (crossover actif, 1 source ampli non ponté) ──
+        const actifBadge = `<span style="font-size:8px;font-family:var(--m);color:${z.color};background:${z.color}18;border:1px solid ${z.color}44;border-radius:3px;padding:1px 5px;margin-left:4px">ACTIF</span>`;
+        inner = `<div class="syn-node-hd"><span class="syn-node-ico">${spec(n.type).icon}</span><div><div class="syn-node-title">${esc(n.label)}</div><div class="syn-node-sub" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">${esc(z.label)}${n.side ? ' · ' + n.side : ''}${actifBadge}</div></div>
+          ${field ? `<div class="syn-field-big">${esc(n.conn || 'NL4')}</div><div class="syn-field-step">Brancher ici</div>` : `<div class="syn-spk-meta">${n.spk} enceinte(s) · ${esc(n.z)}</div>`}
+          <div class="syn-side-badge" style="background:${z.color}22;color:${z.color};border-color:${z.color}55">${n.side || '—'}</div>`;
       } else {
         // ── Enceinte passive ─────────────────────────────────────
         const ampMode = n.biamp
           ? `<span style="font-size:8px;font-family:var(--m);color:var(--warn);background:rgba(245,197,66,.12);border:1px solid rgba(245,197,66,.3);border-radius:3px;padding:1px 5px;margin-left:4px">BI-AMP</span>`
-          : `<span style="font-size:8px;font-family:var(--m);color:var(--muted);background:var(--surf2);border:1px solid var(--bdr2);border-radius:3px;padding:1px 5px;margin-left:4px">PONTE A+B</span>`;
+          : '';
         inner = `<div class="syn-node-hd"><span class="syn-node-ico">${spec(n.type).icon}</span><div><div class="syn-node-title">${esc(n.label)}</div><div class="syn-node-sub" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">${esc(z.label)}${n.side ? ' · ' + n.side : ''}${ampMode}</div></div>
           ${field ? `<div class="syn-field-big">${esc(n.conn || 'NL4')}</div><div class="syn-field-step">Brancher ici</div>` : `<div class="syn-spk-meta">${n.spk} enceinte(s) · ${esc(n.z)}</div>`}
           <div class="syn-side-badge" style="background:${z.color}22;color:${z.color};border-color:${z.color}55">${n.side || '—'}</div>`;
@@ -4094,37 +4082,32 @@ const SynEditor = (() => {
       } else {
         // Section passif / actif commune (enceintes uniquement)
         const powBlock = `
-          <label class="syn-insp-lbl">Mode</label>
+          <label class="syn-insp-lbl">Type de crossover</label>
           <div class="syn-mode-toggle-sm">
-            <button type="button" id="insp-passive" class="${!n.powered ? 'on passive' : ''}">🔌 Passif</button>
-            <button type="button" id="insp-active"  class="${n.powered  ? 'on' : ''}">⚡ Auto-amplifie</button>
+            <button type="button" id="insp-passive" class="${!n.powered ? 'on passive' : ''}">Passif</button>
+            <button type="button" id="insp-active"  class="${n.powered  ? 'on' : ''}">Actif</button>
           </div>`;
         const baseBlock = `
           <label class="syn-insp-lbl">Nom</label><input class="syn-insp-inp" id="insp-label" value="${esc(n.label)}"/>
           <label class="syn-insp-lbl">Zone</label><select class="syn-insp-inp" id="insp-zone">${Object.keys(ZONE).map(z => `<option value="${z}"${n.zone === z ? ' selected' : ''}>${ZONE[z].label}</option>`).join('')}</select>
           <label class="syn-insp-lbl">Cote</label><select class="syn-insp-inp" id="insp-side"><option value=""${!n.side ? ' selected' : ''}>—</option><option value="L"${n.side === 'L' ? ' selected' : ''}>L</option><option value="R"${n.side === 'R' ? ' selected' : ''}>R</option><option value="C"${n.side === 'C' ? ' selected' : ''}>C</option></select>`;
-        // Passif : crossover passif (ampli ponté A+B) OU bi-amp (deux sorties séparées aigu/grave)
+        // Passif : par defaut signal normal, option bi-amp = 2 sorties separees aigu/grave
         const passiveBlock = `
-          <label class="syn-insp-lbl">Config ampli</label>
-          <div class="syn-mode-toggle-sm">
-            <button type="button" id="insp-fullrange" class="${!n.biamp ? 'on passive' : ''}">Ponté A+B</button>
-            <button type="button" id="insp-biamp"     class="${n.biamp  ? 'on' : ''}">Bi-amp Aigu/Grave</button>
-          </div>
-          <div style="font-size:9px;color:var(--muted);margin-bottom:8px;line-height:1.5">
-            ${!n.biamp
-              ? 'Ampli ponté (A+B) → 1 cable NL4 → crossover passif interne'
-              : 'Ampli non ponte — 2 sorties : CH A → Aigu · CH B → Grave'}
+          <div style="display:flex;align-items:center;justify-content:space-between;background:var(--surf2);border:1px solid var(--bdr2);border-radius:6px;padding:6px 10px;margin-bottom:8px">
+            <span style="font-size:11px;color:var(--txt2)">Bi-amp <span style="font-size:9px;color:var(--muted)">— 2 sorties Aigu / Grave</span></span>
+            <input type="checkbox" id="insp-biamp" class="cb" ${n.biamp ? 'checked' : ''}/>
           </div>
           <label class="syn-insp-lbl">Nb enceintes</label><input class="syn-insp-inp" type="number" min="1" id="insp-spk" value="${n.spk}"/>
           <label class="syn-insp-lbl">Impedance</label><input class="syn-insp-inp" id="insp-z" value="${esc(n.z)}"/>
           <label class="syn-insp-lbl">Connecteur</label><input class="syn-insp-inp" id="insp-conn" value="${esc(n.conn)}"/>`;
-        // Actif : auto-amplifié (Dante/AVB/analogique)
+        // Actif : crossover actif integre, ampli envoie 1 seule source, non ponte
         const activeBlock = n.powered ? `
           <div style="font-size:9px;color:var(--muted);background:var(--surf2);border:1px solid var(--bdr2);border-radius:6px;padding:7px 10px;margin-bottom:8px;line-height:1.5">
-            Enceinte auto-amplifiee — signal reseau (Dante / AVB) ou analogique.<br/>
-            <span style="color:var(--grn)">Ampli non ponte.</span>
+            Crossover actif integre — l'ampli envoie <strong style="color:var(--txt)">1 seule source</strong>, non ponte.
           </div>
-          <label class="syn-insp-lbl">Nb cabinets</label><input class="syn-insp-inp" type="number" min="1" id="insp-spk" value="${n.spk}"/>` : '';
+          <label class="syn-insp-lbl">Nb enceintes</label><input class="syn-insp-inp" type="number" min="1" id="insp-spk" value="${n.spk}"/>
+          <label class="syn-insp-lbl">Impedance</label><input class="syn-insp-inp" id="insp-z" value="${esc(n.z)}"/>
+          <label class="syn-insp-lbl">Connecteur</label><input class="syn-insp-inp" id="insp-conn" value="${esc(n.conn)}"/>` : '';
         el.innerHTML = `<div class="syn-insp-title">${esc(spec(n.type).icon)} ${esc(n.label)}</div>
           ${powBlock}${baseBlock}${n.powered ? activeBlock : passiveBlock}
           <button type="button" class="btn sm" style="width:100%;margin-top:8px" id="insp-del"><i class="ti ti-trash"></i> Supprimer</button>`;
@@ -4233,13 +4216,9 @@ const SynEditor = (() => {
       scheduleSave(); render();
     });
 
-    // Ponté A+B / Bi-amp Aigu-Grave toggle (passif seulement)
-    $('insp-fullrange')?.addEventListener('click', () => {
-      n.biamp = false;
-      scheduleSave(); render();
-    });
-    $('insp-biamp')?.addEventListener('click', () => {
-      n.biamp = true;
+    // Bi-amp checkbox (passif seulement)
+    $('insp-biamp')?.addEventListener('change', e => {
+      n.biamp = e.target.checked;
       scheduleSave(); render();
     });
 
