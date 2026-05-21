@@ -799,6 +799,23 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .ila-saved-title{font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:6px}
 .ila-new-btn{display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 12px;background:transparent;border:1px dashed var(--bdr2);border-radius:8px;cursor:pointer;font-family:var(--f);font-size:11px;color:var(--muted);transition:all .13s;width:100%;margin-top:6px}
 .ila-new-btn:hover{border-color:var(--ora-g);color:var(--ora)}
+.ila-intro{font-size:11px;color:var(--txt2);line-height:1.6;padding:9px 12px;background:var(--surf2);border:1px solid var(--bdr);border-radius:8px;margin-bottom:12px}
+.ila-intro strong{color:var(--ora)}
+.ila-cat{margin-bottom:5px;border:1px solid var(--bdr2);border-radius:9px;overflow:hidden}
+.ila-cat-hd{display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;user-select:none;background:var(--surf2);transition:background .12s}
+.ila-cat-hd:hover{background:var(--surf3)}
+.ila-cat-hd-icon{font-size:15px;color:var(--ora);flex-shrink:0;width:18px;text-align:center}
+.ila-cat-hd-label{font-size:12px;font-weight:600;flex:1}
+.ila-cat-hd-cnt{font-size:11px;font-family:var(--m);color:var(--ora);font-weight:700;min-width:18px;text-align:right}
+.ila-cat-hd-arr{font-size:11px;color:var(--muted);transition:transform .15s;flex-shrink:0;margin-left:4px}
+.ila-cat-body{border-top:1px solid var(--bdr2)}
+.ila-cb-row{display:flex;align-items:center;gap:10px;padding:7px 13px;border-bottom:1px solid var(--bdr);cursor:pointer;transition:background .1s}
+.ila-cb-row:last-child{border-bottom:none}
+.ila-cb-row:hover{background:var(--surf2)}
+.ila-cb-row.checked{background:rgba(255,140,60,.05)}
+.ila-cb-row input[type=checkbox]{accent-color:var(--ora);width:14px;height:14px;flex-shrink:0;pointer-events:none}
+.ila-cb-lbl{flex:1;font-size:11px;color:var(--txt)}
+.ila-cb-mic{font-size:9px;color:var(--muted);font-family:var(--m)}
 
 /* PDF modal fields */
 .pdf-sec{margin-bottom:18px}
@@ -1310,8 +1327,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
   <div class="modal-box" style="width:520px">
     <div class="modal-head"><i class="ti ti-wand" style="font-size:16px;color:var(--ora)"></i><span class="modal-title">Assistant Input List</span><button class="btn ghost sm" onclick="closeILAssist()"><i class="ti ti-x"></i></button></div>
     <div class="modal-body">
-      <div style="font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px">Type de configuration</div>
-      <div class="ila-types" id="ila-types"></div>
+      <div class="ila-intro">Coche les instruments de ta configuration — les canaux seront ajoutes dans l'ordre affiche. <strong>La batterie est pre-cochee</strong> avec les 8 prises standard ; decroche ce dont tu n'as pas besoin et ouvre les autres categories pour completer.</div>
       <div id="ila-sections"></div>
       <div class="ila-total" id="ila-total" style="display:none">Total : <span id="ila-count">0</span> canaux</div>
     </div>
@@ -1897,374 +1913,171 @@ function setSaving(b){
 // ══════════════════════════════════════
 // INPUT LIST ASSISTANT
 // ══════════════════════════════════════
-const ILA_TYPES = [
-  { id: 'band',     label: 'Groupe',     icon: 'ti-guitar-pick' },
-  { id: 'dj',       label: 'DJ Set',     icon: 'ti-vinyl' },
-  { id: 'conf',     label: 'Conference', icon: 'ti-microphone-2' },
-  { id: 'orch',     label: 'Orchestre',  icon: 'ti-music' },
-  { id: 'acoustic', label: 'Acoustique', icon: 'ti-music-note' },
+const ILA_CATS = [
+  {
+    id: 'drums', label: 'Batterie', icon: 'ti-circle', open: true,
+    items: [
+      { id:'kick_in',   label:'Kick In',             s:'KICK', mic:'Beta 91A', source:'Batterie', phantom:false, checked:true  },
+      { id:'snare_top', label:'Caisse Claire Top',   s:'SNRT', mic:'SM57',    source:'Batterie', phantom:false, checked:true  },
+      { id:'hihat',     label:'Hi-Hat',              s:'HIHT', mic:'KSM137',  source:'Batterie', phantom:false, checked:true  },
+      { id:'tom1',      label:'Tom 1',               s:'TOM1', mic:'e604',    source:'Batterie', phantom:false, checked:true  },
+      { id:'tom2',      label:'Tom 2',               s:'TOM2', mic:'e604',    source:'Batterie', phantom:false, checked:true  },
+      { id:'floor_tom', label:'Floor Tom',           s:'FLOR', mic:'e604',    source:'Batterie', phantom:false, checked:true  },
+      { id:'oh_l',      label:'Overhead L',          s:'OHL',  mic:'AKG 414', source:'Batterie', phantom:true,  checked:true  },
+      { id:'oh_r',      label:'Overhead R',          s:'OHR',  mic:'AKG 414', source:'Batterie', phantom:true,  checked:true  },
+      { id:'kick_out',  label:'Kick Out',            s:'KOUT', mic:'Beta 52A',source:'Batterie', phantom:false, checked:false },
+      { id:'snare_bot', label:'Caisse Claire Bottom',s:'SNRB', mic:'SM57',    source:'Batterie', phantom:false, checked:false },
+      { id:'room_l',    label:'Room L',              s:'ROML', mic:'AKG 414', source:'Batterie', phantom:true,  checked:false },
+      { id:'room_r',    label:'Room R',              s:'ROMR', mic:'AKG 414', source:'Batterie', phantom:true,  checked:false },
+      { id:'ride',      label:'Ride',                s:'RIDE', mic:'KSM137',  source:'Batterie', phantom:false, checked:false },
+      { id:'crash',     label:'Crash',               s:'CRSH', mic:'KSM137',  source:'Batterie', phantom:false, checked:false },
+    ],
+  },
+  {
+    id: 'bass_guitar', label: 'Basse / Guitare', icon: 'ti-guitar-pick', open: false,
+    items: [
+      { id:'bass_di',  label:'Bass DI',  s:'BASS', mic:'Radial JDI', source:'Basse',   phantom:false, checked:false },
+      { id:'bass_mic', label:'Bass Mic', s:'BSMC', mic:'Beta 52A',  source:'Basse',   phantom:false, checked:false },
+      { id:'guitar1',  label:'Guitar 1', s:'GT1',  mic:'SM57',      source:'Guitare', phantom:false, checked:false },
+      { id:'guitar2',  label:'Guitar 2', s:'GT2',  mic:'SM57',      source:'Guitare', phantom:false, checked:false },
+      { id:'guitar3',  label:'Guitar 3', s:'GT3',  mic:'SM57',      source:'Guitare', phantom:false, checked:false },
+    ],
+  },
+  {
+    id: 'vocals', label: 'Voix', icon: 'ti-microphone', open: false,
+    items: [
+      { id:'vox_lead', label:'Vox Lead',     s:'VOX', mic:'SM58', source:'Chant', phantom:false, checked:false },
+      { id:'bv1',      label:'Backing Vox 1',s:'BV1', mic:'SM58', source:'Chant', phantom:false, checked:false },
+      { id:'bv2',      label:'Backing Vox 2',s:'BV2', mic:'SM58', source:'Chant', phantom:false, checked:false },
+      { id:'bv3',      label:'Backing Vox 3',s:'BV3', mic:'SM58', source:'Chant', phantom:false, checked:false },
+    ],
+  },
+  {
+    id: 'dj', label: 'DJ', icon: 'ti-vinyl', open: false,
+    items: [
+      { id:'dj_l',   label:'DJ Main L', s:'DJL', mic:'DI Stereo', source:'DJ',       phantom:false, checked:false },
+      { id:'dj_r',   label:'DJ Main R', s:'DJR', mic:'DI Stereo', source:'DJ',       phantom:false, checked:false },
+      { id:'mc_mic', label:'MC Mic',    s:'MC',  mic:'SM58',      source:'Chant',    phantom:false, checked:false },
+      { id:'dj_aux', label:'AUX',       s:'AUX', mic:'DI',        source:'Playback', phantom:false, checked:false },
+    ],
+  },
+  {
+    id: 'perc', label: 'Percussions', icon: 'ti-circle', open: false,
+    items: [
+      { id:'cajon',     label:'Cajon',               s:'CAJ', mic:'Beta 52A', source:'Percussions', phantom:false, checked:false },
+      { id:'congas',    label:'Congas',               s:'CON', mic:'SM57',    source:'Percussions', phantom:false, checked:false },
+      { id:'bongos',    label:'Bongos',               s:'BON', mic:'SM57',    source:'Percussions', phantom:false, checked:false },
+      { id:'djembe',    label:'Djembe',               s:'DJM', mic:'Beta 52A',source:'Percussions', phantom:false, checked:false },
+      { id:'perc_misc', label:'Percussions diverses', s:'PRC', mic:'SM57',    source:'Percussions', phantom:false, checked:false },
+    ],
+  },
+  {
+    id: 'other', label: 'Autre', icon: 'ti-plug', open: false,
+    items: [
+      { id:'keys_l',   label:'Claviers L',  s:'KYL', mic:'DI Stereo', source:'Claviers',     phantom:false, checked:false },
+      { id:'keys_r',   label:'Claviers R',  s:'KYR', mic:'DI Stereo', source:'Claviers',     phantom:false, checked:false },
+      { id:'click',    label:'Click Track', s:'CLK', mic:'DI',        source:'Playback',     phantom:false, checked:false },
+      { id:'playback', label:'Playback',    s:'PLY', mic:'DI',        source:'Playback',     phantom:false, checked:false },
+      { id:'laptop',   label:'Ordinateur',  s:'PC',  mic:'DI',        source:'Presentation', phantom:false, checked:false },
+    ],
+  },
 ];
 
-// hf:true  = affiche le bouton HF (sans-fil)
-// stand    = valeur par defaut du pied micro ('grand','petit','embase','','autre')
-const ILA_SECTIONS = {
-  band: [
-    { id:'kick',  label:'Grosse caisse', sub:'Kick In / Out',    icon:'ti-circle',      default:1, stand:'petit',
-      gen:n=>{const r=[];if(n>=1)r.push({s:'KICK',l:'Kick In',   mic:'Beta 91A',phantom:false,source:'Batterie'});
-                          if(n>=2)r.push({s:'KOUT',l:'Kick Out',  mic:'Beta 52A',phantom:false,source:'Batterie'});return r.slice(0,n);}},
-    { id:'snare', label:'Caisse claire', sub:'Snare Top / Bot',  icon:'ti-circle',      default:2, stand:'petit',
-      gen:n=>n===1?[{s:'SNRT',l:'Snare Top',   mic:'SM57',phantom:false,source:'Batterie'}]
-                  :[{s:'SNRT',l:'Snare Top',   mic:'SM57',phantom:false,source:'Batterie'},
-                    {s:'SNRB',l:'Snare Bottom',mic:'SM57',phantom:false,source:'Batterie'}]},
-    { id:'hh',    label:'Charleston',    sub:'Hi-Hat',           icon:'ti-circle',      default:1, stand:'petit',
-      gen:n=>Array.from({length:n},(_,i)=>({s:n>1?'HH'+(i+1):'HIHT',l:n>1?'Hi-Hat '+(i+1):'Hi-Hat',mic:'KSM137',phantom:false,source:'Batterie'}))},
-    { id:'tom',   label:'Toms',          sub:'Tom 1·2·Floor',    icon:'ti-circle',      default:3, stand:'petit',
-      gen:n=>Array.from({length:n},(_,i)=>{const fl=i===n-1&&n>=3;return{s:fl?'FLOR':'TOM'+(i+1),l:fl?'Floor Tom':'Tom '+(i+1),mic:'e604',phantom:false,source:'Batterie'};})},
-    { id:'oh',    label:'Overhead',      sub:'OH L / R',         icon:'ti-circle',      default:2, stand:'grand',
-      gen:n=>n===1?[{s:'OH',  l:'Overhead',  mic:'AKG 414',phantom:true,source:'Batterie'}]
-                  :[{s:'OH L',l:'Overhead L',mic:'AKG 414',phantom:true,source:'Batterie'},
-                    {s:'OH R',l:'Overhead R',mic:'AKG 414',phantom:true,source:'Batterie'}]},
-    { id:'bass',  label:'Basse',         sub:'Bass DI + Mic',    icon:'ti-activity',    default:2, stand:'petit',
-      gen:n=>[{s:'BASS',l:'Bass DI', mic:'Radial JDI',phantom:false,source:'Basse'},
-              {s:'BSMC',l:'Bass Mic',mic:'Beta 52A', phantom:false,source:'Basse'}].slice(0,n)},
-    { id:'gtr',   label:'Guitares',      sub:'Guitar 1·2…',      icon:'ti-guitar-pick', default:2, stand:'grand', hf:true,
-      gen:n=>Array.from({length:n},(_,i)=>({s:'GT'+(i+1),l:'Guitar '+(i+1),mic:'SM57',phantom:false,source:'Guitare'}))},
-    { id:'keys',  label:'Claviers',      sub:'Keys L / R',       icon:'ti-piano',       default:2, stand:'',
-      gen:n=>{const r=[];for(let i=0;i<Math.floor(n/2);i++){const p=Math.floor(n/2)>1?' '+(i+1):'';
-        r.push({s:Math.floor(n/2)>1?'K'+(i+1)+'L':'KYL',l:'Keys'+p+' L',mic:'DI Stereo',phantom:false,source:'Claviers'});
-        r.push({s:Math.floor(n/2)>1?'K'+(i+1)+'R':'KYR',l:'Keys'+p+' R',mic:'DI Stereo',phantom:false,source:'Claviers'});}return r;}},
-    { id:'vox',   label:'Voix',          sub:'Vox Lead · BV…',   icon:'ti-microphone',  default:3, stand:'grand', hf:true,
-      gen:n=>n===0?[]:Array.from({length:n},(_,i)=>({s:i===0?'VOX':'BV'+(i),l:i===0?'Vox Lead':'Backing Vox '+(i),mic:'SM58',phantom:false,source:'Chant'}))},
-    { id:'trumpet', label:'Trompette',    sub:'Trumpet',          icon:'ti-music',       default:0, stand:'grand', hf:true,
-      gen:n=>Array.from({length:n},(_,i)=>({s:n>1?'TPT'+(i+1):'TRPT',l:n>1?'Trumpet '+(i+1):'Trumpet',mic:'e906',phantom:false,source:'Cuivres'}))},
-    { id:'trombone', label:'Trombone',   sub:'Trombone',         icon:'ti-music',       default:0, stand:'grand', hf:true,
-      gen:n=>Array.from({length:n},(_,i)=>({s:n>1?'TRB'+(i+1):'TRBN',l:n>1?'Trombone '+(i+1):'Trombone',mic:'e906',phantom:false,source:'Cuivres'}))},
-    { id:'saxophone', label:'Saxophone', sub:'Saxophone',        icon:'ti-music',       default:0, stand:'grand', hf:true,
-      gen:n=>Array.from({length:n},(_,i)=>({s:n>1?'SAX'+(i+1):'SAXO',l:n>1?'Saxophone '+(i+1):'Saxophone',mic:'e906',phantom:false,source:'Cuivres'}))},
-  ],
-  dj: [
-    { id:'djmain',  label:'DJ (stereo)',    sub:'DJ Main L / R',  icon:'ti-vinyl',        default:2, stand:'',
-      gen:n=>[{s:'DJL',l:'DJ Main L',mic:'DI Stereo',phantom:false,source:'DJ'},
-              {s:'DJR',l:'DJ Main R',mic:'DI Stereo',phantom:false,source:'DJ'}].slice(0,n)},
-    { id:'mic',     label:'Micro MC',       sub:'MC Mic',         icon:'ti-microphone',   default:1, stand:'petit', hf:true,
-      gen:n=>Array.from({length:n},(_,i)=>({s:n>1?'MC'+(i+1):'MC',l:n>1?'MC Mic '+(i+1):'MC Mic',mic:'SM58',phantom:false,source:'Chant'}))},
-    { id:'aux',     label:'Entrees AUX',    sub:'AUX / Playback', icon:'ti-plug',         default:0, stand:'',
-      gen:n=>Array.from({length:n},(_,i)=>({s:'AUX'+(i+1),l:'AUX '+(i+1),mic:'DI',phantom:false,source:'Playback'}))},
-  ],
-  conf: [
-    { id:'confmic', label:'Intervenants',   sub:'Speaker 1·2…',  icon:'ti-microphone-2', default:4, stand:'embase', hf:true,
-      gen:n=>Array.from({length:n},(_,i)=>({s:'INT'+(i+1),l:'Speaker '+(i+1),mic:'DPA 4088',phantom:true,source:'Parole'}))},
-    { id:'handheld',label:'HF nomades',     sub:'Handheld HF',   icon:'ti-microphone',   default:2, stand:'',
-      gen:n=>Array.from({length:n},(_,i)=>({s:'HF'+(i+1),l:'Handheld HF '+(i+1),mic:'Sennheiser',phantom:false,source:'HF'}))},
-    { id:'laptop',  label:'Ordinateurs',    sub:'Laptop',         icon:'ti-device-laptop',default:1, stand:'petit',
-      gen:n=>Array.from({length:n},(_,i)=>({s:n>1?'PC'+(i+1):'PC',l:n>1?'Laptop '+(i+1):'Laptop',mic:'DI',phantom:false,source:'Presentation'}))},
-    { id:'ambmic',  label:'Micro ambiance', sub:'Ambient Mic',   icon:'ti-wave-sine',    default:0, stand:'grand',
-      gen:n=>Array.from({length:n},(_,i)=>({s:n>1?'AMB'+(i+1):'AMB',l:n>1?'Ambient Mic '+(i+1):'Ambient Mic',mic:'AKG 414',phantom:true,source:'Ambiance'}))},
-  ],
-  orch: [
-    { id:'str',    label:'Cordes',       sub:'Strings',        icon:'ti-music',       default:4, stand:'grand',
-      gen:n=>Array.from({length:n},(_,i)=>({s:'STR'+(i+1),l:'Strings '+(i+1),mic:'MKH 50',phantom:true,source:'Orchestre'}))},
-    { id:'ww',     label:'Bois',         sub:'Woodwinds',      icon:'ti-music',       default:2, stand:'grand',
-      gen:n=>Array.from({length:n},(_,i)=>({s:'WW'+(i+1),l:['Flute','Oboe','Clarinet','Bassoon'][i]||'Woodwind '+(i+1),mic:'MKH 50',phantom:true,source:'Orchestre'}))},
-    { id:'orchbr', label:'Cuivres',      sub:'Brass',          icon:'ti-music',       default:2, stand:'grand', hf:true,
-      gen:n=>Array.from({length:n},(_,i)=>({s:['TPT','FHN','TRB','TBA'][i]||'BR'+(i+1),l:['Trumpet','French Horn','Trombone','Tuba'][i]||'Brass '+(i+1),mic:'e906',phantom:false,source:'Orchestre'}))},
-    { id:'perc',   label:'Percussions',  sub:'Percussion',     icon:'ti-circle',      default:2, stand:'petit',
-      gen:n=>Array.from({length:n},(_,i)=>({s:'PRC'+(i+1),l:'Percussion '+(i+1),mic:'SM57',phantom:false,source:'Orchestre'}))},
-    { id:'piano',  label:'Piano',        sub:'Piano L / R',    icon:'ti-piano',       default:2, stand:'',
-      gen:n=>[{s:'PNOL',l:'Piano L',mic:'MKH 50',phantom:true,source:'Orchestre'},
-              {s:'PNOR',l:'Piano R',mic:'MKH 50',phantom:true,source:'Orchestre'}].slice(0,n)},
-    { id:'orcvox', label:'Soliste voix', sub:'Soloist',        icon:'ti-microphone',  default:1, stand:'grand', hf:true,
-      gen:n=>Array.from({length:n},(_,i)=>({s:n>1?'SOL'+(i+1):'SOL',l:n>1?'Soloist '+(i+1):'Soloist',mic:'KSM44',phantom:true,source:'Chant'}))},
-  ],
-  acoustic: [
-    { id:'acgtr',  label:'Guitares acous.', sub:'Acoustic Guitar', icon:'ti-guitar-pick', default:1, stand:'petit', hf:true,
-      gen:n=>Array.from({length:n},(_,i)=>({s:n>1?'AGT'+(i+1):'AGTR',l:n>1?'Acoustic Guitar '+(i+1):'Acoustic Guitar',mic:'DI',phantom:false,source:'Guitare'}))},
-    { id:'acvox',  label:'Voix',            sub:'Vox Lead · BV…',  icon:'ti-microphone',  default:2, stand:'grand', hf:true,
-      gen:n=>Array.from({length:n},(_,i)=>({s:i===0?'VOX':'BV'+(i),l:i===0?'Vox Lead':'Backing Vox '+(i),mic:'KSM44',phantom:true,source:'Chant'}))},
-    { id:'cajon',  label:'Cajon',           sub:'Cajon',            icon:'ti-circle',      default:0, stand:'',
-      gen:n=>Array.from({length:n},(_,i)=>({s:n>1?'CAJ'+(i+1):'CAJ',l:n>1?'Cajon '+(i+1):'Cajon',mic:'Beta 52A',phantom:false,source:'Batterie'}))},
-    { id:'ackeys', label:'Claviers',        sub:'Keys L / R',       icon:'ti-piano',       default:0, stand:'',
-      gen:n=>{const r=[];for(let i=0;i<Math.floor(n/2);i++){r.push({s:'KYL',l:'Keys L',mic:'DI Stereo',phantom:false,source:'Claviers'});r.push({s:'KYR',l:'Keys R',mic:'DI Stereo',phantom:false,source:'Claviers'});}return r;}},
-    { id:'acaux',  label:'AUX / Click',     sub:'Click / Playback', icon:'ti-plug',        default:0, stand:'',
-      gen:n=>Array.from({length:n},(_,i)=>({s:i===0?'CLK':'AUX'+(i+1),l:i===0?'Click Track':'Playback '+(i+1),mic:'DI',phantom:false,source:'Playback'}))},
-  ],
-};
 
-const ILA_STANDS = [
-  { v:'',       label:'Aucun' },
-  { v:'grand',  label:'Grand pied' },
-  { v:'petit',  label:'Petit pied' },
-  { v:'embase', label:'Embase ronde' },
-  { v:'autre',  label:'Autre' },
-];
-
-let _ilaType = null;
-let _ilaVals = {};
-let _ilaCustoms = [];      // {uid,afterId,n,label,s,mic,source,phantom,hf,stand}
-let _ilaSavedN = {};       // {savedId:n} pour la session courante
-let _ilaAddFormAfter = null; // null | sectionId | 'end'
-let _ilaDraft = {};
-
-function _ilaLoadSaved(){try{return JSON.parse(localStorage.getItem('ila_customs')||'[]');}catch(e){return[];}}
-function _ilaSavePersist(arr){localStorage.setItem('ila_customs',JSON.stringify(arr));}
+let _ilaChecked = {};
+let _ilaCatOpen = {};
 
 function openILAssist() {
-  _ilaType = null; _ilaVals = {}; _ilaCustoms = []; _ilaSavedN = {};
-  _ilaAddFormAfter = null; _ilaDraft = {label:'',s:'',mic:'',source:'',phantom:false,hf:false,stand:'',_n:1};
-  const mo = document.getElementById('il-assist-modal');
-  document.getElementById('ila-types').innerHTML = ILA_TYPES.map(t =>
-    '<button class="ila-type-btn" data-t="'+t.id+'" onclick="ilaSetType(\''+t.id+'\')"><i class="ti '+t.icon+'"></i>'+t.label+'</button>'
-  ).join('');
-  document.getElementById('ila-sections').innerHTML = '';
-  document.getElementById('ila-total').style.display = 'none';
-  document.getElementById('ila-apply-btn').style.display = 'none';
-  document.getElementById('ila-save-tpl-btn').style.display = 'none';
-  mo.className = 'modal-ov show';
+  _ilaChecked = {};
+  _ilaCatOpen = {};
+  ILA_CATS.forEach(function(cat) {
+    _ilaCatOpen[cat.id] = !!cat.open;
+    cat.items.forEach(function(item) {
+      _ilaChecked[item.id] = !!item.checked;
+    });
+  });
+  _ilaRender();
+  document.getElementById('il-assist-modal').className = 'modal-ov show';
 }
 
 function closeILAssist() {
   document.getElementById('il-assist-modal').className = 'modal-ov';
 }
 
-function ilaSetType(t) {
-  _ilaType = t;
-  document.querySelectorAll('.ila-type-btn').forEach(b => b.classList.toggle('sel', b.dataset.t === t));
-  (ILA_SECTIONS[t]||[]).forEach(s => {
-    if (_ilaVals[s.id]===undefined) _ilaVals[s.id]=s.default;
-    if (_ilaVals[s.id+'_stand']===undefined) _ilaVals[s.id+'_stand']=s.stand||'';
-    if (_ilaVals[s.id+'_hf']===undefined) _ilaVals[s.id+'_hf']=false;
-  });
-  _ilaRender();
+function ilaToggleCat(catId) {
+  _ilaCatOpen[catId] = !_ilaCatOpen[catId];
+  var hd = document.querySelector('.ila-cat-hd[data-cat="'+catId+'"]');
+  var body = document.querySelector('.ila-cat-body[data-cat="'+catId+'"]');
+  var arr = hd ? hd.querySelector('.ila-cat-hd-arr') : null;
+  var open = _ilaCatOpen[catId];
+  if (body) body.style.display = open ? '' : 'none';
+  if (arr) arr.style.transform = open ? 'rotate(90deg)' : '';
 }
 
-/* ---- render helpers ---- */
-function _ilaStandOpts(sel){return ILA_STANDS.map(o=>'<option value="'+o.v+'"'+(sel===o.v?' selected':'')+'>'+o.label+'</option>').join('');}
-function _escQ(v){return(v||'').replace(/"/g,'&quot;');}
-
-function _ilaStdRow(s){
-  const v=_ilaVals[s.id]||0,stand=_ilaVals[s.id+'_stand']||'',hfOn=_ilaVals[s.id+'_hf']||false;
-  const off=v===0;
-  const hfBtn=s.hf?'<button class="ila-hf-btn'+(hfOn?' on':'')+'" onclick="ilaToggleHF(\''+s.id+'\')"><i class="ti ti-wifi"></i>HF</button>':'';
-  return '<div class="ila-sec'+(off?' ila-sec-off':'')+'" title="'+(off?'Cliquer + pour activer':'')+'" >'+
-    '<i class="ti '+s.icon+' ila-sec-icon"></i>'+
-    '<div><div class="ila-sec-lbl">'+s.label+'</div><div class="ila-sec-sub">'+s.sub+'</div></div>'+
-    '<div class="ila-sec-opts">'+hfBtn+
-    '<select class="ila-stand-sel" onchange="ilaSetStand(\''+s.id+'\',this.value)">'+_ilaStandOpts(stand)+'</select>'+
-    '<div class="ila-spinner">'+
-    '<button class="ila-spin-btn" onclick="ilaAdj(\''+s.id+'\',-1)"'+(off?' disabled':'')+'>-</button>'+
-    '<span class="ila-spin-val" id="ila-v-'+s.id+'">'+v+'</span>'+
-    '<button class="ila-spin-btn" onclick="ilaAdj(\''+s.id+'\',1)">+</button></div>'+
-    '<button class="ila-add-after-btn" onclick="ilaShowAdd(\''+s.id+'\')" title="Ajouter un instrument ici"><i class="ti ti-plus"></i></button>'+
-    '</div></div>';
-}
-
-function _ilaCustomRow(c){
-  const hfBtn='<button class="ila-hf-btn'+(c.hf?' on':'')+'" onclick="ilaCustomHF(\''+c.uid+'\')"><i class="ti ti-wifi"></i>HF</button>';
-  return '<div class="ila-sec ila-custom-row">'+
-    '<i class="ti ti-puzzle ila-sec-icon" style="color:var(--blu2)"></i>'+
-    '<div><div class="ila-sec-lbl">'+_escQ(c.label)+'</div><div class="ila-sec-sub">'+(c.mic||'')+(c.source?' · '+c.source:'')+'</div></div>'+
-    '<div class="ila-sec-opts">'+hfBtn+
-    '<select class="ila-stand-sel" onchange="ilaCustomStand(\''+c.uid+'\',this.value)">'+_ilaStandOpts(c.stand)+'</select>'+
-    '<div class="ila-spinner">'+
-    '<button class="ila-spin-btn" onclick="ilaCustomAdj(\''+c.uid+'\',-1)">-</button>'+
-    '<span class="ila-spin-val" id="ila-cv-'+c.uid+'">'+c.n+'</span>'+
-    '<button class="ila-spin-btn" onclick="ilaCustomAdj(\''+c.uid+'\',1)">+</button></div>'+
-    '<button class="ila-add-after-btn" style="color:var(--err)" onclick="ilaRemoveCustom(\''+c.uid+'\')" title="Retirer"><i class="ti ti-x"></i></button>'+
-    '</div></div>';
-}
-
-function _ilaAddFormHTML(afterId){
-  const d=_ilaDraft;
-  return '<div class="ila-add-form">'+
-    '<div style="display:flex;gap:6px;margin-bottom:7px">'+
-    '<input class="ila-af-inp" style="flex:1" placeholder="Nom de l\'instrument" value="'+_escQ(d.label)+'" oninput="_ilaDraft.label=this.value;const sv=document.getElementById(\'ila-af-s\');if(sv&&!sv._edited)sv.value=this.value.slice(0,4).toUpperCase()"/>'+
-    '<input class="ila-af-inp" id="ila-af-s" style="width:54px;font-family:var(--m);text-transform:uppercase;text-align:center" maxlength="4" placeholder="ABCD" value="'+_escQ(d.s)+'" oninput="this._edited=1;_ilaDraft.s=this.value.toUpperCase();this.value=_ilaDraft.s"/>'+
-    '</div>'+
-    '<div style="display:flex;gap:6px;margin-bottom:8px">'+
-    '<input class="ila-af-inp" style="flex:1" placeholder="Micro (ex: SM57)" value="'+_escQ(d.mic)+'" oninput="_ilaDraft.mic=this.value"/>'+
-    '<input class="ila-af-inp" style="flex:1" placeholder="Source (ex: Batterie)" value="'+_escQ(d.source)+'" oninput="_ilaDraft.source=this.value"/>'+
-    '</div>'+
-    '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'+
-    '<select class="ila-stand-sel" onchange="_ilaDraft.stand=this.value">'+_ilaStandOpts(d.stand)+'</select>'+
-    '<button class="ila-hf-btn'+(d.hf?' on':'')+'" id="ila-af-hf" onclick="_ilaDraft.hf=!_ilaDraft.hf;this.classList.toggle(\'on\',_ilaDraft.hf)"><i class="ti ti-wifi"></i>HF</button>'+
-    '<div class="ila-spinner" style="margin-left:auto">'+
-    '<button class="ila-spin-btn" onclick="_ilaDraft._n=Math.max(1,(_ilaDraft._n||1)-1);this.nextElementSibling.textContent=_ilaDraft._n">-</button>'+
-    '<span class="ila-spin-val">'+(d._n||1)+'</span>'+
-    '<button class="ila-spin-btn" onclick="_ilaDraft._n=Math.min(16,(_ilaDraft._n||1)+1);this.previousElementSibling.textContent=_ilaDraft._n">+</button></div>'+
-    '</div>'+
-    '<div style="display:flex;gap:6px;margin-top:9px">'+
-    '<button class="btn sm" onclick="ilaSaveAndAdd(\''+afterId+'\')"><i class="ti ti-device-floppy"></i>Sauvegarder</button>'+
-    '<button class="btn sm ghost" onclick="ilaAddOnly(\''+afterId+'\')">Ajouter</button>'+
-    '<button class="btn sm ghost" onclick="ilaHideAdd()" style="margin-left:auto"><i class="ti ti-x"></i></button>'+
-    '</div></div>';
-}
-
-function _ilaSavedBlock(){
-  const saved=_ilaLoadSaved();
-  let h='<div class="ila-saved-sec"><div class="ila-saved-title"><i class="ti ti-star" style="color:var(--ora)"></i>Mes instruments</div>';
-  if(!saved.length){
-    h+='<div style="font-size:10px;color:var(--muted);margin-bottom:6px">Aucun instrument sauvegarde — utilise <b>Sauvegarder</b></div>';
-  } else {
-    saved.forEach(sv=>{
-      const n=_ilaSavedN[sv.id]||0;
-      const hfBtn='<button class="ila-hf-btn'+(sv.hf?' on':'')+'" onclick="ilaSavedHF(\''+sv.id+'\')"><i class="ti ti-wifi"></i>HF</button>';
-      h+='<div class="ila-sec ila-saved-row">'+
-        '<i class="ti ti-star ila-sec-icon" style="color:var(--ora)"></i>'+
-        '<div style="flex:1"><div class="ila-sec-lbl">'+_escQ(sv.label)+'</div><div class="ila-sec-sub">'+(sv.mic||'')+(sv.source?' · '+sv.source:'')+'</div></div>'+
-        '<div class="ila-sec-opts">'+hfBtn+
-        '<select class="ila-stand-sel" onchange="ilaSavedStand(\''+sv.id+'\',this.value)">'+_ilaStandOpts(sv.stand||'')+'</select>'+
-        '<div class="ila-spinner">'+
-        '<button class="ila-spin-btn" onclick="ilaSavedAdj(\''+sv.id+'\',-1)">-</button>'+
-        '<span class="ila-spin-val" id="ila-sv-'+sv.id+'">'+n+'</span>'+
-        '<button class="ila-spin-btn" onclick="ilaSavedAdj(\''+sv.id+'\',1)">+</button></div>'+
-        '<button class="ila-add-after-btn" style="color:var(--err)" onclick="ilaDeleteSaved(\''+sv.id+'\')" title="Supprimer"><i class="ti ti-trash"></i></button>'+
-        '</div></div>';
-    });
+function ilaToggleItem(itemId) {
+  _ilaChecked[itemId] = !_ilaChecked[itemId];
+  var cb = document.getElementById('ilacb-'+itemId);
+  if (cb) {
+    cb.checked = _ilaChecked[itemId];
+    var row = cb.closest('.ila-cb-row');
+    if (row) row.classList.toggle('checked', _ilaChecked[itemId]);
   }
-  h+='<button class="ila-new-btn" onclick="ilaShowAdd(\'end\')"><i class="ti ti-plus"></i>Nouvel instrument</button>';
-  if(_ilaAddFormAfter==='end') h+=_ilaAddFormHTML('end');
-  return h+'</div>';
+  ILA_CATS.forEach(function(cat) {
+    var found = cat.items.some(function(it) { return it.id === itemId; });
+    if (found) {
+      var cnt = cat.items.filter(function(it) { return _ilaChecked[it.id]; }).length;
+      var el = document.getElementById('ila-cat-cnt-'+cat.id);
+      if (el) el.textContent = cnt > 0 ? cnt : '';
+    }
+  });
+  _ilaUpdateCount();
 }
 
 function _ilaRender() {
-  if(!_ilaType){document.getElementById('ila-sections').innerHTML='';_ilaUpdateCount();return;}
-  const secs=ILA_SECTIONS[_ilaType]||[];
-  let h='';
-  secs.forEach(s=>{
-    h+=_ilaStdRow(s);
-    _ilaCustoms.filter(c=>c.afterId===s.id).forEach(c=>{h+=_ilaCustomRow(c);});
-    if(_ilaAddFormAfter===s.id) h+=_ilaAddFormHTML(s.id);
-  });
-  _ilaCustoms.filter(c=>c.afterId==='end').forEach(c=>{h+=_ilaCustomRow(c);});
-  h+=_ilaSavedBlock();
-  document.getElementById('ila-sections').innerHTML=h;
-  _ilaUpdateCount();
-}
-
-/* ---- standard section controls ---- */
-function ilaAdj(id,delta){
-  const prev=_ilaVals[id]||0;
-  _ilaVals[id]=Math.max(0,Math.min(32,prev+delta));
-  const v=_ilaVals[id];
-  const el=document.getElementById('ila-v-'+id);if(el)el.textContent=v;
-  // Toggle off class + minus button disabled on 0 boundary
-  if((prev===0&&v>0)||(prev>0&&v===0)){
-    const sec=el?.closest('.ila-sec');
-    if(sec){sec.classList.toggle('ila-sec-off',v===0);const mb=sec.querySelector('.ila-spin-btn');if(mb)mb.disabled=(v===0);}
-  }
-  _ilaUpdateCount();
-}
-function ilaToggleHF(id){
-  _ilaVals[id+'_hf']=!_ilaVals[id+'_hf'];
-  const btn=document.querySelector('[onclick="ilaToggleHF(\''+id+'\')"]');
-  if(btn)btn.classList.toggle('on',_ilaVals[id+'_hf']);
-  _ilaUpdateCount();
-}
-function ilaSetStand(id,val){_ilaVals[id+'_stand']=val;}
-
-/* ---- custom row controls ---- */
-function ilaCustomAdj(uid,delta){
-  const c=_ilaCustoms.find(x=>x.uid===uid);if(!c)return;
-  c.n=Math.max(0,Math.min(16,c.n+delta));
-  const el=document.getElementById('ila-cv-'+uid);if(el)el.textContent=c.n;
-  _ilaUpdateCount();
-}
-function ilaCustomHF(uid){const c=_ilaCustoms.find(x=>x.uid===uid);if(c){c.hf=!c.hf;_ilaRender();}}
-function ilaCustomStand(uid,val){const c=_ilaCustoms.find(x=>x.uid===uid);if(c)c.stand=val;}
-function ilaRemoveCustom(uid){_ilaCustoms=_ilaCustoms.filter(x=>x.uid!==uid);_ilaRender();}
-
-/* ---- saved controls ---- */
-function ilaSavedAdj(id,delta){
-  _ilaSavedN[id]=Math.max(0,Math.min(16,(_ilaSavedN[id]||0)+delta));
-  const el=document.getElementById('ila-sv-'+id);if(el)el.textContent=_ilaSavedN[id];
-  _ilaUpdateCount();
-}
-function ilaSavedHF(id){const s=_ilaLoadSaved();const i=s.find(x=>x.id===id);if(i){i.hf=!i.hf;_ilaSavePersist(s);_ilaRender();}}
-function ilaSavedStand(id,val){const s=_ilaLoadSaved();const i=s.find(x=>x.id===id);if(i){i.stand=val;_ilaSavePersist(s);}}
-function ilaDeleteSaved(id){_ilaSavePersist(_ilaLoadSaved().filter(x=>x.id!==id));delete _ilaSavedN[id];_ilaRender();}
-
-/* ---- add form ---- */
-function ilaShowAdd(afterId){
-  _ilaAddFormAfter=afterId;
-  _ilaDraft={label:'',s:'',mic:'',source:'',phantom:false,hf:false,stand:'',_n:1};
-  _ilaRender();
-  setTimeout(()=>{const i=document.querySelector('.ila-af-inp');if(i)i.focus();},60);
-}
-function ilaHideAdd(){_ilaAddFormAfter=null;_ilaRender();}
-
-function _ilaCommit(afterId){
-  const label=(_ilaDraft.label||'').trim();
-  if(!label){toast('Entrer un nom d\'instrument');return null;}
-  return {uid:'c'+Date.now(),afterId,n:_ilaDraft._n||1,
-    label,s:(_ilaDraft.s||label.slice(0,4)).toUpperCase().slice(0,4),
-    mic:(_ilaDraft.mic||'').trim(),source:(_ilaDraft.source||'').trim(),
-    phantom:_ilaDraft.phantom||false,hf:_ilaDraft.hf||false,stand:_ilaDraft.stand||''};
-}
-function ilaSaveAndAdd(afterId){
-  const c=_ilaCommit(afterId);if(!c)return;
-  const saved=_ilaLoadSaved();
-  saved.push({id:c.uid,label:c.label,s:c.s,mic:c.mic,source:c.source,phantom:c.phantom,hf:c.hf,stand:c.stand,defN:c.n});
-  _ilaSavePersist(saved);
-  _ilaCustoms.push(c);_ilaAddFormAfter=null;_ilaDraft={label:'',s:'',mic:'',source:'',phantom:false,hf:false,stand:'',_n:1};
-  _ilaRender();toast('Instrument sauvegarde !');
-}
-function ilaAddOnly(afterId){
-  const c=_ilaCommit(afterId);if(!c)return;
-  _ilaCustoms.push(c);_ilaAddFormAfter=null;_ilaDraft={label:'',s:'',mic:'',source:'',phantom:false,hf:false,stand:'',_n:1};
-  _ilaRender();
-}
-
-/* ---- count + channel generation ---- */
-function _ilaUpdateCount(){
-  const total=_ilaAllChannels().length;
-  document.getElementById('ila-count').textContent=total;
-  document.getElementById('ila-total').style.display='block';
-  const vis=total>0?'inline-flex':'none';
-  document.getElementById('ila-apply-btn').style.display=vis;
-  document.getElementById('ila-save-tpl-btn').style.display=vis;
-}
-
-const ILA_STAND_LABELS={grand:'Grand pied',petit:'Petit pied',embase:'Embase ronde',autre:'Autre'};
-
-function _ilaCustomChannels(c,n){
-  const res=[];
-  for(let i=0;i<n;i++){
-    const multi=n>1;
-    const src=c.hf?'HF':(c.source||(c.mic==='DI'?'DI':'Scene'));
-    res.push({
-      s:multi?c.s.slice(0,3)+(i+1):c.s,
-      l:multi?c.label+' '+(i+1):c.label,
-      mic:c.mic||'',source:src,
-      phantom:c.hf?false:(c.phantom||false),
-      note:ILA_STAND_LABELS[c.stand]||'',
+  var h = '';
+  ILA_CATS.forEach(function(cat) {
+    var open = !!_ilaCatOpen[cat.id];
+    var cnt = cat.items.filter(function(it) { return _ilaChecked[it.id]; }).length;
+    h += '<div class="ila-cat">';
+    h += '<div class="ila-cat-hd" data-cat="'+cat.id+'" onclick="ilaToggleCat(\''+cat.id+'\')">';
+    h += '<i class="ti '+cat.icon+' ila-cat-hd-icon"></i>';
+    h += '<span class="ila-cat-hd-label">'+cat.label+'</span>';
+    h += '<span class="ila-cat-hd-cnt" id="ila-cat-cnt-'+cat.id+'">'+(cnt > 0 ? cnt : '')+'</span>';
+    h += '<i class="ti ti-chevron-right ila-cat-hd-arr" style="'+(open ? 'transform:rotate(90deg)' : '')+'"></i>';
+    h += '</div>';
+    h += '<div class="ila-cat-body" data-cat="'+cat.id+'" style="'+(open ? '' : 'display:none')+'">';
+    cat.items.forEach(function(item) {
+      var chk = !!_ilaChecked[item.id];
+      h += '<div class="ila-cb-row'+(chk ? ' checked' : '')+'" onclick="ilaToggleItem(\''+item.id+'\')">';
+      h += '<input type="checkbox" id="ilacb-'+item.id+'"'+(chk ? ' checked' : '')+' style="pointer-events:none" tabindex="-1">';
+      h += '<span class="ila-cb-lbl">'+item.label+'</span>';
+      h += '<span class="ila-cb-mic">'+item.mic+'</span>';
+      h += '</div>';
     });
-  }
-  return res;
+    h += '</div>';
+    h += '</div>';
+  });
+  document.getElementById('ila-sections').innerHTML = h;
+  _ilaUpdateCount();
+}
+
+function _ilaUpdateCount() {
+  var total = _ilaAllChannels().length;
+  document.getElementById('ila-count').textContent = total;
+  document.getElementById('ila-total').style.display = 'block';
+  var vis = total > 0 ? 'inline-flex' : 'none';
+  document.getElementById('ila-apply-btn').style.display = vis;
+  document.getElementById('ila-save-tpl-btn').style.display = vis;
 }
 
 function _ilaAllChannels() {
-  if (!_ilaType) return [];
-  const secs=ILA_SECTIONS[_ilaType]||[];
-  const rows=[];
-  secs.forEach(s=>{
-    const n=_ilaVals[s.id]||0;
-    if(n>0){
-      const hf=_ilaVals[s.id+'_hf']||false;
-      const standLabel=ILA_STAND_LABELS[_ilaVals[s.id+'_stand']||'']||'';
-      const chs=s.gen(n);
-      chs.forEach(c=>{
-        if(!c.source) c.source=c.mic==='DI'?'DI':'Scene';
-        if(hf){c.source='HF';c.phantom=false;}
-        if(standLabel) c.note=standLabel;
-      });
-      rows.push(...chs);
-    }
-    _ilaCustoms.filter(c=>c.afterId===s.id).forEach(c=>{rows.push(..._ilaCustomChannels(c,c.n));});
-  });
-  _ilaCustoms.filter(c=>c.afterId==='end').forEach(c=>{rows.push(..._ilaCustomChannels(c,c.n));});
-  _ilaLoadSaved().forEach(sv=>{
-    const n=_ilaSavedN[sv.id]||0;
-    if(n>0) rows.push(..._ilaCustomChannels(sv,n));
+  var rows = [];
+  ILA_CATS.forEach(function(cat) {
+    cat.items.forEach(function(item) {
+      if (_ilaChecked[item.id]) {
+        rows.push({ s: item.s, l: item.label, source: item.source, mic: item.mic, phantom: item.phantom, note: '' });
+      }
+    });
   });
   return rows;
 }
