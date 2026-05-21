@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>PatchFlow — La gestion de patch pour les professionnels du son</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080b12;--bg2:#0a0f1c;--surf:#0f1629;--surf2:#141c2e;--surf3:#1a2438;
+  --bdr:#1e2a3a;--bdr2:#243040;
+  --txt:#e8edf8;--txt2:#b0bcd4;--muted:#6a7a94;
+  --ora:#ff6b1a;--ora2:#ff8c42;--ora-d:rgba(255,107,26,.12);
+  --blu:#1a8fff;--grn:#22d6a0;--pur:#9b6aff;
+  --f:'Outfit',sans-serif;--m:'DM Mono',monospace;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--txt);font-family:var(--f);line-height:1.6;overflow-x:hidden}
+
+/* ── NAV ── */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(8,11,18,.85);backdrop-filter:blur(18px);border-bottom:1px solid var(--bdr);padding:0 5vw;display:flex;align-items:center;height:64px;gap:32px}
+.nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;flex-shrink:0}
+.nav-logo-icon{width:36px;height:36px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.nav-logo-text{font-size:17px;font-weight:700;color:var(--txt);letter-spacing:-.3px}
+.nav-logo-text span{color:var(--ora)}
+.nav-links{display:flex;align-items:center;gap:28px;flex:1}
+.nav-links a{color:var(--muted);text-decoration:none;font-size:13px;font-weight:500;transition:color .15s}
+.nav-links a:hover{color:var(--txt)}
+.nav-cta{display:flex;gap:10px;align-items:center;margin-left:auto}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 20px;border-radius:9px;font-family:var(--f);font-size:13px;font-weight:600;cursor:pointer;border:none;text-decoration:none;transition:all .18s;white-space:nowrap}
+.btn-ghost{background:transparent;color:var(--txt2);border:1px solid var(--bdr2)}
+.btn-ghost:hover{background:var(--surf2);color:var(--txt)}
+.btn-ora{background:var(--ora);color:#000}
+.btn-ora:hover{background:var(--ora2);transform:translateY(-1px);box-shadow:0 6px 24px rgba(255,107,26,.35)}
+.btn-lg{padding:14px 32px;font-size:15px;border-radius:12px}
+.btn-xl{padding:17px 40px;font-size:16px;border-radius:14px;font-weight:700}
+
+/* ── HERO ── */
+.hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:120px 5vw 80px;position:relative;overflow:hidden}
+.hero-glow{position:absolute;top:0;left:50%;transform:translateX(-50%);width:900px;height:600px;background:radial-gradient(ellipse at 50% 0%,rgba(255,107,26,.13) 0%,transparent 65%);pointer-events:none}
+.hero-glow2{position:absolute;bottom:0;left:10%;width:600px;height:400px;background:radial-gradient(ellipse at 0% 100%,rgba(26,143,255,.07) 0%,transparent 60%);pointer-events:none}
+.hero-badge{display:inline-flex;align-items:center;gap:7px;background:var(--ora-d);border:1px solid rgba(255,107,26,.3);color:var(--ora);font-size:11px;font-weight:700;font-family:var(--m);padding:5px 14px;border-radius:20px;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:28px}
+.hero-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--ora);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.4)}}
+h1{font-size:clamp(38px,6vw,72px);font-weight:800;line-height:1.08;letter-spacing:-2px;margin-bottom:22px;max-width:860px}
+h1 span{background:linear-gradient(135deg,var(--ora),#ff9040);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-sub{font-size:clamp(16px,2vw,20px);color:var(--txt2);max-width:600px;margin:0 auto 40px;font-weight:400;line-height:1.65}
+.hero-ctas{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:56px}
+.hero-social{display:flex;align-items:center;gap:24px;color:var(--muted);font-size:12px;font-family:var(--m)}
+.hero-social span{display:flex;align-items:center;gap:6px}
+.hero-social strong{color:var(--txt2)}
+
+/* App preview */
+.hero-preview{width:100%;max-width:1100px;margin:72px auto 0;position:relative}
+.preview-glow{position:absolute;inset:-30px;background:radial-gradient(ellipse at 50% 0%,rgba(255,107,26,.15) 0%,transparent 60%);filter:blur(20px);pointer-events:none;z-index:0}
+.preview-frame{position:relative;z-index:1;background:var(--surf);border:1px solid var(--bdr2);border-radius:18px;overflow:hidden;box-shadow:0 40px 120px rgba(0,0,0,.7),0 0 0 1px rgba(255,107,26,.08)}
+.preview-bar{background:var(--bg2);border-bottom:1px solid var(--bdr);padding:10px 16px;display:flex;align-items:center;gap:8px}
+.preview-dot{width:10px;height:10px;border-radius:50%}
+.preview-title{flex:1;text-align:center;font-family:var(--m);font-size:10px;color:var(--muted)}
+.preview-screen{background:var(--bg2);padding:0;display:grid;grid-template-columns:210px 1fr;min-height:360px}
+.preview-sidebar{background:var(--surf);border-right:1px solid var(--bdr);padding:16px 12px;display:flex;flex-direction:column;gap:6px}
+.preview-sb-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;font-size:11px;color:var(--muted);cursor:default}
+.preview-sb-item.active{background:var(--ora-d);color:var(--ora);border:1px solid rgba(255,107,26,.2)}
+.preview-sb-item i{font-size:14px}
+.preview-canvas{padding:20px;overflow:hidden;position:relative}
+.preview-table{width:100%;border-collapse:collapse;font-size:11px}
+.preview-table th{background:var(--surf2);color:var(--muted);font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:.8px;padding:7px 10px;border-bottom:1px solid var(--bdr);text-align:left}
+.preview-table td{padding:7px 10px;border-bottom:1px solid var(--bdr);color:var(--txt2)}
+.preview-table tr:hover td{background:var(--surf)}
+.ch-num{font-weight:700;color:var(--ora);font-family:var(--m)}
+.badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:5px;font-size:9px;font-family:var(--m);font-weight:600}
+.badge-ph{background:rgba(245,197,66,.15);color:#f5c542;border:1px solid rgba(245,197,66,.25)}
+.badge-foh{background:rgba(34,214,160,.12);color:var(--grn)}
+.badge-mon{background:rgba(26,143,255,.12);color:var(--blu)}
+
+/* ── SECTIONS ── */
+section{padding:100px 5vw}
+.section-label{font-family:var(--m);font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--ora);margin-bottom:14px}
+h2{font-size:clamp(28px,4vw,48px);font-weight:800;letter-spacing:-1px;margin-bottom:18px;line-height:1.12}
+h2 em{font-style:normal;color:var(--ora)}
+.section-sub{font-size:16px;color:var(--muted);max-width:540px;line-height:1.7}
+.center{text-align:center}
+.center .section-sub{margin:0 auto}
+
+/* ── FEATURES INTERACTIVE ── */
+.feat-shell{display:grid;grid-template-columns:300px 1fr;gap:0;margin-top:64px;border:1px solid var(--bdr2);border-radius:18px;overflow:hidden;min-height:520px;background:var(--surf)}
+.feat-sidebar{border-right:1px solid var(--bdr);display:flex;flex-direction:column;overflow-y:auto}
+.feat-sidebar-head{padding:16px 18px 10px;font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);border-bottom:1px solid var(--bdr)}
+.feat-item{display:flex;align-items:center;gap:12px;padding:13px 18px;cursor:pointer;border-left:3px solid transparent;transition:all .16s;position:relative}
+.feat-item:hover{background:var(--surf2)}
+.feat-item.active{background:var(--surf2);border-left-color:var(--ora)}
+.feat-item-ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;transition:all .16s}
+.feat-item.active .feat-item-ic{box-shadow:0 0 0 2px var(--ora)}
+.feat-item-text{flex:1;min-width:0}
+.feat-item-name{font-size:12px;font-weight:600;color:var(--txt2);line-height:1.2}
+.feat-item.active .feat-item-name{color:var(--ora)}
+.feat-item-sub{font-size:10px;color:var(--muted);font-family:var(--m);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.feat-item-arr{font-size:10px;color:var(--muted);transition:color .15s}
+.feat-item.active .feat-item-arr{color:var(--ora)}
+.feat-preview{flex:1;position:relative;overflow:hidden;background:var(--bg2)}
+.feat-pane{display:none;flex-direction:column;height:100%}
+.feat-pane.active{display:flex}
+.feat-pane-head{padding:20px 28px 16px;border-bottom:1px solid var(--bdr);display:flex;align-items:flex-start;gap:16px;flex-shrink:0}
+.feat-pane-icon{width:44px;height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.feat-pane-title{font-size:16px;font-weight:700;margin-bottom:4px;letter-spacing:-.3px}
+.feat-pane-desc{font-size:12px;color:var(--muted);line-height:1.6;max-width:480px}
+.feat-pane-body{flex:1;padding:20px 28px;overflow:auto}
+.feat-tag{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-family:var(--m);color:var(--ora);background:var(--ora-d);border:1px solid rgba(255,107,26,.2);padding:3px 9px;border-radius:5px;margin-top:8px}
+/* mockup styles */
+.mk-table{width:100%;border-collapse:collapse;font-size:11px}
+.mk-table th{background:var(--surf2);color:var(--muted);font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:.7px;padding:6px 10px;border-bottom:1px solid var(--bdr);text-align:left}
+.mk-table td{padding:7px 10px;border-bottom:1px solid var(--bdr);color:var(--txt2)}
+.mk-table tr:hover td{background:var(--surf)}
+.mk-ch{font-weight:700;color:var(--ora);font-family:var(--m);font-size:11px}
+.mk-b{display:inline-flex;padding:2px 7px;border-radius:4px;font-size:9px;font-family:var(--m);font-weight:600}
+.mk-drag{color:var(--muted);cursor:grab;font-size:12px;padding:0 6px}
+.mk-tag-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.mk-tag{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:8px;font-size:11px;font-weight:600;font-family:var(--m);cursor:pointer;border:1px solid;transition:all .15s}
+.mk-patch-tab{display:inline-flex;align-items:center;gap:6px;padding:5px 13px;border-radius:7px;border:1px solid var(--bdr2);background:var(--surf2);color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--m)}
+.mk-patch-tab.on{background:var(--ora);border-color:var(--ora);color:#000}
+.mk-stage{background:#e8e8e8;border-radius:10px;position:relative;overflow:hidden;height:260px}
+.mk-grid-bg{position:absolute;inset:0;background-image:linear-gradient(rgba(180,180,180,.4) 1px,transparent 1px),linear-gradient(90deg,rgba(180,180,180,.4) 1px,transparent 1px);background-size:30px 30px}
+.mk-stage-rect{position:absolute;left:12%;right:12%;top:12%;bottom:30%;border:2px dashed rgba(255,107,26,.35);border-radius:10px;background:rgba(255,107,26,.04);display:flex;align-items:center;justify-content:center;font-size:10px;font-family:var(--m);color:rgba(255,107,26,.3);letter-spacing:4px}
+.mk-node{position:absolute;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:move}
+.mk-node-body{width:44px;height:44px;border-radius:10px;background:#fff;border:2px solid;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.mk-node-lbl{font-size:9px;font-family:var(--m);background:rgba(255,255,255,.9);padding:1px 5px;border-radius:3px;color:#111;font-weight:600;white-space:nowrap}
+.mk-node-ch{position:absolute;top:-6px;right:-6px;background:var(--ora);color:#000;font-size:7px;font-weight:700;padding:1px 4px;border-radius:8px;font-family:var(--m)}
+.mk-kit-block{background:#fff;border:2px solid rgba(255,77,106,.3);border-radius:10px;overflow:hidden;min-width:150px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.mk-kit-head{background:rgba(255,77,106,.1);padding:6px 10px;display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#222}
+.mk-kit-row{padding:4px 10px;border-top:1px solid rgba(255,107,26,.1);display:flex;gap:6px;align-items:center;font-size:10px;color:#333}
+.mk-kit-ch{font-family:var(--m);font-weight:700;color:var(--ora);font-size:9px}
+.mk-syn-node{position:absolute;background:var(--surf);border:1px solid;border-radius:9px;padding:8px 12px;font-size:10px;font-weight:600;display:flex;align-items:center;gap:6px;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+.mk-cable{position:absolute;pointer-events:none}
+.mk-tpl-card{background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;padding:14px;display:flex;align-items:flex-start;gap:10px;cursor:pointer;transition:all .15s}
+.mk-tpl-card:hover{border-color:var(--ora);background:var(--surf3)}
+.mk-tpl-ic{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.mk-share-box{background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;padding:16px;margin-bottom:14px}
+.mk-url{background:var(--bg);border:1px solid var(--bdr2);border-radius:7px;padding:8px 12px;font-family:var(--m);font-size:10px;color:var(--blu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mk-team-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surf2);border-radius:9px;margin-bottom:8px}
+.mk-av{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+.mk-online{width:8px;height:8px;border-radius:50%;background:var(--grn);flex-shrink:0}
+.mk-pdf-head{background:#0a0f1c;color:#fff;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-radius:10px 10px 0 0}
+.mk-pdf-body{background:#fff;border-radius:0 0 10px 10px;overflow:hidden}
+.mk-riser{border-radius:7px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:8px}
+.mk-file-row{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--surf2);border-radius:8px;margin-bottom:6px;cursor:pointer;transition:background .15s}
+.mk-file-row:hover{background:var(--surf3)}
+.mk-ila-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.mk-ila-sec{background:var(--surf2);border:1px solid var(--bdr2);border-radius:9px;padding:10px;display:flex;flex-direction:column;align-items:center;gap:5px}
+.mk-ila-val{font-size:22px;font-weight:800;color:var(--ora);font-family:var(--m);line-height:1}
+.mk-spin-row{display:flex;align-items:center;gap:6px}
+.mk-spin-btn{width:22px;height:22px;border-radius:5px;border:1px solid var(--bdr2);background:var(--surf3);color:var(--txt2);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+@media(max-width:900px){.feat-shell{grid-template-columns:1fr;min-height:auto}.feat-sidebar{flex-direction:row;overflow-x:auto;border-right:none;border-bottom:1px solid var(--bdr)}.feat-item{flex-direction:column;align-items:center;text-align:center;border-left:none;border-bottom:3px solid transparent;padding:10px 14px;min-width:80px}.feat-item.active{border-left-color:transparent;border-bottom-color:var(--ora)}.feat-item-sub,.feat-item-arr{display:none}}
+
+/* ── HOW ── */
+.how-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:32px;margin-top:64px;counter-reset:steps}
+.how-step{position:relative;padding:32px;background:var(--surf);border:1px solid var(--bdr);border-radius:16px}
+.how-step::before{counter-increment:steps;content:counter(steps,'0');position:absolute;top:-16px;left:28px;font-size:40px;font-weight:900;font-family:var(--m);color:var(--bdr2);line-height:1}
+.how-step h3{font-size:16px;font-weight:700;margin-bottom:10px;margin-top:8px}
+.how-step p{font-size:13px;color:var(--muted);line-height:1.7}
+.how-arrow{display:none}
+
+/* ── SOCIAL PROOF ── */
+.testimonials{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-top:56px}
+.testi{background:var(--surf);border:1px solid var(--bdr);border-radius:14px;padding:28px}
+.testi-text{font-size:14px;color:var(--txt2);line-height:1.75;margin-bottom:20px;font-style:italic}
+.testi-text::before{content:'\201C';color:var(--ora);font-size:28px;font-family:serif;line-height:0;vertical-align:-8px;margin-right:4px}
+.testi-author{display:flex;align-items:center;gap:12px}
+.testi-av{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex-shrink:0}
+.testi-name{font-size:13px;font-weight:600}
+.testi-role{font-size:11px;color:var(--muted);font-family:var(--m)}
+
+/* ── PRICING ── */
+#pricing{background:var(--bg2)}
+.pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:56px;align-items:start}
+.plan-annual{font-size:11px;color:var(--grn);font-family:var(--m);margin-bottom:10px;min-height:16px}
+.plan-tax{font-size:11px;color:var(--muted);font-family:var(--m);margin-bottom:18px;min-height:14px;line-height:1.5}
+.plan-tax strong{color:var(--grn)}
+/* Enterprise full-width card */
+.plan-enterprise{background:var(--surf);border:1px solid var(--bdr2);border-radius:18px;padding:36px 40px;margin-top:20px;display:grid;grid-template-columns:1fr auto;gap:40px;align-items:center;transition:box-shadow .2s}
+.plan-enterprise:hover{box-shadow:0 16px 50px rgba(0,0,0,.35)}
+.plan-ent-left{display:grid;grid-template-columns:auto 1fr;gap:28px;align-items:start}
+.plan-ent-meta{min-width:200px}
+.plan-ent-feats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px 24px}
+.plan-ent-feats li{display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:var(--txt2)}
+.plan-ent-feats li i{color:var(--grn);font-size:14px;flex-shrink:0;margin-top:1px}
+.plan-ent-right{text-align:center;flex-shrink:0;min-width:180px}
+.plan-card{background:var(--surf);border:1px solid var(--bdr);border-radius:18px;padding:36px 32px;position:relative;transition:transform .2s,box-shadow .2s}
+.plan-card:hover{transform:translateY(-4px);box-shadow:0 24px 60px rgba(0,0,0,.4)}
+.plan-card.popular{border-color:var(--ora);background:linear-gradient(160deg,var(--surf2) 0%,var(--surf) 100%)}
+.plan-badge{position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:var(--ora);color:#000;font-size:10px;font-weight:800;font-family:var(--m);padding:4px 16px;border-radius:20px;letter-spacing:1px;text-transform:uppercase;white-space:nowrap}
+.plan-name{font-size:13px;font-weight:700;font-family:var(--m);text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:12px}
+.plan-price{display:flex;align-items:baseline;gap:6px;margin-bottom:6px}
+.plan-price .amount{font-size:48px;font-weight:800;letter-spacing:-2px;line-height:1}
+.plan-price .currency{font-size:22px;font-weight:600;color:var(--muted);margin-top:8px}
+.plan-price .period{font-size:13px;color:var(--muted);font-family:var(--m)}
+.plan-desc{font-size:13px;color:var(--muted);margin-bottom:28px;min-height:38px;line-height:1.6}
+.plan-divider{height:1px;background:var(--bdr);margin-bottom:24px}
+.plan-features{list-style:none;display:flex;flex-direction:column;gap:10px;margin-bottom:32px}
+.plan-features li{display:flex;align-items:flex-start;gap:9px;font-size:13px;color:var(--txt2)}
+.plan-features li i{font-size:15px;color:var(--grn);flex-shrink:0;margin-top:1px}
+.plan-features li.off{color:var(--muted)}
+.plan-features li.off i{color:var(--muted)}
+.plan-features li strong{color:var(--txt)}
+
+/* ── FAQ ── */
+.faq-list{max-width:780px;margin:56px auto 0;display:flex;flex-direction:column;gap:3px}
+.faq-item{background:var(--surf);border:1px solid var(--bdr);border-radius:12px;overflow:hidden;transition:border-color .2s}
+.faq-item.open{border-color:var(--bdr2)}
+.faq-q{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;cursor:pointer;font-size:15px;font-weight:600;gap:16px;user-select:none}
+.faq-q:hover{background:var(--surf2)}
+.faq-q i{font-size:16px;color:var(--muted);flex-shrink:0;transition:transform .25s}
+.faq-item.open .faq-q i{transform:rotate(45deg);color:var(--ora)}
+.faq-a{display:none;padding:0 24px 20px;font-size:14px;color:var(--muted);line-height:1.75}
+.faq-item.open .faq-a{display:block}
+
+/* ── CTA FINAL ── */
+.cta-final{background:linear-gradient(135deg,var(--surf2) 0%,var(--surf) 100%);border:1px solid var(--bdr);border-radius:24px;padding:80px 40px;text-align:center;margin:0 5vw 100px;position:relative;overflow:hidden}
+.cta-final::before{content:'';position:absolute;top:-100px;left:50%;transform:translateX(-50%);width:600px;height:400px;background:radial-gradient(ellipse,rgba(255,107,26,.12) 0%,transparent 70%);pointer-events:none}
+.cta-final h2{font-size:clamp(28px,4vw,52px);margin-bottom:18px}
+.cta-final p{font-size:16px;color:var(--muted);margin-bottom:40px;max-width:500px;margin-left:auto;margin-right:auto}
+
+/* ── FOOTER ── */
+footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.footer-logo{font-size:15px;font-weight:700;display:flex;align-items:center;gap:9px}
+.footer-logo span{color:var(--ora)}
+.footer-links{display:flex;gap:24px}
+.footer-links a{font-size:12px;color:var(--muted);text-decoration:none;transition:color .15s}
+.footer-links a:hover{color:var(--txt)}
+.footer-copy{font-size:11px;color:var(--muted);font-family:var(--m)}
+
+/* ── RESPONSIVE ── */
+@media(max-width:900px){
+  .pricing-grid,.how-steps{grid-template-columns:1fr 1fr}
+  .plan-enterprise{grid-template-columns:1fr;gap:24px}
+  .plan-ent-left{grid-template-columns:1fr}
+  .plan-ent-feats{grid-template-columns:1fr 1fr}
+  .plan-ent-right{text-align:left}
+  .plan-card.popular{transform:none}
+  .preview-screen{grid-template-columns:1fr}
+  .preview-sidebar{display:none}
+  nav .nav-links{display:none}
+}
+@media(max-width:600px){
+  .features-grid{grid-template-columns:1fr}
+  h1{letter-spacing:-1px}
+  .hero-social{flex-wrap:wrap;justify-content:center}
+}
+
+/* ── ANIMATIONS ── */
+.fade-up{opacity:0;transform:translateY(28px);transition:opacity .6s ease,transform .6s ease}
+.fade-up.visible{opacity:1;transform:none}
+.stagger-1{transition-delay:.1s}
+.stagger-2{transition-delay:.2s}
+.stagger-3{transition-delay:.3s}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="#">
+    <div class="nav-logo-icon">
+      <svg width="36" height="36" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+        <path d="M70 60 C100 60 100 140 130 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round"/>
+        <path d="M130 60 C100 60 100 140 70 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round" opacity="0.45"/>
+        <circle cx="60" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/>
+        <circle cx="60" cy="60" r="5" fill="#FF6B2B"/>
+        <circle cx="140" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/>
+        <circle cx="140" cy="60" r="5" fill="#FF6B2B"/>
+        <circle cx="60" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/>
+        <circle cx="60" cy="140" r="5" fill="#FF6B2B"/>
+        <circle cx="140" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/>
+        <circle cx="140" cy="140" r="5" fill="#FF6B2B"/>
+      </svg>
+    </div>
+    <div class="nav-logo-text">Patch<span>Flow</span></div>
+  </a>
+  <div class="nav-links">
+    <a href="#features">Fonctionnalites</a>
+    <a href="#how">Comment ca marche</a>
+    <a href="#pricing">Tarifs</a>
+    <a href="#faq">FAQ</a>
+  </div>
+  <div class="nav-cta">
+    <a class="btn btn-ghost" href="soundbooth_12.html">Se connecter</a>
+    <a class="btn btn-ora" href="soundbooth_12.html">Essayer gratuitement</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-glow"></div>
+  <div class="hero-glow2"></div>
+  <div class="hero-badge"><i class="ti ti-bolt" style="font-size:11px"></i>Nouveau — Plan de scene interactif</div>
+  <h1>Le patch, le plan de scene<br/><span>tout au meme endroit.</span></h1>
+  <p class="hero-sub">PatchFlow est l'outil de gestion de patch pensé par des techniciens son, pour des techniciens son. Input List, plan de scène, synoptique — en temps réel et en équipe.</p>
+  <div class="hero-ctas">
+    <a class="btn btn-ora btn-xl" href="soundbooth_12.html"><i class="ti ti-rocket"></i>Commencer gratuitement</a>
+    <a class="btn btn-ghost btn-lg" href="#features"><i class="ti ti-play"></i>Voir les fonctionnalites</a>
+  </div>
+  <div class="hero-social">
+    <span><strong>500+</strong> techniciens</span>
+    <span style="color:var(--bdr2)">|</span>
+    <span><strong>1 200+</strong> shows créés</span>
+    <span style="color:var(--bdr2)">|</span>
+    <span style="color:var(--grn)">● Mis à jour en temps réel</span>
+  </div>
+
+  <!-- App preview -->
+  <div class="hero-preview fade-up">
+    <div class="preview-glow"></div>
+    <div class="preview-frame">
+      <div class="preview-bar">
+        <div class="preview-dot" style="background:#ff4d6a"></div>
+        <div class="preview-dot" style="background:#f5c542"></div>
+        <div class="preview-dot" style="background:#22d6a0"></div>
+        <div class="preview-title">PatchFlow — Hellfest 2025 · Main Stage</div>
+      </div>
+      <div class="preview-screen">
+        <div class="preview-sidebar">
+          <div style="font-size:9px;font-family:var(--m);color:var(--muted);text-transform:uppercase;letter-spacing:1px;padding:4px 10px;margin-bottom:4px">Navigation</div>
+          <div class="preview-sb-item active"><i class="ti ti-list-numbers"></i>Input List</div>
+          <div class="preview-sb-item"><i class="ti ti-layout-board"></i>Plan de scene</div>
+          <div class="preview-sb-item"><i class="ti ti-topology-star"></i>Synoptique</div>
+          <div class="preview-sb-item"><i class="ti ti-map-2"></i>Plan de site</div>
+          <div class="preview-sb-item"><i class="ti ti-cloud"></i>Fichiers</div>
+          <div style="margin-top:auto">
+            <div style="background:rgba(34,214,160,.08);border:1px solid rgba(34,214,160,.2);border-radius:8px;padding:8px 10px;font-size:10px;color:var(--grn)"><i class="ti ti-users" style="font-size:11px;margin-right:4px"></i>3 membres en ligne</div>
+          </div>
+        </div>
+        <div class="preview-canvas">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+            <div style="font-size:13px;font-weight:700">Input List</div>
+            <div style="font-family:var(--m);font-size:9px;background:var(--surf2);border:1px solid var(--bdr);border-radius:4px;padding:2px 8px;color:var(--muted)">32 canaux</div>
+            <div style="margin-left:auto;display:flex;gap:6px">
+              <div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:6px;padding:4px 10px;font-size:10px;color:var(--muted)">+ Canal</div>
+              <div style="background:var(--ora);border-radius:6px;padding:4px 10px;font-size:10px;color:#000;font-weight:600">Template</div>
+            </div>
+          </div>
+          <table class="preview-table">
+            <thead><tr><th>CH</th><th>Court</th><th>Nom long</th><th>Source</th><th>Micro / DI</th><th>+48V</th><th>FOH</th><th>MON</th></tr></thead>
+            <tbody>
+              <tr><td class="ch-num">1</td><td><strong>KICK</strong></td><td style="color:var(--txt)">Grosse caisse</td><td style="font-family:var(--m);font-size:10px">Batterie</td><td style="font-family:var(--m);font-size:10px">Beta 91A</td><td></td><td><span class="badge badge-foh">✓</span></td><td><span class="badge badge-mon">✓</span></td></tr>
+              <tr><td class="ch-num">2</td><td><strong>SNARE</strong></td><td style="color:var(--txt)">Caisse claire</td><td style="font-family:var(--m);font-size:10px">Batterie</td><td style="font-family:var(--m);font-size:10px">SM57</td><td></td><td><span class="badge badge-foh">✓</span></td><td><span class="badge badge-mon">✓</span></td></tr>
+              <tr><td class="ch-num">3</td><td><strong>GTRLEAD</strong></td><td style="color:var(--txt)">Guitare solo</td><td style="font-family:var(--m);font-size:10px">Guitares</td><td style="font-family:var(--m);font-size:10px">SM57 + e906</td><td></td><td><span class="badge badge-foh">✓</span></td><td></td></tr>
+              <tr><td class="ch-num">4</td><td><strong>KEYSL</strong></td><td style="color:var(--txt)">Claviers gauche</td><td style="font-family:var(--m);font-size:10px">Claviers</td><td style="font-family:var(--m);font-size:10px">DI Radial</td><td><span class="badge badge-ph">+48V</span></td><td><span class="badge badge-foh">✓</span></td><td><span class="badge badge-mon">✓</span></td></tr>
+              <tr><td class="ch-num">5</td><td><strong>VOX</strong></td><td style="color:var(--txt)">Chant principal</td><td style="font-family:var(--m);font-size:10px">Voix</td><td style="font-family:var(--m);font-size:10px">SM58</td><td></td><td><span class="badge badge-foh">✓</span></td><td><span class="badge badge-mon">✓</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="section-label center">Fonctionnalites</div>
+  <h2 class="center">Tout ce dont vous avez besoin,<br/><em>rien de superflu.</em></h2>
+  <p class="section-sub center">Cliquez sur une fonctionnalite pour voir un apercu.</p>
+
+  <div class="feat-shell fade-up">
+
+    <!-- SIDEBAR -->
+    <div class="feat-sidebar">
+      <div class="feat-sidebar-head">11 fonctionnalites</div>
+
+      <div class="feat-item active" onclick="showFeat('inputlist',this)">
+        <div class="feat-item-ic" style="background:rgba(255,107,26,.12);color:var(--ora)"><i class="ti ti-list-numbers"></i></div>
+        <div class="feat-item-text"><div class="feat-item-name">Input List</div><div class="feat-item-sub">Patch complet, colonnes, tri</div></div>
+        <i class="ti ti-chevron-right feat-item-arr"></i>
+      </div>
+      <div class="feat-item" onclick="showFeat('multipatches',this)">
+        <div class="feat-item-ic" style="background:rgba(245,197,66,.12);color:#f5c542"><i class="ti ti-layout-grid"></i></div>
+        <div class="feat-item-text"><div class="feat-item-name">Multi-patches</div><div class="feat-item-sub">Plusieurs configs par show</div></div>
+        <i class="ti ti-chevron-right feat-item-arr"></i>
+      </div>
+      <div class="feat-item" onclick="showFeat('assistant',this)">
+        <div class="feat-item-ic" style="background:rgba(155,106,255,.12);color:var(--pur)"><i class="ti ti-wand"></i></div>
+        <div class="feat-item-text"><div class="feat-item-name">Assistant ILA</div><div class="feat-item-sub">Generation automatique</div></div>
+        <i class="ti ti-chevron-right feat-item-arr"></i>
+      </div>
+      <div class="feat-item" onclick="showFeat('templates',this)">
+        <div class="feat-item-ic" style="background:rgba(245,197,66,.12);color:#f5c542"><i class="ti ti-template"></i></div>
+        <div class="feat-item-text"><div class="feat-item-name">Templates</div><div class="feat-item-sub">Configurations sauvegardees</div></div>
+        <i class="ti ti-chevron-right feat-item-arr"></i>
+      </div>
+      <div class="feat-item" onclick="showFeat('bandplan',this)">
+        <div class="feat-item-ic" style="background:rgba(155,106,255,.12);color:var(--pur)"><i class="ti ti-layout-board"></i></div>
+        <div class="feat-item-text"><div class="feat-item-name">Plan de scene</div><div class="feat-item-sub">Instruments + praticables</div></div>
+        <i class="ti ti-chevron-right feat-item-arr"></i>
+      </div>
+      <div class="feat-item" onclick="showFeat('synoptique',this)">
+        <div class="feat-item-ic" style="background:rgba(26,143,255,.12);color:var(--blu)"><i class="ti ti-topology-star"></i></div>
+        <div class="feat-item-text"><div class="feat-item-name">Synoptique</div><div class="feat-item-sub">Routage de signal</div></div>
+        <i class="ti ti-chevron-right feat-item-arr"></i>
+      </div>
+      <div class="feat-item" onclick="showFeat('siteplan',this)">
+        <div class="feat-item-ic" style="background:rgba(34,214,160,.12);color:var(--grn)"><i class="ti ti-map-2"></i></div>
+        <div class="feat-item-text"><div class="feat-item-name">Plan de site</div><div class="feat-item-sub">Implantation technique</div></div>
+        <i class="ti ti-chevron-right feat-item-arr"></i>
+      </div>
+      <div class="feat-item" onclick="showFeat('collab',this)">
+        <div class="feat-item-ic" style="background:rgba(34,214,160,.12);color:var(--grn)"><i class="ti ti-users"></i></div>
+        <div class="feat-item-text"><div class="feat-item-name">Collaboration</div><div class="feat-item-sub">Equipe en temps reel</div></div>
+        <i class="ti ti-chevron-right feat-item-arr"></i>
+      </div>
+      <div class="feat-item" onclick="showFeat('share',this)">
+        <div class="feat-item-ic" style="background:rgba(255,107,26,.12);color:var(--ora)"><i class="ti ti-link"></i></div>
+        <div class="feat-item-text"><div class="feat-item-name">Lien partage</div><div class="feat-item-sub">Lecture seule sans compte</div></div>
+        <i class="ti ti-chevron-right feat-item-arr"></i>
+      </div>
+      <div class="feat-item" onclick="showFeat('export',this)">
+        <div class="feat-item-ic" style="background:rgba(26,143,255,.12);color:var(--blu)"><i class="ti ti-file-type-pdf"></i></div>
+        <div class="feat-item-text"><div class="feat-item-name">Export PDF / PNG</div><div class="feat-item-sub">Documents professionnels</div></div>
+        <i class="ti ti-chevron-right feat-item-arr"></i>
+      </div>
+      <div class="feat-item" onclick="showFeat('fichiers',this)">
+        <div class="feat-item-ic" style="background:rgba(26,143,255,.12);color:var(--blu)"><i class="ti ti-cloud"></i></div>
+        <div class="feat-item-text"><div class="feat-item-name">Gestion fichiers</div><div class="feat-item-sub">Stockage cloud integre</div></div>
+        <i class="ti ti-chevron-right feat-item-arr"></i>
+      </div>
+    </div>
+
+    <!-- PREVIEW PANES -->
+    <div class="feat-preview">
+
+      <!-- INPUT LIST -->
+      <div class="feat-pane active" id="fp-inputlist">
+        <div class="feat-pane-head">
+          <div class="feat-pane-icon" style="background:rgba(255,107,26,.12);color:var(--ora)"><i class="ti ti-list-numbers"></i></div>
+          <div>
+            <div class="feat-pane-title">Input List intelligente</div>
+            <div class="feat-pane-desc">Creez et gerez votre patch complet. Drag &amp; drop pour reordonner, colonnes personnalisables, codes couleur, sauvegarde automatique.</div>
+            <div class="feat-tag"><i class="ti ti-sparkles" style="font-size:10px"></i>Sauvegarde automatique</div>
+          </div>
+        </div>
+        <div class="feat-pane-body">
+          <div class="mk-tag-row">
+            <div class="mk-patch-tab on">Patch Principal</div>
+            <div class="mk-patch-tab">Patch Retours</div>
+            <div class="mk-patch-tab">+ Ajouter</div>
+          </div>
+          <table class="mk-table">
+            <thead><tr><th></th><th>CH</th><th>Court</th><th>Nom long</th><th>Source</th><th>Micro</th><th>+48V</th><th>FOH</th><th>MON</th></tr></thead>
+            <tbody>
+              <tr><td class="mk-drag">⠿</td><td class="mk-ch">1</td><td><strong>KICK</strong></td><td>Grosse caisse</td><td style="font-family:var(--m);font-size:10px;color:var(--muted)">Batterie</td><td style="font-family:var(--m);font-size:10px;color:var(--muted)">Beta 91A</td><td></td><td><span class="mk-b" style="background:rgba(34,214,160,.12);color:var(--grn)">✓</span></td><td><span class="mk-b" style="background:rgba(26,143,255,.12);color:var(--blu)">✓</span></td></tr>
+              <tr><td class="mk-drag">⠿</td><td class="mk-ch">2</td><td><strong>SNARE</strong></td><td>Caisse claire</td><td style="font-family:var(--m);font-size:10px;color:var(--muted)">Batterie</td><td style="font-family:var(--m);font-size:10px;color:var(--muted)">SM57</td><td></td><td><span class="mk-b" style="background:rgba(34,214,160,.12);color:var(--grn)">✓</span></td><td><span class="mk-b" style="background:rgba(26,143,255,.12);color:var(--blu)">✓</span></td></tr>
+              <tr style="background:rgba(255,107,26,.04);border-left:2px solid var(--ora)"><td class="mk-drag">⠿</td><td class="mk-ch">3</td><td><strong>GTRL</strong></td><td>Guitare lead</td><td style="font-family:var(--m);font-size:10px;color:var(--muted)">Guitares</td><td style="font-family:var(--m);font-size:10px;color:var(--muted)">SM57 + e906</td><td></td><td><span class="mk-b" style="background:rgba(34,214,160,.12);color:var(--grn)">✓</span></td><td></td></tr>
+              <tr><td class="mk-drag">⠿</td><td class="mk-ch">4</td><td><strong>KEYSL</strong></td><td>Claviers gauche</td><td style="font-family:var(--m);font-size:10px;color:var(--muted)">Claviers</td><td style="font-family:var(--m);font-size:10px;color:var(--muted)">DI Radial</td><td><span class="mk-b" style="background:rgba(245,197,66,.12);color:#f5c542">+48V</span></td><td><span class="mk-b" style="background:rgba(34,214,160,.12);color:var(--grn)">✓</span></td><td><span class="mk-b" style="background:rgba(26,143,255,.12);color:var(--blu)">✓</span></td></tr>
+              <tr><td class="mk-drag">⠿</td><td class="mk-ch">5</td><td><strong>VOX1</strong></td><td>Chant principal</td><td style="font-family:var(--m);font-size:10px;color:var(--muted)">Voix</td><td style="font-family:var(--m);font-size:10px;color:var(--muted)">KSM9</td><td></td><td><span class="mk-b" style="background:rgba(34,214,160,.12);color:var(--grn)">✓</span></td><td><span class="mk-b" style="background:rgba(26,143,255,.12);color:var(--blu)">✓</span></td></tr>
+              <tr><td class="mk-drag">⠿</td><td class="mk-ch">6</td><td><strong>VOX2</strong></td><td>Choeurs</td><td style="font-family:var(--m);font-size:10px;color:var(--muted)">Voix</td><td style="font-family:var(--m);font-size:10px;color:var(--muted)">SM58</td><td></td><td><span class="mk-b" style="background:rgba(34,214,160,.12);color:var(--grn)">✓</span></td><td></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- MULTI-PATCHES -->
+      <div class="feat-pane" id="fp-multipatches">
+        <div class="feat-pane-head">
+          <div class="feat-pane-icon" style="background:rgba(245,197,66,.12);color:#f5c542"><i class="ti ti-layout-grid"></i></div>
+          <div>
+            <div class="feat-pane-title">Multi-patches par show</div>
+            <div class="feat-pane-desc">Gerez plusieurs configurations de patch au sein d'un meme show. Un par artiste, un FOH, un retours — tout reste dans le meme projet.</div>
+            <div class="feat-tag"><i class="ti ti-plus" style="font-size:10px"></i>Nombre illimite de patches</div>
+          </div>
+        </div>
+        <div class="feat-pane-body">
+          <div class="mk-tag-row" style="margin-bottom:20px">
+            <div class="mk-patch-tab on">🎸 Groupe Principal</div>
+            <div class="mk-patch-tab">🎧 DJ Set</div>
+            <div class="mk-patch-tab">🎹 Trio Jazz</div>
+            <div class="mk-patch-tab" style="border-style:dashed;font-size:16px">+</div>
+          </div>
+          <div style="background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;padding:16px;margin-bottom:12px">
+            <div style="font-size:11px;font-weight:700;color:var(--ora);margin-bottom:10px;font-family:var(--m)">PATCH ACTIF : Groupe Principal — 24 canaux</div>
+            <table class="mk-table">
+              <thead><tr><th>CH</th><th>Court</th><th>Nom</th><th>Source</th></tr></thead>
+              <tbody>
+                <tr><td class="mk-ch">1</td><td><strong>KICK</strong></td><td>Grosse caisse</td><td style="font-family:var(--m);font-size:10px;color:var(--muted)">Batterie</td></tr>
+                <tr><td class="mk-ch">2</td><td><strong>SNARE</strong></td><td>Caisse claire</td><td style="font-family:var(--m);font-size:10px;color:var(--muted)">Batterie</td></tr>
+                <tr><td class="mk-ch">3</td><td><strong>GTR</strong></td><td>Guitare</td><td style="font-family:var(--m);font-size:10px;color:var(--muted)">Guitares</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="font-size:11px;color:var(--muted);font-family:var(--m)"><i class="ti ti-info-circle" style="margin-right:5px"></i>Chaque patch a ses propres canaux et parametres independants.</div>
+        </div>
+      </div>
+
+      <!-- ASSISTANT ILA -->
+      <div class="feat-pane" id="fp-assistant">
+        <div class="feat-pane-head">
+          <div class="feat-pane-icon" style="background:rgba(155,106,255,.12);color:var(--pur)"><i class="ti ti-wand"></i></div>
+          <div>
+            <div class="feat-pane-title">Assistant Input List (ILA)</div>
+            <div class="feat-pane-desc">Choisissez vos instruments, ajustez les quantites, l'assistant genere automatiquement tous les canaux avec noms, sources et micros recommandes.</div>
+            <div class="feat-tag"><i class="ti ti-bolt" style="font-size:10px"></i>Patch genere en 30 secondes</div>
+          </div>
+        </div>
+        <div class="feat-pane-body">
+          <div class="mk-ila-grid">
+            <div class="mk-ila-sec">
+              <div style="font-size:18px">🥁</div>
+              <div style="font-size:10px;font-weight:600;color:var(--txt2)">Batterie</div>
+              <div class="mk-spin-row">
+                <button class="mk-spin-btn">−</button>
+                <div class="mk-ila-val">1</div>
+                <button class="mk-spin-btn">+</button>
+              </div>
+              <div style="font-size:9px;color:var(--grn);font-family:var(--m)">8 canaux</div>
+            </div>
+            <div class="mk-ila-sec">
+              <div style="font-size:18px">🎸</div>
+              <div style="font-size:10px;font-weight:600;color:var(--txt2)">Guitares</div>
+              <div class="mk-spin-row">
+                <button class="mk-spin-btn">−</button>
+                <div class="mk-ila-val">2</div>
+                <button class="mk-spin-btn">+</button>
+              </div>
+              <div style="font-size:9px;color:var(--grn);font-family:var(--m)">4 canaux</div>
+            </div>
+            <div class="mk-ila-sec">
+              <div style="font-size:18px">🎹</div>
+              <div style="font-size:10px;font-weight:600;color:var(--txt2)">Claviers</div>
+              <div class="mk-spin-row">
+                <button class="mk-spin-btn">−</button>
+                <div class="mk-ila-val">1</div>
+                <button class="mk-spin-btn">+</button>
+              </div>
+              <div style="font-size:9px;color:var(--grn);font-family:var(--m)">4 canaux</div>
+            </div>
+            <div class="mk-ila-sec">
+              <div style="font-size:18px">🎤</div>
+              <div style="font-size:10px;font-weight:600;color:var(--txt2)">Voix</div>
+              <div class="mk-spin-row">
+                <button class="mk-spin-btn">−</button>
+                <div class="mk-ila-val">3</div>
+                <button class="mk-spin-btn">+</button>
+              </div>
+              <div style="font-size:9px;color:var(--grn);font-family:var(--m)">3 canaux</div>
+            </div>
+            <div class="mk-ila-sec" style="opacity:.4">
+              <div style="font-size:18px">🎺</div>
+              <div style="font-size:10px;font-weight:600;color:var(--txt2)">Trompette</div>
+              <div class="mk-spin-row">
+                <button class="mk-spin-btn" disabled>−</button>
+                <div class="mk-ila-val" style="font-size:16px;color:var(--muted)">0</div>
+                <button class="mk-spin-btn">+</button>
+              </div>
+              <div style="font-size:9px;color:var(--muted);font-family:var(--m)">desactive</div>
+            </div>
+            <div class="mk-ila-sec">
+              <div style="font-size:18px">🎤</div>
+              <div style="font-size:10px;font-weight:600;color:var(--txt2)">Micro HF</div>
+              <div class="mk-spin-row">
+                <button class="mk-spin-btn">−</button>
+                <div class="mk-ila-val">2</div>
+                <button class="mk-spin-btn">+</button>
+              </div>
+              <div style="font-size:9px;color:var(--grn);font-family:var(--m)">2 canaux</div>
+            </div>
+          </div>
+          <div style="margin-top:14px;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px">
+            <div style="font-size:12px;color:var(--muted)">Total genere</div>
+            <div style="font-size:16px;font-weight:800;color:var(--ora);font-family:var(--m)">21 canaux</div>
+            <div style="background:var(--ora);color:#000;font-size:11px;font-weight:700;padding:6px 16px;border-radius:7px;cursor:pointer">Creer les canaux</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TEMPLATES -->
+      <div class="feat-pane" id="fp-templates">
+        <div class="feat-pane-head">
+          <div class="feat-pane-icon" style="background:rgba(245,197,66,.12);color:#f5c542"><i class="ti ti-template"></i></div>
+          <div>
+            <div class="feat-pane-title">Librairie de templates</div>
+            <div class="feat-pane-desc">Sauvegardez vos configurations typiques et rechargez-les en un clic. Vos propres templates + la librairie communautaire.</div>
+            <div class="feat-tag"><i class="ti ti-cloud" style="font-size:10px"></i>Partages entre tous vos shows</div>
+          </div>
+        </div>
+        <div class="feat-pane-body">
+          <div style="font-size:10px;font-family:var(--m);text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px">Mes templates (3)</div>
+          <div class="mk-tpl-card" style="margin-bottom:8px">
+            <div class="mk-tpl-ic" style="background:rgba(255,107,26,.12)">🎸</div>
+            <div style="flex:1"><div style="font-size:12px;font-weight:600;margin-bottom:3px">Groupe Rock Standard</div><div style="font-size:10px;color:var(--muted);font-family:var(--m)">24 canaux — Batt + Guit x2 + Bass + Keys + Vox x3</div></div>
+            <div style="font-size:10px;color:var(--ora);font-family:var(--m);align-self:center">Appliquer</div>
+          </div>
+          <div class="mk-tpl-card" style="margin-bottom:8px">
+            <div class="mk-tpl-ic" style="background:rgba(34,214,160,.12)">🎷</div>
+            <div style="flex:1"><div style="font-size:12px;font-weight:600;margin-bottom:3px">Quartet Jazz</div><div style="font-size:10px;color:var(--muted);font-family:var(--m)">8 canaux — Piano + Basse + Drums + Sax</div></div>
+            <div style="font-size:10px;color:var(--ora);font-family:var(--m);align-self:center">Appliquer</div>
+          </div>
+          <div class="mk-tpl-card" style="margin-bottom:16px">
+            <div class="mk-tpl-ic" style="background:rgba(155,106,255,.12)">🎧</div>
+            <div style="flex:1"><div style="font-size:12px;font-weight:600;margin-bottom:3px">DJ Set</div><div style="font-size:10px;color:var(--muted);font-family:var(--m)">4 canaux — Stereo + Micro + Talk</div></div>
+            <div style="font-size:10px;color:var(--ora);font-family:var(--m);align-self:center">Appliquer</div>
+          </div>
+          <div style="font-size:10px;font-family:var(--m);text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px">Librairie (12 templates)</div>
+          <div class="mk-tpl-card">
+            <div class="mk-tpl-ic" style="background:rgba(26,143,255,.12)">🎤</div>
+            <div style="flex:1"><div style="font-size:12px;font-weight:600;margin-bottom:3px">Solo + Backing Track</div><div style="font-size:10px;color:var(--muted);font-family:var(--m)">6 canaux — Chant + BT L/R + IEM x2</div></div>
+            <div style="font-size:10px;color:var(--ora);font-family:var(--m);align-self:center">Appliquer</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BANDPLAN -->
+      <div class="feat-pane" id="fp-bandplan">
+        <div class="feat-pane-head">
+          <div class="feat-pane-icon" style="background:rgba(155,106,255,.12);color:var(--pur)"><i class="ti ti-layout-board"></i></div>
+          <div>
+            <div class="feat-pane-title">Plan de scene interactif</div>
+            <div class="feat-pane-desc">Placez vos instruments en drag &amp; drop. Praticables a dimensions reelles, kit complet avec tous ses canaux, lien direct vers l'Input List.</div>
+            <div class="feat-tag"><i class="ti ti-link" style="font-size:10px"></i>Synchronise avec l'Input List</div>
+          </div>
+        </div>
+        <div class="feat-pane-body" style="padding:14px">
+          <div class="mk-stage">
+            <div class="mk-grid-bg"></div>
+            <div class="mk-stage-rect">S C E N E</div>
+            <!-- Kit -->
+            <div class="mk-kit-block" style="position:absolute;left:34%;top:18%">
+              <div class="mk-kit-head"><span>🥁</span><span>Kit complet</span><span style="margin-left:auto;font-size:9px;color:var(--ora);background:rgba(255,107,26,.12);padding:1px 6px;border-radius:6px">8 CH</span></div>
+              <div class="mk-kit-row"><span class="mk-kit-ch">CH1</span><span>Grosse caisse</span></div>
+              <div class="mk-kit-row"><span class="mk-kit-ch">CH2</span><span>Caisse claire</span></div>
+              <div class="mk-kit-row"><span class="mk-kit-ch">CH3</span><span>Tom basse</span></div>
+              <div class="mk-kit-row"><span class="mk-kit-ch">CH4</span><span>Overhead L</span></div>
+            </div>
+            <!-- Guitar node -->
+            <div class="mk-node" style="left:15%;top:25%">
+              <div class="mk-node-body" style="border-color:rgba(245,197,66,.5)"><span class="mk-node-ch">CH9</span>🎸</div>
+              <div class="mk-node-lbl">Guitare lead</div>
+            </div>
+            <!-- Keys node -->
+            <div class="mk-node" style="left:62%;top:22%">
+              <div class="mk-node-body" style="border-color:rgba(155,106,255,.5)"><span class="mk-node-ch">CH13</span>🎹</div>
+              <div class="mk-node-lbl">Claviers</div>
+            </div>
+            <!-- Vox node -->
+            <div class="mk-node" style="left:44%;top:50%">
+              <div class="mk-node-body" style="border-color:rgba(34,214,160,.5)"><span class="mk-node-ch">CH17</span>🎤</div>
+              <div class="mk-node-lbl">Chant</div>
+            </div>
+            <!-- Riser -->
+            <div class="mk-riser" style="position:absolute;left:70%;top:30%;width:90px;height:55px;background:rgba(90,100,120,.5);border:2px solid rgba(100,115,140,.7);border-radius:6px">
+              <div style="font-family:var(--m);font-size:9px;color:#fff;font-weight:700">2m × 1m</div>
+              <div style="font-family:var(--m);font-size:8px;color:rgba(255,255,255,.7)">⬆ 0.6m</div>
+            </div>
+            <!-- Bass -->
+            <div class="mk-node" style="left:20%;top:55%">
+              <div class="mk-node-body" style="border-color:rgba(255,107,26,.5)"><span class="mk-node-ch">CH11</span>🎸</div>
+              <div class="mk-node-lbl">Basse</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SYNOPTIQUE -->
+      <div class="feat-pane" id="fp-synoptique">
+        <div class="feat-pane-head">
+          <div class="feat-pane-icon" style="background:rgba(26,143,255,.12);color:var(--blu)"><i class="ti ti-topology-star"></i></div>
+          <div>
+            <div class="feat-pane-title">Synoptique de signal</div>
+            <div class="feat-pane-desc">Dessinez votre schema de routage de signal. Plusieurs scenes, connexions typees, export PDF professionnel.</div>
+            <div class="feat-tag"><i class="ti ti-printer" style="font-size:10px"></i>Export PDF inclus</div>
+          </div>
+        </div>
+        <div class="feat-pane-body" style="padding:14px;position:relative;min-height:250px">
+          <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" xmlns="http://www.w3.org/2000/svg">
+            <defs><marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#ff6b1a"/></marker></defs>
+            <path d="M 155 80 C 155 120, 220 120, 220 80" stroke="#ff6b1a" stroke-width="2" fill="none" marker-end="url(#arr)" opacity=".7"/>
+            <path d="M 155 80 C 155 180, 340 180, 340 130" stroke="#1a8fff" stroke-width="2" fill="none" stroke-dasharray="6,3" marker-end="url(#arr)" opacity=".7"/>
+            <path d="M 310 80 C 400 80, 400 130, 430 130" stroke="#22d6a0" stroke-width="2" fill="none" marker-end="url(#arr)" opacity=".7"/>
+            <path d="M 220 80 C 270 80, 280 80, 310 80" stroke="#ff6b1a" stroke-width="2" fill="none" marker-end="url(#arr)" opacity=".7"/>
+          </svg>
+          <div class="mk-syn-node" style="left:60px;top:56px;border-color:rgba(255,107,26,.4)"><span style="color:var(--ora)">🎤</span>Scene</div>
+          <div class="mk-syn-node" style="left:220px;top:56px;border-color:rgba(255,107,26,.4)"><span>🎛</span>StagePatch</div>
+          <div class="mk-syn-node" style="left:340px;top:56px;border-color:rgba(26,143,255,.4)"><span style="color:var(--blu)">📡</span>Console FOH</div>
+          <div class="mk-syn-node" style="left:290px;top:148px;border-color:rgba(34,214,160,.4)"><span style="color:var(--grn)">🔊</span>Console MON</div>
+        </div>
+      </div>
+
+      <!-- SITE PLAN -->
+      <div class="feat-pane" id="fp-siteplan">
+        <div class="feat-pane-head">
+          <div class="feat-pane-icon" style="background:rgba(34,214,160,.12);color:var(--grn)"><i class="ti ti-map-2"></i></div>
+          <div>
+            <div class="feat-pane-title">Plan de site technique</div>
+            <div class="feat-pane-desc">Implantez votre sonorisation sur le plan du site. Tracez vos liaisons XLR, AES, DANTE, HF. Export PNG et PDF.</div>
+            <div class="feat-tag"><i class="ti ti-photo-down" style="font-size:10px"></i>Export PNG haute resolution</div>
+          </div>
+        </div>
+        <div class="feat-pane-body" style="padding:14px;position:relative">
+          <div style="background:#1a1f2e;border-radius:10px;height:240px;position:relative;overflow:hidden;border:1px solid var(--bdr2)">
+            <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);background-size:30px 30px"></div>
+            <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" xmlns="http://www.w3.org/2000/svg">
+              <line x1="80" y1="80" x2="220" y2="80" stroke="#ff6b1a" stroke-width="2.5" opacity=".6"/>
+              <line x1="220" y1="80" x2="380" y2="60" stroke="#ff6b1a" stroke-width="2.5" opacity=".6"/>
+              <line x1="80" y1="80" x2="80" y2="180" stroke="#1a8fff" stroke-width="2" stroke-dasharray="6,3" opacity=".6"/>
+            </svg>
+            <div style="position:absolute;left:50px;top:58px;background:var(--surf2);border:1px solid rgba(255,107,26,.4);border-radius:8px;padding:6px 10px;font-size:10px;display:flex;align-items:center;gap:6px"><span>🔊</span><span style="font-weight:600">FOH</span></div>
+            <div style="position:absolute;left:190px;top:58px;background:var(--surf2);border:1px solid rgba(255,107,26,.3);border-radius:8px;padding:6px 10px;font-size:10px;display:flex;align-items:center;gap:6px"><span>🎛</span><span style="font-weight:600">Stage Box</span></div>
+            <div style="position:absolute;left:350px;top:38px;background:var(--surf2);border:1px solid rgba(26,143,255,.3);border-radius:8px;padding:6px 10px;font-size:10px;display:flex;align-items:center;gap:6px"><span>🔺</span><span style="font-weight:600">Retours</span></div>
+            <div style="position:absolute;left:50px;top:152px;background:var(--surf2);border:1px solid rgba(26,143,255,.3);border-radius:8px;padding:6px 10px;font-size:10px;display:flex;align-items:center;gap:6px"><span>📡</span><span style="font-weight:600">IEM TX</span></div>
+            <div style="position:absolute;bottom:10px;right:12px;font-size:9px;font-family:var(--m);color:var(--muted);display:flex;flex-direction:column;gap:3px">
+              <div><span style="display:inline-block;width:20px;height:2px;background:var(--ora);vertical-align:middle;margin-right:5px"></span>XLR</div>
+              <div><span style="display:inline-block;width:20px;height:2px;background:var(--blu);border-bottom:2px dashed var(--blu);vertical-align:middle;margin-right:5px"></span>DANTE</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- COLLAB -->
+      <div class="feat-pane" id="fp-collab">
+        <div class="feat-pane-head">
+          <div class="feat-pane-icon" style="background:rgba(34,214,160,.12);color:var(--grn)"><i class="ti ti-users"></i></div>
+          <div>
+            <div class="feat-pane-title">Collaboration en temps reel</div>
+            <div class="feat-pane-desc">Invitez votre equipe avec des roles specifiques. Chaque modification est visible instantanement pour tous les membres connectes.</div>
+            <div class="feat-tag"><i class="ti ti-circle-dot" style="font-size:10px;color:var(--grn)"></i>Mis a jour en direct</div>
+          </div>
+        </div>
+        <div class="feat-pane-body">
+          <div style="margin-bottom:16px">
+            <div style="font-size:10px;font-family:var(--m);text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px">Membres du show (4)</div>
+            <div class="mk-team-row">
+              <div class="mk-av" style="background:rgba(255,107,26,.15);color:var(--ora)">ML</div>
+              <div style="flex:1"><div style="font-size:12px;font-weight:600">Marc Leblanc</div><div style="font-size:10px;color:var(--muted);font-family:var(--m)">FOH Engineer</div></div>
+              <div class="mk-online"></div>
+              <div style="font-size:10px;color:var(--grn);font-family:var(--m)">en ligne</div>
+            </div>
+            <div class="mk-team-row">
+              <div class="mk-av" style="background:rgba(26,143,255,.15);color:var(--blu)">SD</div>
+              <div style="flex:1"><div style="font-size:12px;font-weight:600">Sophie Durand</div><div style="font-size:10px;color:var(--muted);font-family:var(--m)">Monitor Engineer</div></div>
+              <div class="mk-online"></div>
+              <div style="font-size:10px;color:var(--grn);font-family:var(--m)">en ligne</div>
+            </div>
+            <div class="mk-team-row">
+              <div class="mk-av" style="background:rgba(155,106,255,.15);color:var(--pur)">AR</div>
+              <div style="flex:1"><div style="font-size:12px;font-weight:600">Antoine Roussel</div><div style="font-size:10px;color:var(--muted);font-family:var(--m)">Backline / Viewer</div></div>
+              <div style="width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0"></div>
+              <div style="font-size:10px;color:var(--muted);font-family:var(--m)">hors ligne</div>
+            </div>
+            <div class="mk-team-row" style="border:1px dashed var(--bdr2);background:transparent;justify-content:center;cursor:pointer">
+              <div style="font-size:11px;color:var(--muted)"><i class="ti ti-plus" style="margin-right:5px"></i>Inviter par e-mail</div>
+            </div>
+          </div>
+          <div style="background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;padding:12px;font-size:11px;color:var(--muted)">
+            <div style="font-weight:600;color:var(--txt2);margin-bottom:6px">Roles disponibles</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+              <div><span style="color:var(--ora)">Editor</span> — acces complet</div>
+              <div><span style="color:var(--blu)">FOH</span> — edition patch</div>
+              <div><span style="color:var(--grn)">Monitors</span> — retours</div>
+              <div><span style="color:var(--muted)">Viewer</span> — lecture seule</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SHARE -->
+      <div class="feat-pane" id="fp-share">
+        <div class="feat-pane-head">
+          <div class="feat-pane-icon" style="background:rgba(255,107,26,.12);color:var(--ora)"><i class="ti ti-link"></i></div>
+          <div>
+            <div class="feat-pane-title">Lien partage — lecture seule</div>
+            <div class="feat-pane-desc">Generez un lien public que vous partagez au groupe, au backline ou a la production. Ils voient le patch constamment mis a jour, sans avoir de compte.</div>
+            <div class="feat-tag"><i class="ti ti-eye" style="font-size:10px"></i>Aucune inscription requise</div>
+          </div>
+        </div>
+        <div class="feat-pane-body">
+          <div class="mk-share-box">
+            <div style="font-size:10px;font-family:var(--m);color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Lien partage — Hellfest 2025</div>
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+              <div class="mk-url" style="flex:1">https://patchflow.io/app?view=a1b2c3d4-e5f6...</div>
+              <div style="background:var(--ora);color:#000;font-size:10px;font-weight:700;padding:6px 12px;border-radius:6px;cursor:pointer;white-space:nowrap"><i class="ti ti-copy"></i> Copier</div>
+            </div>
+            <div style="font-size:10px;color:var(--muted)"><i class="ti ti-info-circle" style="margin-right:4px"></i>Le patch est mis a jour en temps reel. Valable tant que le show existe.</div>
+          </div>
+          <div style="background:var(--bg);border:1px solid var(--bdr2);border-radius:10px;overflow:hidden">
+            <div style="background:#080b12;padding:8px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--bdr)">
+              <svg width="16" height="16" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
+                <path d="M70 60 C100 60 100 140 130 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round"/>
+                <path d="M130 60 C100 60 100 140 70 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round" opacity="0.45"/>
+                <circle cx="60" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/>
+                <circle cx="60" cy="60" r="5" fill="#FF6B2B"/>
+                <circle cx="140" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/>
+                <circle cx="140" cy="60" r="5" fill="#FF6B2B"/>
+                <circle cx="60" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/>
+                <circle cx="60" cy="140" r="5" fill="#FF6B2B"/>
+                <circle cx="140" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/>
+                <circle cx="140" cy="140" r="5" fill="#FF6B2B"/>
+              </svg>
+              <div style="font-size:12px;font-weight:700">Patch<span style="color:var(--ora)">Flow</span></div>
+              <div style="font-size:9px;font-family:var(--m);color:var(--muted)">Live Patch</div>
+              <div style="margin-left:auto;font-size:9px;font-family:var(--m);background:rgba(34,214,160,.1);color:var(--grn);border:1px solid rgba(34,214,160,.2);border-radius:5px;padding:2px 8px">● Lecture seule</div>
+            </div>
+            <div style="padding:12px">
+              <div style="font-size:13px;font-weight:700;margin-bottom:10px">Hellfest 2025 — Main Stage</div>
+              <table class="mk-table" style="font-size:10px">
+                <thead><tr><th>CH</th><th>Court</th><th>Nom</th><th>Micro</th><th>FOH</th></tr></thead>
+                <tbody>
+                  <tr><td class="mk-ch">1</td><td><strong>KICK</strong></td><td>Grosse caisse</td><td style="font-family:var(--m);font-size:9px;color:var(--muted)">Beta 91A</td><td><span style="color:var(--grn)">✓</span></td></tr>
+                  <tr><td class="mk-ch">2</td><td><strong>SNARE</strong></td><td>Caisse claire</td><td style="font-family:var(--m);font-size:9px;color:var(--muted)">SM57</td><td><span style="color:var(--grn)">✓</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EXPORT -->
+      <div class="feat-pane" id="fp-export">
+        <div class="feat-pane-head">
+          <div class="feat-pane-icon" style="background:rgba(26,143,255,.12);color:var(--blu)"><i class="ti ti-file-type-pdf"></i></div>
+          <div>
+            <div class="feat-pane-title">Export PDF &amp; PNG professionnel</div>
+            <div class="feat-pane-desc">Generez des documents prets a imprimer ou a envoyer. Entete personnalise, lien live integre, informations de production completes.</div>
+            <div class="feat-tag"><i class="ti ti-printer" style="font-size:10px"></i>Pret a imprimer</div>
+          </div>
+        </div>
+        <div class="feat-pane-body">
+          <div style="border-radius:10px;overflow:hidden;border:1px solid var(--bdr2);box-shadow:0 8px 30px rgba(0,0,0,.4)">
+            <div class="mk-pdf-head">
+              <div style="display:flex;align-items:center;gap:10px">
+                <div style="width:28px;height:28px;border-radius:6px;background:linear-gradient(135deg,var(--ora),#ff3d00);display:flex;align-items:center;justify-content:center;font-size:13px">🎵</div>
+                <div>
+                  <div style="font-size:13px;font-weight:700">Hellfest 2025 — Main Stage</div>
+                  <div style="font-size:9px;color:#8090a8;font-family:var(--m)">Marc Leblanc — FOH Engineer</div>
+                </div>
+              </div>
+              <div style="text-align:right">
+                <div style="font-size:10px;font-weight:700;color:var(--ora);font-family:var(--m);text-transform:uppercase;letter-spacing:1px">Input List</div>
+                <div style="font-size:9px;color:#556;font-family:var(--m)">Rev. 3.2 · 21/05/2025</div>
+              </div>
+            </div>
+            <div style="display:flex;background:#f4f5f7;border-bottom:1px solid #dde">
+              <div style="padding:8px 14px;border-right:1px solid #dde"><div style="font-size:8px;color:#aaa;text-transform:uppercase;letter-spacing:.5px">Venue</div><div style="font-size:10px;color:#333;font-weight:500;font-family:var(--m)">Clisson, France</div></div>
+              <div style="padding:8px 14px;border-right:1px solid #dde"><div style="font-size:8px;color:#aaa;text-transform:uppercase;letter-spacing:.5px">Date</div><div style="font-size:10px;color:#333;font-weight:500;font-family:var(--m)">15 Juin 2025</div></div>
+              <div style="padding:8px 14px"><div style="font-size:8px;color:#aaa;text-transform:uppercase;letter-spacing:.5px">Canaux</div><div style="font-size:10px;color:var(--ora);font-weight:700;font-family:var(--m)">32 CH</div></div>
+            </div>
+            <div style="background:#fffbf0;padding:8px 14px;border-bottom:1px solid #ffe0a0;display:flex;align-items:center;gap:8px">
+              <span style="font-size:12px">📱</span>
+              <div>
+                <div style="font-size:8px;text-transform:uppercase;letter-spacing:1px;color:#999;font-family:var(--m)">Patch en direct — constamment mis a jour</div>
+                <div style="font-size:9px;color:#1a6fff;font-family:var(--m)">https://patchflow.io/app?view=a1b2c3...</div>
+              </div>
+            </div>
+            <div class="mk-pdf-body" style="padding:10px 14px">
+              <table style="width:100%;border-collapse:collapse;font-size:10px">
+                <thead><tr style="background:#f4f5f7;color:#888;font-family:var(--m);font-size:8px;text-transform:uppercase">
+                  <th style="padding:5px 8px;text-align:left;border-bottom:1px solid #eee">CH</th><th style="padding:5px 8px;text-align:left;border-bottom:1px solid #eee">Court</th><th style="padding:5px 8px;text-align:left;border-bottom:1px solid #eee">Nom long</th><th style="padding:5px 8px;text-align:left;border-bottom:1px solid #eee">Micro</th><th style="padding:5px 8px;text-align:center;border-bottom:1px solid #eee">FOH</th><th style="padding:5px 8px;text-align:center;border-bottom:1px solid #eee">MON</th>
+                </tr></thead>
+                <tbody>
+                  <tr><td style="padding:4px 8px;color:var(--ora);font-weight:700;font-family:var(--m)">1</td><td style="padding:4px 8px;font-weight:600;color:#222">KICK</td><td style="padding:4px 8px;color:#555">Grosse caisse</td><td style="padding:4px 8px;color:#888;font-family:var(--m);font-size:9px">Beta 91A</td><td style="padding:4px 8px;text-align:center;color:#22a060">✓</td><td style="padding:4px 8px;text-align:center;color:#1a6fff">✓</td></tr>
+                  <tr style="background:#fdf8f4"><td style="padding:4px 8px;color:var(--ora);font-weight:700;font-family:var(--m)">2</td><td style="padding:4px 8px;font-weight:600;color:#222">SNARE</td><td style="padding:4px 8px;color:#555">Caisse claire</td><td style="padding:4px 8px;color:#888;font-family:var(--m);font-size:9px">SM57</td><td style="padding:4px 8px;text-align:center;color:#22a060">✓</td><td style="padding:4px 8px;text-align:center;color:#1a6fff">✓</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FICHIERS -->
+      <div class="feat-pane" id="fp-fichiers">
+        <div class="feat-pane-head">
+          <div class="feat-pane-icon" style="background:rgba(26,143,255,.12);color:var(--blu)"><i class="ti ti-cloud"></i></div>
+          <div>
+            <div class="feat-pane-title">Gestion de fichiers integree</div>
+            <div class="feat-pane-desc">Stockez et partagez tous vos fichiers de production directement dans le show. Plans, riders, logos, show files console — tout au meme endroit.</div>
+            <div class="feat-tag"><i class="ti ti-cloud-upload" style="font-size:10px"></i>Jusqu'a 50 Go (plan Equipe)</div>
+          </div>
+        </div>
+        <div class="feat-pane-body">
+          <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+            <div style="background:var(--ora);color:#000;font-size:10px;font-weight:700;padding:6px 14px;border-radius:7px;cursor:pointer"><i class="ti ti-upload" style="margin-right:4px"></i>Envoyer</div>
+            <div style="background:var(--surf2);border:1px solid var(--bdr2);color:var(--muted);font-size:10px;padding:6px 14px;border-radius:7px;cursor:pointer">Tous</div>
+            <div style="background:var(--surf2);border:1px solid var(--bdr2);color:var(--muted);font-size:10px;padding:6px 14px;border-radius:7px;cursor:pointer">PDF</div>
+            <div style="background:var(--surf2);border:1px solid var(--bdr2);color:var(--muted);font-size:10px;padding:6px 14px;border-radius:7px;cursor:pointer">Show Files</div>
+          </div>
+          <div class="mk-file-row">
+            <div style="font-size:20px">📄</div>
+            <div style="flex:1"><div style="font-size:12px;font-weight:600">Rider_Technique_2025.pdf</div><div style="font-size:10px;color:var(--muted);font-family:var(--m)">2.4 Mo · Ajoute 20/05/2025</div></div>
+            <div style="font-size:11px;color:var(--ora)"><i class="ti ti-download"></i></div>
+          </div>
+          <div class="mk-file-row">
+            <div style="font-size:20px">🎛</div>
+            <div style="flex:1"><div style="font-size:12px;font-weight:600">FOH_ShowFile_SD12.zip</div><div style="font-size:10px;color:var(--muted);font-family:var(--m)">18.7 Mo · Ajoute 19/05/2025</div></div>
+            <div style="font-size:11px;color:var(--ora)"><i class="ti ti-download"></i></div>
+          </div>
+          <div class="mk-file-row">
+            <div style="font-size:20px">🖼</div>
+            <div style="flex:1"><div style="font-size:12px;font-weight:600">Logo_Production_HD.png</div><div style="font-size:10px;color:var(--muted);font-family:var(--m)">1.1 Mo · Ajoute 18/05/2025</div></div>
+            <div style="font-size:11px;color:var(--ora)"><i class="ti ti-download"></i></div>
+          </div>
+          <div class="mk-file-row">
+            <div style="font-size:20px">📊</div>
+            <div style="flex:1"><div style="font-size:12px;font-weight:600">Plan_Implantation.pdf</div><div style="font-size:10px;color:var(--muted);font-family:var(--m)">3.8 Mo · Ajoute 17/05/2025</div></div>
+            <div style="font-size:11px;color:var(--ora)"><i class="ti ti-download"></i></div>
+          </div>
+          <div style="margin-top:10px;font-size:10px;color:var(--muted);font-family:var(--m);text-align:right">26.0 Mo utilises / 10 Go</div>
+        </div>
+      </div>
+
+    </div><!-- end feat-preview -->
+  </div><!-- end feat-shell -->
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how" style="background:var(--bg2)">
+  <div class="section-label center">Comment ca marche</div>
+  <h2 class="center">Operationnel en <em>3 minutes.</em></h2>
+  <p class="section-sub center">Pas de configuration complexe. Creez votre show et commencez a travailler immediatement.</p>
+
+  <div class="how-steps">
+    <div class="how-step fade-up">
+      <div style="font-size:28px;margin-bottom:8px">🎤</div>
+      <h3>Creer votre show</h3>
+      <p>Donnez un nom a votre production, ajoutez le lieu, la date. Invitez votre equipe en quelques secondes avec leur role specifique.</p>
+    </div>
+    <div class="how-step fade-up stagger-1">
+      <div style="font-size:28px;margin-bottom:8px">📋</div>
+      <h3>Construire votre patch</h3>
+      <p>Utilisez l'assistant intelligent pour generer votre Input List en quelques clics. Ou importez depuis un template existant.</p>
+    </div>
+    <div class="how-step fade-up stagger-2">
+      <div style="font-size:28px;margin-bottom:8px">📡</div>
+      <h3>Partager et exporter</h3>
+      <p>Exportez en PDF professionnel, generez un lien partage pour le groupe, imprimez le plan de scene pour le backline.</p>
+    </div>
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section>
+  <div class="section-label center">Ils nous font confiance</div>
+  <h2 class="center">Ce que disent les <em>professionnels</em></h2>
+
+  <div class="testimonials">
+    <div class="testi fade-up">
+      <p class="testi-text">Fini les fichiers Excel qui circulent par email. Tout le monde est synchronise en permanence, c'est un gain de temps enorme en preprod.</p>
+      <div class="testi-author">
+        <div class="testi-av" style="background:rgba(255,107,26,.15);color:var(--ora)">ML</div>
+        <div>
+          <div class="testi-name">Marc Leblanc</div>
+          <div class="testi-role">FOH Engineer — Festivals</div>
+        </div>
+      </div>
+    </div>
+    <div class="testi fade-up stagger-1">
+      <p class="testi-text">Le plan de scene interactif change tout. Je montre visuellement aux musiciens leur placement avec les canaux associes. Parfait pour le brief backline.</p>
+      <div class="testi-author">
+        <div class="testi-av" style="background:rgba(34,214,160,.15);color:var(--grn)">SD</div>
+        <div>
+          <div class="testi-name">Sophie Durand</div>
+          <div class="testi-role">Monitor Engineer — Tournees</div>
+        </div>
+      </div>
+    </div>
+    <div class="testi fade-up stagger-2">
+      <p class="testi-text">Le lien partage est une revolution. Je l'envoie au groupe, ils voient leur patch en temps reel. Plus aucune confusion sur les canaux IEM.</p>
+      <div class="testi-author">
+        <div class="testi-av" style="background:rgba(155,106,255,.15);color:var(--pur)">AR</div>
+        <div>
+          <div class="testi-name">Antoine Roussel</div>
+          <div class="testi-role">Technicien son — Spectacles</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing">
+  <div class="section-label center">Tarifs</div>
+  <h2 class="center">Simple, <em>transparent.</em></h2>
+  <p class="section-sub center" style="max-width:560px;margin-left:auto;margin-right:auto">Commencez gratuitement. Passez au Pro quand vous en avez besoin. Annulez a tout moment.</p>
+
+  <div class="pricing-grid">
+
+    <!-- FREE -->
+    <div class="plan-card fade-up">
+      <div class="plan-name">Gratuit</div>
+      <div class="plan-price">
+        <span class="currency">€</span>
+        <span class="amount">0</span>
+        <span class="period">/ mois</span>
+      </div>
+      <div class="plan-annual">&nbsp;</div>
+      <div class="plan-tax">&nbsp;</div>
+      <p class="plan-desc">Lancez-vous sans risque. Gerez vos premiers shows, testez l'Input List et le plan de scene — sans carte bancaire, sans limite de duree.</p>
+      <div class="plan-divider"></div>
+      <ul class="plan-features">
+        <li><i class="ti ti-check"></i><span><strong>3 shows</strong> actifs</span></li>
+        <li><i class="ti ti-check"></i><span><strong>32 canaux</strong> par show</span></li>
+        <li><i class="ti ti-check"></i><span>Input List + export CSV</span></li>
+        <li><i class="ti ti-check"></i><span>Plan de scene basique</span></li>
+        <li><i class="ti ti-check"></i><span><strong>1 membre</strong> par show</span></li>
+        <li><i class="ti ti-check"></i><span>5 templates</span></li>
+        <li class="off"><i class="ti ti-minus"></i><span>Export PDF / lien partage</span></li>
+        <li class="off"><i class="ti ti-minus"></i><span>Plan de site</span></li>
+        <li class="off"><i class="ti ti-minus"></i><span>Multi-scenes / Multi-patches</span></li>
+        <li class="off"><i class="ti ti-minus"></i><span>Stockage fichiers</span></li>
+      </ul>
+      <a class="btn btn-ghost" href="soundbooth_12.html" style="width:100%;justify-content:center">Commencer gratuitement</a>
+    </div>
+
+    <!-- PRO -->
+    <div class="plan-card popular fade-up stagger-1">
+      <div class="plan-badge">Le plus populaire</div>
+      <div class="plan-name" style="color:var(--ora)">Pro</div>
+      <div class="plan-price">
+        <span class="currency" style="color:var(--ora)">€</span>
+        <span class="amount" style="color:var(--ora)">11</span>
+        <span class="period">/ mois</span>
+      </div>
+      <div class="plan-annual"><i class="ti ti-tag" style="font-size:10px"></i> ou <strong>99 € / an</strong> — 2 mois offerts</div>
+      <div class="plan-tax">Soit <strong>~8,25 €/mois</strong> apres deduction IS 25 %<br/><span style="font-size:10px;opacity:.75">(charge 100 % deductible — art. 39 CGI)</span></div>
+      <p class="plan-desc">Tout ce qu'il faut pour travailler en professionnel. Patch complet, exports PDF soignes, plan de scene et de site — plus jamais de stress avant le show.</p>
+      <div class="plan-divider" style="background:rgba(255,107,26,.2)"></div>
+      <ul class="plan-features">
+        <li><i class="ti ti-check"></i><span><strong>Shows illimites</strong></span></li>
+        <li><i class="ti ti-check"></i><span><strong>Canaux illimites</strong></span></li>
+        <li><i class="ti ti-check"></i><span>Input List + CSV + <strong>PDF professionnel</strong></span></li>
+        <li><i class="ti ti-check"></i><span><strong>Plan de scene</strong> complet</span></li>
+        <li><i class="ti ti-check"></i><span><strong>Plan de site</strong> complet</span></li>
+        <li><i class="ti ti-check"></i><span><strong>5 membres</strong> par show</span></li>
+        <li><i class="ti ti-check"></i><span>Templates <strong>illimites</strong></span></li>
+        <li><i class="ti ti-check"></i><span><strong>Lien partage</strong> lecture seule</span></li>
+        <li><i class="ti ti-check"></i><span>Synoptique de signal</span></li>
+        <li><i class="ti ti-check"></i><span>Stockage fichiers <strong>50 Go</strong></span></li>
+        <li class="off"><i class="ti ti-minus"></i><span>Multi-scenes / Multi-patches</span></li>
+        <li class="off"><i class="ti ti-minus"></i><span>Exports personnalises (logo)</span></li>
+      </ul>
+      <a class="btn btn-ora" href="soundbooth_12.html" style="width:100%;justify-content:center"><i class="ti ti-rocket"></i>Commencer — 14j offerts</a>
+    </div>
+
+    <!-- STUDIO -->
+    <div class="plan-card fade-up stagger-2">
+      <div class="plan-name">Studio</div>
+      <div class="plan-price">
+        <span class="currency">€</span>
+        <span class="amount">29</span>
+        <span class="period">/ mois</span>
+      </div>
+      <div class="plan-annual"><i class="ti ti-tag" style="font-size:10px"></i> ou <strong>249 € / an</strong> — 2 mois offerts</div>
+      <div class="plan-tax">Soit <strong>~21,75 €/mois</strong> apres deduction IS 25 %<br/><span style="font-size:10px;opacity:.75">(charge 100 % deductible — art. 39 CGI)</span></div>
+      <p class="plan-desc">Fait pour les prestataires qui gerent plusieurs projets en parallele. Votre marque sur chaque export, votre equipe au complet, zero limite de scenes ou de patches.</p>
+      <div class="plan-divider"></div>
+      <ul class="plan-features">
+        <li><i class="ti ti-check"></i><span><strong>Tout le plan Pro</strong></span></li>
+        <li><i class="ti ti-check"></i><span><strong>Membres illimites</strong> par show</span></li>
+        <li><i class="ti ti-check"></i><span><strong>Multi-scenes</strong> — plusieurs sets par show</span></li>
+        <li><i class="ti ti-check"></i><span><strong>Multi-patches</strong> — variantes A/B/festival</span></li>
+        <li><i class="ti ti-check"></i><span><strong>Exports a votre image</strong> — logo, infos societe</span></li>
+        <li><i class="ti ti-check"></i><span>PDF avec entete personnalisee</span></li>
+        <li><i class="ti ti-check"></i><span>Stockage fichiers <strong>200 Go</strong></span></li>
+        <li><i class="ti ti-check"></i><span>Historique des versions</span></li>
+        <li><i class="ti ti-check"></i><span>Gestion des roles avancee</span></li>
+        <li><i class="ti ti-check"></i><span>Assistant ILA avance</span></li>
+        <li><i class="ti ti-check"></i><span>Synoptique avance</span></li>
+        <li><i class="ti ti-check"></i><span>Support prioritaire</span></li>
+      </ul>
+      <a class="btn btn-ghost" href="soundbooth_12.html" style="width:100%;justify-content:center"><i class="ti ti-rocket"></i>Essayer 14j gratuit</a>
+    </div>
+
+  </div>
+
+  <!-- ENTERPRISE (full width) -->
+  <div class="plan-enterprise fade-up" style="margin-top:20px">
+    <div class="plan-ent-left">
+      <div class="plan-ent-meta">
+        <div class="plan-name" style="margin-bottom:10px">Entreprise</div>
+        <div class="plan-price" style="margin-bottom:4px">
+          <span class="currency">€</span>
+          <span class="amount" style="font-size:40px">50</span>
+          <span class="period">+ / mois</span>
+        </div>
+        <div class="plan-tax" style="margin-bottom:12px">Soit <strong>~37,50 €/mois</strong> apres deduction IS 25 %<br/><span style="font-size:10px;opacity:.75">(charge deductible — art. 39 CGI)</span></div>
+        <p style="font-size:13px;color:var(--muted);line-height:1.6">Pour les societes de prestation son, agences et grandes productions. Tarif sur mesure selon le volume.</p>
+      </div>
+      <ul class="plan-ent-feats" style="list-style:none;margin:0;padding:0">
+        <li><i class="ti ti-check"></i><span><strong>Tout le plan Studio</strong></span></li>
+        <li><i class="ti ti-check"></i><span><strong>Membres illimites</strong></span></li>
+        <li><i class="ti ti-check"></i><span>Stockage <strong>illimite</strong></span></li>
+        <li><i class="ti ti-check"></i><span>SSO / Active Directory</span></li>
+        <li><i class="ti ti-check"></i><span>API acces complet</span></li>
+        <li><i class="ti ti-check"></i><span>SLA garanti</span></li>
+        <li><i class="ti ti-check"></i><span>Support dedie 24/7</span></li>
+        <li><i class="ti ti-check"></i><span>Onboarding personnalise</span></li>
+        <li><i class="ti ti-check"></i><span>Facturation entreprise + PO</span></li>
+        <li><i class="ti ti-check"></i><span>Multi-sites / Multi-tournees</span></li>
+        <li><i class="ti ti-check"></i><span>Rapport d'utilisation</span></li>
+        <li><i class="ti ti-check"></i><span>Formation equipe incluse</span></li>
+      </ul>
+    </div>
+    <div class="plan-ent-right">
+      <a class="btn btn-ghost btn-lg" href="mailto:contact@patchflow.io" style="white-space:nowrap;margin-bottom:12px;display:inline-flex"><i class="ti ti-mail"></i>Nous contacter</a>
+      <div style="font-size:11px;color:var(--muted);font-family:var(--m);margin-top:10px;line-height:1.6">Reponse sous 24h<br/>Devis gratuit sur mesure</div>
+    </div>
+  </div>
+
+  <div style="text-align:center;margin-top:32px;font-size:13px;color:var(--muted)">
+    <i class="ti ti-shield-check" style="font-size:14px;margin-right:5px;color:var(--grn)"></i>
+    Paiement securise — Annulation sans engagement — TVA incluse
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq">
+  <div class="section-label center">FAQ</div>
+  <h2 class="center">Questions <em>frequentes</em></h2>
+
+  <div class="faq-list">
+
+    <div class="faq-item open">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        Puis-je utiliser PatchFlow sans abonnement payant ?
+        <i class="ti ti-plus"></i>
+      </div>
+      <div class="faq-a">Oui, le plan Gratuit est entierement fonctionnel. Il vous permet de gerer jusqu'a 3 shows actifs avec 32 canaux chacun, d'utiliser l'Input List et le plan de scene basique. Aucune carte bancaire requise pour commencer.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        Comment fonctionne le lien de partage en lecture seule ?
+        <i class="ti ti-plus"></i>
+      </div>
+      <div class="faq-a">Depuis le Plan de scene, cliquez sur "Lien". Copiez l'URL generee et envoyez-la a qui vous voulez — groupe, backline, production. Sans aucun compte, ils voient votre Input List complete, constamment mise a jour en temps reel. Utile aussi pour l'inclure dans vos exports PDF.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        Mes donnees sont-elles sauvegardees automatiquement ?
+        <i class="ti ti-plus"></i>
+      </div>
+      <div class="faq-a">Oui, chaque modification est sauvegardee automatiquement sur nos serveurs Supabase (PostgreSQL), heberges en Europe. Vous retrouvez votre travail exactement ou vous l'avez laisse, depuis n'importe quel appareil.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        Puis-je avoir plusieurs patches (configurations) pour un meme show ?
+        <i class="ti ti-plus"></i>
+      </div>
+      <div class="faq-a">Oui. Les onglets de patch permettent d'avoir plusieurs configurations au sein d'un meme show — par exemple un patch FOH, un patch retours, ou des patches par artiste en cas de soiree multi-groupes. Les noms sont personnalisables.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        L'assistant de creation de patch, comment ca marche ?
+        <i class="ti ti-plus"></i>
+      </div>
+      <div class="faq-a">L'assistant "ILA" vous propose une palette d'instruments (batterie, guitares, claviers, voix, cuivres, etc.) avec des valeurs par defaut intelligentes. Vous ajustez le nombre de chaque instrument, l'assistant genere automatiquement les canaux avec les noms courts, noms longs, sources et microphones recommandes.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        Est-ce que PatchFlow fonctionne sur mobile ?
+        <i class="ti ti-plus"></i>
+      </div>
+      <div class="faq-a">L'application est optimisee pour desktop (le plan de scene necessite de l'espace). Une interface mobile simplifiee est disponible pour consulter l'Input List et les informations du show depuis les coulisses ou la scene.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        Puis-je importer mon patch existant depuis Excel ou une autre appli ?
+        <i class="ti ti-plus"></i>
+      </div>
+      <div class="faq-a">L'import CSV est en cours de developpement. En attendant, l'assistant ILA permet de reconstruire rapidement un patch standard en moins de 2 minutes. Vous pouvez aussi exporter depuis PatchFlow en CSV a tout moment.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        Comment fonctionnent les roles dans l'equipe ?
+        <i class="ti ti-plus"></i>
+      </div>
+      <div class="faq-a">Vous pouvez inviter des membres avec differents roles : Editor (acces complet), FOH (edition Input List et plan de scene), Monitors, ou Lecture seule (Viewer). Chaque membre se connecte avec son propre compte et voit les modifications en temps reel.</div>
+    </div>
+
+  </div>
+</section>
+
+<!-- CTA FINAL -->
+<div class="cta-final fade-up">
+  <div class="section-label center">Pret a demarrer ?</div>
+  <h2>Votre prochain show commence <em>ici.</em></h2>
+  <p>Rejoignez des centaines de techniciens qui ont simplifie leur workflow avec PatchFlow. Gratuit pour commencer, professionnel par nature.</p>
+  <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap">
+    <a class="btn btn-ora btn-xl" href="soundbooth_12.html"><i class="ti ti-rocket"></i>Creer mon compte gratuit</a>
+    <a class="btn btn-ghost btn-lg" href="#pricing">Voir les tarifs</a>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">
+    <svg width="24" height="24" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+      <path d="M70 60 C100 60 100 140 130 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round"/>
+      <path d="M130 60 C100 60 100 140 70 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round" opacity="0.45"/>
+      <circle cx="60" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/>
+      <circle cx="60" cy="60" r="5" fill="#FF6B2B"/>
+      <circle cx="140" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/>
+      <circle cx="140" cy="60" r="5" fill="#FF6B2B"/>
+      <circle cx="60" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/>
+      <circle cx="60" cy="140" r="5" fill="#FF6B2B"/>
+      <circle cx="140" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/>
+      <circle cx="140" cy="140" r="5" fill="#FF6B2B"/>
+    </svg>
+    Patch<span>Flow</span> — Live Patch
+  </div>
+  <div class="footer-links">
+    <a href="#">Mentions legales</a>
+    <a href="#">Confidentialite</a>
+    <a href="mailto:contact@patchflow.io">Contact</a>
+    <a href="soundbooth_12.html">App</a>
+  </div>
+  <div class="footer-copy">© 2025 PatchFlow. Fait avec ♥ pour les techniciens son.</div>
+</footer>
+
+<script>
+function showFeat(id, el){
+  document.querySelectorAll('.feat-item').forEach(function(i){i.classList.remove('active');});
+  document.querySelectorAll('.feat-pane').forEach(function(p){p.classList.remove('active');});
+  el.classList.add('active');
+  var pane=document.getElementById('fp-'+id);
+  if(pane)pane.classList.add('active');
+}
+
+function toggleFaq(btn){
+  const item=btn.closest('.faq-item');
+  const wasOpen=item.classList.contains('open');
+  document.querySelectorAll('.faq-item').forEach(i=>i.classList.remove('open'));
+  if(!wasOpen)item.classList.add('open');
+}
+
+// Fade-up on scroll
+const obs=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible');});
+},{threshold:.12});
+document.querySelectorAll('.fade-up').forEach(el=>obs.observe(el));
+
+// Nav scroll effect
+window.addEventListener('scroll',()=>{
+  document.querySelector('nav').style.boxShadow=window.scrollY>40?'0 4px 40px rgba(0,0,0,.4)':'none';
+});
+</script>
+</body>
+</html>
