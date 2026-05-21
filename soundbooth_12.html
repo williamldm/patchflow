@@ -799,23 +799,34 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .ila-saved-title{font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:6px}
 .ila-new-btn{display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 12px;background:transparent;border:1px dashed var(--bdr2);border-radius:8px;cursor:pointer;font-family:var(--f);font-size:11px;color:var(--muted);transition:all .13s;width:100%;margin-top:6px}
 .ila-new-btn:hover{border-color:var(--ora-g);color:var(--ora)}
-.ila-intro{font-size:11px;color:var(--txt2);line-height:1.6;padding:9px 12px;background:var(--surf2);border:1px solid var(--bdr);border-radius:8px;margin-bottom:12px}
-.ila-intro strong{color:var(--ora)}
-.ila-cat{margin-bottom:5px;border:1px solid var(--bdr2);border-radius:9px;overflow:hidden}
-.ila-cat-hd{display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;user-select:none;background:var(--surf2);transition:background .12s}
+.ila-intro{display:flex;gap:10px;align-items:flex-start;font-size:11px;color:var(--txt2);line-height:1.65;padding:11px 14px;background:linear-gradient(135deg,var(--surf2),var(--surf3));border:1px solid var(--bdr2);border-left:3px solid var(--ora);border-radius:0 10px 10px 0;margin-bottom:14px}
+.ila-intro-icon{font-size:15px;color:var(--ora);flex-shrink:0;margin-top:1px}
+.ila-intro strong{color:var(--ora);font-weight:600}
+.ila-cat{margin-bottom:6px;border:1px solid var(--bdr2);border-radius:11px;overflow:hidden;transition:border-color .2s}
+.ila-cat.open{border-color:var(--bdr3)}
+.ila-cat-hd{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;user-select:none;background:var(--surf2);transition:background .12s}
 .ila-cat-hd:hover{background:var(--surf3)}
-.ila-cat-hd-icon{font-size:15px;color:var(--ora);flex-shrink:0;width:18px;text-align:center}
-.ila-cat-hd-label{font-size:12px;font-weight:600;flex:1}
-.ila-cat-hd-cnt{font-size:11px;font-family:var(--m);color:var(--ora);font-weight:700;min-width:18px;text-align:right}
-.ila-cat-hd-arr{font-size:11px;color:var(--muted);transition:transform .15s;flex-shrink:0;margin-left:4px}
-.ila-cat-body{border-top:1px solid var(--bdr2)}
-.ila-cb-row{display:flex;align-items:center;gap:10px;padding:7px 13px;border-bottom:1px solid var(--bdr);cursor:pointer;transition:background .1s}
+.ila-cat-hd-icon{font-size:16px;color:var(--ora);flex-shrink:0;width:20px;text-align:center}
+.ila-cat-hd-label{font-size:12px;font-weight:600;letter-spacing:.15px;flex:1}
+.ila-cat-hd-badge{background:var(--ora);color:#000;font-size:9px;font-family:var(--m);font-weight:700;padding:2px 7px;border-radius:20px;opacity:0;transition:opacity .18s;flex-shrink:0}
+.ila-cat-hd-badge.show{opacity:1}
+.ila-cat-hd-arr{font-size:12px;color:var(--muted);transition:transform .2s;flex-shrink:0;margin-left:2px}
+.ila-cat-body{border-top:1px solid var(--bdr)}
+.ila-cb-row{display:flex;align-items:center;gap:11px;padding:8px 14px;border-bottom:1px solid var(--bdr);cursor:pointer;transition:background .12s;position:relative}
 .ila-cb-row:last-child{border-bottom:none}
-.ila-cb-row:hover{background:var(--surf2)}
-.ila-cb-row.checked{background:rgba(255,140,60,.05)}
-.ila-cb-row input[type=checkbox]{accent-color:var(--ora);width:14px;height:14px;flex-shrink:0;pointer-events:none}
-.ila-cb-lbl{flex:1;font-size:11px;color:var(--txt)}
-.ila-cb-mic{font-size:9px;color:var(--muted);font-family:var(--m)}
+.ila-cb-row::before{content:'';position:absolute;left:0;top:4px;bottom:4px;width:2px;border-radius:2px;background:var(--ora);opacity:0;transition:opacity .18s}
+.ila-cb-row:hover{background:rgba(255,255,255,.018)}
+.ila-cb-row.checked{background:rgba(255,107,26,.07)}
+.ila-cb-row.checked::before{opacity:1}
+.ila-cb-box{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--bdr3);background:var(--surf);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .18s}
+.ila-cb-row.checked .ila-cb-box{background:var(--ora);border-color:var(--ora)}
+.ila-cb-box-chk{width:5px;height:9px;border-right:2px solid #000;border-bottom:2px solid #000;transform:rotate(40deg) translate(0px,-1px);opacity:0;transition:opacity .15s}
+.ila-cb-row.checked .ila-cb-box-chk{opacity:1}
+.ila-cb-lbl{flex:1;font-size:12px;color:var(--txt);font-weight:500}
+.ila-cb-mic{font-size:9px;color:var(--muted);font-family:var(--m);background:var(--surf2);border:1px solid var(--bdr2);padding:2px 6px;border-radius:4px;white-space:nowrap}
+.ila-total{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--bdr)}
+.ila-total-label{font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted)}
+.ila-total-pill{background:var(--ora);color:#000;font-size:12px;font-family:var(--m);font-weight:700;padding:3px 11px;border-radius:20px;min-width:28px;text-align:center}
 
 /* PDF modal fields */
 .pdf-sec{margin-bottom:18px}
@@ -1324,12 +1335,12 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 
 <!-- INPUT LIST ASSISTANT MODAL -->
 <div class="modal-ov" id="il-assist-modal">
-  <div class="modal-box" style="width:520px">
+  <div class="modal-box" style="width:560px">
     <div class="modal-head"><i class="ti ti-wand" style="font-size:16px;color:var(--ora)"></i><span class="modal-title">Assistant Input List</span><button class="btn ghost sm" onclick="closeILAssist()"><i class="ti ti-x"></i></button></div>
     <div class="modal-body">
-      <div class="ila-intro">Coche les instruments de ta configuration — les canaux seront ajoutes dans l'ordre affiche. <strong>La batterie est pre-cochee</strong> avec les 8 prises standard ; decroche ce dont tu n'as pas besoin et ouvre les autres categories pour completer.</div>
+      <div class="ila-intro"><i class="ti ti-info-circle ila-intro-icon"></i><span>Coche les instruments de ta configuration — les canaux seront ajoutes dans l'ordre affiche. <strong>La batterie est pre-cochee</strong> avec les 8 prises standard ; decroche ce dont tu n'as pas besoin et ouvre les autres categories pour completer.</span></div>
       <div id="ila-sections"></div>
-      <div class="ila-total" id="ila-total" style="display:none">Total : <span id="ila-count">0</span> canaux</div>
+      <div class="ila-total" id="ila-total" style="display:none"><span class="ila-total-label">Canaux selectionnes</span><span class="ila-total-pill" id="ila-count">0</span></div>
     </div>
     <div class="modal-foot">
       <button class="btn ghost sm" onclick="closeILAssist()"><i class="ti ti-x"></i>Annuler</button>
@@ -2006,28 +2017,25 @@ function closeILAssist() {
 
 function ilaToggleCat(catId) {
   _ilaCatOpen[catId] = !_ilaCatOpen[catId];
-  var hd = document.querySelector('.ila-cat-hd[data-cat="'+catId+'"]');
-  var body = document.querySelector('.ila-cat-body[data-cat="'+catId+'"]');
-  var arr = hd ? hd.querySelector('.ila-cat-hd-arr') : null;
   var open = _ilaCatOpen[catId];
+  var wrap = document.querySelector('.ila-cat[data-cat="'+catId+'"]');
+  var body = document.querySelector('.ila-cat-body[data-cat="'+catId+'"]');
+  var arr  = document.querySelector('.ila-cat-hd[data-cat="'+catId+'"] .ila-cat-hd-arr');
+  if (wrap) wrap.classList.toggle('open', open);
   if (body) body.style.display = open ? '' : 'none';
-  if (arr) arr.style.transform = open ? 'rotate(90deg)' : '';
+  if (arr)  arr.style.transform = open ? 'rotate(90deg)' : '';
 }
 
 function ilaToggleItem(itemId) {
   _ilaChecked[itemId] = !_ilaChecked[itemId];
-  var cb = document.getElementById('ilacb-'+itemId);
-  if (cb) {
-    cb.checked = _ilaChecked[itemId];
-    var row = cb.closest('.ila-cb-row');
-    if (row) row.classList.toggle('checked', _ilaChecked[itemId]);
-  }
+  var row = document.querySelector('.ila-cb-row[data-id="'+itemId+'"]');
+  if (row) row.classList.toggle('checked', _ilaChecked[itemId]);
   ILA_CATS.forEach(function(cat) {
     var found = cat.items.some(function(it) { return it.id === itemId; });
     if (found) {
       var cnt = cat.items.filter(function(it) { return _ilaChecked[it.id]; }).length;
-      var el = document.getElementById('ila-cat-cnt-'+cat.id);
-      if (el) el.textContent = cnt > 0 ? cnt : '';
+      var badge = document.getElementById('ila-cat-cnt-'+cat.id);
+      if (badge) { badge.textContent = cnt; badge.classList.toggle('show', cnt > 0); }
     }
   });
   _ilaUpdateCount();
@@ -2037,19 +2045,19 @@ function _ilaRender() {
   var h = '';
   ILA_CATS.forEach(function(cat) {
     var open = !!_ilaCatOpen[cat.id];
-    var cnt = cat.items.filter(function(it) { return _ilaChecked[it.id]; }).length;
-    h += '<div class="ila-cat">';
+    var cnt  = cat.items.filter(function(it) { return _ilaChecked[it.id]; }).length;
+    h += '<div class="ila-cat'+(open ? ' open' : '')+'" data-cat="'+cat.id+'">';
     h += '<div class="ila-cat-hd" data-cat="'+cat.id+'" onclick="ilaToggleCat(\''+cat.id+'\')">';
     h += '<i class="ti '+cat.icon+' ila-cat-hd-icon"></i>';
     h += '<span class="ila-cat-hd-label">'+cat.label+'</span>';
-    h += '<span class="ila-cat-hd-cnt" id="ila-cat-cnt-'+cat.id+'">'+(cnt > 0 ? cnt : '')+'</span>';
+    h += '<span class="ila-cat-hd-badge'+(cnt > 0 ? ' show' : '')+'" id="ila-cat-cnt-'+cat.id+'">'+cnt+'</span>';
     h += '<i class="ti ti-chevron-right ila-cat-hd-arr" style="'+(open ? 'transform:rotate(90deg)' : '')+'"></i>';
     h += '</div>';
     h += '<div class="ila-cat-body" data-cat="'+cat.id+'" style="'+(open ? '' : 'display:none')+'">';
     cat.items.forEach(function(item) {
       var chk = !!_ilaChecked[item.id];
-      h += '<div class="ila-cb-row'+(chk ? ' checked' : '')+'" onclick="ilaToggleItem(\''+item.id+'\')">';
-      h += '<input type="checkbox" id="ilacb-'+item.id+'"'+(chk ? ' checked' : '')+' style="pointer-events:none" tabindex="-1">';
+      h += '<div class="ila-cb-row'+(chk ? ' checked' : '')+'" data-id="'+item.id+'" onclick="ilaToggleItem(\''+item.id+'\')">';
+      h += '<div class="ila-cb-box"><div class="ila-cb-box-chk"></div></div>';
       h += '<span class="ila-cb-lbl">'+item.label+'</span>';
       h += '<span class="ila-cb-mic">'+item.mic+'</span>';
       h += '</div>';
@@ -2064,7 +2072,7 @@ function _ilaRender() {
 function _ilaUpdateCount() {
   var total = _ilaAllChannels().length;
   document.getElementById('ila-count').textContent = total;
-  document.getElementById('ila-total').style.display = 'block';
+  document.getElementById('ila-total').style.display = total > 0 ? 'flex' : 'none';
   var vis = total > 0 ? 'inline-flex' : 'none';
   document.getElementById('ila-apply-btn').style.display = vis;
   document.getElementById('ila-save-tpl-btn').style.display = vis;
