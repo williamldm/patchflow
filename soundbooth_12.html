@@ -824,6 +824,24 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .ila-cb-row.checked .ila-cb-box-chk{opacity:1}
 .ila-cb-lbl{flex:1;font-size:12px;color:var(--txt);font-weight:500}
 .ila-cb-mic{font-size:9px;color:var(--muted);font-family:var(--m);background:var(--surf2);border:1px solid var(--bdr2);padding:2px 6px;border-radius:4px;white-space:nowrap}
+.ila-cb-stand{font-size:9px;color:var(--txt2);font-family:var(--m);background:var(--surf3);border:1px solid var(--bdr3);padding:2px 6px;border-radius:4px;white-space:nowrap;margin-left:3px}
+.ila-item-del{background:none;border:none;color:var(--muted2);font-size:10px;width:18px;height:18px;cursor:pointer;border-radius:3px;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;transition:all .12s;margin-left:3px}
+.ila-item-del:hover{background:rgba(255,60,60,.15);color:#ff5050}
+.ila-cat-del{background:none;border:none;color:var(--muted);font-size:11px;width:22px;height:22px;cursor:pointer;border-radius:5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;margin-right:2px;transition:all .12s}
+.ila-cat-del:hover{background:rgba(255,60,60,.15);color:#ff5050}
+.ila-add-item-btn{display:flex;align-items:center;gap:7px;padding:7px 14px;font-size:10px;color:var(--muted);cursor:pointer;transition:all .13s;font-family:var(--f);border-top:1px dashed var(--bdr2)}
+.ila-add-item-btn:hover{background:rgba(255,107,26,.04);color:var(--ora)}
+.ila-add-item-btn i{font-size:10px}
+.ila-add-form-inline{padding:11px 14px;border-top:1px solid var(--bdr2);background:var(--surf3)}
+.ila-af-sel{background:var(--surf2);border:1px solid var(--bdr2);color:var(--txt2);font-size:10px;font-family:var(--f);padding:5px 7px;border-radius:6px;cursor:pointer;outline:none;flex-shrink:0;transition:border-color .13s}
+.ila-af-sel:focus{border-color:var(--ora-g)}
+.ila-af-ok{display:flex;align-items:center;gap:5px;background:var(--ora-d);border:1px solid var(--ora-g);color:var(--ora);font-size:10px;font-weight:600;padding:5px 10px;border-radius:6px;cursor:pointer;font-family:var(--f);white-space:nowrap;transition:all .13s}
+.ila-af-ok:hover{background:var(--ora);color:#000}
+.ila-af-cancel{display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid var(--bdr2);color:var(--muted);font-size:12px;width:28px;height:28px;border-radius:6px;cursor:pointer;flex-shrink:0;padding:0;transition:all .13s}
+.ila-af-cancel:hover{border-color:var(--bdr3);color:var(--txt)}
+.ila-add-cat-btn{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;padding:10px;background:transparent;border:1px dashed var(--bdr2);border-radius:10px;color:var(--muted);font-size:11px;font-family:var(--f);cursor:pointer;margin-top:6px;transition:all .13s}
+.ila-add-cat-btn:hover{border-color:var(--ora-g);color:var(--ora);background:var(--ora-d)}
+.ila-add-cat-form{margin-top:6px;padding:12px 14px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px}
 .ila-cb-spinner{display:flex;align-items:center;background:var(--surf);border:1px solid var(--bdr2);border-radius:7px;overflow:hidden;flex-shrink:0;margin-left:6px}
 .ila-sp-btn{background:none;border:none;color:var(--txt2);font-size:14px;width:24px;height:26px;cursor:pointer;font-family:var(--f);font-weight:700;display:flex;align-items:center;justify-content:center;transition:background .1s;line-height:1}
 .ila-sp-btn:hover:not(:disabled){background:var(--surf3);color:var(--txt)}
@@ -1934,80 +1952,83 @@ const ILA_CATS = [
   {
     id: 'drums', label: 'Batterie', icon: 'ti-circle', open: true,
     items: [
-      { id:'kick_in',   label:'Kick In',             s:'KICK', mic:'Beta 91A', source:'Batterie', phantom:false, def:1 },
-      { id:'kick_out',  label:'Kick Out',            s:'KOUT', mic:'Beta 52A', source:'Batterie', phantom:false, def:0 },
-      { id:'snare_top', label:'Caisse Claire Top',   s:'SNRT', mic:'SM57',    source:'Batterie', phantom:false, def:1 },
-      { id:'snare_bot', label:'Caisse Claire Bottom',s:'SNRB', mic:'SM57',    source:'Batterie', phantom:false, def:0 },
-      { id:'hihat',     label:'Hi-Hat',              s:'HIHT', mic:'KSM137',  source:'Batterie', phantom:false, def:1 },
-      { id:'tom1',      label:'Tom 1',               s:'TOM1', mic:'e604',    source:'Batterie', phantom:false, def:1 },
-      { id:'tom2',      label:'Tom 2',               s:'TOM2', mic:'e604',    source:'Batterie', phantom:false, def:1 },
-      { id:'floor_tom', label:'Floor Tom',           s:'FLOR', mic:'e604',    source:'Batterie', phantom:false, def:1 },
-      { id:'oh_l',      label:'Overhead L',          s:'OHL',  mic:'AKG 414', source:'Batterie', phantom:true,  def:1 },
-      { id:'oh_r',      label:'Overhead R',          s:'OHR',  mic:'AKG 414', source:'Batterie', phantom:true,  def:1 },
-      { id:'room_l',    label:'Room L',              s:'ROML', mic:'AKG 414', source:'Batterie', phantom:true,  def:0 },
-      { id:'room_r',    label:'Room R',              s:'ROMR', mic:'AKG 414', source:'Batterie', phantom:true,  def:0 },
-      { id:'ride',      label:'Ride',                s:'RIDE', mic:'KSM137',  source:'Batterie', phantom:false, def:0 },
-      { id:'crash',     label:'Crash',               s:'CRSH', mic:'KSM137',  source:'Batterie', phantom:false, def:0 },
+      { id:'kick_in',   label:'Kick In',             s:'KICK', mic:'Beta 91A', source:'Batterie', phantom:false, def:1, stand:'petit' },
+      { id:'kick_out',  label:'Kick Out',            s:'KOUT', mic:'Beta 52A', source:'Batterie', phantom:false, def:0, stand:'petit' },
+      { id:'snare_top', label:'Caisse Claire Top',   s:'SNRT', mic:'SM57',    source:'Batterie', phantom:false, def:1, stand:'petit' },
+      { id:'snare_bot', label:'Caisse Claire Bottom',s:'SNRB', mic:'SM57',    source:'Batterie', phantom:false, def:0, stand:'petit' },
+      { id:'hihat',     label:'Hi-Hat',              s:'HIHT', mic:'KSM137',  source:'Batterie', phantom:false, def:1, stand:'petit' },
+      { id:'tom1',      label:'Tom 1',               s:'TOM1', mic:'e604',    source:'Batterie', phantom:false, def:1, stand:'petit' },
+      { id:'tom2',      label:'Tom 2',               s:'TOM2', mic:'e604',    source:'Batterie', phantom:false, def:1, stand:'petit' },
+      { id:'floor_tom', label:'Floor Tom',           s:'FLOR', mic:'e604',    source:'Batterie', phantom:false, def:1, stand:'petit' },
+      { id:'oh_l',      label:'Overhead L',          s:'OHL',  mic:'AKG 414', source:'Batterie', phantom:true,  def:1, stand:'grand' },
+      { id:'oh_r',      label:'Overhead R',          s:'OHR',  mic:'AKG 414', source:'Batterie', phantom:true,  def:1, stand:'grand' },
+      { id:'room_l',    label:'Room L',              s:'ROML', mic:'AKG 414', source:'Batterie', phantom:true,  def:0, stand:'grand' },
+      { id:'room_r',    label:'Room R',              s:'ROMR', mic:'AKG 414', source:'Batterie', phantom:true,  def:0, stand:'grand' },
+      { id:'ride',      label:'Ride',                s:'RIDE', mic:'KSM137',  source:'Batterie', phantom:false, def:0, stand:'petit' },
+      { id:'crash',     label:'Crash',               s:'CRSH', mic:'KSM137',  source:'Batterie', phantom:false, def:0, stand:'petit' },
     ],
   },
   {
     id: 'bass_guitar', label: 'Basse / Guitare / Claviers', icon: 'ti-guitar-pick', open: false,
     items: [
-      { id:'bass_di',  label:'Bass DI',            s:'BASS', mic:'Radial JDI', source:'Basse',    phantom:false, def:0 },
-      { id:'bass_mic', label:'Bass Mic',           s:'BSMC', mic:'Beta 52A',  source:'Basse',    phantom:false, def:0 },
-      { id:'guitar_e', label:'Guitare Electrique', s:'GTE',  mic:'SM57',      source:'Guitare',  phantom:false, def:0 },
-      { id:'keys_l',   label:'Claviers L',         s:'KYL',  mic:'DI Stereo', source:'Claviers', phantom:false, def:0 },
-      { id:'keys_r',   label:'Claviers R',         s:'KYR',  mic:'DI Stereo', source:'Claviers', phantom:false, def:0 },
+      { id:'bass_di',  label:'Bass DI',            s:'BASS', mic:'Radial JDI', source:'Basse',    phantom:false, def:0, stand:''      },
+      { id:'bass_mic', label:'Bass Mic',           s:'BSMC', mic:'Beta 52A',  source:'Basse',    phantom:false, def:0, stand:'petit' },
+      { id:'guitar_e', label:'Guitare Electrique', s:'GTE',  mic:'SM57',      source:'Guitare',  phantom:false, def:0, stand:''      },
+      { id:'keys_l',   label:'Claviers L',         s:'KYL',  mic:'DI Stereo', source:'Claviers', phantom:false, def:0, stand:''      },
+      { id:'keys_r',   label:'Claviers R',         s:'KYR',  mic:'DI Stereo', source:'Claviers', phantom:false, def:0, stand:''      },
     ],
   },
   {
     id: 'vocals', label: 'Voix', icon: 'ti-microphone', open: false,
     items: [
-      { id:'vox_lead', label:'Vox Lead',    s:'VOX', mic:'SM58', source:'Chant', phantom:false, def:0 },
-      { id:'bv',       label:'Backing Vox', s:'BV',  mic:'SM58', source:'Chant', phantom:false, def:0 },
+      { id:'vox_lead', label:'Vox Lead',    s:'VOX', mic:'SM58', source:'Chant', phantom:false, def:0, stand:'grand' },
+      { id:'bv',       label:'Backing Vox', s:'BV',  mic:'SM58', source:'Chant', phantom:false, def:0, stand:'grand' },
     ],
   },
   {
     id: 'dj', label: 'DJ', icon: 'ti-vinyl', open: false,
     items: [
-      { id:'dj_l',   label:'DJ Main L', s:'DJL', mic:'DI Stereo', source:'DJ',       phantom:false, def:0 },
-      { id:'dj_r',   label:'DJ Main R', s:'DJR', mic:'DI Stereo', source:'DJ',       phantom:false, def:0 },
-      { id:'mc_mic', label:'MC Mic',    s:'MC',  mic:'SM58',      source:'Chant',    phantom:false, def:0 },
-      { id:'dj_aux', label:'AUX',       s:'AUX', mic:'DI',        source:'Playback', phantom:false, def:0 },
+      { id:'dj_l',   label:'DJ Main L', s:'DJL', mic:'DI Stereo', source:'DJ',       phantom:false, def:0, stand:''      },
+      { id:'dj_r',   label:'DJ Main R', s:'DJR', mic:'DI Stereo', source:'DJ',       phantom:false, def:0, stand:''      },
+      { id:'mc_mic', label:'MC Mic',    s:'MC',  mic:'SM58',      source:'Chant',    phantom:false, def:0, stand:'grand' },
+      { id:'dj_aux', label:'AUX',       s:'AUX', mic:'DI',        source:'Playback', phantom:false, def:0, stand:''      },
     ],
   },
   {
     id: 'perc', label: 'Percussions', icon: 'ti-circle', open: false,
     items: [
-      { id:'cajon',     label:'Cajon',               s:'CAJ', mic:'Beta 52A', source:'Percussions', phantom:false, def:0 },
-      { id:'congas',    label:'Congas',               s:'CON', mic:'SM57',    source:'Percussions', phantom:false, def:0 },
-      { id:'bongos',    label:'Bongos',               s:'BON', mic:'SM57',    source:'Percussions', phantom:false, def:0 },
-      { id:'djembe',    label:'Djembe',               s:'DJM', mic:'Beta 52A',source:'Percussions', phantom:false, def:0 },
-      { id:'perc_misc', label:'Percussions diverses', s:'PRC', mic:'SM57',    source:'Percussions', phantom:false, def:0 },
+      { id:'cajon',     label:'Cajon',               s:'CAJ', mic:'Beta 52A', source:'Percussions', phantom:false, def:0, stand:'petit' },
+      { id:'congas',    label:'Congas',               s:'CON', mic:'SM57',    source:'Percussions', phantom:false, def:0, stand:''      },
+      { id:'bongos',    label:'Bongos',               s:'BON', mic:'SM57',    source:'Percussions', phantom:false, def:0, stand:''      },
+      { id:'djembe',    label:'Djembe',               s:'DJM', mic:'Beta 52A',source:'Percussions', phantom:false, def:0, stand:''      },
+      { id:'perc_misc', label:'Percussions diverses', s:'PRC', mic:'SM57',    source:'Percussions', phantom:false, def:0, stand:'petit' },
     ],
   },
   {
     id: 'other', label: 'Autre', icon: 'ti-plug', open: false,
     items: [
-      { id:'click',    label:'Click Track', s:'CLK', mic:'DI', source:'Playback',     phantom:false, def:0 },
-      { id:'playback', label:'Playback',    s:'PLY', mic:'DI', source:'Playback',     phantom:false, def:0 },
-      { id:'laptop',   label:'Ordinateur',  s:'PC',  mic:'DI', source:'Presentation', phantom:false, def:0 },
+      { id:'click',    label:'Click Track', s:'CLK', mic:'DI', source:'Playback',     phantom:false, def:0, stand:'' },
+      { id:'playback', label:'Playback',    s:'PLY', mic:'DI', source:'Playback',     phantom:false, def:0, stand:'' },
+      { id:'laptop',   label:'Ordinateur',  s:'PC',  mic:'DI', source:'Presentation', phantom:false, def:0, stand:'' },
     ],
   },
 ];
 
 
-let _ilaCount   = {};  // itemId -> integer (0 = not selected)
-let _ilaCatOpen = {};
+let _ilaCount       = {};   // itemId -> integer (0 = not selected)
+let _ilaCatOpen     = {};
+let _ilaCustomItems = {};   // catId -> [{id,label,s,mic,stand,source,phantom}]
+let _ilaCustomCats  = [];   // [{id,label,icon}]
+let _ilaFormCat     = null; // catId | '__new__' | null
+
+const _ILA_STAND_S = { petit:'Petit', grand:'Grand', autre:'Autre' };
+const _ILA_STAND_F = { petit:'Petit pied', grand:'Grand pied', autre:'Autre' };
 
 function openILAssist() {
-  _ilaCount   = {};
-  _ilaCatOpen = {};
+  _ilaCount = {}; _ilaCatOpen = {}; _ilaCustomItems = {}; _ilaCustomCats = []; _ilaFormCat = null;
   ILA_CATS.forEach(function(cat) {
     _ilaCatOpen[cat.id] = !!cat.open;
-    cat.items.forEach(function(item) {
-      _ilaCount[item.id] = item.def || 0;
-    });
+    cat.items.forEach(function(item) { _ilaCount[item.id] = item.def || 0; });
   });
   _ilaRender();
   document.getElementById('il-assist-modal').className = 'modal-ov show';
@@ -2030,71 +2051,168 @@ function ilaToggleCat(catId) {
 
 function ilaRowClick(itemId) {
   _ilaCount[itemId] = (_ilaCount[itemId] > 0) ? 0 : 1;
-  _ilaRefreshRow(itemId);
-  _ilaUpdateBadge(itemId);
-  _ilaUpdateCount();
+  _ilaRefreshRow(itemId); _ilaUpdateBadge(itemId); _ilaUpdateCount();
 }
 
 function ilaAdj(itemId, delta) {
   _ilaCount[itemId] = Math.max(0, Math.min(16, (_ilaCount[itemId] || 0) + delta));
-  _ilaRefreshRow(itemId);
-  _ilaUpdateBadge(itemId);
-  _ilaUpdateCount();
+  _ilaRefreshRow(itemId); _ilaUpdateBadge(itemId); _ilaUpdateCount();
 }
 
 function _ilaRefreshRow(itemId) {
-  var n   = _ilaCount[itemId] || 0;
+  var n = _ilaCount[itemId] || 0;
   var row = document.querySelector('.ila-cb-row[data-id="'+itemId+'"]');
   if (!row) return;
   row.classList.toggle('checked', n > 0);
-  var val    = row.querySelector('.ila-sp-val');
-  var minBtn = row.querySelector('.ila-sp-btn');
-  if (val)    val.textContent = n;
-  if (minBtn) minBtn.disabled = (n === 0);
+  var val = row.querySelector('.ila-sp-val'), mb = row.querySelector('.ila-sp-btn');
+  if (val) val.textContent = n;
+  if (mb)  mb.disabled = (n === 0);
+}
+
+function _ilaCatTotal(catId) {
+  var t = 0;
+  var bc = ILA_CATS.find(function(c) { return c.id === catId; });
+  if (bc) bc.items.forEach(function(it) { t += _ilaCount[it.id] || 0; });
+  (_ilaCustomItems[catId] || []).forEach(function(it) { t += _ilaCount[it.id] || 0; });
+  return t;
+}
+
+function _ilaFindCatId(itemId) {
+  for (var i = 0; i < ILA_CATS.length; i++) {
+    if (ILA_CATS[i].items.some(function(it){return it.id===itemId;})) return ILA_CATS[i].id;
+    if ((_ilaCustomItems[ILA_CATS[i].id]||[]).some(function(it){return it.id===itemId;})) return ILA_CATS[i].id;
+  }
+  for (var j = 0; j < _ilaCustomCats.length; j++) {
+    if ((_ilaCustomItems[_ilaCustomCats[j].id]||[]).some(function(it){return it.id===itemId;})) return _ilaCustomCats[j].id;
+  }
+  return null;
 }
 
 function _ilaUpdateBadge(itemId) {
-  ILA_CATS.forEach(function(cat) {
-    var found = cat.items.some(function(it) { return it.id === itemId; });
-    if (found) {
-      var total = cat.items.reduce(function(sum, it) { return sum + (_ilaCount[it.id] || 0); }, 0);
-      var badge = document.getElementById('ila-cat-cnt-'+cat.id);
-      if (badge) { badge.textContent = total; badge.classList.toggle('show', total > 0); }
-    }
-  });
+  var cid = _ilaFindCatId(itemId); if (!cid) return;
+  var t = _ilaCatTotal(cid);
+  var b = document.getElementById('ila-cat-cnt-'+cid);
+  if (b) { b.textContent = t; b.classList.toggle('show', t > 0); }
+}
+
+/* ---- add/remove custom items & cats ---- */
+function ilaShowItemForm(catId) { _ilaFormCat = catId;      _ilaRender(); }
+function ilaHideForm()          { _ilaFormCat = null;       _ilaRender(); }
+function ilaShowCatForm()       { _ilaFormCat = '__new__';  _ilaRender(); }
+
+function ilaAddItem(catId) {
+  var label = ((document.getElementById('ila-nf-label')||{}).value||'').trim();
+  var s     = ((document.getElementById('ila-nf-s')    ||{}).value||'').trim();
+  var mic   = ((document.getElementById('ila-nf-mic')  ||{}).value||'').trim();
+  var stand = (document.getElementById('ila-nf-stand') ||{}).value||'';
+  if (!label) { toast('Entrer un nom'); return; }
+  s = (s||label.slice(0,4)).toUpperCase().slice(0,4);
+  var uid = 'ci'+Date.now();
+  if (!_ilaCustomItems[catId]) _ilaCustomItems[catId] = [];
+  _ilaCustomItems[catId].push({id:uid,label:label,s:s,mic:mic,stand:stand,source:'',phantom:false});
+  _ilaCount[uid] = 1;
+  _ilaFormCat = null; _ilaRender();
+}
+
+function ilaRemoveItem(catId, itemId) {
+  if (_ilaCustomItems[catId])
+    _ilaCustomItems[catId] = _ilaCustomItems[catId].filter(function(it){return it.id!==itemId;});
+  delete _ilaCount[itemId]; _ilaRender();
+}
+
+function ilaAddCat() {
+  var label = ((document.getElementById('ila-ncat-label')||{}).value||'').trim();
+  if (!label) { toast('Entrer un nom'); return; }
+  var uid = 'cc'+Date.now();
+  _ilaCustomCats.push({id:uid,label:label,icon:'ti-folder'});
+  _ilaCatOpen[uid] = true; _ilaCustomItems[uid] = [];
+  _ilaFormCat = null; _ilaRender();
+}
+
+function ilaRemoveCat(catId) {
+  (_ilaCustomItems[catId]||[]).forEach(function(it){delete _ilaCount[it.id];});
+  delete _ilaCustomItems[catId];
+  _ilaCustomCats = _ilaCustomCats.filter(function(c){return c.id!==catId;});
+  _ilaRender();
+}
+
+/* ---- render helpers ---- */
+function _ilaItemRow(item, isCustom, catId) {
+  var n = _ilaCount[item.id]||0, sl = _ILA_STAND_S[item.stand]||'';
+  var r = '<div class="ila-cb-row'+(n>0?' checked':'')+'" data-id="'+item.id+'" onclick="ilaRowClick(\''+item.id+'\')">';
+  r += '<div class="ila-cb-box"><div class="ila-cb-box-chk"></div></div>';
+  r += '<span class="ila-cb-lbl">'+item.label+'</span>';
+  if (item.mic) r += '<span class="ila-cb-mic">'+item.mic+'</span>';
+  if (sl)       r += '<span class="ila-cb-stand">'+sl+'</span>';
+  r += '<div class="ila-cb-spinner" onclick="event.stopPropagation()">';
+  r += '<button type="button" class="ila-sp-btn" onclick="ilaAdj(\''+item.id+'\',-1)"'+(n===0?' disabled':'')+'>&#8722;</button>';
+  r += '<span class="ila-sp-val">'+n+'</span>';
+  r += '<button type="button" class="ila-sp-btn" onclick="ilaAdj(\''+item.id+'\',1)">+</button>';
+  r += '</div>';
+  if (isCustom)
+    r += '<button type="button" class="ila-item-del" onclick="event.stopPropagation();ilaRemoveItem(\''+catId+'\',\''+item.id+'\')" title="Supprimer"><i class="ti ti-x"></i></button>';
+  return r + '</div>';
+}
+
+function _ilaAddItemForm(catId) {
+  return '<div class="ila-add-form-inline">'+
+    '<div style="display:flex;gap:6px;margin-bottom:7px">'+
+    '<input id="ila-nf-label" class="ila-af-inp" placeholder="Nom (ex: Acoustic Guitar)" style="flex:1">'+
+    '<input id="ila-nf-s" class="ila-af-inp" placeholder="CODE" maxlength="4" style="width:52px;font-family:var(--m);text-transform:uppercase;text-align:center">'+
+    '</div>'+
+    '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">'+
+    '<input id="ila-nf-mic" class="ila-af-inp" placeholder="Micro (ex: SM57)" style="flex:1;min-width:90px">'+
+    '<select id="ila-nf-stand" class="ila-af-sel">'+
+    '<option value="">Pas de pied</option>'+
+    '<option value="petit">Petit pied</option>'+
+    '<option value="grand">Grand pied</option>'+
+    '<option value="autre">Autre</option>'+
+    '</select>'+
+    '</div>'+
+    '<div style="display:flex;gap:6px;margin-top:8px">'+
+    '<button type="button" class="ila-af-ok" onclick="ilaAddItem(\''+catId+'\')"><i class="ti ti-plus"></i>Ajouter</button>'+
+    '<button type="button" class="ila-af-cancel" onclick="ilaHideForm()"><i class="ti ti-x"></i></button>'+
+    '</div></div>';
 }
 
 function _ilaRender() {
   var h = '';
-  ILA_CATS.forEach(function(cat) {
-    var open  = !!_ilaCatOpen[cat.id];
-    var total = cat.items.reduce(function(sum, it) { return sum + (_ilaCount[it.id] || 0); }, 0);
-    h += '<div class="ila-cat'+(open ? ' open' : '')+'" data-cat="'+cat.id+'">';
-    h += '<div class="ila-cat-hd" data-cat="'+cat.id+'" onclick="ilaToggleCat(\''+cat.id+'\')">';
-    h += '<i class="ti '+cat.icon+' ila-cat-hd-icon"></i>';
-    h += '<span class="ila-cat-hd-label">'+cat.label+'</span>';
-    h += '<span class="ila-cat-hd-badge'+(total > 0 ? ' show' : '')+'" id="ila-cat-cnt-'+cat.id+'">'+total+'</span>';
-    h += '<i class="ti ti-chevron-right ila-cat-hd-arr" style="'+(open ? 'transform:rotate(90deg)' : '')+'"></i>';
+  function renderBlock(catId, label, icon, builtinItems, isCustomCat) {
+    var open = !!_ilaCatOpen[catId], total = _ilaCatTotal(catId);
+    h += '<div class="ila-cat'+(open?' open':'')+'" data-cat="'+catId+'">';
+    h += '<div class="ila-cat-hd" data-cat="'+catId+'" onclick="ilaToggleCat(\''+catId+'\')">';
+    h += '<i class="ti '+icon+' ila-cat-hd-icon"></i>';
+    h += '<span class="ila-cat-hd-label">'+label+'</span>';
+    h += '<span class="ila-cat-hd-badge'+(total>0?' show':'')+'" id="ila-cat-cnt-'+catId+'">'+total+'</span>';
+    if (isCustomCat)
+      h += '<button type="button" class="ila-cat-del" onclick="event.stopPropagation();ilaRemoveCat(\''+catId+'\')" title="Supprimer"><i class="ti ti-trash"></i></button>';
+    h += '<i class="ti ti-chevron-right ila-cat-hd-arr" style="'+(open?'transform:rotate(90deg)':'')+'"></i>';
     h += '</div>';
-    h += '<div class="ila-cat-body" data-cat="'+cat.id+'" style="'+(open ? '' : 'display:none')+'">';
-    cat.items.forEach(function(item) {
-      var n = _ilaCount[item.id] || 0;
-      h += '<div class="ila-cb-row'+(n > 0 ? ' checked' : '')+'" data-id="'+item.id+'" onclick="ilaRowClick(\''+item.id+'\')">';
-      h += '<div class="ila-cb-box"><div class="ila-cb-box-chk"></div></div>';
-      h += '<span class="ila-cb-lbl">'+item.label+'</span>';
-      h += '<span class="ila-cb-mic">'+item.mic+'</span>';
-      h += '<div class="ila-cb-spinner" onclick="event.stopPropagation()">';
-      h += '<button type="button" class="ila-sp-btn" onclick="ilaAdj(\''+item.id+'\',-1)"'+(n === 0 ? ' disabled' : '')+'>&#8722;</button>';
-      h += '<span class="ila-sp-val">'+n+'</span>';
-      h += '<button type="button" class="ila-sp-btn" onclick="ilaAdj(\''+item.id+'\',1)">+</button>';
-      h += '</div>';
-      h += '</div>';
-    });
-    h += '</div>';
-    h += '</div>';
-  });
+    h += '<div class="ila-cat-body" data-cat="'+catId+'" style="'+(open?'':'display:none')+'">';
+    builtinItems.forEach(function(it){ h += _ilaItemRow(it, false, catId); });
+    (_ilaCustomItems[catId]||[]).forEach(function(it){ h += _ilaItemRow(it, true, catId); });
+    if (_ilaFormCat === catId) h += _ilaAddItemForm(catId);
+    else h += '<div class="ila-add-item-btn" onclick="ilaShowItemForm(\''+catId+'\')"><i class="ti ti-plus"></i>Ajouter un instrument</div>';
+    h += '</div></div>';
+  }
+  ILA_CATS.forEach(function(cat){ renderBlock(cat.id, cat.label, cat.icon, cat.items, false); });
+  _ilaCustomCats.forEach(function(cat){ renderBlock(cat.id, cat.label, cat.icon||'ti-folder', [], true); });
+  if (_ilaFormCat === '__new__') {
+    h += '<div class="ila-add-cat-form">';
+    h += '<input id="ila-ncat-label" class="ila-af-inp" placeholder="Nom de la categorie" style="width:100%;margin-bottom:8px">';
+    h += '<div style="display:flex;gap:6px">';
+    h += '<button type="button" class="ila-af-ok" onclick="ilaAddCat()"><i class="ti ti-folder-plus"></i>Creer</button>';
+    h += '<button type="button" class="ila-af-cancel" onclick="ilaHideForm()"><i class="ti ti-x"></i></button>';
+    h += '</div></div>';
+  } else {
+    h += '<button type="button" class="ila-add-cat-btn" onclick="ilaShowCatForm()"><i class="ti ti-folder-plus"></i>Nouvelle categorie</button>';
+  }
   document.getElementById('ila-sections').innerHTML = h;
   _ilaUpdateCount();
+  if (_ilaFormCat) {
+    var inp = document.querySelector('#ila-sections .ila-af-inp');
+    if (inp) setTimeout(function(){ inp.focus(); }, 30);
+  }
 }
 
 function _ilaUpdateCount() {
@@ -2108,17 +2226,24 @@ function _ilaUpdateCount() {
 
 function _ilaAllChannels() {
   var rows = [];
-  ILA_CATS.forEach(function(cat) {
-    cat.items.forEach(function(item) {
-      var n = _ilaCount[item.id] || 0;
-      for (var i = 1; i <= n; i++) {
-        rows.push({
-          s: n > 1 ? item.s.slice(0, 3) + i : item.s,
-          l: n > 1 ? item.label + ' ' + i   : item.label,
-          source: item.source, mic: item.mic, phantom: item.phantom, note: ''
-        });
-      }
-    });
+  function pushItem(item) {
+    var n = _ilaCount[item.id]||0;
+    for (var i = 1; i <= n; i++) {
+      rows.push({
+        s: n>1 ? item.s.slice(0,3)+i : item.s,
+        l: n>1 ? item.label+' '+i    : item.label,
+        source: item.source||'', mic: item.mic||'',
+        phantom: item.phantom||false,
+        note: _ILA_STAND_F[item.stand]||''
+      });
+    }
+  }
+  ILA_CATS.forEach(function(cat){
+    cat.items.forEach(pushItem);
+    (_ilaCustomItems[cat.id]||[]).forEach(pushItem);
+  });
+  _ilaCustomCats.forEach(function(cat){
+    (_ilaCustomItems[cat.id]||[]).forEach(pushItem);
   });
   return rows;
 }
