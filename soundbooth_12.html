@@ -824,6 +824,12 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .ila-cb-row.checked .ila-cb-box-chk{opacity:1}
 .ila-cb-lbl{flex:1;font-size:12px;color:var(--txt);font-weight:500}
 .ila-cb-mic{font-size:9px;color:var(--muted);font-family:var(--m);background:var(--surf2);border:1px solid var(--bdr2);padding:2px 6px;border-radius:4px;white-space:nowrap}
+.ila-cb-spinner{display:flex;align-items:center;background:var(--surf);border:1px solid var(--bdr2);border-radius:7px;overflow:hidden;flex-shrink:0;margin-left:6px}
+.ila-sp-btn{background:none;border:none;color:var(--txt2);font-size:14px;width:24px;height:26px;cursor:pointer;font-family:var(--f);font-weight:700;display:flex;align-items:center;justify-content:center;transition:background .1s;line-height:1}
+.ila-sp-btn:hover:not(:disabled){background:var(--surf3);color:var(--txt)}
+.ila-sp-btn:disabled{opacity:.22;cursor:default}
+.ila-sp-val{font-family:var(--m);font-size:11px;font-weight:700;color:var(--muted);min-width:22px;text-align:center;transition:color .15s}
+.ila-cb-row.checked .ila-sp-val{color:var(--ora)}
 .ila-total{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--bdr)}
 .ila-total-label{font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted)}
 .ila-total-pill{background:var(--ora);color:#000;font-size:12px;font-family:var(--m);font-weight:700;padding:3px 11px;border-radius:20px;min-width:28px;text-align:center}
@@ -1928,83 +1934,79 @@ const ILA_CATS = [
   {
     id: 'drums', label: 'Batterie', icon: 'ti-circle', open: true,
     items: [
-      { id:'kick_in',   label:'Kick In',             s:'KICK', mic:'Beta 91A', source:'Batterie', phantom:false, checked:true  },
-      { id:'snare_top', label:'Caisse Claire Top',   s:'SNRT', mic:'SM57',    source:'Batterie', phantom:false, checked:true  },
-      { id:'hihat',     label:'Hi-Hat',              s:'HIHT', mic:'KSM137',  source:'Batterie', phantom:false, checked:true  },
-      { id:'tom1',      label:'Tom 1',               s:'TOM1', mic:'e604',    source:'Batterie', phantom:false, checked:true  },
-      { id:'tom2',      label:'Tom 2',               s:'TOM2', mic:'e604',    source:'Batterie', phantom:false, checked:true  },
-      { id:'floor_tom', label:'Floor Tom',           s:'FLOR', mic:'e604',    source:'Batterie', phantom:false, checked:true  },
-      { id:'oh_l',      label:'Overhead L',          s:'OHL',  mic:'AKG 414', source:'Batterie', phantom:true,  checked:true  },
-      { id:'oh_r',      label:'Overhead R',          s:'OHR',  mic:'AKG 414', source:'Batterie', phantom:true,  checked:true  },
-      { id:'kick_out',  label:'Kick Out',            s:'KOUT', mic:'Beta 52A',source:'Batterie', phantom:false, checked:false },
-      { id:'snare_bot', label:'Caisse Claire Bottom',s:'SNRB', mic:'SM57',    source:'Batterie', phantom:false, checked:false },
-      { id:'room_l',    label:'Room L',              s:'ROML', mic:'AKG 414', source:'Batterie', phantom:true,  checked:false },
-      { id:'room_r',    label:'Room R',              s:'ROMR', mic:'AKG 414', source:'Batterie', phantom:true,  checked:false },
-      { id:'ride',      label:'Ride',                s:'RIDE', mic:'KSM137',  source:'Batterie', phantom:false, checked:false },
-      { id:'crash',     label:'Crash',               s:'CRSH', mic:'KSM137',  source:'Batterie', phantom:false, checked:false },
+      { id:'kick_in',   label:'Kick In',             s:'KICK', mic:'Beta 91A', source:'Batterie', phantom:false, def:1 },
+      { id:'kick_out',  label:'Kick Out',            s:'KOUT', mic:'Beta 52A', source:'Batterie', phantom:false, def:0 },
+      { id:'snare_top', label:'Caisse Claire Top',   s:'SNRT', mic:'SM57',    source:'Batterie', phantom:false, def:1 },
+      { id:'snare_bot', label:'Caisse Claire Bottom',s:'SNRB', mic:'SM57',    source:'Batterie', phantom:false, def:0 },
+      { id:'hihat',     label:'Hi-Hat',              s:'HIHT', mic:'KSM137',  source:'Batterie', phantom:false, def:1 },
+      { id:'tom1',      label:'Tom 1',               s:'TOM1', mic:'e604',    source:'Batterie', phantom:false, def:1 },
+      { id:'tom2',      label:'Tom 2',               s:'TOM2', mic:'e604',    source:'Batterie', phantom:false, def:1 },
+      { id:'floor_tom', label:'Floor Tom',           s:'FLOR', mic:'e604',    source:'Batterie', phantom:false, def:1 },
+      { id:'oh_l',      label:'Overhead L',          s:'OHL',  mic:'AKG 414', source:'Batterie', phantom:true,  def:1 },
+      { id:'oh_r',      label:'Overhead R',          s:'OHR',  mic:'AKG 414', source:'Batterie', phantom:true,  def:1 },
+      { id:'room_l',    label:'Room L',              s:'ROML', mic:'AKG 414', source:'Batterie', phantom:true,  def:0 },
+      { id:'room_r',    label:'Room R',              s:'ROMR', mic:'AKG 414', source:'Batterie', phantom:true,  def:0 },
+      { id:'ride',      label:'Ride',                s:'RIDE', mic:'KSM137',  source:'Batterie', phantom:false, def:0 },
+      { id:'crash',     label:'Crash',               s:'CRSH', mic:'KSM137',  source:'Batterie', phantom:false, def:0 },
     ],
   },
   {
-    id: 'bass_guitar', label: 'Basse / Guitare', icon: 'ti-guitar-pick', open: false,
+    id: 'bass_guitar', label: 'Basse / Guitare / Claviers', icon: 'ti-guitar-pick', open: false,
     items: [
-      { id:'bass_di',  label:'Bass DI',  s:'BASS', mic:'Radial JDI', source:'Basse',   phantom:false, checked:false },
-      { id:'bass_mic', label:'Bass Mic', s:'BSMC', mic:'Beta 52A',  source:'Basse',   phantom:false, checked:false },
-      { id:'guitar1',  label:'Guitar 1', s:'GT1',  mic:'SM57',      source:'Guitare', phantom:false, checked:false },
-      { id:'guitar2',  label:'Guitar 2', s:'GT2',  mic:'SM57',      source:'Guitare', phantom:false, checked:false },
-      { id:'guitar3',  label:'Guitar 3', s:'GT3',  mic:'SM57',      source:'Guitare', phantom:false, checked:false },
+      { id:'bass_di',  label:'Bass DI',            s:'BASS', mic:'Radial JDI', source:'Basse',    phantom:false, def:0 },
+      { id:'bass_mic', label:'Bass Mic',           s:'BSMC', mic:'Beta 52A',  source:'Basse',    phantom:false, def:0 },
+      { id:'guitar_e', label:'Guitare Electrique', s:'GTE',  mic:'SM57',      source:'Guitare',  phantom:false, def:0 },
+      { id:'keys_l',   label:'Claviers L',         s:'KYL',  mic:'DI Stereo', source:'Claviers', phantom:false, def:0 },
+      { id:'keys_r',   label:'Claviers R',         s:'KYR',  mic:'DI Stereo', source:'Claviers', phantom:false, def:0 },
     ],
   },
   {
     id: 'vocals', label: 'Voix', icon: 'ti-microphone', open: false,
     items: [
-      { id:'vox_lead', label:'Vox Lead',     s:'VOX', mic:'SM58', source:'Chant', phantom:false, checked:false },
-      { id:'bv1',      label:'Backing Vox 1',s:'BV1', mic:'SM58', source:'Chant', phantom:false, checked:false },
-      { id:'bv2',      label:'Backing Vox 2',s:'BV2', mic:'SM58', source:'Chant', phantom:false, checked:false },
-      { id:'bv3',      label:'Backing Vox 3',s:'BV3', mic:'SM58', source:'Chant', phantom:false, checked:false },
+      { id:'vox_lead', label:'Vox Lead',    s:'VOX', mic:'SM58', source:'Chant', phantom:false, def:0 },
+      { id:'bv',       label:'Backing Vox', s:'BV',  mic:'SM58', source:'Chant', phantom:false, def:0 },
     ],
   },
   {
     id: 'dj', label: 'DJ', icon: 'ti-vinyl', open: false,
     items: [
-      { id:'dj_l',   label:'DJ Main L', s:'DJL', mic:'DI Stereo', source:'DJ',       phantom:false, checked:false },
-      { id:'dj_r',   label:'DJ Main R', s:'DJR', mic:'DI Stereo', source:'DJ',       phantom:false, checked:false },
-      { id:'mc_mic', label:'MC Mic',    s:'MC',  mic:'SM58',      source:'Chant',    phantom:false, checked:false },
-      { id:'dj_aux', label:'AUX',       s:'AUX', mic:'DI',        source:'Playback', phantom:false, checked:false },
+      { id:'dj_l',   label:'DJ Main L', s:'DJL', mic:'DI Stereo', source:'DJ',       phantom:false, def:0 },
+      { id:'dj_r',   label:'DJ Main R', s:'DJR', mic:'DI Stereo', source:'DJ',       phantom:false, def:0 },
+      { id:'mc_mic', label:'MC Mic',    s:'MC',  mic:'SM58',      source:'Chant',    phantom:false, def:0 },
+      { id:'dj_aux', label:'AUX',       s:'AUX', mic:'DI',        source:'Playback', phantom:false, def:0 },
     ],
   },
   {
     id: 'perc', label: 'Percussions', icon: 'ti-circle', open: false,
     items: [
-      { id:'cajon',     label:'Cajon',               s:'CAJ', mic:'Beta 52A', source:'Percussions', phantom:false, checked:false },
-      { id:'congas',    label:'Congas',               s:'CON', mic:'SM57',    source:'Percussions', phantom:false, checked:false },
-      { id:'bongos',    label:'Bongos',               s:'BON', mic:'SM57',    source:'Percussions', phantom:false, checked:false },
-      { id:'djembe',    label:'Djembe',               s:'DJM', mic:'Beta 52A',source:'Percussions', phantom:false, checked:false },
-      { id:'perc_misc', label:'Percussions diverses', s:'PRC', mic:'SM57',    source:'Percussions', phantom:false, checked:false },
+      { id:'cajon',     label:'Cajon',               s:'CAJ', mic:'Beta 52A', source:'Percussions', phantom:false, def:0 },
+      { id:'congas',    label:'Congas',               s:'CON', mic:'SM57',    source:'Percussions', phantom:false, def:0 },
+      { id:'bongos',    label:'Bongos',               s:'BON', mic:'SM57',    source:'Percussions', phantom:false, def:0 },
+      { id:'djembe',    label:'Djembe',               s:'DJM', mic:'Beta 52A',source:'Percussions', phantom:false, def:0 },
+      { id:'perc_misc', label:'Percussions diverses', s:'PRC', mic:'SM57',    source:'Percussions', phantom:false, def:0 },
     ],
   },
   {
     id: 'other', label: 'Autre', icon: 'ti-plug', open: false,
     items: [
-      { id:'keys_l',   label:'Claviers L',  s:'KYL', mic:'DI Stereo', source:'Claviers',     phantom:false, checked:false },
-      { id:'keys_r',   label:'Claviers R',  s:'KYR', mic:'DI Stereo', source:'Claviers',     phantom:false, checked:false },
-      { id:'click',    label:'Click Track', s:'CLK', mic:'DI',        source:'Playback',     phantom:false, checked:false },
-      { id:'playback', label:'Playback',    s:'PLY', mic:'DI',        source:'Playback',     phantom:false, checked:false },
-      { id:'laptop',   label:'Ordinateur',  s:'PC',  mic:'DI',        source:'Presentation', phantom:false, checked:false },
+      { id:'click',    label:'Click Track', s:'CLK', mic:'DI', source:'Playback',     phantom:false, def:0 },
+      { id:'playback', label:'Playback',    s:'PLY', mic:'DI', source:'Playback',     phantom:false, def:0 },
+      { id:'laptop',   label:'Ordinateur',  s:'PC',  mic:'DI', source:'Presentation', phantom:false, def:0 },
     ],
   },
 ];
 
 
-let _ilaChecked = {};
+let _ilaCount   = {};  // itemId -> integer (0 = not selected)
 let _ilaCatOpen = {};
 
 function openILAssist() {
-  _ilaChecked = {};
+  _ilaCount   = {};
   _ilaCatOpen = {};
   ILA_CATS.forEach(function(cat) {
     _ilaCatOpen[cat.id] = !!cat.open;
     cat.items.forEach(function(item) {
-      _ilaChecked[item.id] = !!item.checked;
+      _ilaCount[item.id] = item.def || 0;
     });
   });
   _ilaRender();
@@ -2026,40 +2028,66 @@ function ilaToggleCat(catId) {
   if (arr)  arr.style.transform = open ? 'rotate(90deg)' : '';
 }
 
-function ilaToggleItem(itemId) {
-  _ilaChecked[itemId] = !_ilaChecked[itemId];
+function ilaRowClick(itemId) {
+  _ilaCount[itemId] = (_ilaCount[itemId] > 0) ? 0 : 1;
+  _ilaRefreshRow(itemId);
+  _ilaUpdateBadge(itemId);
+  _ilaUpdateCount();
+}
+
+function ilaAdj(itemId, delta) {
+  _ilaCount[itemId] = Math.max(0, Math.min(16, (_ilaCount[itemId] || 0) + delta));
+  _ilaRefreshRow(itemId);
+  _ilaUpdateBadge(itemId);
+  _ilaUpdateCount();
+}
+
+function _ilaRefreshRow(itemId) {
+  var n   = _ilaCount[itemId] || 0;
   var row = document.querySelector('.ila-cb-row[data-id="'+itemId+'"]');
-  if (row) row.classList.toggle('checked', _ilaChecked[itemId]);
+  if (!row) return;
+  row.classList.toggle('checked', n > 0);
+  var val    = row.querySelector('.ila-sp-val');
+  var minBtn = row.querySelector('.ila-sp-btn');
+  if (val)    val.textContent = n;
+  if (minBtn) minBtn.disabled = (n === 0);
+}
+
+function _ilaUpdateBadge(itemId) {
   ILA_CATS.forEach(function(cat) {
     var found = cat.items.some(function(it) { return it.id === itemId; });
     if (found) {
-      var cnt = cat.items.filter(function(it) { return _ilaChecked[it.id]; }).length;
+      var total = cat.items.reduce(function(sum, it) { return sum + (_ilaCount[it.id] || 0); }, 0);
       var badge = document.getElementById('ila-cat-cnt-'+cat.id);
-      if (badge) { badge.textContent = cnt; badge.classList.toggle('show', cnt > 0); }
+      if (badge) { badge.textContent = total; badge.classList.toggle('show', total > 0); }
     }
   });
-  _ilaUpdateCount();
 }
 
 function _ilaRender() {
   var h = '';
   ILA_CATS.forEach(function(cat) {
-    var open = !!_ilaCatOpen[cat.id];
-    var cnt  = cat.items.filter(function(it) { return _ilaChecked[it.id]; }).length;
+    var open  = !!_ilaCatOpen[cat.id];
+    var total = cat.items.reduce(function(sum, it) { return sum + (_ilaCount[it.id] || 0); }, 0);
     h += '<div class="ila-cat'+(open ? ' open' : '')+'" data-cat="'+cat.id+'">';
     h += '<div class="ila-cat-hd" data-cat="'+cat.id+'" onclick="ilaToggleCat(\''+cat.id+'\')">';
     h += '<i class="ti '+cat.icon+' ila-cat-hd-icon"></i>';
     h += '<span class="ila-cat-hd-label">'+cat.label+'</span>';
-    h += '<span class="ila-cat-hd-badge'+(cnt > 0 ? ' show' : '')+'" id="ila-cat-cnt-'+cat.id+'">'+cnt+'</span>';
+    h += '<span class="ila-cat-hd-badge'+(total > 0 ? ' show' : '')+'" id="ila-cat-cnt-'+cat.id+'">'+total+'</span>';
     h += '<i class="ti ti-chevron-right ila-cat-hd-arr" style="'+(open ? 'transform:rotate(90deg)' : '')+'"></i>';
     h += '</div>';
     h += '<div class="ila-cat-body" data-cat="'+cat.id+'" style="'+(open ? '' : 'display:none')+'">';
     cat.items.forEach(function(item) {
-      var chk = !!_ilaChecked[item.id];
-      h += '<div class="ila-cb-row'+(chk ? ' checked' : '')+'" data-id="'+item.id+'" onclick="ilaToggleItem(\''+item.id+'\')">';
+      var n = _ilaCount[item.id] || 0;
+      h += '<div class="ila-cb-row'+(n > 0 ? ' checked' : '')+'" data-id="'+item.id+'" onclick="ilaRowClick(\''+item.id+'\')">';
       h += '<div class="ila-cb-box"><div class="ila-cb-box-chk"></div></div>';
       h += '<span class="ila-cb-lbl">'+item.label+'</span>';
       h += '<span class="ila-cb-mic">'+item.mic+'</span>';
+      h += '<div class="ila-cb-spinner" onclick="event.stopPropagation()">';
+      h += '<button type="button" class="ila-sp-btn" onclick="ilaAdj(\''+item.id+'\',-1)"'+(n === 0 ? ' disabled' : '')+'>&#8722;</button>';
+      h += '<span class="ila-sp-val">'+n+'</span>';
+      h += '<button type="button" class="ila-sp-btn" onclick="ilaAdj(\''+item.id+'\',1)">+</button>';
+      h += '</div>';
       h += '</div>';
     });
     h += '</div>';
@@ -2082,8 +2110,13 @@ function _ilaAllChannels() {
   var rows = [];
   ILA_CATS.forEach(function(cat) {
     cat.items.forEach(function(item) {
-      if (_ilaChecked[item.id]) {
-        rows.push({ s: item.s, l: item.label, source: item.source, mic: item.mic, phantom: item.phantom, note: '' });
+      var n = _ilaCount[item.id] || 0;
+      for (var i = 1; i <= n; i++) {
+        rows.push({
+          s: n > 1 ? item.s.slice(0, 3) + i : item.s,
+          l: n > 1 ? item.label + ' ' + i   : item.label,
+          source: item.source, mic: item.mic, phantom: item.phantom, note: ''
+        });
       }
     });
   });
