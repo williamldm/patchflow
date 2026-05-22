@@ -5393,11 +5393,12 @@ const SynEditor = (() => {
       // Liaison label + optional note near midpoint
       if (isLiaison && path.label) {
         const hasNote = e.note && e.note.trim();
+        const lfs = e.labelSize || 8;
         // Place label above the line (nudge -10px from midpoint)
         const lblY = path.midY - 10;
-        h += '<text x="' + path.midX + '" y="' + (lblY - (hasNote ? 9 : 0)) + '" text-anchor="middle" font-size="8" font-family="DM Mono,monospace" fill="' + strokeColor + '" opacity=".9" paint-order="stroke" stroke="#060910" stroke-width="3">' + esc(path.label) + '</text>';
+        h += '<text x="' + path.midX + '" y="' + (lblY - (hasNote ? lfs + 1 : 0)) + '" text-anchor="middle" font-size="' + lfs + '" font-family="DM Mono,monospace" fill="' + strokeColor + '" opacity=".9" paint-order="stroke" stroke="#060910" stroke-width="3">' + esc(path.label) + '</text>';
         if (hasNote) {
-          h += '<text x="' + path.midX + '" y="' + (lblY + 2) + '" text-anchor="middle" font-size="7.5" font-family="DM Mono,monospace" fill="' + strokeColor + '" opacity=".65" paint-order="stroke" stroke="#060910" stroke-width="2">' + esc(e.note.trim()) + '</text>';
+          h += '<text x="' + path.midX + '" y="' + (lblY + 2) + '" text-anchor="middle" font-size="' + Math.max(6, lfs - 1) + '" font-family="DM Mono,monospace" fill="' + strokeColor + '" opacity=".65" paint-order="stroke" stroke="#060910" stroke-width="2">' + esc(e.note.trim()) + '</text>';
         }
       }
     });
@@ -6072,6 +6073,10 @@ const SynEditor = (() => {
           + '</select>'
           + '<label class="syn-insp-lbl">Note <span style="font-weight:400;text-transform:none;color:var(--muted)">(longueur, repere...)</span></label>'
           + '<input class="syn-insp-inp" id="insp-liaison-note" value="' + esc(e.note || '') + '" placeholder="ex: 15m, Patch D12, Scene → FOH"/>'
+          + '<label class="syn-insp-lbl">Taille du texte</label>'
+          + '<select class="syn-insp-inp" id="insp-liaison-lfs">'
+          + [6,7,8,9,10,11,12,14,16,18,20].map(function(s){ return '<option value="' + s + '"' + ((e.labelSize||8) === s ? ' selected' : '') + '>' + s + ' px</option>'; }).join('')
+          + '</select>'
           + '<button type="button" class="btn sm" style="width:100%;margin-top:10px;background:rgba(255,50,50,.1);color:#ff6b6b;border-color:rgba(255,50,50,.25)" id="insp-del"><i class="ti ti-trash"></i> Supprimer la liaison</button>';
         $('insp-liaison-type')?.addEventListener('change', function(ev) {
           e.liaison = ev.target.value;
@@ -6080,6 +6085,11 @@ const SynEditor = (() => {
         });
         $('insp-liaison-note')?.addEventListener('change', function(ev) {
           e.note = ev.target.value;
+          scheduleSave();
+          render();
+        });
+        $('insp-liaison-lfs')?.addEventListener('change', function(ev) {
+          e.labelSize = parseInt(ev.target.value, 10);
           scheduleSave();
           render();
         });
@@ -6974,7 +6984,7 @@ th{background:#1a1a2e;color:#fff;padding:4px 6px;text-align:left;font-size:7px}t
     $('syn-fit-view')?.addEventListener('click', fitView);
 
     // ── Global text scale ──────────────────────────────────────────
-    var _TS_STEPS = [0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0];
+    var _TS_STEPS = [0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0, 3.5];
     var _NS_STEPS = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0];
     function _stepScale(arr, cur, dir) {
       var idx = arr.reduce(function(bi, v, i){ return Math.abs(v-cur) < Math.abs(arr[bi]-cur) ? i : bi; }, 0);
