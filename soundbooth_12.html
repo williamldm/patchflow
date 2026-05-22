@@ -1358,12 +1358,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
       <div class="syn-app">
         <div class="syn-toolbar pbar" style="margin:0">
           <span class="ptitle"><i class="ti ti-topology-star" style="color:var(--ora)"></i>Synoptique<span class="ptitle-sep">/</span><span style="color:var(--txt2)">Câblage Linus</span></span>
-          <div class="syn-mode-toggle">
-            <button type="button" class="syn-mode-btn on" id="syn-mode-edit"><i class="ti ti-pencil"></i> Édition</button>
-            <button type="button" class="syn-mode-btn field" id="syn-mode-field"><i class="ti ti-tool"></i> Terrain</button>
-          </div>
           <div class="syn-dd" id="syn-tpl-picker"></div>
-          <button type="button" class="btn ghost sm" id="syn-auto-layout"><i class="ti ti-layout-distribute-horizontal"></i><span class="hide-m"> Auto</span></button>
           <div class="syn-zoom-grp">
             <button type="button" id="syn-zoom-out"><i class="ti ti-minus"></i></button>
             <span class="syn-zoom-lbl" id="syn-zoom-lbl">100%</span>
@@ -6964,8 +6959,6 @@ th{background:#1a1a2e;color:#fff;padding:4px 6px;text-align:left;font-size:7px}t
     bindCanvasEvents();
     bindNodeEventsOnce();
     $('syn-mode-edit')?.addEventListener('click', () => setMode('edit'));
-    $('syn-mode-field')?.addEventListener('click', () => setMode('field'));
-    $('syn-auto-layout')?.addEventListener('click', () => autoLayout());
     const _zoomBy = f => {
       const vp2 = $('syn-viewport');
       if (!vp2) return;
