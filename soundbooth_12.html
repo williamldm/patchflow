@@ -6006,7 +6006,20 @@ const SynEditor = (() => {
         var _inspTextFS = el.querySelector('#insp-fontsize');
         var _inspTextTC = el.querySelector('#insp-textcolor');
         var _inspTextW  = el.querySelector('#insp-textw');
-        if (_inspTextTA) _inspTextTA.addEventListener('input', function(){ n.text = _inspTextTA.value; scheduleSave(); render(); });
+        if (_inspTextTA) {
+          // 'input': patch canvas node directly — no full render (would lose focus + inspector)
+          _inspTextTA.addEventListener('input', function() {
+            n.text = _inspTextTA.value;
+            var nodeDiv = document.querySelector('.syn-node[data-nid="' + n.id + '"]');
+            if (nodeDiv) {
+              var td = nodeDiv.querySelector('div[style*="white-space:pre-wrap"]');
+              if (td) td.innerHTML = esc(n.text || '...');
+            }
+            scheduleSave();
+          });
+          // 'change' (blur): full render to sync everything cleanly
+          _inspTextTA.addEventListener('change', function() { render(); });
+        }
         if (_inspTextFS) _inspTextFS.addEventListener('change', function(){ n.fontSize = parseInt(_inspTextFS.value,10)||12; scheduleSave(); render(); });
         if (_inspTextTC) _inspTextTC.addEventListener('change', function(){ n.textColor = _inspTextTC.value; scheduleSave(); render(); });
         if (_inspTextW)  _inspTextW.addEventListener('change', function(){ n.w = Math.max(80,parseInt(_inspTextW.value,10)||180); scheduleSave(); render(); });
