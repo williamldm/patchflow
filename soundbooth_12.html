@@ -665,9 +665,10 @@ body{display:flex;flex-direction:column;min-height:100vh}
 /* Vintage view mode */
 .bp-canvas-wrap.vt-mode{background:#0d0a06}
 .bp-canvas-wrap.vt-mode .bp-zoom-bar{background:rgba(14,9,3,.93);border-color:rgba(255,195,90,.15)}
-.bp-vnode-body{width:calc(72px * var(--bp-ns,1));height:calc(72px * var(--bp-ns,1));position:relative;flex-shrink:0;border-radius:calc(13px * var(--bp-ns,1));overflow:hidden;filter:drop-shadow(0 3px 12px rgba(0,0,0,.85));transition:filter .12s}
-.bp-node.sel .bp-vnode-body{outline:2.5px solid var(--ora);outline-offset:2px}
-.bp-vnode-lbl{font-family:var(--m);font-size:calc(10px * var(--bp-ts,1));color:#ddd0b4;text-align:center;max-width:calc(90px * var(--bp-ts,1));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:rgba(5,3,1,.92);padding:2px 6px;border-radius:4px;font-weight:500;pointer-events:none;border:1px solid rgba(255,195,80,.1)}
+.bp-vnode-wrap{position:relative;flex-shrink:0}
+.bp-vnode-body{width:calc(96px * var(--bp-ns,1));height:calc(96px * var(--bp-ns,1));position:relative;border-radius:calc(16px * var(--bp-ns,1));overflow:hidden;filter:drop-shadow(0 3px 16px rgba(0,0,0,.9));transition:filter .12s}
+.bp-node.sel .bp-vnode-body{outline:2.5px solid var(--ora);outline-offset:3px}
+.bp-vnode-lbl{font-family:var(--m);font-size:calc(13px * var(--bp-ts,1));color:#e8dfc0;text-align:center;max-width:calc(130px * var(--bp-ts,1));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:rgba(5,3,1,.94);padding:3px 10px;border-radius:5px;font-weight:600;pointer-events:none;border:1px solid rgba(255,195,80,.22);letter-spacing:.25px;margin-top:1px}
 .bp-vm-row{display:flex;align-items:center;gap:6px;padding:6px 10px;border-top:1px solid var(--bdr2);font-size:9px;font-family:var(--m);text-transform:uppercase;letter-spacing:1.1px;color:var(--muted)}
 .bp-vm-pill{display:flex;gap:2px;background:var(--surf3);border:1px solid var(--bdr2);border-radius:7px;padding:2px;flex:1}
 .bp-vm-btn{flex:1;background:transparent;border:1px solid transparent;color:var(--muted);font-size:10px;font-family:var(--m);font-weight:700;padding:4px 6px;border-radius:5px;cursor:pointer;transition:all .15s;letter-spacing:.4px;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap}
@@ -6412,7 +6413,7 @@ const BandPlan=(()=>{
       :(el.ch?'<div class="bp-node-ch">CH '+_chNum(el.ch)+'</div>':'');
     if(el.type==='riser'){
       var rw=(el.riserW||2)*RISER_SCALE,rh=(el.riserH||1)*RISER_SCALE,alt=el.riserAlt||0.4;
-      var op=(0.12+(alt/1.2)*0.3).toFixed(2),fs=Math.max(9,Math.min(14,rw/10));
+      var op=(0.12+(alt/1.2)*0.3).toFixed(2),fs=Math.max(11,Math.min(18,rw/9));
       return '<div style="width:'+rw+'px;height:'+rh+'px;background:rgba(58,46,22,'+op+');border:2px solid rgba(200,165,80,.32);border-radius:7px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;position:relative;box-sizing:border-box">'
         +chBadge
         +'<span style="font-family:var(--m);font-size:'+fs+'px;color:rgba(220,200,150,.9);font-weight:700;letter-spacing:.3px">'+((el.riserW||2)+'m \xd7 '+(el.riserH||1)+'m')+'</span>'
@@ -6425,25 +6426,27 @@ const BandPlan=(()=>{
       var kitChs=el.chs||[],allChs=typeof CHS!=='undefined'?CHS:[];
       var rows=kitChs.map(function(id){return allChs.find(function(r){return r.id===id;});}).filter(Boolean);
       var rowsHtml=rows.length
-        ?rows.map(function(r){return '<div style="display:flex;align-items:center;gap:6px;padding:3px 8px;border-top:1px solid rgba(200,165,60,.12)">'
-          +'<span style="font-family:var(--m);font-size:9px;font-weight:700;color:#f0c040;min-width:28px">CH'+r.ch+'</span>'
-          +'<span style="font-family:var(--m);font-size:10px;color:#c8b890;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px">'+(r.long_name||r.short_name||'—')+'</span>'
+        ?rows.map(function(r){return '<div style="display:flex;align-items:center;gap:8px;padding:5px 12px;border-top:1px solid rgba(200,165,60,.14)">'
+          +'<span style="font-family:var(--m);font-size:11px;font-weight:700;color:#f0c040;min-width:34px">CH'+r.ch+'</span>'
+          +'<span style="font-family:var(--m);font-size:12px;color:#d8c89a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px">'+(r.long_name||r.short_name||'—')+'</span>'
           +'</div>';}).join('')
-        :'<div style="font-family:var(--m);font-size:9px;color:rgba(200,180,120,.35);padding:4px 8px;font-style:italic">Aucun canal li\xe9</div>';
-      return '<div style="background:#16120c;border:1.5px solid '+c+'44;border-radius:11px;overflow:hidden;min-width:170px;position:relative;box-shadow:0 3px 14px rgba(0,0,0,.65)">'
-        +'<div style="display:flex;align-items:center;gap:7px;padding:7px 10px 6px;background:'+c+'18">'
-        +'<span style="font-size:20px">'+it.e+'</span>'
-        +'<span style="font-family:var(--m);font-size:11px;font-weight:700;color:#e0d0b0;flex:1">'+el.label.replace(/</g,'&lt;')+'</span>'
-        +(rows.length?'<span style="font-family:var(--m);font-size:9px;color:'+c+';background:'+c+'22;padding:1px 6px;border-radius:8px;font-weight:700">'+rows.length+' CH</span>':'')
+        :'<div style="font-family:var(--m);font-size:11px;color:rgba(200,180,120,.35);padding:6px 12px;font-style:italic">Aucun canal li\xe9</div>';
+      return '<div style="background:#16120c;border:1.5px solid '+c+'55;border-radius:12px;overflow:hidden;min-width:210px;position:relative;box-shadow:0 4px 18px rgba(0,0,0,.75)">'
+        +'<div style="display:flex;align-items:center;gap:8px;padding:8px 12px 7px;background:'+c+'20">'
+        +'<span style="font-size:24px">'+it.e+'</span>'
+        +'<span style="font-family:var(--m);font-size:13px;font-weight:700;color:#ede0c0;flex:1;letter-spacing:.2px">'+el.label.replace(/</g,'&lt;')+'</span>'
+        +(rows.length?'<span style="font-family:var(--m);font-size:10px;color:'+c+';background:'+c+'28;padding:2px 8px;border-radius:8px;font-weight:700">'+rows.length+' CH</span>':'')
         +'<button class="bp-node-del" onclick="BandPlan.deleteNode('+el.id+')" title="Supprimer" style="position:relative;top:auto;right:auto;margin-left:2px">\xd7</button>'
         +'</div>'
         +rowsHtml
         +'</div>';
     }
-    return '<div class="bp-vnode-body" style="background:rgba(8,6,3,.82)">'
+    return '<div class="bp-vnode-wrap">'
+      +'<div class="bp-vnode-body" style="background:rgba(8,6,3,.82)">'
       +'<svg viewBox="0 0 72 72" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">'
       +_vSVG(el.type,c)
       +'</svg>'
+      +'</div>'
       +chBadge
       +'<button class="bp-node-del" onclick="BandPlan.deleteNode('+el.id+')" title="Supprimer">\xd7</button>'
       +'</div>'
