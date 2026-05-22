@@ -3733,6 +3733,7 @@ function _makeBpCanvas(cb){
   const cv=document.createElement('canvas');cv.width=cw;cv.height=ch;
   const ctx=cv.getContext('2d');
   const wx=x=>(x-minX)*SC,wy=y=>(y-minY)*SC;
+  const allChs=typeof CHS!=='undefined'?CHS:[];
   /* ── VINTAGE CANVAS ── */
   if(data.viewMode==='vintage'){
     // Dark stage floor
@@ -3856,7 +3857,6 @@ function _makeBpCanvas(cb){
   ctx.font='bold '+15*SC+'px sans-serif';ctx.fillStyle='rgba(255,107,26,.18)';ctx.textAlign='center';ctx.letterSpacing=8*SC+'px';
   ctx.fillText('SCENE',wx(1200),wy(Math.round(_stgY+_stgH*0.44)));ctx.letterSpacing='0px';
   // Nodes
-  const allChs=typeof CHS!=='undefined'?CHS:[];
   els.slice().sort((a,b)=>a.z-b.z).forEach(el=>{
     ctx.save();
     const tx=wx(el.x),ty=wy(el.y);
