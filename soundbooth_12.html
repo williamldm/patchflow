@@ -1022,12 +1022,8 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 .plan-footer-links{display:flex;align-items:center;justify-content:center;gap:20px;margin-top:12px;font-size:10px;color:var(--muted);font-family:var(--m)}
 .plan-footer-links a,.plan-footer-links button{color:var(--muted);background:none;border:none;cursor:pointer;font-family:var(--m);font-size:10px;text-decoration:underline;padding:0}
 .plan-footer-links a:hover,.plan-footer-links button:hover{color:var(--txt)}
-/* ── Portal modal ── */
-.portal-box{width:560px;max-width:97vw}
-.portal-tabs{display:flex;gap:0;border-bottom:1px solid var(--bdr);margin-bottom:18px}
-.portal-tab{flex:1;padding:10px 0;font-family:var(--m);font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;transition:all .15s;margin-bottom:-1px}
-.portal-tab.active{color:var(--ora);border-bottom-color:var(--ora)}
-.portal-pane{display:none}.portal-pane.active{display:block}
+/* ── Portal (facturation) modal ── */
+.portal-box{width:540px;max-width:97vw}
 .portal-invoice-empty{text-align:center;padding:36px 20px;color:var(--muted)}
 .portal-invoice-empty i{font-size:36px;display:block;margin-bottom:8px;color:var(--bdr3)}
 .portal-invoice-empty p{font-size:12px;margin:0}
@@ -1038,13 +1034,15 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 .portal-invoice-row .pi-dl{color:var(--ora);cursor:pointer;font-family:var(--m);font-size:10px;text-decoration:underline;white-space:nowrap}
 .portal-pay-btn{display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:9px;cursor:pointer;font-size:12px;font-weight:600;color:var(--txt);width:100%;margin-top:12px;transition:all .15s}
 .portal-pay-btn:hover{border-color:var(--bdr3);background:var(--surf3)}
-.portal-support-field{margin-bottom:12px}
-.portal-support-field label{display:block;font-size:10px;font-family:var(--m);color:var(--muted);margin-bottom:5px;letter-spacing:.04em;text-transform:uppercase}
-.portal-support-sel,.portal-support-txt{width:100%;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-size:13px;font-family:inherit;padding:9px 12px;box-sizing:border-box;outline:none;transition:border .15s}
-.portal-support-sel:focus,.portal-support-txt:focus{border-color:var(--ora)}
-.portal-support-txt{resize:vertical;min-height:110px}
-.portal-support-note{font-size:10px;font-family:var(--m);color:var(--muted);margin-top:6px;text-align:center}
-.portal-support-note a{color:var(--ora);text-decoration:none}
+/* ── Support modal ── */
+.support-box{width:500px;max-width:97vw}
+.support-field{margin-bottom:14px}
+.support-field label{display:block;font-size:10px;font-family:var(--m);color:var(--muted);margin-bottom:5px;letter-spacing:.04em;text-transform:uppercase}
+.support-sel,.support-txt{width:100%;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-size:13px;font-family:inherit;padding:9px 12px;box-sizing:border-box;outline:none;transition:border .15s}
+.support-sel:focus,.support-txt:focus{border-color:var(--ora)}
+.support-txt{resize:vertical;min-height:120px}
+.support-note{font-size:10px;font-family:var(--m);color:var(--muted);margin-top:8px;text-align:center}
+.support-note a{color:var(--ora);text-decoration:none}
 .sub-current-bar{display:flex;align-items:center;gap:11px;padding:11px 14px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:9px;margin-bottom:16px}
 .sub-plans-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .sub-plan-card{border:1px solid var(--bdr2);border-radius:12px;padding:18px 16px;position:relative;transition:all .15s}
@@ -1172,7 +1170,8 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
           <div class="user-dd-sep"></div>
           <div class="user-dd-item" onclick="openProfile()"><i class="ti ti-user-edit"></i>Mon profil</div>
           <div class="user-dd-item" onclick="closeUD();openPlanModal()"><i class="ti ti-credit-card"></i>Mon abonnement</div>
-          <div class="user-dd-item" onclick="closeUD();openPortal('billing')"><i class="ti ti-building-bank"></i>Facturation &amp; support</div>
+          <div class="user-dd-item" onclick="closeUD();openPortal()"><i class="ti ti-receipt"></i>Facturation</div>
+          <div class="user-dd-item" onclick="closeUD();openSupport()"><i class="ti ti-headset"></i>Support</div>
           <div class="user-dd-sep"></div>
           <div class="user-dd-item danger" onclick="doLogout()"><i class="ti ti-logout"></i>Déconnexion</div>
         </div>
@@ -2040,9 +2039,9 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
       <div class="plan-footer-links">
         <span>14 jours d'essai offerts</span>
         <span>·</span>
-        <button onclick="closePlanModal();openPortal('billing')"><i class="ti ti-receipt" style="margin-right:3px"></i>Historique de facturation</button>
+        <button onclick="closePlanModal();openPortal()"><i class="ti ti-receipt" style="margin-right:3px"></i>Historique de facturation</button>
         <span>·</span>
-        <button onclick="closePlanModal();openPortal('support')"><i class="ti ti-headset" style="margin-right:3px"></i>Support</button>
+        <button onclick="closePlanModal();openSupport()"><i class="ti ti-headset" style="margin-right:3px"></i>Support</button>
       </div>
     </div>
     <div class="modal-foot">
@@ -2051,60 +2050,66 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
   </div>
 </div>
 
+<!-- Portail facturation -->
 <div class="modal-ov" id="portal-modal">
   <div class="modal-box portal-box">
     <div class="modal-head">
-      <span class="modal-title"><i class="ti ti-building-bank" style="margin-right:6px"></i>Portail</span>
+      <span class="modal-title"><i class="ti ti-receipt" style="margin-right:6px"></i>Historique de facturation</span>
       <button class="modal-close" onclick="closePortal()"><i class="ti ti-x"></i></button>
     </div>
     <div class="modal-body">
-      <div class="portal-tabs">
-        <button class="portal-tab active" id="ptab-billing" onclick="switchPortalTab('billing')"><i class="ti ti-receipt" style="margin-right:5px"></i>Facturation</button>
-        <button class="portal-tab" id="ptab-support" onclick="switchPortalTab('support')"><i class="ti ti-headset" style="margin-right:5px"></i>Support</button>
+      <div class="sub-current-bar" style="margin-bottom:16px">
+        <div class="plan-cur-icon" id="portal-cur-icon" style="background:var(--surf3)">🎙️</div>
+        <div class="plan-cur-meta">
+          <div class="plan-cur-name" id="portal-cur-name">Plan Gratuit</div>
+          <div class="plan-cur-desc" id="portal-cur-desc">Actif</div>
+        </div>
+        <div class="plan-billing-chip" id="portal-billing-chip">Gratuit</div>
       </div>
-      <!-- Facturation pane -->
-      <div class="portal-pane active" id="ppane-billing">
-        <div class="sub-current-bar" style="margin-bottom:14px">
-          <div class="plan-cur-icon" id="portal-cur-icon" style="background:var(--surf3)">🎙️</div>
-          <div class="plan-cur-meta">
-            <div class="plan-cur-name" id="portal-cur-name">Plan Gratuit</div>
-            <div class="plan-cur-desc" id="portal-cur-desc">Actif</div>
-          </div>
-          <div class="plan-billing-chip" id="portal-billing-chip">Gratuit</div>
+      <div id="portal-invoice-list">
+        <div class="portal-invoice-empty">
+          <i class="ti ti-file-invoice"></i>
+          <p>Aucune facture disponible pour le moment.<br>Vos factures apparaitront ici apres votre premier paiement.</p>
         </div>
-        <div id="portal-invoice-list">
-          <div class="portal-invoice-empty">
-            <i class="ti ti-file-invoice"></i>
-            <p>Aucune facture disponible pour le moment.<br>Vos factures apparaitront ici apres votre premier paiement.</p>
-          </div>
-        </div>
-        <button class="portal-pay-btn" onclick="toast('Redirection vers le portail de paiement...')">
-          <i class="ti ti-credit-card" style="font-size:16px;color:var(--ora)"></i>
-          <span>Modifier le moyen de paiement</span>
-          <i class="ti ti-chevron-right" style="margin-left:auto;color:var(--muted)"></i>
-        </button>
       </div>
-      <!-- Support pane -->
-      <div class="portal-pane" id="ppane-support">
-        <div class="portal-support-field">
-          <label>Sujet</label>
-          <select class="portal-support-sel" id="support-subject">
-            <option value="Question abonnement">Question abonnement</option>
-            <option value="Bug technique">Bug technique</option>
-            <option value="Demande de fonctionnalite">Demande de fonctionnalite</option>
-            <option value="Autre">Autre</option>
-          </select>
-        </div>
-        <div class="portal-support-field">
-          <label>Message</label>
-          <textarea class="portal-support-txt" id="support-msg" placeholder="Decrivez votre probleme ou votre question..."></textarea>
-        </div>
-        <button class="btn" style="width:100%" onclick="submitSupport()"><i class="ti ti-send"></i>Envoyer le message</button>
-        <p class="portal-support-note">Vous pouvez aussi nous ecrire directement a <a href="mailto:support@patchflow.io">support@patchflow.io</a></p>
-      </div>
+      <button class="portal-pay-btn" onclick="toast('Redirection vers le portail de paiement...')">
+        <i class="ti ti-credit-card" style="font-size:16px;color:var(--ora)"></i>
+        <span>Modifier le moyen de paiement</span>
+        <i class="ti ti-chevron-right" style="margin-left:auto;color:var(--muted)"></i>
+      </button>
     </div>
     <div class="modal-foot">
       <button class="btn ghost sm" onclick="closePortal()">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Support -->
+<div class="modal-ov" id="support-modal">
+  <div class="modal-box support-box">
+    <div class="modal-head">
+      <span class="modal-title"><i class="ti ti-headset" style="margin-right:6px"></i>Contacter le support</span>
+      <button class="modal-close" onclick="closeSupport()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="support-field">
+        <label>Sujet</label>
+        <select class="support-sel" id="support-subject">
+          <option value="Question abonnement">Question abonnement</option>
+          <option value="Bug technique">Bug technique</option>
+          <option value="Demande de fonctionnalite">Demande de fonctionnalite</option>
+          <option value="Autre">Autre</option>
+        </select>
+      </div>
+      <div class="support-field">
+        <label>Message</label>
+        <textarea class="support-txt" id="support-msg" placeholder="Decrivez votre probleme ou votre question..."></textarea>
+      </div>
+      <button class="btn" style="width:100%" onclick="submitSupport()"><i class="ti ti-send"></i>Envoyer le message</button>
+      <p class="support-note">Vous pouvez aussi nous ecrire directement a <a href="mailto:support@patchflow.io">support@patchflow.io</a></p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost sm" onclick="closeSupport()">Fermer</button>
     </div>
   </div>
 </div>
@@ -9429,13 +9434,11 @@ function showUpgradeModal(feat) {
 }
 function closeGateModal() { document.getElementById('gate-modal').className = 'modal-ov'; }
 
-/* ── Portal modal ── */
-function openPortal(tab) {
-  tab = tab || 'billing';
-  // populate billing header from current plan
+/* ── Portail facturation ── */
+function openPortal() {
   var cur = userPlan();
-  var icons = { free:'🎙️', pro:'⚡', studio:'✦' };
-  var names = { free:'Plan Gratuit', pro:'Plan Pro', studio:'Plan Studio' };
+  var icons  = { free:'🎙️', pro:'⚡', studio:'✦' };
+  var names  = { free:'Plan Gratuit', pro:'Plan Pro', studio:'Plan Studio' };
   var iconBg = { free:'var(--surf3)', pro:'var(--ora-d)', studio:'rgba(155,106,255,.12)' };
   var chips  = { free:'Gratuit', pro:'Pro · Actif', studio:'Studio · Actif' };
   var ci = document.getElementById('portal-cur-icon');
@@ -9446,31 +9449,23 @@ function openPortal(tab) {
   if(cd) cd.textContent = 'Actif';
   var cc = document.getElementById('portal-billing-chip');
   if(cc) cc.textContent = chips[cur]||'Gratuit';
-  // pre-fill support textarea
-  var ta = document.getElementById('support-msg');
-  if(ta && !ta.value) ta.value = '';
-  switchPortalTab(tab);
   document.getElementById('portal-modal').className = 'modal-ov open';
 }
 function closePortal() { document.getElementById('portal-modal').className = 'modal-ov'; }
-function switchPortalTab(tab) {
-  ['billing','support'].forEach(function(t) {
-    var btn = document.getElementById('ptab-'+t);
-    var pane = document.getElementById('ppane-'+t);
-    if(btn)  btn.className  = 'portal-tab'  + (t===tab ? ' active' : '');
-    if(pane) pane.className = 'portal-pane' + (t===tab ? ' active' : '');
-  });
+
+/* ── Support ── */
+function openSupport() {
+  document.getElementById('support-modal').className = 'modal-ov open';
 }
+function closeSupport() { document.getElementById('support-modal').className = 'modal-ov'; }
 function submitSupport() {
   var subj = document.getElementById('support-subject');
   var msg  = document.getElementById('support-msg');
   if(!msg || !msg.value.trim()) { toast('Veuillez saisir un message.'); return; }
-  var subject = encodeURIComponent((subj ? subj.value : 'Support PatchFlow') + ' — PatchFlow');
+  var subject = encodeURIComponent((subj ? subj.value : 'Support PatchFlow') + ' - PatchFlow');
   var userInfo = ME ? ME.email : 'inconnu';
   var plan = userPlan();
-  var body = encodeURIComponent(
-    (msg.value.trim()) + '\n\n---\nUtilisateur : ' + userInfo + '\nPlan : ' + plan
-  );
+  var body = encodeURIComponent(msg.value.trim() + '\n\n---\nUtilisateur : ' + userInfo + '\nPlan : ' + plan);
   window.open('mailto:support@patchflow.io?subject=' + subject + '&body=' + body, '_blank');
   toast('Votre client mail s\'ouvre avec le message pre-rempli.');
   msg.value = '';
