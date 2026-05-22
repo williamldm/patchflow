@@ -612,6 +612,8 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .spl-cable-btn:hover{background:var(--surf2);border-color:var(--bdr2);color:var(--txt)}
 .spl-cable-btn.active{border-color:var(--c,var(--bdr3));background:color-mix(in srgb,var(--c,var(--ora)) 12%,transparent);color:var(--txt)}
 .spl-cable-dot-sm{width:22px;height:3px;border-radius:2px;flex-shrink:0}
+.spl-cable-del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:10px;padding:3px 5px;border-radius:4px;line-height:1;flex-shrink:0;transition:all .12s}
+.spl-cable-del:hover{background:rgba(255,77,106,.15);color:var(--err)}
 .spl-ts-bar{display:flex;align-items:center;justify-content:space-between;padding:5px 8px;border-bottom:1px solid var(--bdr2);flex-shrink:0}
 .spl-ts-btn{width:26px;height:26px;border-radius:5px;border:1px solid var(--bdr2);background:var(--surf2);color:var(--txt2);font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .12s}
 .spl-ts-btn:hover{background:var(--surf3);color:var(--txt);border-color:var(--bdr3)}
@@ -1702,6 +1704,55 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 </div>
 
 <!-- GATE / UPGRADE MODAL -->
+<!-- Cable type modal -->
+<div class="modal-ov" id="cable-type-modal" onclick="if(event.target===this)closeCableTypeModal()">
+  <div class="modal-box" style="width:400px;max-width:95vw">
+    <div class="modal-head">
+      <i class="ti ti-line" style="font-size:15px;color:var(--ora)"></i>
+      <span class="modal-title">Nouveau type de cable</span>
+      <button class="btn ghost sm" onclick="closeCableTypeModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body" style="padding:18px 20px 20px;display:flex;flex-direction:column;gap:14px">
+      <div>
+        <label class="syn-insp-lbl">Nom du type</label>
+        <input class="syn-insp-inp" id="nct-label" placeholder="ex: SDI, Cat6, HF…" maxlength="32"/>
+      </div>
+      <div style="display:flex;gap:12px">
+        <div style="flex:1">
+          <label class="syn-insp-lbl">Couleur</label>
+          <div style="display:flex;align-items:center;gap:8px">
+            <input type="color" id="nct-color" value="#ff6b1a" style="width:38px;height:32px;border:1px solid var(--bdr2);border-radius:6px;background:var(--surf2);cursor:pointer;padding:2px"/>
+            <input class="syn-insp-inp" id="nct-color-hex" value="#ff6b1a" maxlength="7" style="flex:1;font-family:var(--m);font-size:11px" placeholder="#rrggbb"/>
+          </div>
+        </div>
+        <div style="flex:1">
+          <label class="syn-insp-lbl">Trait</label>
+          <select class="syn-insp-inp" id="nct-dash" style="font-family:var(--m);font-size:11px">
+            <option value="">Plein ─────</option>
+            <option value="6 3">Tirets ╌╌╌╌</option>
+            <option value="3 3">Pointilles ·····</option>
+            <option value="8 3">Tirets longs ──╌</option>
+            <option value="6 2 2 2">Mixte ─ · ─ ·</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="syn-insp-lbl">Aperçu</label>
+        <div style="background:var(--surf2);border:1px solid var(--bdr2);border-radius:7px;padding:14px 16px;display:flex;align-items:center;gap:12px">
+          <svg id="nct-preview-svg" width="120" height="16" style="flex-shrink:0">
+            <line id="nct-preview-line" x1="4" y1="8" x2="116" y2="8" stroke="#ff6b1a" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+          <span id="nct-preview-label" style="font-size:12px;font-weight:600;color:var(--txt)">Nouveau cable</span>
+        </div>
+      </div>
+    </div>
+    <div style="padding:0 20px 18px;display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn ghost sm" onclick="closeCableTypeModal()">Annuler</button>
+      <button class="btn" id="nct-save-btn" onclick="saveNewCableType()"><i class="ti ti-check"></i>Ajouter</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-ov" id="gate-modal">
   <div class="modal-box gate-modal-box">
     <div class="modal-head">
@@ -6195,17 +6246,46 @@ const SitePlan = (() => {
     ]},
   ];
 
-  const CABLE_TYPES = [
-    { id:'speakon', label:'Speakon',          color:'#ff6b1a', dash:'' },
-    { id:'xlr',     label:'XLR / Multipaire', color:'#f5c542', dash:'' },
-    { id:'rj45',    label:'RJ45',             color:'#44bbff', dash:'4 2' },
-    { id:'dante',   label:'Ethernet Dante',   color:'#1a8fff', dash:'7 3' },
-    { id:'luminex', label:'Reseau Luminex',   color:'#9b6aff', dash:'7 3' },
-    { id:'fiber',   label:'Fibre optique',    color:'#22d6a0', dash:'3 3' },
-    { id:'100v',    label:'Ligne 100V',        color:'#ffaa1a', dash:'6 2 2 2' },
-    { id:'power',   label:'Secteur',          color:'#ff4d6a', dash:'' },
-    { id:'multi',   label:'Multi-paire',      color:'#5ab0ff', dash:'5 2' },
+  let CABLE_TYPES = [
+    { id:'speakon', label:'Speakon',          color:'#ff6b1a', dash:'',          builtin:true },
+    { id:'xlr',     label:'XLR / Multipaire', color:'#f5c542', dash:'',          builtin:true },
+    { id:'rj45',    label:'RJ45',             color:'#44bbff', dash:'4 2',        builtin:true },
+    { id:'dante',   label:'Ethernet Dante',   color:'#1a8fff', dash:'7 3',        builtin:true },
+    { id:'luminex', label:'Reseau Luminex',   color:'#9b6aff', dash:'7 3',        builtin:true },
+    { id:'fiber',   label:'Fibre optique',    color:'#22d6a0', dash:'3 3',        builtin:true },
+    { id:'100v',    label:'Ligne 100V',        color:'#ffaa1a', dash:'6 2 2 2',   builtin:true },
+    { id:'power',   label:'Secteur',          color:'#ff4d6a', dash:'',           builtin:true },
+    { id:'multi',   label:'Multi-paire',      color:'#5ab0ff', dash:'5 2',        builtin:true },
   ];
+
+  const CUSTOM_CABLES_KEY = 'siteplan_custom_cables';
+
+  function _loadCustomCableTypes() {
+    try {
+      const raw = localStorage.getItem(CUSTOM_CABLES_KEY);
+      if(!raw) return;
+      const customs = JSON.parse(raw);
+      customs.forEach(function(c) {
+        if(c.id && c.label && !CABLE_TYPES.find(function(t){return t.id===c.id;}))
+          CABLE_TYPES.push({id:c.id, label:c.label, color:c.color||'#ffffff', dash:c.dash||'', builtin:false});
+      });
+    } catch(e) {}
+  }
+
+  function _saveCustomCableTypes() {
+    try {
+      const customs = CABLE_TYPES.filter(function(t){return !t.builtin;});
+      localStorage.setItem(CUSTOM_CABLES_KEY, JSON.stringify(customs));
+    } catch(e) {}
+  }
+
+  function deleteCustomCableType(id) {
+    if(CABLE_TYPES.find(function(t){return t.id===id&&t.builtin;})) return;
+    CABLE_TYPES = CABLE_TYPES.filter(function(t){return t.id!==id;});
+    _saveCustomCableTypes();
+    if(state.activeCableType===id) state.activeCableType='xlr';
+    renderCablePicker();
+  }
 
   let state = { elements:[], cables:[], bgImage:null, bgOpacity:40, view:{panX:60,panY:60,zoom:1}, selected:null, linkFrom:null, freePt1:null, activeCableType:'xlr', textScale:1, legendScale:1, cableMode:false };
   let dragging=null, panning=null, inited=false;
@@ -6219,6 +6299,7 @@ const SitePlan = (() => {
   function init() {
     if(inited) return;
     inited = true;
+    _loadCustomCableTypes();
     renderPalette();
     renderCablePicker();
     bindEvents();
@@ -6295,29 +6376,35 @@ const SitePlan = (() => {
         ? `background:repeating-linear-gradient(90deg,${ct2.color} 0,${ct2.color} 7px,transparent 7px,transparent 10px);`
         : `background:${ct2.color};`;
       const isCur = ct2.id === state.activeCableType;
-      return `<button class="spl-cable-btn${isCur?' active':''}" style="--c:${ct2.color}" onclick="SitePlan.setActiveCableType('${ct2.id}')">` +
-        `<div class="spl-cable-dot-sm" style="${ds}"></div>${ct2.label}</button>`;
+      const delBtn = ct2.builtin ? '' :
+        `<button class="spl-cable-del" data-del="${ct2.id}" title="Supprimer" onclick="event.stopPropagation();SitePlan.deleteCustomCableType('${ct2.id}')">✕</button>`;
+      return `<div style="display:flex;align-items:center;gap:2px">` +
+        `<button class="spl-cable-btn${isCur?' active':''}" style="--c:${ct2.color};flex:1" onclick="SitePlan.setActiveCableType('${ct2.id}')">` +
+        `<div class="spl-cable-dot-sm" style="${ds}"></div>${esc(ct2.label)}</button>${delBtn}</div>`;
     }).join('');
+    const addBtn =
+      `<button class="spl-cable-btn" style="color:var(--ora);font-weight:600;margin-top:3px;border:1px dashed var(--bdr2)" onclick="openCableTypeModal()">` +
+      `<i class="ti ti-plus" style="font-size:11px"></i>Nouveau type…</button>`;
     el.innerHTML =
       // Header row: active type + toggle list + ⚡ mode button
       `<div style="display:flex;gap:4px;align-items:center;margin-bottom:3px">` +
-      `<button class="spl-cable-btn" style="--c:${c.color};flex:1;background:var(--surf2);border-color:var(--bdr2)" ` +
+      `<button class="spl-cable-btn" id="spl-cpick-hd" style="--c:${c.color};flex:1;background:var(--surf2);border-color:var(--bdr2)" ` +
         `onclick="var l=document.getElementById('spl-cpick-list');l.style.display=l.style.display==='none'?'':'none'">` +
         `<div class="spl-cable-dot-sm" style="${hdDot}"></div>` +
-        `<span style="flex:1">${c.label}</span>` +
+        `<span style="flex:1">${esc(c.label)}</span>` +
         `<span style="opacity:.4;font-size:9px">▾</span></button>` +
       `<button class="spl-cable-btn${state.cableMode?' active':''}" style="--c:${c.color};padding:5px 9px;flex-shrink:0" ` +
         `onclick="SitePlan.toggleCableMode()" title="${state.cableMode?'Desactiver connexion':'Mode connexion'}">⚡</button>` +
       `</div>` +
       // Expandable list (closed by default, re-opened if was open before)
-      `<div id="spl-cpick-list" style="display:none">${items}</div>`;
+      `<div id="spl-cpick-list" style="display:none">${items}${addBtn}</div>`;
     // Re-open if list was already open (preserve state across re-renders)
     if(el._listOpen) { const l=$('spl-cpick-list'); if(l) l.style.display=''; }
     // Track open state
-    const hd = el.querySelector('.spl-cable-btn');
+    const hd = $('spl-cpick-hd');
     if(hd) hd.addEventListener('click', ()=>{ const l=$('spl-cpick-list'); if(l) el._listOpen = l.style.display!=='none'; });
-    // Close list after selection
-    el.querySelectorAll('#spl-cpick-list .spl-cable-btn').forEach(btn => {
+    // Close list after selection (not after delete or add button)
+    el.querySelectorAll('#spl-cpick-list .spl-cable-btn:not([onclick*="openCableTypeModal"])').forEach(btn => {
       btn.addEventListener('click', ()=>{ el._listOpen=false; });
     });
   }
@@ -6999,7 +7086,7 @@ const SitePlan = (() => {
     _makeCanvas(cb);
   }
 
-  return {init,load,getData,loadBg,setBgOpacity,clearBg,clear,zoom,resetView,selectCable,exportPng,exportCanvas,setActiveCableType,toggleCableMode,setTextScale,setLegendScale};
+  return {init,load,getData,loadBg,setBgOpacity,clearBg,clear,zoom,resetView,selectCable,exportPng,exportCanvas,setActiveCableType,toggleCableMode,setTextScale,setLegendScale,deleteCustomCableType,addCustomCableType:function(t){if(!CABLE_TYPES.find(function(x){return x.id===t.id;})){CABLE_TYPES.push(t);_saveCustomCableTypes();renderCablePicker();}}};
 })();
 
 // ══════════════════════════════════════
@@ -7123,6 +7210,83 @@ async function sessionSwitch(id){
   // Switch to Input List
   goTab('inputlist',[...document.querySelectorAll('.tab')].find(t=>t.getAttribute('onclick')?.includes("'inputlist'")));
   toast(`✓ Show chargé`);
+}
+
+// ══════════════════════════════════════
+// CABLE TYPE MODAL
+// ══════════════════════════════════════
+function openCableTypeModal() {
+  const m = document.getElementById('cable-type-modal');
+  if(!m) return;
+  // Reset form
+  const lbl = document.getElementById('nct-label');
+  const col  = document.getElementById('nct-color');
+  const hex  = document.getElementById('nct-color-hex');
+  const dash = document.getElementById('nct-dash');
+  if(lbl)  lbl.value  = '';
+  if(col)  col.value  = '#44bbff';
+  if(hex)  hex.value  = '#44bbff';
+  if(dash) dash.value = '';
+  _nctUpdatePreview();
+  m.classList.add('show');
+  setTimeout(function(){ if(lbl) lbl.focus(); }, 80);
+
+  // Wire live preview
+  [lbl, col, hex, dash].forEach(function(el) {
+    if(el) el.addEventListener('input', _nctUpdatePreview);
+  });
+  // Sync color picker <-> hex input
+  if(col) col.addEventListener('input', function() {
+    if(hex) hex.value = col.value;
+    _nctUpdatePreview();
+  });
+  if(hex) hex.addEventListener('input', function() {
+    if(/^#[0-9a-fA-F]{6}$/.test(hex.value) && col) col.value = hex.value;
+    _nctUpdatePreview();
+  });
+  // Enter key saves
+  if(lbl) lbl.addEventListener('keydown', function(e) { if(e.key==='Enter') saveNewCableType(); });
+}
+
+function _nctUpdatePreview() {
+  const lbl  = document.getElementById('nct-label');
+  const col  = document.getElementById('nct-color');
+  const dash = document.getElementById('nct-dash');
+  const line = document.getElementById('nct-preview-line');
+  const plbl = document.getElementById('nct-preview-label');
+  const color = (col && /^#[0-9a-fA-F]{6}$/.test(col.value)) ? col.value : '#44bbff';
+  const dashVal = dash ? dash.value : '';
+  if(line) {
+    line.setAttribute('stroke', color);
+    if(dashVal) line.setAttribute('stroke-dasharray', dashVal);
+    else line.removeAttribute('stroke-dasharray');
+  }
+  if(plbl) plbl.textContent = (lbl && lbl.value.trim()) ? lbl.value.trim() : 'Apercu';
+  if(plbl) plbl.style.color = color;
+}
+
+function closeCableTypeModal() {
+  const m = document.getElementById('cable-type-modal');
+  if(m) m.classList.remove('show');
+}
+
+function saveNewCableType() {
+  const lbl  = document.getElementById('nct-label');
+  const col  = document.getElementById('nct-color');
+  const hex  = document.getElementById('nct-color-hex');
+  const dash = document.getElementById('nct-dash');
+  const label = (lbl ? lbl.value.trim() : '');
+  if(!label) { if(lbl){ lbl.style.outline='2px solid var(--err)'; setTimeout(function(){lbl.style.outline='';},1200); } return; }
+  const rawColor = (hex && /^#[0-9a-fA-F]{6}$/.test(hex.value)) ? hex.value : (col ? col.value : '#44bbff');
+  const dashVal  = dash ? dash.value : '';
+  const id = 'custom_' + Date.now().toString(36);
+  const newType = { id:id, label:label, color:rawColor, dash:dashVal, builtin:false };
+  if(typeof SitePlan !== 'undefined' && SitePlan.addCustomCableType) {
+    SitePlan.addCustomCableType(newType);
+    SitePlan.setActiveCableType(id);
+  }
+  closeCableTypeModal();
+  toast('✓ Type "' + label + '" ajoute');
 }
 
 async function editShowMeta(id){
