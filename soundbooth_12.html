@@ -1648,22 +1648,23 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
   <div class="modal-box" style="width:580px">
     <div class="modal-head"><i class="ti ti-file-type-pdf" style="font-size:18px;color:var(--ora)"></i><div class="modal-title">Exporter en PDF</div><button class="btn ghost sm" onclick="closePDF()"><i class="ti ti-x"></i></button></div>
     <div class="modal-body">
+      <div id="pdf-free-notice" style="display:none;align-items:center;gap:9px;background:rgba(255,107,26,.07);border:1px solid rgba(255,107,26,.22);border-radius:7px;padding:8px 12px;font-size:11px;color:var(--txt2);margin-bottom:12px"><i class="ti ti-lock" style="color:var(--ora);flex-shrink:0;font-size:14px"></i><span>Plan Gratuit — seuls le nom et le rôle sont inclus. <button onclick="closePDF();showUpgradeModal('export_pdf_pro')" style="background:none;border:none;color:var(--ora);cursor:pointer;font-size:11px;padding:0;font-family:var(--f);text-decoration:underline">Passer Pro</button> pour les champs complets.</span></div>
       <div class="pdf-sec"><div class="pdf-sec-title"><i class="ti ti-user" style="color:var(--ora)"></i>Ingénieur</div>
         <div class="pdf-grid">
           <div class="pdf-fld"><label class="pdf-lbl">Nom</label><input class="pdf-inp" id="pdf-eng" placeholder="Jean-Marie Leclerc"/></div>
-          <div class="pdf-fld"><label class="pdf-lbl">Rôle</label><input class="pdf-inp" id="pdf-role" placeholder="FOH Engineer"/></div>
-          <div class="pdf-fld"><label class="pdf-lbl">Société</label><input class="pdf-inp" id="pdf-co" placeholder="Sound Co."/></div>
-          <div class="pdf-fld"><label class="pdf-lbl">Contact</label><input class="pdf-inp" id="pdf-tel" placeholder="+33 6 …"/></div>
+          <div class="pdf-fld"><label class="pdf-lbl">Rôle / Titre</label><input class="pdf-inp" id="pdf-role" placeholder="FOH Engineer"/></div>
+          <div class="pdf-fld pdf-pro-fld" id="pdf-co-fld"><label class="pdf-lbl">Société</label><input class="pdf-inp" id="pdf-co" placeholder="Sound Co."/></div>
+          <div class="pdf-fld pdf-pro-fld" id="pdf-tel-fld"><label class="pdf-lbl">Contact</label><input class="pdf-inp" id="pdf-tel" placeholder="+33 6 …"/></div>
         </div>
       </div>
-      <div class="pdf-sec"><div class="pdf-sec-title"><i class="ti ti-map-pin" style="color:var(--ora)"></i>Production</div>
+      <div class="pdf-sec pdf-pro-fld" id="pdf-prod-sec"><div class="pdf-sec-title"><i class="ti ti-map-pin" style="color:var(--ora)"></i>Production</div>
         <div class="pdf-grid c3">
           <div class="pdf-fld"><label class="pdf-lbl">Venue</label><input class="pdf-inp" id="pdf-venue" placeholder="Zénith de Paris"/></div>
           <div class="pdf-fld"><label class="pdf-lbl">Date</label><input class="pdf-inp" id="pdf-date" placeholder="15/05/2025"/></div>
           <div class="pdf-fld"><label class="pdf-lbl">Révision</label><input class="pdf-inp" id="pdf-rev" placeholder="v1.0"/></div>
         </div>
       </div>
-      <div class="pdf-sec" style="margin-bottom:0"><div class="pdf-sec-title"><i class="ti ti-note" style="color:var(--ora)"></i>Notes</div>
+      <div class="pdf-sec pdf-pro-fld" id="pdf-notes-sec" style="margin-bottom:0"><div class="pdf-sec-title"><i class="ti ti-note" style="color:var(--ora)"></i>Notes</div>
         <div class="pdf-fld full"><label class="pdf-lbl">Notes techniques</label><textarea class="pdf-inp" id="pdf-notes" placeholder="Vérifier gain console avant bal…"></textarea></div>
       </div>
     </div>
@@ -3306,7 +3307,15 @@ function updateStats(){const n=CHS.length,ph=CHS.filter(r=>r.phantom).length;['y
 // ══════════════════════════════════════
 // PDF EXPORT
 // ══════════════════════════════════════
-function openPDFModal(){if(!canDo('export_pdf')){showUpgradeModal('export_pdf');return;}document.getElementById('pdf-modal').className='modal-ov show';}
+function openPDFModal(){
+  const isFree=userPlan()==='free';
+  document.querySelectorAll('.pdf-pro-fld').forEach(function(el){el.style.display=isFree?'none':'';});
+  const notice=document.getElementById('pdf-free-notice');
+  if(notice)notice.style.display=isFree?'flex':'none';
+  const lastSec=document.getElementById('pdf-notes-sec');
+  if(lastSec)lastSec.style.marginBottom=isFree?'0':'';
+  document.getElementById('pdf-modal').className='modal-ov show';
+}
 function closePDF(){document.getElementById('pdf-modal').className='modal-ov';}
 
 // ══════════════════════════════════════
@@ -8541,7 +8550,7 @@ function closeUD(){document.getElementById('user-dd').classList.remove('show');}
 // ══════════════════════════════════════
 const PLAN_PERMS = {
   free:   { max_shows:3,        max_channels:32,       max_members:1,        max_templates:5,
-            export_pdf:false,   share_link:false,      site_plan:false,
+            export_pdf:true,    share_link:false,      site_plan:false,
             storage:false,      multi_scenes:false,    multi_patches:false,  custom_exports:false,  vintage_view:false },
   pro:    { max_shows:Infinity, max_channels:Infinity, max_members:5,        max_templates:Infinity,
             export_pdf:true,    share_link:true,       site_plan:true,
@@ -8568,6 +8577,7 @@ const GATE_META = {
   multi_patches:  { icon:'ti-layers-subtract',  title:'Multi-patches',                desc:'Creez plusieurs variantes de patch (A/B, festival, acoustique) pour le meme show.', plan:'studio', feats:['Variantes A/B, festival, acoustique','Basculement rapide entre patches','Exclusif plan Studio'] },
   custom_exports: { icon:'ti-photo',            title:'Exports personnalises',        desc:'Ajoutez votre logo et les informations de votre societe sur tous les exports PDF.', plan:'studio', feats:['Logo sur chaque page PDF','Entete avec vos coordonnees','Charte graphique de votre societe'] },
   vintage_view:   { icon:'ti-photo-film',       title:'Affichage Vintage',            desc:'Mode theatral avec les instruments dessines en vue de dessus sur un plateau sombre.', plan:'pro', feats:['Vue en plongee de chaque instrument','Fond de scene theatral avec parquet','Disponible sur les plans Pro et Studio'] },
+  export_pdf_pro: { icon:'ti-file-type-pdf',    title:'Export PDF complet',           desc:'Ajoutez societe, contact, venue, date, revision et notes techniques a vos exports PDF.', plan:'pro', feats:['Coordonnees completes en en-tete','Venue, date et numero de revision','Notes techniques sur chaque export'] },
 };
 
 function userPlan() { return PROFILE?.plan || 'free'; }
