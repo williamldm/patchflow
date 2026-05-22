@@ -9765,16 +9765,20 @@ document.getElementById('bp-share-modal').addEventListener('click',function(e){i
   var SV_TABCSS='display:inline-flex;align-items:center;gap:5px;padding:9px 18px;background:none;border:none;border-bottom:2px solid transparent;color:#5a6a80;font-family:DM Mono,monospace;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;transition:all .15s;margin-bottom:-1px';
   var SV_TABCSS_ON='display:inline-flex;align-items:center;gap:5px;padding:9px 18px;background:none;border:none;border-bottom:2px solid #ff6b1a;color:#ff6b1a;font-family:DM Mono,monospace;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;margin-bottom:-1px';
 
-  var secLabels={il:'Input List',syno:'Synoptique',stage:'Plan de scene',site:'Plan de site'};
-  var secIcons={il:'&#9776;',syno:'&#9762;',stage:'&#9646;',site:'&#127963;'};
+  var secLabels={il:'Input List',syno:'Synoptique',stage:'Plan de scene',site:'Plan de site',files:'Pieces jointes'};
+  var secIcons={il:'&#9776;',syno:'&#9762;',stage:'&#9646;',site:'&#127963;',files:'&#128206;'};
+
+  // Add files tab automatically if files were attached
+  var allSections=sections.slice();
+  if(rFiles.length&&allSections.indexOf('files')<0) allSections.push('files');
 
   var tabsHtml='';
-  if(sections.length>1){
+  if(allSections.length>1){
     tabsHtml='<div id="sv-tabs" style="display:flex;border-bottom:1px solid #1e2a3a;margin-bottom:0;overflow-x:auto">';
-    sections.forEach(function(s,i){
+    allSections.forEach(function(s,i){
       var active=i===0;
       tabsHtml+='<button id="svt-'+s+'" style="'+(active?SV_TABCSS_ON:SV_TABCSS)+'" onclick="_svSwitch(\''+s+'\')">'
-        +secIcons[s]+' '+(secLabels[s]||s)+'</button>';
+        +(secIcons[s]||'')+' '+(secLabels[s]||s)+'</button>';
     });
     tabsHtml+='</div>';
   }
@@ -9790,7 +9794,6 @@ document.getElementById('bp-share-modal').addEventListener('click',function(e){i
     +'<div style="flex:1"></div>'
     +'<div style="font-size:10px;font-family:DM Mono,monospace;background:rgba(34,214,160,.12);color:#22d6a0;border:1px solid rgba(34,214,160,.25);border-radius:6px;padding:3px 10px">&#9679; Lecture seule</div>'
     +'</div>'
-    // Rider meta header
     +(rTitle||rNote||rInfo?
       '<div style="background:#080e1a;border-bottom:1px solid #1e2a3a;padding:16px 28px">'
       +(rTitle?'<div style="font-size:20px;font-weight:800;color:#f0f4ff;margin-bottom:6px">'+esc(rTitle)+'</div>':'')
@@ -9801,10 +9804,18 @@ document.getElementById('bp-share-modal').addEventListener('click',function(e){i
     +tabsHtml
     +'<div id="sv-body" style="max-width:1100px;margin:0 auto;padding:28px 20px">'
     +'<div style="text-align:center;color:#5a6a80;font-family:DM Mono,monospace;margin-top:60px">Chargement...</div>'
-    +'</div>'
-    // Files section rendered below content
-    +(rFiles.length?'<div id="sv-files" style="max-width:1100px;margin:0 auto;padding:0 20px 40px"></div>':'');
+    +'</div>';
   document.body.prepend(wrap);
+
+  // Pre-generate signed URLs for all attached files
+  var _signedUrls={};
+  if(rFiles.length){
+    Promise.all(rFiles.map(function(path){
+      return sb.storage.from(FICH_BUCKET).createSignedUrl(path,604800).then(function(res){
+        if(!res.error&&res.data) _signedUrls[path]=res.data.signedUrl;
+      });
+    }));
+  }
 
   // ── Load show once ──
   var show,rows=[];
@@ -9898,51 +9909,92 @@ document.getElementById('bp-share-modal').addEventListener('click',function(e){i
     return _showMeta+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:12px">Synoptique disponible en vue interactive dans l\'application.</div>';
   }
 
-  // ── Files section (Studio) ──
-  async function _renderFiles(){
-    var el=document.getElementById('sv-files');
-    if(!el||!rFiles.length)return;
-    el.innerHTML='<div style="border-top:1px solid #1e2a3a;padding-top:24px;margin-top:8px">'
-      +'<div style="font-size:11px;font-family:DM Mono,monospace;color:#5a6a80;letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px">&#128206; Fichiers joints</div>'
-      +'<div id="sv-files-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px"></div>'
+  // ── Pieces jointes tab ──
+  var _activeFile=0;
+  function _fileCard(i,fpath,url,active){
+    var fname=fpath.split('/').pop();
+    var disp=fname.replace(/^\d+_/,'');
+    var ext=(fname.split('.').pop()||'').toLowerCase();
+    var icons={pdf:'&#128196;',mp3:'&#127925;',wav:'&#127925;',mp4:'&#127916;',mov:'&#127916;',docx:'&#128196;',doc:'&#128196;',xlsx:'&#128200;',xls:'&#128200;'};
+    var icon=icons[ext]||'&#128196;';
+    var bg=active?'background:#111c2e;border-color:#ff6b1a':'background:#0d1520;border-color:#1e2a3a';
+    var nameColor=active?'color:#ff6b1a':'color:#c8d4e0';
+    return '<div onclick="_svFileSelect('+i+')" style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid;border-radius:8px;margin-bottom:8px;transition:all .15s;'+bg+'">'
+      +'<span style="font-size:18px;flex-shrink:0">'+icon+'</span>'
+      +'<div style="flex:1;overflow:hidden"><div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'+nameColor+'">'+esc(disp)+'</div>'
+      +'<div style="font-size:9px;font-family:DM Mono,monospace;color:#5a6a80;margin-top:2px">'+ext.toUpperCase()+'</div></div>'
+      +(url?'<a href="'+url+'" download target="_blank" onclick="event.stopPropagation()" title="Telecharger" style="color:#5a6a80;font-size:16px;text-decoration:none;flex-shrink:0">&#11123;</a>':'')
       +'</div>';
-    var list=document.getElementById('sv-files-list');
-    for(var i=0;i<rFiles.length;i++){
-      var fpath=rFiles[i];
-      var fname=fpath.split('/').pop();
-      var disp=fname.replace(/^\d+_/,'');
-      var ext=(fname.split('.').pop()||'').toLowerCase();
-      var iconMap={pdf:'&#128196;',mp3:'&#127925;',wav:'&#127925;',mp4:'&#127916;',mov:'&#127916;',docx:'&#128196;',doc:'&#128196;',xlsx:'&#128200;',xls:'&#128200;'};
-      var icon=iconMap[ext]||'&#128196;';
-      var card='<div style="background:#0d1520;border:1px solid #1e2a3a;border-radius:9px;padding:12px 14px;display:flex;align-items:center;gap:10px">'
-        +'<span style="font-size:22px">'+icon+'</span>'
-        +'<div style="flex:1;overflow:hidden"><div style="font-size:11px;font-weight:600;color:#c8d4e0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(disp)+'</div>'
-        +'<div style="font-size:9px;font-family:DM Mono,monospace;color:#5a6a80;margin-top:2px">'+ext.toUpperCase()+'</div></div>'
-        +'<div id="svfl-'+i+'" style="font-size:10px;color:#5a6a80">…</div>'
-        +'</div>';
-      list.innerHTML+=card;
-      // Generate signed URL async
-      (function(idx,path){
-        sb.storage.from(FICH_BUCKET).createSignedUrl(path,604800).then(function(res){
-          var btn=document.getElementById('svfl-'+idx);
-          if(!btn)return;
-          if(res.error||!res.data){btn.textContent='Indisponible';return;}
-          btn.innerHTML='<a href="'+res.data.signedUrl+'" target="_blank" style="color:#ff6b1a;text-decoration:none;font-family:DM Mono,monospace;font-size:10px;display:flex;align-items:center;gap:4px">&#11123; Ouvrir</a>';
-        });
-      })(i,fpath);
-    }
   }
-  _renderFiles();
+
+  function _fileViewer(fpath,url){
+    if(!url) return '<div style="text-align:center;color:#f87171;padding:40px;font-size:12px">Fichier temporairement indisponible.</div>';
+    var ext=(fpath.split('.').pop()||'').toLowerCase();
+    if(ext==='pdf'){
+      return '<iframe src="'+url+'" style="width:100%;height:82vh;border:none;border-radius:8px;background:#111" allowfullscreen></iframe>';
+    }
+    if(['mp4','mov','webm','avi'].includes(ext)){
+      return '<video src="'+url+'" controls style="width:100%;max-height:70vh;border-radius:8px;background:#000;display:block"></video>';
+    }
+    if(['mp3','wav','m4a','aac','flac','ogg'].includes(ext)){
+      var fname=fpath.split('/').pop().replace(/^\d+_/,'');
+      return '<div style="padding:40px 20px;text-align:center">'
+        +'<div style="font-size:48px;margin-bottom:16px">&#127925;</div>'
+        +'<div style="font-size:14px;font-weight:600;color:#c8d4e0;margin-bottom:20px">'+esc(fname)+'</div>'
+        +'<audio src="'+url+'" controls style="width:100%;max-width:480px;accent-color:#ff6b1a"></audio>'
+        +'</div>';
+    }
+    // Other formats: download card
+    var fname=fpath.split('/').pop().replace(/^\d+_/,'');
+    var ext2=(fpath.split('.').pop()||'').toUpperCase();
+    return '<div style="text-align:center;padding:60px 20px">'
+      +'<div style="font-size:52px;margin-bottom:16px">&#128196;</div>'
+      +'<div style="font-size:15px;font-weight:700;color:#c8d4e0;margin-bottom:6px">'+esc(fname)+'</div>'
+      +'<div style="font-size:10px;font-family:DM Mono,monospace;color:#5a6a80;margin-bottom:24px">'+ext2+'</div>'
+      +'<a href="'+url+'" target="_blank" download style="display:inline-flex;align-items:center;gap:8px;padding:10px 22px;background:#ff6b1a;color:#000;font-weight:700;border-radius:8px;text-decoration:none;font-size:13px">&#11123; Telecharger</a>'
+      +'</div>';
+  }
+
+  function _renderFilesPane(){
+    if(!rFiles.length) return '<div style="text-align:center;color:#5a6a80;padding:60px">Aucun fichier joint.</div>';
+    var sidebar='<div style="display:flex;flex-direction:column">';
+    for(var i=0;i<rFiles.length;i++){
+      sidebar+=_fileCard(i,rFiles[i],_signedUrls[rFiles[i]],i===_activeFile);
+    }
+    sidebar+='</div>';
+    var viewer='<div id="sv-file-viewer">'+_fileViewer(rFiles[_activeFile],_signedUrls[rFiles[_activeFile]])+'</div>';
+    if(rFiles.length===1){
+      return '<div style="padding:20px 0">'+_fileViewer(rFiles[0],_signedUrls[rFiles[0]])+'</div>';
+    }
+    return '<div style="display:grid;grid-template-columns:260px 1fr;gap:20px;align-items:start">'
+      +'<div>'+sidebar+'</div>'
+      +'<div>'+viewer+'</div>'
+      +'</div>';
+  }
+
+  window._svFileSelect=function(i){
+    _activeFile=i;
+    // Rebuild sidebar cards
+    var cards=document.querySelectorAll('#sv-body [onclick^="_svFileSelect"]');
+    rFiles.forEach(function(fp,idx){
+      var card=cards[idx];if(!card)return;
+      var active=idx===i;
+      card.style.background=active?'#111c2e':'#0d1520';
+      card.style.borderColor=active?'#ff6b1a':'#1e2a3a';
+      var nameEl=card.querySelector('div>div:first-child');
+      if(nameEl)nameEl.style.color=active?'#ff6b1a':'#c8d4e0';
+    });
+    var vw=document.getElementById('sv-file-viewer');
+    if(vw)vw.innerHTML=_fileViewer(rFiles[i],_signedUrls[rFiles[i]]);
+  };
 
   // ── Pane cache & tab switcher ──
   var _paneCache={};
   window._svSwitch=function(sec){
-    // Update tab styles
-    sections.forEach(function(s){
+    allSections.forEach(function(s){
       var t=document.getElementById('svt-'+s);
       if(t) t.style.cssText=s===sec?SV_TABCSS_ON:SV_TABCSS;
     });
-    // Show cached pane or render
     if(_paneCache[sec]!==undefined){
       document.getElementById('sv-body').innerHTML=_paneCache[sec];
       return;
@@ -9952,10 +10004,20 @@ document.getElementById('bp-share-modal').addEventListener('click',function(e){i
     else if(sec==='stage'){_renderStage(function(h){_paneCache.stage=h;document.getElementById('sv-body').innerHTML=h;});}
     else if(sec==='site'){_renderSite(function(h){_paneCache.site=h;document.getElementById('sv-body').innerHTML=h;});}
     else if(sec==='syno'){_paneCache.syno=_renderSyno();document.getElementById('sv-body').innerHTML=_paneCache.syno;}
+    else if(sec==='files'){
+      // Wait for signed URLs if not yet ready, then render
+      var tryRender=function(){
+        var h=_renderFilesPane();
+        document.getElementById('sv-body').innerHTML=h;
+      };
+      // If URLs not yet resolved give a short delay
+      var allReady=rFiles.every(function(fp){return _signedUrls[fp];});
+      if(allReady){tryRender();}else{setTimeout(tryRender,1200);}
+    }
   };
 
   // ── Initial render ──
-  var first=sections[0]||'il';
+  var first=allSections[0]||'il';
   window._svSwitch(first);
 })();
 </script>
