@@ -3719,8 +3719,8 @@ function _makeBpCanvas(cb){
   const RSCALE=75;
   // Bounds
   const _ss=data.stageScale||1;
-  const _stgW=Math.min(2360,Math.round(2000*_ss));
-  const _stgH=Math.min(1550,Math.round(1200*_ss));
+  const _stgW=Math.min(2380,Math.round(2300*_ss));
+  const _stgH=Math.min(1570,Math.round(1480*_ss));
   const _stgX=Math.round(1200-_stgW/2);
   const _stgY=Math.max(20,Math.round(180-(_stgH-900)/2));
   let minX=_stgX,minY=_stgY,maxX=_stgX+_stgW,maxY=_stgY+_stgH;
@@ -7133,8 +7133,8 @@ const BandPlan=(()=>{
   /* Returns the stage rect geometry based on current stageScale */
   function _getStageDims(){
     const ss=st.stageScale||1;
-    const w=Math.min(2360,Math.round(2000*ss));
-    const h=Math.min(1550,Math.round(1200*ss));
+    const w=Math.min(2380,Math.round(2300*ss));
+    const h=Math.min(1570,Math.round(1480*ss));
     const x=Math.round(1200-w/2);
     const y=Math.max(20,Math.round(180-(h-900)/2));
     const sepY=y+h;
