@@ -4699,7 +4699,7 @@ const SynEditor = (() => {
     // ════ INFRA ════════════════════════════════════════════════════
     { type:'console',     cat:'infra', label:'Console FOH',      icon:'🎛', w:130, h:70 },
     { type:'console_mon', cat:'infra', label:'Console MON',      icon:'🎛', w:130, h:70 },
-    { type:'switch',      cat:'infra', label:'Switch Dante',     icon:'🔀', w:130, h:64 },
+    { type:'switch',      cat:'infra', label:'Switch reseau',    icon:'🔀', w:160, h:64 },
     { type:'stagebox',    cat:'infra', label:'Stage Box',        icon:'📦', w:120, h:60 },
     { type:'splitter',    cat:'infra', label:'Splitter',         icon:'⑂',  w:110, h:56 },
     { type:'processor',   cat:'infra', label:'Processeur',       icon:'◎',  w:120, h:64 },
@@ -5460,6 +5460,28 @@ const SynEditor = (() => {
         + inner
         + (state.mode === 'edit' ? '<button type="button" class="syn-node-del" data-del="' + n.id + '" title="Supprimer"><i class="ti ti-x"></i></button>' : '')
         + '</div>';
+    } else if (n.type === 'switch') {
+      // ── Switch réseau avec patch de ports ──────────────────────
+      var swPorts = n.swPorts || [];
+      var swHd = '<div class="syn-node-hd"><span class="syn-node-ico">🔀</span><div>'
+        + '<div class="syn-node-title">' + esc(n.label) + '</div>'
+        + '<div class="syn-node-sub">' + (swPorts.length ? swPorts.length + ' port' + (swPorts.length > 1 ? 's' : '') : 'Switch reseau') + '</div>'
+        + (n.machineId ? '<div class="syn-node-sub" style="font-family:var(--m);color:var(--muted2);font-size:8px;padding-top:1px">ID · ' + esc(n.machineId) + '</div>' : '')
+        + '</div></div>';
+      var swRows = swPorts.length
+        ? '<div style="border-top:1px solid rgba(255,255,255,.06);padding:4px 0 5px">'
+          + swPorts.map(function(p) {
+              var pc = _swProtoColor(p.proto);
+              return '<div style="display:flex;align-items:center;gap:5px;padding:2px 10px">'
+                + '<span style="font-family:\'DM Mono\',monospace;font-size:8px;color:var(--muted2);min-width:14px;text-align:right;flex-shrink:0">' + p.id + '</span>'
+                + '<span style="width:5px;height:5px;border-radius:50%;background:' + pc + ';flex-shrink:0"></span>'
+                + '<span style="font-size:9px;color:var(--txt2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(p.label || p.proto || '') + '</span>'
+                + '<span style="font-family:\'DM Mono\',monospace;font-size:7px;color:' + pc + ';flex-shrink:0;opacity:.85">' + esc(p.proto || '') + '</span>'
+                + '</div>';
+            }).join('')
+          + '</div>'
+        : '';
+      inner = swHd + swRows;
     } else {
       inner = `<div class="syn-node-hd"><span class="syn-node-ico">${spec(n.type).icon}</span><div><div class="syn-node-title">${esc(n.label)}</div><div class="syn-node-sub">${esc(spec(n.type).label)}</div>${n.machineId ? `<div class="syn-node-sub" style="font-family:var(--m);color:var(--muted2);font-size:8px;padding-top:1px">ID · ${esc(n.machineId)}</div>` : ''}</div></div>`;
     }
@@ -5701,9 +5723,40 @@ const SynEditor = (() => {
       }).join('')
       + '</div>';
   }
+  var _SW_PROTOS = ['Dante','AES67','AVB','mLAN','WiFi','PoE','SFP','RJ45','MADI','USB','Vide'];
+  var _SW_PROTO_C = { 'Dante':'#1a8fff','AES67':'#22d6a0','AVB':'#5ab0ff','mLAN':'#a855f7','WiFi':'#f5c542','PoE':'#ff6b1a','SFP':'#9b6aff','MADI':'#f97316','USB':'#5a6a80','RJ45':'#4a5568','Vide':'#2a3040' };
+  function _swProtoColor(proto) { return _SW_PROTO_C[proto] || '#5a6a80'; }
+
+  function _buildSwPortsHTML(n) {
+    var ports = n.swPorts || [];
+    var protoOpts = _SW_PROTOS.map(function(p){ return '<option value="' + p + '">' + p + '</option>'; }).join('');
+    var rows = ports.map(function(p, i) {
+      var pc = _swProtoColor(p.proto);
+      return '<div class="sw-port-row" data-swpi="' + i + '" style="display:flex;align-items:center;gap:4px;padding:4px 0;border-bottom:1px solid var(--bdr)">'
+        + '<span style="font-family:\'DM Mono\',monospace;font-size:9px;color:var(--muted);min-width:16px;text-align:right;flex-shrink:0">' + p.id + '</span>'
+        + '<span style="width:6px;height:6px;border-radius:50%;background:' + pc + ';flex-shrink:0"></span>'
+        + '<select class="sw-port-proto syn-insp-inp" data-swpi="' + i + '" style="flex-shrink:0;width:76px;font-size:9px;padding:2px 4px;color:' + pc + '">'
+        + _SW_PROTOS.map(function(pr){ return '<option value="' + pr + '"' + (p.proto === pr ? ' selected' : '') + '>' + pr + '</option>'; }).join('')
+        + '</select>'
+        + '<input class="sw-port-label syn-insp-inp" data-swpi="' + i + '" value="' + esc(p.label || '') + '" placeholder="Label..." style="flex:1;font-size:9px;padding:2px 5px"/>'
+        + '<button type="button" class="sw-port-del" data-swpi="' + i + '" style="border:none;background:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0 2px;flex-shrink:0" title="Supprimer">x</button>'
+        + '</div>';
+    }).join('');
+    return '<div style="margin-top:10px">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">'
+      + '<label class="syn-insp-lbl" style="margin:0">Patch reseau</label>'
+      + '<div style="display:flex;gap:3px">'
+      + '<button type="button" id="sw-port-add" class="btn sm" style="font-size:9px;padding:2px 7px"><i class="ti ti-plus"></i> Port</button>'
+      + '<button type="button" id="sw-preset-4" class="btn sm" style="font-size:9px;padding:2px 7px" title="4 ports standard">×4</button>'
+      + '<button type="button" id="sw-preset-8" class="btn sm" style="font-size:9px;padding:2px 7px" title="8 ports standard">×8</button>'
+      + '</div></div>'
+      + '<div id="sw-port-list">' + (rows || '<div style="font-size:9px;color:var(--muted);padding:6px 0">Aucun port — cliquez + Port</div>') + '</div>'
+      + '</div>';
+  }
+
   function _buildInfraInspHTML(n) {
     var sp = spec(n.type);
-    return '<div class="syn-insp-title">' + esc(sp.icon) + ' ' + esc(sp.label) + '</div>'
+    var base = '<div class="syn-insp-title">' + esc(sp.icon) + ' ' + esc(sp.label) + '</div>'
       + '<div class="syn-insp-id-row">'
       + '<span class="syn-insp-id-lbl">ID</span>'
       + '<input class="syn-insp-id-inp" id="insp-mid" value="' + esc(n.machineId || '') + '"/>'
@@ -5711,11 +5764,13 @@ const SynEditor = (() => {
       + '<label class="syn-insp-lbl">Nom</label>'
       + '<div style="display:flex;gap:4px;margin-bottom:2px">'
       + '<input class="syn-insp-inp" id="insp-label" value="' + esc(n.label) + '" style="flex:1"/>'
-      + '<button type="button" id="insp-name-save" class="btn sm" title="Sauvegarder comme preset — ce nom sera propose automatiquement dans les prochains synoptiques" style="flex-shrink:0;padding:0 9px"><i class="ti ti-bookmark"></i></button>'
+      + '<button type="button" id="insp-name-save" class="btn sm" title="Sauvegarder comme preset" style="flex-shrink:0;padding:0 9px"><i class="ti ti-bookmark"></i></button>'
       + '</div>'
       + '<div style="font-size:9px;color:var(--muted);margin-bottom:4px;font-family:var(--m)"><i class="ti ti-bookmark" style="font-size:9px"></i> sauvegarde le nom comme preset reutilisable</div>'
-      + _buildNamePresetsHTML()
-      + '<button type="button" class="btn sm" style="width:100%;margin-top:10px" id="insp-del"><i class="ti ti-trash"></i> Supprimer</button>';
+      + _buildNamePresetsHTML();
+    if (n.type === 'switch') base += _buildSwPortsHTML(n);
+    base += '<button type="button" class="btn sm" style="width:100%;margin-top:10px" id="insp-del"><i class="ti ti-trash"></i> Supprimer</button>';
+    return base;
   }
   function _bindInspInfra(n) {
     $('insp-label')?.addEventListener('change', function(ev) { n.label = ev.target.value; scheduleSave(); render(); });
@@ -5748,6 +5803,80 @@ const SynEditor = (() => {
       });
     }
     $('insp-del')?.addEventListener('click', function() { deleteNode(n.id); });
+
+    if (n.type === 'switch') {
+      if (!n.swPorts) n.swPorts = [];
+
+      function _swRefresh() {
+        var el2 = document.getElementById('syn-inspector');
+        if (el2) { el2.innerHTML = _buildInfraInspHTML(n); _bindInspInfra(n); }
+      }
+      function _swNextId() {
+        var ids = (n.swPorts || []).map(function(p){ return p.id; });
+        for (var i = 1; i <= 99; i++) { if (ids.indexOf(i) === -1) return i; }
+        return (n.swPorts.length || 0) + 1;
+      }
+
+      // Live edits on existing ports (proto select + label input)
+      var portList = document.getElementById('sw-port-list');
+      if (portList) {
+        portList.addEventListener('change', function(ev) {
+          var sel = ev.target.closest('.sw-port-proto');
+          if (sel) {
+            var i = parseInt(sel.dataset.swpi, 10);
+            n.swPorts[i].proto = sel.value;
+            // update dot color inline
+            var row = sel.closest('.sw-port-row');
+            if (row) {
+              var dot = row.querySelector('span[style*="border-radius:50%"]');
+              if (dot) dot.style.background = _swProtoColor(sel.value);
+              sel.style.color = _swProtoColor(sel.value);
+            }
+            scheduleSave(); render();
+          }
+        });
+        portList.addEventListener('input', function(ev) {
+          var inp = ev.target.closest('.sw-port-label');
+          if (inp) { n.swPorts[parseInt(inp.dataset.swpi, 10)].label = inp.value; scheduleSave(); render(); }
+        });
+        portList.addEventListener('click', function(ev) {
+          var del = ev.target.closest('.sw-port-del');
+          if (del) { n.swPorts.splice(parseInt(del.dataset.swpi, 10), 1); scheduleSave(); render(); _swRefresh(); }
+        });
+      }
+
+      // Add single port
+      document.getElementById('sw-port-add')?.addEventListener('click', function() {
+        n.swPorts.push({ id: _swNextId(), proto: 'Dante', label: '' });
+        scheduleSave(); render(); _swRefresh();
+      });
+
+      // Preset ×4
+      document.getElementById('sw-preset-4')?.addEventListener('click', function() {
+        n.swPorts = [
+          { id:1, proto:'Dante', label:'' },
+          { id:2, proto:'Dante', label:'' },
+          { id:3, proto:'Dante', label:'' },
+          { id:4, proto:'Dante', label:'' },
+        ];
+        scheduleSave(); render(); _swRefresh();
+      });
+
+      // Preset ×8
+      document.getElementById('sw-preset-8')?.addEventListener('click', function() {
+        n.swPorts = [
+          { id:1, proto:'Dante', label:'' },
+          { id:2, proto:'Dante', label:'' },
+          { id:3, proto:'Dante', label:'' },
+          { id:4, proto:'Dante', label:'' },
+          { id:5, proto:'Dante', label:'' },
+          { id:6, proto:'Dante', label:'' },
+          { id:7, proto:'Dante', label:'' },
+          { id:8, proto:'Dante', label:'' },
+        ];
+        scheduleSave(); render(); _swRefresh();
+      });
+    }
   }
 
   function renderInspector() {
