@@ -3377,7 +3377,7 @@ async function generateRiderLink(){
   var sd=Object.assign({},CUR_SHOW.stage_data||{v:2},{rider:cfg});
   CUR_SHOW.stage_data=sd;
   // Also explicitly persist out_data and synoptique_data in their own columns
-  var {error}=await sb.from('shows').update({stage_data:sd,out_data:outSnap,synoptique_data:synSnap||CUR_SHOW.synoptique_data}).eq('id',CUR_SHOW.id);
+  var {error}=await sb.from('shows').update({stage_data:sd}).eq('id',CUR_SHOW.id);
   if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-link"></i>Generer le lien';}
   if(error){toast('Erreur sauvegarde : '+error.message);return;}
   // Show URL
