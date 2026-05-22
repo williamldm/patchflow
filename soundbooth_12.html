@@ -775,6 +775,21 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .slink-check.checked i{color:var(--ora)}
 .slink-pro-gate{display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(255,107,26,.06);border:1px dashed rgba(255,107,26,.3);border-radius:9px;font-size:11px;color:var(--muted)}
 .slink-pro-gate i{color:var(--ora);font-size:15px;flex-shrink:0}
+.slink-sep{display:flex;align-items:center;gap:8px;margin:14px 0 10px;font-size:9px;font-family:var(--m);text-transform:uppercase;letter-spacing:1.2px;color:var(--muted)}
+.slink-sep::before,.slink-sep::after{content:'';flex:1;height:1px;background:var(--bdr)}
+.rider-meta-field{margin-bottom:9px}
+.rider-meta-field label{display:block;font-size:9px;font-family:var(--m);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:4px}
+.rider-meta-inp,.rider-meta-ta{width:100%;background:var(--surf2);border:1px solid var(--bdr2);border-radius:7px;color:var(--txt);font-size:12px;font-family:inherit;padding:7px 10px;box-sizing:border-box;outline:none;transition:border .15s;resize:none}
+.rider-meta-inp:focus,.rider-meta-ta:focus{border-color:var(--ora)}
+.rider-file-item{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:7px;cursor:pointer;transition:all .15s;margin-bottom:6px;font-size:11px}
+.rider-file-item:hover{border-color:var(--bdr3)}
+.rider-file-item.picked{border-color:var(--ora-g);background:var(--ora-d)}
+.rider-file-item.picked .rfi-name{color:var(--ora);font-weight:600}
+.rider-file-item i{font-size:15px;flex-shrink:0}
+.rfi-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--txt2)}
+.rfi-size{font-family:var(--m);font-size:9px;color:var(--muted);flex-shrink:0}
+.rider-studio-gate{display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(192,132,252,.06);border:1px dashed rgba(192,132,252,.3);border-radius:9px;font-size:11px;color:var(--muted)}
+.rider-studio-gate i{color:#c084fc;font-size:15px;flex-shrink:0}
 
 /* ── SIDE PANEL ── */
 .sp-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:150;backdrop-filter:blur(2px)}
@@ -1562,6 +1577,33 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
             <button class="slink-check" id="sc-site" onclick="selectRiderSection('site')">
               <i class="ti ti-building-stadium"></i>Plan de site
             </button>
+          </div>
+          <!-- Pro : titre / note / infos -->
+          <div id="rider-meta-block">
+            <div class="slink-sep"><i class="ti ti-pencil" style="font-size:10px"></i>Informations du rider</div>
+            <div class="rider-meta-field">
+              <label>Titre</label>
+              <input class="rider-meta-inp" id="rider-title" placeholder="ex: Rider FOH — Festival d'ete 2026" oninput="_updateRiderUrl()">
+            </div>
+            <div class="rider-meta-field">
+              <label>Note</label>
+              <textarea class="rider-meta-ta" id="rider-note" rows="2" placeholder="Instructions, contacts, remarques…" oninput="_updateRiderUrl()"></textarea>
+            </div>
+            <div class="rider-meta-field">
+              <label>Infos complementaires</label>
+              <input class="rider-meta-inp" id="rider-info" placeholder="ex: Son FOH: Yamaha CL5 — Mon: Avid SC48" oninput="_updateRiderUrl()">
+            </div>
+          </div>
+          <!-- Studio : fichiers cloud -->
+          <div id="rider-files-block">
+            <div class="slink-sep"><i class="ti ti-paperclip" style="font-size:10px"></i>Fichiers joints <span style="font-size:9px;color:#c084fc;font-family:var(--m);margin-left:4px">Studio</span></div>
+            <div id="rider-studio-gate" class="rider-studio-gate" style="display:none">
+              <i class="ti ti-sparkles"></i>
+              <span>La selection de fichiers est reservee aux abonnes <strong>Studio</strong>.
+                <button onclick="showUpgradeModal('storage')" style="background:none;border:none;color:#c084fc;cursor:pointer;font-size:11px;padding:0 0 0 4px;font-family:var(--f);text-decoration:underline">Passer Studio</button>
+              </span>
+            </div>
+            <div id="rider-file-list" style="display:none;max-height:180px;overflow-y:auto"></div>
           </div>
           <div class="slink-row">
             <div class="slink-url" id="slink-url">…</div>
@@ -3305,19 +3347,73 @@ function inviteMember(){const e=document.getElementById('inv-email').value.trim(
 
 /* ── Rider link builder ── */
 var _riderSections={il:true,syno:false,stage:false,site:false};
+var _riderPickedFiles=new Set(); // file paths selected by studio user
+
 function _initRiderBuilder(){
   var isPro=canDo('share_link');
+  var isStudio=userPlan()==='studio';
   var gate=document.getElementById('rider-gate-msg');
   var inner=document.getElementById('rider-builder-inner');
   if(gate)  gate.style.display=isPro?'none':'flex';
   if(inner) inner.style.display=isPro?'block':'none';
-  if(isPro){_syncRiderBtns();_updateRiderUrl();}
+  if(!isPro) return;
+  _syncRiderBtns();
+  // Studio file picker
+  var studioGate=document.getElementById('rider-studio-gate');
+  var fileList=document.getElementById('rider-file-list');
+  if(isStudio){
+    if(studioGate) studioGate.style.display='none';
+    if(fileList){fileList.style.display='block';_loadRiderFiles();}
+  } else {
+    if(studioGate) studioGate.style.display='flex';
+    if(fileList) fileList.style.display='none';
+  }
+  _updateRiderUrl();
 }
+
+async function _loadRiderFiles(){
+  if(!CUR_SHOW) return;
+  var fl=document.getElementById('rider-file-list');
+  if(!fl) return;
+  fl.innerHTML='<div style="font-size:11px;color:var(--muted);padding:8px 0">Chargement…</div>';
+  var prefix=CUR_SHOW.id+'/';
+  var {data,error}=await sb.storage.from(FICH_BUCKET).list(prefix,{sortBy:{column:'name',order:'asc'}});
+  if(error||!data||!data.length){
+    fl.innerHTML='<div style="font-size:11px;color:var(--muted);padding:8px 0">Aucun fichier dans le cloud pour ce show.</div>';
+    return;
+  }
+  var SKIP=new Set(['.emptyFolderPlaceholder','.keep']);
+  var files=data.filter(function(f){return !SKIP.has(f.name)&&f.name;});
+  if(!files.length){fl.innerHTML='<div style="font-size:11px;color:var(--muted);padding:8px 0">Aucun fichier disponible.</div>';return;}
+  fl.innerHTML=files.map(function(f){
+    var path=prefix+f.name;
+    var disp=_fichDisplayName?_fichDisplayName(f.name):f.name;
+    var sz=_fmtSize?_fmtSize(f.metadata&&f.metadata.size):'' ;
+    var info=_fichInfoOf?_fichInfoOf(f.name):{icon:'<i class="ti ti-file" style="color:var(--muted);font-size:15px"></i>'};
+    var picked=_riderPickedFiles.has(path);
+    return '<div class="rider-file-item'+(picked?' picked':'')+'" onclick="_toggleRiderFile(\''+encodeURIComponent(path)+'\')" id="rfi-'+encodeURIComponent(path)+'">'
+      +info.icon+'<span class="rfi-name">'+disp+'</span><span class="rfi-size">'+sz+'</span>'
+      +'<i class="ti ti-'+(picked?'check':'plus')+' rfi-chk" style="font-size:12px;color:'+(picked?'var(--ora)':'var(--muted)')+'"></i>'
+      +'</div>';
+  }).join('');
+}
+
+function _toggleRiderFile(encodedPath){
+  var path=decodeURIComponent(encodedPath);
+  if(_riderPickedFiles.has(path)){_riderPickedFiles.delete(path);}else{_riderPickedFiles.add(path);}
+  var el=document.getElementById('rfi-'+encodedPath);
+  if(el){
+    el.className='rider-file-item'+(_riderPickedFiles.has(path)?' picked':'');
+    var chk=el.querySelector('.rfi-chk');
+    if(chk){chk.className='ti ti-'+(_riderPickedFiles.has(path)?'check':'plus')+' rfi-chk';chk.style.color=_riderPickedFiles.has(path)?'var(--ora)':'var(--muted)';}
+  }
+  _updateRiderUrl();
+}
+
 function selectRiderSection(key){
-  // Toggle — but keep at least one selected
   var next=!_riderSections[key];
   var others=Object.keys(_riderSections).filter(function(k){return k!==key&&_riderSections[k];});
-  if(!next&&others.length===0)return; // can't deselect last one
+  if(!next&&others.length===0)return;
   _riderSections[key]=next;
   _syncRiderBtns();
   _updateRiderUrl();
@@ -3333,6 +3429,13 @@ function _updateRiderUrl(){
   var secs=Object.keys(_riderSections).filter(function(k){return _riderSections[k];});
   var base=window.location.origin+window.location.pathname;
   var url=base+'?view='+CUR_SHOW.id+'&sections='+secs.join(',');
+  var title=document.getElementById('rider-title');
+  var note=document.getElementById('rider-note');
+  var info=document.getElementById('rider-info');
+  if(title&&title.value.trim()) url+='&rtitle='+encodeURIComponent(title.value.trim());
+  if(note&&note.value.trim())   url+='&rnote='+encodeURIComponent(note.value.trim());
+  if(info&&info.value.trim())   url+='&rinfo='+encodeURIComponent(info.value.trim());
+  if(_riderPickedFiles.size>0)  url+='&rfiles='+encodeURIComponent(Array.from(_riderPickedFiles).join('|'));
   var el=document.getElementById('slink-url');
   if(el) el.textContent=url;
 }
@@ -9646,6 +9749,13 @@ document.getElementById('bp-share-modal').addEventListener('click',function(e){i
                : legacyTab==='stage' ? ['stage']
                : ['il'];
 
+  // Rider meta
+  var rTitle=p.get('rtitle')||'';
+  var rNote=p.get('rnote')||'';
+  var rInfo=p.get('rinfo')||'';
+  var rFilesRaw=p.get('rfiles')||'';
+  var rFiles=rFilesRaw?rFilesRaw.split('|').filter(Boolean):[];
+
   // Hide app & auth, show share viewer
   document.getElementById('auth-wrap').style.display='none';
   document.getElementById('app').style.display='none';
@@ -9680,10 +9790,20 @@ document.getElementById('bp-share-modal').addEventListener('click',function(e){i
     +'<div style="flex:1"></div>'
     +'<div style="font-size:10px;font-family:DM Mono,monospace;background:rgba(34,214,160,.12);color:#22d6a0;border:1px solid rgba(34,214,160,.25);border-radius:6px;padding:3px 10px">&#9679; Lecture seule</div>'
     +'</div>'
+    // Rider meta header
+    +(rTitle||rNote||rInfo?
+      '<div style="background:#080e1a;border-bottom:1px solid #1e2a3a;padding:16px 28px">'
+      +(rTitle?'<div style="font-size:20px;font-weight:800;color:#f0f4ff;margin-bottom:6px">'+esc(rTitle)+'</div>':'')
+      +(rNote?'<div style="font-size:12px;color:#8899aa;line-height:1.6;white-space:pre-wrap;margin-bottom:'+(rInfo?'6px':'0')+'">'+esc(rNote)+'</div>':'')
+      +(rInfo?'<div style="font-size:10px;font-family:DM Mono,monospace;color:#5a7a9a;margin-top:4px">'+esc(rInfo)+'</div>':'')
+      +'</div>'
+    :'')
     +tabsHtml
     +'<div id="sv-body" style="max-width:1100px;margin:0 auto;padding:28px 20px">'
     +'<div style="text-align:center;color:#5a6a80;font-family:DM Mono,monospace;margin-top:60px">Chargement...</div>'
-    +'</div>';
+    +'</div>'
+    // Files section rendered below content
+    +(rFiles.length?'<div id="sv-files" style="max-width:1100px;margin:0 auto;padding:0 20px 40px"></div>':'');
   document.body.prepend(wrap);
 
   // ── Load show once ──
@@ -9777,6 +9897,42 @@ document.getElementById('bp-share-modal').addEventListener('click',function(e){i
   function _renderSyno(){
     return _showMeta+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:12px">Synoptique disponible en vue interactive dans l\'application.</div>';
   }
+
+  // ── Files section (Studio) ──
+  async function _renderFiles(){
+    var el=document.getElementById('sv-files');
+    if(!el||!rFiles.length)return;
+    el.innerHTML='<div style="border-top:1px solid #1e2a3a;padding-top:24px;margin-top:8px">'
+      +'<div style="font-size:11px;font-family:DM Mono,monospace;color:#5a6a80;letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px">&#128206; Fichiers joints</div>'
+      +'<div id="sv-files-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px"></div>'
+      +'</div>';
+    var list=document.getElementById('sv-files-list');
+    for(var i=0;i<rFiles.length;i++){
+      var fpath=rFiles[i];
+      var fname=fpath.split('/').pop();
+      var disp=fname.replace(/^\d+_/,'');
+      var ext=(fname.split('.').pop()||'').toLowerCase();
+      var iconMap={pdf:'&#128196;',mp3:'&#127925;',wav:'&#127925;',mp4:'&#127916;',mov:'&#127916;',docx:'&#128196;',doc:'&#128196;',xlsx:'&#128200;',xls:'&#128200;'};
+      var icon=iconMap[ext]||'&#128196;';
+      var card='<div style="background:#0d1520;border:1px solid #1e2a3a;border-radius:9px;padding:12px 14px;display:flex;align-items:center;gap:10px">'
+        +'<span style="font-size:22px">'+icon+'</span>'
+        +'<div style="flex:1;overflow:hidden"><div style="font-size:11px;font-weight:600;color:#c8d4e0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(disp)+'</div>'
+        +'<div style="font-size:9px;font-family:DM Mono,monospace;color:#5a6a80;margin-top:2px">'+ext.toUpperCase()+'</div></div>'
+        +'<div id="svfl-'+i+'" style="font-size:10px;color:#5a6a80">…</div>'
+        +'</div>';
+      list.innerHTML+=card;
+      // Generate signed URL async
+      (function(idx,path){
+        sb.storage.from(FICH_BUCKET).createSignedUrl(path,604800).then(function(res){
+          var btn=document.getElementById('svfl-'+idx);
+          if(!btn)return;
+          if(res.error||!res.data){btn.textContent='Indisponible';return;}
+          btn.innerHTML='<a href="'+res.data.signedUrl+'" target="_blank" style="color:#ff6b1a;text-decoration:none;font-family:DM Mono,monospace;font-size:10px;display:flex;align-items:center;gap:4px">&#11123; Ouvrir</a>';
+        });
+      })(i,fpath);
+    }
+  }
+  _renderFiles();
 
   // ── Pane cache & tab switcher ──
   var _paneCache={};
