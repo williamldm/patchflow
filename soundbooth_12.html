@@ -768,11 +768,10 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .slink-row{display:flex;gap:7px;align-items:center;margin-top:12px}
 .slink-url{flex:1;background:var(--surf2);border:1px solid var(--bdr2);border-radius:5px;font-family:var(--m);font-size:10px;color:var(--ora);padding:6px 9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:text}
 .slink-sections{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:4px}
-.slink-check{display:flex;align-items:center;gap:8px;padding:8px 11px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;cursor:pointer;transition:all .15s;font-size:11px;font-weight:500;user-select:none}
-.slink-check:hover{border-color:var(--bdr3)}
-.slink-check input[type=checkbox]{accent-color:var(--ora);width:14px;height:14px;cursor:pointer}
+.slink-check{display:flex;align-items:center;justify-content:center;gap:7px;padding:9px 12px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;cursor:pointer;transition:all .15s;font-size:11px;font-weight:500;color:var(--txt2);font-family:var(--f)}
+.slink-check:hover{border-color:var(--bdr3);background:var(--surf3)}
 .slink-check i{font-size:13px;color:var(--muted)}
-.slink-check.checked{border-color:var(--ora-g);background:var(--ora-d)}
+.slink-check.checked{border-color:var(--ora-g);background:var(--ora-d);color:var(--ora);font-weight:700}
 .slink-check.checked i{color:var(--ora)}
 .slink-pro-gate{display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(255,107,26,.06);border:1px dashed rgba(255,107,26,.3);border-radius:9px;font-size:11px;color:var(--muted)}
 .slink-pro-gate i{color:var(--ora);font-size:15px;flex-shrink:0}
@@ -1551,25 +1550,21 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
         </div>
         <div id="rider-builder-inner">
           <div class="slink-sections" id="rider-sections">
-            <label class="slink-check" id="sc-il" onclick="toggleRiderSection('il',this)">
-              <input type="checkbox" id="rc-il" checked onclick="event.stopPropagation()">
+            <button class="slink-check checked" id="sc-il" onclick="selectRiderSection('il')">
               <i class="ti ti-list-numbers"></i>Input List
-            </label>
-            <label class="slink-check" id="sc-syno" onclick="toggleRiderSection('syno',this)">
-              <input type="checkbox" id="rc-syno" onclick="event.stopPropagation()">
+            </button>
+            <button class="slink-check" id="sc-syno" onclick="selectRiderSection('syno')">
               <i class="ti ti-topology-star"></i>Synoptique
-            </label>
-            <label class="slink-check" id="sc-stage" onclick="toggleRiderSection('stage',this)">
-              <input type="checkbox" id="rc-stage" onclick="event.stopPropagation()">
+            </button>
+            <button class="slink-check" id="sc-stage" onclick="selectRiderSection('stage')">
               <i class="ti ti-map-2"></i>Plan de scene
-            </label>
-            <label class="slink-check" id="sc-site" onclick="toggleRiderSection('site',this)">
-              <input type="checkbox" id="rc-site" onclick="event.stopPropagation()">
+            </button>
+            <button class="slink-check" id="sc-site" onclick="selectRiderSection('site')">
               <i class="ti ti-building-stadium"></i>Plan de site
-            </label>
+            </button>
           </div>
           <div class="slink-row">
-            <div class="slink-url" id="slink-url" onclick="this.select&&this.select()">…</div>
+            <div class="slink-url" id="slink-url">…</div>
             <button class="btn blu sm" onclick="copyRiderLink()"><i class="ti ti-copy"></i>Copier</button>
           </div>
         </div>
@@ -3309,7 +3304,7 @@ async function loadMembers(){
 function inviteMember(){const e=document.getElementById('inv-email').value.trim();const r=document.getElementById('inv-role').value;if(!e){alert('Entrer un e-mail');return;}toast(`✓ Invitation envoyée à ${e} (${r})`);document.getElementById('inv-email').value='';}
 
 /* ── Rider link builder ── */
-var _riderSections={il:true,syno:false,stage:false,site:false};
+var _riderSection='il';
 function _initRiderBuilder(){
   var isPro=canDo('share_link');
   var gate=document.getElementById('rider-gate-msg');
@@ -3318,19 +3313,18 @@ function _initRiderBuilder(){
   if(inner) inner.style.display=isPro?'block':'none';
   if(isPro) _updateRiderUrl();
 }
-function toggleRiderSection(key,lbl){
-  _riderSections[key]=!_riderSections[key];
-  var cb=document.getElementById('rc-'+key);
-  if(cb) cb.checked=_riderSections[key];
-  if(lbl) lbl.classList.toggle('checked',_riderSections[key]);
+function selectRiderSection(key){
+  _riderSection=key;
+  ['il','syno','stage','site'].forEach(function(k){
+    var btn=document.getElementById('sc-'+k);
+    if(btn) btn.className='slink-check'+(k===key?' checked':'');
+  });
   _updateRiderUrl();
 }
 function _updateRiderUrl(){
   if(!CUR_SHOW)return;
-  var secs=Object.keys(_riderSections).filter(function(k){return _riderSections[k];});
-  if(!secs.length){secs=['il'];}
   var base=window.location.origin+window.location.pathname;
-  var url=base+'?view='+CUR_SHOW.id+'&sections='+secs.join(',');
+  var url=base+'?view='+CUR_SHOW.id+'&sections='+_riderSection;
   var el=document.getElementById('slink-url');
   if(el) el.textContent=url;
 }
