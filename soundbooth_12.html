@@ -1583,15 +1583,15 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
             <div class="slink-sep"><i class="ti ti-pencil" style="font-size:10px"></i>Informations du rider</div>
             <div class="rider-meta-field">
               <label>Titre</label>
-              <input class="rider-meta-inp" id="rider-title" placeholder="ex: Rider FOH — Festival d'ete 2026" oninput="_saveRiderConfig()">
+              <input class="rider-meta-inp" id="rider-title" placeholder="ex: Rider FOH — Festival d'ete 2026">
             </div>
             <div class="rider-meta-field">
               <label>Note</label>
-              <textarea class="rider-meta-ta" id="rider-note" rows="2" placeholder="Instructions, contacts, remarques…" oninput="_saveRiderConfig()"></textarea>
+              <textarea class="rider-meta-ta" id="rider-note" rows="2" placeholder="Instructions, contacts, remarques…"></textarea>
             </div>
             <div class="rider-meta-field">
               <label>Infos complementaires</label>
-              <input class="rider-meta-inp" id="rider-info" placeholder="ex: Son FOH: Yamaha CL5 — Mon: Avid SC48" oninput="_saveRiderConfig()">
+              <input class="rider-meta-inp" id="rider-info" placeholder="ex: Son FOH: Yamaha CL5 — Mon: Avid SC48">
             </div>
           </div>
           <!-- Studio : fichiers cloud -->
@@ -1605,9 +1605,13 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
             </div>
             <div id="rider-file-list" style="display:none;max-height:180px;overflow-y:auto"></div>
           </div>
-          <div class="slink-row">
-            <div class="slink-url" id="slink-url">…</div>
-            <button class="btn blu sm" onclick="copyRiderLink()"><i class="ti ti-copy"></i>Copier</button>
+          <button class="btn" id="rider-gen-btn" onclick="generateRiderLink()" style="width:100%;margin-top:14px"><i class="ti ti-link"></i>Générer le lien</button>
+          <div id="rider-link-row" style="display:none;margin-top:10px">
+            <div class="slink-row">
+              <div class="slink-url" id="slink-url"></div>
+              <button class="btn blu sm" onclick="copyRiderLink()"><i class="ti ti-copy"></i>Copier</button>
+            </div>
+            <div style="font-size:10px;color:var(--grn);font-family:var(--m);margin-top:6px;display:none" id="rider-saved-ok"><i class="ti ti-check"></i> Lien sauvegardé</div>
           </div>
         </div>
       </div>
@@ -2394,7 +2398,6 @@ async function switchShow(id){
   subRT();
   renderSessions();
   renderTplQuickBar();
-  _updateRiderUrl();
 }
 
 async function newShow(){
@@ -3348,27 +3351,34 @@ function inviteMember(){const e=document.getElementById('inv-email').value.trim(
 /* ── Rider link builder ── */
 var _riderSections={il:true,syno:false,stage:false,site:false};
 var _riderPickedFiles=new Set();
-var _riderSaveTimer=null;
 
-function _saveRiderConfig(){
-  if(!CUR_SHOW)return;
-  clearTimeout(_riderSaveTimer);
-  _riderSaveTimer=setTimeout(function(){
-    if(!CUR_SHOW)return;
-    var t=document.getElementById('rider-title');
-    var n=document.getElementById('rider-note');
-    var inf=document.getElementById('rider-info');
-    var cfg={
-      sections:Object.keys(_riderSections).filter(function(k){return _riderSections[k];}),
-      title:(t&&t.value.trim())||'',
-      note:(n&&n.value.trim())||'',
-      info:(inf&&inf.value.trim())||'',
-      files:Array.from(_riderPickedFiles)
-    };
-    var sd=Object.assign({},CUR_SHOW.stage_data||{v:2},{rider:cfg});
-    CUR_SHOW.stage_data=sd;
-    sb.from('shows').update({stage_data:sd}).eq('id',CUR_SHOW.id);
-  },800);
+async function generateRiderLink(){
+  if(!CUR_SHOW){toast('Aucun show selectionne.');return;}
+  var btn=document.getElementById('rider-gen-btn');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Sauvegarde...';}
+  var t=document.getElementById('rider-title');
+  var n=document.getElementById('rider-note');
+  var inf=document.getElementById('rider-info');
+  var cfg={
+    sections:Object.keys(_riderSections).filter(function(k){return _riderSections[k];}),
+    title:(t&&t.value.trim())||'',
+    note:(n&&n.value.trim())||'',
+    info:(inf&&inf.value.trim())||'',
+    files:Array.from(_riderPickedFiles)
+  };
+  var sd=Object.assign({},CUR_SHOW.stage_data||{v:2},{rider:cfg});
+  CUR_SHOW.stage_data=sd;
+  var {error}=await sb.from('shows').update({stage_data:sd}).eq('id',CUR_SHOW.id);
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-link"></i>Generer le lien';}
+  if(error){toast('Erreur sauvegarde : '+error.message);return;}
+  // Show URL
+  var url=window.location.origin+window.location.pathname+'?rider='+CUR_SHOW.id;
+  var urlEl=document.getElementById('slink-url');
+  if(urlEl)urlEl.textContent=url;
+  var row=document.getElementById('rider-link-row');
+  if(row)row.style.display='block';
+  var ok=document.getElementById('rider-saved-ok');
+  if(ok){ok.style.display='block';setTimeout(function(){ok.style.display='none';},3000);}
 }
 
 function _loadRiderConfig(){
@@ -3406,7 +3416,14 @@ function _initRiderBuilder(){
     if(studioGate)studioGate.style.display='flex';
     if(fileList)fileList.style.display='none';
   }
-  _updateRiderUrl();
+  // If a rider config already exists in DB, show the link
+  if(CUR_SHOW&&CUR_SHOW.stage_data&&CUR_SHOW.stage_data.rider){
+    var url=window.location.origin+window.location.pathname+'?rider='+CUR_SHOW.id;
+    var urlEl=document.getElementById('slink-url');
+    if(urlEl)urlEl.textContent=url;
+    var row=document.getElementById('rider-link-row');
+    if(row)row.style.display='block';
+  }
 }
 
 async function _loadRiderFiles(){
@@ -3442,7 +3459,6 @@ function _toggleRiderFile(encodedPath){
     var chk=el.querySelector('.rfi-chk');
     if(chk){chk.className='ti ti-'+(_riderPickedFiles.has(path)?'check':'plus')+' rfi-chk';chk.style.color=_riderPickedFiles.has(path)?'var(--ora)':'var(--muted)';}
   }
-  _saveRiderConfig();
 }
 
 function selectRiderSection(key){
@@ -3451,7 +3467,6 @@ function selectRiderSection(key){
   if(!next&&others.length===0)return;
   _riderSections[key]=next;
   _syncRiderBtns();
-  _saveRiderConfig();
 }
 function _syncRiderBtns(){
   ['il','syno','stage','site'].forEach(function(k){
@@ -9566,7 +9581,7 @@ function goTab(id,el){
   if(id==='sessions')renderSessions();
   if(id==='stage'){SitePlan.init();BandPlan.init();setTimeout(()=>BandPlan.fitView(),80);}
   if(id==='fichiers')renderFichiers();
-  if(id==='team'){_updateRiderUrl();_initRiderBuilder();}
+  if(id==='team'){_initRiderBuilder();}
 }
 function toggleUD(){document.getElementById('user-dd').classList.toggle('show');}
 function closeUD(){document.getElementById('user-dd').classList.remove('show');}
