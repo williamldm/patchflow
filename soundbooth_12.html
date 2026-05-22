@@ -650,13 +650,13 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .bp-canvas-wrap{position:relative;overflow:hidden;background:#e8e8e8;cursor:default}
 #bp-canvas{position:absolute;width:2400px;height:1600px;transform-origin:0 0}
 .bp-node{position:absolute;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:move;user-select:none;transform-origin:center center}
-.bp-node-body{width:calc(62px * var(--bp-ns,1));height:calc(62px * var(--bp-ns,1));border-radius:calc(13px * var(--bp-ns,1));display:flex;align-items:center;justify-content:center;font-size:calc(26px * var(--bp-ns,1));border:2px solid;background:#fff;box-shadow:0 1px 8px rgba(0,0,0,.14);transition:box-shadow .12s;position:relative;flex-shrink:0}
+.bp-node-body{width:calc(120px * var(--bp-ns,1));height:calc(120px * var(--bp-ns,1));border-radius:calc(18px * var(--bp-ns,1));display:flex;align-items:center;justify-content:center;font-size:calc(50px * var(--bp-ns,1));border:2px solid;background:#fff;box-shadow:0 1px 8px rgba(0,0,0,.14);transition:box-shadow .12s;position:relative;flex-shrink:0}
 .bp-node.sel .bp-node-body{box-shadow:0 0 0 3px var(--ora),0 2px 14px rgba(255,107,26,.35)}
 .bp-node.sel .bp-riser-body{box-shadow:0 0 0 3px var(--ora),0 2px 14px rgba(255,107,26,.35)}
 .bp-node.sel .bp-kit-block{box-shadow:0 0 0 3px var(--ora),0 2px 14px rgba(255,107,26,.35)}
-.bp-node-lbl{font-family:var(--m);font-size:calc(10px * var(--bp-ts,1));color:#111;text-align:center;max-width:calc(90px * var(--bp-ts,1));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:rgba(255,255,255,.92);padding:2px 6px;border-radius:4px;font-weight:500;pointer-events:none}
-.bp-node-ch{position:absolute;top:-10px;right:-10px;background:var(--ora);color:#000;font-family:var(--m);font-size:11px;font-weight:800;padding:3px 8px;border-radius:12px;line-height:16px;z-index:2;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.5);letter-spacing:.3px}
-.bp-node-del{position:absolute;top:-6px;left:-6px;background:var(--err);border:none;color:#fff;border-radius:50%;width:15px;height:15px;font-size:10px;cursor:pointer;display:none;align-items:center;justify-content:center;line-height:1;z-index:20;padding:0}
+.bp-node-lbl{font-family:var(--m);font-size:calc(30px * var(--bp-ts,1));color:#111;text-align:center;max-width:calc(200px * var(--bp-ts,1));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:rgba(255,255,255,.92);padding:5px 14px;border-radius:8px;font-weight:600;pointer-events:none}
+.bp-node-ch{position:absolute;top:-18px;right:-18px;background:var(--ora);color:#000;font-family:var(--m);font-size:33px;font-weight:900;padding:6px 14px;border-radius:20px;line-height:1.1;z-index:2;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,.5);letter-spacing:-.3px}
+.bp-node-del{position:absolute;top:-8px;left:-8px;background:var(--err);border:none;color:#fff;border-radius:50%;width:22px;height:22px;font-size:14px;cursor:pointer;display:none;align-items:center;justify-content:center;line-height:1;z-index:20;padding:0}
 .bp-node:hover .bp-node-del,.bp-node.sel .bp-node-del{display:flex}
 /* zoom bar */
 .bp-insp-footer{flex-shrink:0;border-top:1px solid var(--bdr2);padding:8px 10px;background:var(--surf2);display:flex;flex-direction:column;gap:5px}
@@ -3720,7 +3720,7 @@ function _makeBpCanvas(cb){
   // Bounds
   const _ss=data.stageScale||1;
   const _stgW=Math.min(2360,Math.round(2000*_ss));
-  const _stgH=Math.min(1550,Math.round(900*_ss));
+  const _stgH=Math.min(1550,Math.round(1200*_ss));
   const _stgX=Math.round(1200-_stgW/2);
   const _stgY=Math.max(20,Math.round(180-(_stgH-900)/2));
   let minX=_stgX,minY=_stgY,maxX=_stgX+_stgW,maxY=_stgY+_stgH;
@@ -3880,52 +3880,66 @@ function _makeBpCanvas(cb){
       const alt=el.riserAlt||0.4;const op=0.25+(alt/1.2)*0.55;
       rr(0,0,rw,rh,7*SC);ctx.fillStyle='rgba(90,100,120,'+op.toFixed(2)+')';ctx.fill();
       ctx.strokeStyle='rgba(100,115,140,.7)';ctx.lineWidth=2*SC;ctx.stroke();
-      ctx.fillStyle='#fff';ctx.textAlign='center';ctx.font='bold '+Math.max(9,Math.min(14,rw/10))+'px sans-serif';
-      ctx.fillText((el.riserW||2)+'m \xd7 '+(el.riserH||1)+'m',rw/2,rh/2-4*SC);
-      ctx.font=(8*SC)+'px sans-serif';ctx.fillStyle='rgba(255,255,255,.75)';
-      ctx.fillText('⬆ '+alt+'m',rw/2,rh/2+10*SC);
+      ctx.fillStyle='#fff';ctx.textAlign='center';ctx.font='bold '+Math.max(18*SC,Math.min(32*SC,rw/6))+'px sans-serif';
+      ctx.fillText((el.riserW||2)+'m \xd7 '+(el.riserH||1)+'m',rw/2,rh/2-6*SC);
+      ctx.font=Math.round(18*SC)+'px sans-serif';ctx.fillStyle='rgba(255,255,255,.75)';
+      ctx.fillText('⬆ '+alt+'m',rw/2,rh/2+26*SC);
     } else if(el.type==='kit'){
       const kitChs=el.chs||[];const rows=kitChs.map(id=>allChs.find(r=>r.id===id)).filter(Boolean);
-      const BW=200*SC,BH=Math.max(70*SC,(rows.length*26+44)*SC);
-      rr(0,0,BW,BH,11*SC);ctx.fillStyle='#fff';ctx.fill();
+      const rowH=40*SC,headH=54*SC;
+      const BW=320*SC,BH=Math.max(100*SC,rows.length*rowH+headH);
+      rr(0,0,BW,BH,14*SC);ctx.fillStyle='#fff';ctx.fill();
       ctx.strokeStyle='rgba(255,77,106,.35)';ctx.lineWidth=2*SC;ctx.stroke();
-      ctx.fillStyle='rgba(255,77,106,.1)';ctx.fillRect(0,0,BW,36*SC);
-      ctx.font='20px sans-serif';ctx.textAlign='left';ctx.fillText('🥁',8*SC,28*SC);
-      ctx.font='bold '+11*SC+'px sans-serif';ctx.fillStyle='#222';ctx.fillText(el.label.slice(0,20),36*SC,24*SC);
-      if(rows.length){ctx.font='bold '+9*SC+'px sans-serif';ctx.fillStyle='#ff4d6a';ctx.textAlign='right';ctx.fillText(rows.length+' CH',BW-8*SC,24*SC);}
+      ctx.fillStyle='rgba(255,77,106,.1)';ctx.fillRect(0,0,BW,headH);
+      ctx.font=Math.round(30*SC)+'px sans-serif';ctx.textAlign='left';ctx.fillText('🥁',10*SC,42*SC);
+      ctx.font='bold '+Math.round(22*SC)+'px sans-serif';ctx.fillStyle='#222';ctx.fillText(el.label.slice(0,18),52*SC,36*SC);
+      if(rows.length){ctx.font='bold '+Math.round(16*SC)+'px sans-serif';ctx.fillStyle='#ff4d6a';ctx.textAlign='right';ctx.fillText(rows.length+' CH',BW-10*SC,36*SC);}
       rows.forEach((r,i)=>{
-        const ry=44*SC+i*26*SC;
+        const ry=headH+i*rowH;
         ctx.strokeStyle='rgba(255,107,26,.15)';ctx.lineWidth=.5*SC;
-        ctx.beginPath();ctx.moveTo(0,ry-2*SC);ctx.lineTo(BW,ry-2*SC);ctx.stroke();
-        ctx.font='bold '+9*SC+'px DM Mono,monospace';ctx.fillStyle='#ff6b1a';ctx.textAlign='left';ctx.fillText('CH'+r.ch,8*SC,ry+14*SC);
-        ctx.font=10*SC+'px sans-serif';ctx.fillStyle='#111';
-        const nm=(r.long_name||r.short_name||'—').slice(0,22);
-        ctx.fillText(nm,38*SC,ry+14*SC);
+        ctx.beginPath();ctx.moveTo(0,ry);ctx.lineTo(BW,ry);ctx.stroke();
+        // CH pill
+        const chTxt='CH'+r.ch,chFs=Math.round(18*SC);
+        ctx.font='900 '+chFs+'px DM Mono,monospace';
+        const cpw=ctx.measureText(chTxt).width+14*SC,cph=26*SC;
+        rr(8*SC,ry+7*SC,cpw,cph,cph/2);ctx.fillStyle='#ff6b1a';ctx.fill();
+        ctx.fillStyle='#000';ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText(chTxt,8*SC+cpw/2,ry+7*SC+cph/2);ctx.textBaseline='alphabetic';
+        ctx.font=Math.round(16*SC)+'px sans-serif';ctx.fillStyle='#111';ctx.textAlign='left';
+        ctx.fillText((r.long_name||r.short_name||'—').slice(0,20),8*SC+cpw+8*SC,ry+rowH*0.65);
       });
     } else {
-      const SZ=62*SC*(data.nodeScale||1);
-      rr(0,0,SZ,SZ,13*SC);
+      const ns=data.nodeScale||1;
+      const SZ=120*SC*ns;
+      rr(0,0,SZ,SZ,18*SC);
       // Get color from item or fallback
       const _ci=BandPlan.getCatInfo(el.type);
       const nColor=_ci.color;
       ctx.fillStyle=nColor+'18';ctx.fill();
       ctx.strokeStyle=nColor+'55';ctx.lineWidth=2*SC;ctx.stroke();
       const emoji=_ci.emoji;
-      ctx.font=(el.type==='txt_bp'?'16':'26')*SC*(data.nodeScale||1)+'px serif';
+      ctx.font=(el.type==='txt_bp'?'30':'50')*SC*ns+'px serif';
       ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#333';
       ctx.fillText(emoji,SZ/2,SZ/2);ctx.textBaseline='alphabetic';
       const ts=data.textScale||1;
-      ctx.font='500 '+10*SC*ts+'px sans-serif';ctx.fillStyle='#111';ctx.textAlign='center';
+      ctx.font='600 '+30*SC*ts+'px sans-serif';ctx.textAlign='center';
       ctx.fillStyle='rgba(255,255,255,.92)';
-      const lw=ctx.measureText(el.label).width+12*SC;
-      const lh=14*SC*ts;const ly=SZ+6*SC;
-      rr((SZ-lw)/2,ly,lw,lh,4*SC);ctx.fill();
-      ctx.fillStyle='#111';ctx.fillText(el.label.slice(0,16),SZ/2,ly+10*SC*ts);
+      const lw=ctx.measureText(el.label).width+22*SC;
+      const lh=40*SC*ts;const ly=SZ+8*SC;
+      rr((SZ-lw)/2,ly,lw,lh,8*SC);ctx.fill();
+      ctx.fillStyle='#111';ctx.fillText(el.label.slice(0,16),SZ/2,ly+28*SC*ts);
       if(el.ch){
         const r2=allChs.find(r=>r.id===el.ch);
-        if(r2){ctx.font='bold '+8*SC+'px DM Mono,monospace';ctx.fillStyle='#000';ctx.textAlign='center';
-        ctx.fillStyle='#ff6b1a';rr(SZ-20*SC,-8*SC,24*SC,16*SC,8*SC);ctx.fillStyle='#ff6b1a';ctx.fill();
-        ctx.fillStyle='#000';ctx.fillText('CH'+r2.ch,SZ-8*SC,-1*SC);}
+        if(r2){
+          const chTxt='CH'+r2.ch,chFs=Math.round(22*SC*ns);
+          ctx.font='900 '+chFs+'px DM Mono,monospace';
+          const cbw=ctx.measureText(chTxt).width+18*SC,cbh=30*SC*ns;
+          rr(SZ-cbw+10*SC,-cbh/2,cbw,cbh,cbh/2);
+          ctx.fillStyle='#ff6b1a';ctx.fill();
+          ctx.fillStyle='#000';ctx.textAlign='center';ctx.textBaseline='middle';
+          ctx.fillText(chTxt,SZ-cbw/2+10*SC,0);
+          ctx.textBaseline='alphabetic';
+        }
       }
     }
     ctx.restore();
@@ -6753,13 +6767,13 @@ const BandPlan=(()=>{
       const rh=(el.riserH||1)*RISER_SCALE;
       const alt=el.riserAlt||0.4;
       const opacity=0.25+(alt/1.2)*0.55;
-      const fs=Math.max(9,Math.min(14,rw/10));
+      const fs=Math.max(18,Math.min(32,rw/6));
       const dimLbl=(el.riserW||2)+'m \xd7 '+(el.riserH||1)+'m';
       div.innerHTML=
-        '<div class="bp-riser-body" style="width:'+rw+'px;height:'+rh+'px;background:rgba(90,100,120,'+opacity.toFixed(2)+');border:2px solid rgba(100,115,140,0.7);border-radius:7px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;position:relative;box-sizing:border-box">'
+        '<div class="bp-riser-body" style="width:'+rw+'px;height:'+rh+'px;background:rgba(90,100,120,'+opacity.toFixed(2)+');border:2px solid rgba(100,115,140,0.7);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;position:relative;box-sizing:border-box">'
         +chBadge
         +'<span style="font-family:var(--m);font-size:'+fs+'px;color:#fff;font-weight:700;letter-spacing:.3px;text-shadow:0 1px 3px rgba(0,0,0,.5)">'+dimLbl+'</span>'
-        +'<span style="font-family:var(--m);font-size:8px;color:rgba(255,255,255,.75);text-shadow:0 1px 2px rgba(0,0,0,.5)">⬆ '+alt+'m</span>'
+        +'<span style="font-family:var(--m);font-size:18px;color:rgba(255,255,255,.75);text-shadow:0 1px 2px rgba(0,0,0,.5)">⬆ '+alt+'m</span>'
         +'<button class="bp-node-del" onclick="BandPlan.deleteNode('+el.id+')" title="Supprimer">\xd7</button>'
         +'</div>'
         +'<div class="bp-node-lbl">'+el.label.replace(/</g,'&lt;')+'</div>';
@@ -6768,18 +6782,18 @@ const BandPlan=(()=>{
       const allChs=typeof CHS!=='undefined'?CHS:[];
       const rows=kitChs.map(id=>allChs.find(r=>r.id===id)).filter(Boolean);
       const rowsHtml=rows.length
-        ?rows.map(r=>'<div style="display:flex;align-items:center;gap:6px;padding:3px 8px;border-top:1px solid rgba(255,107,26,.15)">'
-          +'<span style="font-family:var(--m);font-size:9px;font-weight:700;color:var(--ora);min-width:28px">CH'+r.ch+'</span>'
-          +'<span style="font-family:var(--m);font-size:10px;color:#111;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px">'+(r.long_name||r.short_name||'—')+'</span>'
+        ?rows.map(r=>'<div style="display:flex;align-items:center;gap:10px;padding:8px 14px;border-top:1px solid rgba(255,107,26,.15)">'
+          +'<span style="font-family:var(--m);font-size:28px;font-weight:900;color:#000;background:var(--ora);padding:4px 12px;border-radius:12px;min-width:64px;text-align:center">CH'+r.ch+'</span>'
+          +'<span style="font-family:var(--m);font-size:22px;font-weight:600;color:#111;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px">'+(r.long_name||r.short_name||'—')+'</span>'
           +'</div>').join('')
-        :'<div style="font-family:var(--m);font-size:9px;color:rgba(100,100,100,.6);padding:4px 8px;font-style:italic">Aucun canal lie</div>';
+        :'<div style="font-family:var(--m);font-size:18px;color:rgba(100,100,100,.6);padding:10px 14px;font-style:italic">Aucun canal lie</div>';
       div.innerHTML=
-        '<div class="bp-kit-block" style="background:#fff;border:2px solid '+c+'55;border-radius:11px;overflow:hidden;min-width:170px;position:relative;box-shadow:0 2px 10px rgba(0,0,0,.12)">'
-        +'<div style="display:flex;align-items:center;gap:7px;padding:7px 10px 6px;background:'+c+'14">'
-        +'<span style="font-size:20px">'+it.e+'</span>'
-        +'<span style="font-family:var(--m);font-size:11px;font-weight:700;color:#222;flex:1">'+el.label.replace(/</g,'&lt;')+'</span>'
-        +(rows.length?'<span style="font-family:var(--m);font-size:9px;color:'+c+';background:'+c+'22;padding:1px 6px;border-radius:8px;font-weight:700">'+rows.length+' CH</span>':'')
-        +'<button class="bp-node-del" onclick="BandPlan.deleteNode('+el.id+')" title="Supprimer" style="position:relative;top:auto;right:auto;margin-left:2px">\xd7</button>'
+        '<div class="bp-kit-block" style="background:#fff;border:2px solid '+c+'55;border-radius:14px;overflow:hidden;min-width:280px;position:relative;box-shadow:0 2px 14px rgba(0,0,0,.14)">'
+        +'<div style="display:flex;align-items:center;gap:10px;padding:12px 16px 10px;background:'+c+'14">'
+        +'<span style="font-size:36px">'+it.e+'</span>'
+        +'<span style="font-family:var(--m);font-size:24px;font-weight:700;color:#222;flex:1">'+el.label.replace(/</g,'&lt;')+'</span>'
+        +(rows.length?'<span style="font-family:var(--m);font-size:18px;color:'+c+';background:'+c+'22;padding:3px 10px;border-radius:10px;font-weight:700">'+rows.length+' CH</span>':'')
+        +'<button class="bp-node-del" onclick="BandPlan.deleteNode('+el.id+')" title="Supprimer" style="position:relative;top:auto;right:auto;margin-left:6px">\xd7</button>'
         +'</div>'
         +rowsHtml
         +'</div>';
@@ -6787,7 +6801,7 @@ const BandPlan=(()=>{
       div.innerHTML=
         '<div class="bp-node-body" style="border-color:'+c+'55">'
         +chBadge
-        +'<div style="font-size:'+(el.type==='txt_bp'?'16px':'26px')+';pointer-events:none">'+it.e+'</div>'
+        +'<div style="pointer-events:none">'+it.e+'</div>'
         +'<button class="bp-node-del" onclick="BandPlan.deleteNode('+el.id+')" title="Supprimer">\xd7</button>'
         +'</div>'
         +'<div class="bp-node-lbl">'+el.label.replace(/</g,'&lt;')+'</div>';
@@ -7120,7 +7134,7 @@ const BandPlan=(()=>{
   function _getStageDims(){
     const ss=st.stageScale||1;
     const w=Math.min(2360,Math.round(2000*ss));
-    const h=Math.min(1550,Math.round(900*ss));
+    const h=Math.min(1550,Math.round(1200*ss));
     const x=Math.round(1200-w/2);
     const y=Math.max(20,Math.round(180-(h-900)/2));
     const sepY=y+h;
