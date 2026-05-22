@@ -3951,7 +3951,7 @@ const _PF_LOGO_PX='<svg width="34" height="34" viewBox="0 0 200 200" xmlns="http
 function doBpPDF(){
   const $b=id=>document.getElementById(id);
   const meta={title:($b('bppdf-title').value.trim()||'Plan de Scene'),sub:$b('bppdf-sub').value.trim(),venue:$b('bppdf-venue').value.trim(),date:$b('bppdf-date').value.trim(),eng:$b('bppdf-eng').value.trim(),rev:$b('bppdf-rev').value.trim(),notes:$b('bppdf-notes').value.trim()};
-  const shareUrl=window.location.origin+window.location.pathname+'?view='+(CUR_SHOW?.id||'');
+  const shareUrl=window.location.origin+window.location.pathname+'?view='+(CUR_SHOW?.id||'')+'&tab=stage';
   closeBpPDF();
   if(!BandPlan.getData().els.length){toast('Plan vide — rien a exporter.');return;}
   _makeBpCanvas(cv=>{
@@ -4019,7 +4019,7 @@ function doBpPDF(){
 }
 
 function openBpShare(){
-  const url=window.location.origin+window.location.pathname+'?view='+(CUR_SHOW?.id||'');
+  const url=window.location.origin+window.location.pathname+'?view='+(CUR_SHOW?.id||'')+'&tab=stage';
   document.getElementById('bp-share-url').value=url;
   document.getElementById('bp-share-copy-ok').style.display='none';
   document.getElementById('bp-share-modal').className='modal-ov show';
@@ -9126,6 +9126,7 @@ document.getElementById('bp-share-modal').addEventListener('click',function(e){i
   const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   const p=new URLSearchParams(window.location.search);
   const sid=p.get('view');
+  const tab=p.get('tab');
   if(!sid)return;
   // Hide app & auth, show share viewer
   document.getElementById('auth-wrap').style.display='none';
@@ -9144,6 +9145,34 @@ document.getElementById('bp-share-modal').addEventListener('click',function(e){i
     +'<div style="text-align:center;color:#5a6a80;font-family:DM Mono,monospace;margin-top:60px">Chargement...</div>'
     +'</div>';
   document.body.prepend(wrap);
+  /* ── Plan de scene ── */
+  if(tab==='stage'){
+    try{
+      const {data:show}=await sb.from('shows').select('*').eq('id',sid).maybeSingle();
+      if(!show){document.getElementById('sv-body').innerHTML='<div style="text-align:center;color:#f87171;margin-top:60px;font-size:14px">Show introuvable ou acces refuse.</div>';return;}
+      const raw=show.stage_data;
+      const bandData=(raw&&raw.v>=2)?raw.band||null:null;
+      BandPlan.load(bandData);
+      const now=new Date().toLocaleString('fr-FR');
+      _makeBpCanvas(function(cv){
+        const dataUrl=cv.toDataURL('image/png');
+        var h='<div style="margin-bottom:20px">'
+          +'<div style="font-size:24px;font-weight:700;margin-bottom:6px">'+esc(show.name||'')+'</div>'
+          +'<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11px;font-family:DM Mono,monospace;color:#5a6a80">'
+          +(show.venue?'<span>&#x1f4cd; '+esc(show.venue)+'</span>':'')
+          +(show.show_date?'<span>&#x1f4c5; '+show.show_date+'</span>':'')
+          +'<span>&#x1f504; '+now+'</span>'
+          +'</div></div>'
+          +'<div style="overflow:auto;border-radius:10px;border:1px solid #1e2a3a;background:#0a0f1c">'
+          +'<img src="'+dataUrl+'" style="max-width:100%;display:block;border-radius:10px"/>'
+          +'</div>'
+          +'<div style="margin-top:14px;text-align:center;font-size:10px;color:#3a4a5a;font-family:DM Mono,monospace">PatchFlow · Plan de Scene · '+now+'</div>';
+        document.getElementById('sv-body').innerHTML=h;
+      });
+    }catch(err){document.getElementById('sv-body').innerHTML='<div style="text-align:center;color:#f87171;margin-top:60px">Erreur: '+err.message+'</div>';}
+    return;
+  }
+  /* ── Input List (patch) ── */
   try{
     const {data:show}=await sb.from('shows').select('*').eq('id',sid).maybeSingle();
     if(!show){document.getElementById('sv-body').innerHTML='<div style="text-align:center;color:#f87171;margin-top:60px;font-size:14px">Show introuvable ou acces refuse.</div>';return;}
