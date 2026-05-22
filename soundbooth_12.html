@@ -1651,15 +1651,17 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
     <div class="modal-body">
       <!-- Export type toggle — tous plans -->
       <div style="display:flex;gap:3px;background:var(--surf3);border:1px solid var(--bdr2);border-radius:8px;padding:3px;margin-bottom:14px">
-        <button id="pdf-exp-in" class="pmb on" onclick="setPdfExportType('in')" style="flex:1;justify-content:center"><i class="ti ti-arrow-down-circle"></i>Input List</button>
-        <button id="pdf-exp-out" class="pmb" onclick="setPdfExportType('out')" style="flex:1;justify-content:center"><i class="ti ti-arrow-up-circle"></i>Output List</button>
+        <button id="pdf-exp-in"   class="pmb on" onclick="setPdfExportType('in')"   style="flex:1;justify-content:center"><i class="ti ti-arrow-down-circle"></i>Input List</button>
+        <button id="pdf-exp-out"  class="pmb"    onclick="setPdfExportType('out')"  style="flex:1;justify-content:center"><i class="ti ti-arrow-up-circle"></i>Output List</button>
+        <button id="pdf-exp-both" class="pmb"    onclick="setPdfExportType('both')" style="flex:1;justify-content:center"><i class="ti ti-layers-union"></i>Les deux</button>
       </div>
-      <div id="pdf-free-notice" style="display:none;align-items:center;gap:9px;background:rgba(255,107,26,.07);border:1px solid rgba(255,107,26,.22);border-radius:7px;padding:8px 12px;font-size:11px;color:var(--txt2);margin-bottom:12px"><i class="ti ti-lock" style="color:var(--ora);flex-shrink:0;font-size:14px"></i><span>Plan Gratuit — seuls le nom et le rôle sont inclus. <button onclick="closePDF();showUpgradeModal('export_pdf_pro')" style="background:none;border:none;color:var(--ora);cursor:pointer;font-size:11px;padding:0;font-family:var(--f);text-decoration:underline">Passer Pro</button> pour les champs complets.</span></div>
-      <div class="pdf-sec"><div class="pdf-sec-title"><i class="ti ti-user" style="color:var(--ora)"></i>Ingénieur</div>
+      <div id="pdf-free-notice" style="display:none;align-items:center;gap:9px;background:rgba(255,107,26,.07);border:1px solid rgba(255,107,26,.22);border-radius:7px;padding:8px 12px;font-size:11px;color:var(--txt2);margin-bottom:12px"><i class="ti ti-lock" style="color:var(--ora);flex-shrink:0;font-size:14px"></i><span>Plan Gratuit — nom, titre et r&ocirc;le inclus. <button onclick="closePDF();showUpgradeModal('export_pdf_pro')" style="background:none;border:none;color:var(--ora);cursor:pointer;font-size:11px;padding:0;font-family:var(--f);text-decoration:underline">Passer Pro</button> pour les champs complets.</span></div>
+      <div class="pdf-sec"><div class="pdf-sec-title"><i class="ti ti-user" style="color:var(--ora)"></i>Ing&eacute;nieur</div>
         <div class="pdf-grid">
           <div class="pdf-fld"><label class="pdf-lbl">Nom</label><input class="pdf-inp" id="pdf-eng" placeholder="Jean-Marie Leclerc"/></div>
-          <div class="pdf-fld"><label class="pdf-lbl">Rôle / Titre</label><input class="pdf-inp" id="pdf-role" placeholder="FOH Engineer"/></div>
-          <div class="pdf-fld pdf-pro-fld" id="pdf-co-fld"><label class="pdf-lbl">Société</label><input class="pdf-inp" id="pdf-co" placeholder="Sound Co."/></div>
+          <div class="pdf-fld"><label class="pdf-lbl">R&ocirc;le / Poste</label><input class="pdf-inp" id="pdf-role" placeholder="FOH Engineer"/></div>
+          <div class="pdf-fld" style="grid-column:1/-1"><label class="pdf-lbl">Titre du document <span style="font-size:9px;color:var(--muted);font-family:var(--m)">(optionnel — tous plans)</span></label><input class="pdf-inp" id="pdf-title" placeholder="Fiche technique · Festival XYZ"/></div>
+          <div class="pdf-fld pdf-pro-fld" id="pdf-co-fld"><label class="pdf-lbl">Soci&eacute;t&eacute;</label><input class="pdf-inp" id="pdf-co" placeholder="Sound Co."/></div>
           <div class="pdf-fld pdf-pro-fld" id="pdf-tel-fld"><label class="pdf-lbl">Contact</label><input class="pdf-inp" id="pdf-tel" placeholder="+33 6 …"/></div>
         </div>
       </div>
@@ -2039,7 +2041,7 @@ async function initApp(){
 }
 
 async function loadProfile(){
-  let {data}=await sb.from('profiles').select('*').eq('id',ME.id).maybeSingle();
+  let {data}=await sb.from('profiles').select('id,full_name,role,company,contact,avatar_url,plan').eq('id',ME.id).maybeSingle();
   if(!data){
     // Profil absent — le creer pour satisfaire la FK shows.owner_id -> profiles.id
     const {data:created,error:perr}=await sb.from('profiles').upsert(
@@ -2049,6 +2051,8 @@ async function loadProfile(){
     if(!perr) data=created;
   }
   PROFILE=data||{id:ME.id,full_name:ME.email,role:'FOH Engineer'};
+  if(!PROFILE.plan) console.warn('[PatchFlow] plan manquant pour',ME.email,'— verifiez la colonne plan dans Supabase profiles. Plan actuel:',PROFILE.plan);
+  else console.log('[PatchFlow] plan charge:',PROFILE.plan);
   const init=(PROFILE.full_name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
   document.getElementById('u-av').textContent=init;
   document.getElementById('u-name').textContent=PROFILE.full_name||ME.email;
@@ -3344,6 +3348,7 @@ function setPdfExportType(type){
   _pdfExportType=type;
   document.getElementById('pdf-exp-in')?.classList.toggle('on',type==='in');
   document.getElementById('pdf-exp-out')?.classList.toggle('on',type==='out');
+  document.getElementById('pdf-exp-both')?.classList.toggle('on',type==='both');
 }
 function loadPdfLogo(input){
   var file=input.files[0];if(!file)return;
@@ -3411,7 +3416,7 @@ function _buildPdfInHTML(meta,brand){
   const show=CUR_SHOW?.name||'Show';const now=new Date().toLocaleString('fr-FR');
   const accentColor=brand.color||'#ff6b1a';
   const logoHtml=brand.logo?'<img src="'+brand.logo+'" style="max-width:34px;max-height:34px;object-fit:contain"/>':_PF_LOGO_PX;
-  const subLine=brand.tagline||(brand.co+' · INPUT LIST');
+  const subLine=meta.title||(brand.tagline||(brand.co+' · INPUT LIST'));
   const activeCols=[{id:'short',label:'Court'},{id:'long',label:'Nom Long'},{id:'src',label:'Source'},{id:'mic',label:'Micro/DI'},{id:'gain',label:'Gain'},{id:'phantom',label:'+48V'},{id:'iem',label:'IEM'},{id:'foh',label:'FOH'},{id:'mon',label:'MON'},{id:'bc',label:'BC'},{id:'note',label:'Pied micro'}].filter(c=>visCol.has(c.id));
   const fm={short:'short_name',long:'long_name',src:'source',mic:'mic',gain:'gain',phantom:'phantom',iem:'iem_group',foh:'foh',mon:'mon',bc:'bc',note:'note'};
   let body=`<table><thead><tr><th>CH</th>${activeCols.map(c=>`<th>${c.label}</th>`).join('')}</tr></thead><tbody>`;
@@ -3488,7 +3493,7 @@ function _buildPdfOutHTML(meta,brand){
   const show=CUR_SHOW?.name||'Show';const now=new Date().toLocaleString('fr-FR');
   const accentColor=brand.color||'#ff6b1a';
   const logoHtml=brand.logo?'<img src="'+brand.logo+'" style="max-width:34px;max-height:34px;object-fit:contain"/>':_PF_LOGO_PX;
-  const subLine=brand.tagline||(brand.co+' · OUTPUT LIST');
+  const subLine=meta.title||(brand.tagline||(brand.co+' · OUTPUT LIST'));
   const engLine=[meta.eng,meta.role].filter(Boolean).join(' — ');
   let body='<table><thead><tr><th>CH</th><th>Court</th><th>Nom Long</th><th>Type</th><th>Destination</th><th>Note</th></tr></thead><tbody>';
   OUT_CHS.forEach(function(r,i){
@@ -3545,6 +3550,109 @@ td{padding:4px 7px;border-bottom:1px solid #f0eee8;vertical-align:middle}
 <div class="tw">${body}</div>
 <div class="sb"><div class="si">Total <span class="sv">${OUT_CHS.length}</span> sorties</div>${typeSummary}</div>
 ${meta.notes?`<div class="ns"><div class="nl">Notes techniques</div>${meta.notes}</div>`:''}
+<div class="ft"><span class="fl">${brand.co.toUpperCase()}</span><span>${engLine||show} · ${now}</span><span>${brand.site} · ${meta.rev||''}</span></div>
+<script>window.onload=()=>window.print();<\/script>
+</body></html>`;
+}
+function _buildPdfBothHTML(meta,brand){
+  const show=CUR_SHOW?.name||'Show';const now=new Date().toLocaleString('fr-FR');
+  const accentColor=brand.color||'#ff6b1a';
+  const logoHtml=brand.logo?'<img src="'+brand.logo+'" style="max-width:34px;max-height:34px;object-fit:contain"/>':_PF_LOGO_PX;
+  const engLine=[meta.eng,meta.role].filter(Boolean).join(' — ');
+  const docTitle=meta.title||(brand.tagline||(brand.co));
+  // Build IN body
+  const activeCols=[{id:'short',label:'Court'},{id:'long',label:'Nom Long'},{id:'src',label:'Source'},{id:'mic',label:'Micro/DI'},{id:'gain',label:'Gain'},{id:'phantom',label:'+48V'},{id:'iem',label:'IEM'},{id:'foh',label:'FOH'},{id:'mon',label:'MON'},{id:'bc',label:'BC'},{id:'note',label:'Pied micro'}].filter(c=>visCol.has(c.id));
+  const fm={short:'short_name',long:'long_name',src:'source',mic:'mic',gain:'gain',phantom:'phantom',iem:'iem_group',foh:'foh',mon:'mon',bc:'bc',note:'note'};
+  let inBody='<table><thead><tr><th>CH</th>'+activeCols.map(c=>'<th>'+c.label+'</th>').join('')+'</tr></thead><tbody>';
+  CHS.forEach(function(r,i){
+    inBody+='<tr style="'+(i%2===1?'background:#fdf8f4':'')+'"><td class="ch">'+r.ch+'</td>';
+    activeCols.forEach(function(c){
+      const v=r[fm[c.id]];var cell='';
+      if(c.id==='short')cell='<b>'+(v||'').trim()+'</b>';
+      else if(c.id==='phantom')cell=v?'<span class="badge-ph">+48V</span>':'';
+      else if(c.id==='iem')cell=v?'<span class="badge-iem">'+v+'</span>':'';
+      else if(c.id==='foh')cell=v?'<span class="ck">&#10003;</span>':'';
+      else if(c.id==='mon')cell=v?'<span class="ck-m">&#10003;</span>':'';
+      else if(c.id==='bc')cell=v?'<span class="ck-b">&#10003;</span>':'';
+      else if(c.id==='gain')cell='<span class="mo">'+(v||0)+' dB</span>';
+      else if(c.id==='mic')cell='<span class="mo">'+(v||'')+'</span>';
+      else cell='<span class="mu">'+(v||'')+'</span>';
+      inBody+='<td>'+cell+'</td>';
+    });
+    inBody+='</tr>';
+  });
+  inBody+='</tbody></table>';
+  // Build OUT body
+  var outBody='<table><thead><tr><th>CH</th><th>Court</th><th>Nom Long</th><th>Type</th><th>Destination</th><th>Note</th></tr></thead><tbody>';
+  OUT_CHS.forEach(function(r,i){
+    var t=OUT_TYPES[r.type]||OUT_TYPES.other;
+    outBody+='<tr style="'+(i%2===1?'background:#fdf8f4':'')+'"><td class="ch">'+r.ch+'</td>'
+      +'<td><b>'+(r.short_name||'').trim()+'</b></td>'
+      +'<td><span class="mu">'+(r.long_name||'')+'</span></td>'
+      +'<td><span class="badge-type" style="background:'+t.bg+';color:'+t.color+';border-color:'+t.color+'40">'+t.label+'</span></td>'
+      +'<td><span class="mo">'+(r.dest||'')+'</span></td>'
+      +'<td><span class="mu">'+(r.note||'')+'</span></td></tr>';
+  });
+  outBody+='</tbody></table>';
+  var typeSummary='';
+  Object.keys(OUT_TYPES).forEach(function(k){
+    var count=OUT_CHS.filter(function(r){return r.type===k;}).length;
+    if(count>0){var t=OUT_TYPES[k];typeSummary+='<div class="si"><span style="color:'+t.color+'">'+t.label+'</span> <span class="sv" style="color:'+t.color+'">'+count+'</span></div>';}
+  });
+  const sharedCSS=`*{box-sizing:border-box;margin:0;padding:0}:root{--o:${accentColor};--b:#1a8fff;--g:#22d6a0;--w:#f5c542}
+body{font-family:'Outfit',sans-serif;background:#fff;color:#1a1a2e;font-size:9.5px}@page{size:A4 landscape;margin:10mm 12mm}
+.hd{display:flex;align-items:flex-start;justify-content:space-between;padding:12px 16px 10px;border-bottom:3px solid var(--o)}
+.hl{display:flex;align-items:center;gap:11px}.logo{width:34px;height:34px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ht{font-size:16px;font-weight:700}.hs{font-size:9px;color:#888;font-family:'DM Mono',monospace;letter-spacing:.5px}
+.hr{text-align:right}.hdt{font-size:10px;font-weight:700;color:var(--o);text-transform:uppercase;letter-spacing:1.5px;font-family:'DM Mono',monospace}.hdm{font-size:8px;color:#666;font-family:'DM Mono',monospace}
+.ib{display:flex;background:#f8f8fa;border-bottom:1px solid #eee;font-family:'DM Mono',monospace;font-size:9px}
+.ic{padding:5px 12px;border-right:1px solid #eee;display:flex;flex-direction:column;gap:1px}
+.il{color:#aaa;font-size:7.5px;text-transform:uppercase;letter-spacing:1px}.iv{color:#1a1a2e;font-weight:500}.ivo{color:var(--o)}
+.tw{padding:7px 16px 0}table{width:100%;border-collapse:collapse}
+thead tr{background:var(--o)}
+th{color:#fff;padding:5px 7px;text-align:left;font-size:8px;letter-spacing:.8px;text-transform:uppercase;font-family:'DM Mono',monospace;font-weight:500;white-space:nowrap}
+td{padding:4px 7px;border-bottom:1px solid #f0eee8;vertical-align:middle}
+.ch{font-family:'DM Mono',monospace;font-weight:700;color:var(--o);text-align:center;width:26px}
+.mo{font-family:'DM Mono',monospace;font-size:9px;color:#555}.mu{color:#888}
+.badge-ph{background:#e8faf5;color:#22a07a;border:1px solid #b8e8d8;border-radius:3px;padding:1px 4px;font-size:7.5px;font-family:'DM Mono',monospace}
+.badge-iem{background:#fff3e8;color:#cc5500;border:1px solid #ffd0a8;border-radius:3px;padding:1px 4px;font-size:7.5px;font-family:'DM Mono',monospace}
+.badge-type{border:1px solid;border-radius:3px;padding:1px 5px;font-size:7.5px;font-family:'DM Mono',monospace;white-space:nowrap}
+.ck{color:var(--b);font-weight:700;font-size:10px}.ck-m{color:var(--w);font-weight:700;font-size:10px}.ck-b{color:#9b6aff;font-weight:700;font-size:10px}
+.sb{display:flex;flex-wrap:wrap;padding:6px 16px;background:#f8f8fa;border-top:1px solid #eee;font-family:'DM Mono',monospace;font-size:8px;gap:0}
+.si{padding:0 14px 0 0;margin-right:14px;border-right:1px solid #e0e0e0;color:#666}.si:last-child{border-right:none}.sv{font-weight:700;color:var(--o)}
+.ns{padding:6px 16px;font-size:9px;color:#666;background:#fffbf7;border-top:1px solid #ffe0c8}
+.nl{font-family:'DM Mono',monospace;font-size:7.5px;text-transform:uppercase;letter-spacing:1px;color:#ccc;margin-bottom:2px}
+.ft{display:flex;align-items:center;justify-content:space-between;padding:5px 16px;border-top:1px solid #eee;font-size:8px;color:#bbb;font-family:'DM Mono',monospace}
+.fl{font-weight:700;color:var(--o);letter-spacing:1px}
+.pb{page-break-after:always;height:0;overflow:hidden}
+@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}`;
+  const infoBar=`<div class="ib">
+  ${engLine?'<div class="ic"><div class="il">Ing&eacute;nieur</div><div class="iv ivo">'+engLine+'</div></div>':''}
+  ${meta.co?'<div class="ic"><div class="il">Soci&eacute;t&eacute;</div><div class="iv">'+meta.co+'</div></div>':''}
+  ${(CUR_SHOW?.venue||meta.venue)?'<div class="ic"><div class="il">Venue</div><div class="iv">'+(CUR_SHOW?.venue||meta.venue)+'</div></div>':''}
+  ${meta.date?'<div class="ic"><div class="il">Date</div><div class="iv">'+meta.date+'</div></div>':''}
+  ${meta.tel?'<div class="ic"><div class="il">Contact</div><div class="iv">'+meta.tel+'</div></div>':''}
+</div>`;
+  return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/><title>${brand.co} — ${show}</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet"/>
+<style>${sharedCSS}</style></head><body>
+<div class="hd"><div class="hl"><div class="logo">${logoHtml}</div><div><div class="ht">${show}</div><div class="hs">${docTitle} · INPUT LIST</div></div></div><div class="hr"><div class="hdt">Input List</div><div class="hdm">${meta.rev?`Rev. ${meta.rev}<br/>`:''}${now}</div></div></div>
+${infoBar}
+<div class="tw">${inBody}</div>
+<div class="sb">
+  <div class="si">Total <span class="sv">${CHS.length}</span> canaux</div>
+  <div class="si">+48V <span class="sv">${CHS.filter(r=>r.phantom).length}</span></div>
+  <div class="si">FOH <span class="sv">${CHS.filter(r=>r.foh).length}</span></div>
+  <div class="si">MON <span class="sv">${CHS.filter(r=>r.mon).length}</span></div>
+  <div class="si">IEM <span class="sv">${CHS.filter(r=>r.iem_group).length}</span></div>
+</div>
+${meta.notes?`<div class="ns"><div class="nl">Notes techniques</div>${meta.notes}</div>`:''}
+<div class="ft"><span class="fl">${brand.co.toUpperCase()}</span><span>${engLine||show} · ${now}</span><span>${brand.site} · ${meta.rev||''}</span></div>
+<div class="pb"></div>
+<div class="hd"><div class="hl"><div class="logo">${logoHtml}</div><div><div class="ht">${show}</div><div class="hs">${docTitle} · OUTPUT LIST</div></div></div><div class="hr"><div class="hdt">Output List</div><div class="hdm">${meta.rev?`Rev. ${meta.rev}<br/>`:''}${now}</div></div></div>
+${infoBar}
+<div class="tw">${outBody}</div>
+<div class="sb"><div class="si">Total <span class="sv">${OUT_CHS.length}</span> sorties</div>${typeSummary}</div>
 <div class="ft"><span class="fl">${brand.co.toUpperCase()}</span><span>${engLine||show} · ${now}</span><span>${brand.site} · ${meta.rev||''}</span></div>
 <script>window.onload=()=>window.print();<\/script>
 </body></html>`;
@@ -3866,10 +3974,10 @@ function doSitePlanPDF(){
   });
 }
 function doPDF(){
-  const meta={eng:document.getElementById('pdf-eng').value,role:document.getElementById('pdf-role').value,co:document.getElementById('pdf-co').value,tel:document.getElementById('pdf-tel').value,venue:document.getElementById('pdf-venue').value,date:document.getElementById('pdf-date').value,rev:document.getElementById('pdf-rev').value,notes:document.getElementById('pdf-notes').value};
+  const meta={eng:document.getElementById('pdf-eng').value,role:document.getElementById('pdf-role').value,title:document.getElementById('pdf-title')?.value||'',co:document.getElementById('pdf-co').value,tel:document.getElementById('pdf-tel').value,venue:document.getElementById('pdf-venue').value,date:document.getElementById('pdf-date').value,rev:document.getElementById('pdf-rev').value,notes:document.getElementById('pdf-notes').value};
   closePDF();
   const brand=_pdfBrand();
-  const html=_pdfExportType==='out'?_buildPdfOutHTML(meta,brand):_buildPdfInHTML(meta,brand);
+  const html=_pdfExportType==='both'?_buildPdfBothHTML(meta,brand):_pdfExportType==='out'?_buildPdfOutHTML(meta,brand):_buildPdfInHTML(meta,brand);
   const w=window.open('','_blank','width=1100,height=750');if(!w){alert('Autorise les popups');return;}w.document.write(html);w.document.close();
 }
 
