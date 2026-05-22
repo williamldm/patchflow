@@ -903,6 +903,45 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 /* profile modal */
 .profile-box{width:460px}
 
+/* ── PLANS & SUBSCRIPTION ── */
+.plan-badge-pill{display:inline-flex;align-items:center;gap:3px;font-family:var(--m);font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;padding:2px 7px;border-radius:10px}
+.plan-badge-pill.free{background:var(--surf3);color:var(--muted);border:1px solid var(--bdr2)}
+.plan-badge-pill.pro{background:var(--ora-d);color:var(--ora);border:1px solid var(--ora-g)}
+.plan-badge-pill.studio{background:rgba(155,106,255,.12);color:#c084fc;border:1px solid rgba(155,106,255,.25)}
+.user-dd-plan{display:flex;align-items:center;justify-content:space-between;padding:6px 9px 2px;font-size:10px;color:var(--muted);font-family:var(--m)}
+/* gate modal */
+.gate-modal-box{width:460px}
+.gate-icon-wrap{width:56px;height:56px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 14px;background:rgba(255,107,26,.1)}
+.gate-title{font-size:15px;font-weight:700;text-align:center;margin-bottom:8px}
+.gate-desc{font-size:12px;color:var(--txt2);text-align:center;line-height:1.65;margin-bottom:16px;padding:0 8px}
+.gate-plan-needed{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 14px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:9px;margin-bottom:16px;font-size:11px;color:var(--muted)}
+.gate-plan-pill{font-family:var(--m);font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px}
+.gate-feats{display:flex;flex-direction:column;gap:7px}
+.gate-feat-row{display:flex;align-items:flex-start;gap:9px;font-size:11px;color:var(--txt2)}
+.gate-feat-row i{color:var(--grn);font-size:12px;flex-shrink:0;margin-top:1px}
+/* plan modal */
+.plan-modal-box{width:680px}
+.sub-current-bar{display:flex;align-items:center;gap:11px;padding:11px 14px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:9px;margin-bottom:16px}
+.sub-plans-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.sub-plan-card{border:1px solid var(--bdr2);border-radius:12px;padding:18px 16px;position:relative;transition:all .15s}
+.sub-plan-card:hover:not(.current){border-color:var(--bdr3);background:var(--surf2)}
+.sub-plan-card.current{border-color:var(--ora-g);background:var(--ora-d)}
+.sub-plan-card.popular:not(.current){border-color:var(--ora)}
+.sub-plan-name{font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-bottom:6px}
+.sub-plan-price{font-size:22px;font-weight:800;letter-spacing:-1px;line-height:1;margin-bottom:2px}
+.sub-plan-period{font-size:9px;color:var(--muted);font-family:var(--m);margin-bottom:12px}
+.sub-plan-feats{list-style:none;display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+.sub-plan-feats li{display:flex;align-items:flex-start;gap:7px;font-size:10px;color:var(--txt2);line-height:1.4}
+.sub-plan-feats li i{font-size:11px;flex-shrink:0;margin-top:1px}
+.sub-plan-feats li i.ok{color:var(--grn)}
+.sub-plan-feats li i.off{color:var(--bdr3)}
+.sub-plan-cta{width:100%;padding:8px;border-radius:7px;border:1px solid var(--bdr2);background:var(--surf2);color:var(--txt2);font-size:11px;font-weight:600;font-family:var(--f);cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:5px}
+.sub-plan-cta:hover:not(:disabled){background:var(--surf3);border-color:var(--bdr3)}
+.sub-plan-cta:disabled{opacity:.5;cursor:default}
+.sub-plan-cta.upgrade-cta{background:var(--ora);border-color:var(--ora);color:#000}
+.sub-plan-cta.upgrade-cta:hover{background:var(--ora2)}
+.sub-current-badge{position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--ora);color:#000;font-size:8px;font-weight:800;font-family:var(--m);padding:2px 10px;border-radius:20px;letter-spacing:.8px;text-transform:uppercase;white-space:nowrap}
+
 /* ── LOADING ── */
 .loading{display:flex;align-items:center;justify-content:center;gap:9px;padding:32px;color:var(--muted);font-size:12px;font-family:var(--f)}
 .spinner{width:15px;height:15px;border:2px solid rgba(255,107,26,.3);border-top-color:var(--ora);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
@@ -1005,8 +1044,10 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
         </div>
         <div class="user-dd" id="user-dd">
           <div class="user-dd-email" id="u-email">…</div>
+          <div class="user-dd-plan"><span>Abonnement</span><span id="u-plan-badge"><span class="plan-badge-pill free">Gratuit</span></span></div>
           <div class="user-dd-sep"></div>
           <div class="user-dd-item" onclick="openProfile()"><i class="ti ti-user-edit"></i>Mon profil</div>
+          <div class="user-dd-item" onclick="closeUD();openPlanModal()"><i class="ti ti-credit-card"></i>Mon abonnement</div>
           <div class="user-dd-sep"></div>
           <div class="user-dd-item danger" onclick="doLogout()"><i class="ti ti-logout"></i>Déconnexion</div>
         </div>
@@ -1618,6 +1659,56 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
   </div>
 </div>
 
+<!-- GATE / UPGRADE MODAL -->
+<div class="modal-ov" id="gate-modal">
+  <div class="modal-box gate-modal-box">
+    <div class="modal-head">
+      <i class="ti ti-lock" style="font-size:15px;color:var(--ora)"></i>
+      <span class="modal-title">Fonctionnalite reservee</span>
+      <button class="btn ghost sm" onclick="closeGateModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body" style="padding-top:22px">
+      <div class="gate-icon-wrap"><i id="gate-icon" class="ti ti-lock" style="color:var(--ora)"></i></div>
+      <div class="gate-title" id="gate-title">Fonctionnalite reservee</div>
+      <div class="gate-desc" id="gate-desc">Cette fonctionnalite n'est pas disponible dans votre offre actuelle.</div>
+      <div class="gate-plan-needed">
+        <span>Disponible a partir du plan</span>
+        <span class="gate-plan-pill" id="gate-plan-pill">Pro</span>
+      </div>
+      <div class="gate-feats" id="gate-feats"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost sm" onclick="closeGateModal()"><i class="ti ti-x"></i>Plus tard</button>
+      <button class="btn sm" onclick="closeGateModal();openPlanModal()"><i class="ti ti-rocket"></i>Voir les offres</button>
+    </div>
+  </div>
+</div>
+
+<!-- PLAN / ABONNEMENT MODAL -->
+<div class="modal-ov" id="plan-modal">
+  <div class="modal-box plan-modal-box">
+    <div class="modal-head">
+      <i class="ti ti-credit-card" style="font-size:15px;color:var(--ora)"></i>
+      <span class="modal-title">Mon abonnement</span>
+      <button class="btn ghost sm" onclick="closePlanModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="sub-current-bar">
+        <i class="ti ti-circle-check" style="font-size:18px;color:var(--grn);flex-shrink:0"></i>
+        <div>
+          <div style="font-size:12px;font-weight:600" id="sub-current-label">Plan Gratuit</div>
+          <div style="font-size:10px;color:var(--muted);font-family:var(--m)" id="sub-current-desc">Passez au Pro pour debloquer les exports PDF, le lien partage et bien plus.</div>
+        </div>
+      </div>
+      <div class="sub-plans-grid" id="sub-plans-grid"></div>
+      <div style="margin-top:14px;font-size:10px;color:var(--muted);text-align:center;font-family:var(--m)">Annulez a tout moment · 14 jours offerts · Facture disponible</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost sm" onclick="closePlanModal()">Fermer</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -1740,6 +1831,7 @@ async function loadProfile(){
   document.getElementById('u-av').textContent=init;
   document.getElementById('u-name').textContent=PROFILE.full_name||ME.email;
   document.getElementById('u-email').textContent=ME.email;
+  _refreshPlanBadge();
   // Pre-fill PDF meta with profile
   document.getElementById('pdf-eng').value=PROFILE.full_name||'';
   document.getElementById('pdf-role').value=PROFILE.role||'';
@@ -1802,6 +1894,7 @@ async function switchShow(id){
 }
 
 async function newShow(){
+  if(SHOWS.filter(s=>s.owner_id===ME?.id).length>=planLimit('max_shows')){showUpgradeModal('max_shows');return;}
   const name=prompt('Nom du show :');if(!name?.trim())return;
   const {data,error}=await sb.from('shows').insert({name:name.trim(),slug:name.trim().toLowerCase().replace(/[^a-z0-9]+/g,'-')+'-'+Date.now(),owner_id:ME.id}).select().single();
   if(error){toast('Erreur : '+error.message);return;}
@@ -1841,6 +1934,7 @@ function setILBody(html,wrap){
 }
 
 async function addRow(){
+  if(CHS.length>=planLimit('max_channels')){showUpgradeModal('max_channels');return;}
   const ch=CHS.length+1;
   const row={show_id:CUR_SHOW.id,ch,short_name:'',long_name:'',source:'',mic:'',gain:0,phantom:false,iem_group:'',foh:true,mon:false,bc:false,note:''};
   if(_patchColReady) row.patch_id=CUR_PATCH_ID;
@@ -2480,7 +2574,7 @@ async function loadMembers(){
   grid.innerHTML=html;grid.className='team-grid';
 }
 function inviteMember(){const e=document.getElementById('inv-email').value.trim();const r=document.getElementById('inv-role').value;if(!e){alert('Entrer un e-mail');return;}toast(`✓ Invitation envoyée à ${e} (${r})`);document.getElementById('inv-email').value='';}
-function copyLink(){navigator.clipboard.writeText(document.getElementById('slink-url').textContent).catch(()=>{});toast('✓ Lien copié !');}
+function copyLink(){if(!canDo('share_link')){showUpgradeModal('share_link');return;}navigator.clipboard.writeText(document.getElementById('slink-url').textContent).catch(()=>{});toast('✓ Lien copié !');}
 
 // ══════════════════════════════════════
 // COLUMN VISIBILITY
@@ -2746,7 +2840,7 @@ function updateStats(){const n=CHS.length,ph=CHS.filter(r=>r.phantom).length;['y
 // ══════════════════════════════════════
 // PDF EXPORT
 // ══════════════════════════════════════
-function openPDFModal(){document.getElementById('pdf-modal').className='modal-ov show';}
+function openPDFModal(){if(!canDo('export_pdf')){showUpgradeModal('export_pdf');return;}document.getElementById('pdf-modal').className='modal-ov show';}
 function closePDF(){document.getElementById('pdf-modal').className='modal-ov';}
 
 // ══════════════════════════════════════
@@ -7291,6 +7385,7 @@ async function _fichDownload(relPath) {
 }
 
 function fichImportClick() {
+  if(!canDo('storage')){showUpgradeModal('storage');return;}
   document.getElementById('fichiers-file-input')?.click();
 }
 
@@ -7318,6 +7413,7 @@ function initFichiersDrop() {
 
 async function _uploadFichiers(files) {
   if (!CUR_SHOW || !files.length) return;
+  if (!canDo('storage')) { showUpgradeModal('storage'); return; }
   const status = document.getElementById('fich-upload-status');
   if (status) status.style.display = '';
   let ok = 0;
@@ -7434,6 +7530,126 @@ function goTab(id,el){
 }
 function toggleUD(){document.getElementById('user-dd').classList.toggle('show');}
 function closeUD(){document.getElementById('user-dd').classList.remove('show');}
+
+// ══════════════════════════════════════
+// PLANS & PERMISSIONS
+// ══════════════════════════════════════
+const PLAN_PERMS = {
+  free:   { max_shows:3,        max_channels:32,       max_members:1,        max_templates:5,
+            export_pdf:false,   share_link:false,      site_plan:false,
+            storage:false,      multi_scenes:false,    multi_patches:false,  custom_exports:false },
+  pro:    { max_shows:Infinity, max_channels:Infinity, max_members:5,        max_templates:Infinity,
+            export_pdf:true,    share_link:true,       site_plan:true,
+            storage:true,       multi_scenes:false,    multi_patches:false,  custom_exports:false },
+  studio: { max_shows:Infinity, max_channels:Infinity, max_members:Infinity, max_templates:Infinity,
+            export_pdf:true,    share_link:true,       site_plan:true,
+            storage:true,       multi_scenes:true,     multi_patches:true,   custom_exports:true  },
+};
+
+const PLAN_META = {
+  free:   { label:'Gratuit', color:'var(--muted)',  price:'0 €',  period:'/mois' },
+  pro:    { label:'Pro',     color:'var(--ora)',    price:'11 €', period:'/mois' },
+  studio: { label:'Studio',  color:'#c084fc',       price:'29 €', period:'/mois' },
+};
+
+const GATE_META = {
+  export_pdf:     { icon:'ti-file-type-pdf',    title:'Export PDF professionnel',     desc:'Generez des PDF soignes avec tous vos canaux, prets a imprimer ou a partager avec votre equipe.', plan:'pro',    feats:['Mise en page professionnelle complete','Impression directe depuis le navigateur','Inclus dans les plans Pro et Studio'] },
+  share_link:     { icon:'ti-link',             title:'Lien de partage',              desc:'Partagez votre patch en lecture seule avec vos collegues ou votre client via un lien securise.', plan:'pro',    feats:['Lien unique en lecture seule','Acces sans compte requis','Mise a jour en temps reel'] },
+  storage:        { icon:'ti-cloud',            title:'Stockage fichiers',            desc:'Uploadez et partagez vos riders, plans, logos et show files directement dans votre show.', plan:'pro',    feats:['50 Go de stockage sur Pro — 200 Go sur Studio','Acces a tous les membres du show','PDF, Word, Excel, Audio, Video...'] },
+  site_plan:      { icon:'ti-map-2',            title:'Plan de site',                 desc:'Implantez votre sonorisation sur le plan du site. Tracez vos liaisons XLR, DANTE et HF.', plan:'pro',    feats:['Edition drag & drop du plan de site','Export PNG et PDF du plan','Disponible sur les plans Pro et Studio'] },
+  max_shows:      { icon:'ti-calendar-event',   title:'Limite de shows atteinte',     desc:'Le plan Gratuit est limite a 3 shows actifs. Passez au Pro pour des shows illimites.', plan:'pro',    feats:['Shows illimites sur Pro et Studio','Canaux illimites par show','Archivage et gestion avancee'] },
+  max_channels:   { icon:'ti-list-numbers',     title:'Limite de canaux atteinte',    desc:'Le plan Gratuit est limite a 32 canaux par show. Passez au Pro pour des canaux illimites.', plan:'pro',    feats:['Canaux illimites sur Pro et Studio','Pas de restriction sur le nombre de prises','Full festival patch sans limite'] },
+  max_members:    { icon:'ti-users',            title:'Limite de membres atteinte',   desc:'Votre plan limite le nombre de membres par show. Passez a l\'offre superieure pour inviter plus de collaborateurs.', plan:'pro', feats:['5 membres sur Pro — Illimites sur Studio','Roles et permissions par membre','Collaboration en temps reel'] },
+  multi_patches:  { icon:'ti-layers-subtract',  title:'Multi-patches',                desc:'Creez plusieurs variantes de patch (A/B, festival, acoustique) pour le meme show.', plan:'studio', feats:['Variantes A/B, festival, acoustique','Basculement rapide entre patches','Exclusif plan Studio'] },
+  custom_exports: { icon:'ti-photo',            title:'Exports personnalises',        desc:'Ajoutez votre logo et les informations de votre societe sur tous les exports PDF.', plan:'studio', feats:['Logo sur chaque page PDF','Entete avec vos coordonnees','Charte graphique de votre societe'] },
+};
+
+function userPlan() { return PROFILE?.plan || 'free'; }
+
+function canDo(feat) {
+  const p = PLAN_PERMS[userPlan()] || PLAN_PERMS.free;
+  const v = p[feat];
+  return v === true;
+}
+
+function planLimit(feat) {
+  const p = PLAN_PERMS[userPlan()] || PLAN_PERMS.free;
+  const v = p[feat];
+  return (typeof v === 'number') ? v : Infinity;
+}
+
+function showUpgradeModal(feat) {
+  const m = GATE_META[feat] || { icon:'ti-lock', title:'Fonctionnalite reservee', desc:'Non disponible dans votre offre.', plan:'pro', feats:[] };
+  const pm = PLAN_META[m.plan] || PLAN_META.pro;
+  const pilClr = m.plan === 'studio' ? '#c084fc' : 'var(--ora)';
+  const pilBg  = m.plan === 'studio' ? 'rgba(155,106,255,.12)' : 'var(--ora-d)';
+  const pilBdr = m.plan === 'studio' ? 'rgba(155,106,255,.3)'  : 'var(--ora-g)';
+  document.getElementById('gate-icon').className = 'ti ' + m.icon;
+  document.getElementById('gate-icon').style.color = pilClr;
+  document.getElementById('gate-title').textContent = m.title;
+  document.getElementById('gate-desc').textContent = m.desc;
+  const pill = document.getElementById('gate-plan-pill');
+  pill.textContent = pm.label;
+  pill.style.cssText = 'background:' + pilBg + ';color:' + pilClr + ';border:1px solid ' + pilBdr + ';font-family:var(--m);font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px';
+  document.getElementById('gate-feats').innerHTML = m.feats.map(function(f) {
+    return '<div class="gate-feat-row"><i class="ti ti-check"></i><span>' + f + '</span></div>';
+  }).join('');
+  document.getElementById('gate-modal').className = 'modal-ov show';
+}
+function closeGateModal() { document.getElementById('gate-modal').className = 'modal-ov'; }
+
+function openPlanModal() {
+  const cur = userPlan();
+  const descs = {
+    free:   'Passez au Pro pour debloquer les exports PDF, le lien partage et bien plus.',
+    pro:    'Vous beneficiez des exports PDF, du lien partage et du stockage 50 Go.',
+    studio: 'Vous avez acces a toutes les fonctionnalites de PatchFlow.',
+  };
+  document.getElementById('sub-current-label').textContent = 'Plan ' + (PLAN_META[cur]?.label || 'Gratuit');
+  document.getElementById('sub-current-desc').textContent = descs[cur] || '';
+  const FEATS = {
+    free:   [['Canaux/show','32',false],['Shows actifs','3',false],['Membres/show','1',false],['Export PDF','Non',true],['Stockage fichiers','Non',true],['Lien partage','Non',true]],
+    pro:    [['Canaux/show','Illimites',false],['Shows actifs','Illimites',false],['Membres/show','5',false],['Export PDF','Oui',false],['Stockage fichiers','50 Go',false],['Plan de site','Oui',false]],
+    studio: [['Canaux/show','Illimites',false],['Shows actifs','Illimites',false],['Membres/show','Illimites',false],['Export PDF','Oui',false],['Stockage fichiers','200 Go',false],['Multi-patches','Oui',false]],
+  };
+  const grid = document.getElementById('sub-plans-grid');
+  grid.innerHTML = ['free','pro','studio'].map(function(p) {
+    const pm = PLAN_META[p];
+    const isCur = p === cur;
+    const isUp  = ['free','pro','studio'].indexOf(p) > ['free','pro','studio'].indexOf(cur);
+    const isPopular = p === 'pro';
+    const rows = (FEATS[p] || []).map(function(r) {
+      const ko = r[2];
+      return '<li><i class="' + (ko ? 'off ti ti-minus' : 'ok ti ti-check') + '"></i><span>' + r[0] + ' — <strong>' + r[1] + '</strong></span></li>';
+    }).join('');
+    const ctaLabel = isCur ? 'Plan actuel' : (isUp ? 'Passer au ' + pm.label : 'Downgrader');
+    const ctaCls   = isCur ? '' : (isUp ? ' upgrade-cta' : '');
+    return '<div class="sub-plan-card' + (isCur ? ' current' : '') + (isPopular && !isCur ? ' popular' : '') + '">' +
+      (isCur ? '<div class="sub-current-badge">Actuel</div>' : '') +
+      '<div class="sub-plan-name">' + pm.label + '</div>' +
+      '<div class="sub-plan-price" style="color:' + (p === 'free' ? 'var(--txt)' : pm.color) + '">' + pm.price + '</div>' +
+      '<div class="sub-plan-period">' + pm.period + '</div>' +
+      '<ul class="sub-plan-feats">' + rows + '</ul>' +
+      '<button class="sub-plan-cta' + ctaCls + '"' + (isCur ? ' disabled' : ' onclick="subCTA(\'' + p + '\')"') + '>' +
+      (isCur ? '<i class="ti ti-check"></i> ' : (isUp ? '<i class="ti ti-rocket"></i> ' : '')) + ctaLabel + '</button></div>';
+  }).join('');
+  document.getElementById('plan-modal').className = 'modal-ov show';
+}
+function closePlanModal() { document.getElementById('plan-modal').className = 'modal-ov'; }
+
+function subCTA(plan) {
+  if (plan === 'free') { toast('Pour modifier votre abonnement, contactez le support.'); return; }
+  closePlanModal();
+  toast('Redirection vers le paiement... (disponible prochainement)');
+}
+
+function _refreshPlanBadge() {
+  const p = userPlan();
+  const cls = p === 'studio' ? 'studio' : p === 'pro' ? 'pro' : 'free';
+  const lbl = PLAN_META[p]?.label || 'Gratuit';
+  const el = document.getElementById('u-plan-badge');
+  if (el) el.innerHTML = '<span class="plan-badge-pill ' + cls + '">' + lbl + '</span>';
+}
 document.addEventListener('click',e=>{
   if(!e.target.closest('.user-wrap'))closeUD();
   if(!e.target.closest('.side-panel')&&!e.target.closest('.sp-trigger')&&document.getElementById('side-panel').classList.contains('show'))closeSP();
@@ -7456,6 +7672,8 @@ document.getElementById('pdf-modal').addEventListener('click',function(e){if(e.t
 document.getElementById('site-pdf-modal').addEventListener('click',function(e){if(e.target===this)closeSitePDF();});
 document.getElementById('fich-viewer-modal').addEventListener('click',function(e){if(e.target.classList.contains('fich-viewer-ov'))closeFichierViewer();});
 document.getElementById('profile-modal').addEventListener('click',function(e){if(e.target===this)closeProfile();});
+document.getElementById('gate-modal').addEventListener('click',function(e){if(e.target===this)closeGateModal();});
+document.getElementById('plan-modal').addEventListener('click',function(e){if(e.target===this)closePlanModal();});
 document.getElementById('bp-pdf-modal').addEventListener('click',function(e){if(e.target===this)closeBpPDF();});
 document.getElementById('bp-share-modal').addEventListener('click',function(e){if(e.target===this)closeBpShare();});
 // Share-view mode
