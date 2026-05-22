@@ -1503,7 +1503,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
             <div id="site-bg-controls" style="display:none">
               <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)">
                 <i class="ti ti-sun" style="font-size:11px"></i>
-                <input type="range" id="site-bg-opacity" min="5" max="100" value="40" style="flex:1;accent-color:var(--ora)" oninput="SitePlan.setBgOpacity(this.value)"/>
+                <input type="range" id="site-bg-opacity" min="5" max="100" value="100" style="flex:1;accent-color:var(--ora)" oninput="SitePlan.setBgOpacity(this.value)"/>
                 <button onclick="SitePlan.clearBg()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0">✕</button>
               </div>
             </div>
@@ -8060,7 +8060,12 @@ const SitePlan = (() => {
     { id:'multi',   label:'Multi-paire',      color:'#5ab0ff', dash:'5 2',        builtin:true },
   ];
 
-  const CUSTOM_CABLES_KEY = 'siteplan_custom_cables';
+  const CUSTOM_CABLES_KEY  = 'siteplan_custom_cables';
+  const CUSTOM_ITEMS_KEY   = 'siteplan_custom_items';
+
+  function _getCustomSiteItems()  { try { return JSON.parse(localStorage.getItem(CUSTOM_ITEMS_KEY)||'[]'); } catch(e2){ return []; } }
+  function _saveCustomSiteItem(it){ var list=_getCustomSiteItems().filter(function(x){return x.type!==it.type;}); list.push(it); localStorage.setItem(CUSTOM_ITEMS_KEY,JSON.stringify(list)); }
+  function _removeCustomSiteItem(type){ localStorage.setItem(CUSTOM_ITEMS_KEY,JSON.stringify(_getCustomSiteItems().filter(function(x){return x.type!==type;}))); }
 
   function _loadCustomCableTypes() {
     try {
@@ -8089,13 +8094,13 @@ const SitePlan = (() => {
     renderCablePicker();
   }
 
-  let state = { elements:[], cables:[], bgImage:null, bgOpacity:40, view:{panX:60,panY:60,zoom:1}, selected:null, linkFrom:null, freePt1:null, activeCableType:'xlr', textScale:1, legendScale:1, cableMode:false };
+  let state = { elements:[], cables:[], bgImage:null, bgOpacity:100, view:{panX:60,panY:60,zoom:1}, selected:null, linkFrom:null, freePt1:null, activeCableType:'xlr', textScale:1, legendScale:1, cableMode:false };
   let dragging=null, panning=null, inited=false;
 
   const $  = id => document.getElementById(id);
   const uid = () => Math.random().toString(36).slice(2,9);
   const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  const findItem = type => { for(const g of PALETTE){const it=g.items.find(i=>i.type===type);if(it)return it;} return {icon:'📦',label:type,color:'#5a6580'}; };
+  const findItem = type => { for(const g of PALETTE){const it=g.items.find(i=>i.type===type);if(it)return it;} const ci=_getCustomSiteItems().find(i=>i.type===type); if(ci)return ci; return {icon:'📦',label:type,color:'#5a6580'}; };
   const ct = id => CABLE_TYPES.find(c=>c.id===id)||CABLE_TYPES[0];
 
   function init() {
@@ -8112,37 +8117,85 @@ const SitePlan = (() => {
   function renderPalette() {
     const el = $('site-pal-items');
     if(!el) return;
-    el.innerHTML = PALETTE.map((g, gi) =>
-      `<div class="spl-cat-sec">` +
-      `<div class="spl-cat-lbl" data-cat="${gi}">` +
-      `<span>${g.cat}</span>` +
-      `<i class="ti ti-chevron-right spl-cat-arrow"></i>` +
-      `</div>` +
-      `<div class="spl-cat-items" data-cat="${gi}" style="display:none">` +
-      g.items.map(it =>
-        `<button class="spl-item" draggable="true" data-type="${it.type}" style="--ic:${it.color}">` +
-        `<span class="spl-item-ic" style="background:${it.color}18;border-color:${it.color}44">${it.icon}</span>` +
-        `<span>${it.label}</span></button>`
-      ).join('') +
-      `</div></div>`
-    ).join('');
-    el.querySelectorAll('.spl-cat-lbl').forEach(hd => {
-      hd.addEventListener('click', () => {
-        const cat = hd.dataset.cat;
-        const items = el.querySelector(`.spl-cat-items[data-cat="${cat}"]`);
-        const arrow = hd.querySelector('.spl-cat-arrow');
-        const isOpen = items.style.display !== 'none';
+    const customAll = _getCustomSiteItems();
+    el.innerHTML = PALETTE.map((g, gi) => {
+      const customInCat = customAll.filter(function(it){ return it.cat === g.cat; });
+      const allItems = g.items.concat(customInCat);
+      const catColor = g.color || '#5a6580';
+      return '<div class="spl-cat-sec">'
+        + '<div class="spl-cat-lbl" data-cat="' + gi + '">'
+        + '<span>' + g.cat + '</span>'
+        + '<i class="ti ti-chevron-right spl-cat-arrow"></i>'
+        + '</div>'
+        + '<div class="spl-cat-items" data-cat="' + gi + '" style="display:none">'
+        + allItems.map(function(it) {
+            var isCustom = !!it.isCustom;
+            var del = isCustom
+              ? '<button type="button" class="spl-custom-del" data-ctype="' + it.type + '" title="Supprimer" style="margin-left:auto;border:none;background:none;color:var(--muted);cursor:pointer;font-size:11px;padding:0 2px;flex-shrink:0;line-height:1">x</button>'
+              : '';
+            return '<button class="spl-item' + (isCustom ? ' spl-custom-item' : '') + '" draggable="true" data-type="' + it.type + '" style="--ic:' + it.color + '">'
+              + '<span class="spl-item-ic" style="background:' + it.color + '18;border-color:' + it.color + '44">' + it.icon + '</span>'
+              + '<span style="flex:1;text-align:left">' + esc(it.label) + '</span>'
+              + del
+              + '</button>';
+          }).join('')
+        // Creation form
+        + '<div class="spl-custom-form" data-cat="' + gi + '" data-catname="' + g.cat + '" style="margin-top:6px;padding-top:6px;border-top:1px solid var(--bdr)">'
+        + '<div style="font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px;font-family:var(--m)">Ajouter un objet</div>'
+        + '<div style="display:flex;gap:3px;margin-bottom:4px">'
+        + '<input class="spl-ci-icon syn-custom-inp" placeholder="&#x1F4E6;" style="width:34px;text-align:center;font-size:14px;padding:3px" maxlength="2"/>'
+        + '<input class="spl-ci-label syn-custom-inp" placeholder="Nom..." style="flex:1"/>'
+        + '<input type="color" class="spl-ci-color" value="' + catColor + '" style="width:26px;height:26px;border:none;border-radius:4px;padding:1px;cursor:pointer;background:none;flex-shrink:0"/>'
+        + '</div>'
+        + '<button type="button" class="spl-ci-add syn-custom-btn" style="width:100%">+ Ajouter et enregistrer</button>'
+        + '</div>'
+        + '</div></div>';
+    }).join('');
+
+    el.querySelectorAll('.spl-cat-lbl').forEach(function(hd) {
+      hd.addEventListener('click', function() {
+        var cat = hd.dataset.cat;
+        var items = el.querySelector('.spl-cat-items[data-cat="' + cat + '"]');
+        var arrow = hd.querySelector('.spl-cat-arrow');
+        var isOpen = items.style.display !== 'none';
         items.style.display = isOpen ? 'none' : '';
         arrow.style.transform = isOpen ? '' : 'rotate(90deg)';
       });
     });
-    el.querySelectorAll('.spl-item').forEach(btn => {
-      btn.addEventListener('dragstart', e => { e.dataTransfer.setData('spl-type', btn.dataset.type); });
-      btn.addEventListener('click', () => {
-        const vp = $('site-viewport');
+
+    el.querySelectorAll('.spl-item').forEach(function(btn) {
+      btn.addEventListener('dragstart', function(e) { e.dataTransfer.setData('spl-type', btn.dataset.type); });
+      btn.addEventListener('click', function(ev) {
+        if(ev.target.closest('.spl-custom-del')) return;
+        var vp = $('site-viewport');
         if(!vp) return;
-        const r = vp.getBoundingClientRect();
+        var r = vp.getBoundingClientRect();
         addElement(btn.dataset.type, (r.width/2 - state.view.panX)/state.view.zoom, (r.height/2 - state.view.panY)/state.view.zoom);
+      });
+    });
+
+    // Delete custom items
+    el.querySelectorAll('.spl-custom-del').forEach(function(btn) {
+      btn.addEventListener('click', function(ev) {
+        ev.stopPropagation();
+        _removeCustomSiteItem(btn.dataset.ctype);
+        renderPalette();
+      });
+    });
+
+    // Add custom item
+    el.querySelectorAll('.spl-ci-add').forEach(function(addBtn) {
+      addBtn.addEventListener('click', function() {
+        var form = addBtn.closest('.spl-custom-form');
+        var label = (form.querySelector('.spl-ci-label')?.value || '').trim();
+        if(!label){ toast('Donnez un nom'); return; }
+        var icon  = (form.querySelector('.spl-ci-icon')?.value  || '').trim() || '📦';
+        var color = form.querySelector('.spl-ci-color')?.value || '#5a6580';
+        var catName = form.dataset.catname || 'Custom';
+        var t = 'csi_' + Date.now().toString(36);
+        _saveCustomSiteItem({ type:t, label:label, icon:icon, color:color, cat:catName, isCustom:true });
+        renderPalette();
+        toast('"' + label + '" enregistre');
       });
     });
   }
@@ -8695,10 +8748,10 @@ const SitePlan = (() => {
       state.elements=data.elements||[];
       state.cables=data.cables||[];
       state.bgImage=data.bgImage||null;
-      state.bgOpacity=data.bgOpacity??40;
+      state.bgOpacity=data.bgOpacity??100;
       if(data.view)state.view=data.view;
     } else {
-      state.elements=[];state.cables=[];state.bgImage=null;state.bgOpacity=40;state.view={panX:60,panY:60,zoom:1};
+      state.elements=[];state.cables=[];state.bgImage=null;state.bgOpacity=100;state.view={panX:60,panY:60,zoom:1};
     }
     if(data?.activeCableType) state.activeCableType=data.activeCableType;
     if(data?.textScale) state.textScale=data.textScale;
