@@ -857,6 +857,25 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .ila-saved-title{font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:6px}
 .ila-new-btn{display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 12px;background:transparent;border:1px dashed var(--bdr2);border-radius:8px;cursor:pointer;font-family:var(--f);font-size:11px;color:var(--muted);transition:all .13s;width:100%;margin-top:6px}
 .ila-new-btn:hover{border-color:var(--ora-g);color:var(--ora)}
+/* ── OUT LIST ── */
+.out-tbl td{padding:5px 6px}
+.out-tbl td:first-child{text-align:center;font-family:var(--m);font-size:11px;font-weight:700;color:var(--muted);width:38px}
+.out-type-sel{background:var(--surf2);border:1px solid var(--bdr2);color:var(--txt2);font-size:10px;font-family:var(--m);padding:3px 6px;border-radius:5px;cursor:pointer;outline:none;transition:border-color .13s;width:100%}
+.out-type-sel:focus{border-color:var(--ora-g)}
+/* ── OLA ── */
+.ola-cat-row{display:flex;align-items:center;gap:9px;padding:10px 13px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:9px;margin-bottom:5px;transition:border-color .15s}
+.ola-cat-row.ola-active{border-color:var(--ora-g);background:rgba(255,107,26,.05)}
+.ola-cat-icon{font-size:17px;width:22px;text-align:center;flex-shrink:0}
+.ola-cat-info{flex:1;min-width:0}
+.ola-cat-lbl{font-size:12px;font-weight:600}
+.ola-cat-sub{font-size:9px;color:var(--muted);font-family:var(--m);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ola-spinner{display:flex;align-items:center;background:var(--surf);border:1px solid var(--bdr2);border-radius:7px;overflow:hidden;flex-shrink:0}
+.ola-spin-btn{background:none;border:none;color:var(--txt2);font-size:15px;width:28px;height:28px;cursor:pointer;font-weight:700;font-family:var(--f);display:flex;align-items:center;justify-content:center;transition:background .1s}
+.ola-spin-btn:hover{background:var(--bdr2);color:var(--txt)}
+.ola-spin-btn:disabled{opacity:.25;cursor:default}.ola-spin-btn:disabled:hover{background:none}
+.ola-spin-val{font-family:var(--m);font-size:12px;font-weight:700;color:var(--txt);min-width:24px;text-align:center}
+.ola-total{font-family:var(--m);font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-top:12px;text-align:right}
+.ola-total-pill{color:var(--ora);font-size:13px;font-weight:700;margin-left:5px}
 .ila-intro{display:flex;gap:10px;align-items:flex-start;font-size:11px;color:var(--txt2);line-height:1.65;padding:11px 14px;background:linear-gradient(135deg,var(--surf2),var(--surf3));border:1px solid var(--bdr2);border-left:3px solid var(--ora);border-radius:0 10px 10px 0;margin-bottom:14px}
 .ila-intro-icon{font-size:15px;color:var(--ora);flex-shrink:0;margin-top:1px}
 .ila-intro strong{color:var(--ora);font-weight:600}
@@ -1116,25 +1135,40 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
     <!-- INPUT LIST -->
     <div class="panel on" id="panel-inputlist">
       <div class="pbar">
-        <span class="ptitle"><i class="ti ti-list-numbers" style="color:var(--ora)"></i>Input List<span class="ptitle-sep">/</span><span id="sn-il" style="color:var(--txt2)">…</span></span>
-        <button class="btn" onclick="addRow()"><i class="ti ti-plus"></i>Canal</button>
-        <button class="btn" style="background:var(--surf2);border-color:var(--bdr2)" onclick="openILAssist()"><i class="ti ti-wand"></i>Assistant</button>
-        <div class="tpl-dd-wrap" id="tpl-dd-wrap">
-          <button class="btn" style="background:var(--surf2);border-color:var(--bdr2)" onclick="toggleTplDd(event)"><i class="ti ti-template"></i>Template <i class="ti ti-chevron-down" style="font-size:10px;margin-left:1px"></i></button>
-          <div class="tpl-dd-menu" id="tpl-dd-menu">
-            <div class="tpl-dd-mode">
-              <button id="tpl-mode-replace" class="active" onclick="setTplMode('replace')">Remplacer</button>
-              <button id="tpl-mode-append" onclick="setTplMode('append')">Ajouter</button>
-            </div>
-            <div class="tpl-dd-list" id="tpl-quick-list"></div>
-          </div>
+        <span class="ptitle"><i class="ti ti-list-numbers" style="color:var(--ora)"></i><span id="il-pbar-title">Input List</span><span class="ptitle-sep">/</span><span id="sn-il" style="color:var(--txt2)">…</span></span>
+        <!-- IN / OUT toggle (style Scène/Site) -->
+        <div class="plan-mode-bar" style="flex-shrink:0">
+          <button class="pmb on" id="pmb-il-in" onclick="setILMode('in')"><i class="ti ti-arrow-down-circle"></i> IN</button>
+          <button class="pmb" id="pmb-il-out" onclick="setILMode('out')"><i class="ti ti-arrow-up-circle"></i> OUT</button>
         </div>
-        <button class="btn" style="background:var(--surf2);border-color:var(--bdr2);color:var(--err)" onclick="clearAllRows()"><i class="ti ti-trash"></i>Tout supprimer</button>
-        <button class="btn blu" onclick="exportCSV()"><i class="ti ti-download"></i>CSV</button>
-        <input type="file" id="csv-import-input" accept=".csv,.txt" style="display:none" onchange="importCSVLoad(this)">
-        <button class="btn" style="background:var(--surf2);border-color:var(--bdr2)" onclick="importCSVClick()"><i class="ti ti-upload"></i>Import CSV</button>
-        <button class="btn ghost" onclick="openPDFModal()"><i class="ti ti-file-type-pdf"></i>PDF</button>
-        <button class="btn ghost" onclick="toggleColPanel()" id="col-btn"><i class="ti ti-columns"></i>Colonnes</button>
+        <!-- Boutons spécifiques IN -->
+        <span id="il-in-btns" style="display:contents">
+          <button class="btn" onclick="addRow()"><i class="ti ti-plus"></i>Canal</button>
+          <button class="btn" style="background:var(--surf2);border-color:var(--bdr2)" onclick="openILAssist()"><i class="ti ti-wand"></i>Assistant</button>
+          <div class="tpl-dd-wrap" id="tpl-dd-wrap">
+            <button class="btn" style="background:var(--surf2);border-color:var(--bdr2)" onclick="toggleTplDd(event)"><i class="ti ti-template"></i>Template <i class="ti ti-chevron-down" style="font-size:10px;margin-left:1px"></i></button>
+            <div class="tpl-dd-menu" id="tpl-dd-menu">
+              <div class="tpl-dd-mode">
+                <button id="tpl-mode-replace" class="active" onclick="setTplMode('replace')">Remplacer</button>
+                <button id="tpl-mode-append" onclick="setTplMode('append')">Ajouter</button>
+              </div>
+              <div class="tpl-dd-list" id="tpl-quick-list"></div>
+            </div>
+          </div>
+          <button class="btn" style="background:var(--surf2);border-color:var(--bdr2);color:var(--err)" onclick="clearAllRows()"><i class="ti ti-trash"></i>Tout supprimer</button>
+          <button class="btn blu" onclick="exportCSV()"><i class="ti ti-download"></i>CSV</button>
+          <input type="file" id="csv-import-input" accept=".csv,.txt" style="display:none" onchange="importCSVLoad(this)">
+          <button class="btn" style="background:var(--surf2);border-color:var(--bdr2)" onclick="importCSVClick()"><i class="ti ti-upload"></i>Import CSV</button>
+          <button class="btn ghost" onclick="openPDFModal()"><i class="ti ti-file-type-pdf"></i>PDF</button>
+          <button class="btn ghost" onclick="toggleColPanel()" id="col-btn"><i class="ti ti-columns"></i>Colonnes</button>
+        </span>
+        <!-- Boutons spécifiques OUT -->
+        <span id="il-out-btns" style="display:none">
+          <button class="btn" onclick="addOutRow()"><i class="ti ti-plus"></i>Sortie</button>
+          <button class="btn" style="background:var(--surf2);border-color:var(--bdr2)" onclick="openOLAssist()"><i class="ti ti-wand"></i>Assistant</button>
+          <button class="btn blu" onclick="exportOutCSV()"><i class="ti ti-download"></i>CSV</button>
+          <button class="btn" style="background:var(--surf2);border-color:var(--bdr2);color:var(--err)" onclick="clearAllOutRows()"><i class="ti ti-trash"></i>Tout effacer</button>
+        </span>
       </div>
 
       <div id="col-panel" style="display:none;background:var(--surf2);border:1px solid var(--bdr2);border-radius:9px;padding:13px;margin-bottom:13px">
@@ -1152,27 +1186,50 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
       <div class="il-patch-tabs" id="il-patch-tabs"></div>
       <div class="notice" id="il-notice"><i class="ti ti-info-circle"></i><span>Sauvegarde automatique · les membres voient les changements en temps réel.</span></div>
       <div class="notice warn" id="il-saving" style="display:none"><i class="ti ti-cloud-upload"></i><span>Sauvegarde…</span></div>
-      <div class="table-wrap">
-        <table class="iltable">
-          <thead><tr id="il-head">
-            <th>CH</th>
-            <th data-col="short">Court</th>
-            <th data-col="long">Nom long</th>
-            <th data-col="src">Source</th>
-            <th data-col="mic">Micro/DI</th>
-            <th data-col="gain">Gain</th>
-            <th data-col="phantom">+48V</th>
-            <th data-col="iem">IEM</th>
-            <th data-col="foh">FOH</th>
-            <th data-col="mon">MON</th>
-            <th data-col="bc">BC</th>
-            <th data-col="note">Pied</th>
-            <th style="width:64px"></th>
-          </tr></thead>
-          <tbody id="il-body"><tr><td colspan="13"><div class="loading"><div class="spinner"></div>Connexion…</div></td></tr></tbody>
-        </table>
+
+      <!-- Table IN -->
+      <div id="il-table-wrap">
+        <div class="table-wrap">
+          <table class="iltable">
+            <thead><tr id="il-head">
+              <th>CH</th>
+              <th data-col="short">Court</th>
+              <th data-col="long">Nom long</th>
+              <th data-col="src">Source</th>
+              <th data-col="mic">Micro/DI</th>
+              <th data-col="gain">Gain</th>
+              <th data-col="phantom">+48V</th>
+              <th data-col="iem">IEM</th>
+              <th data-col="foh">FOH</th>
+              <th data-col="mon">MON</th>
+              <th data-col="bc">BC</th>
+              <th data-col="note">Pied</th>
+              <th style="width:64px"></th>
+            </tr></thead>
+            <tbody id="il-body"><tr><td colspan="13"><div class="loading"><div class="spinner"></div>Connexion…</div></td></tr></tbody>
+          </table>
+        </div>
+        <button class="add-row" onclick="addRow()"><i class="ti ti-plus"></i>Nouveau canal</button>
       </div>
-      <button class="add-row" onclick="addRow()"><i class="ti ti-plus"></i>Nouveau canal</button>
+
+      <!-- Table OUT -->
+      <div id="out-table-wrap" style="display:none">
+        <div class="table-wrap">
+          <table class="iltable out-tbl">
+            <thead><tr>
+              <th style="width:38px">CH</th>
+              <th style="min-width:62px">Court</th>
+              <th>Nom long</th>
+              <th style="width:95px">Type</th>
+              <th>Destination</th>
+              <th>Note</th>
+              <th style="width:72px"></th>
+            </tr></thead>
+            <tbody id="out-body"><tr><td colspan="7"><div class="loading"><div class="spinner"></div>Chargement…</div></td></tr></tbody>
+          </table>
+        </div>
+        <button class="add-row" onclick="addOutRow()"><i class="ti ti-plus"></i>Nouvelle sortie</button>
+      </div>
     </div>
 
     <!-- SHOW FILES -->
@@ -1509,6 +1566,22 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
   </div>
 </div>
 
+<!-- OUTPUT LIST ASSISTANT MODAL -->
+<div class="modal-ov" id="ol-assist-modal">
+  <div class="modal-box" style="width:520px">
+    <div class="modal-head"><i class="ti ti-arrow-up-circle" style="font-size:16px;color:var(--ora)"></i><span class="modal-title">Assistant Output List</span><button class="btn ghost sm" onclick="closeOLAssist()"><i class="ti ti-x"></i></button></div>
+    <div class="modal-body">
+      <div class="ila-intro"><i class="ti ti-info-circle ila-intro-icon"></i><span>Configure le nombre de sorties par categorie. L'assistant cree les canaux dans l'ordre affiche et les ajoute a la suite de la liste existante.</span></div>
+      <div id="ola-sections"></div>
+      <div class="ola-total" id="ola-total" style="display:none">Sorties selectionnees <span class="ola-total-pill" id="ola-count">0</span></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost sm" onclick="closeOLAssist()"><i class="ti ti-x"></i>Annuler</button>
+      <button class="btn sm" id="ola-apply-btn" onclick="applyOLAssist()" style="display:none"><i class="ti ti-check"></i>Creer les sorties</button>
+    </div>
+  </div>
+</div>
+
 <!-- CSV IMPORT MODAL -->
 <div class="modal-ov" id="csv-import-modal">
   <div class="modal-box" style="width:680px">
@@ -1820,6 +1893,10 @@ let SHOWS=[], CUR_SHOW=null, SHOW_MEMBERS_MAP={};
 let CHS=[];
 let IL_PATCHES=[{id:'main',name:'Patch 1',pos:0}];
 let CUR_PATCH_ID='main';
+let CUR_IL_MODE='in';   // 'in' | 'out'
+let OUT_CHS=[];         // sorties du patch courant
+let OUT_DATA={};        // { [patch_id]: [...out_channels] }
+let _saveOutTimer=null;
 let _patchColReady=false;
 let RT=null, saveT=null;
 let USER_TPLS=[];
@@ -1992,6 +2069,7 @@ async function switchShow(id){
     loadMembers(),
     loadUserTpls(),
   ]);
+  loadOutData();
   loadStage();
   subRT();
   renderSessions();
@@ -2119,6 +2197,8 @@ async function switchPatch(id){
   CUR_PATCH_ID=id;
   renderPatchTabs();
   await loadChs();
+  loadOutData();
+  if(CUR_IL_MODE==='out') renderOutTable();
 }
 
 function addPatch(){
@@ -2160,6 +2240,230 @@ function renamePatch(id){
   p.name=name.trim();
   savePatchMeta();
   renderPatchTabs();
+}
+
+// ══════════════════════════════════════
+// IN / OUT MODE
+// ══════════════════════════════════════
+function setILMode(mode) {
+  CUR_IL_MODE = mode;
+  var isIn  = (mode === 'in');
+  document.getElementById('pmb-il-in')?.classList.toggle('on', isIn);
+  document.getElementById('pmb-il-out')?.classList.toggle('on', !isIn);
+  var inBtns  = document.getElementById('il-in-btns');
+  var outBtns = document.getElementById('il-out-btns');
+  var inWrap  = document.getElementById('il-table-wrap');
+  var outWrap = document.getElementById('out-table-wrap');
+  var colPnl  = document.getElementById('col-panel');
+  if(inBtns)  inBtns.style.display  = isIn ? 'contents' : 'none';
+  if(outBtns) outBtns.style.display = isIn ? 'none' : 'inline-flex';
+  if(outBtns && !isIn) { outBtns.style.gap='6px'; outBtns.style.alignItems='center'; }
+  if(inWrap)  inWrap.style.display  = isIn ? '' : 'none';
+  if(outWrap) outWrap.style.display = isIn ? 'none' : '';
+  if(colPnl && !isIn)  colPnl.style.display = 'none';
+  var titleEl = document.getElementById('il-pbar-title');
+  if(titleEl) titleEl.textContent = isIn ? 'Input List' : 'Output List';
+  if(!isIn) { loadOutData(); renderOutTable(); }
+}
+
+// ── OUT DATA (stocke dans shows.out_data, cache local)
+function loadOutData() {
+  if(!CUR_SHOW) return;
+  var raw = CUR_SHOW.out_data;
+  if(!raw) {
+    try { var s=localStorage.getItem('out_data_'+CUR_SHOW.id); if(s) raw=JSON.parse(s); } catch(e){}
+  }
+  OUT_DATA = raw || {};
+  OUT_CHS  = (OUT_DATA[CUR_PATCH_ID] || []).slice();
+}
+
+function saveOutData() {
+  if(!CUR_SHOW) return;
+  OUT_DATA[CUR_PATCH_ID] = OUT_CHS.slice();
+  try { localStorage.setItem('out_data_'+CUR_SHOW.id, JSON.stringify(OUT_DATA)); } catch(e){}
+  CUR_SHOW.out_data = JSON.parse(JSON.stringify(OUT_DATA));
+  clearTimeout(_saveOutTimer);
+  _saveOutTimer = setTimeout(function(){
+    sb.from('shows').update({out_data: OUT_DATA}).eq('id', CUR_SHOW.id);
+  }, 900);
+}
+
+// ══════════════════════════════════════
+// OUT TABLE — RENDER + CRUD
+// ══════════════════════════════════════
+function _oh(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function renderOutTable() {
+  var body = document.getElementById('out-body');
+  if(!body) return;
+  if(OUT_CHS.length === 0){
+    body.innerHTML = '<tr><td colspan="7"><div class="loading" style="color:var(--muted);padding:28px 20px"><i class="ti ti-inbox" style="font-size:22px;margin-right:8px"></i>Aucune sortie — cliquez "+ Sortie" ou utilisez l\'Assistant</div></td></tr>';
+    return;
+  }
+  var selOpts = Object.keys(OUT_TYPES).map(function(k){
+    return '<option value="'+k+'">'+OUT_TYPES[k].label+'</option>';
+  }).join('');
+  body.innerHTML = OUT_CHS.map(function(r,i){
+    var t = OUT_TYPES[r.type] || OUT_TYPES.other;
+    var opts = Object.keys(OUT_TYPES).map(function(k){
+      return '<option value="'+k+'"'+(r.type===k?' selected':'')+'>'+OUT_TYPES[k].label+'</option>';
+    }).join('');
+    return '<tr data-outid="'+r.id+'">'
+      +'<td class="ch-num">'+r.ch+'</td>'
+      +'<td><input class="ilinp sh" maxlength="8" value="'+_oh(r.short_name||'')+'" onchange="updateOutField(\''+r.id+'\',\'short_name\',this.value.toUpperCase().slice(0,8))"/></td>'
+      +'<td><input class="ilinp" style="min-width:100px" value="'+_oh(r.long_name||'')+'" onchange="updateOutField(\''+r.id+'\',\'long_name\',this.value)"/></td>'
+      +'<td><select class="out-type-sel" style="color:'+t.color+'" onchange="updateOutField(\''+r.id+'\',\'type\',this.value)">'+opts+'</select></td>'
+      +'<td><input class="ilinp" value="'+_oh(r.dest||'')+'" onchange="updateOutField(\''+r.id+'\',\'dest\',this.value)" placeholder="Ampli, zone, room..."/></td>'
+      +'<td><input class="ilinp" value="'+_oh(r.note||'')+'" onchange="updateOutField(\''+r.id+'\',\'note\',this.value)"/></td>'
+      +'<td style="white-space:nowrap">'
+      +'<button class="move-btn" onclick="moveOutRow(\''+r.id+'\',-1)"'+(i===0?' disabled':'')+' ><i class="ti ti-chevron-up"></i></button>'
+      +'<button class="move-btn" onclick="moveOutRow(\''+r.id+'\',1)"'+(i===OUT_CHS.length-1?' disabled':'')+' ><i class="ti ti-chevron-down"></i></button>'
+      +'<button class="del-btn" onclick="deleteOutRow(\''+r.id+'\')"><i class="ti ti-trash"></i></button>'
+      +'</td></tr>';
+  }).join('');
+}
+
+function addOutRow() {
+  var ch = OUT_CHS.length + 1;
+  OUT_CHS.push({id:'o'+Date.now()+Math.random().toString(36).slice(2,5), ch:ch, short_name:'OUT'+ch, long_name:'Sortie '+ch, type:'other', dest:'', note:''});
+  saveOutData(); renderOutTable();
+}
+
+function deleteOutRow(id) {
+  OUT_CHS = OUT_CHS.filter(function(r){return r.id!==id;});
+  OUT_CHS.forEach(function(r,i){r.ch=i+1;});
+  saveOutData(); renderOutTable();
+}
+
+function moveOutRow(id, dir) {
+  var idx = OUT_CHS.findIndex(function(r){return r.id===id;});
+  var to  = idx + dir;
+  if(to<0 || to>=OUT_CHS.length) return;
+  var tmp=OUT_CHS[idx]; OUT_CHS[idx]=OUT_CHS[to]; OUT_CHS[to]=tmp;
+  OUT_CHS.forEach(function(r,i){r.ch=i+1;});
+  saveOutData(); renderOutTable();
+}
+
+function updateOutField(id, field, value) {
+  var r = OUT_CHS.find(function(x){return x.id===id;});
+  if(!r) return;
+  r[field] = value;
+  saveOutData();
+  if(field==='type') renderOutTable(); // refresh color
+}
+
+function clearAllOutRows() {
+  if(OUT_CHS.length===0) return;
+  if(!confirm('Supprimer toutes les sorties de ce patch ?')) return;
+  OUT_CHS = [];
+  saveOutData(); renderOutTable();
+}
+
+function exportOutCSV() {
+  if(!OUT_CHS.length){toast('Aucune sortie a exporter.');return;}
+  var c='CH,Court,Nom Long,Type,Destination,Note\n';
+  OUT_CHS.forEach(function(r){
+    c+=r.ch+',"'+(r.short_name||'').trim()+'","'+(r.long_name||'')+'","'+(OUT_TYPES[r.type]?.label||r.type||'')+'","'+(r.dest||'')+'","'+(r.note||'')+'"\n';
+  });
+  var slug=(CUR_SHOW?.slug||'show');
+  var link=document.createElement('a');
+  link.href='data:text/csv;charset=utf-8,'+encodeURIComponent('﻿'+c);
+  link.download=slug+'_outputlist.csv'; link.click();
+}
+
+// ══════════════════════════════════════
+// OLA — OUTPUT LIST ASSISTANT
+// ══════════════════════════════════════
+function openOLAssist() {
+  OLA_CATS.forEach(function(cat){ _olaCount[cat.id] = cat.def || 0; });
+  _olaRender();
+  document.getElementById('ol-assist-modal').className = 'modal-ov show';
+}
+function closeOLAssist() {
+  document.getElementById('ol-assist-modal').className = 'modal-ov';
+}
+function olaAdj(catId, dir) {
+  var cat = OLA_CATS.find(function(c){return c.id===catId;});
+  if(!cat) return;
+  _olaCount[catId] = Math.max(0, Math.min(cat.max, (_olaCount[catId]||0) + dir));
+  _olaRender();
+}
+
+function _olaAllOutputs() {
+  var result = [];
+  OLA_CATS.forEach(function(cat){
+    var n = _olaCount[cat.id] || 0;
+    if(n <= 0) return;
+    if(cat.mode === 'named'){
+      for(var i=0; i<Math.min(n,cat.names.length); i++){
+        result.push({short_name:cat.shorts[i], long_name:cat.names[i], type:cat.type, dest:'', note:''});
+      }
+    } else {
+      for(var j=0; j<n; j++){
+        result.push({short_name:(cat.short+(j+1)).slice(0,8), long_name:cat.prefix+(j+1), type:cat.type, dest:'', note:''});
+      }
+    }
+  });
+  return result;
+}
+
+function _olaRender() {
+  var outputs = _olaAllOutputs();
+  var total   = outputs.length;
+  var html    = '';
+  OLA_CATS.forEach(function(cat){
+    var n = _olaCount[cat.id] || 0;
+    var active = n > 0;
+    var preview = '';
+    if(n > 0){
+      if(cat.mode === 'named'){
+        preview = cat.names.slice(0,n).join(', ');
+      } else {
+        var pts = [];
+        for(var k=1; k<=Math.min(n,3); k++) pts.push(cat.prefix+k);
+        if(n>3) pts.push('...');
+        preview = pts.join(', ');
+      }
+    }
+    html += '<div class="ola-cat-row'+(active?' ola-active':'')+'">'
+      +'<i class="ti '+cat.icon+' ola-cat-icon" style="color:'+(active?cat.color:'var(--muted)')+'"></i>'
+      +'<div class="ola-cat-info">'
+        +'<div class="ola-cat-lbl">'+cat.label+'</div>'
+        +(preview?'<div class="ola-cat-sub">'+preview+'</div>':'')
+      +'</div>'
+      +'<div class="ola-spinner">'
+        +'<button class="ola-spin-btn" onclick="olaAdj(\''+cat.id+'\',-1)"'+(n<=0?' disabled':'')+'>&#8722;</button>'
+        +'<span class="ola-spin-val">'+n+'</span>'
+        +'<button class="ola-spin-btn" onclick="olaAdj(\''+cat.id+'\',1)"'+(n>=cat.max?' disabled':'')+'>+</button>'
+      +'</div>'
+    +'</div>';
+  });
+  document.getElementById('ola-sections').innerHTML = html;
+  var totEl   = document.getElementById('ola-total');
+  var cntEl   = document.getElementById('ola-count');
+  var applyBtn= document.getElementById('ola-apply-btn');
+  if(totEl)    totEl.style.display = total>0?'':'none';
+  if(cntEl)    cntEl.textContent   = total;
+  if(applyBtn) applyBtn.style.display = total>0?'':'none';
+}
+
+async function applyOLAssist() {
+  var outputs = _olaAllOutputs();
+  if(!outputs.length){toast('Aucune sortie configuree.');return;}
+  var btn = document.getElementById('ola-apply-btn');
+  btn.disabled=true; btn.innerHTML='<i class="ti ti-loader-2"></i> Creation...';
+  try {
+    var startCh = OUT_CHS.length + 1;
+    outputs.forEach(function(o,i){
+      OUT_CHS.push({id:'o'+Date.now()+'_'+i, ch:startCh+i, short_name:o.short_name, long_name:o.long_name, type:o.type, dest:o.dest, note:o.note});
+    });
+    saveOutData();
+    renderOutTable();
+    closeOLAssist();
+    toast(outputs.length+' sortie'+(outputs.length>1?'s':'')+' creee'+(outputs.length>1?'s':'')+'!');
+  } finally {
+    btn.disabled=false; btn.innerHTML='<i class="ti ti-check"></i>Creer les sorties';
+  }
 }
 
 let _dndInit=false,_dragSrc=null,_dragOver=null;
@@ -2297,6 +2601,41 @@ const ILA_CATS = [
   },
 ];
 
+
+// ── OUTPUT TYPES
+const OUT_TYPES = {
+  main:   { label:'Main',    color:'#1a8fff', bg:'rgba(26,143,255,.15)'  },
+  sub:    { label:'Sub',     color:'#ff6b1a', bg:'rgba(255,107,26,.15)'  },
+  mon:    { label:'Monitor', color:'#f5c542', bg:'rgba(245,197,66,.14)'  },
+  iem:    { label:'IEM',     color:'#22d6a0', bg:'rgba(34,214,160,.13)'  },
+  fx:     { label:'FX',      color:'#9b6aff', bg:'rgba(155,106,255,.12)' },
+  group:  { label:'Groupe',  color:'#5ab0ff', bg:'rgba(90,176,255,.12)'  },
+  matrix: { label:'Matrix',  color:'#e8edf8', bg:'rgba(232,237,248,.09)' },
+  aux:    { label:'Aux',     color:'#44bbff', bg:'rgba(68,187,255,.13)'  },
+  other:  { label:'Autre',   color:'#5a6580', bg:'rgba(90,101,128,.11)'  },
+};
+
+// ── OLA CATEGORIES (spinners)
+const OLA_CATS = [
+  { id:'main',   label:'Sorties principales', icon:'ti-speakerphone',      color:'#1a8fff', type:'main',
+    mode:'named', names:['Main L','Main R','Main C','Main D'], shorts:['ML','MR','MC','MD'], def:2, max:4 },
+  { id:'sub',    label:'Infrabasses / Sub',   icon:'ti-antenna-bars-5',    color:'#ff6b1a', type:'sub',
+    mode:'named', names:['Sub L','Sub R','Sub C'],             shorts:['SBL','SBR','SBC'],   def:2, max:3 },
+  { id:'mon',    label:'Retours scene',       icon:'ti-triangle',          color:'#f5c542', type:'mon',
+    mode:'count', prefix:'Mon ', short:'M',  def:0, max:16 },
+  { id:'iem',    label:'IEM',                 icon:'ti-headphones',        color:'#22d6a0', type:'iem',
+    mode:'count', prefix:'IEM ', short:'IE', def:0, max:8  },
+  { id:'fx',     label:'Effets / FX',         icon:'ti-sparkles',          color:'#9b6aff', type:'fx',
+    mode:'count', prefix:'FX ',  short:'FX', def:0, max:8  },
+  { id:'group',  label:'Groupes',             icon:'ti-layers-intersect',  color:'#5ab0ff', type:'group',
+    mode:'count', prefix:'Gr ',  short:'GR', def:0, max:16 },
+  { id:'matrix', label:'Matrix / Mixbus',     icon:'ti-grid-dots',         color:'#e8edf8', type:'matrix',
+    mode:'count', prefix:'Mtr ', short:'MT', def:0, max:8  },
+  { id:'aux',    label:'Aux / Departs',       icon:'ti-git-branch',        color:'#44bbff', type:'aux',
+    mode:'count', prefix:'Aux ', short:'AX', def:0, max:16 },
+];
+
+let _olaCount = {};   // catId -> integer
 
 let _ilaCount       = {};   // itemId -> integer (0 = not selected)
 let _ilaCatOpen     = {};
