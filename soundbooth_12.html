@@ -5294,36 +5294,40 @@ const SynEditor = (() => {
 
     if (e.liaison) {
       const lt = _allLiaisons().find(function(l){return l.id===e.liaison;})||_allLiaisons()[0];
-      // Choose exit/entry sides based on relative center positions
-      const fromCx = fromN.x + fromN.w / 2;
-      const toCx   = toN.x  + toN.w  / 2;
-      let p0x, p1x;
+      const _ns = state.nodeScale || 1;
+      const fnw = Math.round(fromN.w * _ns), fnh = Math.round(fromN.h * _ns);
+      const tnw = Math.round(toN.w  * _ns), tnh = Math.round(toN.h  * _ns);
+
+      const fromCx = fromN.x + fnw / 2, fromCy = fromN.y + fnh / 2;
+      const toCx   = toN.x  + tnw / 2, toCy   = toN.y  + tnh / 2;
+
+      const idx   = typeof e._edgeIdx   === 'number' ? e._edgeIdx   : 0;
+      const total = typeof e._edgeTotal === 'number' ? e._edgeTotal : 1;
+
+      // Perpendicular offset — spread parallel edges evenly
+      const SPACING = 18;
+      const offset = (idx - (total - 1) / 2) * SPACING;
+
+      // Always exit/enter horizontally (left or right side of nodes)
+      let p0x, p1x, dir;
       if (toCx >= fromCx) {
-        // dest to the right: exit right of source, enter left of dest
-        p0x = fromN.x + fromN.w;
-        p1x = toN.x;
+        p0x = fromN.x + fnw; p1x = toN.x; dir = 1;
       } else {
-        // dest to the left: exit left of source, enter right of dest
-        p0x = fromN.x;
-        p1x = toN.x + toN.w;
+        p0x = fromN.x; p1x = toN.x + tnw; dir = -1;
       }
-      const p0y = fromN.y + fromN.h / 2;
-      const p1y = toN.y   + toN.h  / 2;
-      // Control points dive BELOW both nodes; offset by edgeIndex to separate stacked liaisons
-      const idx  = (typeof e._edgeIdx === 'number') ? e._edgeIdx : 0;
-      const botY = Math.max(fromN.y + fromN.h, toN.y + toN.h) + 44 + idx * 30;
-      const dir  = toCx >= fromCx ? 1 : -1;
+      // Vertical attachment point — clamped inside node height
+      const p0y = Math.max(fromN.y + 4, Math.min(fromN.y + fnh - 4, fromCy + offset));
+      const p1y = Math.max(toN.y   + 4, Math.min(toN.y   + tnh - 4, toCy   + offset));
+
+      // Straight line — no downward arc
+      const d = 'M' + p0x + ',' + p0y + ' L' + p1x + ',' + p1y;
+      const midX = Math.round((p0x + p1x) / 2);
+      const midY = Math.round((p0y + p1y) / 2);
+
       return {
-        d: 'M' + p0x + ',' + p0y
-          + ' C' + p0x + ',' + botY
-          + ' ' + p1x + ',' + botY
-          + ' ' + p1x + ',' + p1y,
-        color: lt.color,
-        dash: lt.dash,
-        label: lt.label,
-        midX: Math.round((p0x + p1x) / 2),
-        midY: Math.round(botY + 10),
-        tipX: p1x, tipY: p1y, dir,
+        d, color: lt.color, dash: lt.dash, label: lt.label,
+        midX, midY,
+        tipX: p1x, tipY: p1y, p0x, p0y, dir,
         isLiaison: true,
       };
     }
@@ -5345,13 +5349,19 @@ const SynEditor = (() => {
 
   function renderEdges(svg) {
     const ARR_H = 13, ARR_W = 7;
-    // Pre-assign per-pair indices so stacked liaisons get different botY offsets
-    const pairCursor = {};
+    // Pre-assign per-pair indices + total so parallel liaisons get perpendicular offsets
+    const pairTotal = {}, pairCursor = {};
     S().edges.forEach(function(e) {
-      if (!e.liaison) { e._edgeIdx = 0; return; }
+      if (!e.liaison) { e._edgeIdx = 0; e._edgeTotal = 1; return; }
+      const key = [e.from, e.to].sort().join('|');
+      pairTotal[key] = (pairTotal[key] || 0) + 1;
+    });
+    S().edges.forEach(function(e) {
+      if (!e.liaison) return;
       const key = [e.from, e.to].sort().join('|');
       if (pairCursor[key] === undefined) pairCursor[key] = 0;
-      e._edgeIdx = pairCursor[key]++;
+      e._edgeIdx   = pairCursor[key]++;
+      e._edgeTotal = pairTotal[key];
     });
     let h = '';
     S().edges.forEach(e => {
@@ -5373,17 +5383,33 @@ const SynEditor = (() => {
       // Wide invisible hitbox path first (easier to click)
       h += '<path class="syn-edge-hit" data-eid="' + e.id + '" d="' + path.d + '" fill="none" stroke="' + strokeColor + '" stroke-width="16"/>';
       h += '<path class="syn-edge' + (sel ? ' sel' : '') + '" data-eid="' + e.id + '" d="' + path.d + '" fill="none" stroke="' + strokeColor + '" stroke-width="' + sw + '" ' + dash + ' opacity="' + opacity + '"/>';
-      // Horizontal arrowhead pointing toward destination (same for liaison and amp→spk)
+      // Arrowhead — follows actual line angle
       const tx = path.tipX, ty = path.tipY;
-      const dx = path.dir;
-      const bx = tx - dx * ARR_H;
-      h += '<polygon points="' + tx + ',' + ty + ' ' + bx + ',' + (ty - ARR_W) + ' ' + bx + ',' + (ty + ARR_W) + '" fill="' + strokeColor + '" opacity="' + opacity + '"/>';
+      let ax1, ay1, ax2, ay2;
+      if (path.isLiaison && path.p0x !== undefined) {
+        // Direction vector from source to tip
+        const adx = tx - path.p0x, ady = ty - path.p0y;
+        const alen = Math.sqrt(adx*adx + ady*ady) || 1;
+        const ux = adx/alen, uy = ady/alen;
+        const bx2 = tx - ux*ARR_H, by2 = ty - uy*ARR_H;
+        ax1 = bx2 - uy*ARR_W; ay1 = by2 + ux*ARR_W;
+        ax2 = bx2 + uy*ARR_W; ay2 = by2 - ux*ARR_W;
+      } else {
+        // Legacy horizontal-only arrowhead for amp→spk edges
+        const ddx = path.dir;
+        const bx2 = tx - ddx * ARR_H;
+        ax1 = bx2; ay1 = ty - ARR_W;
+        ax2 = bx2; ay2 = ty + ARR_W;
+      }
+      h += '<polygon points="' + tx + ',' + ty + ' ' + ax1 + ',' + ay1 + ' ' + ax2 + ',' + ay2 + '" fill="' + strokeColor + '" opacity="' + opacity + '"/>';
       // Liaison label + optional note near midpoint
       if (isLiaison && path.label) {
         const hasNote = e.note && e.note.trim();
-        h += '<text x="' + path.midX + '" y="' + (path.midY - (hasNote ? 14 : 7)) + '" text-anchor="middle" font-size="8" font-family="DM Mono,monospace" fill="' + strokeColor + '" opacity=".85" paint-order="stroke" stroke="#060910" stroke-width="2">' + esc(path.label) + '</text>';
+        // Place label above the line (nudge -10px from midpoint)
+        const lblY = path.midY - 10;
+        h += '<text x="' + path.midX + '" y="' + (lblY - (hasNote ? 9 : 0)) + '" text-anchor="middle" font-size="8" font-family="DM Mono,monospace" fill="' + strokeColor + '" opacity=".9" paint-order="stroke" stroke="#060910" stroke-width="3">' + esc(path.label) + '</text>';
         if (hasNote) {
-          h += '<text x="' + path.midX + '" y="' + (path.midY - 4) + '" text-anchor="middle" font-size="7.5" font-family="DM Mono,monospace" fill="' + strokeColor + '" opacity=".65" paint-order="stroke" stroke="#060910" stroke-width="2">' + esc(e.note.trim()) + '</text>';
+          h += '<text x="' + path.midX + '" y="' + (lblY + 2) + '" text-anchor="middle" font-size="7.5" font-family="DM Mono,monospace" fill="' + strokeColor + '" opacity=".65" paint-order="stroke" stroke="#060910" stroke-width="2">' + esc(e.note.trim()) + '</text>';
         }
       }
     });
