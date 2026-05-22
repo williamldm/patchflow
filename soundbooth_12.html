@@ -462,6 +462,12 @@ body{display:flex;flex-direction:column;min-height:100vh}
 /* liste fichiers — card design */
 .fich-filter-bar{display:flex;align-items:center;gap:7px;padding:10px 14px;border-bottom:1px solid var(--bdr);overflow-x:auto;scrollbar-width:none;flex-shrink:0}
 .fich-filter-bar::-webkit-scrollbar{display:none}
+.fich-action-btn{display:flex;align-items:center;gap:5px;font-size:10px;font-family:var(--f);font-weight:600;padding:6px 13px;border-radius:7px;cursor:pointer;white-space:nowrap;transition:all .15s;border:none}
+.fich-action-btn.upload{background:var(--ora);color:#000}
+.fich-action-btn.upload:hover{background:var(--ora2)}
+.fich-action-btn.folder{background:var(--surf2);border:1px solid var(--bdr2);color:var(--txt2)}
+.fich-action-btn.folder:hover{background:var(--surf3);border-color:var(--bdr3);color:var(--txt)}
+.fich-filter-sep{width:1px;height:20px;background:var(--bdr2);flex-shrink:0;margin:0 2px}
 .fich-filter-chip{background:var(--surf2);border:1px solid var(--bdr2);color:var(--txt2);font-size:10px;font-family:var(--f);padding:5px 12px;border-radius:20px;cursor:pointer;white-space:nowrap;transition:all .13s}
 .fich-filter-chip:hover{background:var(--surf3);border-color:var(--bdr3);color:var(--txt)}
 .fich-filter-chip.active{background:var(--ora-d);border-color:var(--ora-g);color:var(--ora);font-weight:600}
@@ -1145,15 +1151,14 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
     <div class="panel" id="panel-fichiers" style="min-height:calc(100vh - 140px)">
       <div class="pbar">
         <span class="ptitle"><i class="ti ti-cloud" style="color:var(--ora)"></i>Fichiers<span class="ptitle-sep">/</span><span id="sn-fichiers" style="color:var(--txt2)">…</span></span>
-        <div style="display:flex;gap:8px;align-items:center">
-          <span id="fich-upload-status" style="font-size:10px;color:var(--muted);display:none"><i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Upload…</span>
-          <input type="file" id="fichiers-file-input" style="display:none" multiple accept=".pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.mp4,.mov,.avi,.webm,.mp3,.wav,.m4a,.aac,.flac">
-          <button class="btn ghost sm" onclick="createFichierFolder()"><i class="ti ti-folder-plus"></i> Dossier</button>
-          <button class="btn ghost sm" onclick="fichImportClick()"><i class="ti ti-upload"></i> Importer</button>
-        </div>
+        <span id="fich-upload-status" style="font-size:10px;color:var(--muted);display:none"><i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Upload…</span>
       </div>
+      <input type="file" id="fichiers-file-input" style="display:none" multiple accept=".pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.mp4,.mov,.avi,.webm,.mp3,.wav,.m4a,.aac,.flac">
       <div id="fich-breadcrumb" class="fich-breadcrumb" style="display:none"></div>
       <div id="fich-filter-bar" class="fich-filter-bar">
+        <button class="fich-action-btn upload" onclick="fichImportClick()"><i class="ti ti-upload"></i> Envoyer</button>
+        <button class="fich-action-btn folder" onclick="createFichierFolder()"><i class="ti ti-folder-plus"></i> Dossier</button>
+        <div class="fich-filter-sep"></div>
         <button class="fich-filter-chip active" onclick="setFichFilter('all',this)">Tous</button>
         <button class="fich-filter-chip" onclick="setFichFilter('PDF',this)"><i class="ti ti-file-type-pdf" style="font-size:10px;margin-right:3px"></i>PDF</button>
         <button class="fich-filter-chip" onclick="setFichFilter('Word',this)"><i class="ti ti-file-type-doc" style="font-size:10px;margin-right:3px"></i>Word</button>
@@ -6150,7 +6155,7 @@ const SitePlan = (() => {
     { id:'multi',   label:'Multi-paire',      color:'#5ab0ff', dash:'5 2' },
   ];
 
-  let state = { elements:[], cables:[], bgImage:null, bgOpacity:40, view:{panX:60,panY:60,zoom:1}, selected:null, linkFrom:null, activeCableType:'xlr', textScale:1, legendScale:1, cableMode:false };
+  let state = { elements:[], cables:[], bgImage:null, bgOpacity:40, view:{panX:60,panY:60,zoom:1}, selected:null, linkFrom:null, freePt1:null, activeCableType:'xlr', textScale:1, legendScale:1, cableMode:false };
   let dragging=null, panning=null, inited=false;
 
   const $  = id => document.getElementById(id);
@@ -6323,7 +6328,7 @@ const SitePlan = (() => {
   function _buildPairMap() {
     const m={};
     state.cables.forEach(c=>{
-      const k=[c.fromId,c.toId].sort().join('|');
+      const k=c.fromPt ? c.id : [c.fromId,c.toId].sort().join('|');
       if(!m[k])m[k]=[];
       m[k].push(c.id);
     });
@@ -6333,24 +6338,32 @@ const SitePlan = (() => {
   // Returns bezier endpoints {afx,afy,atx,aty,myo,mxo,nx,ny,pathFwd,pathBack}
   // zoom: used to keep perpendicular gap constant in screen pixels
   function _cableGeom(cable, pairMap, zoom) {
-    const f=state.elements.find(e=>e.id===cable.fromId);
-    const t2=state.elements.find(e=>e.id===cable.toId);
-    if(!f||!t2) return null;
-    const fhalf = f.type==='text_lbl' ? 20 : (f.elSize||72)/2;
-    const thalf = t2.type==='text_lbl' ? 20 : (t2.elSize||72)/2;
-    const fcx=f.x+fhalf, fcy=f.y+fhalf;
-    const tcx=t2.x+thalf, tcy=t2.y+thalf;
+    let fcx, fcy, tcx, tcy, fR, tR;
+    if(cable.fromPt) {
+      // Free cable: absolute coordinates
+      fcx=cable.fromPt.x; fcy=cable.fromPt.y;
+      tcx=cable.toPt.x;   tcy=cable.toPt.y;
+      fR=0; tR=0;
+    } else {
+      const f=state.elements.find(e=>e.id===cable.fromId);
+      const t2=state.elements.find(e=>e.id===cable.toId);
+      if(!f||!t2) return null;
+      const fhalf = f.type==='text_lbl' ? 20 : (f.elSize||72)/2;
+      const thalf = t2.type==='text_lbl' ? 20 : (t2.elSize||72)/2;
+      fcx=f.x+fhalf; fcy=f.y+fhalf;
+      tcx=t2.x+thalf; tcy=t2.y+thalf;
+      fR=fhalf+4; tR=thalf+4;
+    }
     const ddx=tcx-fcx, ddy=tcy-fcy;
     const dist=Math.sqrt(ddx*ddx+ddy*ddy)||1;
     const nx=ddx/dist, ny=ddy/dist;
-    const fR=fhalf+4, tR=thalf+4; // stop at element edge + small margin
     const sx=fcx+nx*fR, sy=fcy+ny*fR;
     const ex=tcx-nx*tR, ey=tcy-ny*tR;
-    const key=[cable.fromId,cable.toId].sort().join('|');
+    const key=cable.fromPt ? cable.id : [cable.fromId,cable.toId].sort().join('|');
     const siblings=pairMap[key]||[cable.id];
     const idx=siblings.indexOf(cable.id);
     const n=siblings.length;
-    const STEP=24/zoom; // constant 24px in screen space
+    const STEP=24/zoom;
     const off=(idx-(n-1)/2)*STEP;
     const px=-ny*off, py=nx*off;
     const afx=sx+px, afy=sy+py, atx=ex+px, aty=ey+py;
@@ -6390,7 +6403,9 @@ const SitePlan = (() => {
       if(dir==='backward'||dir==='both') paths += `<polygon points="${arrPoly(afx,afy,-nx,-ny)}" fill="${c.color}" opacity="${op}"/>`;
       if(cable.label||cable.length) {
         const txt=[cable.label,cable.length].filter(Boolean).join(' · ');
-        paths += `<text x="${mxo}" y="${myo-6}" fill="${c.color}" font-size="11" font-family="var(--m)" text-anchor="middle" opacity="0.9">${esc(txt)}</text>`;
+        const tw=txt.length*6.5;
+        paths += `<rect x="${mxo-tw/2-4}" y="${myo-19}" width="${tw+8}" height="16" rx="3" fill="rgba(8,8,20,0.82)"/>`;
+        paths += `<text x="${mxo}" y="${myo-6}" fill="${c.color}" font-size="11" font-family="var(--m)" text-anchor="middle" opacity="0.95" font-weight="600">${esc(txt)}</text>`;
       }
     });
     svg.innerHTML = paths;
@@ -6471,8 +6486,10 @@ const SitePlan = (() => {
     if(state.selected.kind==='cable') {
       const cable = state.cables.find(c=>c.id===state.selected.id);
       if(!cable){ insp.innerHTML=''; return; }
-      const f = state.elements.find(e=>e.id===cable.fromId);
-      const t2= state.elements.find(e=>e.id===cable.toId);
+      const f = cable.fromPt ? null : state.elements.find(e=>e.id===cable.fromId);
+      const t2= cable.fromPt ? null : state.elements.find(e=>e.id===cable.toId);
+      const fromLbl = cable.fromPt ? 'Point libre' : (f?esc(f.label):'?');
+      const toLbl   = cable.fromPt ? 'Point libre' : (t2?esc(t2.label):'?');
       const c = ct(cable.type);
       const w = cable.width ?? 4;
       const dir = cable.direction ?? 'forward';
@@ -6485,7 +6502,7 @@ const SitePlan = (() => {
       insp.innerHTML =
         `<div class="syn-insp-title" style="color:${c.color}">Liaison</div>`+
         `<div style="display:flex;gap:5px;align-items:center;margin-bottom:10px;font-size:11px;color:var(--txt2);flex-wrap:wrap">`+
-        `<span style="color:var(--muted);font-size:10px">${f?esc(f.label):'?'}</span><span style="color:${c.color};font-size:13px">──</span><span style="color:var(--muted);font-size:10px">${t2?esc(t2.label):'?'}</span></div>`+
+        `<span style="color:var(--muted);font-size:10px">${fromLbl}</span><span style="color:${c.color};font-size:13px">──</span><span style="color:var(--muted);font-size:10px">${toLbl}</span></div>`+
         `<label class="syn-insp-lbl">Type</label>`+
         `<select class="syn-insp-inp" id="si-ct">${CABLE_TYPES.map(ct2=>`<option value="${ct2.id}"${cable.type===ct2.id?' selected':''}>${ct2.label}</option>`).join('')}</select>`+
         `<label class="syn-insp-lbl">Sens</label>`+
@@ -6501,7 +6518,7 @@ const SitePlan = (() => {
         `<button class="btn sm" style="width:100%;margin-top:12px;background:rgba(255,77,106,.12);border-color:var(--err);color:var(--err)" id="si-cdel"><i class="ti ti-trash"></i> Supprimer</button>`;
       $('si-ct')?.addEventListener('change',e=>{cable.type=e.target.value;saveSite();render();});
       $('si-cl')?.addEventListener('change',e=>{cable.label=e.target.value;saveSite();renderCables();});
-      $('si-clen')?.addEventListener('change',e=>{cable.length=e.target.value;saveSite();});
+      $('si-clen')?.addEventListener('change',e=>{cable.length=e.target.value;saveSite();renderCables();});
       $('si-wminus')?.addEventListener('click',()=>{ cable.width=Math.max(1,((cable.width??4)-1)); saveSite(); render(); });
       $('si-wplus')?.addEventListener('click',()=>{ cable.width=Math.min(16,((cable.width??4)+1)); saveSite(); render(); });
       $('si-dirbar')?.querySelectorAll('.spl-dir-btn').forEach(btn=>{
@@ -6548,6 +6565,12 @@ const SitePlan = (() => {
       const id=nodeEl.dataset.id;
       // Cable mode: direct click on element connects
       if(state.cableMode){
+        if(state.freePt1){
+          // free point is set — snap the second end to this element center
+          const el2=state.elements.find(e=>e.id===id);
+          if(el2){const half=el2.type==='text_lbl'?20:(el2.elSize||72)/2; createFreeCable(state.freePt1,{x:el2.x+half,y:el2.y+half}); state.freePt1=null; _clearPreview(); updateLinkBanner();}
+          ev.stopPropagation(); ev.preventDefault(); return;
+        }
         if(!state.linkFrom){ state.linkFrom=id; updateLinkBanner(); renderNodes(); }
         else if(state.linkFrom===id){ state.linkFrom=null; updateLinkBanner(); renderNodes(); }
         else{ createCable(state.linkFrom,id); state.linkFrom=null; updateLinkBanner(); renderNodes(); }
@@ -6579,15 +6602,35 @@ const SitePlan = (() => {
 
     host.addEventListener('pointerup',()=>{ if(dragging?.moved)saveSite(); dragging=null; });
 
-    // Click on empty = deselect / cancel link
+    // Click on empty = deselect / cancel link / place free cable point
     vp.addEventListener('pointerdown',e=>{
       if(e.target!==vp&&e.target.id!=='site-bg-img'&&e.target.id!=='site-nodes'&&!e.target.id.startsWith('site-')) return;
+      if(state.cableMode){
+        const w=clientToWorld(e.clientX,e.clientY);
+        if(state.freePt1){
+          createFreeCable(state.freePt1, w);
+          state.freePt1=null; _clearPreview(); updateLinkBanner();
+        } else if(!state.linkFrom){
+          state.freePt1=w; updateLinkBanner();
+        } else {
+          // linkFrom was set from element — use canvas point as destination free end
+          // treat as cancelling for now; user should click element
+          state.linkFrom=null; updateLinkBanner(); renderNodes();
+        }
+        e.stopPropagation(); e.preventDefault(); return;
+      }
       if(state.linkFrom){ state.linkFrom=null; updateLinkBanner(); renderNodes(); return; }
       if(state.selected){ state.selected=null; renderNodes(); renderInspector(); }
       panning={sx:e.clientX-state.view.panX,sy:e.clientY-state.view.panY};
       vp.setPointerCapture?.(e.pointerId);
     });
-    vp.addEventListener('pointermove',e=>{ if(!panning) return; state.view.panX=e.clientX-panning.sx; state.view.panY=e.clientY-panning.sy; applyTransform(); });
+    vp.addEventListener('pointermove',e=>{
+      if(state.cableMode && state.freePt1){
+        const w=clientToWorld(e.clientX,e.clientY);
+        _renderPreview(state.freePt1,w);
+      }
+      if(!panning) return; state.view.panX=e.clientX-panning.sx; state.view.panY=e.clientY-panning.sy; applyTransform();
+    });
     vp.addEventListener('pointerup',()=>{ panning=null; });
     vp.addEventListener('wheel',e=>{
       e.preventDefault();
@@ -6607,11 +6650,11 @@ const SitePlan = (() => {
       applyTransform();
     },{passive:false});
 
-    // Escape cancels link
+    // Escape cancels link / free cable drawing
     document.addEventListener('keydown',e=>{
-      if(e.key==='Escape'&&(state.linkFrom||state.cableMode)){
-        state.linkFrom=null; state.cableMode=false;
-        updateLinkBanner(); renderCablePicker(); renderNodes();
+      if(e.key==='Escape'&&(state.linkFrom||state.cableMode||state.freePt1)){
+        state.linkFrom=null; state.freePt1=null; state.cableMode=false;
+        _clearPreview(); updateLinkBanner(); renderCablePicker(); renderNodes();
       }
     });
   }
@@ -6620,8 +6663,11 @@ const SitePlan = (() => {
     const b=$('site-link-banner'), wrap=$('site-canvas-wrap');
     if(!b) return;
     const c=CABLE_TYPES.find(t=>t.id===state.activeCableType)||CABLE_TYPES[0];
-    if(state.cableMode && !state.linkFrom){
-      b.innerHTML=`<i class="ti ti-plug-connected"></i> <span style="color:${c.color};font-weight:600">${c.label}</span> &nbsp;— cliquez la <b>source</b> &nbsp;<span style="opacity:.5">Echap = quitter</span>`;
+    if(state.cableMode && state.freePt1){
+      b.innerHTML=`<i class="ti ti-plug-connected"></i> <span style="color:${c.color};font-weight:600">${c.label}</span> &nbsp;— cliquez le <b>point d'arrivee</b> ou un element &nbsp;<span style="opacity:.5">Echap = annuler</span>`;
+      b.classList.add('show');
+    } else if(state.cableMode && !state.linkFrom){
+      b.innerHTML=`<i class="ti ti-plug-connected"></i> <span style="color:${c.color};font-weight:600">${c.label}</span> &nbsp;— cliquez un element ou un <b>point sur le plan</b> &nbsp;<span style="opacity:.5">Echap = quitter</span>`;
       b.classList.add('show');
     } else if(state.linkFrom){
       b.innerHTML=`<i class="ti ti-plug-connected"></i> <span style="color:${c.color};font-weight:600">${c.label}</span> &nbsp;— cliquez la <b>destination</b> &nbsp;<span style="opacity:.5">Echap = annuler</span>`;
@@ -6629,7 +6675,7 @@ const SitePlan = (() => {
     } else {
       b.classList.remove('show');
     }
-    if(wrap) wrap.classList.toggle('link-mode', state.cableMode || !!state.linkFrom);
+    if(wrap) wrap.classList.toggle('link-mode', state.cableMode || !!state.linkFrom || !!state.freePt1);
   }
 
   function addElement(type,x,y) {
@@ -6646,6 +6692,28 @@ const SitePlan = (() => {
     state.cables.push(cable);
     state.selected={kind:'cable',id:cable.id};
     saveSite(); render();
+  }
+
+  function createFreeCable(fromPt, toPt) {
+    const cable={id:uid(),fromPt:{x:Math.round(fromPt.x),y:Math.round(fromPt.y)},toPt:{x:Math.round(toPt.x),y:Math.round(toPt.y)},type:state.activeCableType,label:'',length:'',width:3,direction:'none'};
+    state.cables.push(cable);
+    state.selected={kind:'cable',id:cable.id};
+    saveSite(); render();
+  }
+
+  function _renderPreview(from, to) {
+    const svg=$('site-cables');
+    if(!svg) return;
+    let g=document.getElementById('site-preview-cable');
+    if(!g){g=document.createElementNS('http://www.w3.org/2000/svg','g');g.id='site-preview-cable';svg.appendChild(g);}
+    const c=ct(state.activeCableType);
+    const dash=c.dash?'stroke-dasharray="'+c.dash+'"':'';
+    g.innerHTML='<line x1="'+from.x+'" y1="'+from.y+'" x2="'+to.x+'" y2="'+to.y+'" stroke="'+c.color+'" stroke-width="3" '+dash+' opacity="0.5"/>'+'<circle cx="'+from.x+'" cy="'+from.y+'" r="5" fill="'+c.color+'" opacity="0.7"/>';
+  }
+
+  function _clearPreview() {
+    const g=document.getElementById('site-preview-cable');
+    if(g) g.innerHTML='';
   }
 
   function loadBg(input) {
@@ -6694,7 +6762,7 @@ const SitePlan = (() => {
     if(data?.activeCableType) state.activeCableType=data.activeCableType;
     if(data?.textScale) state.textScale=data.textScale;
     if(data?.legendScale) state.legendScale=data.legendScale;
-    state.selected=null;state.linkFrom=null;
+    state.selected=null;state.linkFrom=null;state.freePt1=null;
     const sl=$('site-bg-opacity');if(sl)sl.value=state.bgOpacity;
     const tl=$('spl-ts-val');if(tl)tl.textContent=Math.round(state.textScale*100)+'%';
     const ll=$('spl-leg-val');if(ll)ll.textContent=Math.round((state.legendScale||1)*100)+'%';
@@ -6704,7 +6772,7 @@ const SitePlan = (() => {
 
   function getData() { return {elements:state.elements,cables:state.cables,bgImage:state.bgImage,bgOpacity:state.bgOpacity,view:state.view,activeCableType:state.activeCableType,textScale:state.textScale,legendScale:state.legendScale}; }
 
-  function clear() { state.elements=[];state.cables=[];state.selected=null;state.linkFrom=null; saveSite(); render(); }
+  function clear() { state.elements=[];state.cables=[];state.selected=null;state.linkFrom=null;state.freePt1=null;_clearPreview(); saveSite(); render(); }
 
   function zoom(f) { state.view.zoom=Math.min(4,Math.max(0.15,state.view.zoom*f)); applyTransform(); }
 
@@ -7364,15 +7432,25 @@ function _renderFichiersGrid() {
   html += '</div>';
   list.innerHTML = html;
 
-  // barre de stockage
-  const totalBytes = allFiles.reduce(function(s, f) { return s + (f.metadata?.size || 0); }, 0);
-  const totalMo = (totalBytes / 1048576).toFixed(1);
-  const fillPct = Math.min(100, totalBytes / (10 * 1073741824) * 100).toFixed(1);
+  // barre de stockage (plan-aware)
+  const plan = userPlan ? userPlan() : 'free';
+  const QUOTA_GO = { free: 0, pro: 50, studio: 200 };
+  const quotaGo  = QUOTA_GO[plan] || 0;
   const lblEl  = document.getElementById('fich-storage-lbl');
   const fillEl = document.getElementById('fich-storage-fill');
-  if (lblEl)  lblEl.textContent  = totalMo + ' Mo utilises / 10 Go';
-  if (fillEl) fillEl.style.width = fillPct + '%';
-  if (stor)   stor.style.display = allFiles.length ? '' : 'none';
+  if (stor) {
+    if (!canDo || !canDo('storage') || quotaGo === 0) {
+      stor.style.display = 'none';
+    } else {
+      const totalBytes = allFiles.reduce(function(s, f) { return s + (f.metadata?.size || 0); }, 0);
+      const totalMo = (totalBytes / 1048576).toFixed(1);
+      const quotaBytes = quotaGo * 1073741824;
+      const fillPct = Math.min(100, totalBytes / quotaBytes * 100).toFixed(1);
+      if (lblEl)  lblEl.textContent  = totalMo + ' Mo utilises / ' + quotaGo + ' Go';
+      if (fillEl) fillEl.style.width = fillPct + '%';
+      stor.style.display = '';
+    }
+  }
 }
 
 async function _fichDownload(relPath) {
