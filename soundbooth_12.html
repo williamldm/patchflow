@@ -4615,7 +4615,9 @@ let saveStageTimer=null;
 async function saveStage(){
   if(!CUR_SHOW)return;
   const chsSnap=(typeof CHS!=='undefined'?CHS:[]).map(function(r){return{id:r.id,ch:r.ch,short_name:r.short_name||'',long_name:r.long_name||'',source:r.source||'',mic:r.mic||'',phantom:!!r.phantom,foh:!!r.foh,mon:!!r.mon,note:r.note||''};});
+  const existing=CUR_SHOW.stage_data||{};
   const data={v:2,planMode:PLAN_MODE,band:BandPlan.getData(),site:SitePlan.getData(),chs:chsSnap};
+  if(existing.rider)data.rider=existing.rider; // preserve rider config
   CUR_SHOW.stage_data=data;
   clearTimeout(saveStageTimer);
   saveStageTimer=setTimeout(async()=>{
