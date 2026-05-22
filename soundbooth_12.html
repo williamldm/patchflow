@@ -1583,15 +1583,15 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
             <div class="slink-sep"><i class="ti ti-pencil" style="font-size:10px"></i>Informations du rider</div>
             <div class="rider-meta-field">
               <label>Titre</label>
-              <input class="rider-meta-inp" id="rider-title" placeholder="ex: Rider FOH — Festival d'ete 2026" oninput="_updateRiderUrl()">
+              <input class="rider-meta-inp" id="rider-title" placeholder="ex: Rider FOH — Festival d'ete 2026" oninput="_saveRiderConfig()">
             </div>
             <div class="rider-meta-field">
               <label>Note</label>
-              <textarea class="rider-meta-ta" id="rider-note" rows="2" placeholder="Instructions, contacts, remarques…" oninput="_updateRiderUrl()"></textarea>
+              <textarea class="rider-meta-ta" id="rider-note" rows="2" placeholder="Instructions, contacts, remarques…" oninput="_saveRiderConfig()"></textarea>
             </div>
             <div class="rider-meta-field">
               <label>Infos complementaires</label>
-              <input class="rider-meta-inp" id="rider-info" placeholder="ex: Son FOH: Yamaha CL5 — Mon: Avid SC48" oninput="_updateRiderUrl()">
+              <input class="rider-meta-inp" id="rider-info" placeholder="ex: Son FOH: Yamaha CL5 — Mon: Avid SC48" oninput="_saveRiderConfig()">
             </div>
           </div>
           <!-- Studio : fichiers cloud -->
@@ -3347,7 +3347,45 @@ function inviteMember(){const e=document.getElementById('inv-email').value.trim(
 
 /* ── Rider link builder ── */
 var _riderSections={il:true,syno:false,stage:false,site:false};
-var _riderPickedFiles=new Set(); // file paths selected by studio user
+var _riderPickedFiles=new Set();
+var _riderSaveTimer=null;
+
+function _saveRiderConfig(){
+  if(!CUR_SHOW)return;
+  clearTimeout(_riderSaveTimer);
+  _riderSaveTimer=setTimeout(function(){
+    if(!CUR_SHOW)return;
+    var t=document.getElementById('rider-title');
+    var n=document.getElementById('rider-note');
+    var inf=document.getElementById('rider-info');
+    var cfg={
+      sections:Object.keys(_riderSections).filter(function(k){return _riderSections[k];}),
+      title:(t&&t.value.trim())||'',
+      note:(n&&n.value.trim())||'',
+      info:(inf&&inf.value.trim())||'',
+      files:Array.from(_riderPickedFiles)
+    };
+    var sd=Object.assign({},CUR_SHOW.stage_data||{v:2},{rider:cfg});
+    CUR_SHOW.stage_data=sd;
+    sb.from('shows').update({stage_data:sd}).eq('id',CUR_SHOW.id);
+  },800);
+}
+
+function _loadRiderConfig(){
+  var cfg=CUR_SHOW&&CUR_SHOW.stage_data&&CUR_SHOW.stage_data.rider;
+  if(!cfg)return;
+  if(cfg.sections&&cfg.sections.length){
+    Object.keys(_riderSections).forEach(function(k){_riderSections[k]=cfg.sections.indexOf(k)>=0;});
+    _syncRiderBtns();
+  }
+  var t=document.getElementById('rider-title');
+  var n=document.getElementById('rider-note');
+  var inf=document.getElementById('rider-info');
+  if(t)t.value=cfg.title||'';
+  if(n)n.value=cfg.note||'';
+  if(inf)inf.value=cfg.info||'';
+  _riderPickedFiles=new Set(cfg.files||[]);
+}
 
 function _initRiderBuilder(){
   var isPro=canDo('share_link');
@@ -3356,39 +3394,36 @@ function _initRiderBuilder(){
   var inner=document.getElementById('rider-builder-inner');
   if(gate)  gate.style.display=isPro?'none':'flex';
   if(inner) inner.style.display=isPro?'block':'none';
-  if(!isPro) return;
+  if(!isPro)return;
+  _loadRiderConfig();
   _syncRiderBtns();
-  // Studio file picker
   var studioGate=document.getElementById('rider-studio-gate');
   var fileList=document.getElementById('rider-file-list');
   if(isStudio){
-    if(studioGate) studioGate.style.display='none';
+    if(studioGate)studioGate.style.display='none';
     if(fileList){fileList.style.display='block';_loadRiderFiles();}
-  } else {
-    if(studioGate) studioGate.style.display='flex';
-    if(fileList) fileList.style.display='none';
+  }else{
+    if(studioGate)studioGate.style.display='flex';
+    if(fileList)fileList.style.display='none';
   }
   _updateRiderUrl();
 }
 
 async function _loadRiderFiles(){
-  if(!CUR_SHOW) return;
+  if(!CUR_SHOW)return;
   var fl=document.getElementById('rider-file-list');
-  if(!fl) return;
+  if(!fl)return;
   fl.innerHTML='<div style="font-size:11px;color:var(--muted);padding:8px 0">Chargement…</div>';
   var prefix=CUR_SHOW.id+'/';
   var {data,error}=await sb.storage.from(FICH_BUCKET).list(prefix,{sortBy:{column:'name',order:'asc'}});
-  if(error||!data||!data.length){
-    fl.innerHTML='<div style="font-size:11px;color:var(--muted);padding:8px 0">Aucun fichier dans le cloud pour ce show.</div>';
-    return;
-  }
+  if(error||!data||!data.length){fl.innerHTML='<div style="font-size:11px;color:var(--muted);padding:8px 0">Aucun fichier dans le cloud pour ce show.</div>';return;}
   var SKIP=new Set(['.emptyFolderPlaceholder','.keep']);
   var files=data.filter(function(f){return !SKIP.has(f.name)&&f.name;});
   if(!files.length){fl.innerHTML='<div style="font-size:11px;color:var(--muted);padding:8px 0">Aucun fichier disponible.</div>';return;}
   fl.innerHTML=files.map(function(f){
     var path=prefix+f.name;
     var disp=_fichDisplayName?_fichDisplayName(f.name):f.name;
-    var sz=_fmtSize?_fmtSize(f.metadata&&f.metadata.size):'' ;
+    var sz=_fmtSize?_fmtSize(f.metadata&&f.metadata.size):'';
     var info=_fichInfoOf?_fichInfoOf(f.name):{icon:'<i class="ti ti-file" style="color:var(--muted);font-size:15px"></i>'};
     var picked=_riderPickedFiles.has(path);
     return '<div class="rider-file-item'+(picked?' picked':'')+'" onclick="_toggleRiderFile(\''+encodeURIComponent(path)+'\')" id="rfi-'+encodeURIComponent(path)+'">'
@@ -3407,7 +3442,7 @@ function _toggleRiderFile(encodedPath){
     var chk=el.querySelector('.rfi-chk');
     if(chk){chk.className='ti ti-'+(_riderPickedFiles.has(path)?'check':'plus')+' rfi-chk';chk.style.color=_riderPickedFiles.has(path)?'var(--ora)':'var(--muted)';}
   }
-  _updateRiderUrl();
+  _saveRiderConfig();
 }
 
 function selectRiderSection(key){
@@ -3416,28 +3451,19 @@ function selectRiderSection(key){
   if(!next&&others.length===0)return;
   _riderSections[key]=next;
   _syncRiderBtns();
-  _updateRiderUrl();
+  _saveRiderConfig();
 }
 function _syncRiderBtns(){
   ['il','syno','stage','site'].forEach(function(k){
     var btn=document.getElementById('sc-'+k);
-    if(btn) btn.className='slink-check'+(_riderSections[k]?' checked':'');
+    if(btn)btn.className='slink-check'+(_riderSections[k]?' checked':'');
   });
 }
 function _updateRiderUrl(){
   if(!CUR_SHOW)return;
-  var secs=Object.keys(_riderSections).filter(function(k){return _riderSections[k];});
-  var base=window.location.origin+window.location.pathname;
-  var url=base+'?view='+CUR_SHOW.id+'&sections='+secs.join(',');
-  var title=document.getElementById('rider-title');
-  var note=document.getElementById('rider-note');
-  var info=document.getElementById('rider-info');
-  if(title&&title.value.trim()) url+='&rtitle='+encodeURIComponent(title.value.trim());
-  if(note&&note.value.trim())   url+='&rnote='+encodeURIComponent(note.value.trim());
-  if(info&&info.value.trim())   url+='&rinfo='+encodeURIComponent(info.value.trim());
-  if(_riderPickedFiles.size>0)  url+='&rfiles='+encodeURIComponent(Array.from(_riderPickedFiles).join('|'));
+  var url=window.location.origin+window.location.pathname+'?rider='+CUR_SHOW.id;
   var el=document.getElementById('slink-url');
-  if(el) el.textContent=url;
+  if(el)el.textContent=url;
 }
 function copyRiderLink(){
   if(!canDo('share_link')){showUpgradeModal('share_link');return;}
@@ -9739,22 +9765,49 @@ document.getElementById('bp-share-modal').addEventListener('click',function(e){i
 (async function checkShareMode(){
   const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   const p=new URLSearchParams(window.location.search);
-  const sid=p.get('view');
+
+  // Detect entry point
+  const riderId=p.get('rider');
+  const sid=riderId||p.get('view');
   if(!sid)return;
 
-  // Legacy compat: ?view=ID&tab=stage → sections=stage
-  const legacyTab=p.get('tab');
-  const rawSecs=p.get('sections');
-  var sections=rawSecs ? rawSecs.split(',').map(function(s){return s.trim();}).filter(Boolean)
-               : legacyTab==='stage' ? ['stage']
-               : ['il'];
+  // Variables — resolved either from DB (rider) or from URL params (legacy)
+  var sections,rTitle='',rNote='',rInfo='',rFiles=[];
 
-  // Rider meta
-  var rTitle=p.get('rtitle')||'';
-  var rNote=p.get('rnote')||'';
-  var rInfo=p.get('rinfo')||'';
-  var rFilesRaw=p.get('rfiles')||'';
-  var rFiles=rFilesRaw?rFilesRaw.split('|').filter(Boolean):[];
+  if(riderId){
+    // Short link: load config from DB
+    document.getElementById('auth-wrap').style.display='none';
+    document.getElementById('app').style.display='none';
+    const tmp=document.createElement('div');
+    tmp.style.cssText='min-height:100vh;background:#0a0f1c;display:flex;align-items:center;justify-content:center;font-family:DM Mono,monospace;color:#5a6a80;font-size:12px';
+    tmp.textContent='Chargement du rider…';
+    document.body.prepend(tmp);
+    let preShow;
+    try{
+      const {data:s}=await sb.from('shows').select('stage_data').eq('id',riderId).maybeSingle();
+      preShow=s;
+    }catch(e){}
+    tmp.remove();
+    document.getElementById('auth-wrap').style.display='';
+    document.getElementById('app').style.display='';
+    var cfg=(preShow&&preShow.stage_data&&preShow.stage_data.rider)||{};
+    sections=cfg.sections&&cfg.sections.length?cfg.sections:['il'];
+    rTitle=cfg.title||'';
+    rNote=cfg.note||'';
+    rInfo=cfg.info||'';
+    rFiles=cfg.files||[];
+  }else{
+    // Legacy ?view= URL params
+    const legacyTab=p.get('tab');
+    const rawSecs=p.get('sections');
+    sections=rawSecs?rawSecs.split(',').map(function(s){return s.trim();}).filter(Boolean)
+             :legacyTab==='stage'?['stage']:['il'];
+    rTitle=p.get('rtitle')||'';
+    rNote=p.get('rnote')||'';
+    rInfo=p.get('rinfo')||'';
+    var rFilesRaw=p.get('rfiles')||'';
+    rFiles=rFilesRaw?rFilesRaw.split('|').filter(Boolean):[];
+  }
 
   // Hide app & auth, show share viewer
   document.getElementById('auth-wrap').style.display='none';
