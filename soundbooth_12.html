@@ -2462,8 +2462,9 @@ async function applyILAssist() {
   } catch (e) {
     renderTable();
     toast('Erreur : ' + e.message);
+  } finally {
     btn.disabled = false;
-    btn.innerHTML = '<i class="ti ti-check"></i> Creer les canaux';
+    btn.innerHTML = '<i class="ti ti-check"></i>Creer les canaux';
   }
 }
 
