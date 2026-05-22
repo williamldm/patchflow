@@ -3031,6 +3031,7 @@ function renderTable(){
     </tr>`).join('');
   }
   applyColVis();renderPills();updateStats();
+  saveStage();
 }
 
 // ══════════════════════════════════════
@@ -4181,7 +4182,8 @@ function loadStage(){
 let saveStageTimer=null;
 async function saveStage(){
   if(!CUR_SHOW)return;
-  const data={v:2,planMode:PLAN_MODE,band:BandPlan.getData(),site:SitePlan.getData()};
+  const chsSnap=(typeof CHS!=='undefined'?CHS:[]).map(function(r){return{id:r.id,ch:r.ch,short_name:r.short_name||'',long_name:r.long_name||'',source:r.source||'',mic:r.mic||'',phantom:!!r.phantom,foh:!!r.foh,mon:!!r.mon,note:r.note||''};});
+  const data={v:2,planMode:PLAN_MODE,band:BandPlan.getData(),site:SitePlan.getData(),chs:chsSnap};
   CUR_SHOW.stage_data=data;
   clearTimeout(saveStageTimer);
   saveStageTimer=setTimeout(async()=>{
@@ -9153,6 +9155,8 @@ document.getElementById('bp-share-modal').addEventListener('click',function(e){i
       const raw=show.stage_data;
       const bandData=(raw&&raw.v>=2)?raw.band||null:null;
       BandPlan.load(bandData);
+      // Inject channel snapshot so _makeBpCanvas can resolve channel numbers
+      if(raw&&raw.chs&&raw.chs.length){CHS.splice(0,CHS.length,...raw.chs);}
       const now=new Date().toLocaleString('fr-FR');
       _makeBpCanvas(function(cv){
         const dataUrl=cv.toDataURL('image/png');
@@ -9177,7 +9181,8 @@ document.getElementById('bp-share-modal').addEventListener('click',function(e){i
     const {data:show}=await sb.from('shows').select('*').eq('id',sid).maybeSingle();
     if(!show){document.getElementById('sv-body').innerHTML='<div style="text-align:center;color:#f87171;margin-top:60px;font-size:14px">Show introuvable ou acces refuse.</div>';return;}
     const {data:chs}=await sb.from('channels').select('*').eq('show_id',sid).order('ch');
-    const rows=chs||[];
+    // Fall back to snapshot embedded in stage_data if channels table is RLS-blocked
+    const rows=(chs&&chs.length)?chs:((show.stage_data&&show.stage_data.chs)||[]).slice().sort(function(a,b){return (a.ch||0)-(b.ch||0);});
     const now=new Date().toLocaleString('fr-FR');
     let h='<div style="margin-bottom:28px">'
       +'<div style="font-size:24px;font-weight:700;margin-bottom:4px">'+esc(show.name)+'</div>'
