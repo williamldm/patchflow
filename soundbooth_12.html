@@ -3698,15 +3698,18 @@ function _vtLabel(ctx,text,cx,y,SC){
   ctx.fillStyle='#e8dfc0';ctx.fillText(lbl,cx,by+4);
   ctx.textBaseline='alphabetic';
 }
-function _vtChBadge(ctx,chNum,nodeW,nodeTop){
+function _vtChBadge(ctx,chNum,nodeW,nodeTop,SC){
+  SC=SC||1;
+  var fs=Math.round(22*SC);
   var badge='CH '+chNum;
-  ctx.font='800 12px monospace';
-  var bw=ctx.measureText(badge).width+18,bh=24,bx=nodeW-bw+12,by=nodeTop-12;
-  _bpRR(ctx,bx,by,bw,bh,12);
-  ctx.fillStyle='#ff6b1a';ctx.fill();
-  ctx.shadowColor='rgba(0,0,0,.5)';ctx.shadowBlur=4;ctx.fill();ctx.shadowBlur=0;
-  ctx.fillStyle='#000';ctx.textAlign='center';ctx.textBaseline='top';
-  ctx.fillText(badge,bx+bw/2,by+5);
+  ctx.font='900 '+fs+'px monospace';
+  var pad=20*SC,bh=Math.round(32*SC),bw=ctx.measureText(badge).width+pad*2;
+  var bx=nodeW-bw+10*SC,by=nodeTop-bh/2-4*SC;
+  _bpRR(ctx,bx,by,bw,bh,bh/2);
+  ctx.fillStyle='#ff6b1a';
+  ctx.shadowColor='rgba(0,0,0,.6)';ctx.shadowBlur=8*SC;ctx.fill();ctx.shadowBlur=0;
+  ctx.fillStyle='#000';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(badge,bx+bw/2,by+bh/2);
   ctx.textBaseline='alphabetic';
 }
 function _makeBpCanvas(cb){
@@ -3801,12 +3804,12 @@ function _makeBpCanvas(cb){
           ctx.textAlign='center';ctx.fillText((el.riserW||2)+'m \xd7 '+(el.riserH||1)+'m',rw/2,rh/2+rfs*0.35);
           ctx.font=Math.max(8,9*SC)+'px sans-serif';ctx.fillStyle='rgba(180,160,100,.7)';
           ctx.fillText('⬆ '+alt+'m',rw/2,rh/2+rfs*0.35+12*SC);
-          if(el.ch){var rc=allChs.find(function(r){return r.id===el.ch;});if(rc)_vtChBadge(ctx,rc.ch,rw,0);}
+          if(el.ch){var rc=allChs.find(function(r){return r.id===el.ch;});if(rc)_vtChBadge(ctx,rc.ch,rw,0,SC);}
           _vtLabel(ctx,el.label,rw/2,rh+6*SC,SC);
         } else if(el.type==='kit'){
           var kitChs=el.chs||[];
           var rows=kitChs.map(function(id){return allChs.find(function(r){return r.id===id;});}).filter(Boolean);
-          var BW=210*SC,BH=Math.max(70*SC,(rows.length*26+44)*SC);
+          var BW=210*SC,BH=Math.max(70*SC,(rows.length*40+50)*SC);
           var kci=BandPlan.getCatInfo('kit');
           _bpRR(ctx,0,0,BW,BH,12*SC);ctx.fillStyle='#16120c';ctx.fill();
           ctx.strokeStyle=kci.color+'55';ctx.lineWidth=1.5*SC;ctx.stroke();
@@ -3816,13 +3819,20 @@ function _makeBpCanvas(cb){
           ctx.fillText(el.label.slice(0,24),10*SC,26*SC);
           if(rows.length){ctx.font='bold '+Math.round(10*SC)+'px sans-serif';ctx.fillStyle=kci.color;ctx.textAlign='right';ctx.fillText(rows.length+' CH',BW-8*SC,26*SC);}
           rows.forEach(function(r,i){
-            var ry=44*SC+i*26*SC;
+            var rh=40*SC,ry=44*SC+i*rh;
             ctx.strokeStyle='rgba(200,165,60,.14)';ctx.lineWidth=0.5*SC;
             ctx.beginPath();ctx.moveTo(0,ry-2*SC);ctx.lineTo(BW,ry-2*SC);ctx.stroke();
-            ctx.font='bold '+Math.round(11*SC)+'px monospace';ctx.fillStyle='#f0c040';ctx.textAlign='left';
-            ctx.fillText('CH'+r.ch,12*SC,ry+16*SC);
-            ctx.font=Math.round(12*SC)+'px sans-serif';ctx.fillStyle='#d8c89a';
-            ctx.fillText((r.long_name||r.short_name||'—').slice(0,22),46*SC,ry+16*SC);
+            // CH pill
+            var chTxt='CH'+r.ch,chFs=Math.round(18*SC);
+            ctx.font='900 '+chFs+'px monospace';
+            var chW=ctx.measureText(chTxt).width+16*SC,chH=26*SC;
+            _bpRR(ctx,8*SC,ry+4*SC,chW,chH,chH/2);
+            ctx.fillStyle='#ff6b1a';ctx.fill();
+            ctx.fillStyle='#000';ctx.textAlign='center';ctx.textBaseline='middle';
+            ctx.fillText(chTxt,8*SC+chW/2,ry+4*SC+chH/2);
+            ctx.textBaseline='alphabetic';
+            ctx.font=Math.round(14*SC)+'px sans-serif';ctx.fillStyle='#d8c89a';ctx.textAlign='left';
+            ctx.fillText((r.long_name||r.short_name||'—').slice(0,20),8*SC+chW+8*SC,ry+rh*0.65);
           });
         } else {
           var SZ=120*SC*ns;
@@ -3834,7 +3844,7 @@ function _makeBpCanvas(cb){
             ctx.fillStyle=(ci&&ci.color)||'#5a6580';ctx.fillText((ci&&ci.emoji)||'?',SZ/2,SZ/2);
             ctx.textBaseline='alphabetic';
           }
-          if(el.ch){var rv=allChs.find(function(r){return r.id===el.ch;});if(rv)_vtChBadge(ctx,rv.ch,SZ,0);}
+          if(el.ch){var rv=allChs.find(function(r){return r.id===el.ch;});if(rv)_vtChBadge(ctx,rv.ch,SZ,0,SC);}
           _vtLabel(ctx,el.label,SZ/2,SZ+8*SC,SC);
         }
         ctx.restore();
@@ -9193,7 +9203,7 @@ document.getElementById('bp-share-modal').addEventListener('click',function(e){i
       +'</div></div>'
       +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">'
       +'<thead><tr style="background:#111827;color:#8899aa;font-family:DM Mono,monospace;font-size:10px;text-transform:uppercase;letter-spacing:.8px">'
-      +'<th style="padding:8px 16px;text-align:center;border-bottom:1px solid #1e2a3a;width:64px">CH</th>'
+      +'<th style="padding:8px 16px;text-align:center;border-bottom:1px solid #1e2a3a;width:130px">CH</th>'
       +'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">Court</th>'
       +'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">Nom</th>'
       +'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">Source</th>'
@@ -9206,8 +9216,8 @@ document.getElementById('bp-share-modal').addEventListener('click',function(e){i
     rows.forEach((r,i)=>{
       const bg=i%2===0?'#0d1220':'#0a0f1c';
       h+='<tr style="background:'+bg+';border-bottom:1px solid #141c2e">'
-        +'<td style="padding:6px 10px;text-align:center;vertical-align:middle">'
-        +'<span style="display:inline-flex;align-items:center;justify-content:center;background:#ff6b1a;color:#000;font-family:DM Mono,monospace;font-size:16px;font-weight:900;min-width:44px;height:36px;border-radius:9px;padding:0 10px;letter-spacing:-.3px;box-shadow:0 2px 8px rgba(255,107,26,.35)">'
+        +'<td style="padding:10px 14px;text-align:center;vertical-align:middle">'
+        +'<span style="display:inline-flex;align-items:center;justify-content:center;background:#ff6b1a;color:#000;font-family:DM Mono,monospace;font-size:56px;font-weight:900;min-width:96px;height:80px;border-radius:16px;padding:0 18px;letter-spacing:-1px;box-shadow:0 4px 20px rgba(255,107,26,.5);line-height:1">'
         +r.ch+'</span></td>'
         +'<td style="padding:8px 12px;font-weight:700;font-size:13px;color:#f0f4ff">'+esc(r.short_name||'')+'</td>'
         +'<td style="padding:8px 12px;color:#c8d4e0;font-size:12px">'+esc(r.long_name||'')+'</td>'
