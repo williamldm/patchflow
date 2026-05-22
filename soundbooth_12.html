@@ -5004,6 +5004,13 @@ const SynEditor = (() => {
   }
   function _removeCustomAmp(type) { localStorage.setItem('pf_syn_cust_amps', JSON.stringify(_getCustomAmps().filter(function(x){ return x.type !== type; }))); }
   function _removeCustomSpk(type) { localStorage.setItem('pf_syn_cust_spks', JSON.stringify(_getCustomSpks().filter(function(x){ return x.type !== type; }))); }
+  // ── Custom infra (localStorage) ───────────────────────────────────────
+  function _getCustomInfra() { try { return JSON.parse(localStorage.getItem('pf_syn_cust_infra')||'[]'); } catch(e2){ return []; } }
+  function _saveCustomInfra(item) {
+    var list = _getCustomInfra().filter(function(x){ return x.type !== item.type; });
+    list.push(item); localStorage.setItem('pf_syn_cust_infra', JSON.stringify(list));
+  }
+  function _removeCustomInfra(type) { localStorage.setItem('pf_syn_cust_infra', JSON.stringify(_getCustomInfra().filter(function(x){ return x.type !== type; }))); }
   const defPorts = (type) => {
     const sp = PALETTE.find(function(p){ return p.type === type; });
     const ch = sp && typeof sp.channels === 'number' ? sp.channels : 4;
@@ -5012,9 +5019,11 @@ const SynEditor = (() => {
   };
 
   function spec(type) {
+    if (type === 'textblock') return { type:'textblock', cat:'text', label:'Texte libre', icon:'T', w:180, h:80 };
     return PALETTE.find(function(p){ return p.type === type; })
       || _getCustomAmps().find(function(p){ return p.type === type; })
       || _getCustomSpks().find(function(p){ return p.type === type; })
+      || _getCustomInfra().find(function(p){ return p.type === type; })
       || { type, label: type, icon: '▣', w: 140, h: 80, cat: 'spk', zone: 'top' };
   }
 
@@ -5036,10 +5045,14 @@ const SynEditor = (() => {
       cable: extra.cable || '',
       conn: extra.conn || 'NL4',
       ports: extra.ports || (sp.cat === 'amp' ? defPorts(type) : []),
+      // ── Texte libre ─────────────────────────────────────────────
+      text:     extra.text     || (sp.cat === 'text' ? '' : undefined),
+      fontSize: extra.fontSize || (sp.cat === 'text' ? 12 : undefined),
+      textColor:extra.textColor|| (sp.cat === 'text' ? 'var(--txt2)' : undefined),
       // ── Passif / Actif ──────────────────────────────────────────
-      powered:  extra.powered  ?? sp.powered ?? false, // false=passif (LINUS→speakon), true=actif (autoamplifié/Dante)
-      biamp:    extra.biamp    ?? false, // actif: séparer CH1(HF) / CH2(LF)
-      chLink:   extra.chLink   ?? false, // actif+biamp: CH1+CH2 liés (bridged interne)
+      powered:  extra.powered  ?? sp.powered ?? false, // false=passif (LINUS→speakon), true=actif (autoamplifie/Dante)
+      biamp:    extra.biamp    ?? false, // actif: separer CH1(HF) / CH2(LF)
+      chLink:   extra.chLink   ?? false, // actif+biamp: CH1+CH2 lies (bridged interne)
       // ── Bridge ampli ────────────────────────────────────────────
       bridgeAB: extra.bridgeAB ?? false, // LINUS: ponter sorties A+B
       bridgeCD: extra.bridgeCD ?? false, // LINUS: ponter sorties C+D
@@ -5435,6 +5448,18 @@ const SynEditor = (() => {
           ${field ? `<div class="syn-field-big">${esc(n.conn || 'NL4')}</div><div class="syn-field-step">Brancher ici</div>` : `<div class="syn-spk-meta">${n.spk} enceinte(s) · ${esc(n.z)}</div>`}
           <div class="syn-side-badge" style="background:${z.color}22;color:${z.color};border-color:${z.color}55">${n.side || '—'}</div>`;
       }
+    } else if (n.cat === 'text') {
+      // ── Texte libre ─────────────────────────────────────────────
+      var _fs = n.fontSize || 12;
+      var _tc = n.textColor || 'var(--txt2)';
+      inner = '<div style="padding:10px 12px 10px;font-size:' + _fs + 'px;color:' + _tc + ';line-height:1.55;white-space:pre-wrap;word-break:break-word;min-height:50px">'
+        + esc(n.text || '...')
+        + '</div>';
+      return '<div class="syn-node' + (sel ? ' sel' : '') + (field ? ' field' : '') + '" data-nid="' + n.id + '" style="left:' + n.x + 'px;top:' + n.y + 'px;width:' + n.w + 'px;min-height:' + n.h + 'px;--zc:#4a5568;--zf:rgba(15,18,30,.6);background:rgba(15,18,30,.7);border-style:dashed">'
+        + '<div class="syn-node-bar" style="background:#4a5568;opacity:.5"></div>'
+        + inner
+        + (state.mode === 'edit' ? '<button type="button" class="syn-node-del" data-del="' + n.id + '" title="Supprimer"><i class="ti ti-x"></i></button>' : '')
+        + '</div>';
     } else {
       inner = `<div class="syn-node-hd"><span class="syn-node-ico">${spec(n.type).icon}</span><div><div class="syn-node-title">${esc(n.label)}</div><div class="syn-node-sub">${esc(spec(n.type).label)}</div>${n.machineId ? `<div class="syn-node-sub" style="font-family:var(--m);color:var(--muted2);font-size:8px;padding-top:1px">ID · ${esc(n.machineId)}</div>` : ''}</div></div>`;
     }
@@ -5764,6 +5789,38 @@ const SynEditor = (() => {
       } else if (n.cat === 'infra') {
         el.innerHTML = _buildInfraInspHTML(n);
         _bindInspInfra(n);
+      } else if (n.cat === 'text') {
+        // ── Texte libre inspector ────────────────────────────────
+        var _fsCur = n.fontSize || 12;
+        var _tcCur = n.textColor || 'var(--txt2)';
+        el.innerHTML = '<div class="syn-insp-title">T Texte libre</div>'
+          + '<label class="syn-insp-lbl">Contenu</label>'
+          + '<textarea id="insp-text" class="syn-insp-inp" rows="5" style="resize:vertical;line-height:1.5">' + esc(n.text || '') + '</textarea>'
+          + '<label class="syn-insp-lbl">Taille</label>'
+          + '<select id="insp-fontsize" class="syn-insp-inp">'
+          + [10,11,12,13,14,16,18,20].map(function(s){ return '<option value="' + s + '"' + (s === _fsCur ? ' selected' : '') + '>' + s + 'px</option>'; }).join('')
+          + '</select>'
+          + '<label class="syn-insp-lbl">Couleur</label>'
+          + '<select id="insp-textcolor" class="syn-insp-inp">'
+          + '<option value="var(--txt2)"' + (_tcCur === 'var(--txt2)' ? ' selected' : '') + '>Gris clair</option>'
+          + '<option value="var(--txt)"' + (_tcCur === 'var(--txt)' ? ' selected' : '') + '>Blanc</option>'
+          + '<option value="var(--muted)"' + (_tcCur === 'var(--muted)' ? ' selected' : '') + '>Muted</option>'
+          + '<option value="var(--ora)"' + (_tcCur === 'var(--ora)' ? ' selected' : '') + '>Orange</option>'
+          + '<option value="var(--grn)"' + (_tcCur === 'var(--grn)' ? ' selected' : '') + '>Vert</option>'
+          + '<option value="var(--warn)"' + (_tcCur === 'var(--warn)' ? ' selected' : '') + '>Jaune</option>'
+          + '</select>'
+          + '<label class="syn-insp-lbl">Largeur (px)</label>'
+          + '<input id="insp-textw" class="syn-insp-inp" type="number" min="80" max="600" step="10" value="' + (n.w || 180) + '"/>'
+          + '<button type="button" class="btn sm" style="width:100%;margin-top:10px" id="insp-del"><i class="ti ti-trash"></i> Supprimer</button>';
+        var _inspTextTA = el.querySelector('#insp-text');
+        var _inspTextFS = el.querySelector('#insp-fontsize');
+        var _inspTextTC = el.querySelector('#insp-textcolor');
+        var _inspTextW  = el.querySelector('#insp-textw');
+        if (_inspTextTA) _inspTextTA.addEventListener('input', function(){ n.text = _inspTextTA.value; scheduleSave(); render(); });
+        if (_inspTextFS) _inspTextFS.addEventListener('change', function(){ n.fontSize = parseInt(_inspTextFS.value,10)||12; scheduleSave(); render(); });
+        if (_inspTextTC) _inspTextTC.addEventListener('change', function(){ n.textColor = _inspTextTC.value; scheduleSave(); render(); });
+        if (_inspTextW)  _inspTextW.addEventListener('change', function(){ n.w = Math.max(80,parseInt(_inspTextW.value,10)||180); scheduleSave(); render(); });
+        el.querySelector('#insp-del')?.addEventListener('click', function(){ deleteNode(n.id); });
       } else {
         // Section passif / actif commune (enceintes uniquement)
         const powBlock = `
@@ -6213,8 +6270,26 @@ const SynEditor = (() => {
       var innerHtml = brandOrder.map(function(b){
         return _brandBlock(c.id, b, byBrand[b], false);
       }).join('');
-      // Custom gear form for amp + spk only
+      // Custom gear form for amp + spk; custom infra for infra
       if (c.id === 'amp' || c.id === 'spk') innerHtml += _customGearForm(c.id);
+      if (c.id === 'infra') {
+        var custInfra = _getCustomInfra();
+        innerHtml += '<div class="syn-custom-zone"><div class="syn-custom-zone-title">Mes appareils</div>'
+          + custInfra.map(function(p){
+              return '<div class="syn-pal-item" draggable="true" data-type="' + p.type + '" title="' + esc(p.label) + '">'
+                + '<span class="syn-pal-ico">' + esc(p.icon || '▣') + '</span>'
+                + '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">' + esc(p.label) + '</span>'
+                + '<button type="button" class="syn-custom-del" data-ctype="infra" data-dtype="' + p.type + '" title="Supprimer">x</button>'
+                + '</div>';
+            }).join('')
+          + '<div class="syn-custom-row">'
+          + '<input id="ci-label" class="syn-custom-inp" placeholder="Nom appareil"/>'
+          + '<input id="ci-icon" class="syn-custom-inp" placeholder="Emoji" style="width:44px;text-align:center"/>'
+          + '</div>'
+          + '<div class="syn-custom-row">'
+          + '<button type="button" id="ci-add" class="syn-custom-btn" style="width:100%">+ Ajouter et enregistrer</button>'
+          + '</div></div>';
+      }
       return '<div class="syn-pal-sec">'
         + '<div class="syn-pal-title" data-cat="' + c.id + '">'
         + '<span>' + c.title + '</span>'
@@ -6269,7 +6344,17 @@ const SynEditor = (() => {
       + '</div>'
       + '</div></div>';
 
-    el.innerHTML = catHtml + liaisonHtml;
+    // Texte libre section
+    const textHtml = '<div class="syn-pal-sec">'
+      + '<div class="syn-pal-title" style="cursor:default"><span>Annotations</span></div>'
+      + '<div class="syn-pal-items">'
+      + '<div class="syn-pal-item" draggable="true" data-type="textblock" title="Glisser pour ajouter un bloc de texte libre">'
+      + '<span class="syn-pal-ico" style="font-weight:700;font-size:14px;color:var(--muted)">T</span>'
+      + '<span style="flex:1">Texte libre</span>'
+      + '</div>'
+      + '</div></div>';
+
+    el.innerHTML = textHtml + catHtml + liaisonHtml;
 
     // Category toggles
     el.querySelectorAll('.syn-pal-title,.syn-pal-lsec-title').forEach(function(hd) {
@@ -6301,11 +6386,25 @@ const SynEditor = (() => {
         ev.stopPropagation();
         var dtype = btn.dataset.dtype;
         var ctype = btn.dataset.ctype;
-        if (ctype === 'amp') _removeCustomAmp(dtype); else _removeCustomSpk(dtype);
+        if (ctype === 'amp') _removeCustomAmp(dtype);
+        else if (ctype === 'infra') _removeCustomInfra(dtype);
+        else _removeCustomSpk(dtype);
         // Remove any nodes of this type from canvas
         S().nodes = S().nodes.filter(function(n){ return n.type !== dtype; });
         scheduleSave(); render(); buildPalette();
       });
+    });
+
+    // Add custom infra
+    var ciAdd = el.querySelector('#ci-add');
+    if (ciAdd) ciAdd.addEventListener('click', function() {
+      var label = (el.querySelector('#ci-label')?.value || '').trim();
+      if (!label) { toast('Donnez un nom'); return; }
+      var icon = (el.querySelector('#ci-icon')?.value || '').trim() || '▣';
+      var t = 'cust_infra_' + Date.now().toString(36);
+      _saveCustomInfra({ type:t, cat:'infra', label:label, icon:icon, w:130, h:60 });
+      buildPalette();
+      toast('"' + label + '" enregistre');
     });
 
     // Add custom amp
