@@ -9123,6 +9123,7 @@ document.getElementById('bp-pdf-modal').addEventListener('click',function(e){if(
 document.getElementById('bp-share-modal').addEventListener('click',function(e){if(e.target===this)closeBpShare();});
 // Share-view mode
 (async function checkShareMode(){
+  const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   const p=new URLSearchParams(window.location.search);
   const sid=p.get('view');
   if(!sid)return;
