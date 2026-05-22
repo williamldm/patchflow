@@ -3676,6 +3676,38 @@ function closePDF(){document.getElementById('pdf-modal').className='modal-ov';}
 // ══════════════════════════════════════
 // BANDPLAN EXPORT
 // ══════════════════════════════════════
+/* ── Canvas helpers (vintage export) ─────────────────────────── */
+function _bpRR(ctx,x,y,w,h,r){
+  if(r<0)r=0;
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r);ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h);ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);
+  ctx.closePath();
+}
+function _vtLabel(ctx,text,cx,y,SC){
+  var lbl=(text||'').slice(0,20);
+  var fs=Math.max(11,Math.round(13*SC));
+  ctx.font='600 '+fs+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
+  var tw=ctx.measureText(lbl).width+18,th=fs+8,bx=cx-tw/2,by=y;
+  _bpRR(ctx,bx,by,tw,th,5);
+  ctx.fillStyle='rgba(5,3,1,.94)';ctx.fill();
+  ctx.strokeStyle='rgba(255,195,80,.22)';ctx.lineWidth=1;ctx.stroke();
+  ctx.fillStyle='#e8dfc0';ctx.fillText(lbl,cx,by+4);
+  ctx.textBaseline='alphabetic';
+}
+function _vtChBadge(ctx,chNum,nodeW,nodeTop){
+  var badge='CH '+chNum;
+  ctx.font='800 12px monospace';
+  var bw=ctx.measureText(badge).width+18,bh=24,bx=nodeW-bw+12,by=nodeTop-12;
+  _bpRR(ctx,bx,by,bw,bh,12);
+  ctx.fillStyle='#ff6b1a';ctx.fill();
+  ctx.shadowColor='rgba(0,0,0,.5)';ctx.shadowBlur=4;ctx.fill();ctx.shadowBlur=0;
+  ctx.fillStyle='#000';ctx.textAlign='center';ctx.textBaseline='top';
+  ctx.fillText(badge,bx+bw/2,by+5);
+  ctx.textBaseline='alphabetic';
+}
 function _makeBpCanvas(cb){
   const data=BandPlan.getData();
   const els=data.els||[];
@@ -3701,6 +3733,115 @@ function _makeBpCanvas(cb){
   const cv=document.createElement('canvas');cv.width=cw;cv.height=ch;
   const ctx=cv.getContext('2d');
   const wx=x=>(x-minX)*SC,wy=y=>(y-minY)*SC;
+  /* ── VINTAGE CANVAS ── */
+  if(data.viewMode==='vintage'){
+    // Dark stage floor
+    ctx.fillStyle='#0d0a06';ctx.fillRect(0,0,cw,ch);
+    // Wood planks
+    var plkStep=Math.max(6,10*SC);
+    for(var py=0;py<ch;py+=plkStep){
+      ctx.strokeStyle='rgba(90,60,15,0.07)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(0,py);ctx.lineTo(cw,py);ctx.stroke();
+    }
+    // Wood grain (diagonals)
+    ctx.strokeStyle='rgba(70,45,8,0.04)';ctx.lineWidth=1;
+    for(var pd=-ch;pd<cw;pd+=38*SC){
+      ctx.beginPath();ctx.moveTo(pd,0);ctx.lineTo(pd+ch,ch);ctx.stroke();
+    }
+    // Stage area
+    _bpRR(ctx,wx(_stgX),wy(_stgY),_stgW*SC,_stgH*SC,18*SC);
+    ctx.fillStyle='rgba(5,3,0,0.45)';ctx.fill();
+    ctx.strokeStyle='rgba(255,195,80,0.28)';ctx.lineWidth=2*SC;ctx.stroke();
+    // SCENE label
+    ctx.font='bold '+15*SC+'px sans-serif';
+    ctx.fillStyle='rgba(255,195,80,0.08)';ctx.textAlign='center';
+    ctx.fillText('SCENE',wx(1200),wy(Math.round(_stgY+_stgH*0.44)));
+    // Curtain gradient at top
+    var ctTop=wy(_stgY),ctH=90*SC;
+    var ctGrad=ctx.createLinearGradient(0,ctTop,0,ctTop+ctH);
+    ctGrad.addColorStop(0,'rgba(110,6,12,0.7)');ctGrad.addColorStop(1,'rgba(110,6,12,0)');
+    ctx.fillStyle=ctGrad;ctx.fillRect(wx(_stgX),ctTop,_stgW*SC,ctH);
+    // Footlight amber glow
+    var flTop=wy(_stgY+_stgH)-30*SC;
+    var flGrad=ctx.createLinearGradient(0,flTop+30*SC,0,flTop);
+    flGrad.addColorStop(0,'rgba(255,195,60,0.07)');flGrad.addColorStop(1,'rgba(255,195,60,0)');
+    ctx.fillStyle=flGrad;ctx.fillRect(wx(_stgX),flTop,_stgW*SC,30*SC);
+    // Load SVG images for standard nodes
+    var sorted=els.slice().sort(function(a,b){return a.z-b.z;});
+    var svgJobs=sorted.map(function(el){
+      if(el.type==='riser'||el.type==='kit')return Promise.resolve({el:el,img:null});
+      var ci=BandPlan.getCatInfo(el.type);
+      var svgBody=BandPlan.getVintageSVG(el.type,ci.color);
+      var svgFull='<svg viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg">'+svgBody+'</svg>';
+      var dataUrl='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svgFull);
+      return new Promise(function(resolve){
+        var img=new Image();
+        img.onload=function(){resolve({el:el,img:img,ci:ci});};
+        img.onerror=function(){resolve({el:el,img:null,ci:ci});};
+        img.src=dataUrl;
+      });
+    });
+    Promise.all(svgJobs).then(function(results){
+      results.forEach(function(item){
+        var el=item.el,img=item.img,ci=item.ci;
+        ctx.save();
+        ctx.translate(wx(el.x),wy(el.y));
+        if(el.rot)ctx.rotate(el.rot*Math.PI/180);
+        if(el.scl&&el.scl!==1)ctx.scale(el.scl,el.scl);
+        var ns=data.nodeScale||1;
+        if(el.type==='riser'){
+          var rw=(el.riserW||2)*RSCALE*SC,rh=(el.riserH||1)*RSCALE*SC,alt=el.riserAlt||0.4;
+          var op=(0.12+(alt/1.2)*0.3).toFixed(2),rfs=Math.max(11,Math.min(18,rw/9));
+          _bpRR(ctx,0,0,rw,rh,7*SC);
+          ctx.fillStyle='rgba(58,46,22,'+op+')';ctx.fill();
+          ctx.strokeStyle='rgba(200,165,80,.32)';ctx.lineWidth=2*SC;ctx.stroke();
+          ctx.font='bold '+rfs+'px sans-serif';ctx.fillStyle='rgba(220,200,150,.9)';
+          ctx.textAlign='center';ctx.fillText((el.riserW||2)+'m \xd7 '+(el.riserH||1)+'m',rw/2,rh/2+rfs*0.35);
+          ctx.font=Math.max(8,9*SC)+'px sans-serif';ctx.fillStyle='rgba(180,160,100,.7)';
+          ctx.fillText('⬆ '+alt+'m',rw/2,rh/2+rfs*0.35+12*SC);
+          if(el.ch){var rc=allChs.find(function(r){return r.id===el.ch;});if(rc)_vtChBadge(ctx,rc.ch,rw,0);}
+          _vtLabel(ctx,el.label,rw/2,rh+6*SC,SC);
+        } else if(el.type==='kit'){
+          var kitChs=el.chs||[];
+          var rows=kitChs.map(function(id){return allChs.find(function(r){return r.id===id;});}).filter(Boolean);
+          var BW=210*SC,BH=Math.max(70*SC,(rows.length*26+44)*SC);
+          var kci=BandPlan.getCatInfo('kit');
+          _bpRR(ctx,0,0,BW,BH,12*SC);ctx.fillStyle='#16120c';ctx.fill();
+          ctx.strokeStyle=kci.color+'55';ctx.lineWidth=1.5*SC;ctx.stroke();
+          ctx.fillStyle=kci.color+'20';ctx.fillRect(0,0,BW,38*SC);
+          var klfs=Math.round(13*SC);
+          ctx.font='bold '+klfs+'px sans-serif';ctx.textAlign='left';ctx.fillStyle='#ede0c0';
+          ctx.fillText(el.label.slice(0,24),10*SC,26*SC);
+          if(rows.length){ctx.font='bold '+Math.round(10*SC)+'px sans-serif';ctx.fillStyle=kci.color;ctx.textAlign='right';ctx.fillText(rows.length+' CH',BW-8*SC,26*SC);}
+          rows.forEach(function(r,i){
+            var ry=44*SC+i*26*SC;
+            ctx.strokeStyle='rgba(200,165,60,.14)';ctx.lineWidth=0.5*SC;
+            ctx.beginPath();ctx.moveTo(0,ry-2*SC);ctx.lineTo(BW,ry-2*SC);ctx.stroke();
+            ctx.font='bold '+Math.round(11*SC)+'px monospace';ctx.fillStyle='#f0c040';ctx.textAlign='left';
+            ctx.fillText('CH'+r.ch,12*SC,ry+16*SC);
+            ctx.font=Math.round(12*SC)+'px sans-serif';ctx.fillStyle='#d8c89a';
+            ctx.fillText((r.long_name||r.short_name||'—').slice(0,22),46*SC,ry+16*SC);
+          });
+        } else {
+          var SZ=120*SC*ns;
+          _bpRR(ctx,0,0,SZ,SZ,16*SC);
+          ctx.fillStyle='rgba(8,6,3,.88)';ctx.fill();
+          if(img){ctx.drawImage(img,0,0,SZ,SZ);}
+          else{
+            ctx.font=Math.round(42*SC*ns)+'px serif';ctx.textAlign='center';ctx.textBaseline='middle';
+            ctx.fillStyle=(ci&&ci.color)||'#5a6580';ctx.fillText((ci&&ci.emoji)||'?',SZ/2,SZ/2);
+            ctx.textBaseline='alphabetic';
+          }
+          if(el.ch){var rv=allChs.find(function(r){return r.id===el.ch;});if(rv)_vtChBadge(ctx,rv.ch,SZ,0);}
+          _vtLabel(ctx,el.label,SZ/2,SZ+8*SC,SC);
+        }
+        ctx.restore();
+      });
+      cb(cv);
+    });
+    return;
+  }
+  /* ── MODERN CANVAS ── */
   // Background
   ctx.fillStyle='#f4f4f4';ctx.fillRect(0,0,cw,ch);
   // Grid
@@ -7053,7 +7194,9 @@ const BandPlan=(()=>{
     const it=_itemOf(t);
     return {color:cat?cat.color:'#5a6580',emoji:it?it.e:'?'};
   }
-  return {init,load,getData,clear,zoom,fitView,search,toggleCat,_pdrag,_pdblclick,renderInspector,updateAlias,updPos,adjScale,adjZ,setRot,linkCh,unlinkCh,createCh,deleteNode,setTextScale,setNodeScale,setStageScale,setRiserDims,setRiserAlt,addCustomItem,removeCustomItem,linkKitCh,unlinkKitCh,createKitCh,setViewMode,getCatInfo};
+  function getVintageSVG(t,col){return _vSVG(t,col);}
+  function getViewMode(){return st.viewMode;}
+  return {init,load,getData,clear,zoom,fitView,search,toggleCat,_pdrag,_pdblclick,renderInspector,updateAlias,updPos,adjScale,adjZ,setRot,linkCh,unlinkCh,createCh,deleteNode,setTextScale,setNodeScale,setStageScale,setRiserDims,setRiserAlt,addCustomItem,removeCustomItem,linkKitCh,unlinkKitCh,createKitCh,setViewMode,getCatInfo,getVintageSVG,getViewMode};
 })();
 
 // ══════════════════════════════════════
