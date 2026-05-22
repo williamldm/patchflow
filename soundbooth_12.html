@@ -3304,27 +3304,35 @@ async function loadMembers(){
 function inviteMember(){const e=document.getElementById('inv-email').value.trim();const r=document.getElementById('inv-role').value;if(!e){alert('Entrer un e-mail');return;}toast(`✓ Invitation envoyée à ${e} (${r})`);document.getElementById('inv-email').value='';}
 
 /* ── Rider link builder ── */
-var _riderSection='il';
+var _riderSections={il:true,syno:false,stage:false,site:false};
 function _initRiderBuilder(){
   var isPro=canDo('share_link');
   var gate=document.getElementById('rider-gate-msg');
   var inner=document.getElementById('rider-builder-inner');
   if(gate)  gate.style.display=isPro?'none':'flex';
   if(inner) inner.style.display=isPro?'block':'none';
-  if(isPro) _updateRiderUrl();
+  if(isPro){_syncRiderBtns();_updateRiderUrl();}
 }
 function selectRiderSection(key){
-  _riderSection=key;
+  // Toggle — but keep at least one selected
+  var next=!_riderSections[key];
+  var others=Object.keys(_riderSections).filter(function(k){return k!==key&&_riderSections[k];});
+  if(!next&&others.length===0)return; // can't deselect last one
+  _riderSections[key]=next;
+  _syncRiderBtns();
+  _updateRiderUrl();
+}
+function _syncRiderBtns(){
   ['il','syno','stage','site'].forEach(function(k){
     var btn=document.getElementById('sc-'+k);
-    if(btn) btn.className='slink-check'+(k===key?' checked':'');
+    if(btn) btn.className='slink-check'+(_riderSections[k]?' checked':'');
   });
-  _updateRiderUrl();
 }
 function _updateRiderUrl(){
   if(!CUR_SHOW)return;
+  var secs=Object.keys(_riderSections).filter(function(k){return _riderSections[k];});
   var base=window.location.origin+window.location.pathname;
-  var url=base+'?view='+CUR_SHOW.id+'&sections='+_riderSection;
+  var url=base+'?view='+CUR_SHOW.id+'&sections='+secs.join(',');
   var el=document.getElementById('slink-url');
   if(el) el.textContent=url;
 }
