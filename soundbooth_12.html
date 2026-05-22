@@ -977,7 +977,23 @@ body{display:flex;flex-direction:column;min-height:100vh}
 textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 
 /* profile modal */
-.profile-box{width:460px}
+.profile-box{width:520px;max-width:96vw}
+.prof-avatar-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;padding:20px 0 4px}
+.prof-avatar{width:72px;height:72px;border-radius:50%;background:var(--ora);color:#000;font-size:26px;font-weight:800;font-family:var(--m);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.prof-email-lbl{font-size:11px;color:var(--muted);font-family:var(--m)}
+.prof-section{border-top:1px solid var(--bdr);margin-top:16px;padding-top:14px}
+.prof-section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.prof-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.prof-fld{display:flex;flex-direction:column;gap:4px}
+.prof-fld.full{grid-column:1/-1}
+.prof-lbl{font-size:10px;font-weight:600;color:var(--muted);letter-spacing:.3px}
+.prof-inp{background:var(--surf2);border:1px solid var(--bdr2);color:var(--txt);font-family:var(--f);font-size:12px;padding:7px 10px;border-radius:7px;outline:none;width:100%;box-sizing:border-box;transition:border-color .15s}
+.prof-inp:focus{border-color:var(--ora-g)}
+.prof-inp:disabled{opacity:.5;cursor:default}
+.prof-action-row{display:flex;justify-content:flex-end;margin-top:10px}
+.prof-msg{font-size:10px;font-family:var(--m);padding:5px 10px;border-radius:6px;display:none}
+.prof-msg.ok{background:rgba(34,214,160,.12);color:var(--grn);border:1px solid rgba(34,214,160,.2)}
+.prof-msg.err{background:rgba(255,70,70,.1);color:var(--err);border:1px solid rgba(255,70,70,.2)}
 
 /* ── PLANS & SUBSCRIPTION ── */
 .plan-badge-pill{display:inline-flex;align-items:center;gap:3px;font-family:var(--m);font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;padding:2px 7px;border-radius:10px}
@@ -996,7 +1012,16 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 .gate-feat-row{display:flex;align-items:flex-start;gap:9px;font-size:11px;color:var(--txt2)}
 .gate-feat-row i{color:var(--grn);font-size:12px;flex-shrink:0;margin-top:1px}
 /* plan modal */
-.plan-modal-box{width:680px}
+.plan-modal-box{width:720px;max-width:96vw}
+.plan-current-bar{display:flex;align-items:center;gap:14px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;padding:14px 16px;margin-bottom:16px}
+.plan-cur-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.plan-cur-meta{flex:1;min-width:0}
+.plan-cur-name{font-size:14px;font-weight:700;margin-bottom:2px}
+.plan-cur-desc{font-size:11px;color:var(--muted)}
+.plan-billing-chip{font-family:var(--m);font-size:9px;padding:3px 9px;border-radius:8px;background:var(--surf3);border:1px solid var(--bdr2);color:var(--muted);white-space:nowrap}
+.plan-footer-links{display:flex;align-items:center;justify-content:center;gap:20px;margin-top:12px;font-size:10px;color:var(--muted);font-family:var(--m)}
+.plan-footer-links a,.plan-footer-links button{color:var(--muted);background:none;border:none;cursor:pointer;font-family:var(--m);font-size:10px;text-decoration:underline;padding:0}
+.plan-footer-links a:hover,.plan-footer-links button:hover{color:var(--txt)}
 .sub-current-bar{display:flex;align-items:center;gap:11px;padding:11px 14px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:9px;margin-bottom:16px}
 .sub-plans-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .sub-plan-card{border:1px solid var(--bdr2);border-radius:12px;padding:18px 16px;position:relative;transition:all .15s}
@@ -1814,16 +1839,82 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 
 <div class="modal-ov" id="profile-modal">
   <div class="modal-box profile-box">
-    <div class="modal-head"><i class="ti ti-user-edit" style="font-size:15px;color:var(--ora)"></i><div class="modal-title">Mon Profil</div><button class="btn ghost sm" onclick="closeProfile()"><i class="ti ti-x"></i></button></div>
-    <div class="modal-body">
-      <div class="pdf-grid">
-        <div class="pdf-fld"><label class="pdf-lbl">Nom complet</label><input class="pdf-inp" id="p-name"/></div>
-        <div class="pdf-fld"><label class="pdf-lbl">Rôle</label><input class="pdf-inp" id="p-role"/></div>
-        <div class="pdf-fld"><label class="pdf-lbl">Société</label><input class="pdf-inp" id="p-co"/></div>
-        <div class="pdf-fld"><label class="pdf-lbl">Contact</label><input class="pdf-inp" id="p-tel"/></div>
-      </div>
+    <div class="modal-head">
+      <i class="ti ti-user-circle" style="font-size:15px;color:var(--ora)"></i>
+      <div class="modal-title">Mon Profil</div>
+      <button class="btn ghost sm" onclick="closeProfile()"><i class="ti ti-x"></i></button>
     </div>
-    <div class="modal-foot"><button class="btn ghost sm" onclick="closeProfile()">Annuler</button><button class="btn" onclick="saveProfile()"><i class="ti ti-check"></i>Sauvegarder</button></div>
+    <div class="modal-body" style="padding:0 20px 20px">
+
+      <!-- Avatar + email -->
+      <div class="prof-avatar-wrap">
+        <div class="prof-avatar" id="p-avatar">??</div>
+        <div style="text-align:center">
+          <div style="font-size:13px;font-weight:700;color:var(--txt)" id="p-display-name">—</div>
+          <div class="prof-email-lbl" id="p-display-email">—</div>
+        </div>
+      </div>
+
+      <!-- Section : Informations -->
+      <div class="prof-section">
+        <div class="prof-section-title"><i class="ti ti-id-badge"></i>Informations professionnelles</div>
+        <div class="prof-grid">
+          <div class="prof-fld">
+            <label class="prof-lbl">Nom complet</label>
+            <input class="prof-inp" id="p-name" placeholder="Jean Dupont"/>
+          </div>
+          <div class="prof-fld">
+            <label class="prof-lbl">Rôle</label>
+            <input class="prof-inp" id="p-role" placeholder="FOH Engineer"/>
+          </div>
+          <div class="prof-fld">
+            <label class="prof-lbl">Société</label>
+            <input class="prof-inp" id="p-co" placeholder="Sound Co."/>
+          </div>
+          <div class="prof-fld">
+            <label class="prof-lbl">Téléphone</label>
+            <input class="prof-inp" id="p-tel" placeholder="+33 6 00 00 00 00"/>
+          </div>
+        </div>
+        <div id="p-info-msg" class="prof-msg"></div>
+        <div class="prof-action-row">
+          <button class="btn sm" onclick="saveProfile()"><i class="ti ti-check"></i>Sauvegarder</button>
+        </div>
+      </div>
+
+      <!-- Section : Changer l'email -->
+      <div class="prof-section">
+        <div class="prof-section-title"><i class="ti ti-mail"></i>Adresse email</div>
+        <div class="prof-fld full" style="margin-bottom:10px">
+          <label class="prof-lbl">Nouvel email</label>
+          <input class="prof-inp" id="p-new-email" type="email" placeholder="nouveau@email.com"/>
+        </div>
+        <div id="p-email-msg" class="prof-msg"></div>
+        <div class="prof-action-row">
+          <button class="btn sm" onclick="changeEmail()"><i class="ti ti-mail-forward"></i>Changer l'email</button>
+        </div>
+      </div>
+
+      <!-- Section : Changer le mot de passe -->
+      <div class="prof-section">
+        <div class="prof-section-title"><i class="ti ti-lock"></i>Mot de passe</div>
+        <div class="prof-grid">
+          <div class="prof-fld">
+            <label class="prof-lbl">Nouveau mot de passe</label>
+            <input class="prof-inp" id="p-pwd1" type="password" placeholder="••••••••"/>
+          </div>
+          <div class="prof-fld">
+            <label class="prof-lbl">Confirmer</label>
+            <input class="prof-inp" id="p-pwd2" type="password" placeholder="••••••••"/>
+          </div>
+        </div>
+        <div id="p-pwd-msg" class="prof-msg"></div>
+        <div class="prof-action-row">
+          <button class="btn sm" onclick="changePassword()"><i class="ti ti-key"></i>Changer le mot de passe</button>
+        </div>
+      </div>
+
+    </div>
   </div>
 </div>
 
@@ -1910,15 +2001,25 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
       <button class="btn ghost sm" onclick="closePlanModal()"><i class="ti ti-x"></i></button>
     </div>
     <div class="modal-body">
-      <div class="sub-current-bar">
-        <i class="ti ti-circle-check" style="font-size:18px;color:var(--grn);flex-shrink:0"></i>
-        <div>
-          <div style="font-size:12px;font-weight:600" id="sub-current-label">Plan Gratuit</div>
-          <div style="font-size:10px;color:var(--muted);font-family:var(--m)" id="sub-current-desc">Passez au Pro pour debloquer les exports PDF, le lien partage et bien plus.</div>
+      <!-- Plan actuel -->
+      <div class="plan-current-bar" id="plan-current-bar">
+        <div class="plan-cur-icon" id="plan-cur-icon">✦</div>
+        <div class="plan-cur-meta">
+          <div class="plan-cur-name" id="sub-current-label">Plan Gratuit</div>
+          <div class="plan-cur-desc" id="sub-current-desc">Passez au Pro pour debloquer les exports.</div>
         </div>
+        <div class="plan-billing-chip" id="plan-billing-chip">Gratuit</div>
       </div>
+      <!-- Comparatif plans -->
       <div class="sub-plans-grid" id="sub-plans-grid"></div>
-      <div style="margin-top:14px;font-size:10px;color:var(--muted);text-align:center;font-family:var(--m)">Annulez a tout moment · 14 jours offerts · Facture disponible</div>
+      <!-- Liens de bas de page -->
+      <div class="plan-footer-links">
+        <span>14 jours d'essai offerts</span>
+        <span>·</span>
+        <button onclick="toast('Redirection vers le portail de facturation...')"><i class="ti ti-receipt" style="margin-right:3px"></i>Historique de facturation</button>
+        <span>·</span>
+        <button onclick="toast('Pour annuler ou modifier votre abonnement, contactez support@patchflow.io')"><i class="ti ti-x" style="margin-right:3px"></i>Annuler l'abonnement</button>
+      </div>
     </div>
     <div class="modal-foot">
       <button class="btn ghost sm" onclick="closePlanModal()">Fermer</button>
@@ -8760,20 +8861,62 @@ async function delUserTpl(id){
 // ══════════════════════════════════════
 function openProfile(){
   closeUD();
+  // Infos
   document.getElementById('p-name').value=PROFILE?.full_name||'';
   document.getElementById('p-role').value=PROFILE?.role||'';
   document.getElementById('p-co').value=PROFILE?.company||'';
   document.getElementById('p-tel').value=PROFILE?.contact||'';
+  // Avatar + display
+  const name=PROFILE?.full_name||ME?.email||'?';
+  const init=name.split(' ').map(function(w){return w[0];}).join('').slice(0,2).toUpperCase();
+  document.getElementById('p-avatar').textContent=init;
+  document.getElementById('p-display-name').textContent=name;
+  document.getElementById('p-display-email').textContent=ME?.email||'';
+  // Reset champs sécurité
+  document.getElementById('p-new-email').value='';
+  document.getElementById('p-pwd1').value='';
+  document.getElementById('p-pwd2').value='';
+  ['p-info-msg','p-email-msg','p-pwd-msg'].forEach(function(id){
+    var el=document.getElementById(id);if(el){el.style.display='none';el.textContent='';}
+  });
   document.getElementById('profile-modal').className='modal-ov show';
 }
 function closeProfile(){document.getElementById('profile-modal').className='modal-ov';}
+function _profMsg(id,text,isErr){
+  var el=document.getElementById(id);if(!el)return;
+  el.textContent=text;el.className='prof-msg '+(isErr?'err':'ok');el.style.display='block';
+  if(!isErr)setTimeout(function(){el.style.display='none';},3500);
+}
 async function saveProfile(){
-  const u={full_name:document.getElementById('p-name').value,role:document.getElementById('p-role').value,company:document.getElementById('p-co').value,contact:document.getElementById('p-tel').value};
-  await sb.from('profiles').update(u).eq('id',ME.id);
+  var u={full_name:document.getElementById('p-name').value.trim(),role:document.getElementById('p-role').value.trim(),company:document.getElementById('p-co').value.trim(),contact:document.getElementById('p-tel').value.trim()};
+  if(!u.full_name){_profMsg('p-info-msg','Le nom est requis.',true);return;}
+  var {error}=await sb.from('profiles').update(u).eq('id',ME.id);
+  if(error){_profMsg('p-info-msg','Erreur : '+error.message,true);return;}
   PROFILE={...PROFILE,...u};
-  const init=u.full_name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-  document.getElementById('u-av').textContent=init;document.getElementById('u-name').textContent=u.full_name;
-  closeProfile();toast('✓ Profil mis à jour');
+  const init=u.full_name.split(' ').map(function(w){return w[0];}).join('').slice(0,2).toUpperCase();
+  document.getElementById('u-av').textContent=init;
+  document.getElementById('u-name').textContent=u.full_name;
+  document.getElementById('p-avatar').textContent=init;
+  document.getElementById('p-display-name').textContent=u.full_name;
+  _profMsg('p-info-msg','✓ Profil mis a jour','');
+}
+async function changeEmail(){
+  var newEmail=document.getElementById('p-new-email').value.trim();
+  if(!newEmail||!newEmail.includes('@')){_profMsg('p-email-msg','Adresse email invalide.',true);return;}
+  var {error}=await sb.auth.updateUser({email:newEmail});
+  if(error){_profMsg('p-email-msg','Erreur : '+error.message,true);return;}
+  _profMsg('p-email-msg','✓ Email de confirmation envoye a '+newEmail+'.');
+  document.getElementById('p-new-email').value='';
+}
+async function changePassword(){
+  var pwd1=document.getElementById('p-pwd1').value;
+  var pwd2=document.getElementById('p-pwd2').value;
+  if(pwd1.length<8){_profMsg('p-pwd-msg','Minimum 8 caracteres.',true);return;}
+  if(pwd1!==pwd2){_profMsg('p-pwd-msg','Les mots de passe ne correspondent pas.',true);return;}
+  var {error}=await sb.auth.updateUser({password:pwd1});
+  if(error){_profMsg('p-pwd-msg','Erreur : '+error.message,true);return;}
+  _profMsg('p-pwd-msg','✓ Mot de passe mis a jour.');
+  document.getElementById('p-pwd1').value='';document.getElementById('p-pwd2').value='';
 }
 
 // ══════════════════════════════════════
@@ -9211,8 +9354,16 @@ function openPlanModal() {
     pro:    'Vous beneficiez des exports PDF, du lien partage et du stockage 50 Go.',
     studio: 'Vous avez acces a toutes les fonctionnalites de PatchFlow.',
   };
-  document.getElementById('sub-current-label').textContent = 'Plan ' + (PLAN_META[cur]?.label || 'Gratuit');
+  const icons = { free:'🎙️', pro:'⚡', studio:'✦' };
+  const iconBg = { free:'var(--surf3)', pro:'var(--ora-d)', studio:'rgba(155,106,255,.12)' };
+  const chips  = { free:'Gratuit · Actif', pro:'Pro · Actif', studio:'Studio · Actif' };
+  const pm = PLAN_META[cur] || PLAN_META.free;
+  document.getElementById('sub-current-label').textContent = 'Plan ' + pm.label;
   document.getElementById('sub-current-desc').textContent = descs[cur] || '';
+  const iconEl = document.getElementById('plan-cur-icon');
+  if(iconEl){iconEl.textContent=icons[cur]||'✦';iconEl.style.background=iconBg[cur]||'var(--surf3)';}
+  const chipEl = document.getElementById('plan-billing-chip');
+  if(chipEl){chipEl.textContent=chips[cur]||'Actif';}
   const FEATS = {
     free:   [['Canaux/show','32',false],['Shows actifs','3',false],['Membres/show','1',false],['Export PDF','Non',true],['Stockage fichiers','Non',true],['Lien partage','Non',true]],
     pro:    [['Canaux/show','Illimites',false],['Shows actifs','Illimites',false],['Membres/show','5',false],['Export PDF','Oui',false],['Stockage fichiers','50 Go',false],['Plan de site','Oui',false]],
