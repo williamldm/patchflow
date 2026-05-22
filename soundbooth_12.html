@@ -3753,13 +3753,11 @@ function _makeBpCanvas(cb){
       const SZ=62*SC*(data.nodeScale||1);
       rr(0,0,SZ,SZ,13*SC);
       // Get color from item or fallback
-      let nColor='#5a6580';
-      const catDefs={drums:'#ff4d6a',guitar:'#f5c542',keys:'#9b6aff',vocals:'#22d6a0',brass:'#ff6b1a',perc:'#ff9040',tech:'#1a8fff',misc:'#aabbdd'};
-      for(const [cid,cc] of Object.entries(catDefs)){if(CATS.find?.(c=>c.id===cid&&c.items.some(i=>i.t===el.type)))nColor=cc;}
+      const _ci=BandPlan.getCatInfo(el.type);
+      const nColor=_ci.color;
       ctx.fillStyle=nColor+'18';ctx.fill();
       ctx.strokeStyle=nColor+'55';ctx.lineWidth=2*SC;ctx.stroke();
-      const it=CATS.reduce((f,c)=>{const i=c.items.find(i=>i.t===el.type);return i||f;},null);
-      const emoji=it?it.e:'?';
+      const emoji=_ci.emoji;
       ctx.font=(el.type==='txt_bp'?'16':'26')*SC*(data.nodeScale||1)+'px serif';
       ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#333';
       ctx.fillText(emoji,SZ/2,SZ/2);ctx.textBaseline='alphabetic';
@@ -7050,7 +7048,12 @@ const BandPlan=(()=>{
     saveStage();
   }
 
-  return {init,load,getData,clear,zoom,fitView,search,toggleCat,_pdrag,_pdblclick,renderInspector,updateAlias,updPos,adjScale,adjZ,setRot,linkCh,unlinkCh,createCh,deleteNode,setTextScale,setNodeScale,setStageScale,setRiserDims,setRiserAlt,addCustomItem,removeCustomItem,linkKitCh,unlinkKitCh,createKitCh,setViewMode};
+  function getCatInfo(t){
+    const cat=_catOf(t);
+    const it=_itemOf(t);
+    return {color:cat?cat.color:'#5a6580',emoji:it?it.e:'?'};
+  }
+  return {init,load,getData,clear,zoom,fitView,search,toggleCat,_pdrag,_pdblclick,renderInspector,updateAlias,updPos,adjScale,adjZ,setRot,linkCh,unlinkCh,createCh,deleteNode,setTextScale,setNodeScale,setStageScale,setRiserDims,setRiserAlt,addCustomItem,removeCustomItem,linkKitCh,unlinkKitCh,createKitCh,setViewMode,getCatInfo};
 })();
 
 // ══════════════════════════════════════
