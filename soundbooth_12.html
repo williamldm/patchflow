@@ -1328,7 +1328,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 
     <!-- SYNOPTIQUE -->
     <div class="panel" id="panel-fichiers" style="min-height:calc(100vh - 140px)">
-      <div class="pbar">
+      <div class="pbar" style="padding:14px 18px 0">
         <span class="ptitle"><i class="ti ti-cloud" style="color:var(--ora)"></i>Fichiers<span class="ptitle-sep">/</span><span id="sn-fichiers" style="color:var(--txt2)">…</span></span>
         <span id="fich-upload-status" style="font-size:10px;color:var(--muted);display:none"><i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Upload…</span>
       </div>
@@ -1351,14 +1351,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
         <span class="fich-storage-lbl" id="fich-storage-lbl">0 Mo utilises</span>
         <div class="fich-storage-track"><div class="fich-storage-fill" id="fich-storage-fill" style="width:0%"></div></div>
       </div>
-      <div id="fichiers-drop-zone" class="fich-dropzone">
-        <i class="ti ti-cloud-upload fich-dz-ico"></i>
-        <div class="fich-dz-txt">
-          <span style="font-size:13px;font-weight:600">Glissez vos fichiers ici</span>
-          <span style="font-size:11px;display:block">ou cliquez <b>Importer</b></span>
-          <span style="font-size:10px;color:var(--muted2)">PDF · Word · Excel · PowerPoint · Vidéo · Audio</span>
-        </div>
-      </div>
+      <div id="fichiers-drop-zone" class="fich-dropzone" style="display:none"></div>
     </div>
 
     <div class="panel" id="panel-synoptique">
