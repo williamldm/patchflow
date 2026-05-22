@@ -9449,13 +9449,13 @@ function openPortal() {
   if(cd) cd.textContent = 'Actif';
   var cc = document.getElementById('portal-billing-chip');
   if(cc) cc.textContent = chips[cur]||'Gratuit';
-  document.getElementById('portal-modal').className = 'modal-ov open';
+  document.getElementById('portal-modal').className = 'modal-ov show';
 }
 function closePortal() { document.getElementById('portal-modal').className = 'modal-ov'; }
 
 /* ── Support ── */
 function openSupport() {
-  document.getElementById('support-modal').className = 'modal-ov open';
+  document.getElementById('support-modal').className = 'modal-ov show';
 }
 function closeSupport() { document.getElementById('support-modal').className = 'modal-ov'; }
 function submitSupport() {
