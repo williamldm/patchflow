@@ -3362,16 +3362,22 @@ async function generateRiderLink(){
   var t=document.getElementById('rider-title');
   var n=document.getElementById('rider-note');
   var inf=document.getElementById('rider-info');
+  // Snapshot out_data and synoptique_data into rider so share view always has them
+  var outSnap=CUR_SHOW.out_data||OUT_DATA||{};
+  var synSnap=CUR_SHOW.synoptique_data||null;
   var cfg={
     sections:Object.keys(_riderSections).filter(function(k){return _riderSections[k];}),
     title:(t&&t.value.trim())||'',
     note:(n&&n.value.trim())||'',
     info:(inf&&inf.value.trim())||'',
-    files:Array.from(_riderPickedFiles)
+    files:Array.from(_riderPickedFiles),
+    out_snapshot:outSnap,
+    syn_snapshot:synSnap
   };
   var sd=Object.assign({},CUR_SHOW.stage_data||{v:2},{rider:cfg});
   CUR_SHOW.stage_data=sd;
-  var {error}=await sb.from('shows').update({stage_data:sd}).eq('id',CUR_SHOW.id);
+  // Also explicitly persist out_data and synoptique_data in their own columns
+  var {error}=await sb.from('shows').update({stage_data:sd,out_data:outSnap,synoptique_data:synSnap||CUR_SHOW.synoptique_data}).eq('id',CUR_SHOW.id);
   if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-link"></i>Generer le lien';}
   if(error){toast('Erreur sauvegarde : '+error.message);return;}
   // Show URL
@@ -9979,8 +9985,9 @@ document.getElementById('bp-share-modal').addEventListener('click',function(e){i
   }
 
   function _renderOUT(){
-    // Gather all outputs from all patches in out_data
-    var outData=show.out_data||{};
+    // Try direct column first, then snapshot embedded in rider config
+    var rider=show.stage_data&&show.stage_data.rider;
+    var outData=show.out_data||(rider&&rider.out_snapshot)||{};
     var allOuts=[];
     Object.keys(outData).forEach(function(pid){(outData[pid]||[]).forEach(function(o){allOuts.push(o);});});
     if(!allOuts.length) return _showMeta+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:13px">Aucune sortie configuree pour ce show.</div>';
@@ -10013,7 +10020,70 @@ document.getElementById('bp-share-modal').addEventListener('click',function(e){i
   }
 
   function _renderSyno(){
-    return _showMeta+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:12px">Synoptique disponible en vue interactive dans l\'application.</div>';
+    var rider=show.stage_data&&show.stage_data.rider;
+    var synData=show.synoptique_data||(rider&&rider.syn_snapshot)||null;
+    if(!synData) return _showMeta+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:13px">Synoptique non disponible — cliquez sur Generer le lien depuis l\'application pour inclure le synoptique.</div>';
+    // Parse scenes
+    var scenes=synData.scenes||[];
+    var activeIdx=Math.min(synData.activeScene||0,scenes.length-1);
+    var scene=scenes[activeIdx]||{nodes:[],edges:[]};
+    var nodes=scene.nodes||[];
+    var edges=scene.edges||[];
+    if(!nodes.length) return _showMeta+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:13px">Synoptique vide.</div>';
+    // Bounding box
+    var minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+    nodes.forEach(function(n){
+      minX=Math.min(minX,n.x||0);minY=Math.min(minY,n.y||0);
+      maxX=Math.max(maxX,(n.x||0)+(n.w||160));maxY=Math.max(maxY,(n.y||0)+(n.h||80));
+    });
+    var pad=40;
+    var vw=Math.max(1100,maxX-minX+pad*2);
+    var vh=Math.max(500,maxY-minY+pad*2);
+    var ox=pad-minX;var oy=pad-minY;
+    // Zone colors
+    var ZC={sub:'#ff6b1a',top:'#1a8fff',frontfill:'#5ab0ff',outfill:'#9b6aff',side:'#22d6a0',delay:'#f5c542',iem:'#c4a0ff'};
+    // Build SVG
+    var nodeMap={};nodes.forEach(function(n){nodeMap[n.id]=n;});
+    var edgeSvg='';
+    edges.forEach(function(e){
+      var fn=nodeMap[e.from];var tn=nodeMap[e.to];
+      if(!fn||!tn)return;
+      var x1=(fn.x||0)+ox+(fn.w||160);var y1=(fn.y||0)+oy+(fn.h||80)/2;
+      var x2=(tn.x||0)+ox;var y2=(tn.y||0)+oy+(tn.h||80)/2;
+      var z=ZC[tn.zone]||'#5a6a80';
+      var cx1=x1+Math.abs(x2-x1)*0.45;var cx2=x2-Math.abs(x2-x1)*0.45;
+      edgeSvg+='<path d="M'+x1+','+y1+' C'+cx1+','+y1+' '+cx2+','+y2+' '+x2+','+y2+'" fill="none" stroke="'+z+'" stroke-width="2" stroke-opacity=".7"/>';
+    });
+    var nodeSvg='';
+    nodes.forEach(function(n){
+      var x=(n.x||0)+ox;var y=(n.y||0)+oy;var w=n.w||160;var h=n.h||80;
+      var z=ZC[n.zone||'top']||'#1a8fff';
+      var fill=z.replace('#','');
+      var r=8;
+      nodeSvg+='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="'+r+'" fill="'+z+'22" stroke="'+z+'" stroke-width="1.5"/>';
+      // Label — split into lines
+      var label=n.label||'';
+      var lines=label.length>18?[label.slice(0,18),label.slice(18,36)]:[label];
+      var ly=y+h/2-(lines.length-1)*8;
+      lines.forEach(function(l,i){
+        nodeSvg+='<text x="'+(x+w/2)+'" y="'+(ly+i*16)+'" text-anchor="middle" dominant-baseline="middle" font-family="Outfit,sans-serif" font-size="12" font-weight="600" fill="#e8edf8">'+esc(l)+'</text>';
+      });
+    });
+    // Scene tabs header if multiple scenes
+    var sceneHdr='';
+    if(scenes.length>1){
+      sceneHdr='<div style="display:flex;gap:8px;margin-bottom:12px">';
+      scenes.forEach(function(sc,i){
+        var active=i===activeIdx;
+        sceneHdr+='<span style="font-size:10px;font-family:DM Mono,monospace;padding:3px 10px;border-radius:6px;background:'+(active?'rgba(255,107,26,.15)':'rgba(255,255,255,.05)')+';border:1px solid '+(active?'#ff6b1a':'#1e2a3a')+';color:'+(active?'#ff6b1a':'#5a6a80')+'">'+esc(sc.name||'Scene '+(i+1))+'</span>';
+      });
+      sceneHdr+='</div>';
+    }
+    var svgStr='<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 '+vw+' '+vh+'" style="max-width:100%;border-radius:10px;border:1px solid #1e2a3a;background:#080b12;display:block">'
+      +'<defs><filter id="sf"><feDropShadow dx="0" dy="1" stdDeviation="3" flood-opacity=".3"/></filter></defs>'
+      +edgeSvg+nodeSvg+'</svg>';
+    return _showMeta+sceneHdr+svgStr
+      +'<div style="margin-top:14px;text-align:center;font-size:10px;color:#3a4a5a;font-family:DM Mono,monospace">PatchFlow · Synoptique · '+now+'</div>';
   }
 
   // ── Pieces jointes tab ──
