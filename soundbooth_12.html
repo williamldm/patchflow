@@ -337,18 +337,18 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .syn-node-bar{height:3px;border-radius:8px 8px 0 0}
 .syn-node-hd{display:flex;align-items:flex-start;gap:8px;padding:8px 10px 4px}
 .syn-node-ico{font-size:18px;line-height:1}
-.syn-node-title{font-size:11px;font-weight:600;color:var(--txt)}
-.syn-node-sub{font-size:8px;color:var(--muted);font-family:var(--m);margin-top:1px}
+.syn-node-title{font-size:calc(11px * var(--syn-ts,1));font-weight:600;color:var(--txt)}
+.syn-node-sub{font-size:calc(8px * var(--syn-ts,1));color:var(--muted);font-family:var(--m);margin-top:1px}
 .syn-port-list{padding:4px 8px 8px;display:flex;flex-direction:column;gap:3px}
 .syn-port-row{display:flex;align-items:center;gap:6px}
 .syn-port-btn{width:32px;height:32px;pointer-events:auto;position:relative;z-index:3;border-radius:5px;border:1px solid var(--bdr2);background:var(--surf);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .syn-port-btn.on{border-color:var(--pc,var(--grn));background:color-mix(in srgb,var(--pc) 18%,transparent)}
 .syn-port-btn.link{box-shadow:0 0 0 2px var(--ora);border-color:var(--ora)}
-.syn-port-id{font-family:var(--m);font-size:10px;font-weight:700;color:var(--pc,var(--ora))}
+.syn-port-id{font-family:var(--m);font-size:calc(10px * var(--syn-ts,1));font-weight:700;color:var(--pc,var(--ora))}
 .syn-port-meta{flex:1;min-width:0}
-.syn-port-lbl{font-size:10px;font-weight:500;color:var(--txt);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.syn-port-lbl{font-size:calc(10px * var(--syn-ts,1));font-weight:500;color:var(--txt);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .syn-port-sub{font-size:7px;color:var(--muted);font-family:var(--m)}
-.syn-spk-meta{font-size:8px;color:var(--muted);padding:0 10px 6px;font-family:var(--m)}
+.syn-spk-meta{font-size:calc(8px * var(--syn-ts,1));color:var(--muted);padding:0 10px 6px;font-family:var(--m)}
 .syn-side-badge{position:absolute;top:6px;right:6px;font-family:var(--m);font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;border:1px solid}
 .syn-field-big{font-family:var(--m);font-size:14px;font-weight:700;color:var(--ora);padding:4px 10px 0}
 .syn-field-step{font-size:9px;color:var(--grn);padding:2px 10px 8px;text-transform:uppercase;letter-spacing:.8px}
@@ -1376,7 +1376,19 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
             <span class="syn-zoom-lbl" id="syn-zoom-lbl">100%</span>
             <button type="button" id="syn-zoom-in"><i class="ti ti-plus"></i></button>
             <button type="button" id="syn-zoom-reset" title="Reset zoom"><i class="ti ti-focus-centered"></i></button>
-            <button type="button" id="syn-fit-view" title="Ajuster à l'écran"><i class="ti ti-arrows-maximize"></i></button>
+            <button type="button" id="syn-fit-view" title="Ajuster a l'ecran"><i class="ti ti-arrows-maximize"></i></button>
+          </div>
+          <div class="syn-zoom-grp" title="Taille du texte des noeuds" style="gap:2px">
+            <span style="font-size:9px;color:var(--muted);padding:0 3px;font-family:var(--m);letter-spacing:.5px">T</span>
+            <button type="button" id="syn-ts-dec" style="width:22px;height:22px"><i class="ti ti-minus"></i></button>
+            <span class="syn-zoom-lbl" id="syn-ts-lbl" style="min-width:30px">100%</span>
+            <button type="button" id="syn-ts-inc" style="width:22px;height:22px"><i class="ti ti-plus"></i></button>
+          </div>
+          <div class="syn-zoom-grp" title="Taille des noeuds" style="gap:2px">
+            <span style="font-size:11px;color:var(--muted);padding:0 3px">&#9633;</span>
+            <button type="button" id="syn-ns-dec" style="width:22px;height:22px"><i class="ti ti-minus"></i></button>
+            <span class="syn-zoom-lbl" id="syn-ns-lbl" style="min-width:30px">100%</span>
+            <button type="button" id="syn-ns-inc" style="width:22px;height:22px"><i class="ti ti-plus"></i></button>
           </div>
           <div class="syn-dd" id="syn-export-dd"></div>
         </div>
@@ -4964,6 +4976,8 @@ const SynEditor = (() => {
     linkFrom: null,
     activeLiaison: null,
     liaisonFrom: null,
+    nodeScale: 1,
+    textScale: 1,
   };
   const S = () => state.scenes[state.activeScene] || state.scenes[0];
 
@@ -5106,7 +5120,7 @@ const SynEditor = (() => {
   }
 
   function serialize() {
-    return { v: VER, scenes: state.scenes, activeScene: state.activeScene, view: state.view };
+    return { v: VER, scenes: state.scenes, activeScene: state.activeScene, view: state.view, nodeScale: state.nodeScale, textScale: state.textScale };
   }
 
   function deserialize(data) {
@@ -5116,6 +5130,8 @@ const SynEditor = (() => {
       state.scenes = JSON.parse(JSON.stringify(data.scenes));
       state.activeScene = Math.min(data.activeScene || 0, state.scenes.length - 1);
       if (data.view) state.view = { ...state.view, ...data.view };
+      state.nodeScale = data.nodeScale || 1;
+      state.textScale  = data.textScale  || 1;
       return true;
     }
     // v2 / legacy format — migrate to single scene
@@ -5386,6 +5402,9 @@ const SynEditor = (() => {
   }
 
   function renderNodeEl(n) {
+    const _ns = state.nodeScale || 1;
+    const nw = Math.round(n.w * _ns);
+    const nh = Math.round(n.h * _ns);
     const z = zoneOf(n.zone || 'top');
     const sel = selected.kind === 'node' && selected.id === n.id;
     const field = state.mode === 'field';
@@ -5455,7 +5474,7 @@ const SynEditor = (() => {
       inner = '<div style="padding:10px 12px 10px;font-size:' + _fs + 'px;color:' + _tc + ';line-height:1.55;white-space:pre-wrap;word-break:break-word;min-height:50px">'
         + esc(n.text || '...')
         + '</div>';
-      return '<div class="syn-node' + (sel ? ' sel' : '') + (field ? ' field' : '') + '" data-nid="' + n.id + '" style="left:' + n.x + 'px;top:' + n.y + 'px;width:' + n.w + 'px;min-height:' + n.h + 'px;--zc:#4a5568;--zf:rgba(15,18,30,.6);background:rgba(15,18,30,.7);border-style:dashed">'
+      return '<div class="syn-node' + (sel ? ' sel' : '') + (field ? ' field' : '') + '" data-nid="' + n.id + '" style="left:' + n.x + 'px;top:' + n.y + 'px;width:' + nw + 'px;min-height:' + nh + 'px;--zc:#4a5568;--zf:rgba(15,18,30,.6);background:rgba(15,18,30,.7);border-style:dashed">'
         + '<div class="syn-node-bar" style="background:#4a5568;opacity:.5"></div>'
         + inner
         + (state.mode === 'edit' ? '<button type="button" class="syn-node-del" data-del="' + n.id + '" title="Supprimer"><i class="ti ti-x"></i></button>' : '')
@@ -5471,7 +5490,7 @@ const SynEditor = (() => {
       var swRows = swPorts.length
         ? '<div style="border-top:1px solid rgba(255,255,255,.06);padding:4px 0 5px">'
           + swPorts.map(function(p) {
-              var pc = _swProtoColor(p.proto);
+              var pc = p.color || _swProtoColor(p.proto);
               return '<div style="display:flex;align-items:center;gap:5px;padding:2px 10px">'
                 + '<span style="font-family:\'DM Mono\',monospace;font-size:8px;color:var(--muted2);min-width:14px;text-align:right;flex-shrink:0">' + p.id + '</span>'
                 + '<span style="width:5px;height:5px;border-radius:50%;background:' + pc + ';flex-shrink:0"></span>'
@@ -5486,7 +5505,7 @@ const SynEditor = (() => {
       inner = `<div class="syn-node-hd"><span class="syn-node-ico">${spec(n.type).icon}</span><div><div class="syn-node-title">${esc(n.label)}</div><div class="syn-node-sub">${esc(spec(n.type).label)}</div>${n.machineId ? `<div class="syn-node-sub" style="font-family:var(--m);color:var(--muted2);font-size:8px;padding-top:1px">ID · ${esc(n.machineId)}</div>` : ''}</div></div>`;
     }
 
-    return `<div class="syn-node${sel ? ' sel' : ''}${field ? ' field' : ''}${n.powered ? ' powered' : ''}" data-nid="${n.id}" style="left:${n.x}px;top:${n.y}px;width:${n.w}px;min-height:${n.h}px;--zc:${n.powered ? 'var(--grn)' : z.color};--zf:${n.powered ? 'rgba(34,214,160,.08)' : z.fill}">
+    return `<div class="syn-node${sel ? ' sel' : ''}${field ? ' field' : ''}${n.powered ? ' powered' : ''}" data-nid="${n.id}" style="left:${n.x}px;top:${n.y}px;width:${nw}px;min-height:${nh}px;--zc:${n.powered ? 'var(--grn)' : z.color};--zf:${n.powered ? 'rgba(34,214,160,.08)' : z.fill}">
       <div class="syn-node-bar" style="background:${n.powered ? 'var(--grn)' : z.color}"></div>
       ${inner}
       ${state.mode === 'edit' ? `<button type="button" class="syn-node-del" data-del="${n.id}" title="Supprimer"><i class="ti ti-x"></i></button>` : ''}
@@ -5511,11 +5530,17 @@ const SynEditor = (() => {
     document.body.classList.toggle('syn-field-global', state.mode === 'field');
 
     world.style.transform = `translate(${state.view.panX}px,${state.view.panY}px) scale(${state.view.zoom})`;
+    world.style.setProperty('--syn-ts', state.textScale || 1);
 
+    // Update toolbar scale labels
+    var _tsl = $('syn-ts-lbl'); if (_tsl) _tsl.textContent = Math.round((state.textScale||1)*100) + '%';
+    var _nsl = $('syn-ns-lbl'); if (_nsl) _nsl.textContent = Math.round((state.nodeScale||1)*100) + '%';
+
+    const _ns = state.nodeScale || 1;
     const bounds = { w: 900, h: 600 };
     S().nodes.forEach(n => {
-      bounds.w = Math.max(bounds.w, n.x + n.w + 80);
-      bounds.h = Math.max(bounds.h, n.y + n.h + 80);
+      bounds.w = Math.max(bounds.w, n.x + Math.round(n.w * _ns) + 80);
+      bounds.h = Math.max(bounds.h, n.y + Math.round(n.h * _ns) + 80);
     });
     svg.setAttribute('viewBox', `0 0 ${bounds.w} ${bounds.h}`);
     svg.setAttribute('width', bounds.w);
@@ -5731,11 +5756,11 @@ const SynEditor = (() => {
     var ports = n.swPorts || [];
     var protoOpts = _SW_PROTOS.map(function(p){ return '<option value="' + p + '">' + p + '</option>'; }).join('');
     var rows = ports.map(function(p, i) {
-      var pc = _swProtoColor(p.proto);
+      var pc = p.color || _swProtoColor(p.proto);
       return '<div class="sw-port-row" data-swpi="' + i + '" style="display:flex;align-items:center;gap:4px;padding:4px 0;border-bottom:1px solid var(--bdr)">'
         + '<span style="font-family:\'DM Mono\',monospace;font-size:9px;color:var(--muted);min-width:16px;text-align:right;flex-shrink:0">' + p.id + '</span>'
-        + '<span style="width:6px;height:6px;border-radius:50%;background:' + pc + ';flex-shrink:0"></span>'
-        + '<select class="sw-port-proto syn-insp-inp" data-swpi="' + i + '" style="flex-shrink:0;width:76px;font-size:9px;padding:2px 4px;color:' + pc + '">'
+        + '<input type="color" class="sw-port-color" data-swpi="' + i + '" value="' + (p.color || _swProtoColor(p.proto)) + '" style="width:18px;height:18px;border:none;border-radius:3px;padding:1px;cursor:pointer;background:none;flex-shrink:0" title="Couleur personnalisee"/>'
+        + '<select class="sw-port-proto syn-insp-inp" data-swpi="' + i + '" style="flex-shrink:0;width:72px;font-size:9px;padding:2px 4px;color:' + pc + '">'
         + _SW_PROTOS.map(function(pr){ return '<option value="' + pr + '"' + (p.proto === pr ? ' selected' : '') + '>' + pr + '</option>'; }).join('')
         + '</select>'
         + '<input class="sw-port-label syn-insp-inp" data-swpi="' + i + '" value="' + esc(p.label || '') + '" placeholder="Label..." style="flex:1;font-size:9px;padding:2px 5px"/>'
@@ -5817,19 +5842,29 @@ const SynEditor = (() => {
         return (n.swPorts.length || 0) + 1;
       }
 
-      // Live edits on existing ports (proto select + label input)
+      // Live edits on existing ports (color / proto select / label)
       var portList = document.getElementById('sw-port-list');
       if (portList) {
+        portList.addEventListener('input', function(ev) {
+          var cp = ev.target.closest('.sw-port-color');
+          if (cp) {
+            var i = parseInt(cp.dataset.swpi, 10);
+            n.swPorts[i].color = cp.value;
+            // update proto select color inline
+            var row = cp.closest('.sw-port-row');
+            if (row) { var ps = row.querySelector('.sw-port-proto'); if (ps) ps.style.color = cp.value; }
+            scheduleSave(); render();
+          }
+        });
         portList.addEventListener('change', function(ev) {
           var sel = ev.target.closest('.sw-port-proto');
           if (sel) {
             var i = parseInt(sel.dataset.swpi, 10);
             n.swPorts[i].proto = sel.value;
-            // update dot color inline
-            var row = sel.closest('.sw-port-row');
-            if (row) {
-              var dot = row.querySelector('span[style*="border-radius:50%"]');
-              if (dot) dot.style.background = _swProtoColor(sel.value);
+            // only update color if no custom color set
+            if (!n.swPorts[i].color) {
+              var row = sel.closest('.sw-port-row');
+              if (row) { var cp2 = row.querySelector('.sw-port-color'); if (cp2) cp2.value = _swProtoColor(sel.value); }
               sel.style.color = _swProtoColor(sel.value);
             }
             scheduleSave(); render();
@@ -6912,6 +6947,19 @@ th{background:#1a1a2e;color:#fff;padding:4px 6px;text-align:left;font-size:7px}t
     $('syn-zoom-out')?.addEventListener('click', () => _zoomBy(1 / 1.25));
     $('syn-zoom-reset')?.addEventListener('click', () => { state.view.zoom = 1; state.view.panX = 0; state.view.panY = 0; render(); });
     $('syn-fit-view')?.addEventListener('click', fitView);
+
+    // ── Global text scale ──────────────────────────────────────────
+    var _TS_STEPS = [0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0];
+    var _NS_STEPS = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0];
+    function _stepScale(arr, cur, dir) {
+      var idx = arr.reduce(function(bi, v, i){ return Math.abs(v-cur) < Math.abs(arr[bi]-cur) ? i : bi; }, 0);
+      return arr[Math.min(Math.max(0, idx + dir), arr.length - 1)];
+    }
+    $('syn-ts-inc')?.addEventListener('click', function(){ state.textScale = _stepScale(_TS_STEPS, state.textScale||1, 1); scheduleSave(); render(); });
+    $('syn-ts-dec')?.addEventListener('click', function(){ state.textScale = _stepScale(_TS_STEPS, state.textScale||1, -1); scheduleSave(); render(); });
+    $('syn-ns-inc')?.addEventListener('click', function(){ state.nodeScale = _stepScale(_NS_STEPS, state.nodeScale||1, 1); scheduleSave(); render(); });
+    $('syn-ns-dec')?.addEventListener('click', function(){ state.nodeScale = _stepScale(_NS_STEPS, state.nodeScale||1, -1); scheduleSave(); render(); });
+
     buildTplPicker();
     buildExportDD();
 
