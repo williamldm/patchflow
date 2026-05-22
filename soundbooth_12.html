@@ -2105,6 +2105,7 @@ async function newShowDefault(){
 }
 
 async function switchShow(id){
+  _stageReady=false;
   CUR_SHOW=SHOWS.find(s=>s.id===id);
   if(!CUR_SHOW)return;
   const n=CUR_SHOW.name;
@@ -3031,7 +3032,7 @@ function renderTable(){
     </tr>`).join('');
   }
   applyColVis();renderPills();updateStats();
-  saveStage();
+  _saveChsSnapshot();
 }
 
 // ══════════════════════════════════════
@@ -4180,13 +4181,29 @@ async function delAmp(idx){
 // ══════════════════════════════════════
 // STAGE PLAN — persisted in shows.stage_data
 // ══════════════════════════════════════
+let _stageReady=false;   // true after loadStage() has run for the current show
+let _saveChsTimer=null;
+function _saveChsSnapshot(){
+  // Only update the chs field — never touch band/site data before stage is loaded
+  if(!CUR_SHOW||!_stageReady)return;
+  clearTimeout(_saveChsTimer);
+  _saveChsTimer=setTimeout(function(){
+    if(!CUR_SHOW)return;
+    const chsSnap=(typeof CHS!=='undefined'?CHS:[]).map(function(r){return{id:r.id,ch:r.ch,short_name:r.short_name||'',long_name:r.long_name||'',source:r.source||'',mic:r.mic||'',phantom:!!r.phantom,foh:!!r.foh,mon:!!r.mon,note:r.note||''};});
+    const sd=Object.assign({},CUR_SHOW.stage_data||{v:2},{chs:chsSnap});
+    CUR_SHOW.stage_data=sd;
+    sb.from('shows').update({stage_data:sd}).eq('id',CUR_SHOW.id);
+  },1500);
+}
 function loadStage(){
+  _stageReady=false;
   const raw=CUR_SHOW?.stage_data;
   let bandData=null,siteData=null,savedMode='scene';
   if(raw&&raw.v>=2){bandData=raw.band||null;siteData=raw.site||null;savedMode=raw.planMode||'scene';}
   BandPlan.load(bandData);
   SitePlan.load(siteData);
   setPlanMode(savedMode,false);
+  _stageReady=true;
 }
 
 let saveStageTimer=null;
