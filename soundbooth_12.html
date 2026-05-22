@@ -9188,7 +9188,7 @@ document.getElementById('bp-share-modal').addEventListener('click',function(e){i
       +'</div></div>'
       +'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">'
       +'<thead><tr style="background:#111827;color:#8899aa;font-family:DM Mono,monospace;font-size:10px;text-transform:uppercase;letter-spacing:.8px">'
-      +'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">CH</th>'
+      +'<th style="padding:8px 16px;text-align:center;border-bottom:1px solid #1e2a3a;width:64px">CH</th>'
       +'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">Court</th>'
       +'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">Nom</th>'
       +'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">Source</th>'
@@ -9201,14 +9201,16 @@ document.getElementById('bp-share-modal').addEventListener('click',function(e){i
     rows.forEach((r,i)=>{
       const bg=i%2===0?'#0d1220':'#0a0f1c';
       h+='<tr style="background:'+bg+';border-bottom:1px solid #141c2e">'
-        +'<td style="padding:8px 12px;font-weight:700;color:#ff6b1a;font-family:DM Mono,monospace">'+r.ch+'</td>'
-        +'<td style="padding:8px 12px;font-weight:600">'+esc(r.short_name||'')+'</td>'
-        +'<td style="padding:8px 12px;color:#c8d4e0">'+esc(r.long_name||'')+'</td>'
+        +'<td style="padding:6px 10px;text-align:center;vertical-align:middle">'
+        +'<span style="display:inline-flex;align-items:center;justify-content:center;background:#ff6b1a;color:#000;font-family:DM Mono,monospace;font-size:16px;font-weight:900;min-width:44px;height:36px;border-radius:9px;padding:0 10px;letter-spacing:-.3px;box-shadow:0 2px 8px rgba(255,107,26,.35)">'
+        +r.ch+'</span></td>'
+        +'<td style="padding:8px 12px;font-weight:700;font-size:13px;color:#f0f4ff">'+esc(r.short_name||'')+'</td>'
+        +'<td style="padding:8px 12px;color:#c8d4e0;font-size:12px">'+esc(r.long_name||'')+'</td>'
         +'<td style="padding:8px 12px;color:#7a8a9a;font-family:DM Mono,monospace;font-size:10px">'+esc(r.source||'')+'</td>'
         +'<td style="padding:8px 12px;color:#7a8a9a;font-family:DM Mono,monospace;font-size:10px">'+esc(r.mic||'')+'</td>'
         +'<td style="padding:8px 12px">'+(r.phantom?'<span style="background:rgba(245,197,66,.15);color:#f5c542;border:1px solid rgba(245,197,66,.3);border-radius:4px;font-size:9px;padding:2px 6px;font-family:DM Mono,monospace">+48V</span>':'')+'</td>'
-        +'<td style="padding:8px 12px">'+(r.foh?'<span style="color:#22d6a0">✓</span>':'')+'</td>'
-        +'<td style="padding:8px 12px">'+(r.mon?'<span style="color:#1a8fff">✓</span>':'')+'</td>'
+        +'<td style="padding:8px 12px;font-size:15px;font-weight:700">'+(r.foh?'<span style="color:#22d6a0">&#10003;</span>':'')+'</td>'
+        +'<td style="padding:8px 12px;font-size:15px;font-weight:700">'+(r.mon?'<span style="color:#1a8fff">&#10003;</span>':'')+'</td>'
         +'<td style="padding:8px 12px;color:#5a6a80;font-size:11px">'+esc(r.note||'')+'</td>'
         +'</tr>';
     });
