@@ -7405,9 +7405,16 @@ const BandPlan=(()=>{
           +'<circle cx="36" cy="36" r="19" fill="#060404" stroke="rgba(255,107,26,.12)" stroke-width="0.8"/>'
           +'<circle cx="36" cy="36" r="8" fill="#040202" stroke="rgba(255,107,26,.32)" stroke-width="1.5"/>';
       case 'wedge':
-        return '<path d="M4,65L36,7L68,65Z" fill="#181814" stroke="rgba(245,197,66,.38)" stroke-width="1.5"/>'
-          +'<circle cx="36" cy="49" r="13" fill="#0e0e0a" stroke="rgba(245,197,66,.18)" stroke-width="0.8"/>'
-          +'<circle cx="36" cy="49" r="8" fill="#080808"/>'+'<circle cx="36" cy="49" r="3.5" fill="#040404"/>';
+        // Profil vue de cote : forme rampe (bas gauche bas, bas droite bas, haut droit haut, haut gauche bas)
+        return '<polygon points="4,66 68,66 68,14 4,52" fill="#161410" stroke="'+c+'" stroke-width="1.5" stroke-opacity=".68"/>'
+          // grille interieure
+          +'<polygon points="10,63 62,63 62,20 10,49" fill="#0e0c08" stroke="'+c+'" stroke-width="0.5" stroke-opacity=".18"/>'
+          // cone HP central
+          +'<circle cx="36" cy="42" r="16" fill="#0a0806" stroke="'+c+'" stroke-width="1.2" stroke-opacity=".42"/>'
+          +'<circle cx="36" cy="42" r="10" fill="#060502" stroke="rgba(255,255,255,.04)" stroke-width="0.7"/>'
+          +'<circle cx="36" cy="42" r="4.5" fill="#030200" stroke="'+c+'" stroke-width="1.2" stroke-opacity=".6"/>'
+          // port basse en bas
+          +'<rect x="18" y="62" width="36" height="2.5" rx="0.8" fill="#080600" stroke="rgba(0,0,0,.5)" stroke-width="0.4"/>';
       case 'chair':
         return '<rect x="12" y="12" width="48" height="48" rx="4" fill="rgba(80,60,40,.7)" stroke="rgba(160,120,80,.38)" stroke-width="1.5"/>'
           +'<rect x="17" y="17" width="38" height="26" rx="3" fill="rgba(100,75,50,.6)"/>'
