@@ -7439,7 +7439,9 @@ const BandPlan=(()=>{
     var chBadge=el.type==='kit'
       ?(el.chs&&el.chs.length?'<div class="bp-node-ch">'+(el.chs.length===1?'CH '+_chNum(el.chs[0]):el.chs.length+'\xd7CH')+'</div>':'')
       :(_isOutput(el.type)
-        ?(el.outCh?'<div class="bp-node-ch" style="background:#22d6a0">OUT '+_outChNum(el.outCh)+'</div>':'')
+        ?(el.outStereo
+          ?(el.outCh||el.outChR?'<div class="bp-node-ch" style="background:#22d6a0;font-size:22px">OUT '+(el.outCh?_outChNum(el.outCh):'?')+'+'+(el.outChR?_outChNum(el.outChR):'?')+'</div>':'')
+          :(el.outCh?'<div class="bp-node-ch" style="background:#22d6a0">OUT '+_outChNum(el.outCh)+'</div>':''))
         :(el.stereo
           ?(el.ch||el.chR?'<div class="bp-node-ch" style="font-size:22px">CH '+(el.ch?_chNum(el.ch):'?')+'+'+(el.chR?_chNum(el.chR):'?')+'</div>':'')
           :(el.ch?'<div class="bp-node-ch">CH '+_chNum(el.ch)+'</div>':'')));
@@ -7504,7 +7506,9 @@ const BandPlan=(()=>{
     const chBadge=el.type==='kit'
       ?(el.chs&&el.chs.length?'<div class="bp-node-ch">'+(el.chs.length===1?'CH '+_chNum(el.chs[0]):el.chs.length+'\xd7CH')+'</div>':'')
       :(_isOutput(el.type)
-        ?(el.outCh?'<div class="bp-node-ch" style="background:#22d6a0">OUT '+_outChNum(el.outCh)+'</div>':'')
+        ?(el.outStereo
+          ?(el.outCh||el.outChR?'<div class="bp-node-ch" style="background:#22d6a0;font-size:22px">OUT '+(el.outCh?_outChNum(el.outCh):'?')+'+'+(el.outChR?_outChNum(el.outChR):'?')+'</div>':'')
+          :(el.outCh?'<div class="bp-node-ch" style="background:#22d6a0">OUT '+_outChNum(el.outCh)+'</div>':''))
         :(el.stereo
           ?(el.ch||el.chR?'<div class="bp-node-ch" style="font-size:22px">CH '+(el.ch?_chNum(el.ch):'?')+'+'+(el.chR?_chNum(el.chR):'?')+'</div>':'')
           :(el.ch?'<div class="bp-node-ch">CH '+_chNum(el.ch)+'</div>':'')));
@@ -7671,15 +7675,32 @@ const BandPlan=(()=>{
           ?(()=>{
             const outChs=typeof OUT_CHS!=='undefined'?OUT_CHS:[];
             const linkedOut=outChs.find(r=>r.id===sel.outCh);
+            const linkedOutR=sel.outStereo?outChs.find(r=>r.id===sel.outChR):null;
             const outOpts=outChs.map(r=>'<option value="'+r.id+'"'+(sel.outCh===r.id?' selected':'')+'>OUT'+r.ch+' — '+(r.long_name||r.short_name||'—')+'</option>').join('');
+            const outOptsR=outChs.map(r=>'<option value="'+r.id+'"'+(sel.outChR===r.id?' selected':'')+'>OUT'+r.ch+' — '+(r.long_name||r.short_name||'—')+'</option>').join('');
+            const gc='#22d6a0';
             return '<div class="bp-insp-sec">'
-              +'<div class="bp-insp-title"><i class="ti ti-list-numbers" style="color:#22d6a0"></i>Output List</div>'
+              +'<div class="bp-insp-title"><i class="ti ti-list-numbers" style="color:'+gc+'"></i>Output List</div>'
+              +'<label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:11px;color:var(--txt2);margin-bottom:9px;user-select:none">'
+              +'<input type="checkbox" class="cb"'+(sel.outStereo?' checked':'')+' onchange="BandPlan.toggleOutStereo(this.checked)"/> Stereo (2 sorties L+R)'
+              +'</label>'
+              +(sel.outStereo?'<div style="font-size:9px;font-family:var(--m);color:var(--muted);margin-bottom:3px">Sortie L</div>':'')
               +(linkedOut
-                ?'<div class="bp-il-badge" style="border-color:rgba(34,214,160,.3);color:#22d6a0"><i class="ti ti-plug-connected"></i>OUT '+linkedOut.ch+' — '+(linkedOut.long_name||linkedOut.short_name||'—')+'</div>'
+                ?'<div class="bp-il-badge" style="border-color:rgba(34,214,160,.3);color:'+gc+'"><i class="ti ti-plug-connected"></i>OUT '+linkedOut.ch+' — '+(linkedOut.long_name||linkedOut.short_name||'—')+'</div>'
                  +'<button class="bp-il-unlink" onclick="BandPlan.unlinkOutCh()">Dissocier</button>'
-                :(outOpts?'<select class="bp-il-sel" onchange="BandPlan.linkOutCh(this.value)"><option value="">— Lier a une sortie —</option>'+outOpts+'</select>':'<div style="font-size:10px;color:var(--muted);padding:4px 0">Aucune sortie dans l\'output list.</div>')
+                :(outOpts?'<select class="bp-il-sel" onchange="BandPlan.linkOutCh(this.value)"><option value="">— Lier a une sortie'+(sel.outStereo?' L':'')+' —</option>'+outOpts+'</select>':'<div style="font-size:10px;color:var(--muted);padding:4px 0">Aucune sortie dans l\'output list.</div>')
               )
-              +'<button class="bp-il-create" onclick="BandPlan.createOutCh()"><i class="ti ti-plus"></i>Creer une sortie</button>'
+              +'<button class="bp-il-create" onclick="BandPlan.createOutCh()" style="margin-bottom:'+(sel.outStereo?'10':'0')+'px"><i class="ti ti-plus"></i>Creer une sortie'+(sel.outStereo?' L':'')+' </button>'
+              +(sel.outStereo
+                ?'<div style="font-size:9px;font-family:var(--m);color:var(--muted);margin-bottom:3px;margin-top:2px">Sortie R</div>'
+                 +(linkedOutR
+                   ?'<div class="bp-il-badge" style="border-color:rgba(34,214,160,.3);color:'+gc+'"><i class="ti ti-plug-connected"></i>OUT '+linkedOutR.ch+' — '+(linkedOutR.long_name||linkedOutR.short_name||'—')+'</div>'
+                    +'<button class="bp-il-unlink" onclick="BandPlan.unlinkOutChR()">Dissocier</button>'
+                   :(outOptsR?'<select class="bp-il-sel" onchange="BandPlan.linkOutChR(this.value)"><option value="">— Lier a une sortie R —</option>'+outOptsR+'</select>':'<div style="font-size:10px;color:var(--muted);padding:4px 0">Aucune sortie dans l\'output list.</div>')
+                 )
+                 +'<button class="bp-il-create" onclick="BandPlan.createOutChR()"><i class="ti ti-plus"></i>Creer une sortie R</button>'
+                :''
+              )
               +'</div>';
           })()
           :(()=>{
@@ -7822,6 +7843,28 @@ const BandPlan=(()=>{
     renderNode(el);renderInspector();saveStage();
   }
   function unlinkOutCh(){linkOutCh(null);}
+  function toggleOutStereo(on){
+    const el=st.els.find(e=>e.id===_sel);if(!el)return;
+    el.outStereo=!!on;
+    if(!on){el.outChR=null;}
+    renderNode(el);renderInspector();saveStage();
+  }
+  function linkOutChR(outChId){
+    const el=st.els.find(e=>e.id===_sel);if(!el)return;
+    el.outChR=outChId||null;
+    renderNode(el);renderInspector();saveStage();
+  }
+  function unlinkOutChR(){linkOutChR(null);}
+  function createOutChR(){
+    const el=st.els.find(e=>e.id===_sel);if(!el)return;
+    const outChs=typeof OUT_CHS!=='undefined'?OUT_CHS:[];
+    const ch=outChs.length+1;
+    const row={id:'o'+Date.now()+Math.random().toString(36).slice(2,5),ch,short_name:(el.label||'').slice(0,3).toUpperCase().replace(/\s/g,'')+'R',long_name:(el.label||'')+' R',type:'other',dest:'',note:''};
+    if(typeof OUT_CHS!=='undefined'){OUT_CHS.push(row);if(typeof saveOutData==='function')saveOutData();if(typeof renderOutTable==='function')renderOutTable();}
+    el.outChR=row.id;
+    renderNode(el);renderInspector();saveStage();
+    toast('Sortie OUT'+ch+' (R) creee et liee a "'+el.label+'"');
+  }
   function createOutCh(){
     const el=st.els.find(e=>e.id===_sel);if(!el)return;
     const outChs=typeof OUT_CHS!=='undefined'?OUT_CHS:[];
@@ -8061,7 +8104,7 @@ const BandPlan=(()=>{
   }
   function getVintageSVG(t,col){return _vSVG(t,col);}
   function getViewMode(){return st.viewMode;}
-  return {init,load,getData,clear,zoom,fitView,search,toggleCat,_pdrag,_pdblclick,renderInspector,updateAlias,updPos,adjScale,adjZ,setRot,linkCh,unlinkCh,createCh,toggleStereo,linkChR,unlinkChR,createChR,linkOutCh,unlinkOutCh,createOutCh,deleteNode,setTextScale,setNodeScale,setStageScale,setRiserDims,setRiserAlt,addCustomItem,removeCustomItem,linkKitCh,unlinkKitCh,createKitCh,setViewMode,getCatInfo,getVintageSVG,getViewMode};
+  return {init,load,getData,clear,zoom,fitView,search,toggleCat,_pdrag,_pdblclick,renderInspector,updateAlias,updPos,adjScale,adjZ,setRot,linkCh,unlinkCh,createCh,toggleStereo,linkChR,unlinkChR,createChR,linkOutCh,unlinkOutCh,createOutCh,toggleOutStereo,linkOutChR,unlinkOutChR,createOutChR,deleteNode,setTextScale,setNodeScale,setStageScale,setRiserDims,setRiserAlt,addCustomItem,removeCustomItem,linkKitCh,unlinkKitCh,createKitCh,setViewMode,getCatInfo,getVintageSVG,getViewMode};
 })();
 
 // ══════════════════════════════════════
