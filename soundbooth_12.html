@@ -7174,6 +7174,9 @@ const BandPlan=(()=>{
   function _itemOf(t){for(const c of CATS){const it=c.items.find(i=>i.t===t);if(it)return it;}return _customItems.find(i=>i.t===t)||null;}
   function _elColor(t){const it=_itemOf(t);const cat=_catOf(t);return(it&&it.c)||(cat&&cat.color)||'#5a6580';}
   function _chNum(chId){const r=(typeof CHS!=='undefined'?CHS:[]).find(c=>c.id===chId);return r?r.ch:'?';}
+  const _OUTPUT_TYPES=new Set(['spk','sub','wedge','iem_r','iem_p']);
+  function _isOutput(type){return _OUTPUT_TYPES.has(type);}
+  function _outChNum(outChId){const r=(typeof OUT_CHS!=='undefined'?OUT_CHS:[]).find(c=>c.id===outChId);return r?r.ch:'?';}
 
   // ---- palette ----
   function renderPalette(filter){
@@ -7428,7 +7431,9 @@ const BandPlan=(()=>{
     var it=_itemOf(el.type)||{e:'?'};
     var chBadge=el.type==='kit'
       ?(el.chs&&el.chs.length?'<div class="bp-node-ch">'+(el.chs.length===1?'CH '+_chNum(el.chs[0]):el.chs.length+'\xd7CH')+'</div>':'')
-      :(el.ch?'<div class="bp-node-ch">CH '+_chNum(el.ch)+'</div>':'');
+      :(_isOutput(el.type)
+        ?(el.outCh?'<div class="bp-node-ch" style="background:#22d6a0">OUT '+_outChNum(el.outCh)+'</div>':'')
+        :(el.ch?'<div class="bp-node-ch">CH '+_chNum(el.ch)+'</div>':''));
     if(el.type==='riser'){
       var rw=(el.riserW||2)*RISER_SCALE,rh=(el.riserH||1)*RISER_SCALE,alt=el.riserAlt||0.4;
       var op=(0.12+(alt/1.2)*0.3).toFixed(2),fs=Math.max(11,Math.min(18,rw/9));
@@ -7489,7 +7494,9 @@ const BandPlan=(()=>{
     const it=_itemOf(el.type)||{e:'?'};
     const chBadge=el.type==='kit'
       ?(el.chs&&el.chs.length?'<div class="bp-node-ch">'+(el.chs.length===1?'CH '+_chNum(el.chs[0]):el.chs.length+'\xd7CH')+'</div>':'')
-      :(el.ch?'<div class="bp-node-ch">CH '+_chNum(el.ch)+'</div>':'');
+      :(_isOutput(el.type)
+        ?(el.outCh?'<div class="bp-node-ch" style="background:#22d6a0">OUT '+_outChNum(el.outCh)+'</div>':'')
+        :(el.ch?'<div class="bp-node-ch">CH '+_chNum(el.ch)+'</div>':''));
     if(el.type==='riser'){
       const rw=(el.riserW||2)*RISER_SCALE;
       const rh=(el.riserH||1)*RISER_SCALE;
@@ -7635,7 +7642,7 @@ const BandPlan=(()=>{
          +'</select>'
          +'</div>'
         :'')
-      // --- Input List
+      // --- Input / Output List
       +(sel.type==='kit'
         ?(()=>{
           const kitChs=sel.chs||[];
@@ -7649,15 +7656,30 @@ const BandPlan=(()=>{
             +'<button class="bp-il-create" onclick="BandPlan.createKitCh()"><i class="ti ti-plus"></i>Creer un canal</button>'
             +'</div>';
         })()
-        :'<div class="bp-insp-sec">'
-        +'<div class="bp-insp-title"><i class="ti ti-list-numbers" style="color:var(--ora)"></i>Input List</div>'
-        +(linkedCh
-          ?'<div class="bp-il-badge"><i class="ti ti-plug-connected"></i>CH '+linkedCh.ch+' — '+(linkedCh.long_name||linkedCh.short_name||'—')+'</div>'
-           +'<button class="bp-il-unlink" onclick="BandPlan.unlinkCh()">Dissocier</button>'
-          :(chOpts?'<select class="bp-il-sel" onchange="BandPlan.linkCh(this.value)"><option value="">— Lier a un canal —</option>'+chOpts+'</select>':'')
-        )
-        +'<button class="bp-il-create" onclick="BandPlan.createCh()"><i class="ti ti-plus"></i>Creer un canal</button>'
-        +'</div>'
+        :_isOutput(sel.type)
+          ?(()=>{
+            const outChs=typeof OUT_CHS!=='undefined'?OUT_CHS:[];
+            const linkedOut=outChs.find(r=>r.id===sel.outCh);
+            const outOpts=outChs.map(r=>'<option value="'+r.id+'"'+(sel.outCh===r.id?' selected':'')+'>OUT'+r.ch+' — '+(r.long_name||r.short_name||'—')+'</option>').join('');
+            return '<div class="bp-insp-sec">'
+              +'<div class="bp-insp-title"><i class="ti ti-list-numbers" style="color:#22d6a0"></i>Output List</div>'
+              +(linkedOut
+                ?'<div class="bp-il-badge" style="border-color:rgba(34,214,160,.3);color:#22d6a0"><i class="ti ti-plug-connected"></i>OUT '+linkedOut.ch+' — '+(linkedOut.long_name||linkedOut.short_name||'—')+'</div>'
+                 +'<button class="bp-il-unlink" onclick="BandPlan.unlinkOutCh()">Dissocier</button>'
+                :(outOpts?'<select class="bp-il-sel" onchange="BandPlan.linkOutCh(this.value)"><option value="">— Lier a une sortie —</option>'+outOpts+'</select>':'<div style="font-size:10px;color:var(--muted);padding:4px 0">Aucune sortie dans l\'output list.</div>')
+              )
+              +'<button class="bp-il-create" onclick="BandPlan.createOutCh()"><i class="ti ti-plus"></i>Creer une sortie</button>'
+              +'</div>';
+          })()
+          :'<div class="bp-insp-sec">'
+          +'<div class="bp-insp-title"><i class="ti ti-list-numbers" style="color:var(--ora)"></i>Input List</div>'
+          +(linkedCh
+            ?'<div class="bp-il-badge"><i class="ti ti-plug-connected"></i>CH '+linkedCh.ch+' — '+(linkedCh.long_name||linkedCh.short_name||'—')+'</div>'
+             +'<button class="bp-il-unlink" onclick="BandPlan.unlinkCh()">Dissocier</button>'
+            :(chOpts?'<select class="bp-il-sel" onchange="BandPlan.linkCh(this.value)"><option value="">— Lier a un canal —</option>'+chOpts+'</select>':'')
+          )
+          +'<button class="bp-il-create" onclick="BandPlan.createCh()"><i class="ti ti-plus"></i>Creer un canal</button>'
+          +'</div>'
       );
   }
 
@@ -7738,6 +7760,22 @@ const BandPlan=(()=>{
     renderNode(el);renderInspector();saveStage();
   }
   function unlinkCh(){linkCh(null);}
+  function linkOutCh(outChId){
+    const el=st.els.find(e=>e.id===_sel);if(!el)return;
+    el.outCh=outChId||null;
+    renderNode(el);renderInspector();saveStage();
+  }
+  function unlinkOutCh(){linkOutCh(null);}
+  function createOutCh(){
+    const el=st.els.find(e=>e.id===_sel);if(!el)return;
+    const outChs=typeof OUT_CHS!=='undefined'?OUT_CHS:[];
+    const ch=outChs.length+1;
+    const row={id:'o'+Date.now()+Math.random().toString(36).slice(2,5),ch,short_name:(el.label||'').slice(0,4).toUpperCase().replace(/\s/g,''),long_name:el.label||'',type:'other',dest:'',note:''};
+    if(typeof OUT_CHS!=='undefined'){OUT_CHS.push(row);if(typeof saveOutData==='function')saveOutData();if(typeof renderOutTable==='function')renderOutTable();}
+    el.outCh=row.id;
+    renderNode(el);renderInspector();saveStage();
+    toast('Sortie OUT'+ch+' creee et liee a "'+el.label+'"');
+  }
   async function createCh(){
     const el=st.els.find(e=>e.id===_sel);if(!el||!CUR_SHOW)return;
     const ch=CHS.length+1;
@@ -7967,7 +8005,7 @@ const BandPlan=(()=>{
   }
   function getVintageSVG(t,col){return _vSVG(t,col);}
   function getViewMode(){return st.viewMode;}
-  return {init,load,getData,clear,zoom,fitView,search,toggleCat,_pdrag,_pdblclick,renderInspector,updateAlias,updPos,adjScale,adjZ,setRot,linkCh,unlinkCh,createCh,deleteNode,setTextScale,setNodeScale,setStageScale,setRiserDims,setRiserAlt,addCustomItem,removeCustomItem,linkKitCh,unlinkKitCh,createKitCh,setViewMode,getCatInfo,getVintageSVG,getViewMode};
+  return {init,load,getData,clear,zoom,fitView,search,toggleCat,_pdrag,_pdblclick,renderInspector,updateAlias,updPos,adjScale,adjZ,setRot,linkCh,unlinkCh,createCh,linkOutCh,unlinkOutCh,createOutCh,deleteNode,setTextScale,setNodeScale,setStageScale,setRiserDims,setRiserAlt,addCustomItem,removeCustomItem,linkKitCh,unlinkKitCh,createKitCh,setViewMode,getCatInfo,getVintageSVG,getViewMode};
 })();
 
 // ══════════════════════════════════════
