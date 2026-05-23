@@ -7440,7 +7440,9 @@ const BandPlan=(()=>{
       ?(el.chs&&el.chs.length?'<div class="bp-node-ch">'+(el.chs.length===1?'CH '+_chNum(el.chs[0]):el.chs.length+'\xd7CH')+'</div>':'')
       :(_isOutput(el.type)
         ?(el.outCh?'<div class="bp-node-ch" style="background:#22d6a0">OUT '+_outChNum(el.outCh)+'</div>':'')
-        :(el.ch?'<div class="bp-node-ch">CH '+_chNum(el.ch)+'</div>':''));
+        :(el.stereo
+          ?(el.ch||el.chR?'<div class="bp-node-ch" style="font-size:22px">CH '+(el.ch?_chNum(el.ch):'?')+'+'+(el.chR?_chNum(el.chR):'?')+'</div>':'')
+          :(el.ch?'<div class="bp-node-ch">CH '+_chNum(el.ch)+'</div>':'')));
     if(el.type==='riser'){
       var rw=(el.riserW||2)*RISER_SCALE,rh=(el.riserH||1)*RISER_SCALE,alt=el.riserAlt||0.4;
       var op=(0.12+(alt/1.2)*0.3).toFixed(2),fs=Math.max(11,Math.min(18,rw/9));
@@ -7503,7 +7505,9 @@ const BandPlan=(()=>{
       ?(el.chs&&el.chs.length?'<div class="bp-node-ch">'+(el.chs.length===1?'CH '+_chNum(el.chs[0]):el.chs.length+'\xd7CH')+'</div>':'')
       :(_isOutput(el.type)
         ?(el.outCh?'<div class="bp-node-ch" style="background:#22d6a0">OUT '+_outChNum(el.outCh)+'</div>':'')
-        :(el.ch?'<div class="bp-node-ch">CH '+_chNum(el.ch)+'</div>':''));
+        :(el.stereo
+          ?(el.ch||el.chR?'<div class="bp-node-ch" style="font-size:22px">CH '+(el.ch?_chNum(el.ch):'?')+'+'+(el.chR?_chNum(el.chR):'?')+'</div>':'')
+          :(el.ch?'<div class="bp-node-ch">CH '+_chNum(el.ch)+'</div>':'')));
     if(el.type==='riser'){
       const rw=(el.riserW||2)*RISER_SCALE;
       const rh=(el.riserH||1)*RISER_SCALE;
@@ -7678,15 +7682,36 @@ const BandPlan=(()=>{
               +'<button class="bp-il-create" onclick="BandPlan.createOutCh()"><i class="ti ti-plus"></i>Creer une sortie</button>'
               +'</div>';
           })()
-          :'<div class="bp-insp-sec">'
-          +'<div class="bp-insp-title"><i class="ti ti-list-numbers" style="color:var(--ora)"></i>Input List</div>'
-          +(linkedCh
-            ?'<div class="bp-il-badge"><i class="ti ti-plug-connected"></i>CH '+linkedCh.ch+' — '+(linkedCh.long_name||linkedCh.short_name||'—')+'</div>'
-             +'<button class="bp-il-unlink" onclick="BandPlan.unlinkCh()">Dissocier</button>'
-            :(chOpts?'<select class="bp-il-sel" onchange="BandPlan.linkCh(this.value)"><option value="">— Lier a un canal —</option>'+chOpts+'</select>':'')
-          )
-          +'<button class="bp-il-create" onclick="BandPlan.createCh()"><i class="ti ti-plus"></i>Creer un canal</button>'
-          +'</div>'
+          :(()=>{
+            const linkedChR=sel.stereo?chs.find(r=>r.id===sel.chR):null;
+            const chOptsR=chs.map(r=>'<option value="'+r.id+'"'+(sel.chR===r.id?' selected':'')+'>CH'+r.ch+' — '+(r.long_name||r.short_name||'—')+'</option>').join('');
+            return '<div class="bp-insp-sec">'
+              +'<div class="bp-insp-title"><i class="ti ti-list-numbers" style="color:var(--ora)"></i>Input List</div>'
+              // Stereo toggle
+              +'<label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:11px;color:var(--txt2);margin-bottom:9px;user-select:none">'
+              +'<input type="checkbox" class="cb"'+(sel.stereo?' checked':'')+' onchange="BandPlan.toggleStereo(this.checked)"/> Stereo (2 canaux L+R)'
+              +'</label>'
+              // Canal L (ou mono)
+              +(sel.stereo?'<div style="font-size:9px;font-family:var(--m);color:var(--muted);margin-bottom:3px">Canal L</div>':'')
+              +(linkedCh
+                ?'<div class="bp-il-badge"><i class="ti ti-plug-connected"></i>CH '+linkedCh.ch+' — '+(linkedCh.long_name||linkedCh.short_name||'—')+'</div>'
+                 +'<button class="bp-il-unlink" onclick="BandPlan.unlinkCh()">Dissocier</button>'
+                :(chOpts?'<select class="bp-il-sel" onchange="BandPlan.linkCh(this.value)"><option value="">— Lier a un canal'+(sel.stereo?' L':'')+' —</option>'+chOpts+'</select>':'')
+              )
+              +'<button class="bp-il-create" onclick="BandPlan.createCh()" style="margin-bottom:'+(sel.stereo?'10':'0')+'px"><i class="ti ti-plus"></i>Creer un canal'+(sel.stereo?' L':'')+' </button>'
+              // Canal R (stereo uniquement)
+              +(sel.stereo
+                ?'<div style="font-size:9px;font-family:var(--m);color:var(--muted);margin-bottom:3px;margin-top:2px">Canal R</div>'
+                 +(linkedChR
+                   ?'<div class="bp-il-badge"><i class="ti ti-plug-connected"></i>CH '+linkedChR.ch+' — '+(linkedChR.long_name||linkedChR.short_name||'—')+'</div>'
+                    +'<button class="bp-il-unlink" onclick="BandPlan.unlinkChR()">Dissocier</button>'
+                   :(chOptsR?'<select class="bp-il-sel" onchange="BandPlan.linkChR(this.value)"><option value="">— Lier a un canal R —</option>'+chOptsR+'</select>':'')
+                 )
+                 +'<button class="bp-il-create" onclick="BandPlan.createChR()"><i class="ti ti-plus"></i>Creer un canal R</button>'
+                :''
+              )
+              +'</div>';
+          })()
       );
   }
 
@@ -7767,6 +7792,30 @@ const BandPlan=(()=>{
     renderNode(el);renderInspector();saveStage();
   }
   function unlinkCh(){linkCh(null);}
+  function toggleStereo(on){
+    const el=st.els.find(e=>e.id===_sel);if(!el)return;
+    el.stereo=!!on;
+    if(!on){el.chR=null;}
+    renderNode(el);renderInspector();saveStage();
+  }
+  function linkChR(chId){
+    const el=st.els.find(e=>e.id===_sel);if(!el)return;
+    el.chR=chId||null;
+    renderNode(el);renderInspector();saveStage();
+  }
+  function unlinkChR(){linkChR(null);}
+  async function createChR(){
+    const el=st.els.find(e=>e.id===_sel);if(!el||!CUR_SHOW)return;
+    const ch=CHS.length+1;
+    const row={show_id:CUR_SHOW.id,ch,short_name:(el.label||'').slice(0,3).toUpperCase().replace(/\s/g,'')+'R',long_name:(el.label||'')+' R',source:'',mic:'',gain:0,phantom:false,iem_group:'',foh:true,mon:false,bc:false,note:''};
+    if(_patchColReady)row.patch_id=CUR_PATCH_ID;
+    const {data,error}=await sb.from('channels').insert(row).select().single();
+    if(error){toast('Erreur : '+error.message);return;}
+    CHS.push(data);renderTable();
+    el.chR=data.id;
+    renderNode(el);renderInspector();saveStage();
+    toast('Canal CH'+ch+' (R) cree et lie a "'+el.label+'"');
+  }
   function linkOutCh(outChId){
     const el=st.els.find(e=>e.id===_sel);if(!el)return;
     el.outCh=outChId||null;
@@ -8012,7 +8061,7 @@ const BandPlan=(()=>{
   }
   function getVintageSVG(t,col){return _vSVG(t,col);}
   function getViewMode(){return st.viewMode;}
-  return {init,load,getData,clear,zoom,fitView,search,toggleCat,_pdrag,_pdblclick,renderInspector,updateAlias,updPos,adjScale,adjZ,setRot,linkCh,unlinkCh,createCh,linkOutCh,unlinkOutCh,createOutCh,deleteNode,setTextScale,setNodeScale,setStageScale,setRiserDims,setRiserAlt,addCustomItem,removeCustomItem,linkKitCh,unlinkKitCh,createKitCh,setViewMode,getCatInfo,getVintageSVG,getViewMode};
+  return {init,load,getData,clear,zoom,fitView,search,toggleCat,_pdrag,_pdblclick,renderInspector,updateAlias,updPos,adjScale,adjZ,setRot,linkCh,unlinkCh,createCh,toggleStereo,linkChR,unlinkChR,createChR,linkOutCh,unlinkOutCh,createOutCh,deleteNode,setTextScale,setNodeScale,setStageScale,setRiserDims,setRiserAlt,addCustomItem,removeCustomItem,linkKitCh,unlinkKitCh,createKitCh,setViewMode,getCatInfo,getVintageSVG,getViewMode};
 })();
 
 // ══════════════════════════════════════
