@@ -1219,11 +1219,6 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
     <div class="panel" id="panel-inputlist">
       <div class="pbar">
         <span class="ptitle"><i class="ti ti-list-numbers" style="color:var(--ora)"></i><span id="il-pbar-title">Input List</span><span class="ptitle-sep">/</span><span id="sn-il" style="color:var(--txt2)">…</span></span>
-        <!-- IN / OUT toggle (style Scène/Site) -->
-        <div class="plan-mode-bar" style="flex-shrink:0">
-          <button class="pmb on" id="pmb-il-in" onclick="setILMode('in')"><i class="ti ti-arrow-down-circle"></i> IN</button>
-          <button class="pmb" id="pmb-il-out" onclick="setILMode('out')"><i class="ti ti-arrow-up-circle"></i> OUT</button>
-        </div>
         <!-- Boutons spécifiques IN -->
         <span id="il-in-btns" style="display:contents">
           <button class="btn" onclick="addRow()"><i class="ti ti-plus"></i>Canal</button>
@@ -1244,6 +1239,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
           <button class="btn" style="background:var(--surf2);border-color:var(--bdr2)" onclick="importCSVClick()"><i class="ti ti-upload"></i>Import CSV</button>
           <button class="btn ghost" onclick="openPDFModal()"><i class="ti ti-file-type-pdf"></i>PDF</button>
           <button class="btn ghost" onclick="toggleColPanel()" id="col-btn"><i class="ti ti-columns"></i>Colonnes</button>
+          <button class="btn ghost" onclick="copyILShareLink()" title="Copier le lien de partage"><i class="ti ti-link"></i>Lien</button>
         </span>
         <!-- Boutons spécifiques OUT -->
         <span id="il-out-btns" style="display:none">
@@ -1252,6 +1248,11 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
           <button class="btn blu" onclick="exportOutCSV()"><i class="ti ti-download"></i>CSV</button>
           <button class="btn" style="background:var(--surf2);border-color:var(--bdr2);color:var(--err)" onclick="clearAllOutRows()"><i class="ti ti-trash"></i>Tout effacer</button>
         </span>
+        <!-- IN / OUT toggle — après Colonnes -->
+        <div class="plan-mode-bar" style="flex-shrink:0;margin-left:auto">
+          <button class="pmb on" id="pmb-il-in" onclick="setILMode('in')"><i class="ti ti-arrow-down-circle"></i> IN</button>
+          <button class="pmb" id="pmb-il-out" onclick="setILMode('out')"><i class="ti ti-arrow-up-circle"></i> OUT</button>
+        </div>
       </div>
 
       <div id="col-panel" style="display:none;background:var(--surf2);border:1px solid var(--bdr2);border-radius:9px;padding:13px;margin-bottom:13px">
@@ -1830,10 +1831,15 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
         </div>
       </div></div>
     </div>
-    <div class="modal-foot">
-      <div style="flex:1;font-size:10px;color:var(--muted);font-family:var(--m);align-self:center"><i class="ti ti-info-circle" style="font-size:11px;margin-right:3px"></i>Nouvel onglet → Imprimer → Enregistrer en PDF</div>
-      <button class="btn ghost sm" onclick="closePDF()">Annuler</button>
-      <button class="btn" onclick="doPDF()"><i class="ti ti-file-type-pdf"></i>Générer</button>
+    <div class="modal-foot" style="flex-wrap:wrap;gap:8px">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--txt2);flex:1;min-width:160px">
+        <input type="checkbox" class="cb" id="pdf-incl-link" checked/> Inclure le lien à jour dans le PDF
+      </label>
+      <div style="display:flex;align-items:center;gap:7px;margin-left:auto">
+        <span style="font-size:10px;color:var(--muted);font-family:var(--m)"><i class="ti ti-info-circle" style="font-size:11px;margin-right:3px"></i>Imprimer → Enregistrer PDF</span>
+        <button class="btn ghost sm" onclick="closePDF()">Annuler</button>
+        <button class="btn" onclick="doPDF()"><i class="ti ti-file-type-pdf"></i>Générer</button>
+      </div>
     </div>
   </div>
 </div>
@@ -3902,6 +3908,7 @@ td{padding:4px 7px;border-bottom:1px solid #f0eee8;vertical-align:middle}
   <div class="si">IEM <span class="sv">${CHS.filter(r=>r.iem_group).length}</span></div>
 </div>
 ${meta.notes?`<div class="ns"><div class="nl">Notes techniques</div>${meta.notes}</div>`:''}
+${meta.shareLink?`<div style="display:flex;align-items:center;gap:14px;padding:7px 16px;background:#f4faff;border-top:2px solid #1a8fff;border-bottom:1px solid #d0e8ff"><img src="https://api.qrserver.com/v1/create-qr-code/?size=72x72&data=${encodeURIComponent(meta.shareLink)}&color=1a8fff&bgcolor=f4faff" width="54" height="54" style="flex-shrink:0;border-radius:4px"/><div><div style="font-family:'DM Mono',monospace;font-size:7.5px;text-transform:uppercase;letter-spacing:1px;color:#1a8fff;margin-bottom:3px">Fiche a jour en ligne</div><a href="${meta.shareLink}" style="font-size:9px;color:#1a4fff;font-family:'DM Mono',monospace;word-break:break-all;text-decoration:none">${meta.shareLink}</a><div style="font-size:7.5px;color:#888;margin-top:3px;font-family:'DM Mono',monospace">Scannez le QR code ou visitez le lien pour retrouver cette fiche a jour a tout moment.</div></div></div>`:''}
 <div class="ft"><span class="fl">${brand.co.toUpperCase()}</span><span>${engLine||show} · ${now}</span><span>${brand.site} · ${meta.rev||''}</span></div>
 <script>window.onload=()=>window.print();<\/script>
 </body></html>`;
@@ -3967,6 +3974,7 @@ td{padding:4px 7px;border-bottom:1px solid #f0eee8;vertical-align:middle}
 <div class="tw">${body}</div>
 <div class="sb"><div class="si">Total <span class="sv">${OUT_CHS.length}</span> sorties</div>${typeSummary}</div>
 ${meta.notes?`<div class="ns"><div class="nl">Notes techniques</div>${meta.notes}</div>`:''}
+${meta.shareLink?`<div style="display:flex;align-items:center;gap:14px;padding:7px 16px;background:#f4faff;border-top:2px solid #1a8fff;border-bottom:1px solid #d0e8ff"><img src="https://api.qrserver.com/v1/create-qr-code/?size=72x72&data=${encodeURIComponent(meta.shareLink)}&color=1a8fff&bgcolor=f4faff" width="54" height="54" style="flex-shrink:0;border-radius:4px"/><div><div style="font-family:'DM Mono',monospace;font-size:7.5px;text-transform:uppercase;letter-spacing:1px;color:#1a8fff;margin-bottom:3px">Fiche a jour en ligne</div><a href="${meta.shareLink}" style="font-size:9px;color:#1a4fff;font-family:'DM Mono',monospace;word-break:break-all;text-decoration:none">${meta.shareLink}</a><div style="font-size:7.5px;color:#888;margin-top:3px;font-family:'DM Mono',monospace">Scannez le QR code ou visitez le lien pour retrouver cette fiche a jour a tout moment.</div></div></div>`:''}
 <div class="ft"><span class="fl">${brand.co.toUpperCase()}</span><span>${engLine||show} · ${now}</span><span>${brand.site} · ${meta.rev||''}</span></div>
 <script>window.onload=()=>window.print();<\/script>
 </body></html>`;
@@ -4089,6 +4097,13 @@ function openPDFModal(){
   document.getElementById('pdf-modal').className='modal-ov show';
 }
 function closePDF(){document.getElementById('pdf-modal').className='modal-ov';}
+function copyILShareLink(){
+  var url=document.getElementById('slink-url')?.textContent||('https://app.patchflow.io/show/'+(CUR_SHOW?.slug||CUR_SHOW?.id||'')+'/rider');
+  if(!url||url==='…'){toast('Aucun lien disponible — partagez d\'abord le show.');return;}
+  try{navigator.clipboard.writeText(url).then(function(){toast('Lien copie !');});} catch(e){
+    var ta=document.createElement('textarea');ta.value=url;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('Lien copie !');
+  }
+}
 
 // ══════════════════════════════════════
 // BANDPLAN EXPORT
@@ -4554,7 +4569,9 @@ function doSitePlanPDF(){
   });
 }
 function doPDF(){
-  const meta={eng:document.getElementById('pdf-eng').value,role:document.getElementById('pdf-role').value,title:document.getElementById('pdf-title')?.value||'',co:document.getElementById('pdf-co').value,tel:document.getElementById('pdf-tel').value,venue:document.getElementById('pdf-venue').value,date:document.getElementById('pdf-date').value,rev:document.getElementById('pdf-rev').value,notes:document.getElementById('pdf-notes').value};
+  const _inclLink=document.getElementById('pdf-incl-link')?.checked!==false;
+  const _shareUrl=_inclLink?(document.getElementById('slink-url')?.textContent||('https://app.patchflow.io/show/'+(CUR_SHOW?.slug||CUR_SHOW?.id||'')+'/rider')):'';
+  const meta={eng:document.getElementById('pdf-eng').value,role:document.getElementById('pdf-role').value,title:document.getElementById('pdf-title')?.value||'',co:document.getElementById('pdf-co').value,tel:document.getElementById('pdf-tel').value,venue:document.getElementById('pdf-venue').value,date:document.getElementById('pdf-date').value,rev:document.getElementById('pdf-rev').value,notes:document.getElementById('pdf-notes').value,shareLink:_shareUrl};
   closePDF();
   const brand=_pdfBrand();
   const html=_pdfExportType==='both'?_buildPdfBothHTML(meta,brand):_pdfExportType==='out'?_buildPdfOutHTML(meta,brand):_buildPdfInHTML(meta,brand);
