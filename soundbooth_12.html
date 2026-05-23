@@ -1248,11 +1248,6 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
           <button class="btn blu" onclick="exportOutCSV()"><i class="ti ti-download"></i>CSV</button>
           <button class="btn" style="background:var(--surf2);border-color:var(--bdr2);color:var(--err)" onclick="clearAllOutRows()"><i class="ti ti-trash"></i>Tout effacer</button>
         </span>
-        <!-- IN / OUT toggle — après Colonnes -->
-        <div class="plan-mode-bar" style="flex-shrink:0;margin-left:auto">
-          <button class="pmb on" id="pmb-il-in" onclick="setILMode('in')"><i class="ti ti-arrow-down-circle"></i> IN</button>
-          <button class="pmb" id="pmb-il-out" onclick="setILMode('out')"><i class="ti ti-arrow-up-circle"></i> OUT</button>
-        </div>
       </div>
 
       <div id="col-panel" style="display:none;background:var(--surf2);border:1px solid var(--bdr2);border-radius:9px;padding:13px;margin-bottom:13px">
@@ -1267,7 +1262,13 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
           <button class="btn sm" style="margin-left:auto" onclick="toggleColPanel()"><i class="ti ti-check"></i>OK</button>
         </div>
       </div>
-      <div class="il-patch-tabs" id="il-patch-tabs"></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <div class="il-patch-tabs" id="il-patch-tabs" style="margin-bottom:0;flex:1"></div>
+        <div class="plan-mode-bar" style="flex-shrink:0">
+          <button class="pmb on" id="pmb-il-in" onclick="setILMode('in')"><i class="ti ti-arrow-down-circle"></i> IN</button>
+          <button class="pmb" id="pmb-il-out" onclick="setILMode('out')"><i class="ti ti-arrow-up-circle"></i> OUT</button>
+        </div>
+      </div>
       <div class="notice" id="il-notice"><i class="ti ti-info-circle"></i><span>Sauvegarde automatique · les membres voient les changements en temps réel.</span></div>
       <div class="notice warn" id="il-saving" style="display:none"><i class="ti ti-cloud-upload"></i><span>Sauvegarde…</span></div>
 
@@ -2388,7 +2389,7 @@ async function switchShow(id){
   document.getElementById('cur-show-name').textContent=n;
   const tbn=document.getElementById('tb-show-name');if(tbn)tbn.textContent=n;
   ['il','sf','stage','team'].forEach(k=>{const el=document.getElementById('sn-'+k);if(el)el.textContent=n;});
-  document.getElementById('slink-url').textContent=`https://app.patchflow.io/show/${CUR_SHOW.slug||id}/rider`;
+  document.getElementById('slink-url').textContent=`http://127.0.0.1:7821/soundbooth_12.html?view=${CUR_SHOW.id}&tab=inputlist`;
   renderSPShows();
   // Init patches
   IL_PATCHES=loadPatchMeta();
@@ -4098,7 +4099,7 @@ function openPDFModal(){
 }
 function closePDF(){document.getElementById('pdf-modal').className='modal-ov';}
 function copyILShareLink(){
-  var url=document.getElementById('slink-url')?.textContent||('https://app.patchflow.io/show/'+(CUR_SHOW?.slug||CUR_SHOW?.id||'')+'/rider');
+  var url=document.getElementById('slink-url')?.textContent||('http://127.0.0.1:7821/soundbooth_12.html?view='+(CUR_SHOW?.id||'')+'\x26tab=inputlist');
   if(!url||url==='…'){toast('Aucun lien disponible — partagez d\'abord le show.');return;}
   try{navigator.clipboard.writeText(url).then(function(){toast('Lien copie !');});} catch(e){
     var ta=document.createElement('textarea');ta.value=url;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('Lien copie !');
@@ -4570,7 +4571,7 @@ function doSitePlanPDF(){
 }
 function doPDF(){
   const _inclLink=document.getElementById('pdf-incl-link')?.checked!==false;
-  const _shareUrl=_inclLink?(document.getElementById('slink-url')?.textContent||('https://app.patchflow.io/show/'+(CUR_SHOW?.slug||CUR_SHOW?.id||'')+'/rider')):'';
+  const _shareUrl=_inclLink?(document.getElementById('slink-url')?.textContent||('http://127.0.0.1:7821/soundbooth_12.html?view='+(CUR_SHOW?.id||'')+'\x26tab=inputlist')):'';
   const meta={eng:document.getElementById('pdf-eng').value,role:document.getElementById('pdf-role').value,title:document.getElementById('pdf-title')?.value||'',co:document.getElementById('pdf-co').value,tel:document.getElementById('pdf-tel').value,venue:document.getElementById('pdf-venue').value,date:document.getElementById('pdf-date').value,rev:document.getElementById('pdf-rev').value,notes:document.getElementById('pdf-notes').value,shareLink:_shareUrl};
   closePDF();
   const brand=_pdfBrand();
