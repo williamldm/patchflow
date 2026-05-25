@@ -3314,13 +3314,13 @@ function renderTable(){
     document.getElementById('il-body').innerHTML=CHS.map(r=>`
     <tr data-rid="${r.id}" draggable="true">
       <td class="ch-num">${r.ch}</td>
-      <td data-col="short"><input class="ilinp sh" maxlength="4" value="${(r.short_name||'').trim()}" onchange="scheduleSave('${r.id}','short_name',this.value.toUpperCase().slice(0,4));renderPills()"/></td>
-      <td data-col="long"><input class="ilinp" value="${r.long_name||''}" onchange="scheduleSave('${r.id}','long_name',this.value);renderPills()"/></td>
-      <td data-col="src"><input class="ilinp" style="color:var(--txt2)" value="${r.source||''}" onchange="scheduleSave('${r.id}','source',this.value)"/></td>
-      <td data-col="mic"><input class="ilinp m" value="${r.mic||''}" onchange="scheduleSave('${r.id}','mic',this.value)"/></td>
+      <td data-col="short"><input class="ilinp sh" maxlength="4" value="${_oh((r.short_name||'').trim())}" onchange="scheduleSave('${r.id}','short_name',this.value.toUpperCase().slice(0,4));renderPills()"/></td>
+      <td data-col="long"><input class="ilinp" value="${_oh(r.long_name||'')}" onchange="scheduleSave('${r.id}','long_name',this.value);renderPills()"/></td>
+      <td data-col="src"><input class="ilinp" style="color:var(--txt2)" value="${_oh(r.source||'')}" onchange="scheduleSave('${r.id}','source',this.value)"/></td>
+      <td data-col="mic"><input class="ilinp m" value="${_oh(r.mic||'')}" onchange="scheduleSave('${r.id}','mic',this.value)"/></td>
       <td data-col="gain"><input class="ilinp m" type="number" style="width:42px" value="${r.gain||0}" min="-60" max="60" step="1" onchange="scheduleSave('${r.id}','gain',parseInt(this.value)||0)"/></td>
       <td data-col="phantom" style="text-align:center"><input type="checkbox" class="cb" ${r.phantom?'checked':''} onchange="scheduleSave('${r.id}','phantom',this.checked)"/></td>
-      <td data-col="iem"><input class="ilinp m" style="color:var(--grn);width:46px" value="${r.iem_group||''}" onchange="scheduleSave('${r.id}','iem_group',this.value)" placeholder="GR1"/></td>
+      <td data-col="iem"><input class="ilinp m" style="color:var(--grn);width:46px" value="${_oh(r.iem_group||'')}" onchange="scheduleSave('${r.id}','iem_group',this.value)" placeholder="GR1"/></td>
       <td data-col="foh" style="text-align:center"><input type="checkbox" class="cb blu" ${r.foh?'checked':''} onchange="scheduleSave('${r.id}','foh',this.checked)"/></td>
       <td data-col="mon" style="text-align:center"><input type="checkbox" class="cb warn" ${r.mon?'checked':''} onchange="scheduleSave('${r.id}','mon',this.checked)"/></td>
       <td data-col="bc" style="text-align:center"><input type="checkbox" class="cb grn" ${r.bc?'checked':''} onchange="scheduleSave('${r.id}','bc',this.checked)"/></td>
@@ -3369,15 +3369,16 @@ async function loadMembers(){
   SHOW_MEMBERS_MAP[CUR_SHOW.id]=members;
   const COLS=['rgba(255,107,26,.13)','rgba(26,143,255,.13)','rgba(245,197,66,.13)','rgba(155,106,255,.13)','rgba(34,214,160,.13)'];
   const TC=['var(--ora)','var(--blu2)','var(--warn)','#c4a0ff','var(--grn)'];
+  const _es=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   const ownerName=PROFILE?.full_name||ME.email;
   const ownerInit=ownerName.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-  const planPill=p=>{const labels={free:'Gratuit',pro:'Pro',studio:'Studio'};return `<span class="plan-badge-pill ${p||'free'}">${labels[p||'free']||p}</span>`;};
-  let html=`<div class="tc"><div class="tc-head"><div class="tc-av" style="background:var(--ora-d);color:var(--ora)">${ownerInit}</div><div><div class="tc-name">${ownerName}</div><div class="tc-role">${PROFILE?.role||'Owner'}</div></div></div><div class="tc-perms"><span class="tag t-ora">Owner</span><span class="tag t-ora">Admin</span>${planPill(PROFILE?.plan)}</div><div class="tc-status"><span class="on-dot"></span>En ligne · toi</div></div>`;
+  const planPill=p=>{const labels={free:'Gratuit',pro:'Pro',studio:'Studio'};return `<span class="plan-badge-pill ${_es(p||'free')}">${_es(labels[p||'free']||p||'free')}</span>`;};
+  let html=`<div class="tc"><div class="tc-head"><div class="tc-av" style="background:var(--ora-d);color:var(--ora)">${_es(ownerInit)}</div><div><div class="tc-name">${_es(ownerName)}</div><div class="tc-role">${_es(PROFILE?.role||'Owner')}</div></div></div><div class="tc-perms"><span class="tag t-ora">Owner</span><span class="tag t-ora">Admin</span>${planPill(PROFILE?.plan)}</div><div class="tc-status"><span class="on-dot"></span>En ligne · toi</div></div>`;
   members.forEach((m,i)=>{
     const n=m.profiles?.full_name||'Membre';
     const ci=(i+1)%COLS.length;
     const init=n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-    html+=`<div class="tc"><div class="tc-head"><div class="tc-av" style="background:${COLS[ci]};color:${TC[ci]}">${init}</div><div><div class="tc-name">${n}</div><div class="tc-role">${m.profiles?.role||m.role}</div></div></div><div class="tc-perms"><span class="tag t-ora">${m.role}</span>${planPill(m.profiles?.plan)}</div><div class="tc-status"><span class="off-dot"></span>Membre</div></div>`;
+    html+=`<div class="tc"><div class="tc-head"><div class="tc-av" style="background:${COLS[ci]};color:${TC[ci]}">${_es(init)}</div><div><div class="tc-name">${_es(n)}</div><div class="tc-role">${_es(m.profiles?.role||m.role||'')}</div></div></div><div class="tc-perms"><span class="tag t-ora">${_es(m.role||'')}</span>${planPill(m.profiles?.plan)}</div><div class="tc-status"><span class="off-dot"></span>Membre</div></div>`;
   });
   grid.innerHTML=html;grid.className='team-grid';
 }
@@ -9541,11 +9542,12 @@ function renderSPShows(){
   const el=document.getElementById('sp-shows');if(!el)return;
   if(SHOWS.length===0){el.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px 0">Aucun show.</div>';return;}
   const ICONS=['🎤','🎸','🎹','🥁','🎺','🎻','🎧','📡'];
+  const _e2=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   el.innerHTML=SHOWS.map((s,i)=>`
-    <div class="sp-show ${s.id===CUR_SHOW?.id?'active':''}" onclick="spSwitch('${s.id}')">
+    <div class="sp-show ${s.id===CUR_SHOW?.id?'active':''}" onclick="spSwitch('${_e2(s.id)}')">
       <div class="sp-show-ico">${ICONS[i%ICONS.length]}</div>
-      <div style="flex:1;min-width:0"><div class="sp-show-name">${s.name}</div><div class="sp-show-meta">${s.venue||'—'} · ${s.show_date||'—'}</div></div>
-      <button class="sp-show-del" onclick="delShow('${s.id}',event)"><i class="ti ti-trash"></i></button>
+      <div style="flex:1;min-width:0"><div class="sp-show-name">${_e2(s.name)}</div><div class="sp-show-meta">${_e2(s.venue||'—')} · ${_e2(s.show_date||'—')}</div></div>
+      <button class="sp-show-del" onclick="delShow('${_e2(s.id)}',event)"><i class="ti ti-trash"></i></button>
     </div>`).join('');
 }
 async function spSwitch(id){await switchShow(id);closeSP();}
