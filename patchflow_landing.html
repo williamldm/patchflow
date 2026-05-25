@@ -293,7 +293,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
 <section class="hero">
   <div class="hero-glow"></div>
   <div class="hero-glow2"></div>
-  <div class="hero-badge"><i class="ti ti-bolt" style="font-size:11px"></i>Nouveau — Plan de scene interactif</div>
+  <div class="hero-badge"><i class="ti ti-bolt" style="font-size:11px"></i>Nouveau — Output List &amp; Recap materiels</div>
   <h1>Le patch, le plan de scene<br/><span>tout au meme endroit.</span></h1>
   <p class="hero-sub">PatchFlow est l'outil de gestion de patch pensé par des techniciens son, pour des techniciens son. Input List, plan de scène, synoptique — en temps réel et en équipe.</p>
   <div class="hero-ctas">
@@ -322,6 +322,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
         <div class="preview-sidebar">
           <div style="font-size:9px;font-family:var(--m);color:var(--muted);text-transform:uppercase;letter-spacing:1px;padding:4px 10px;margin-bottom:4px">Navigation</div>
           <div class="preview-sb-item active"><i class="ti ti-list-numbers"></i>Input List</div>
+          <div class="preview-sb-item"><i class="ti ti-list-check"></i>Output List</div>
           <div class="preview-sb-item"><i class="ti ti-layout-board"></i>Plan de scene</div>
           <div class="preview-sb-item"><i class="ti ti-topology-star"></i>Synoptique</div>
           <div class="preview-sb-item"><i class="ti ti-map-2"></i>Plan de site</div>
@@ -365,11 +366,16 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
 
     <!-- SIDEBAR -->
     <div class="feat-sidebar">
-      <div class="feat-sidebar-head">11 fonctionnalites</div>
+      <div class="feat-sidebar-head">13 fonctionnalites</div>
 
       <div class="feat-item active" onclick="showFeat('inputlist',this)">
         <div class="feat-item-ic" style="background:rgba(255,107,26,.12);color:var(--ora)"><i class="ti ti-list-numbers"></i></div>
         <div class="feat-item-text"><div class="feat-item-name">Input List</div><div class="feat-item-sub">Patch complet, colonnes, tri</div></div>
+        <i class="ti ti-chevron-right feat-item-arr"></i>
+      </div>
+      <div class="feat-item" onclick="showFeat('outputlist',this)">
+        <div class="feat-item-ic" style="background:rgba(34,214,160,.12);color:var(--grn)"><i class="ti ti-list-check"></i></div>
+        <div class="feat-item-text"><div class="feat-item-name">Output List</div><div class="feat-item-sub">Sorties HP, retours, IEM</div></div>
         <i class="ti ti-chevron-right feat-item-arr"></i>
       </div>
       <div class="feat-item" onclick="showFeat('multipatches',this)">
@@ -415,6 +421,14 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
       <div class="feat-item" onclick="showFeat('export',this)">
         <div class="feat-item-ic" style="background:rgba(26,143,255,.12);color:var(--blu)"><i class="ti ti-file-type-pdf"></i></div>
         <div class="feat-item-text"><div class="feat-item-name">Export PDF / PNG</div><div class="feat-item-sub">Documents professionnels</div></div>
+        <i class="ti ti-chevron-right feat-item-arr"></i>
+      </div>
+      <div class="feat-item" onclick="showFeat('recap',this)">
+        <div class="feat-item-ic" style="background:rgba(255,107,26,.12);color:var(--ora)"><i class="ti ti-clipboard-list"></i></div>
+        <div class="feat-item-text">
+          <div class="feat-item-name">Recap materiels <span style="display:inline-flex;align-items:center;padding:1px 6px;border-radius:4px;font-size:9px;font-family:var(--m);font-weight:700;background:var(--ora-d);color:var(--ora);border:1px solid rgba(255,107,26,.25);vertical-align:middle;margin-left:3px">Pro</span></div>
+          <div class="feat-item-sub">Micros et pieds, au total</div>
+        </div>
         <i class="ti ti-chevron-right feat-item-arr"></i>
       </div>
       <div class="feat-item" onclick="showFeat('fichiers',this)">
@@ -612,8 +626,8 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
           <div class="feat-pane-icon" style="background:rgba(155,106,255,.12);color:var(--pur)"><i class="ti ti-layout-board"></i></div>
           <div>
             <div class="feat-pane-title">Plan de scene interactif</div>
-            <div class="feat-pane-desc">Placez vos instruments en drag &amp; drop. Praticables a dimensions reelles, kit complet avec tous ses canaux, lien direct vers l'Input List.</div>
-            <div class="feat-tag"><i class="ti ti-link" style="font-size:10px"></i>Synchronise avec l'Input List</div>
+            <div class="feat-pane-desc">Placez vos instruments en drag &amp; drop. Praticables a dimensions reelles, mode stereo pour les claviers/DI, kit complet avec tous ses canaux, lien direct vers l'Input List et l'Output List.</div>
+            <div class="feat-tag"><i class="ti ti-arrows-left-right" style="font-size:10px"></i>Mode stereo + lien Output List</div>
           </div>
         </div>
         <div class="feat-pane-body" style="padding:14px">
@@ -663,8 +677,8 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
           <div class="feat-pane-icon" style="background:rgba(26,143,255,.12);color:var(--blu)"><i class="ti ti-topology-star"></i></div>
           <div>
             <div class="feat-pane-title">Synoptique de signal</div>
-            <div class="feat-pane-desc">Dessinez votre schema de routage de signal. Plusieurs scenes, connexions typees, export PDF professionnel.</div>
-            <div class="feat-tag"><i class="ti ti-printer" style="font-size:10px"></i>Export PDF inclus</div>
+            <div class="feat-pane-desc">Dessinez votre schema de routage de signal. Templates de routage predifinis, zoom jusqu'a 350 %, plusieurs scenes, connexions typees, export PDF professionnel.</div>
+            <div class="feat-tag"><i class="ti ti-template" style="font-size:10px"></i>Templates + zoom 350 %</div>
           </div>
         </div>
         <div class="feat-pane-body" style="padding:14px;position:relative;min-height:250px">
@@ -765,8 +779,8 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
           <div class="feat-pane-icon" style="background:rgba(255,107,26,.12);color:var(--ora)"><i class="ti ti-link"></i></div>
           <div>
             <div class="feat-pane-title">Lien partage — lecture seule</div>
-            <div class="feat-pane-desc">Generez un lien public que vous partagez au groupe, au backline ou a la production. Ils voient le patch constamment mis a jour, sans avoir de compte.</div>
-            <div class="feat-tag"><i class="ti ti-eye" style="font-size:10px"></i>Aucune inscription requise</div>
+            <div class="feat-pane-desc">Generez un lien public que vous partagez au groupe, au backline ou a la production. Ils voient le patch constamment mis a jour, sans avoir de compte. Vue adaptee au telephone.</div>
+            <div class="feat-tag"><i class="ti ti-device-mobile" style="font-size:10px"></i>Interface mobile adaptative</div>
           </div>
         </div>
         <div class="feat-pane-body">
@@ -816,8 +830,8 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
           <div class="feat-pane-icon" style="background:rgba(26,143,255,.12);color:var(--blu)"><i class="ti ti-file-type-pdf"></i></div>
           <div>
             <div class="feat-pane-title">Export PDF &amp; PNG professionnel</div>
-            <div class="feat-pane-desc">Generez des documents prets a imprimer ou a envoyer. Entete personnalise, lien live integre, informations de production completes.</div>
-            <div class="feat-tag"><i class="ti ti-printer" style="font-size:10px"></i>Pret a imprimer</div>
+            <div class="feat-pane-desc">Generez des documents prets a imprimer ou a envoyer. Entete personnalise, lien live integre, informations de production completes — et optionnellement le recap des micros et pieds de micro.</div>
+            <div class="feat-tag"><i class="ti ti-clipboard-list" style="font-size:10px"></i>Recap materiels inclus en option</div>
           </div>
         </div>
         <div class="feat-pane-body">
@@ -900,6 +914,132 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
             <div style="font-size:11px;color:var(--ora)"><i class="ti ti-download"></i></div>
           </div>
           <div style="margin-top:10px;font-size:10px;color:var(--muted);font-family:var(--m);text-align:right">26.0 Mo utilises / 10 Go</div>
+        </div>
+      </div>
+
+      <!-- OUTPUT LIST -->
+      <div class="feat-pane" id="fp-outputlist">
+        <div class="feat-pane-head">
+          <div class="feat-pane-icon" style="background:rgba(34,214,160,.12);color:var(--grn)"><i class="ti ti-list-check"></i></div>
+          <div>
+            <div class="feat-pane-title">Output List</div>
+            <div class="feat-pane-desc">Documentez toutes vos sorties : HP principaux, retours de scene, IEM, sub, fill. Chaque sortie est typee, coloree et exportable en PDF.</div>
+            <div class="feat-tag"><i class="ti ti-link" style="font-size:10px"></i>Lien partage dedie Output List</div>
+          </div>
+        </div>
+        <div class="feat-pane-body">
+          <div class="mk-tag-row" style="margin-bottom:12px">
+            <div class="mk-patch-tab on" style="background:rgba(34,214,160,.15);border-color:rgba(34,214,160,.3);color:var(--grn)">Sorties actives</div>
+            <div class="mk-patch-tab">Amplification</div>
+          </div>
+          <table class="mk-table">
+            <thead><tr><th>N°</th><th>Nom</th><th>Type</th><th>Canal console</th><th>Amp / Zone</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><span style="font-weight:700;color:var(--grn);font-family:var(--m)">A1</span></td>
+                <td><strong>Main L</strong></td>
+                <td><span class="mk-b" style="background:rgba(34,214,160,.1);color:var(--grn);border:1px solid rgba(34,214,160,.2)">HP Principal</span></td>
+                <td style="font-family:var(--m);font-size:10px;color:var(--muted)">Out 1</td>
+                <td style="font-family:var(--m);font-size:10px;color:var(--muted)">P.A. Left</td>
+              </tr>
+              <tr>
+                <td><span style="font-weight:700;color:var(--grn);font-family:var(--m)">A2</span></td>
+                <td><strong>Main R</strong></td>
+                <td><span class="mk-b" style="background:rgba(34,214,160,.1);color:var(--grn);border:1px solid rgba(34,214,160,.2)">HP Principal</span></td>
+                <td style="font-family:var(--m);font-size:10px;color:var(--muted)">Out 2</td>
+                <td style="font-family:var(--m);font-size:10px;color:var(--muted)">P.A. Right</td>
+              </tr>
+              <tr>
+                <td><span style="font-weight:700;color:#1a8fff;font-family:var(--m)">M1</span></td>
+                <td><strong>Wedge DS</strong></td>
+                <td><span class="mk-b" style="background:rgba(26,143,255,.1);color:var(--blu);border:1px solid rgba(26,143,255,.2)">Retour</span></td>
+                <td style="font-family:var(--m);font-size:10px;color:var(--muted)">Aux 1</td>
+                <td style="font-family:var(--m);font-size:10px;color:var(--muted)">XTA Amp 1</td>
+              </tr>
+              <tr>
+                <td><span style="font-weight:700;color:#9b6aff;font-family:var(--m)">I1</span></td>
+                <td><strong>IEM Chant</strong></td>
+                <td><span class="mk-b" style="background:rgba(155,106,255,.1);color:var(--pur);border:1px solid rgba(155,106,255,.2)">IEM</span></td>
+                <td style="font-family:var(--m);font-size:10px;color:var(--muted)">Aux 5-6</td>
+                <td style="font-family:var(--m);font-size:10px;color:var(--muted)">Shure PSM900</td>
+              </tr>
+              <tr>
+                <td><span style="font-weight:700;color:#f5c542;font-family:var(--m)">S1</span></td>
+                <td><strong>Sub LR</strong></td>
+                <td><span class="mk-b" style="background:rgba(245,197,66,.1);color:#f5c542;border:1px solid rgba(245,197,66,.2)">Sub</span></td>
+                <td style="font-family:var(--m);font-size:10px;color:var(--muted)">Out 5-6</td>
+                <td style="font-family:var(--m);font-size:10px;color:var(--muted)">Lab.Gruppen</td>
+              </tr>
+            </tbody>
+          </table>
+          <div style="margin-top:10px;font-size:10px;color:var(--muted);font-family:var(--m)"><i class="ti ti-info-circle" style="margin-right:4px"></i>Types disponibles : HP Principal, Retour, IEM, Sub, Fill, Delay, Sidefill...</div>
+        </div>
+      </div>
+
+      <!-- RECAP MATERIELS -->
+      <div class="feat-pane" id="fp-recap">
+        <div class="feat-pane-head">
+          <div class="feat-pane-icon" style="background:rgba(255,107,26,.12);color:var(--ora)"><i class="ti ti-clipboard-list"></i></div>
+          <div>
+            <div class="feat-pane-title">Recapitulatif materiels</div>
+            <div class="feat-pane-desc">Obtenez le decompte exact de chaque micro et pied de micro necessaires pour votre show. Plan Pro+, ou consolide sur tous les patches en Studio.</div>
+            <div class="feat-tag"><i class="ti ti-crown" style="font-size:10px"></i>Pro+ — Studio consolide tous les patches</div>
+          </div>
+        </div>
+        <div class="feat-pane-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <!-- Micros -->
+            <div style="background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;padding:14px">
+              <div style="display:flex;align-items:center;gap:7px;margin-bottom:12px">
+                <i class="ti ti-microphone" style="color:var(--ora);font-size:15px"></i>
+                <div style="font-size:11px;font-weight:700;color:var(--txt)">Micros &amp; DI</div>
+                <div style="margin-left:auto;font-size:11px;font-weight:800;color:var(--ora);font-family:var(--m)">9 total</div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div style="flex:1;height:6px;border-radius:3px;background:var(--bdr2);overflow:hidden"><div style="width:44%;height:100%;background:var(--ora);border-radius:3px"></div></div>
+                  <div style="font-size:10px;font-family:var(--m);color:var(--txt2);min-width:55px">SM57 <strong style="color:var(--ora)">×4</strong></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div style="flex:1;height:6px;border-radius:3px;background:var(--bdr2);overflow:hidden"><div style="width:22%;height:100%;background:var(--ora);border-radius:3px;opacity:.7"></div></div>
+                  <div style="font-size:10px;font-family:var(--m);color:var(--txt2);min-width:55px">Beta 91A <strong style="color:var(--ora)">×2</strong></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div style="flex:1;height:6px;border-radius:3px;background:var(--bdr2);overflow:hidden"><div style="width:11%;height:100%;background:var(--ora);border-radius:3px;opacity:.5"></div></div>
+                  <div style="font-size:10px;font-family:var(--m);color:var(--txt2);min-width:55px">KSM9 <strong style="color:var(--ora)">×1</strong></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div style="flex:1;height:6px;border-radius:3px;background:var(--bdr2);overflow:hidden"><div style="width:22%;height:100%;background:var(--ora);border-radius:3px;opacity:.6"></div></div>
+                  <div style="font-size:10px;font-family:var(--m);color:var(--txt2);min-width:55px">DI Radial <strong style="color:var(--ora)">×2</strong></div>
+                </div>
+              </div>
+            </div>
+            <!-- Pieds -->
+            <div style="background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;padding:14px">
+              <div style="display:flex;align-items:center;gap:7px;margin-bottom:12px">
+                <i class="ti ti-line-height" style="color:var(--blu);font-size:15px"></i>
+                <div style="font-size:11px;font-weight:700;color:var(--txt)">Pieds de micro</div>
+                <div style="margin-left:auto;font-size:11px;font-weight:800;color:var(--blu);font-family:var(--m)">7 total</div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div style="flex:1;height:6px;border-radius:3px;background:var(--bdr2);overflow:hidden"><div style="width:57%;height:100%;background:var(--blu);border-radius:3px"></div></div>
+                  <div style="font-size:10px;font-family:var(--m);color:var(--txt2);min-width:75px">Grand pied <strong style="color:var(--blu)">×4</strong></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div style="flex:1;height:6px;border-radius:3px;background:var(--bdr2);overflow:hidden"><div style="width:43%;height:100%;background:var(--blu);border-radius:3px;opacity:.7"></div></div>
+                  <div style="font-size:10px;font-family:var(--m);color:var(--txt2);min-width:75px">Petit pied <strong style="color:var(--blu)">×3</strong></div>
+                </div>
+              </div>
+              <div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--bdr)">
+                <div style="font-size:9px;font-family:var(--m);color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">Studio — tous patches</div>
+                <div style="font-size:10px;color:var(--txt2)">Consolide automatiquement les besoins de chaque artiste du show en un seul recap.</div>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:12px;background:rgba(255,107,26,.06);border:1px solid rgba(255,107,26,.15);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--muted)">
+            <i class="ti ti-file-type-pdf" style="margin-right:5px;color:var(--ora)"></i>Inclus optionnellement dans l'<strong style="color:var(--txt2)">export PDF</strong> de l'Input List.
+          </div>
         </div>
       </div>
 
@@ -1022,12 +1162,13 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
       <ul class="plan-features">
         <li><i class="ti ti-check"></i><span><strong>Shows illimites</strong></span></li>
         <li><i class="ti ti-check"></i><span><strong>Canaux illimites</strong></span></li>
-        <li><i class="ti ti-check"></i><span>Input List + CSV + <strong>PDF professionnel</strong></span></li>
+        <li><i class="ti ti-check"></i><span>Input List + Output List + CSV + <strong>PDF professionnel</strong></span></li>
+        <li><i class="ti ti-check"></i><span><strong>Recap materiels</strong> — micros &amp; pieds</span></li>
         <li><i class="ti ti-check"></i><span><strong>Plan de scene</strong> complet</span></li>
         <li><i class="ti ti-check"></i><span><strong>Plan de site</strong> complet</span></li>
         <li><i class="ti ti-check"></i><span><strong>5 membres</strong> par show</span></li>
         <li><i class="ti ti-check"></i><span>Templates <strong>illimites</strong></span></li>
-        <li><i class="ti ti-check"></i><span><strong>Lien partage</strong> lecture seule</span></li>
+        <li><i class="ti ti-check"></i><span><strong>Lien partage</strong> lecture seule (mobile)</span></li>
         <li><i class="ti ti-check"></i><span>Synoptique de signal</span></li>
         <li><i class="ti ti-check"></i><span>Stockage fichiers <strong>50 Go</strong></span></li>
         <li class="off"><i class="ti ti-minus"></i><span>Multi-scenes / Multi-patches</span></li>
@@ -1053,6 +1194,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
         <li><i class="ti ti-check"></i><span><strong>Membres illimites</strong> par show</span></li>
         <li><i class="ti ti-check"></i><span><strong>Multi-scenes</strong> — plusieurs sets par show</span></li>
         <li><i class="ti ti-check"></i><span><strong>Multi-patches</strong> — variantes A/B/festival</span></li>
+        <li><i class="ti ti-check"></i><span><strong>Recap consolide</strong> — tous les patches d'un show</span></li>
         <li><i class="ti ti-check"></i><span><strong>Exports a votre image</strong> — logo, infos societe</span></li>
         <li><i class="ti ti-check"></i><span>PDF avec entete personnalisee</span></li>
         <li><i class="ti ti-check"></i><span>Stockage fichiers <strong>200 Go</strong></span></li>
@@ -1127,7 +1269,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
         Comment fonctionne le lien de partage en lecture seule ?
         <i class="ti ti-plus"></i>
       </div>
-      <div class="faq-a">Depuis le Plan de scene, cliquez sur "Lien". Copiez l'URL generee et envoyez-la a qui vous voulez — groupe, backline, production. Sans aucun compte, ils voient votre Input List complete, constamment mise a jour en temps reel. Utile aussi pour l'inclure dans vos exports PDF.</div>
+      <div class="faq-a">Depuis l'Input List ou l'equipe, cliquez sur "Lien". Copiez l'URL generee et envoyez-la a qui vous voulez — groupe, backline, production. Sans aucun compte, ils voient votre Input List (ou Output List) complete, constamment mise a jour en temps reel. La vue est adaptee au telephone. Utile aussi pour l'inclure dans vos exports PDF.</div>
     </div>
 
     <div class="faq-item">
@@ -1167,7 +1309,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
         Puis-je importer mon patch existant depuis Excel ou une autre appli ?
         <i class="ti ti-plus"></i>
       </div>
-      <div class="faq-a">L'import CSV est en cours de developpement. En attendant, l'assistant ILA permet de reconstruire rapidement un patch standard en moins de 2 minutes. Vous pouvez aussi exporter depuis PatchFlow en CSV a tout moment.</div>
+      <div class="faq-a">Oui, l'import CSV est disponible. Depuis l'Input List, utilisez le bouton "Importer CSV" pour charger votre patch existant directement. L'export CSV est egalement disponible a tout moment. L'assistant ILA reste la solution la plus rapide pour partir de zero en moins de 2 minutes.</div>
     </div>
 
     <div class="faq-item">
