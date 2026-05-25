@@ -1834,9 +1834,15 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
       </div></div>
     </div>
     <div class="modal-foot" style="flex-wrap:wrap;gap:8px">
-      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--txt2);flex:1;min-width:160px">
-        <input type="checkbox" class="cb" id="pdf-incl-link" checked/> Inclure le lien à jour dans le PDF
-      </label>
+      <div style="display:flex;flex-direction:column;gap:6px;flex:1;min-width:200px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--txt2)">
+          <input type="checkbox" class="cb" id="pdf-incl-link" checked/> Inclure le lien à jour dans le PDF
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--txt2)" id="pdf-recap-label">
+          <input type="checkbox" class="cb" id="pdf-incl-recap"/> Inclure le récap matériels
+          <span style="font-family:var(--m);font-size:8px;font-weight:700;padding:1px 5px;border-radius:8px;background:var(--ora-d);color:var(--ora);border:1px solid var(--ora-g);margin-left:2px">Pro</span>
+        </label>
+      </div>
       <div style="display:flex;align-items:center;gap:7px;margin-left:auto">
         <span style="font-size:10px;color:var(--muted);font-family:var(--m)"><i class="ti ti-info-circle" style="font-size:11px;margin-right:3px"></i>Imprimer → Enregistrer PDF</span>
         <button class="btn ghost sm" onclick="closePDF()">Annuler</button>
@@ -3927,6 +3933,7 @@ td{padding:4px 7px;border-bottom:1px solid #f0eee8;vertical-align:middle}
   <div class="si">MON <span class="sv">${CHS.filter(r=>r.mon).length}</span></div>
   <div class="si">IEM <span class="sv">${CHS.filter(r=>r.iem_group).length}</span></div>
 </div>
+${meta.recapHtml||''}
 ${meta.notes?`<div class="ns"><div class="nl">Notes techniques</div>${meta.notes}</div>`:''}
 ${meta.shareLink?`<div style="display:flex;align-items:center;gap:14px;padding:7px 16px;background:#f4faff;border-top:2px solid #1a8fff;border-bottom:1px solid #d0e8ff"><img src="https://api.qrserver.com/v1/create-qr-code/?size=72x72&data=${encodeURIComponent(meta.shareLink)}&color=1a8fff&bgcolor=f4faff" width="54" height="54" style="flex-shrink:0;border-radius:4px"/><div><div style="font-family:'DM Mono',monospace;font-size:7.5px;text-transform:uppercase;letter-spacing:1px;color:#1a8fff;margin-bottom:3px">Fiche a jour en ligne</div><a href="${meta.shareLink}" style="font-size:9px;color:#1a4fff;font-family:'DM Mono',monospace;word-break:break-all;text-decoration:none">${meta.shareLink}</a><div style="font-size:7.5px;color:#888;margin-top:3px;font-family:'DM Mono',monospace">Scannez le QR code ou visitez le lien pour retrouver cette fiche a jour a tout moment.</div></div></div>`:''}
 <div class="ft"><span class="fl">${brand.co.toUpperCase()}</span><span>${engLine||show} · ${now}</span><span>${brand.site} · ${meta.rev||''}</span></div>
@@ -4588,12 +4595,55 @@ function doSitePlanPDF(){
     w.document.close();
   });
 }
+function _buildPdfRecapBlock(rows,accentColor){
+  // Build counts from rows
+  var mics={},stands={};
+  rows.forEach(function(r){
+    var m=(r.mic||'').trim(); if(m) mics[m]=(mics[m]||0)+1;
+    var s=(r.note||'').trim(); if(s) stands[s]=(stands[s]||0)+1;
+  });
+  var micEntries=Object.keys(mics).sort(function(a,b){return mics[b]-mics[a];});
+  var standEntries=Object.keys(stands).sort(function(a,b){return stands[b]-stands[a];});
+  if(!micEntries.length&&!standEntries.length) return '';
+  var col=accentColor||'#ff6b1a';
+  function tableRows(map,entries){
+    if(!entries.length) return '<tr><td colspan="2" style="color:#aaa;font-style:italic;font-size:8px">Aucun</td></tr>';
+    return entries.map(function(k){
+      return '<tr><td style="padding:2px 0;color:#333;border-bottom:1px solid #f0ede8">'+k+'</td>'
+        +'<td style="padding:2px 0 2px 8px;text-align:right;font-weight:800;color:'+col+';border-bottom:1px solid #f0ede8;font-family:\'DM Mono\',monospace">'+map[k]+'</td></tr>';
+    }).join('');
+  }
+  var totalMics=micEntries.reduce(function(s,k){return s+mics[k];},0);
+  var totalStands=standEntries.reduce(function(s,k){return s+stands[k];},0);
+  return '<div style="padding:6px 16px;border-top:2px solid '+col+';background:#fffbf7">'
+    +'<div style="font-family:\'DM Mono\',monospace;font-size:7.5px;text-transform:uppercase;letter-spacing:1px;color:#aaa;margin-bottom:6px">Recapitulatif materiels</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">'
+    +'<div>'
+      +'<div style="font-family:\'DM Mono\',monospace;font-size:8px;text-transform:uppercase;letter-spacing:.8px;color:'+col+';margin-bottom:4px;display:flex;justify-content:space-between">'
+        +'<span>Micros &amp; DI</span><span style="font-weight:800">'+totalMics+' total</span>'
+      +'</div>'
+      +'<table style="width:100%;border-collapse:collapse;font-size:9px">'+tableRows(mics,micEntries)+'</table>'
+    +'</div>'
+    +'<div>'
+      +'<div style="font-family:\'DM Mono\',monospace;font-size:8px;text-transform:uppercase;letter-spacing:.8px;color:'+col+';margin-bottom:4px;display:flex;justify-content:space-between">'
+        +'<span>Pieds de micro</span><span style="font-weight:800">'+totalStands+' total</span>'
+      +'</div>'
+      +'<table style="width:100%;border-collapse:collapse;font-size:9px">'+tableRows(stands,standEntries)+'</table>'
+    +'</div>'
+    +'</div>'
+  +'</div>';
+}
+
 function doPDF(){
   const _inclLink=document.getElementById('pdf-incl-link')?.checked!==false;
+  const _inclRecap=document.getElementById('pdf-incl-recap')?.checked===true;
+  if(_inclRecap&&!canDo('recap_matos')){showUpgradeModal('recap_matos');return;}
   const _shareUrl=_inclLink?(document.getElementById('slink-url')?.textContent||('http://127.0.0.1:7821/soundbooth_12.html?view='+(CUR_SHOW?.id||'')+'\x26tab=inputlist')):'';
-  const meta={eng:document.getElementById('pdf-eng').value,role:document.getElementById('pdf-role').value,title:document.getElementById('pdf-title')?.value||'',co:document.getElementById('pdf-co').value,tel:document.getElementById('pdf-tel').value,venue:document.getElementById('pdf-venue').value,date:document.getElementById('pdf-date').value,rev:document.getElementById('pdf-rev').value,notes:document.getElementById('pdf-notes').value,shareLink:_shareUrl};
-  closePDF();
   const brand=_pdfBrand();
+  const _accentColor=brand.color||'#ff6b1a';
+  const recapHtml=_inclRecap?_buildPdfRecapBlock(CHS,_accentColor):'';
+  const meta={eng:document.getElementById('pdf-eng').value,role:document.getElementById('pdf-role').value,title:document.getElementById('pdf-title')?.value||'',co:document.getElementById('pdf-co').value,tel:document.getElementById('pdf-tel').value,venue:document.getElementById('pdf-venue').value,date:document.getElementById('pdf-date').value,rev:document.getElementById('pdf-rev').value,notes:document.getElementById('pdf-notes').value,shareLink:_shareUrl,recapHtml:recapHtml};
+  closePDF();
   const html=_pdfExportType==='both'?_buildPdfBothHTML(meta,brand):_pdfExportType==='out'?_buildPdfOutHTML(meta,brand):_buildPdfInHTML(meta,brand);
   const w=window.open('','_blank','width=1100,height=750');if(!w){alert('Autorise les popups');return;}w.document.write(html);w.document.close();
 }
