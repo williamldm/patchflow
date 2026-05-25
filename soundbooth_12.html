@@ -4837,137 +4837,175 @@ const SynEditor = (() => {
   }
 
   const TEMPLATES = {
-    // edges: array of {from:nodeIndex, to:nodeIndex, fromPort:'A'|'B'|'C'|'D'|undefined}
+    // edges: { from, to, liaison:'xlr'|'dante'|'speakon'|..., note? }
+    // ─── CODA · Système simple ───────────────────────────────────────
     simple: {
-      name: 'Système simple',
+      name: 'Systeme simple — CODA',
       nodes: [
-        { type: 'console',  label: 'FOH',         x: 40,  y: 100 },                          // 0
-        { type: 'switch',   label: 'Dante',        x: 200, y: 100 },                          // 1
-        { type: 'linus14',  label: 'LINUS14 #1',   x: 380, y: 40, ports: [
-          { id: 'A', zone: 'top', side: 'L', label: 'Main L', spk: 4, z: '8Ω', cable: '4×4mm²', conn: 'NL4' },
-          { id: 'B', zone: 'top', side: 'R', label: 'Main R', spk: 4, z: '8Ω', cable: '4×4mm²', conn: 'NL4' },
-          { id: 'C', zone: 'sub', side: 'L', label: 'Sub L',  spk: 2, z: '4Ω', cable: '2×6mm²', conn: 'NL4' },
-          { id: 'D', zone: 'sub', side: 'R', label: 'Sub R',  spk: 2, z: '4Ω', cable: '2×6mm²', conn: 'NL4' },
-        ]},                                                                                     // 2
-        { type: 'top',  label: 'Main L', x: 620, y: 20,  zone: 'top', side: 'L', spk: 4, z: '8Ω', cable: '4×4mm²', conn: 'NL4' }, // 3
-        { type: 'top',  label: 'Main R', x: 620, y: 100, zone: 'top', side: 'R', spk: 4, z: '8Ω', cable: '4×4mm²', conn: 'NL4' }, // 4
-        { type: 'sub',  label: 'Sub L',  x: 620, y: 180, zone: 'sub', side: 'L', spk: 2, z: '4Ω', cable: '2×6mm²', conn: 'NL4' }, // 5
-        { type: 'sub',  label: 'Sub R',  x: 620, y: 260, zone: 'sub', side: 'R', spk: 2, z: '4Ω', cable: '2×6mm²', conn: 'NL4' }, // 6
+        { type: 'console',  label: 'Console FOH',  x: 30,  y: 110 },          // 0
+        { type: 'switch',   label: 'Switch Dante',  x: 220, y: 110 },          // 1
+        { type: 'linus14',  label: 'LINUS 14 #1',  x: 400, y: 40, ports: [
+          { id: 'A', zone: 'top', side: 'L', label: 'Main L', spk: 4, z: '8Ω', cable: '4\xd74mm\xb2', conn: 'NL4' },
+          { id: 'B', zone: 'top', side: 'R', label: 'Main R', spk: 4, z: '8Ω', cable: '4\xd74mm\xb2', conn: 'NL4' },
+          { id: 'C', zone: 'sub', side: 'L', label: 'Sub L',  spk: 2, z: '4Ω', cable: '2\xd76mm\xb2', conn: 'NL4' },
+          { id: 'D', zone: 'sub', side: 'R', label: 'Sub R',  spk: 2, z: '4Ω', cable: '2\xd76mm\xb2', conn: 'NL4' },
+        ]},                                                                     // 2
+        { type: 'airay',  label: 'Main L',  x: 660, y: 20,  zone: 'top', side: 'L', spk: 4, z: '8Ω', cable: '4\xd74mm\xb2', conn: 'NL4' }, // 3
+        { type: 'airay',  label: 'Main R',  x: 660, y: 100, zone: 'top', side: 'R', spk: 4, z: '8Ω', cable: '4\xd74mm\xb2', conn: 'NL4' }, // 4
+        { type: 'kilo',   label: 'Sub L',   x: 660, y: 180, zone: 'sub', side: 'L', spk: 2, z: '4Ω', cable: '2\xd76mm\xb2', conn: 'NL4' }, // 5
+        { type: 'kilo',   label: 'Sub R',   x: 660, y: 260, zone: 'sub', side: 'R', spk: 2, z: '4Ω', cable: '2\xd76mm\xb2', conn: 'NL4' }, // 6
       ],
       edges: [
-        { from: 0, to: 1 },
-        { from: 1, to: 2 },
-        { from: 2, to: 3, fromPort: 'A' },
-        { from: 2, to: 4, fromPort: 'B' },
-        { from: 2, to: 5, fromPort: 'C' },
-        { from: 2, to: 6, fromPort: 'D' },
+        { from: 0, to: 1, liaison: 'dante' },
+        { from: 1, to: 2, liaison: 'dante' },
+        { from: 2, to: 3, liaison: 'speakon', note: 'CH A → Main L' },
+        { from: 2, to: 4, liaison: 'speakon', note: 'CH B → Main R' },
+        { from: 2, to: 5, liaison: 'speakon', note: 'CH C → Sub L' },
+        { from: 2, to: 6, liaison: 'speakon', note: 'CH D → Sub R' },
       ],
     },
+    // ─── CODA · Petite presta ────────────────────────────────────────
     presta: {
-      name: 'Petite presta',
+      name: 'Petite presta — CODA',
       nodes: [
-        { type: 'console', label: 'FOH',        x: 40,  y: 120 },                             // 0
-        { type: 'linus12', label: 'LINUS12 #1', x: 220, y: 60, ports: [
-          { id: 'A', zone: 'top',       side: 'L', label: 'Top L', spk: 2, z: '8Ω', cable: '2×2.5mm²', conn: 'NL4' },
-          { id: 'B', zone: 'top',       side: 'R', label: 'Top R', spk: 2, z: '8Ω', cable: '2×2.5mm²', conn: 'NL4' },
-          { id: 'C', zone: 'sub',       side: 'C', label: 'Sub',   spk: 1, z: '8Ω', cable: '1×4mm²',   conn: 'NL4' },
-          { id: 'D', zone: 'frontfill', side: 'C', label: 'Fill',  spk: 2, z: '8Ω', cable: '2×2.5mm²', conn: 'NL4' },
-        ]},                                                                                     // 1
-        { type: 'top',       label: 'Top L', x: 470, y: 20,  zone: 'top',       side: 'L', spk: 2, z: '8Ω', cable: '2×2.5mm²', conn: 'NL4' }, // 2
-        { type: 'top',       label: 'Top R', x: 470, y: 100, zone: 'top',       side: 'R', spk: 2, z: '8Ω', cable: '2×2.5mm²', conn: 'NL4' }, // 3
-        { type: 'sub',       label: 'Sub',   x: 470, y: 180, zone: 'sub',       side: 'C', spk: 1, z: '8Ω', cable: '1×4mm²',   conn: 'NL4' }, // 4
-        { type: 'frontfill', label: 'Fill',  x: 470, y: 260, zone: 'frontfill', side: 'C', spk: 2, z: '8Ω', cable: '2×2.5mm²', conn: 'NL4' }, // 5
+        { type: 'console', label: 'Console FOH',  x: 30,  y: 140 },           // 0
+        { type: 'linus12', label: 'LINUS 12 #1',  x: 240, y: 40, ports: [
+          { id: 'A', zone: 'top', side: 'L', label: 'PA L',   spk: 2, z: '8Ω', cable: '2\xd72.5mm\xb2', conn: 'NL4' },
+          { id: 'B', zone: 'top', side: 'R', label: 'PA R',   spk: 2, z: '8Ω', cable: '2\xd72.5mm\xb2', conn: 'NL4' },
+          { id: 'C', zone: 'sub', side: 'C', label: 'Sub',    spk: 1, z: '8Ω', cable: '1\xd74mm\xb2',   conn: 'NL4' },
+          { id: 'D', zone: 'top', side: 'C', label: 'Fill FF', spk: 2, z: '8Ω', cable: '2\xd72.5mm\xb2', conn: 'NL4' },
+        ]},                                                                     // 1
+        { type: 'g712',  label: 'PA L',    x: 500, y: 20,  zone: 'top', side: 'L', spk: 2, z: '8Ω', cable: '2\xd72.5mm\xb2', conn: 'NL4' }, // 2
+        { type: 'g712',  label: 'PA R',    x: 500, y: 100, zone: 'top', side: 'R', spk: 2, z: '8Ω', cable: '2\xd72.5mm\xb2', conn: 'NL4' }, // 3
+        { type: 'kilo',  label: 'Sub C',   x: 500, y: 180, zone: 'sub', side: 'C', spk: 1, z: '8Ω', cable: '1\xd74mm\xb2',   conn: 'NL4' }, // 4
+        { type: 'hops5', label: 'Fill FF', x: 500, y: 260, zone: 'top', side: 'C', spk: 2, z: '8Ω', cable: '2\xd72.5mm\xb2', conn: 'NL4' }, // 5
       ],
       edges: [
-        { from: 0, to: 1 },
-        { from: 1, to: 2, fromPort: 'A' },
-        { from: 1, to: 3, fromPort: 'B' },
-        { from: 1, to: 4, fromPort: 'C' },
-        { from: 1, to: 5, fromPort: 'D' },
+        { from: 0, to: 1, liaison: 'xlr' },
+        { from: 1, to: 2, liaison: 'speakon', note: 'CH A → PA L' },
+        { from: 1, to: 3, liaison: 'speakon', note: 'CH B → PA R' },
+        { from: 1, to: 4, liaison: 'speakon', note: 'CH C → Sub' },
+        { from: 1, to: 5, liaison: 'speakon', note: 'CH D → Fill' },
       ],
     },
+    // ─── CODA · Festival ─────────────────────────────────────────────
     festival: {
-      name: 'Festival',
+      name: 'Festival — CODA',
       nodes: [
-        { type: 'console', label: 'FOH',   x: 30,  y: 180 },                                  // 0
-        { type: 'switch',  label: 'Dante',  x: 190, y: 180 },                                 // 1
-        { type: 'linus14', label: 'Main',   x: 370, y: 40, ports: [
-          { id: 'A', zone: 'top', side: 'L', label: 'Main L', spk: 8, z: '4Ω', cable: '8×4mm²', conn: 'NL8' },
-          { id: 'B', zone: 'top', side: 'R', label: 'Main R', spk: 8, z: '4Ω', cable: '8×4mm²', conn: 'NL8' },
-          { id: 'C', zone: 'sub', side: 'L', label: 'Sub L',  spk: 4, z: '2Ω', cable: '4×6mm²', conn: 'NL8' },
-          { id: 'D', zone: 'sub', side: 'R', label: 'Sub R',  spk: 4, z: '2Ω', cable: '4×6mm²', conn: 'NL8' },
-        ]},                                                                                     // 2
-        { type: 'linus12', label: 'Delay',  x: 370, y: 260, ports: [
-          { id: 'A', zone: 'delay',   side: 'L', label: 'Delay L', spk: 4, z: '8Ω', cable: '4×2.5mm²', conn: 'NL4' },
-          { id: 'B', zone: 'delay',   side: 'R', label: 'Delay R', spk: 4, z: '8Ω', cable: '4×2.5mm²', conn: 'NL4' },
-          { id: 'C', zone: 'outfill', side: 'L', label: 'Out L',   spk: 4, z: '8Ω', cable: '4×2.5mm²', conn: 'NL4' },
-          { id: 'D', zone: 'outfill', side: 'R', label: 'Out R',   spk: 4, z: '8Ω', cable: '4×2.5mm²', conn: 'NL4' },
-        ]},                                                                                     // 3
-        { type: 'top',     label: 'Main L', x: 620, y: 20,  zone: 'top',     side: 'L', spk: 8, z: '4Ω', cable: '8×4mm²', conn: 'NL8' }, // 4
-        { type: 'top',     label: 'Main R', x: 620, y: 100, zone: 'top',     side: 'R', spk: 8, z: '4Ω', cable: '8×4mm²', conn: 'NL8' }, // 5
-        { type: 'sub',     label: 'Sub L',  x: 620, y: 180, zone: 'sub',     side: 'L', spk: 4, z: '2Ω', cable: '4×6mm²', conn: 'NL8' }, // 6
-        { type: 'sub',     label: 'Sub R',  x: 620, y: 260, zone: 'sub',     side: 'R', spk: 4, z: '2Ω', cable: '4×6mm²', conn: 'NL8' }, // 7
-        { type: 'delay',   label: 'Delay L', x: 620, y: 340, zone: 'delay',  side: 'L', spk: 4, z: '8Ω', cable: '4×2.5mm²', conn: 'NL4' }, // 8
-        { type: 'delay',   label: 'Delay R', x: 620, y: 410, zone: 'delay',  side: 'R', spk: 4, z: '8Ω', cable: '4×2.5mm²', conn: 'NL4' }, // 9
-        { type: 'outfill', label: 'Out L',  x: 620, y: 480, zone: 'outfill', side: 'L', spk: 4, z: '8Ω', cable: '4×2.5mm²', conn: 'NL4' }, // 10
-        { type: 'outfill', label: 'Out R',  x: 620, y: 550, zone: 'outfill', side: 'R', spk: 4, z: '8Ω', cable: '4×2.5mm²', conn: 'NL4' }, // 11
+        { type: 'console',     label: 'Console FOH',    x: 20,  y: 230 },     // 0
+        { type: 'console_mon', label: 'Console MON',    x: 20,  y: 340 },     // 1
+        { type: 'switch',      label: 'Switch Dante',   x: 200, y: 230 },     // 2
+        { type: 'linus14',     label: 'LINUS 14 Main',  x: 390, y: 40, ports: [
+          { id: 'A', zone: 'top', side: 'L', label: 'Main L', spk: 8, z: '4Ω', cable: '8\xd74mm\xb2', conn: 'NL8' },
+          { id: 'B', zone: 'top', side: 'R', label: 'Main R', spk: 8, z: '4Ω', cable: '8\xd74mm\xb2', conn: 'NL8' },
+          { id: 'C', zone: 'sub', side: 'L', label: 'Sub L',  spk: 4, z: '2Ω', cable: '4\xd76mm\xb2', conn: 'NL8' },
+          { id: 'D', zone: 'sub', side: 'R', label: 'Sub R',  spk: 4, z: '2Ω', cable: '4\xd76mm\xb2', conn: 'NL8' },
+        ]},                                                                     // 3
+        { type: 'linus12',     label: 'LINUS 12 Delay', x: 390, y: 310, ports: [
+          { id: 'A', zone: 'top', side: 'L', label: 'Delay L',   spk: 4, z: '8Ω', cable: '4\xd72.5mm\xb2', conn: 'NL4' },
+          { id: 'B', zone: 'top', side: 'R', label: 'Delay R',   spk: 4, z: '8Ω', cable: '4\xd72.5mm\xb2', conn: 'NL4' },
+          { id: 'C', zone: 'top', side: 'L', label: 'Outfill L', spk: 2, z: '8Ω', cable: '2\xd74mm\xb2',   conn: 'NL4' },
+          { id: 'D', zone: 'top', side: 'R', label: 'Outfill R', spk: 2, z: '8Ω', cable: '2\xd74mm\xb2',   conn: 'NL4' },
+        ]},                                                                     // 4
+        { type: 'linus10',     label: 'LINUS 10 MON',   x: 200, y: 340, ports: [
+          { id: 'A', zone: 'top', side: 'C', label: 'Mon 1', spk: 1, z: '8Ω', cable: '1\xd72.5mm\xb2', conn: 'NL4' },
+          { id: 'B', zone: 'top', side: 'C', label: 'Mon 2', spk: 1, z: '8Ω', cable: '1\xd72.5mm\xb2', conn: 'NL4' },
+          { id: 'C', zone: 'top', side: 'C', label: 'Mon 3', spk: 1, z: '8Ω', cable: '1\xd72.5mm\xb2', conn: 'NL4' },
+          { id: 'D', zone: 'top', side: 'C', label: 'Mon 4', spk: 1, z: '8Ω', cable: '1\xd72.5mm\xb2', conn: 'NL4' },
+        ]},                                                                     // 5
+        { type: 'airay',  label: 'Main L',     x: 650, y: 20,  zone: 'top', side: 'L', spk: 8, z: '4Ω', cable: '8\xd74mm\xb2', conn: 'NL8' },  // 6
+        { type: 'airay',  label: 'Main R',     x: 650, y: 100, zone: 'top', side: 'R', spk: 8, z: '4Ω', cable: '8\xd74mm\xb2', conn: 'NL8' },  // 7
+        { type: 'kilo',   label: 'Sub L',      x: 650, y: 180, zone: 'sub', side: 'L', spk: 4, z: '2Ω', cable: '4\xd76mm\xb2', conn: 'NL8' },  // 8
+        { type: 'kilo',   label: 'Sub R',      x: 650, y: 260, zone: 'sub', side: 'R', spk: 4, z: '2Ω', cable: '4\xd76mm\xb2', conn: 'NL8' },  // 9
+        { type: 'tiray',  label: 'Delay L',    x: 650, y: 340, zone: 'top', side: 'L', spk: 4, z: '8Ω', cable: '4\xd72.5mm\xb2', conn: 'NL4' }, // 10
+        { type: 'tiray',  label: 'Delay R',    x: 650, y: 420, zone: 'top', side: 'R', spk: 4, z: '8Ω', cable: '4\xd72.5mm\xb2', conn: 'NL4' }, // 11
+        { type: 'hops8',  label: 'Outfill L',  x: 650, y: 500, zone: 'top', side: 'L', spk: 2, z: '8Ω', cable: '2\xd74mm\xb2',   conn: 'NL4' }, // 12
+        { type: 'hops8',  label: 'Outfill R',  x: 650, y: 570, zone: 'top', side: 'R', spk: 2, z: '8Ω', cable: '2\xd74mm\xb2',   conn: 'NL4' }, // 13
+        { type: 'g712',   label: 'Retour 1-4', x: 650, y: 650, zone: 'top', side: 'C', spk: 1, z: '8Ω', cable: '1\xd72.5mm\xb2', conn: 'NL4' }, // 14
       ],
       edges: [
-        { from: 0, to: 1 },
-        { from: 1, to: 2 },
-        { from: 1, to: 3 },
-        { from: 2, to: 4,  fromPort: 'A' },
-        { from: 2, to: 5,  fromPort: 'B' },
-        { from: 2, to: 6,  fromPort: 'C' },
-        { from: 2, to: 7,  fromPort: 'D' },
-        { from: 3, to: 8,  fromPort: 'A' },
-        { from: 3, to: 9,  fromPort: 'B' },
-        { from: 3, to: 10, fromPort: 'C' },
-        { from: 3, to: 11, fromPort: 'D' },
+        { from: 0, to: 2,  liaison: 'dante' },
+        { from: 1, to: 5,  liaison: 'xlr'   },
+        { from: 2, to: 3,  liaison: 'dante' },
+        { from: 2, to: 4,  liaison: 'dante' },
+        { from: 3, to: 6,  liaison: 'speakon', note: 'A → Main L' },
+        { from: 3, to: 7,  liaison: 'speakon', note: 'B → Main R' },
+        { from: 3, to: 8,  liaison: 'speakon', note: 'C → Sub L'  },
+        { from: 3, to: 9,  liaison: 'speakon', note: 'D → Sub R'  },
+        { from: 4, to: 10, liaison: 'speakon', note: 'A → Delay L'   },
+        { from: 4, to: 11, liaison: 'speakon', note: 'B → Delay R'   },
+        { from: 4, to: 12, liaison: 'speakon', note: 'C → Outfill L' },
+        { from: 4, to: 13, liaison: 'speakon', note: 'D → Outfill R' },
+        { from: 5, to: 14, liaison: 'speakon', note: 'A-D → Retours' },
       ],
     },
-    conference: {
-      name: 'Conférence',
-      nodes: [
-        { type: 'console', label: 'FOH',    x: 50,  y: 120 },                                 // 0
-        { type: 'linus12', label: 'LINUS12', x: 240, y: 60, ports: [
-          { id: 'A', zone: 'top', side: 'L', label: 'PA L', spk: 2, z: '8Ω', cable: '2×2.5mm²', conn: 'NL4' },
-          { id: 'B', zone: 'top', side: 'R', label: 'PA R', spk: 2, z: '8Ω', cable: '2×2.5mm²', conn: 'NL4' },
-        ]},                                                                                     // 1
-        { type: 'top', label: 'PA L', x: 480, y: 40,  zone: 'top', side: 'L', spk: 2, z: '8Ω', cable: '2×2.5mm²', conn: 'NL4' }, // 2
-        { type: 'top', label: 'PA R', x: 480, y: 120, zone: 'top', side: 'R', spk: 2, z: '8Ω', cable: '2×2.5mm²', conn: 'NL4' }, // 3
-      ],
-      edges: [
-        { from: 0, to: 1 },
-        { from: 1, to: 2, fromPort: 'A' },
-        { from: 1, to: 3, fromPort: 'B' },
-      ],
-    },
+    // ─── L-Acoustics · Line array ────────────────────────────────────
     linearray: {
-      name: 'Line array',
+      name: 'Line array — L-Acoustics',
       nodes: [
-        { type: 'console',   label: 'FOH',         x: 30,  y: 180 },                         // 0
-        { type: 'processor', label: 'SystemTune',   x: 190, y: 170 },                         // 1
-        { type: 'switch',    label: 'Dante',        x: 350, y: 170 },                         // 2
-        { type: 'linus14',   label: 'LINUS14 Main', x: 520, y: 40, ports: [
-          { id: 'A', zone: 'top',       side: 'L', label: 'Array L',  spk: 12, z: '2.8Ω', cable: '12×4mm²', conn: 'NL8' },
-          { id: 'B', zone: 'top',       side: 'R', label: 'Array R',  spk: 12, z: '2.8Ω', cable: '12×4mm²', conn: 'NL8' },
-          { id: 'C', zone: 'sub',       side: 'C', label: 'Sub arc',  spk: 6,  z: '2Ω',   cable: '6×6mm²',  conn: 'NL8' },
-          { id: 'D', zone: 'frontfill', side: 'C', label: 'Front fill', spk: 2, z: '8Ω',  cable: '2×2.5mm²', conn: 'NL4' },
-        ]},                                                                                     // 3
-        { type: 'top',       label: 'Array L',    x: 780, y: 20,  zone: 'top',       side: 'L', spk: 12, z: '2.8Ω', cable: '12×4mm²', conn: 'NL8' }, // 4
-        { type: 'top',       label: 'Array R',    x: 780, y: 100, zone: 'top',       side: 'R', spk: 12, z: '2.8Ω', cable: '12×4mm²', conn: 'NL8' }, // 5
-        { type: 'sub',       label: 'Sub arc',    x: 780, y: 180, zone: 'sub',       side: 'C', spk: 6,  z: '2Ω',   cable: '6×6mm²',  conn: 'NL8' }, // 6
-        { type: 'frontfill', label: 'Front fill', x: 780, y: 260, zone: 'frontfill', side: 'C', spk: 2,  z: '8Ω',   cable: '2×2.5mm²', conn: 'NL4' }, // 7
+        { type: 'console',  label: 'Console FOH',  x: 20,  y: 200 },          // 0
+        { type: 'la_p1',    label: 'L-Acoustics P1', x: 210, y: 190 },        // 1
+        { type: 'switch',   label: 'Switch Dante',   x: 390, y: 190 },        // 2
+        { type: 'la_la4x',  label: 'LA4X Main',      x: 560, y: 40, ports: [
+          { id: 'A', zone: 'top', side: 'L', label: 'K2 L',   spk: 10, z: '4Ω', cable: '10\xd74mm\xb2', conn: 'NL8' },
+          { id: 'B', zone: 'top', side: 'R', label: 'K2 R',   spk: 10, z: '4Ω', cable: '10\xd74mm\xb2', conn: 'NL8' },
+          { id: 'C', zone: 'sub', side: 'L', label: 'KS21 L', spk: 4,  z: '8Ω', cable: '4\xd76mm\xb2',  conn: 'NL4' },
+          { id: 'D', zone: 'sub', side: 'R', label: 'KS21 R', spk: 4,  z: '8Ω', cable: '4\xd76mm\xb2',  conn: 'NL4' },
+        ]},                                                                     // 3
+        { type: 'la_la4x',  label: 'LA4X Delay',     x: 560, y: 310, ports: [
+          { id: 'A', zone: 'top', side: 'L', label: 'K3 DL', spk: 6, z: '8Ω', cable: '6\xd72.5mm\xb2', conn: 'NL4' },
+          { id: 'B', zone: 'top', side: 'R', label: 'K3 DR', spk: 6, z: '8Ω', cable: '6\xd72.5mm\xb2', conn: 'NL4' },
+          { id: 'C', zone: 'top', side: 'L', label: 'X12 L', spk: 2, z: '8Ω', cable: '2\xd74mm\xb2',   conn: 'NL4' },
+          { id: 'D', zone: 'top', side: 'R', label: 'X12 R', spk: 2, z: '8Ω', cable: '2\xd74mm\xb2',   conn: 'NL4' },
+        ]},                                                                     // 4
+        { type: 'la_k2',   label: 'K2 L',    x: 820, y: 20,  zone: 'top', side: 'L', spk: 10, z: '4Ω', cable: '10\xd74mm\xb2', conn: 'NL8' }, // 5
+        { type: 'la_k2',   label: 'K2 R',    x: 820, y: 100, zone: 'top', side: 'R', spk: 10, z: '4Ω', cable: '10\xd74mm\xb2', conn: 'NL8' }, // 6
+        { type: 'la_ks21', label: 'KS21 L',  x: 820, y: 180, zone: 'sub', side: 'L', spk: 4,  z: '8Ω', cable: '4\xd76mm\xb2',  conn: 'NL4' }, // 7
+        { type: 'la_ks21', label: 'KS21 R',  x: 820, y: 260, zone: 'sub', side: 'R', spk: 4,  z: '8Ω', cable: '4\xd76mm\xb2',  conn: 'NL4' }, // 8
+        { type: 'la_k3',   label: 'Delay L', x: 820, y: 340, zone: 'top', side: 'L', spk: 6,  z: '8Ω', cable: '6\xd72.5mm\xb2', conn: 'NL4' }, // 9
+        { type: 'la_k3',   label: 'Delay R', x: 820, y: 420, zone: 'top', side: 'R', spk: 6,  z: '8Ω', cable: '6\xd72.5mm\xb2', conn: 'NL4' }, // 10
+        { type: 'la_x12',  label: 'Fill L',  x: 820, y: 500, zone: 'top', side: 'L', spk: 2,  z: '8Ω', cable: '2\xd74mm\xb2',   conn: 'NL4' }, // 11
+        { type: 'la_x12',  label: 'Fill R',  x: 820, y: 570, zone: 'top', side: 'R', spk: 2,  z: '8Ω', cable: '2\xd74mm\xb2',   conn: 'NL4' }, // 12
       ],
       edges: [
-        { from: 0, to: 1 },
-        { from: 1, to: 2 },
-        { from: 2, to: 3 },
-        { from: 3, to: 4, fromPort: 'A' },
-        { from: 3, to: 5, fromPort: 'B' },
-        { from: 3, to: 6, fromPort: 'C' },
-        { from: 3, to: 7, fromPort: 'D' },
+        { from: 0, to: 1, liaison: 'dante' },
+        { from: 1, to: 2, liaison: 'dante' },
+        { from: 2, to: 3, liaison: 'dante' },
+        { from: 2, to: 4, liaison: 'dante' },
+        { from: 3, to: 5,  liaison: 'speakon', note: 'A → K2 L'   },
+        { from: 3, to: 6,  liaison: 'speakon', note: 'B → K2 R'   },
+        { from: 3, to: 7,  liaison: 'speakon', note: 'C → KS21 L' },
+        { from: 3, to: 8,  liaison: 'speakon', note: 'D → KS21 R' },
+        { from: 4, to: 9,  liaison: 'speakon', note: 'A → Delay L' },
+        { from: 4, to: 10, liaison: 'speakon', note: 'B → Delay R' },
+        { from: 4, to: 11, liaison: 'speakon', note: 'C → Fill L'  },
+        { from: 4, to: 12, liaison: 'speakon', note: 'D → Fill R'  },
+      ],
+    },
+    // ─── d&b · Conférence / Salle ────────────────────────────────────
+    conference: {
+      name: 'Conference — d&b',
+      nodes: [
+        { type: 'console',  label: 'Console FOH',  x: 30,  y: 130 },          // 0
+        { type: 'switch',   label: 'Switch Dante',  x: 220, y: 130 },          // 1
+        { type: 'dab_30d',  label: 'D&B 30D #1',    x: 400, y: 50, ports: [
+          { id: 'A', zone: 'top', side: 'L', label: 'PA L',   spk: 2, z: '8Ω', cable: '2\xd72.5mm\xb2', conn: 'NL4' },
+          { id: 'B', zone: 'top', side: 'R', label: 'PA R',   spk: 2, z: '8Ω', cable: '2\xd72.5mm\xb2', conn: 'NL4' },
+          { id: 'C', zone: 'sub', side: 'C', label: 'Sub',    spk: 1, z: '8Ω', cable: '1\xd74mm\xb2',   conn: 'NL4' },
+          { id: 'D', zone: 'top', side: 'C', label: 'Retour', spk: 2, z: '8Ω', cable: '2\xd72.5mm\xb2', conn: 'NL4' },
+        ]},                                                                     // 2
+        { type: 'dab_e8',  label: 'PA L',    x: 660, y: 20,  zone: 'top', side: 'L', spk: 2, z: '8Ω', cable: '2\xd72.5mm\xb2', conn: 'NL4' }, // 3
+        { type: 'dab_e8',  label: 'PA R',    x: 660, y: 100, zone: 'top', side: 'R', spk: 2, z: '8Ω', cable: '2\xd72.5mm\xb2', conn: 'NL4' }, // 4
+        { type: 'dab_b4',  label: 'Sub C',   x: 660, y: 180, zone: 'sub', side: 'C', spk: 1, z: '8Ω', cable: '1\xd74mm\xb2',   conn: 'NL4' }, // 5
+        { type: 'dab_e6',  label: 'Retour',  x: 660, y: 260, zone: 'top', side: 'C', spk: 2, z: '8Ω', cable: '2\xd72.5mm\xb2', conn: 'NL4' }, // 6
+      ],
+      edges: [
+        { from: 0, to: 1, liaison: 'dante' },
+        { from: 1, to: 2, liaison: 'dante' },
+        { from: 2, to: 3, liaison: 'speakon', note: 'A → PA L'   },
+        { from: 2, to: 4, liaison: 'speakon', note: 'B → PA R'   },
+        { from: 2, to: 5, liaison: 'speakon', note: 'C → Sub'    },
+        { from: 2, to: 6, liaison: 'speakon', note: 'D → Retour' },
       ],
     },
   };
@@ -5236,7 +5274,7 @@ const SynEditor = (() => {
       const fromId = idMap[e.from];
       const toId   = idMap[e.to];
       if (fromId && toId) {
-        S().edges.push({ id: uid(), from: fromId, fromPort: e.fromPort || 'out', to: toId });
+        S().edges.push({ id: uid(), from: fromId, fromPort: e.fromPort || 'out', to: toId, liaison: e.liaison || 'speakon', note: e.note || '' });
       }
     });
 
