@@ -78,6 +78,10 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .rt-pip{display:flex;align-items:center;gap:4px;font-size:9px;font-family:var(--m);color:var(--muted)}
 .rt-dot{width:6px;height:6px;border-radius:50%;background:var(--muted2);transition:background .3s}
 .rt-dot.live{background:var(--grn);box-shadow:0 0 6px var(--grn);animation:pulse 2s infinite}
+.rt-dot.offline{background:#ff4d6a;box-shadow:0 0 6px #ff4d6a}
+#offline-banner{display:none;position:fixed;top:44px;left:0;right:0;z-index:500;background:rgba(255,60,90,.92);backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,100,120,.5);padding:9px 18px;font-size:12px;font-weight:600;color:#fff;text-align:center;letter-spacing:.2px;animation:slideDown .25s ease}
+#offline-banner.show{display:flex;align-items:center;justify-content:center;gap:12px}
+@keyframes slideDown{from{transform:translateY(-100%);opacity:0}to{transform:translateY(0);opacity:1}}
 .sp-trigger{display:flex;align-items:center;gap:7px;background:var(--surf3);border:1px solid var(--bdr2);color:var(--txt);font-size:11px;font-weight:500;padding:5px 10px;border-radius:7px;cursor:pointer;font-family:var(--f);transition:all .15s;max-width:180px}
 .sp-trigger:hover{border-color:var(--ora);color:var(--ora);background:var(--ora-d)}
 .sp-trigger span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;text-align:left}
@@ -1142,6 +1146,13 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
     </div>
     <div class="auth-footer">PatchFlow · v3.0</div>
   </div>
+</div>
+
+<!-- OFFLINE BANNER -->
+<div id="offline-banner">
+  <i class="ti ti-wifi-off" style="font-size:14px"></i>
+  <span>Hors ligne — les modifications ne seront pas sauvegardees</span>
+  <button onclick="_retryConn()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;font-size:11px;font-weight:600;padding:4px 12px;border-radius:6px;cursor:pointer;font-family:inherit">Reconnecter</button>
 </div>
 
 <!-- APP -->
@@ -3347,10 +3358,54 @@ function subRT(){
       else if(ev==='DELETE'){CHS=CHS.filter(r=>r.id!==or.id);}
       renderTable();toast('↻ Modifié par un collaborateur');
     })
-    .subscribe(s=>setRT(s==='SUBSCRIBED'));
+    .subscribe(function(s){
+      if(s==='SUBSCRIBED'){setRT('live');_hideOfflineBanner();}
+      else if(s==='CHANNEL_ERROR'||s==='TIMED_OUT'||s==='CLOSED'){
+        if(!navigator.onLine)_showOfflineBanner();
+        else setRT(false);
+      }
+    });
 }
 function flashRow(id){const r=document.querySelector(`tr[data-rid="${id}"]`);if(r){r.classList.add('flash');setTimeout(()=>r.classList.remove('flash'),600);}}
-function setRT(live){const d=document.getElementById('rt-dot'),l=document.getElementById('rt-lbl');if(d)d.className='rt-dot'+(live?' live':'');if(l)l.textContent=live?'live':'—';}
+function setRT(state){
+  var d=document.getElementById('rt-dot'),l=document.getElementById('rt-lbl');
+  if(!d)return;
+  if(state==='offline'){
+    d.className='rt-dot offline';
+    if(l)l.textContent='hors ligne';
+  } else if(state===true||state==='live'){
+    d.className='rt-dot live';
+    if(l)l.textContent='live';
+  } else {
+    d.className='rt-dot';
+    if(l)l.textContent='—';
+  }
+}
+function _showOfflineBanner(){
+  var b=document.getElementById('offline-banner');
+  if(b&&!b.classList.contains('show')){b.classList.add('show');setRT('offline');}
+}
+function _hideOfflineBanner(){
+  var b=document.getElementById('offline-banner');
+  if(b){b.classList.remove('show');}
+}
+async function _retryConn(){
+  if(!navigator.onLine){toast('Toujours hors ligne — verifie ta connexion.');return;}
+  _hideOfflineBanner();
+  if(CUR_SHOW)subRT();
+  toast('Reconnexion en cours…');
+}
+window.addEventListener('offline',function(){
+  _showOfflineBanner();
+  toast('⚠ Connexion perdue — mode hors ligne');
+});
+window.addEventListener('online',function(){
+  _hideOfflineBanner();
+  toast('✓ Connexion retablie');
+  if(CUR_SHOW)subRT();
+});
+// Init : si deja offline au chargement
+if(!navigator.onLine){_showOfflineBanner();}
 
 // ══════════════════════════════════════
 // TEAM
