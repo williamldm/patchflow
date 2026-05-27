@@ -5458,9 +5458,45 @@ const SynEditor = (() => {
     toast('✓ Disposition automatique');
   }
 
+  /* Convert a screen-space rect of a node to its world-space bounding box.
+     The rect comes from getBoundingClientRect(); world coords match the SVG viewBox. */
+  function _screenToWorldRect(r, vr) {
+    const z = state.view.zoom || 1;
+    return {
+      left:   (r.left   - vr.left - state.view.panX) / z,
+      right:  (r.right  - vr.left - state.view.panX) / z,
+      top:    (r.top    - vr.top  - state.view.panY) / z,
+      bottom: (r.bottom - vr.top  - state.view.panY) / z,
+    };
+  }
+
+  /* World-space position of one of a node's edges (left or right), at vertical center.
+     Reads from the DOM when the element is rendered (so arrows track the visible
+     position even mid-drag), and falls back to data otherwise. */
+  function nodeEdgePos(node, side) {
+    const _ns = state.nodeScale || 1;
+    const nw = Math.round(node.w * _ns);
+    const nh = Math.round(node.h * _ns);
+    const vp = $('syn-viewport');
+    const vr = vp ? vp.getBoundingClientRect() : null;
+    const el = vr && document.querySelector('.syn-node[data-nid="' + node.id + '"]');
+    if (el) {
+      const r = el.getBoundingClientRect();
+      const w = _screenToWorldRect(r, vr);
+      return {
+        x: side === 'right' ? w.right : w.left,
+        y: (w.top + w.bottom) / 2,
+      };
+    }
+    return {
+      x: side === 'right' ? node.x + nw : node.x,
+      y: node.y + nh / 2,
+    };
+  }
+
   function portPos(node, portId) {
     /* Returns the world-space position of an amp port (right edge, at the port row center).
-       Accounts for nodeScale so coordinates match the SVG viewBox. */
+       Reads the DOM so coordinates always track the visible button. */
     const _ns = state.nodeScale || 1;
     const nw = Math.round(node.w * _ns);
     const nh = Math.round(node.h * _ns);
@@ -5469,12 +5505,14 @@ const SynEditor = (() => {
       const vp = $('syn-viewport');
       const vr = vp ? vp.getBoundingClientRect() : null;
       const btn = vr && document.querySelector('.syn-port-btn[data-node="' + node.id + '"][data-port="' + portId + '"]');
-      if (btn) {
-        const r = btn.getBoundingClientRect();
-        /* Convert screen coords to world coords:
-           screenY = worldY * zoom + panY + vr.top  →  worldY = (screenY - vr.top - panY) / zoom */
-        const wy = (r.top + r.height / 2 - vr.top - state.view.panY) / state.view.zoom;
-        return { x: node.x + nw, y: wy };
+      const nodeEl = vr && document.querySelector('.syn-node[data-nid="' + node.id + '"]');
+      if (btn && nodeEl) {
+        const rb = btn.getBoundingClientRect();
+        const rn = nodeEl.getBoundingClientRect();
+        const wn = _screenToWorldRect(rn, vr);
+        const wy = (rb.top + rb.height / 2 - vr.top - state.view.panY) / (state.view.zoom || 1);
+        /* Use the DOM right edge of the amp node, not the data x+nw */
+        return { x: wn.right, y: wy };
       }
       /* Fallback: estimate row position from node geometry */
       const numPorts = (node.ports || []).length || PORTS.length;
@@ -5484,7 +5522,7 @@ const SynEditor = (() => {
       return { x: node.x + nw, y: node.y + headerH + idx * rowH + rowH / 2 };
     }
     /* Non-amp: right-center */
-    return { x: node.x + nw, y: node.y + nh / 2 };
+    return nodeEdgePos(node, 'right');
   }
 
   function edgePath(e) {
@@ -5532,11 +5570,12 @@ const SynEditor = (() => {
       };
     }
 
-    const _ns2 = state.nodeScale || 1;
     const p0 = isAmp(fromN)
       ? portPos(fromN, e.fromPort || 'A')
-      : { x: fromN.x + Math.round(fromN.w * _ns2), y: fromN.y + Math.round(fromN.h * _ns2) / 2 };
-    const p1 = { x: toN.x, y: toN.y + Math.round(toN.h * _ns2) / 2 };
+      : nodeEdgePos(fromN, 'right');
+    /* Destination uses DOM-based position so the arrow always reaches the
+       visible left edge of the speaker, even if data and CSS desync mid-drag */
+    const p1 = nodeEdgePos(toN, 'left');
     const mx = (p0.x + p1.x) / 2;
     const portObj = fromN.ports ? fromN.ports.find(function(p){return p.id===e.fromPort;}) : null;
     const z = zoneOf((portObj && portObj.zone) || toN.zone || 'top');
