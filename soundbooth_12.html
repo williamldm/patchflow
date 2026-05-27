@@ -2336,15 +2336,43 @@ sb.auth.onAuthStateChange(async(event,session)=>{
   initApp();
 });
 
+function _withTimeout(promise,ms){
+  return Promise.race([
+    promise,
+    new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),ms))
+  ]);
+}
+function _showInitError(msg){
+  var errHtml='<div style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:40px 20px;text-align:center">'
+    +'<i class="ti ti-wifi-off" style="font-size:36px;color:#f87171"></i>'
+    +'<div style="font-size:14px;font-weight:600;color:var(--txt)">Impossible de charger l\'application</div>'
+    +'<div style="font-size:12px;color:var(--muted);max-width:320px">'+msg+'</div>'
+    +'<div style="display:flex;gap:10px">'
+      +'<button class="btn sm" onclick="initApp()" style="background:var(--ora);color:#000"><i class="ti ti-refresh"></i>Reessayer</button>'
+      +'<button class="btn ghost sm" onclick="sb.auth.signOut()"><i class="ti ti-logout"></i>Se deconnecter</button>'
+    +'</div>'
+  +'</div>';
+  setILBody(errHtml,true);
+  var el=document.getElementById('cur-show-name');if(el)el.textContent='Erreur';
+}
 async function initApp(){
+  setILBody('<div class="loading"><div class="spinner"></div>Connexion a Supabase…</div>',true);
   try{
-    await loadProfile();
-    await loadShows();
+    await _withTimeout(loadProfile(),8000);
+    await _withTimeout(loadShows(),10000);
     loadColChips();
     initStage();
   }catch(e){
     console.error('initApp error:',e);
-    toast('Erreur init : '+e.message);
+    var isTimeout=e.message==='timeout';
+    var isOffline=!navigator.onLine;
+    var msg=isOffline
+      ?'Vous etes hors ligne. Verifiez votre connexion puis reessayez.'
+      :isTimeout
+        ?'La connexion prend trop de temps. Verifiez votre reseau ou l\'etat de Supabase.'
+        :'Erreur : '+e.message;
+    _showInitError(msg);
+    if(isOffline)_showOfflineBanner();
   }
 }
 
@@ -2378,7 +2406,7 @@ async function loadProfile(){
 // ══════════════════════════════════════
 async function loadShows(){
   const {data,error}=await sb.from('shows').select('*').order('created_at',{ascending:false});
-  if(error){console.error('shows error:',error);toast('Erreur shows : '+error.message);return;}
+  if(error){console.error('shows error:',error);throw new Error(error.message);}
   SHOWS=data||[];
   await loadAllShowMembers();
   renderSPShows();
