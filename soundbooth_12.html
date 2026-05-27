@@ -1658,32 +1658,27 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 <div class="sp-overlay" id="sp-ov" onclick="closeSP()"></div>
 <div class="side-panel" id="side-panel">
   <div class="sp-head">
-    <div class="sp-head-title"><i class="ti ti-layout-sidebar-right" style="color:var(--ora);font-size:15px"></i>Shows &amp; Templates</div>
+    <div class="sp-head-title"><i class="ti ti-layout-board" style="color:var(--ora);font-size:15px"></i>Mes Shows</div>
     <button class="btn ghost sm" onclick="closeSP()"><i class="ti ti-x"></i></button>
   </div>
   <div class="sp-body">
     <div class="sp-sec">
       <div class="sp-sec-head">
-        <span class="sp-sec-title"><i class="ti ti-calendar-event"></i>Mes Shows</span>
+        <span class="sp-sec-title"><i class="ti ti-calendar-event"></i>Shows</span>
         <button class="btn sm" onclick="newShow()"><i class="ti ti-plus"></i>Nouveau</button>
       </div>
       <div id="sp-shows"><div class="loading"><div class="spinner"></div></div></div>
     </div>
     <div class="sp-div"></div>
-    <div class="sp-sec">
-      <div class="sp-sec-head"><span class="sp-sec-title"><i class="ti ti-template"></i>Templates prédéfinis</span></div>
-      <div id="sp-tpls-builtin"></div>
-    </div>
-    <div class="sp-div"></div>
-    <div class="sp-sec">
+    <div class="sp-sec" id="sp-activity-sec">
       <div class="sp-sec-head">
-        <span class="sp-sec-title"><i class="ti ti-star"></i>Mes templates</span>
+        <span class="sp-sec-title"><i class="ti ti-history"></i>Activite recente</span>
+        <span id="sp-activity-badge" style="display:none;font-size:9px;font-family:var(--m);background:var(--ora-d);color:var(--ora);border:1px solid rgba(255,107,26,.25);padding:1px 7px;border-radius:10px">Pro</span>
       </div>
-      <div id="sp-tpls-user"><div style="font-size:10px;color:var(--muted);padding:4px 0">Aucun template sauvegardé</div></div>
-      <button class="sp-save-btn" onclick="saveAsTemplate()"><i class="ti ti-bookmark-plus"></i>Sauvegarder le show actuel</button>
+      <div id="sp-activity"><div style="font-size:10px;color:var(--muted);padding:4px 0">—</div></div>
     </div>
   </div>
-  <!-- Template preview slide -->
+  <!-- Template preview slide (keep for tpl-dd-menu usage) -->
   <div class="sp-preview" id="sp-preview">
     <div class="sp-preview-head">
       <button class="btn ghost sm" onclick="closePrev()"><i class="ti ti-arrow-left"></i></button>
@@ -9536,19 +9531,33 @@ async function applyTemplate(tplId){
 
 
 function toggleSP(){const p=document.getElementById('side-panel');p.classList.contains('show')?closeSP():openSP();}
-function openSP(){document.getElementById('side-panel').classList.add('show');document.getElementById('sp-ov').classList.add('show');renderSPShows();renderSPTpls();}
+function openSP(){document.getElementById('side-panel').classList.add('show');document.getElementById('sp-ov').classList.add('show');renderSPShows();loadSPActivity();}
 function closeSP(){document.getElementById('side-panel').classList.remove('show');document.getElementById('sp-ov').classList.remove('show');closePrev();}
+function _fmtShowDate(d){
+  if(!d)return '';
+  try{
+    var dt=new Date(d);
+    return dt.toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});
+  }catch(e){return d;}
+}
 function renderSPShows(){
   const el=document.getElementById('sp-shows');if(!el)return;
   if(SHOWS.length===0){el.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px 0">Aucun show.</div>';return;}
   const ICONS=['🎤','🎸','🎹','🥁','🎺','🎻','🎧','📡'];
   const _e2=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  el.innerHTML=SHOWS.map((s,i)=>`
-    <div class="sp-show ${s.id===CUR_SHOW?.id?'active':''}" onclick="spSwitch('${_e2(s.id)}')">
+  el.innerHTML=SHOWS.map((s,i)=>{
+    var isCur=s.id===CUR_SHOW?.id;
+    var meta=[s.venue,_fmtShowDate(s.show_date)].filter(Boolean).join(' · ')||'Pas de lieu';
+    var chCount=isCur&&CHS.length?`<span style="font-size:9px;font-family:var(--m);background:var(--ora-d);color:var(--ora);border:1px solid rgba(255,107,26,.2);border-radius:4px;padding:0 5px;margin-left:4px">${CHS.length} CH</span>`:'';
+    return `<div class="sp-show ${isCur?'active':''}" onclick="spSwitch('${_e2(s.id)}')" style="${isCur?'border-left:2px solid var(--ora);padding-left:10px':''}">
       <div class="sp-show-ico">${ICONS[i%ICONS.length]}</div>
-      <div style="flex:1;min-width:0"><div class="sp-show-name">${_e2(s.name)}</div><div class="sp-show-meta">${_e2(s.venue||'—')} · ${_e2(s.show_date||'—')}</div></div>
+      <div style="flex:1;min-width:0">
+        <div class="sp-show-name" style="display:flex;align-items:center;gap:3px">${_e2(s.name)}${chCount}</div>
+        <div class="sp-show-meta">${_e2(meta)}</div>
+      </div>
       <button class="sp-show-del" onclick="delShow('${_e2(s.id)}',event)"><i class="ti ti-trash"></i></button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 async function spSwitch(id){await switchShow(id);closeSP();}
 
@@ -9727,6 +9736,49 @@ function selTpl(id){
   document.getElementById('sp-preview').classList.add('show');
 }
 function closePrev(){document.getElementById('sp-preview').classList.remove('show');}
+
+// --- Activite recente (Pro) ---
+function _timeAgo(iso){
+  if(!iso)return '';
+  var diff=Math.floor((Date.now()-new Date(iso).getTime())/1000);
+  if(diff<60)return 'il y a moins d\'1 min';
+  if(diff<3600)return 'il y a '+Math.floor(diff/60)+' min';
+  if(diff<86400)return 'il y a '+Math.floor(diff/3600)+'h';
+  var d=Math.floor(diff/86400);
+  return 'il y a '+d+(d===1?' jour':' jours');
+}
+async function loadSPActivity(){
+  var el=document.getElementById('sp-activity');
+  var badge=document.getElementById('sp-activity-badge');
+  if(!el)return;
+  if(!canDo('recent_activity')){
+    badge&&(badge.style.display='');
+    el.innerHTML='<div onclick="showUpgradeModal(\'recent_activity\')" style="cursor:pointer;font-size:10px;color:var(--muted);padding:6px 8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:7px;display:flex;align-items:center;gap:7px"><i class="ti ti-lock" style="color:var(--ora);font-size:12px"></i>Disponible a partir du plan <strong style="color:var(--ora);margin-left:2px">Pro</strong></div>';
+    return;
+  }
+  badge&&(badge.style.display='none');
+  if(!CUR_SHOW){el.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px 0">Aucun show actif.</div>';return;}
+  el.innerHTML='<div class="loading"><div class="spinner"></div></div>';
+  var {data,error}=await sb.from('channels').select('ch,short_name,long_name,source,updated_at').eq('show_id',CUR_SHOW.id).order('updated_at',{ascending:false}).limit(8);
+  if(error||!data||data.length===0){
+    el.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px 0">Aucune modification recente.</div>';
+    return;
+  }
+  var _es=function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+  el.innerHTML=data.map(function(r){
+    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--bdr)">'
+      +'<div style="width:26px;height:26px;border-radius:7px;background:var(--ora-d);border:1px solid rgba(255,107,26,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0">'
+        +'<span style="font-size:10px;font-weight:700;color:var(--ora);font-family:var(--m)">'+_es(r.ch)+'</span>'
+      +'</div>'
+      +'<div style="flex:1;min-width:0">'
+        +'<div style="font-size:11px;font-weight:600;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+_es((r.short_name||'').trim()||r.long_name||'—')+'</div>'
+        +'<div style="font-size:9px;color:var(--muted);font-family:var(--m)">'+_es(r.source||'')+'</div>'
+      +'</div>'
+      +'<div style="font-size:9px;color:var(--muted);font-family:var(--m);white-space:nowrap;flex-shrink:0">'+_timeAgo(r.updated_at)+'</div>'
+    +'</div>';
+  }).join('')
+  +'<div style="font-size:9px;color:var(--muted);font-family:var(--m);padding-top:6px;text-align:right">'+data.length+' canaux les plus recents</div>';
+}
 
 function setIM(m){
   IM_MODE=m;
@@ -10232,10 +10284,10 @@ const PLAN_PERMS = {
             storage:false,      multi_scenes:false,    multi_patches:false,  custom_exports:false,  vintage_view:false },
   pro:    { max_shows:Infinity, max_channels:Infinity, max_members:5,        max_templates:Infinity,
             export_pdf:true,    share_link:true,       site_plan:true,
-            storage:true,       multi_scenes:false,    multi_patches:false,  custom_exports:false,  vintage_view:true,  recap_matos:true  },
+            storage:true,       multi_scenes:false,    multi_patches:false,  custom_exports:false,  vintage_view:true,  recap_matos:true,  recent_activity:true  },
   studio: { max_shows:Infinity, max_channels:Infinity, max_members:Infinity, max_templates:Infinity,
             export_pdf:true,    share_link:true,       site_plan:true,
-            storage:true,       multi_scenes:true,     multi_patches:true,   custom_exports:true,   vintage_view:true,  recap_matos:true  },
+            storage:true,       multi_scenes:true,     multi_patches:true,   custom_exports:true,   vintage_view:true,  recap_matos:true,  recent_activity:true  },
 };
 
 const PLAN_META = {
@@ -10256,6 +10308,7 @@ const GATE_META = {
   custom_exports: { icon:'ti-photo',            title:'Exports personnalises',        desc:'Ajoutez votre logo et les informations de votre societe sur tous les exports PDF.', plan:'studio', feats:['Logo sur chaque page PDF','Entete avec vos coordonnees','Charte graphique de votre societe'] },
   vintage_view:   { icon:'ti-photo-film',       title:'Affichage Vintage',            desc:'Mode theatral avec les instruments dessines en vue de dessus sur un plateau sombre.', plan:'pro', feats:['Vue en plongee de chaque instrument','Fond de scene theatral avec parquet','Disponible sur les plans Pro et Studio'] },
   recap_matos:    { icon:'ti-clipboard-list',   title:'Recap materiels',              desc:'Obtenez le decompte exact de chaque micro et pied necessaires — indispensable avant un show pour ne rien oublier.', plan:'pro', feats:['Decompte par modele de micro ou DI','Decompte par type de pied','Studio : total consolide sur tous les patches'] },
+  recent_activity:{ icon:'ti-history',          title:'Activite recente',             desc:'Visualisez les derniers canaux modifies par votre equipe en temps reel — utile pour savoir qui a touche a quoi.', plan:'pro', feats:['5 derniers canaux modifies','Horodatage relatif (il y a X min)','Disponible sur les plans Pro et Studio'] },
   export_pdf_pro: { icon:'ti-file-type-pdf',    title:'Export PDF complet',           desc:'Ajoutez societe, contact, venue, date, revision et notes techniques a vos exports PDF.', plan:'pro', feats:['Coordonnees completes en en-tete','Venue, date et numero de revision','Notes techniques sur chaque export'] },
 };
 
