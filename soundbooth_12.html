@@ -5529,13 +5529,16 @@ const SynEditor = (() => {
       : { x: fromN.x + fromN.w, y: fromN.y + fromN.h / 2 };
     const p1 = { x: toN.x, y: toN.y + toN.h / 2 };
     const mx = (p0.x + p1.x) / 2;
-    const z = zoneOf(toN.zone || (fromN.ports?.find(p => p.id === e.fromPort)?.zone) || 'top');
+    const portObj = fromN.ports ? fromN.ports.find(function(p){return p.id===e.fromPort;}) : null;
+    const z = zoneOf(toN.zone || (portObj && portObj.zone) || 'top');
     // Arrow direction: 1=right (normal), -1=left (backward)
     const dir = p1.x >= p0.x ? 1 : -1;
     return {
-      d: `M${p0.x},${p0.y} C${mx},${p0.y} ${mx},${p1.y} ${p1.x},${p1.y}`,
+      d: 'M'+p0.x+','+p0.y+' C'+mx+','+p0.y+' '+mx+','+p1.y+' '+p1.x+','+p1.y,
       color: z.color,
       tipX: p1.x, tipY: p1.y, dir,
+      p0x: p0.x, p0y: p0.y,
+      portLabel: e.fromPort || '',
     };
   }
 
@@ -5556,30 +5559,30 @@ const SynEditor = (() => {
       e._edgeTotal = pairTotal[key];
     });
     let h = '';
-    S().edges.forEach(e => {
-      // Only render manual liaison edges — skip legacy amp→spk auto-edges
-      if (!e.liaison) return;
+    S().edges.forEach(function(e) {
       const path = edgePath(e);
       if (!path) return;
       const toN = nodeAt(e.to);
       const fromN = nodeAt(e.from);
-      const isLiaison = true;
-      const isDante = !isLiaison && (toN?.powered || (fromN?.cat === 'infra' && toN?.powered));
+      const isLiaison = !!e.liaison;
+      const isAmpSpk = !isLiaison && fromN && isAmp(fromN) && toN && toN.cat === 'spk';
+      const isDante = !isLiaison && (toN && toN.powered || (fromN && fromN.cat === 'infra' && toN && toN.powered));
+      // Skip non-liaison edges that are not amp→spk wiring
+      if (!isLiaison && !isAmpSpk) return;
       const strokeColor = path.color;
       const dashVal = path.dash || (isDante ? '7,4' : '');
       const dash = dashVal ? 'stroke-dasharray="' + dashVal + '"' : '';
-      const strokeW = isLiaison ? 1.8 : (isDante ? 1.5 : (state.mode === 'field' ? 3 : 2));
-      const opacity = isLiaison ? '.75' : (isDante ? '.65' : '.92');
+      const strokeW = isLiaison ? 1.8 : (state.mode === 'field' ? 2.5 : 2);
+      const opacity = isLiaison ? '.75' : '.85';
       const sel = selected.kind === 'edge' && selected.id === e.id;
       const sw = sel ? strokeW + 1.5 : strokeW;
       // Wide invisible hitbox path first (easier to click)
       h += '<path class="syn-edge-hit" data-eid="' + e.id + '" d="' + path.d + '" fill="none" stroke="' + strokeColor + '" stroke-width="16"/>';
       h += '<path class="syn-edge' + (sel ? ' sel' : '') + '" data-eid="' + e.id + '" d="' + path.d + '" fill="none" stroke="' + strokeColor + '" stroke-width="' + sw + '" ' + dash + ' opacity="' + opacity + '"/>';
-      // Arrowhead — follows actual line angle
+      // Arrowhead — follows actual line angle using direction vector from p0 to tip
       const tx = path.tipX, ty = path.tipY;
       let ax1, ay1, ax2, ay2;
-      if (path.isLiaison && path.p0x !== undefined) {
-        // Direction vector from source to tip
+      if (path.p0x !== undefined) {
         const adx = tx - path.p0x, ady = ty - path.p0y;
         const alen = Math.sqrt(adx*adx + ady*ady) || 1;
         const ux = adx/alen, uy = ady/alen;
@@ -5587,18 +5590,29 @@ const SynEditor = (() => {
         ax1 = bx2 - uy*ARR_W; ay1 = by2 + ux*ARR_W;
         ax2 = bx2 + uy*ARR_W; ay2 = by2 - ux*ARR_W;
       } else {
-        // Legacy horizontal-only arrowhead for amp→spk edges
         const ddx = path.dir;
         const bx2 = tx - ddx * ARR_H;
         ax1 = bx2; ay1 = ty - ARR_W;
         ax2 = bx2; ay2 = ty + ARR_W;
       }
       h += '<polygon points="' + tx + ',' + ty + ' ' + ax1 + ',' + ay1 + ' ' + ax2 + ',' + ay2 + '" fill="' + strokeColor + '" opacity="' + opacity + '"/>';
+      // For amp→spk edges: show port badge at source (A/B/C/D) and connector label at destination
+      if (isAmpSpk && path.portLabel && path.p0x !== undefined) {
+        const portLbl = path.portLabel;
+        // Port badge near amp output (slightly right of source)
+        h += '<circle cx="' + (path.p0x + 12) + '" cy="' + path.p0y + '" r="8" fill="#0d0f18" stroke="' + strokeColor + '" stroke-width="1.5" opacity=".9"/>';
+        h += '<text x="' + (path.p0x + 12) + '" y="' + (path.p0y + 4) + '" text-anchor="middle" font-size="9" font-family="DM Mono,monospace" font-weight="700" fill="' + strokeColor + '" opacity="1">' + esc(portLbl) + '</text>';
+        // Connector type near destination (speaker side)
+        var portObj2 = fromN && fromN.ports ? fromN.ports.find(function(pp){return pp.id===e.fromPort;}) : null;
+        var connLbl = (portObj2 && portObj2.conn) ? portObj2.conn : (toN.conn || '');
+        if (connLbl) {
+          h += '<text x="' + (tx - 4) + '" y="' + (ty - 10) + '" text-anchor="middle" font-size="7" font-family="DM Mono,monospace" fill="' + strokeColor + '" opacity=".7" paint-order="stroke" stroke="#060910" stroke-width="2">' + esc(connLbl) + '</text>';
+        }
+      }
       // Liaison label + optional note near midpoint
       if (isLiaison && path.label) {
         const hasNote = e.note && e.note.trim();
         const lfs = e.labelSize || 8;
-        // Place label above the line (nudge -10px from midpoint)
         const lblY = path.midY - 10;
         h += '<text x="' + path.midX + '" y="' + (lblY - (hasNote ? lfs + 1 : 0)) + '" text-anchor="middle" font-size="' + lfs + '" font-family="DM Mono,monospace" fill="' + strokeColor + '" opacity=".9" paint-order="stroke" stroke="#060910" stroke-width="3">' + esc(path.label) + '</text>';
         if (hasNote) {
@@ -5642,7 +5656,7 @@ const SynEditor = (() => {
           const pb = ports[pi + 1];
           const pz = zoneOf(p.zone || 'top');
           rows.push(`<div class="syn-port-row syn-port-bridge">
-            <div class="syn-port-btn" style="--pc:${pz.color};cursor:default">
+            <div class="syn-port-btn" data-node="${n.id}" data-port="${p.id}" style="--pc:${pz.color};cursor:default">
               <span class="syn-port-id" style="font-size:8px">${p.id}+${pb.id}</span>
             </div>
             <div class="syn-port-meta">
@@ -5654,7 +5668,7 @@ const SynEditor = (() => {
         } else {
           const pz = zoneOf(p.zone || 'top');
           rows.push(`<div class="syn-port-row">
-            <div class="syn-port-btn" style="--pc:${pz.color};cursor:default">
+            <div class="syn-port-btn" data-node="${n.id}" data-port="${p.id}" style="--pc:${pz.color};cursor:default">
               <span class="syn-port-id">${p.id}</span>
             </div>
             <div class="syn-port-meta">
