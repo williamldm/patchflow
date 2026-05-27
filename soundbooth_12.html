@@ -6437,7 +6437,11 @@ const SynEditor = (() => {
   function tryLiaisonConnect(fromNid, toNid) {
     const lid = state.activeLiaison;
     S().edges.push({ id: uid(), from: fromNid, to: toNid, liaison: lid });
+    /* Exit liaison mode after a successful connection so the user can drag
+       nodes again. Shift-click on a palette liaison item to keep it active. */
     state.liaisonFrom = null;
+    state.activeLiaison = null;
+    updateLiaisonUI();
     scheduleSave();
     render();
     const lt = _allLiaisons().find(function(l) { return l.id === lid; });
@@ -6591,7 +6595,14 @@ const SynEditor = (() => {
       if (!e.target.closest('.syn-node,.syn-port-btn,.syn-edge,.syn-edge-hit')) {
         selected = { kind: null, id: null };
         state.linkFrom = null;
-        state.liaisonFrom = null;
+        /* If liaison mode is active and the user clicks empty space,
+           cancel it so they can drag normally again */
+        if (state.activeLiaison || state.liaisonFrom) {
+          state.activeLiaison = null;
+          state.liaisonFrom = null;
+          updateLiaisonUI();
+          render();
+        }
         renderInspector();
         panning = { x: e.clientX, y: e.clientY, px: state.view.panX, py: state.view.panY, moved: false };
         vp.setPointerCapture(e.pointerId);
