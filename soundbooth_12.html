@@ -5674,17 +5674,15 @@ const SynEditor = (() => {
       if (n.powered) {
         // ── Enceinte actif (crossover actif, 1 source ampli non ponté) ──
         const actifBadge = `<span style="font-size:8px;font-family:var(--m);color:${z.color};background:${z.color}18;border:1px solid ${z.color}44;border-radius:3px;padding:1px 5px;margin-left:4px">ACTIF</span>`;
-        inner = `<div class="syn-node-hd"><span class="syn-node-ico">${spec(n.type).icon}</span><div><div class="syn-node-title">${esc(n.label)}</div><div class="syn-node-sub" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">${esc(z.label)}${n.side ? ' · ' + n.side : ''}${actifBadge}</div></div>
-          ${field ? `<div class="syn-field-big">${esc(n.conn || 'NL4')}</div><div class="syn-field-step">Brancher ici</div>` : `<div class="syn-spk-meta">${n.spk} enceinte(s) · ${esc(n.z)}</div>`}
-          <div class="syn-side-badge" style="background:${z.color}22;color:${z.color};border-color:${z.color}55">${n.side || '—'}</div>`;
+        inner = `<div class="syn-node-hd"><span class="syn-node-ico">${spec(n.type).icon}</span><div><div class="syn-node-title">${esc(n.label)}</div><div class="syn-node-sub" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">${esc(z.label)}${actifBadge}</div></div>
+          ${field ? `<div class="syn-field-big">${esc(n.conn || 'NL4')}</div><div class="syn-field-step">Brancher ici</div>` : `<div class="syn-spk-meta">${n.spk} enceinte(s) · ${esc(n.z)}</div>`}`;
       } else {
         // ── Enceinte passive ─────────────────────────────────────
         const ampMode = n.biamp
           ? `<span style="font-size:8px;font-family:var(--m);color:var(--warn);background:rgba(245,197,66,.12);border:1px solid rgba(245,197,66,.3);border-radius:3px;padding:1px 5px;margin-left:4px">BI-AMP</span>`
           : '';
-        inner = `<div class="syn-node-hd"><span class="syn-node-ico">${spec(n.type).icon}</span><div><div class="syn-node-title">${esc(n.label)}</div><div class="syn-node-sub" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">${esc(z.label)}${n.side ? ' · ' + n.side : ''}${ampMode}</div></div>
-          ${field ? `<div class="syn-field-big">${esc(n.conn || 'NL4')}</div><div class="syn-field-step">Brancher ici</div>` : `<div class="syn-spk-meta">${n.spk} enceinte(s) · ${esc(n.z)}</div>`}
-          <div class="syn-side-badge" style="background:${z.color}22;color:${z.color};border-color:${z.color}55">${n.side || '—'}</div>`;
+        inner = `<div class="syn-node-hd"><span class="syn-node-ico">${spec(n.type).icon}</span><div><div class="syn-node-title">${esc(n.label)}</div><div class="syn-node-sub" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">${esc(z.label)}${ampMode}</div></div>
+          ${field ? `<div class="syn-field-big">${esc(n.conn || 'NL4')}</div><div class="syn-field-step">Brancher ici</div>` : `<div class="syn-spk-meta">${n.spk} enceinte(s) · ${esc(n.z)}</div>`}`;
       }
     } else if (n.cat === 'text') {
       // ── Texte libre ─────────────────────────────────────────────
@@ -5823,7 +5821,6 @@ const SynEditor = (() => {
             <div style="font-weight:600;color:var(--txt)">
               <span style="font-family:var(--m);color:${z.color};margin-right:4px">①</span>
               ${esc(from.label)} · <span style="color:var(--ora)">${e.fromPort}</span> → ${esc(to.label)}
-              ${to.side ? `<span style="font-family:var(--m);font-size:9px;color:var(--muted);margin-left:4px">${to.side}</span>` : ''}
             </div>
             <div class="syn-step-cable" style="margin-top:2px">
               <span style="color:${z.color}">${esc(z.label)}</span> · ${esc(port?.conn || to.conn || 'NL4')} · ${esc(port?.cable || to.cable || '')}
@@ -5903,8 +5900,6 @@ const SynEditor = (() => {
         <td><b>${from.label}</b></td>
         <td style="font-family:monospace;color:#ff6b1a">${e.fromPort}</td>
         <td><b>${to.label}</b></td>
-        <td style="color:${z.color}">${z.label}</td>
-        <td style="font-family:monospace">${to.side || '—'}</td>
         <td style="font-family:monospace">${port?.conn || to.conn || 'NL4'}</td>
         <td style="font-family:monospace">${port?.cable || to.cable || '—'}</td>
         <td style="text-align:center">${e.checked ? '✓' : '☐'}</td>
@@ -5931,8 +5926,8 @@ const SynEditor = (() => {
       <div><div class="ht">${esc(showName)}</div><div class="hs">PATCHFLOW · SYNOPTIQUE · ${esc(scene.name)}</div></div>
       <div style="text-align:right;font-size:8px;color:#666;font-family:'DM Mono',monospace">${esc(eng)}<br/>${now}</div>
     </div>
-    <table><thead><tr><th>#</th><th>De</th><th>Port</th><th>Vers</th><th>Zone</th><th>Côté</th><th>Connecteur</th><th>Câble</th><th>✓</th></tr></thead>
-    <tbody>${rows || '<tr><td colspan="9" style="text-align:center;color:#aaa;padding:20px">Aucune connexion ampli→enceinte</td></tr>'}</tbody></table>
+    <table><thead><tr><th>#</th><th>De</th><th>Port</th><th>Vers</th><th>Connecteur</th><th>Câble</th><th>✓</th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:20px">Aucune connexion ampli→enceinte</td></tr>'}</tbody></table>
     <div class="ft"><span>PatchFlow · Synoptique</span><span>${esc(showName)} · ${esc(scene.name)}</span><span>${now}</span></div>
     <script>window.onload=()=>window.print();<\/script></body></html>`;
     const w = window.open('', '_blank', 'width=1200,height=900');
@@ -6160,9 +6155,7 @@ const SynEditor = (() => {
             </label>
           </div>
           ${(n.ports || defPorts(n.type)).map(p => `<div class="syn-insp-port"><div class="syn-insp-port-hd">Canal ${p.id}</div>
-            <label class="syn-insp-lbl">Zone / label</label><input class="syn-insp-inp" data-p="${p.id}" data-f="label" value="${esc(p.label)}"/>
-            <div class="syn-insp-row"><div><label class="syn-insp-lbl">Zone</label><select class="syn-insp-inp" data-p="${p.id}" data-f="zone">${Object.keys(ZONE).map(z => `<option value="${z}"${p.zone === z ? ' selected' : ''}>${ZONE[z].label}</option>`).join('')}</select></div>
-            <div><label class="syn-insp-lbl">Côté</label><select class="syn-insp-inp" data-p="${p.id}" data-f="side"><option value=""${!p.side ? ' selected' : ''}>—</option><option value="L"${p.side === 'L' ? ' selected' : ''}>L</option><option value="R"${p.side === 'R' ? ' selected' : ''}>R</option><option value="C"${p.side === 'C' ? ' selected' : ''}>C</option></select></div></div>
+            <label class="syn-insp-lbl">Label</label><input class="syn-insp-inp" data-p="${p.id}" data-f="label" value="${esc(p.label)}"/>
             <div class="syn-insp-row"><div><label class="syn-insp-lbl">Enceintes</label><input class="syn-insp-inp" type="number" min="1" data-p="${p.id}" data-f="spk" value="${p.spk}"/></div><div><label class="syn-insp-lbl">Impéd.</label><input class="syn-insp-inp" data-p="${p.id}" data-f="z" value="${esc(p.z)}"/></div></div>
             <label class="syn-insp-lbl">Câble</label><input class="syn-insp-inp" data-p="${p.id}" data-f="cable" value="${esc(p.cable)}"/>
             <label class="syn-insp-lbl">Connecteur</label><input class="syn-insp-inp" data-p="${p.id}" data-f="conn" value="${esc(p.conn)}"/>
@@ -6226,9 +6219,7 @@ const SynEditor = (() => {
             <button type="button" id="insp-active"  class="${n.powered  ? 'on' : ''}">Actif</button>
           </div>`;
         const baseBlock = `
-          <label class="syn-insp-lbl">Nom</label><input class="syn-insp-inp" id="insp-label" value="${esc(n.label)}"/>
-          <label class="syn-insp-lbl">Zone</label><select class="syn-insp-inp" id="insp-zone">${Object.keys(ZONE).map(z => `<option value="${z}"${n.zone === z ? ' selected' : ''}>${ZONE[z].label}</option>`).join('')}</select>
-          <label class="syn-insp-lbl">Cote</label><select class="syn-insp-inp" id="insp-side"><option value=""${!n.side ? ' selected' : ''}>—</option><option value="L"${n.side === 'L' ? ' selected' : ''}>L</option><option value="R"${n.side === 'R' ? ' selected' : ''}>R</option><option value="C"${n.side === 'C' ? ' selected' : ''}>C</option></select>`;
+          <label class="syn-insp-lbl">Nom</label><input class="syn-insp-inp" id="insp-label" value="${esc(n.label)}"/>`;
         // Passif : par defaut signal normal, option bi-amp = 2 sorties separees aigu/grave
         const passiveBlock = `
           <div style="display:flex;align-items:center;justify-content:space-between;background:var(--surf2);border:1px solid var(--bdr2);border-radius:6px;padding:6px 10px;margin-bottom:8px">
@@ -6346,8 +6337,6 @@ const SynEditor = (() => {
   function bindInspSpk(n) {
     const bind = (id, key) => $(id)?.addEventListener('change', e => { n[key] = e.target.value; scheduleSave(); render(); });
     bind('insp-label', 'label');
-    bind('insp-zone', 'zone');
-    bind('insp-side', 'side');
     $('insp-spk')?.addEventListener('change', e => { n.spk = +e.target.value; scheduleSave(); render(); });
     bind('insp-z', 'z');
     bind('insp-cable', 'cable');
