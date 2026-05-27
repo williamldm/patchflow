@@ -11116,6 +11116,32 @@ async function openRecapMatos(){
     if(!url) return '<div style="text-align:center;color:#f87171;padding:40px;font-size:12px">Fichier temporairement indisponible.</div>';
     var ext=(fpath.split('.').pop()||'').toLowerCase();
     if(ext==='pdf'){
+      if(isMobile){
+        // Sur mobile, les iframes PDF ne defilent pas — ouvrir dans le viewer natif du navigateur
+        var fname=fpath.split('/').pop().replace(/^\d+_/,'');
+        return '<div style="display:flex;flex-direction:column;align-items:center;gap:20px;padding:48px 24px;text-align:center">'
+          +'<div style="width:64px;height:80px;background:#1e2a3a;border:2px solid #2d3d50;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px">'
+            +'<div style="font-size:26px;line-height:1">&#128196;</div>'
+            +'<div style="font-size:8px;font-family:DM Mono,monospace;font-weight:700;color:#ff6b1a;letter-spacing:1px">PDF</div>'
+          +'</div>'
+          +'<div>'
+            +'<div style="font-size:14px;font-weight:700;color:#e0eaf8;margin-bottom:6px;word-break:break-all">'+esc(fname)+'</div>'
+            +'<div style="font-size:11px;color:#5a6a80">Appuyez pour ouvrir dans votre navigateur</div>'
+          +'</div>'
+          +'<div style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:280px">'
+            +'<a href="'+url+'" target="_blank" rel="noopener" '
+              +'style="display:flex;align-items:center;justify-content:center;gap:8px;padding:13px 20px;background:#ff6b1a;color:#000;font-weight:700;border-radius:10px;text-decoration:none;font-size:14px">'
+              +'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>'
+              +'Ouvrir le PDF'
+            +'</a>'
+            +'<a href="'+url+'" download target="_blank" rel="noopener" '
+              +'style="display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 20px;background:#1e2a3a;border:1px solid #2d3d50;color:#a0b0c0;font-weight:600;border-radius:10px;text-decoration:none;font-size:13px">'
+              +'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'
+              +'Telecharger'
+            +'</a>'
+          +'</div>'
+        +'</div>';
+      }
       return '<iframe src="'+url+'" style="width:100%;height:82vh;border:none;border-radius:8px;background:#111" allowfullscreen></iframe>';
     }
     if(['mp4','mov','webm','avi'].includes(ext)){
