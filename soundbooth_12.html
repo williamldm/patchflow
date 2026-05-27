@@ -326,7 +326,7 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .syn-pal-item:hover{border-color:var(--ora-g);color:var(--ora);background:var(--ora-d)}
 .syn-pal-ico{font-size:15px;width:22px;text-align:center}
 .syn-viewport-wrap{position:relative;border-radius:10px;border:1px solid var(--bdr2);background:#060910;overflow:hidden;min-height:480px}
-.syn-viewport{position:absolute;inset:0;overflow:hidden;cursor:grab}
+.syn-viewport{position:absolute;inset:0;overflow:hidden;cursor:grab;touch-action:none}
 .syn-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);background-size:28px 28px;pointer-events:none}
 .syn-world{position:absolute;left:0;top:0;transform-origin:0 0}
 #syn-edges{position:absolute;left:0;top:0;pointer-events:none;z-index:1}
@@ -5459,24 +5459,32 @@ const SynEditor = (() => {
   }
 
   function portPos(node, portId) {
-    /* Source point for amp ports: always exits from the RIGHT edge of the node.
-       We only query the DOM for the Y coordinate (button vertical center). */
+    /* Returns the world-space position of an amp port (right edge, at the port row center).
+       Accounts for nodeScale so coordinates match the SVG viewBox. */
+    const _ns = state.nodeScale || 1;
+    const nw = Math.round(node.w * _ns);
+    const nh = Math.round(node.h * _ns);
+
     if (isAmp(node)) {
       const vp = $('syn-viewport');
       const vr = vp ? vp.getBoundingClientRect() : null;
-      const btn = vr && document.querySelector(`.syn-port-btn[data-node="${node.id}"][data-port="${portId}"]`);
+      const btn = vr && document.querySelector('.syn-port-btn[data-node="' + node.id + '"][data-port="' + portId + '"]');
       if (btn) {
         const r = btn.getBoundingClientRect();
+        /* Convert screen coords to world coords:
+           screenY = worldY * zoom + panY + vr.top  →  worldY = (screenY - vr.top - panY) / zoom */
         const wy = (r.top + r.height / 2 - vr.top - state.view.panY) / state.view.zoom;
-        return { x: node.x + node.w, y: wy };
+        return { x: node.x + nw, y: wy };
       }
-      /* Fallback (before nodes are in DOM) */
-      const idx = PORTS.indexOf(portId);
-      const rowH = (node.h - 36) / Math.max(1, PORTS.length);
-      return { x: node.x + node.w, y: node.y + 36 + idx * rowH + rowH / 2 };
+      /* Fallback: estimate row position from node geometry */
+      const numPorts = (node.ports || []).length || PORTS.length;
+      const headerH = Math.round(40 * _ns);
+      const rowH = (nh - headerH) / Math.max(1, numPorts);
+      const idx = Math.max(0, PORTS.indexOf(portId));
+      return { x: node.x + nw, y: node.y + headerH + idx * rowH + rowH / 2 };
     }
-    /* Non-amp source: right-center. Non-amp dest (unused here): left-center. */
-    return { x: node.x + node.w, y: node.y + node.h / 2 };
+    /* Non-amp: right-center */
+    return { x: node.x + nw, y: node.y + nh / 2 };
   }
 
   function edgePath(e) {
@@ -5524,14 +5532,14 @@ const SynEditor = (() => {
       };
     }
 
+    const _ns2 = state.nodeScale || 1;
     const p0 = isAmp(fromN)
       ? portPos(fromN, e.fromPort || 'A')
-      : { x: fromN.x + fromN.w, y: fromN.y + fromN.h / 2 };
-    const p1 = { x: toN.x, y: toN.y + toN.h / 2 };
+      : { x: fromN.x + Math.round(fromN.w * _ns2), y: fromN.y + Math.round(fromN.h * _ns2) / 2 };
+    const p1 = { x: toN.x, y: toN.y + Math.round(toN.h * _ns2) / 2 };
     const mx = (p0.x + p1.x) / 2;
     const portObj = fromN.ports ? fromN.ports.find(function(p){return p.id===e.fromPort;}) : null;
-    const z = zoneOf(toN.zone || (portObj && portObj.zone) || 'top');
-    // Arrow direction: 1=right (normal), -1=left (backward)
+    const z = zoneOf((portObj && portObj.zone) || toN.zone || 'top');
     const dir = p1.x >= p0.x ? 1 : -1;
     return {
       d: 'M'+p0.x+','+p0.y+' C'+mx+','+p0.y+' '+mx+','+p1.y+' '+p1.x+','+p1.y,
@@ -5596,17 +5604,19 @@ const SynEditor = (() => {
         ax2 = bx2; ay2 = ty + ARR_W;
       }
       h += '<polygon points="' + tx + ',' + ty + ' ' + ax1 + ',' + ay1 + ' ' + ax2 + ',' + ay2 + '" fill="' + strokeColor + '" opacity="' + opacity + '"/>';
-      // For amp→spk edges: show port badge at source (A/B/C/D) and connector label at destination
+      // For amp→spk edges: port badge ON the line near source + connector label near destination
       if (isAmpSpk && path.portLabel && path.p0x !== undefined) {
         const portLbl = path.portLabel;
-        // Port badge near amp output (slightly right of source)
-        h += '<circle cx="' + (path.p0x + 12) + '" cy="' + path.p0y + '" r="8" fill="#0d0f18" stroke="' + strokeColor + '" stroke-width="1.5" opacity=".9"/>';
-        h += '<text x="' + (path.p0x + 12) + '" y="' + (path.p0y + 4) + '" text-anchor="middle" font-size="9" font-family="DM Mono,monospace" font-weight="700" fill="' + strokeColor + '" opacity="1">' + esc(portLbl) + '</text>';
-        // Connector type near destination (speaker side)
+        // Place badge 16px along the curve from source (on the line, not floating in the node)
+        const badgeX = Math.round(path.p0x + (tx - path.p0x) * 0.12);
+        const badgeY = Math.round(path.p0y + (ty - path.p0y) * 0.12);
+        h += '<circle cx="' + badgeX + '" cy="' + badgeY + '" r="7" fill="#0d0f18" stroke="' + strokeColor + '" stroke-width="1.5" opacity=".95"/>';
+        h += '<text x="' + badgeX + '" y="' + (badgeY + 3) + '" text-anchor="middle" font-size="9" font-family="DM Mono,monospace" font-weight="700" fill="' + strokeColor + '" opacity="1">' + esc(portLbl) + '</text>';
+        // Connector label near speaker (destination) — above the arrowhead
         var portObj2 = fromN && fromN.ports ? fromN.ports.find(function(pp){return pp.id===e.fromPort;}) : null;
-        var connLbl = (portObj2 && portObj2.conn) ? portObj2.conn : (toN.conn || '');
+        var connLbl = (portObj2 && portObj2.conn) ? portObj2.conn : (toN && toN.conn ? toN.conn : '');
         if (connLbl) {
-          h += '<text x="' + (tx - 4) + '" y="' + (ty - 10) + '" text-anchor="middle" font-size="7" font-family="DM Mono,monospace" fill="' + strokeColor + '" opacity=".7" paint-order="stroke" stroke="#060910" stroke-width="2">' + esc(connLbl) + '</text>';
+          h += '<text x="' + tx + '" y="' + (ty - 11) + '" text-anchor="middle" font-size="7" font-family="DM Mono,monospace" fill="' + strokeColor + '" opacity=".75" paint-order="stroke" stroke="#060910" stroke-width="2">' + esc(connLbl) + '</text>';
         }
       }
       // Liaison label + optional note near midpoint
@@ -6434,73 +6444,31 @@ const SynEditor = (() => {
 
 
   function bindNodeEventsOnce() {
-    const host = $('syn-nodes');
+    /* Only handles SVG edge click — node drag is handled in bindCanvasEvents */
     const svg = $('syn-edges');
-    if (!host || host.dataset.evBound) return;
-    host.dataset.evBound = '1';
-
-    host.addEventListener('pointerdown', ev => {
-      const delBtn = ev.target.closest('.syn-node-del');
-      if (delBtn) {
-        ev.stopPropagation();
-        deleteNode(delBtn.dataset.del);
-        return;
-      }
-      const nodeEl = ev.target.closest('.syn-node');
-      if (!nodeEl || state.mode === 'field') return;
-      if (ev.button !== 0) return;
-      const nid = nodeEl.dataset.nid;
-      const n = nodeAt(nid);
-      if (!n) return;
-      // Liaison mode: click any node to set source, then destination
-      if (state.activeLiaison) {
-        ev.preventDefault();
-        ev.stopPropagation();
-        if (!state.liaisonFrom) {
-          state.liaisonFrom = nid;
-          selected = { kind: 'node', id: nid };
-          render();
-          toast('Cliquez le noeud de destination');
-        } else if (state.liaisonFrom !== nid) {
-          tryLiaisonConnect(state.liaisonFrom, nid);
-        } else {
-          // Clicked same node — cancel liaisonFrom
-          state.liaisonFrom = null;
-          render();
-        }
-        return;
-      }
-      selected = { kind: 'node', id: nid };
-      const w = clientToWorld(ev.clientX, ev.clientY);
-      dragging = { id: nid, ox: w.x - n.x, oy: w.y - n.y, moved: false };
-      ev.preventDefault();
+    if (!svg || svg.dataset.evBound) return;
+    svg.dataset.evBound = '1';
+    svg.addEventListener('click', function(ev) {
+      const path = ev.target.closest('.syn-edge,.syn-edge-hit');
+      if (!path) return;
+      selected = { kind: 'edge', id: path.dataset.eid };
+      render();
     });
-
-    if (svg && !svg.dataset.evBound) {
-      svg.dataset.evBound = '1';
-      svg.addEventListener('click', ev => {
-        const path = ev.target.closest('.syn-edge,.syn-edge-hit');
-        if (!path) return;
-        selected = { kind: 'edge', id: path.dataset.eid };
-        render();
-      });
-    }
   }
 
   function bindCanvasEvents() {
     const vp = $('syn-viewport');
-    const wrap = document.querySelector('.syn-viewport-wrap');
     if (!vp || vp.dataset.bound) return;
     vp.dataset.bound = '1';
 
-    /* ── Drag & Drop — capture phase so it fires regardless of child element ── */
-    vp.addEventListener('dragover', e => {
+    /* ── Drag & Drop from palette ──────────────────────────────────────── */
+    vp.addEventListener('dragover', function(e) {
       e.preventDefault();
       e.stopPropagation();
       e.dataTransfer.dropEffect = 'copy';
     }, { capture: true });
 
-    vp.addEventListener('drop', e => {
+    vp.addEventListener('drop', function(e) {
       e.preventDefault();
       e.stopPropagation();
       const type = e.dataTransfer.getData('syn/type') || e.dataTransfer.getData('text/plain');
@@ -6512,8 +6480,8 @@ const SynEditor = (() => {
       render();
     }, { capture: true });
 
-    /* ── Wheel: pinch/ctrl = zoom, two-finger scroll = pan ─────────────── */
-    vp.addEventListener('wheel', e => {
+    /* ── Wheel: ctrl = zoom, scroll = pan ──────────────────────────────── */
+    vp.addEventListener('wheel', function(e) {
       e.preventDefault();
       const world = $('syn-world');
       const zl = $('syn-zoom-lbl');
@@ -6528,30 +6496,76 @@ const SynEditor = (() => {
         state.view.panX -= e.deltaX;
         state.view.panY -= e.deltaY;
       }
-      if (world) world.style.transform = `translate(${state.view.panX}px,${state.view.panY}px) scale(${state.view.zoom})`;
+      if (world) world.style.transform = 'translate(' + state.view.panX + 'px,' + state.view.panY + 'px) scale(' + state.view.zoom + ')';
       if (zl) zl.textContent = Math.round(state.view.zoom * 100) + '%';
     }, { passive: false });
 
-    /* ── Pointer: left-drag on empty canvas = pan (no modifier needed) ─── */
-    vp.addEventListener('pointerdown', e => {
+    /* ── Unified pointer handler — capture phase fires before any child ── */
+    vp.addEventListener('pointerdown', function(e) {
       if (e.button !== 0 && e.button !== 1) return;
-      if (e.target.closest('.syn-node,.syn-port-btn')) return;
-      /* Clear selection on click on empty area */
-      selected = { kind: null, id: null };
-      state.linkFrom = null;
-      state.liaisonFrom = null;
-      renderInspector();
-      /* Start pan — moved flag will decide if it's a pan or a simple click */
-      panning = { x: e.clientX, y: e.clientY, px: state.view.panX, py: state.view.panY, moved: false };
-      vp.style.cursor = 'grabbing';
-      e.preventDefault();
+
+      /* Delete button inside a node */
+      const delBtn = e.target.closest('.syn-node-del');
+      if (delBtn) {
+        deleteNode(delBtn.dataset.del);
+        return;
+      }
+
+      const nodeEl = e.target.closest('.syn-node');
+
+      /* ── Node interaction ─────────────────────────────────────── */
+      if (nodeEl && state.mode !== 'field') {
+        const nid = nodeEl.dataset.nid;
+        const n = nodeAt(nid);
+        if (!n) return;
+
+        /* Liaison mode: first click = source, second click = destination */
+        if (state.activeLiaison) {
+          e.preventDefault();
+          if (!state.liaisonFrom) {
+            state.liaisonFrom = nid;
+            selected = { kind: 'node', id: nid };
+            render();
+            toast('Cliquez le noeud de destination');
+          } else if (state.liaisonFrom !== nid) {
+            tryLiaisonConnect(state.liaisonFrom, nid);
+          } else {
+            state.liaisonFrom = null;
+            render();
+          }
+          return;
+        }
+
+        /* Normal drag */
+        selected = { kind: 'node', id: nid };
+        const w = clientToWorld(e.clientX, e.clientY);
+        dragging = { id: nid, ox: w.x - n.x, oy: w.y - n.y, moved: false };
+        /* Pointer capture: all subsequent move/up events delivered to vp
+           even if the pointer leaves the viewport */
+        vp.setPointerCapture(e.pointerId);
+        e.preventDefault();
+        return;
+      }
+
+      /* ── Pan (click on empty canvas) ──────────────────────────── */
+      /* Exclude edges so their click event still fires (no preventDefault) */
+      if (!e.target.closest('.syn-node,.syn-port-btn,.syn-edge,.syn-edge-hit')) {
+        selected = { kind: null, id: null };
+        state.linkFrom = null;
+        state.liaisonFrom = null;
+        renderInspector();
+        panning = { x: e.clientX, y: e.clientY, px: state.view.panX, py: state.view.panY, moved: false };
+        vp.setPointerCapture(e.pointerId);
+        vp.style.cursor = 'grabbing';
+        e.preventDefault();
+      }
     });
 
-    window.addEventListener('pointermove', e => {
+    vp.addEventListener('pointermove', function(e) {
       if (dragging) {
         dragging.moved = true;
         const n = nodeAt(dragging.id);
-        const el = document.querySelector(`.syn-node[data-nid="${dragging.id}"]`);
+        const el = document.querySelector('.syn-node[data-nid="' + dragging.id + '"]');
         if (n && el) {
           const w = clientToWorld(e.clientX, e.clientY);
           n.x = Math.round(Math.max(0, w.x - dragging.ox));
@@ -6569,27 +6583,33 @@ const SynEditor = (() => {
       state.view.panX = panning.px + dx;
       state.view.panY = panning.py + dy;
       const world = $('syn-world');
-      if (world) world.style.transform = `translate(${state.view.panX}px,${state.view.panY}px) scale(${state.view.zoom})`;
+      if (world) world.style.transform = 'translate(' + state.view.panX + 'px,' + state.view.panY + 'px) scale(' + state.view.zoom + ')';
     });
 
-    window.addEventListener('pointerup', e => {
+    vp.addEventListener('pointerup', function(e) {
       vp.style.cursor = '';
-      panning = null;
 
-      if (!dragging) return;
-      const wasDrag = dragging.moved;
-      const nid = dragging.id;
-      dragging = null;
-      if (wasDrag) { scheduleSave(); render(); return; }
-      const nodeEl = e.target?.closest?.('.syn-node');
-      if (nodeEl) {
-        selected = { kind: 'node', id: nodeEl.dataset.nid };
-        renderInspector();
-        document.querySelectorAll('.syn-node').forEach(x => x.classList.toggle('sel', x.dataset.nid === nodeEl.dataset.nid));
+      if (dragging) {
+        const wasDrag = dragging.moved;
+        const nid = dragging.id;
+        dragging = null;
+        if (wasDrag) {
+          scheduleSave();
+          render();
+        } else {
+          /* Tap without drag = select node */
+          selected = { kind: 'node', id: nid };
+          renderInspector();
+          document.querySelectorAll('.syn-node').forEach(function(x) {
+            x.classList.toggle('sel', x.dataset.nid === nid);
+          });
+        }
+        return;
       }
+      panning = null;
     });
 
-    window.addEventListener('pointercancel', () => {
+    vp.addEventListener('pointercancel', function() {
       vp.style.cursor = '';
       dragging = null;
       panning = null;
