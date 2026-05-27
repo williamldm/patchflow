@@ -347,9 +347,7 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .syn-port-row{display:flex;align-items:center;gap:6px}
 .syn-port-btn{width:32px;height:32px;pointer-events:auto;position:relative;z-index:3;border-radius:5px;border:1px solid var(--bdr2);background:var(--surf);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .syn-port-btn.on{border-color:var(--pc,var(--grn));background:color-mix(in srgb,var(--pc) 18%,transparent)}
-.syn-port-btn.link{box-shadow:0 0 0 2px var(--ora);border-color:var(--ora);animation:portPulse 1.2s ease-in-out infinite}
-@keyframes portPulse{0%,100%{box-shadow:0 0 0 2px var(--ora)}50%{box-shadow:0 0 0 4px rgba(255,107,26,.5)}}
-.syn-viewport.port-link-mode .syn-node[data-cat="spk"]{cursor:cell!important;outline:1px dashed rgba(255,107,26,.4);outline-offset:2px}
+.syn-port-btn.link{box-shadow:0 0 0 2px var(--ora);border-color:var(--ora)}
 .syn-port-id{font-family:var(--m);font-size:calc(10px * var(--syn-ts,1));font-weight:700;color:var(--pc,var(--ora))}
 .syn-port-meta{flex:1;min-width:0}
 .syn-port-lbl{font-size:calc(10px * var(--syn-ts,1));font-weight:500;color:var(--txt);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -1416,7 +1414,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
           <span class="syn-leg-item"><span class="syn-leg-dot" style="background:#5ab0ff"></span> Fill</span>
           <span class="syn-leg-item"><span class="syn-leg-dot" style="background:#22d6a0"></span> Ampli</span>
           <span class="syn-leg-item"><span class="syn-leg-dot" style="background:#ff6b1a"></span> Réseau</span>
-          <span class="syn-hint-bar" style="margin-left:auto"><i class="ti ti-info-circle"></i> Cliquez un port A/B/C/D puis une enceinte pour connecter · Palette → glisser · Ctrl+molette = zoom</span>
+          <span class="syn-hint-bar" style="margin-left:auto"><i class="ti ti-info-circle"></i> Pincer = zoom · 2 doigts = déplacer · Shift+glisser = pan · Palette → glisser</span>
         </div>
       </div>
     </div>
@@ -5170,9 +5168,6 @@ const SynEditor = (() => {
     linkFrom: null,
     activeLiaison: null,
     liaisonFrom: null,
-    /* Port linking : { nodeId, portId } when user clicked an amp port,
-       waiting for a speaker click to create the connection */
-    portLinkFrom: null,
     nodeScale: 1,
     textScale: 1,
   };
@@ -5670,9 +5665,8 @@ const SynEditor = (() => {
         if (isBridgedAB || isBridgedCD) {
           const pb = ports[pi + 1];
           const pz = zoneOf(p.zone || 'top');
-          const _act = state.portLinkFrom && state.portLinkFrom.nodeId === n.id && state.portLinkFrom.portId === p.id;
           rows.push(`<div class="syn-port-row syn-port-bridge">
-            <div class="syn-port-btn${_act ? ' link' : ''}" data-node="${n.id}" data-port="${p.id}" style="--pc:${pz.color};cursor:pointer" title="Cliquez puis une enceinte pour connecter">
+            <div class="syn-port-btn" data-node="${n.id}" data-port="${p.id}" style="--pc:${pz.color};cursor:default">
               <span class="syn-port-id" style="font-size:8px">${p.id}+${pb.id}</span>
             </div>
             <div class="syn-port-meta">
@@ -5683,9 +5677,8 @@ const SynEditor = (() => {
           pi += 2;
         } else {
           const pz = zoneOf(p.zone || 'top');
-          const _act = state.portLinkFrom && state.portLinkFrom.nodeId === n.id && state.portLinkFrom.portId === p.id;
           rows.push(`<div class="syn-port-row">
-            <div class="syn-port-btn${_act ? ' link' : ''}" data-node="${n.id}" data-port="${p.id}" style="--pc:${pz.color};cursor:pointer" title="Cliquez puis une enceinte pour connecter">
+            <div class="syn-port-btn" data-node="${n.id}" data-port="${p.id}" style="--pc:${pz.color};cursor:default">
               <span class="syn-port-id">${p.id}</span>
             </div>
             <div class="syn-port-meta">
@@ -5753,7 +5746,7 @@ const SynEditor = (() => {
       inner = `<div class="syn-node-hd"><span class="syn-node-ico">${spec(n.type).icon}</span><div><div class="syn-node-title">${esc(n.label)}</div><div class="syn-node-sub">${esc(spec(n.type).label)}</div>${n.machineId ? `<div class="syn-node-sub" style="font-family:var(--m);color:var(--muted2);font-size:8px;padding-top:1px">ID · ${esc(n.machineId)}</div>` : ''}</div></div>`;
     }
 
-    return `<div class="syn-node${sel ? ' sel' : ''}${field ? ' field' : ''}${n.powered ? ' powered' : ''}" data-nid="${n.id}" data-cat="${n.cat || ''}" style="left:${n.x}px;top:${n.y}px;width:${nw}px;min-height:${nh}px;--zc:${n.powered ? 'var(--grn)' : z.color};--zf:${n.powered ? 'rgba(34,214,160,.08)' : z.fill}">
+    return `<div class="syn-node${sel ? ' sel' : ''}${field ? ' field' : ''}${n.powered ? ' powered' : ''}" data-nid="${n.id}" style="left:${n.x}px;top:${n.y}px;width:${nw}px;min-height:${nh}px;--zc:${n.powered ? 'var(--grn)' : z.color};--zf:${n.powered ? 'rgba(34,214,160,.08)' : z.fill}">
       <div class="syn-node-bar" style="background:${n.powered ? 'var(--grn)' : z.color}"></div>
       ${inner}
       ${state.mode === 'edit' ? `<button type="button" class="syn-node-del" data-del="${n.id}" title="Supprimer"><i class="ti ti-x"></i></button>` : ''}
@@ -5775,7 +5768,6 @@ const SynEditor = (() => {
     if (!vp || !world) return;
 
     vp.classList.toggle('field-mode', state.mode === 'field');
-    vp.classList.toggle('port-link-mode', !!state.portLinkFrom);
     document.body.classList.toggle('syn-field-global', state.mode === 'field');
 
     world.style.transform = `translate(${state.view.panX}px,${state.view.panY}px) scale(${state.view.zoom})`;
@@ -6519,27 +6511,6 @@ const SynEditor = (() => {
         return;
       }
 
-      /* ── Amp port button click — start a port→speaker link ────── */
-      const portBtn = e.target.closest('.syn-port-btn');
-      if (portBtn && state.mode !== 'field') {
-        const ampId = portBtn.dataset.node;
-        const portId = portBtn.dataset.port;
-        if (ampId && portId) {
-          e.preventDefault();
-          /* Click same port again → cancel */
-          if (state.portLinkFrom && state.portLinkFrom.nodeId === ampId && state.portLinkFrom.portId === portId) {
-            state.portLinkFrom = null;
-            render();
-          } else {
-            state.portLinkFrom = { nodeId: ampId, portId: portId };
-            selected = { kind: null, id: null };
-            render();
-            toast('Port ' + portId + ' — cliquez une enceinte pour connecter');
-          }
-          return;
-        }
-      }
-
       const nodeEl = e.target.closest('.syn-node');
 
       /* ── Node interaction ─────────────────────────────────────── */
@@ -6547,29 +6518,6 @@ const SynEditor = (() => {
         const nid = nodeEl.dataset.nid;
         const n = nodeAt(nid);
         if (!n) return;
-
-        /* Port link mode active : click on a speaker = create edge */
-        if (state.portLinkFrom && n.cat === 'spk' && state.portLinkFrom.nodeId !== nid) {
-          e.preventDefault();
-          const amp = nodeAt(state.portLinkFrom.nodeId);
-          if (amp && isAmp(amp)) {
-            /* Remove any existing edge from this port */
-            S().edges = S().edges.filter(function(ed) {
-              return !(ed.from === amp.id && ed.fromPort === state.portLinkFrom.portId);
-            });
-            S().edges.push({
-              id: uid(),
-              from: amp.id,
-              fromPort: state.portLinkFrom.portId,
-              to: nid,
-            });
-            toast('✓ Connexion ' + state.portLinkFrom.portId + ' → ' + (n.label || 'enceinte'));
-          }
-          state.portLinkFrom = null;
-          scheduleSave();
-          render();
-          return;
-        }
 
         /* Liaison mode: first click = source, second click = destination */
         if (state.activeLiaison) {
@@ -6605,7 +6553,6 @@ const SynEditor = (() => {
         selected = { kind: null, id: null };
         state.linkFrom = null;
         state.liaisonFrom = null;
-        state.portLinkFrom = null;
         renderInspector();
         panning = { x: e.clientX, y: e.clientY, px: state.view.panX, py: state.view.panY, moved: false };
         vp.setPointerCapture(e.pointerId);
@@ -7287,10 +7234,9 @@ th{background:#1a1a2e;color:#fff;padding:4px 6px;text-align:left;font-size:7px}t
 
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Escape') {
-        if (state.activeLiaison || state.liaisonFrom || state.portLinkFrom) {
+        if (state.activeLiaison || state.liaisonFrom) {
           state.activeLiaison = null;
           state.liaisonFrom = null;
-          state.portLinkFrom = null;
           updateLiaisonUI();
           render();
         }
