@@ -6177,72 +6177,152 @@ const SynPro = (() => {
   /* ── Build export SVG string (shared by PNG, PDF, SVG exports) ── */
   function _buildExportSvg() {
     var b = _worldBounds(40);
-    /* Translate world to (0,0)+ so the exported image starts at top-left */
     var ox = -b.minX, oy = -b.minY;
     var canvasW = b.maxX - b.minX;
     var canvasH = b.maxY - b.minY;
-    var headH = 56, footH = 36;
+    var headH = 56, footH = 42;
     var fullW = canvasW, fullH = canvasH + headH + footH;
-    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + fullW + '" height="' + fullH + '" viewBox="0 0 ' + fullW + ' ' + fullH + '">';
-    /* Header — title only, centered */
-    svg += '<rect x="0" y="0" width="' + fullW + '" height="' + headH + '" fill="' + esc(state.headerColor || '#1d9bf0') + '"/>';
-    svg += '<text x="' + (fullW/2) + '" y="' + (headH/2+7) + '" text-anchor="middle" font-family="Outfit,sans-serif" font-weight="700" font-size="20" fill="#fff">' + esc(state.title) + '</text>';
-    /* Canvas bg */
-    svg += '<rect x="0" y="' + headH + '" width="' + fullW + '" height="' + canvasH + '" fill="#f7f9fc"/>';
-    /* Cables — world coords translated by (ox, oy) then by headH (header band) */
+
+    /* ── Arrow defs (same logic as _renderEdges) ── */
+    var ARR = 18;
+    var colorSet = {};
+    state.cables.forEach(function(c){ var net = netById(c.network)||{color:'#5a6a80'}; colorSet[net.color]=true; });
+    var defs = '<defs>';
+    Object.keys(colorSet).forEach(function(col){
+      var id = 'arr-' + col.replace('#','');
+      defs += '<marker id="' + id + '-fwd" markerWidth="' + ARR + '" markerHeight="' + ARR + '" refX="' + (ARR-2) + '" refY="' + (ARR/2) + '" orient="auto" markerUnits="userSpaceOnUse"><path d="M2,' + (ARR*0.15) + ' L' + (ARR-2) + ',' + (ARR/2) + ' L2,' + (ARR*0.85) + ' Z" fill="' + col + '"/></marker>';
+      defs += '<marker id="' + id + '-bwd" markerWidth="' + ARR + '" markerHeight="' + ARR + '" refX="2" refY="' + (ARR/2) + '" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M2,' + (ARR*0.15) + ' L' + (ARR-2) + ',' + (ARR/2) + ' L2,' + (ARR*0.85) + ' Z" fill="' + col + '"/></marker>';
+    });
+    /* Clip to prevent nodes/cables from overflowing canvas area */
+    defs += '<clipPath id="exp-clip"><rect x="0" y="' + headH + '" width="' + fullW + '" height="' + canvasH + '"/></clipPath>';
+    defs += '</defs>';
+
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + fullW + '" height="' + fullH + '" viewBox="0 0 ' + fullW + ' ' + fullH + '">' + defs;
+
+    /* White background */
+    svg += '<rect width="' + fullW + '" height="' + fullH + '" fill="#ffffff"/>';
+
+    /* Header band */
+    svg += '<rect x="0" y="0" width="' + fullW + '" height="' + headH + '" fill="' + esc(state.headerColor || '#1d3a5f') + '"/>';
+    svg += '<text x="' + (fullW/2) + '" y="' + (headH/2+8) + '" text-anchor="middle" font-family="Outfit,sans-serif" font-weight="700" font-size="22" fill="#ffffff">' + esc(state.title) + '</text>';
+
+    /* Thin separator line between header and canvas */
+    svg += '<line x1="0" y1="' + headH + '" x2="' + fullW + '" y2="' + headH + '" stroke="#e2e8f0" stroke-width="1"/>';
+
+    /* ── Parallel cable groups (same logic as _renderEdges) ── */
+    var pairGroups = {};
+    state.cables.forEach(function(c){
+      if (!nodeById(c.from) || !nodeById(c.to)) return;
+      var key = [c.from, c.to].sort().join('|');
+      (pairGroups[key] = pairGroups[key] || []).push(c.id);
+    });
+
+    /* ── Cables ── */
     state.cables.forEach(function(c){
       var g = edgeGeom(c);
       if (!g) return;
-      var net = netById(c.network) || { color:'#5a6a80' };
+      var net = netById(c.network) || { color:'#5a6a80', name:'' };
+
+      /* Bezier curve for parallel cables */
+      var key = [c.from, c.to].sort().join('|');
+      var group = pairGroups[key] || [c.id];
+      var idx = group.indexOf(c.id);
+      var count = group.length;
       var p0x = g.p0.x + ox, p0y = g.p0.y + oy + headH;
       var p1x = g.p1.x + ox, p1y = g.p1.y + oy + headH;
-      svg += '<line x1="' + p0x + '" y1="' + p0y + '" x2="' + p1x + '" y2="' + p1y + '" stroke="' + net.color + '" stroke-width="2.5" stroke-linecap="round"/>';
-      if (c.label) {
+      var mx = (p0x + p1x) / 2, my = (p0y + p1y) / 2;
+      var dx = p1x - p0x, dy = p1y - p0y;
+      var linLen = Math.sqrt(dx*dx + dy*dy) || 1;
+      var perpX = -dy / linLen, perpY = dx / linLen;
+      var B = Math.max(40, linLen * 0.22);
+      var sign = (idx===0) ? 0 : (idx%2===1 ? 1 : -1);
+      var bulge = sign * Math.ceil(idx/2) * B;
+      var cpx = mx + perpX * bulge, cpy = my + perpY * bulge;
+
+      var d, midX, midY;
+      if (bulge === 0) {
+        d = 'M' + p0x + ',' + p0y + ' L' + p1x + ',' + p1y;
+        midX = mx; midY = my;
+      } else {
+        d = 'M' + p0x + ',' + p0y + ' Q' + cpx + ',' + cpy + ' ' + p1x + ',' + p1y;
+        midX = 0.25*p0x + 0.5*cpx + 0.25*p1x;
+        midY = 0.25*p0y + 0.5*cpy + 0.25*p1y;
+      }
+
+      var dir = c.dir || 'none';
+      var colId = net.color.replace('#','');
+      var mEnd   = (dir==='forward'  || dir==='both') ? ' marker-end="url(#arr-'   + colId + '-fwd)"' : '';
+      var mStart = (dir==='backward' || dir==='both') ? ' marker-start="url(#arr-' + colId + '-bwd)"' : '';
+
+      svg += '<path d="' + d + '" stroke="' + net.color + '" stroke-width="2.5" stroke-linecap="round" fill="none"' + mEnd + mStart + '/>';
+
+      if (c.label && c.label.trim()) {
         var lines = c.label.split('\n');
-        var midX = g.mid.x + ox, midY = g.mid.y + oy + headH;
-        var lh = 12;
+        var lh = 12, totalH = lines.length * lh;
         var maxLen = 0;
         lines.forEach(function(ln){ maxLen = Math.max(maxLen, ln.length); });
         var bw = Math.min(160, maxLen * 6.5 + 12);
-        svg += '<rect x="' + (midX - bw/2) + '" y="' + (midY - lines.length*lh/2 - 3) + '" width="' + bw + '" height="' + (lines.length*lh + 6) + '" rx="3" fill="#fff"/>';
+        svg += '<rect x="' + (midX-bw/2) + '" y="' + (midY-totalH/2-3) + '" width="' + bw + '" height="' + (totalH+6) + '" rx="3" fill="#ffffff" stroke="' + net.color + '" stroke-width="0.5"/>';
         lines.forEach(function(ln, i){
-          svg += '<text x="' + midX + '" y="' + (midY - lines.length*lh/2 + lh/2 + 3 + i*lh) + '" text-anchor="middle" font-family="Outfit,sans-serif" font-size="10" font-weight="500" fill="' + net.color + '">' + esc(ln) + '</text>';
+          svg += '<text x="' + midX + '" y="' + (midY-totalH/2+lh/2+3+i*lh) + '" text-anchor="middle" font-family="Outfit,sans-serif" font-size="10" font-weight="500" fill="' + net.color + '">' + esc(ln) + '</text>';
         });
       }
     });
-    /* Nodes — world coords translated by (ox, oy) then by headH */
+
+    /* ── Nodes ── */
     state.nodes.forEach(function(n){
       var sp = spec(n.type) || { w:140, h:100, icon:_iconRack(3) };
       var w = sp.w, h = sp.h;
       var x = n.x + ox, y = n.y + oy + headH;
+      var label = n.label != null ? n.label : (sp.label || '');
+      var sub   = n.sub   != null ? n.sub   : (sp.defaultSub || '');
+
       if (n.type === 'note') {
         svg += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="6" fill="#fef3c7" stroke="#fbbf24" stroke-width="1.5"/>';
-        svg += '<foreignObject x="' + (x+8) + '" y="' + (y+8) + '" width="' + (w-16) + '" height="' + (h-16) + '"><div xmlns="http://www.w3.org/1999/xhtml" style="font-family:Outfit,sans-serif;font-size:11px;color:#92400e;line-height:1.4;font-weight:600;white-space:pre-wrap">' + esc(n.label || '') + (n.sub ? '<br>' + esc(n.sub) : '') + '</div></foreignObject>';
-      } else {
-        svg += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="8" fill="#fff" stroke="#c8d4e0"/>';
-        /* Icon */
-        var iconY = y + 8;
-        var iconSize = Math.min(56, h - 50);
-        var iconX = x + (w - iconSize) / 2;
-        svg += '<svg x="' + iconX + '" y="' + iconY + '" width="' + iconSize + '" height="' + iconSize + '" overflow="visible">' + (sp.icon.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '')) + '</svg>';
-        svg += '<text x="' + (x + w/2) + '" y="' + (y + h - 22) + '" text-anchor="middle" font-family="Outfit,sans-serif" font-weight="700" font-size="12" fill="#1d3a5f">' + esc(n.label || '') + '</text>';
-        if (n.sub) {
-          var sublines = n.sub.split('\n');
-          sublines.forEach(function(s, i){
-            svg += '<text x="' + (x + w/2) + '" y="' + (y + h - 8 + i*11) + '" text-anchor="middle" font-family="Outfit,sans-serif" font-size="9" fill="#5a6a80">' + esc(s) + '</text>';
-          });
-        }
+        var noteLines = (label + (sub ? '\n' + sub : '')).split('\n');
+        noteLines.forEach(function(nl, i){
+          svg += '<text x="' + (x+10) + '" y="' + (y+18+i*14) + '" font-family="Outfit,sans-serif" font-size="11" font-weight="600" fill="#92400e">' + esc(nl) + '</text>';
+        });
+        return;
+      }
+
+      /* Equipment card — white box with border */
+      svg += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="8" fill="#ffffff" stroke="#c8d4e0" stroke-width="1.5"/>';
+
+      /* Icon — proportional, centred in top area */
+      var textAreaH = 32; /* reserved height at bottom for label + sub */
+      var iconArea  = h - textAreaH - 10;
+      var iconSize  = Math.max(20, Math.min(iconArea, w - 20));
+      var iconX = x + (w - iconSize) / 2;
+      var iconY = y + 6;
+      if (sp.icon) {
+        var iconInner = sp.icon.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
+        svg += '<svg x="' + iconX + '" y="' + iconY + '" width="' + iconSize + '" height="' + iconSize + '" overflow="visible">' + iconInner + '</svg>';
+      }
+
+      /* Label — centered, just above subtitle area */
+      var labelY = y + h - (sub ? 18 : 10);
+      svg += '<text x="' + (x+w/2) + '" y="' + labelY + '" text-anchor="middle" font-family="Outfit,sans-serif" font-weight="700" font-size="11" fill="#1d3a5f">' + esc(label) + '</text>';
+
+      /* Subtitle — one or two lines, clipped inside card */
+      if (sub) {
+        var subLines = sub.split('\n').slice(0,2);
+        subLines.forEach(function(sl, i){
+          svg += '<text x="' + (x+w/2) + '" y="' + (y+h-6+i*10) + '" text-anchor="middle" font-family="Outfit,sans-serif" font-size="8.5" fill="#64748b">' + esc(sl) + '</text>';
+        });
       }
     });
-    /* Legend */
-    var legX = 14, legY = canvasH + headH + 20;
-    var legends = state.networks.filter(function(n){ return state.cables.some(function(c){ return c.network === n.id; }); });
+
+    /* ── Legend ── */
+    var legY = canvasH + headH + 16;
+    var legends = state.networks.filter(function(n){ return state.cables.some(function(c){ return c.network===n.id; }); });
     legends.forEach(function(n, i){
-      svg += '<rect x="' + (legX + i*150) + '" y="' + (legY-3) + '" width="22" height="3" rx="1.5" fill="' + n.color + '"/>';
-      svg += '<text x="' + (legX + i*150 + 28) + '" y="' + legY + '" font-family="Outfit,sans-serif" font-size="11" fill="#5a6a80">' + esc(n.name) + '</text>';
+      svg += '<rect x="' + (14+i*140) + '" y="' + (legY-4) + '" width="20" height="4" rx="2" fill="' + n.color + '"/>';
+      svg += '<text x="' + (38+i*140) + '" y="' + legY + '" font-family="Outfit,sans-serif" font-size="10" fill="#64748b">' + esc(n.name) + '</text>';
     });
-    /* Footer URL */
-    svg += '<text x="' + (fullW - 14) + '" y="' + (fullH - 10) + '" text-anchor="end" font-family="Outfit,sans-serif" font-size="11" font-weight="600" fill="#1d9bf0">' + esc(state.footer) + '</text>';
+
+    /* Footer */
+    svg += '<text x="' + (fullW-14) + '" y="' + (fullH-12) + '" text-anchor="end" font-family="Outfit,sans-serif" font-size="10" font-weight="600" fill="#94a3b8">' + esc(state.footer||'') + '</text>';
     svg += '</svg>';
     return { svg: svg, w: fullW, h: fullH };
   }
@@ -6294,52 +6374,63 @@ const SynPro = (() => {
     a.click();
   }
 
-  /* ── Export PDF (via canvas → jsPDF if available, otherwise PNG fallback) ── */
-  async function _exportPdf() {
-    try {
-      var ex = _buildExportSvg();
-      var c  = await _svgToCanvas(ex.svg, ex.w, ex.h, 2);
-      var imgData = c.toDataURL('image/png');
-
-      /* Use jsPDF if loaded; dynamically load it if not yet present */
-      async function _getJsPdf() {
-        if (window.jspdf && window.jspdf.jsPDF) return window.jspdf.jsPDF;
-        return new Promise(function(resolve, reject) {
-          var s = document.createElement('script');
-          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-          s.onload = function(){ resolve(window.jspdf.jsPDF); };
-          s.onerror = reject;
-          document.head.appendChild(s);
-        });
-      }
-
-      var JsPDF = await _getJsPdf();
-      /* A4 landscape or auto-size based on ratio */
-      var ratio = ex.w / ex.h;
-      var orientation = ratio >= 1 ? 'landscape' : 'portrait';
-      var pdf = new JsPDF({ orientation: orientation, unit: 'pt', format: 'a4' });
-      var pageW = pdf.internal.pageSize.getWidth();
-      var pageH = pdf.internal.pageSize.getHeight();
-      /* Fit image inside page with margins */
-      var margin = 20;
-      var maxW = pageW - margin * 2;
-      var maxH = pageH - margin * 2;
-      var scale = Math.min(maxW / ex.w, maxH / ex.h);
-      var dw = ex.w * scale, dh = ex.h * scale;
-      var dx = (pageW - dw) / 2, dy = (pageH - dh) / 2;
-      pdf.addImage(imgData, 'PNG', dx, dy, dw, dh);
-      pdf.save((state.title || 'synoptique').replace(/\W+/g, '_') + '.pdf');
-    } catch(e) { toast('Erreur export PDF'); console.error(e); }
+  /* ── Load jsPDF on demand ── */
+  function _getJsPdf() {
+    if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve(window.jspdf.jsPDF);
+    return new Promise(function(resolve, reject) {
+      var s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      s.onload = function(){ resolve(window.jspdf.jsPDF); };
+      s.onerror = function(){ reject(new Error('jsPDF load failed')); };
+      document.head.appendChild(s);
+    });
   }
 
-  /* ── Print ── */
+  /* ── Export PDF — A4, image fitted with margins ── */
+  async function _exportPdf() {
+    try {
+      toast('Generation PDF en cours…');
+      var ex = _buildExportSvg();
+      /* Render at 3x for sharp PDF quality */
+      var c = await _svgToCanvas(ex.svg, ex.w, ex.h, 3);
+      var imgData = c.toDataURL('image/jpeg', 0.96);
+
+      var JsPDF = await _getJsPdf();
+      /* A4 = 595.28 × 841.89 pt. Choose orientation based on diagram ratio. */
+      var ratio = ex.w / ex.h;
+      var orientation = ratio >= 1.1 ? 'landscape' : 'portrait';
+      var pdf = new JsPDF({ orientation: orientation, unit: 'pt', format: 'a4', compress: true });
+      var pageW = pdf.internal.pageSize.getWidth();
+      var pageH = pdf.internal.pageSize.getHeight();
+      /* 14pt margins on all sides */
+      var margin = 14;
+      var maxW = pageW - margin * 2;
+      var maxH = pageH - margin * 2;
+      var sc = Math.min(maxW / ex.w, maxH / ex.h);
+      var dw = ex.w * sc, dh = ex.h * sc;
+      var dx = margin + (maxW - dw) / 2;
+      var dy = margin + (maxH - dh) / 2;
+      pdf.addImage(imgData, 'JPEG', dx, dy, dw, dh);
+      pdf.save((state.title || 'synoptique').replace(/\W+/g, '_') + '.pdf');
+    } catch(e) { toast('Erreur export PDF : ' + e.message); console.error(e); }
+  }
+
+  /* ── Print — opens diagram in clean window ── */
   function _print() {
     var ex = _buildExportSvg();
+    /* Scale SVG to fit A4 landscape width (1122px at 96dpi) */
+    var targetW = 1122;
+    var sc = targetW / ex.w;
     var win = window.open('', '_blank');
-    win.document.write('<html><head><title>' + esc(state.title) + '</title><style>body{margin:0}img{max-width:100%;height:auto}</style></head><body>' + ex.svg + '</body></html>');
+    win.document.write(
+      '<html><head><title>' + esc(state.title) + '</title>' +
+      '<style>@page{size:A4 landscape;margin:10mm}body{margin:0;background:#fff}' +
+      'svg{width:' + Math.round(ex.w*sc) + 'px;height:' + Math.round(ex.h*sc) + 'px;display:block}</style></head>' +
+      '<body>' + ex.svg.replace('<svg ', '<svg style="width:100%;height:auto" ') + '</body></html>'
+    );
     win.document.close();
     win.focus();
-    setTimeout(function(){ win.print(); }, 400);
+    setTimeout(function(){ win.print(); }, 500);
   }
 
   /* ── Public API ── */
