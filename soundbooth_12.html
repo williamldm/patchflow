@@ -5557,10 +5557,8 @@ const SynPro = (() => {
     svg.setAttribute('height', sh);
     svg.setAttribute('viewBox', b.minX + ' ' + b.minY + ' ' + sw + ' ' + sh);
 
-    /* Arrow marker size — in world/user coords.
-       Each node is ~160px wide in world space, so 18px arrows are clearly visible. */
-    var ARR = 18;   /* arrow head size (world units) */
-    var GAP = 14;   /* perpendicular offset between parallel cables */
+    /* Arrow head size in world units (~10% of typical node width) */
+    var ARR = 18;
 
     /* Build defs — one arrowhead pair per network color */
     var colorSet = {};
@@ -5578,13 +5576,12 @@ const SynPro = (() => {
     });
     defs += '</defs>';
 
-    /* Group cables by canonical pair key to compute parallel offsets */
-    var pairGroups = {};  /* key -> [cable, ...] */
+    /* Group cables by canonical pair key so parallel cables get distinct curves */
+    var pairGroups = {};
     state.cables.forEach(function(c){
-      var g = edgeGeom(c);
-      if (!g) return;
+      if (!nodeById(c.from) || !nodeById(c.to)) return;
       var key = [c.from, c.to].sort().join('|');
-      (pairGroups[key] = pairGroups[key] || []).push(c);
+      (pairGroups[key] = pairGroups[key] || []).push(c.id);
     });
 
     var html = defs;
@@ -5595,24 +5592,43 @@ const SynPro = (() => {
       var sel = (selected.kind === 'cable' && selected.id === c.id);
       var lw  = sel ? 4 : 2.5;
 
-      /* Perpendicular offset for parallel cables */
+      /* Parallel cable handling — use cubic bezier curve per cable in a group.
+         Cable 0 = straight line. Cable 1 = curves above. Cable 2 = below. Etc.
+         Bulge magnitude scales with how many cables are in the group. */
       var key = [c.from, c.to].sort().join('|');
-      var group = pairGroups[key] || [c];
-      var idx   = group.indexOf(c);
-      var count = group.length;
-      /* Offsets: center the bundle around 0 — [-1, 0, 1] * GAP for 3 cables etc. */
-      var offsetDist = (idx - (count - 1) / 2) * GAP;
+      var group  = pairGroups[key] || [c.id];
+      var idx    = group.indexOf(c.id);
+      var count  = group.length;
 
       var p0 = g.p0, p1 = g.p1;
-      /* Perpendicular unit vector */
-      var dx = p1.x - p0.x, dy = p1.y - p0.y;
-      var len = Math.sqrt(dx*dx + dy*dy) || 1;
-      var px = -dy / len, py = dx / len;  /* perpendicular */
+      var mx = (p0.x + p1.x) / 2;
+      var my = (p0.y + p1.y) / 2;
 
-      var ax0 = p0.x + px * offsetDist, ay0 = p0.y + py * offsetDist;
-      var ax1 = p1.x + px * offsetDist, ay1 = p1.y + py * offsetDist;
-      var midX = (ax0 + ax1) / 2, midY = (ay0 + ay1) / 2;
-      var d = 'M' + ax0 + ',' + ay0 + ' L' + ax1 + ',' + ay1;
+      /* Perpendicular unit vector for bulge direction */
+      var dx = p1.x - p0.x, dy = p1.y - p0.y;
+      var linLen = Math.sqrt(dx*dx + dy*dy) || 1;
+      var perpX = -dy / linLen, perpY = dx / linLen;
+
+      /* idx 0 -> bulge 0 (straight), idx 1 -> bulge +B, idx 2 -> bulge -B, idx 3 -> +2B, ... */
+      var B = Math.max(40, linLen * 0.22);  /* bulge size: at least 40u or 22% of length */
+      var sign = (idx === 0) ? 0 : (idx % 2 === 1 ? 1 : -1);
+      var magnitude = Math.ceil(idx / 2);
+      var bulge = sign * magnitude * B;
+
+      /* Control point for quadratic bezier (single midpoint bulge) */
+      var cpx = mx + perpX * bulge;
+      var cpy = my + perpY * bulge;
+
+      var d, midX, midY;
+      if (bulge === 0) {
+        d = 'M' + p0.x + ',' + p0.y + ' L' + p1.x + ',' + p1.y;
+        midX = mx; midY = my;
+      } else {
+        d = 'M' + p0.x + ',' + p0.y + ' Q' + cpx + ',' + cpy + ' ' + p1.x + ',' + p1.y;
+        /* True midpoint of quadratic bezier at t=0.5 */
+        midX = 0.25*p0.x + 0.5*cpx + 0.25*p1.x;
+        midY = 0.25*p0.y + 0.5*cpy + 0.25*p1.y;
+      }
 
       /* Arrow markers */
       var dir = c.dir || 'none';
@@ -5623,7 +5639,7 @@ const SynPro = (() => {
       html += '<path class="sp-edge-hit" data-cid="' + c.id + '" d="' + d + '" stroke="' + net.color + '" stroke-width="14" fill="none"/>';
       html += '<path class="sp-edge' + (sel ? ' sel' : '') + '" data-cid="' + c.id + '" d="' + d + '" stroke="' + net.color + '" stroke-width="' + lw + '" stroke-linecap="round" fill="none"' + mEnd + mStart + '/>';
 
-      /* Label */
+      /* Label at curve midpoint */
       if (c.label && c.label.trim()) {
         var lines = c.label.split('\n');
         var lh = 12, totalH = lines.length * lh;
