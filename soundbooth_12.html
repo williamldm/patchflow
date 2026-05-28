@@ -5030,7 +5030,12 @@ const SynPro = (() => {
   /* ── Persistence ── */
   function scheduleSave() {
     if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(_save, 900);
+    saveTimer = setTimeout(_save, 300);  /* Reduced from 900ms for faster persistence */
+  }
+  /* Force immediate save (no delay) — used when switching tabs or reloading */
+  async function _saveNow() {
+    if (saveTimer) clearTimeout(saveTimer);
+    await _save();
   }
   async function _save() {
     if (!CUR_SHOW || !state) return;
@@ -6061,7 +6066,13 @@ const SynPro = (() => {
   function isLoaded() { return loaded; }
   function getData() { return state; }
 
-  return { init, show, render, resetLoaded, isLoaded, getData, cancelCable };
+  /* Force save when page unloads or visibility changes */
+  if (typeof window !== 'undefined') {
+    window.addEventListener('beforeunload', _saveNow);
+    document.addEventListener('visibilitychange', function(){ if (document.hidden) _saveNow(); });
+  }
+
+  return { init, show, render, resetLoaded, isLoaded, getData, cancelCable, _saveNow };
 })();
 
 window.SynPro = SynPro;
