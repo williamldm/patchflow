@@ -4742,59 +4742,152 @@ function saveSite(){saveStage();}
 // ══════════════════════════════════════
 const SynPro = (() => {
 
-  /* ── Equipment library — SVG icons grouped by category ── */
-  /* Each item: { type, label, cat, w, h, icon (svg string), defaults } */
+  /* ── Equipment library — SVG icons grouped by brand puis categorie generique ──
+     Items per brand : consoles + racks de scene/IO fusionnes. Tous les types
+     historiques conserves (compatibilite des donnees deja sauvegardees). */
   const LIB = [
-    /* CONSOLES */
-    { type:'console.dlive-s5000',  cat:'Consoles',     label:'dLive S5000',     defaultSub:'Console FOH',                w:200, h:130, icon:_iconConsoleLarge() },
-    { type:'console.dlive-c3500',  cat:'Consoles',     label:'dLive C3500',     defaultSub:'Console compacte',           w:180, h:120, icon:_iconConsoleCompact() },
-    { type:'console.sq5',          cat:'Consoles',     label:'SQ5',             defaultSub:'Console',                    w:170, h:110, icon:_iconConsoleCompact() },
-    { type:'console.sq6',          cat:'Consoles',     label:'SQ6',             defaultSub:'Console',                    w:180, h:115, icon:_iconConsoleCompact() },
-    { type:'console.cl5',          cat:'Consoles',     label:'Yamaha CL5',      defaultSub:'Console FOH',                w:200, h:125, icon:_iconConsoleLarge() },
-    { type:'console.m32',          cat:'Consoles',     label:'M32 / X32',       defaultSub:'Console',                    w:180, h:115, icon:_iconConsoleCompact() },
-    { type:'console.qu32',         cat:'Consoles',     label:'Qu-32',           defaultSub:'Console',                    w:180, h:115, icon:_iconConsoleCompact() },
+    /* ─── ALLEN & HEATH ─── */
+    { type:'console.dlive-s5000',  cat:'Allen & Heath', label:'dLive S5000',    defaultSub:'Surface dLive',              w:200, h:130, icon:_iconConsoleLarge() },
+    { type:'console.dlive-s7000',  cat:'Allen & Heath', label:'dLive S7000',    defaultSub:'Surface dLive grande',       w:220, h:135, icon:_iconConsoleLarge() },
+    { type:'console.dlive-c3500',  cat:'Allen & Heath', label:'dLive C3500',    defaultSub:'Surface dLive compacte',     w:180, h:120, icon:_iconConsoleCompact() },
+    { type:'console.dlive-c1500',  cat:'Allen & Heath', label:'dLive C1500',    defaultSub:'Surface dLive compacte',     w:170, h:115, icon:_iconConsoleCompact() },
+    { type:'console.ah-avantis',   cat:'Allen & Heath', label:'Avantis',        defaultSub:'64 voies · 12 stages',       w:200, h:125, icon:_iconConsoleCompact() },
+    { type:'console.sq5',          cat:'Allen & Heath', label:'SQ-5',           defaultSub:'48 ch · 24 mix bus',         w:170, h:110, icon:_iconConsoleCompact() },
+    { type:'console.sq6',          cat:'Allen & Heath', label:'SQ-6',           defaultSub:'48 ch · 24 mix bus',         w:180, h:115, icon:_iconConsoleCompact() },
+    { type:'console.sq7',          cat:'Allen & Heath', label:'SQ-7',           defaultSub:'48 ch · 24 mix bus',         w:190, h:118, icon:_iconConsoleCompact() },
+    { type:'console.qu32',         cat:'Allen & Heath', label:'Qu-32',          defaultSub:'32 ch',                      w:180, h:115, icon:_iconConsoleCompact() },
+    { type:'console.qu24',         cat:'Allen & Heath', label:'Qu-24',          defaultSub:'24 ch',                      w:170, h:110, icon:_iconConsoleCompact() },
+    { type:'rack.dlive-dm48',      cat:'Allen & Heath', label:'DM48 MixRack',   defaultSub:'48 in / 24 out · 5 AES',     w:170, h:140, icon:_iconRack(5) },
+    { type:'rack.dlive-dm32',      cat:'Allen & Heath', label:'DM32 MixRack',   defaultSub:'32 in / 16 out',             w:170, h:130, icon:_iconRack(4) },
+    { type:'rack.dlive-dm64',      cat:'Allen & Heath', label:'DM64 MixRack',   defaultSub:'64 in / 32 out',             w:170, h:150, icon:_iconRack(6) },
+    { type:'rack.dlive-dm0',       cat:'Allen & Heath', label:'DM0 MixRack',    defaultSub:'128 in / 64 out',            w:170, h:155, icon:_iconRack(6) },
+    { type:'io.dx168',             cat:'Allen & Heath', label:'DX168',          defaultSub:'16 in / 8 out',              w:160, h:90,  icon:_iconStagebox() },
+    { type:'io.dx32',              cat:'Allen & Heath', label:'DX32',          defaultSub:'4 slots modulaires',         w:160, h:95,  icon:_iconStagebox() },
+    { type:'io.ar2412',            cat:'Allen & Heath', label:'AR2412',         defaultSub:'24 in / 12 out',             w:160, h:90,  icon:_iconStagebox() },
+    { type:'io.ar84',              cat:'Allen & Heath', label:'AR84',           defaultSub:'8 in / 4 out',               w:150, h:85,  icon:_iconStagebox() },
 
-    /* RACKS / STAGE */
-    { type:'rack.dlive-dm48',      cat:'Racks scene',  label:'DM48',            defaultSub:'48 in / 24 out · 5 AES',     w:170, h:140, icon:_iconRack(5) },
-    { type:'rack.dlive-dm32',      cat:'Racks scene',  label:'DM32',            defaultSub:'32 in / 16 out',             w:170, h:140, icon:_iconRack(4) },
-    { type:'rack.dlive-mixrack',   cat:'Racks scene',  label:'MixRack dLive',   defaultSub:'Alimentation redondante',    w:170, h:150, icon:_iconRack(6) },
-    { type:'rack.generic',         cat:'Racks scene',  label:'Rack',            defaultSub:'',                           w:160, h:140, icon:_iconRack(4) },
+    /* ─── YAMAHA ─── */
+    { type:'console.yam-cl5',      cat:'Yamaha',        label:'CL5',            defaultSub:'72 mix · 8 matrix',          w:210, h:130, icon:_iconConsoleLarge() },
+    { type:'console.yam-cl3',      cat:'Yamaha',        label:'CL3',            defaultSub:'72 mix · 16 fader',          w:200, h:125, icon:_iconConsoleLarge() },
+    { type:'console.yam-cl1',      cat:'Yamaha',        label:'CL1',            defaultSub:'72 mix · 8 fader',           w:180, h:120, icon:_iconConsoleCompact() },
+    { type:'console.cl5',          cat:'Yamaha',        label:'CL5 (alias)',    defaultSub:'Console FOH Yamaha',         w:200, h:125, icon:_iconConsoleLarge() },
+    { type:'console.yam-ql5',      cat:'Yamaha',        label:'QL5',            defaultSub:'64 ch · 32 mic',             w:190, h:120, icon:_iconConsoleLarge() },
+    { type:'console.yam-ql1',      cat:'Yamaha',        label:'QL1',            defaultSub:'32 ch compact',              w:170, h:110, icon:_iconConsoleCompact() },
+    { type:'console.yam-dm7',      cat:'Yamaha',        label:'DM7',            defaultSub:'72 ch · tactile',            w:200, h:130, icon:_iconConsoleLarge() },
+    { type:'console.yam-dm3',      cat:'Yamaha',        label:'DM3',            defaultSub:'22 ch compact',              w:170, h:115, icon:_iconConsoleCompact() },
+    { type:'console.yam-rivage7',  cat:'Yamaha',        label:'Rivage PM7',     defaultSub:'144 in · grand format',      w:210, h:135, icon:_iconConsoleLarge() },
+    { type:'console.yam-rivage10', cat:'Yamaha',        label:'Rivage PM10',    defaultSub:'144 in · flagship',          w:220, h:140, icon:_iconConsoleLarge() },
+    { type:'console.yam-rivage5',  cat:'Yamaha',        label:'Rivage PM5',     defaultSub:'120 in · compact',           w:200, h:130, icon:_iconConsoleLarge() },
+    { type:'rack.yam-rio3224',     cat:'Yamaha',        label:'Rio3224-D2',     defaultSub:'32 in / 16 out · Dante',     w:170, h:120, icon:_iconRack(5) },
+    { type:'rack.yam-rio1608',     cat:'Yamaha',        label:'Rio1608-D2',     defaultSub:'16 in / 8 out · Dante',      w:170, h:100, icon:_iconRack(3) },
+    { type:'rack.yam-tio1608',     cat:'Yamaha',        label:'Tio1608-D2',     defaultSub:'16 in / 8 out · Dante',      w:170, h:100, icon:_iconRack(3) },
+    { type:'rack.yam-rpio',        cat:'Yamaha',        label:'RPio622 / 222',  defaultSub:'Rivage stagebox',            w:170, h:120, icon:_iconRack(5) },
 
-    /* I/O BOXES */
-    { type:'io.dx168',             cat:'Boitiers scene',label:'DX168',          defaultSub:'16 in / 8 out',              w:160, h:90,  icon:_iconStagebox() },
-    { type:'io.dx32',              cat:'Boitiers scene',label:'DX32',           defaultSub:'16 in / 16 out',             w:160, h:90,  icon:_iconStagebox() },
-    { type:'io.ar2412',            cat:'Boitiers scene',label:'AR2412',         defaultSub:'24 in / 12 out',             w:160, h:90,  icon:_iconStagebox() },
-    { type:'io.stagebox',          cat:'Boitiers scene',label:'Stagebox',       defaultSub:'',                           w:150, h:80,  icon:_iconStagebox() },
+    /* ─── DiGiCo ─── */
+    { type:'console.dig-sd12',     cat:'DiGiCo',        label:'SD12',           defaultSub:'72 ch · 48 buses',           w:200, h:130, icon:_iconConsoleLarge() },
+    { type:'console.dig-sd11',     cat:'DiGiCo',        label:'SD11i',          defaultSub:'32 ch · compact',            w:180, h:115, icon:_iconConsoleCompact() },
+    { type:'console.dig-sd9',      cat:'DiGiCo',        label:'SD9',            defaultSub:'48 ch · 24 buses',           w:190, h:125, icon:_iconConsoleLarge() },
+    { type:'console.dig-s21',      cat:'DiGiCo',        label:'S21',            defaultSub:'48 ch · compact',            w:170, h:115, icon:_iconConsoleCompact() },
+    { type:'console.dig-s31',      cat:'DiGiCo',        label:'S31',            defaultSub:'48 ch · 24 fader',           w:200, h:125, icon:_iconConsoleLarge() },
+    { type:'console.dig-q338',     cat:'DiGiCo',        label:'Quantum 338',    defaultSub:'128 ch · grand format',      w:220, h:140, icon:_iconConsoleLarge() },
+    { type:'console.dig-q225',     cat:'DiGiCo',        label:'Quantum 225',    defaultSub:'128 ch · compact',           w:200, h:130, icon:_iconConsoleLarge() },
+    { type:'console.dig-q852',     cat:'DiGiCo',        label:'Quantum 852',    defaultSub:'flagship',                   w:230, h:145, icon:_iconConsoleLarge() },
+    { type:'rack.dig-sdrack',      cat:'DiGiCo',        label:'SD-Rack',        defaultSub:'56 in / 56 out',             w:170, h:140, icon:_iconRack(5) },
+    { type:'rack.dig-sdmini',      cat:'DiGiCo',        label:'SD-MiNi Rack',   defaultSub:'24 in / 16 out',             w:170, h:120, icon:_iconRack(3) },
+    { type:'rack.dig-sdnano',      cat:'DiGiCo',        label:'SD-NANO Rack',   defaultSub:'24 in / 12 out',             w:160, h:110, icon:_iconRack(3) },
 
-    /* AMPLIFIERS */
-    { type:'amp.linus12',          cat:'Amplis',       label:'Linus 12',        defaultSub:'4 ch · 4 x 3000W',           w:170, h:100, icon:_iconAmp() },
-    { type:'amp.linus14',          cat:'Amplis',       label:'Linus 14D',       defaultSub:'4 ch DSP',                   w:170, h:100, icon:_iconAmp() },
-    { type:'amp.powersoft',        cat:'Amplis',       label:'Powersoft',       defaultSub:'4 ch DSP',                   w:170, h:100, icon:_iconAmp() },
-    { type:'amp.generic',          cat:'Amplis',       label:'Ampli',           defaultSub:'',                           w:160, h:95,  icon:_iconAmp() },
+    /* ─── MIDAS ─── */
+    { type:'console.mid-m32',      cat:'Midas',         label:'M32',            defaultSub:'32 ch · 16 bus',             w:200, h:120, icon:_iconConsoleLarge() },
+    { type:'console.mid-m32r',     cat:'Midas',         label:'M32R Live',      defaultSub:'40 input ch',                w:180, h:115, icon:_iconConsoleCompact() },
+    { type:'console.mid-m32c',     cat:'Midas',         label:'M32C',           defaultSub:'rack',                       w:170, h:100, icon:_iconRack(3) },
+    { type:'console.m32',          cat:'Midas',         label:'M32 (alias)',    defaultSub:'Console Midas/Behringer',    w:180, h:115, icon:_iconConsoleCompact() },
+    { type:'console.mid-prox',     cat:'Midas',         label:'PRO X',          defaultSub:'168 in · flagship',          w:220, h:135, icon:_iconConsoleLarge() },
+    { type:'console.mid-pro9',     cat:'Midas',         label:'PRO9',           defaultSub:'88 in',                      w:210, h:130, icon:_iconConsoleLarge() },
+    { type:'console.mid-pro2',     cat:'Midas',         label:'PRO2',           defaultSub:'64 in · compact',            w:200, h:125, icon:_iconConsoleLarge() },
+    { type:'console.mid-pro1',     cat:'Midas',         label:'PRO1',           defaultSub:'40 in',                      w:190, h:120, icon:_iconConsoleCompact() },
+    { type:'console.mid-hd96',     cat:'Midas',         label:'HD96-24',        defaultSub:'120 in · pavillon',          w:220, h:140, icon:_iconConsoleLarge() },
+    { type:'rack.mid-dl16',        cat:'Midas',         label:'DL16',           defaultSub:'16 in / 8 out',              w:170, h:100, icon:_iconRack(3) },
+    { type:'rack.mid-dl32',        cat:'Midas',         label:'DL32',           defaultSub:'32 in / 16 out',             w:170, h:120, icon:_iconRack(4) },
+    { type:'rack.mid-dl151',       cat:'Midas',         label:'DL151',          defaultSub:'24 in · simple',             w:170, h:110, icon:_iconRack(3) },
+    { type:'rack.mid-dl251',       cat:'Midas',         label:'DL251',          defaultSub:'48 in / 16 out',             w:170, h:135, icon:_iconRack(5) },
 
-    /* SPEAKERS */
-    { type:'spk.line-top',         cat:'Enceintes',    label:'Top',             defaultSub:'Line array',                 w:130, h:115, icon:_iconLineArray() },
-    { type:'spk.sub',              cat:'Enceintes',    label:'Sub',             defaultSub:'Subwoofer',                  w:130, h:105, icon:_iconSub() },
-    { type:'spk.front-fill',       cat:'Enceintes',    label:'Front Fill',      defaultSub:'',                           w:130, h:100, icon:_iconSpeaker() },
-    { type:'spk.out-fill',         cat:'Enceintes',    label:'Out Fill',        defaultSub:'',                           w:130, h:100, icon:_iconSpeaker() },
-    { type:'spk.side-fill',        cat:'Enceintes',    label:'Side Fill',       defaultSub:'',                           w:130, h:100, icon:_iconSpeaker() },
-    { type:'spk.wedge',            cat:'Enceintes',    label:'Wedge',           defaultSub:'Retour',                     w:130, h:95,  icon:_iconWedge() },
-    { type:'spk.delay',            cat:'Enceintes',    label:'Delay',           defaultSub:'',                           w:130, h:100, icon:_iconSpeaker() },
+    /* ─── BEHRINGER ─── */
+    { type:'console.beh-x32',      cat:'Behringer',     label:'X32',            defaultSub:'32 ch · 16 bus',             w:200, h:120, icon:_iconConsoleLarge() },
+    { type:'console.beh-x32c',     cat:'Behringer',     label:'X32 Compact',    defaultSub:'32 ch compact',              w:180, h:115, icon:_iconConsoleCompact() },
+    { type:'console.beh-x32p',     cat:'Behringer',     label:'X32 Producer',   defaultSub:'32 ch · 16 fader',           w:170, h:110, icon:_iconConsoleCompact() },
+    { type:'console.beh-x32rack',  cat:'Behringer',     label:'X32 Rack',       defaultSub:'rackmount',                  w:170, h:100, icon:_iconRack(3) },
+    { type:'console.beh-x32core',  cat:'Behringer',     label:'X32 Core',       defaultSub:'moteur sans surface',        w:160, h:85,  icon:_iconRack(2) },
+    { type:'console.beh-wing',     cat:'Behringer',     label:'Wing',           defaultSub:'48 ch · tactile',            w:210, h:130, icon:_iconConsoleLarge() },
+    { type:'rack.beh-s16',         cat:'Behringer',     label:'S16',            defaultSub:'16 in / 8 out',              w:160, h:90,  icon:_iconStagebox() },
+    { type:'rack.beh-s32',         cat:'Behringer',     label:'S32',            defaultSub:'32 in / 16 out',             w:160, h:100, icon:_iconStagebox() },
+    { type:'rack.beh-sd16',        cat:'Behringer',     label:'SD16',           defaultSub:'16 in / 8 out',              w:160, h:90,  icon:_iconStagebox() },
+    { type:'rack.beh-sd8',         cat:'Behringer',     label:'SD8',            defaultSub:'8 in / 4 out',               w:150, h:85,  icon:_iconStagebox() },
 
-    /* NETWORK */
-    { type:'net.switch',           cat:'Reseau',       label:'Switch',          defaultSub:'Gigabit',                    w:140, h:80,  icon:_iconSwitch() },
-    { type:'net.wireless',         cat:'Reseau',       label:'WiFi',            defaultSub:'Point d\'acces',             w:130, h:80,  icon:_iconWifi() },
-    { type:'net.reel',             cat:'Reseau',       label:'Touret',          defaultSub:'Bobine cable',               w:120, h:95,  icon:_iconReel() },
-    { type:'net.fiber',            cat:'Reseau',       label:'Fibre',           defaultSub:'Monomode',                   w:130, h:80,  icon:_iconFiber() },
+    /* ─── SOUNDCRAFT ─── */
+    { type:'console.sc-vi3000',    cat:'Soundcraft',    label:'Vi3000',         defaultSub:'96 ch',                      w:210, h:130, icon:_iconConsoleLarge() },
+    { type:'console.sc-vi2000',    cat:'Soundcraft',    label:'Vi2000',         defaultSub:'64 ch',                      w:200, h:125, icon:_iconConsoleLarge() },
+    { type:'console.sc-vi1000',    cat:'Soundcraft',    label:'Vi1000',         defaultSub:'48 ch',                      w:190, h:120, icon:_iconConsoleCompact() },
+    { type:'console.sc-siperf',    cat:'Soundcraft',    label:'Si Performer 3', defaultSub:'80 ch · live',               w:200, h:120, icon:_iconConsoleLarge() },
+    { type:'console.sc-siexp',     cat:'Soundcraft',    label:'Si Expression 3',defaultSub:'66 ch',                      w:200, h:115, icon:_iconConsoleCompact() },
+    { type:'console.sc-siimpact',  cat:'Soundcraft',    label:'Si Impact',      defaultSub:'80 in · 40 fader',           w:200, h:120, icon:_iconConsoleLarge() },
+    { type:'rack.sc-stage64',      cat:'Soundcraft',    label:'Stagebox 64',    defaultSub:'64 in / 32 out',             w:170, h:140, icon:_iconRack(6) },
+    { type:'rack.sc-stage32',      cat:'Soundcraft',    label:'Stagebox 32',    defaultSub:'32 in / 16 out',             w:170, h:120, icon:_iconRack(4) },
 
-    /* SOURCES / OTHER */
-    { type:'src.mic',              cat:'Sources',      label:'Micro',           defaultSub:'',                           w:110, h:95,  icon:_iconMic() },
-    { type:'src.di',               cat:'Sources',      label:'DI Box',          defaultSub:'',                           w:120, h:80,  icon:_iconDI() },
-    { type:'src.iem',              cat:'Sources',      label:'IEM',             defaultSub:'Retour ear',                 w:130, h:90,  icon:_iconIEM() },
-    { type:'src.computer',         cat:'Sources',      label:'Ordinateur',      defaultSub:'',                           w:130, h:90,  icon:_iconComputer() },
+    /* ─── AVID ─── */
+    { type:'console.av-s6l',       cat:'Avid',          label:'VENUE | S6L',    defaultSub:'192 in · flagship',          w:220, h:140, icon:_iconConsoleLarge() },
+    { type:'console.av-s3l',       cat:'Avid',          label:'S3L-X',          defaultSub:'64 in · compact',            w:200, h:120, icon:_iconConsoleCompact() },
+    { type:'console.av-profile',   cat:'Avid',          label:'VENUE Profile',  defaultSub:'96 in',                      w:210, h:130, icon:_iconConsoleLarge() },
+    { type:'console.av-sc48',      cat:'Avid',          label:'VENUE SC48',     defaultSub:'48 in compact',              w:190, h:120, icon:_iconConsoleCompact() },
+    { type:'rack.av-stage64',      cat:'Avid',          label:'Stage 64',       defaultSub:'64 in / 32 out',             w:170, h:140, icon:_iconRack(6) },
+    { type:'rack.av-stage48',      cat:'Avid',          label:'Stage 48',       defaultSub:'48 in / 24 out',             w:170, h:130, icon:_iconRack(5) },
+    { type:'rack.av-stage16',      cat:'Avid',          label:'Stage 16',       defaultSub:'16 in / 8 out',              w:170, h:100, icon:_iconRack(3) },
 
-    /* DECOR */
-    { type:'note',                 cat:'Annotations',  label:'Annotation',      defaultSub:'Texte libre',                w:200, h:80,  icon:_iconNote() },
+    /* ─── SSL Live ─── */
+    { type:'console.ssl-l100',     cat:'SSL',           label:'L100',           defaultSub:'72 ch',                      w:200, h:125, icon:_iconConsoleLarge() },
+    { type:'console.ssl-l200',     cat:'SSL',           label:'L200',           defaultSub:'144 ch',                     w:210, h:130, icon:_iconConsoleLarge() },
+    { type:'console.ssl-l300',     cat:'SSL',           label:'L300',           defaultSub:'288 ch',                     w:220, h:135, icon:_iconConsoleLarge() },
+    { type:'console.ssl-l500',     cat:'SSL',           label:'L500',           defaultSub:'flagship',                   w:230, h:140, icon:_iconConsoleLarge() },
+    { type:'rack.ssl-stagebox',    cat:'SSL',           label:'SSL Live SB',    defaultSub:'32 in / 16 out',             w:170, h:120, icon:_iconRack(4) },
+
+    /* ─── GENERIQUE — racks/IO sans marque ─── */
+    { type:'rack.generic',         cat:'Generique',     label:'Rack vide',      defaultSub:'',                           w:160, h:140, icon:_iconRack(4) },
+    { type:'io.stagebox',          cat:'Generique',     label:'Stagebox',       defaultSub:'Generique',                  w:150, h:80,  icon:_iconStagebox() },
+    { type:'console.generic',      cat:'Generique',     label:'Console generique', defaultSub:'',                        w:180, h:115, icon:_iconConsoleCompact() },
+
+    /* ─── AMPLIS ─── */
+    { type:'amp.linus12',          cat:'Amplis',        label:'Coda Linus 12',  defaultSub:'4 ch · 4 x 3000W',           w:170, h:100, icon:_iconAmp() },
+    { type:'amp.linus14',          cat:'Amplis',        label:'Coda Linus 14D', defaultSub:'4 ch DSP',                   w:170, h:100, icon:_iconAmp() },
+    { type:'amp.linus10',          cat:'Amplis',        label:'Coda Linus 10',  defaultSub:'4 ch · 4 x 2500W',           w:170, h:100, icon:_iconAmp() },
+    { type:'amp.powersoft',        cat:'Amplis',        label:'Powersoft X4/X8',defaultSub:'4-8 ch DSP',                 w:170, h:100, icon:_iconAmp() },
+    { type:'amp.lab-gruppen',      cat:'Amplis',        label:'Lab Gruppen',    defaultSub:'4 ch · jusque 5000W',        w:170, h:100, icon:_iconAmp() },
+    { type:'amp.crown',            cat:'Amplis',        label:'Crown ITech',    defaultSub:'4 ch DSP',                   w:170, h:100, icon:_iconAmp() },
+    { type:'amp.dnd',              cat:'Amplis',        label:'D&B D80 / D40',  defaultSub:'4 ch · controle d&b',        w:170, h:100, icon:_iconAmp() },
+    { type:'amp.lacoustics',       cat:'Amplis',        label:'L-Acoustics LA', defaultSub:'LA4X / LA12X',               w:170, h:100, icon:_iconAmp() },
+    { type:'amp.generic',          cat:'Amplis',        label:'Ampli generique',defaultSub:'',                           w:160, h:95,  icon:_iconAmp() },
+
+    /* ─── ENCEINTES ─── */
+    { type:'spk.line-top',         cat:'Enceintes',     label:'Top',            defaultSub:'Line array',                 w:130, h:115, icon:_iconLineArray() },
+    { type:'spk.sub',              cat:'Enceintes',     label:'Sub',            defaultSub:'Subwoofer',                  w:130, h:105, icon:_iconSub() },
+    { type:'spk.front-fill',       cat:'Enceintes',     label:'Front Fill',     defaultSub:'',                           w:130, h:100, icon:_iconSpeaker() },
+    { type:'spk.out-fill',         cat:'Enceintes',     label:'Out Fill',       defaultSub:'',                           w:130, h:100, icon:_iconSpeaker() },
+    { type:'spk.side-fill',        cat:'Enceintes',     label:'Side Fill',      defaultSub:'',                           w:130, h:100, icon:_iconSpeaker() },
+    { type:'spk.wedge',            cat:'Enceintes',     label:'Wedge',          defaultSub:'Retour de scene',            w:130, h:95,  icon:_iconWedge() },
+    { type:'spk.delay',            cat:'Enceintes',     label:'Delay',          defaultSub:'Renfort delay',              w:130, h:100, icon:_iconSpeaker() },
+
+    /* ─── RESEAU ─── */
+    { type:'net.switch',           cat:'Reseau',        label:'Switch',         defaultSub:'Gigabit managed',            w:140, h:80,  icon:_iconSwitch() },
+    { type:'net.wireless',         cat:'Reseau',        label:'WiFi',           defaultSub:'Point d\'acces',             w:130, h:80,  icon:_iconWifi() },
+    { type:'net.reel',             cat:'Reseau',        label:'Touret',         defaultSub:'Bobine cable',               w:120, h:95,  icon:_iconReel() },
+    { type:'net.fiber',            cat:'Reseau',        label:'Fibre',          defaultSub:'Monomode',                   w:130, h:80,  icon:_iconFiber() },
+
+    /* ─── SOURCES ─── */
+    { type:'src.mic',              cat:'Sources',       label:'Micro',          defaultSub:'',                           w:110, h:95,  icon:_iconMic() },
+    { type:'src.di',               cat:'Sources',       label:'DI Box',         defaultSub:'Boitier d\'injection',       w:120, h:80,  icon:_iconDI() },
+    { type:'src.iem',              cat:'Sources',       label:'IEM',            defaultSub:'Retour ear-monitor',         w:130, h:90,  icon:_iconIEM() },
+    { type:'src.computer',         cat:'Sources',       label:'Ordinateur',     defaultSub:'',                           w:130, h:90,  icon:_iconComputer() },
+
+    /* ─── ANNOTATIONS ─── */
+    { type:'note',                 cat:'Annotations',   label:'Annotation',     defaultSub:'Texte libre',                w:200, h:80,  icon:_iconNote() },
   ];
 
   /* ── SVG icon builders — stylized, neutral grey/blue, scalable ── */
@@ -4958,6 +5051,21 @@ const SynPro = (() => {
       x:(cx - r.left - view.panX) / view.zoom,
       y:(cy - r.top  - view.panY) / view.zoom,
     };
+  }
+  /* Bounding box of all current nodes in world coords, with optional padding.
+     Always covers at least (0, 0, 1100, 600) so empty diagrams have a default
+     canvas. Includes negative coords if any node was placed there. */
+  function _worldBounds(pad) {
+    pad = pad || 0;
+    var minX = 0, minY = 0, maxX = 1100, maxY = 600;
+    state.nodes.forEach(function(n){
+      var sp = spec(n.type) || { w:140, h:100 };
+      if (n.x - pad < minX) minX = n.x - pad;
+      if (n.y - pad < minY) minY = n.y - pad;
+      if (n.x + sp.w + pad > maxX) maxX = n.x + sp.w + pad;
+      if (n.y + sp.h + pad > maxY) maxY = n.y + sp.h + pad;
+    });
+    return { minX:minX, minY:minY, maxX:maxX, maxY:maxY };
   }
   function nodeCenter(n) {
     var el = document.querySelector('.sp-node[data-id="' + n.id + '"]');
@@ -5265,16 +5373,17 @@ const SynPro = (() => {
   function _renderEdges() {
     var svg = $('sp-edges');
     if (!svg) return;
-    /* Compute SVG bounds from nodes */
-    var maxX = 1100, maxY = 600;
-    state.nodes.forEach(function(n){
-      var sp = spec(n.type) || { w:140, h:100 };
-      maxX = Math.max(maxX, n.x + sp.w + 80);
-      maxY = Math.max(maxY, n.y + sp.h + 80);
-    });
-    svg.setAttribute('viewBox', '0 0 ' + maxX + ' ' + maxY);
-    svg.setAttribute('width', maxX);
-    svg.setAttribute('height', maxY);
+    /* SVG covers the full world bounding box (including negative coords) so
+       edges remain visible and hit-testable when nodes are placed outside
+       the (0,0) quadrant. Paths still use raw world coords thanks to viewBox
+       being aligned with the SVG's CSS box. */
+    var b = _worldBounds(80);
+    var sw = b.maxX - b.minX, sh = b.maxY - b.minY;
+    svg.style.left = b.minX + 'px';
+    svg.style.top  = b.minY + 'px';
+    svg.setAttribute('width', sw);
+    svg.setAttribute('height', sh);
+    svg.setAttribute('viewBox', b.minX + ' ' + b.minY + ' ' + sw + ' ' + sh);
     var html = '';
     state.cables.forEach(function(c){
       var g = edgeGeom(c);
@@ -5546,8 +5655,11 @@ const SynPro = (() => {
         var el = document.querySelector('.sp-node[data-id="' + dragging.id + '"]');
         if (n && el) {
           var w = clientToWorld(e.clientX, e.clientY);
-          n.x = Math.round(Math.max(0, w.x - dragging.ox));
-          n.y = Math.round(Math.max(0, w.y - dragging.oy));
+          /* No clamp : the canvas extends in both directions ; user can
+             freely place elements anywhere, including negative coords
+             (visible when zoomed out or panned). */
+          n.x = Math.round(w.x - dragging.ox);
+          n.y = Math.round(w.y - dragging.oy);
           el.style.left = n.x + 'px';
           el.style.top = n.y + 'px';
           _renderEdges();
@@ -5750,15 +5862,11 @@ const SynPro = (() => {
   async function _exportPng() {
     var wrap = document.querySelector('.sp-canvas-wrap');
     if (!wrap) return;
-    var minX = 0, minY = 0, maxX = 1100, maxY = 600;
-    state.nodes.forEach(function(n){
-      var sp = spec(n.type) || { w:140, h:100 };
-      maxX = Math.max(maxX, n.x + sp.w + 40);
-      maxY = Math.max(maxY, n.y + sp.h + 40);
-    });
-    /* Build a static SVG of the full diagram */
-    var canvasW = Math.max(1100, maxX);
-    var canvasH = Math.max(600, maxY);
+    var b = _worldBounds(40);
+    /* Translate world to (0,0)+ so the exported image starts at top-left */
+    var ox = -b.minX, oy = -b.minY;
+    var canvasW = b.maxX - b.minX;
+    var canvasH = b.maxY - b.minY;
     var headH = 56, footH = 36;
     var fullW = canvasW, fullH = canvasH + headH + footH;
     var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + fullW + '" height="' + fullH + '" viewBox="0 0 ' + fullW + ' ' + fullH + '">';
@@ -5767,16 +5875,17 @@ const SynPro = (() => {
     svg += '<text x="' + (fullW/2) + '" y="' + (headH/2+7) + '" text-anchor="middle" font-family="Outfit,sans-serif" font-weight="700" font-size="20" fill="#fff">' + esc(state.title) + '</text>';
     /* Canvas bg */
     svg += '<rect x="0" y="' + headH + '" width="' + fullW + '" height="' + canvasH + '" fill="#f7f9fc"/>';
-    /* Cables */
-    var oy = headH;
+    /* Cables — world coords translated by (ox, oy) then by headH (header band) */
     state.cables.forEach(function(c){
       var g = edgeGeom(c);
       if (!g) return;
       var net = netById(c.network) || { color:'#5a6a80' };
-      svg += '<line x1="' + g.p0.x + '" y1="' + (g.p0.y+oy) + '" x2="' + g.p1.x + '" y2="' + (g.p1.y+oy) + '" stroke="' + net.color + '" stroke-width="2.5" stroke-linecap="round"/>';
+      var p0x = g.p0.x + ox, p0y = g.p0.y + oy + headH;
+      var p1x = g.p1.x + ox, p1y = g.p1.y + oy + headH;
+      svg += '<line x1="' + p0x + '" y1="' + p0y + '" x2="' + p1x + '" y2="' + p1y + '" stroke="' + net.color + '" stroke-width="2.5" stroke-linecap="round"/>';
       if (c.label) {
         var lines = c.label.split('\n');
-        var midX = g.mid.x, midY = g.mid.y + oy;
+        var midX = g.mid.x + ox, midY = g.mid.y + oy + headH;
         var lh = 12;
         var maxLen = 0;
         lines.forEach(function(ln){ maxLen = Math.max(maxLen, ln.length); });
@@ -5787,11 +5896,11 @@ const SynPro = (() => {
         });
       }
     });
-    /* Nodes */
+    /* Nodes — world coords translated by (ox, oy) then by headH */
     state.nodes.forEach(function(n){
       var sp = spec(n.type) || { w:140, h:100, icon:_iconRack(3) };
       var w = sp.w, h = sp.h;
-      var x = n.x, y = n.y + oy;
+      var x = n.x + ox, y = n.y + oy + headH;
       if (n.type === 'note') {
         svg += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="6" fill="#fef3c7" stroke="#fbbf24" stroke-width="1.5"/>';
         svg += '<foreignObject x="' + (x+8) + '" y="' + (y+8) + '" width="' + (w-16) + '" height="' + (h-16) + '"><div xmlns="http://www.w3.org/1999/xhtml" style="font-family:Outfit,sans-serif;font-size:11px;color:#92400e;line-height:1.4;font-weight:600;white-space:pre-wrap">' + esc(n.label || '') + (n.sub ? '<br>' + esc(n.sub) : '') + '</div></foreignObject>';
