@@ -1317,6 +1317,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
               <button class="sp-exp-item" data-fmt="print"><i class="ti ti-printer"></i>Imprimer</button>
             </div>
           </div>
+          <span id="sp-save-status" style="font-size:10px;font-family:var(--m);display:flex;align-items:center;gap:4px;color:var(--muted)"></span>
           <button type="button" class="btn ghost sm" id="sp-reset" title="Vider le synoptique"><i class="ti ti-trash"></i></button>
         </div>
         <div class="sp-body">
@@ -5081,13 +5082,32 @@ const SynPro = (() => {
   function cableById(id){ return state.cables.find(function(c){ return c.id===id; }); }
   function netById(id){ return state.networks.find(function(n){ return n.id===id; }); }
 
+  /* ── Save status indicator ── */
+  function _setSaveStatus(st) {
+    /* st: 'saving' | 'saved' | 'error' */
+    var el = document.getElementById('sp-save-status');
+    if (!el) return;
+    if (st === 'saving') {
+      el.innerHTML = '<i class="ti ti-loader-2" style="animation:spin .8s linear infinite"></i> Sauvegarde…';
+      el.style.color = 'var(--muted)';
+    } else if (st === 'saved') {
+      el.innerHTML = '<i class="ti ti-circle-check-filled"></i> Sauvegarde';
+      el.style.color = '#22c55e';
+    } else if (st === 'error') {
+      el.innerHTML = '<i class="ti ti-alert-triangle"></i> Erreur sauvegarde';
+      el.style.color = 'var(--err)';
+    }
+  }
+
   /* ── Persistence ── */
   function scheduleSave() {
-    /* 1. Save to localStorage IMMEDIATELY (synchronous, survives page reload) */
+    /* 1. Save to localStorage IMMEDIATELY (synchronous, survives same-origin reload) */
     _lsSave();
-    /* 2. Debounce the DB write to avoid hammering Supabase */
+    _setSaveStatus('saving');
+    /* 2. Debounce the DB write — short delay (600ms) so DB is almost always
+       up-to-date before the user switches browser/device */
     if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(_save, 1500);
+    saveTimer = setTimeout(_save, 600);
   }
   async function _saveNow() {
     _lsSave();
@@ -5099,9 +5119,18 @@ const SynPro = (() => {
     CUR_SHOW.synoptique_data = state;
     try {
       const { error } = await sb.from('shows').update({ synoptique_data: state }).eq('id', CUR_SHOW.id);
-      if (error) console.error('SynPro save:', error);
-      else _lsClear(); /* DB confirmed — remove local cache */
-    } catch (e) { console.error('SynPro save', e); }
+      if (error) {
+        console.error('SynPro save:', error);
+        _setSaveStatus('error');
+        toast('Erreur sauvegarde synoptique : ' + (error.message || ''));
+      } else {
+        _lsClear();
+        _setSaveStatus('saved');
+      }
+    } catch (e) {
+      console.error('SynPro save', e);
+      _setSaveStatus('error');
+    }
   }
   function _load() {
     if (!CUR_SHOW) return false;
@@ -5983,11 +6012,13 @@ const SynPro = (() => {
         _renderEdges();
       });
     }
-    /* Keyboard shortcut Ctrl+0 = fit view */
+    /* Keyboard shortcuts */
     document.addEventListener('keydown', function(e){
       if ((e.ctrlKey || e.metaKey) && (e.key === '0' || e.key === '=')) { e.preventDefault(); fitView(); }
       if ((e.ctrlKey || e.metaKey) && e.key === '+') { e.preventDefault(); _zoomBy(1.2); }
       if ((e.ctrlKey || e.metaKey) && e.key === '-') { e.preventDefault(); _zoomBy(1/1.2); }
+      /* Cmd/Ctrl+S = force save immediately */
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); _saveNow(); }
     });
 
     /* Editable header texts (in canvas header) */
