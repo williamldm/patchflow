@@ -5036,13 +5036,17 @@ const SynPro = (() => {
     if (!CUR_SHOW || !state) return;
     CUR_SHOW.synoptique_data = state;
     try {
-      const { error } = await sb.from('shows').update({ synoptique_data: state }).eq('id', CUR_SHOW.id);
+      const { error } = await sb.from('shows').update({ synoptique_data: JSON.stringify(state) }).eq('id', CUR_SHOW.id);
       if (error) console.error('SynPro save:', error);
     } catch (e) { console.error('SynPro save', e); }
   }
   function _load() {
     if (!CUR_SHOW) return false;
     var saved = CUR_SHOW.synoptique_data;
+    /* Parse JSON string if needed (Supabase may return string or object) */
+    if (typeof saved === 'string') {
+      try { saved = JSON.parse(saved); } catch(e) { saved = null; }
+    }
     /* Migration : old SynEditor data had .scenes — drop it and start fresh.
        The user explicitly asked to remove old synoptique data. */
     if (saved && (saved.scenes || saved.activeScene !== undefined)) {
