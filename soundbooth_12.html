@@ -4742,130 +4742,154 @@ function saveSite(){saveStage();}
 // ══════════════════════════════════════
 const SynPro = (() => {
 
-  /* ── Equipment library — SVG icons grouped by brand puis categorie generique ──
-     Items per brand : consoles + racks de scene/IO fusionnes. Tous les types
-     historiques conserves (compatibilite des donnees deja sauvegardees). */
+  /* ── Equipment library — SVG icons.
+     Structure : type d'equipement en premier, marque en second.
+     Exemple : "Consoles — Allen & Heath", "Stageboxes — Yamaha", etc.
+     Tous les types historiques conserves (compat donnees sauvegardees). */
   const LIB = [
-    /* ─── ALLEN & HEATH ─── */
-    { type:'console.dlive-s5000',  cat:'Allen & Heath', label:'dLive S5000',    defaultSub:'Surface dLive',              w:200, h:130, icon:_iconConsoleLarge() },
-    { type:'console.dlive-s7000',  cat:'Allen & Heath', label:'dLive S7000',    defaultSub:'Surface dLive grande',       w:220, h:135, icon:_iconConsoleLarge() },
-    { type:'console.dlive-c3500',  cat:'Allen & Heath', label:'dLive C3500',    defaultSub:'Surface dLive compacte',     w:180, h:120, icon:_iconConsoleCompact() },
-    { type:'console.dlive-c1500',  cat:'Allen & Heath', label:'dLive C1500',    defaultSub:'Surface dLive compacte',     w:170, h:115, icon:_iconConsoleCompact() },
-    { type:'console.ah-avantis',   cat:'Allen & Heath', label:'Avantis',        defaultSub:'64 voies · 12 stages',       w:200, h:125, icon:_iconConsoleCompact() },
-    { type:'console.sq5',          cat:'Allen & Heath', label:'SQ-5',           defaultSub:'48 ch · 24 mix bus',         w:170, h:110, icon:_iconConsoleCompact() },
-    { type:'console.sq6',          cat:'Allen & Heath', label:'SQ-6',           defaultSub:'48 ch · 24 mix bus',         w:180, h:115, icon:_iconConsoleCompact() },
-    { type:'console.sq7',          cat:'Allen & Heath', label:'SQ-7',           defaultSub:'48 ch · 24 mix bus',         w:190, h:118, icon:_iconConsoleCompact() },
-    { type:'console.qu32',         cat:'Allen & Heath', label:'Qu-32',          defaultSub:'32 ch',                      w:180, h:115, icon:_iconConsoleCompact() },
-    { type:'console.qu24',         cat:'Allen & Heath', label:'Qu-24',          defaultSub:'24 ch',                      w:170, h:110, icon:_iconConsoleCompact() },
-    { type:'rack.dlive-dm48',      cat:'Allen & Heath', label:'DM48 MixRack',   defaultSub:'48 in / 24 out · 5 AES',     w:170, h:140, icon:_iconRack(5) },
-    { type:'rack.dlive-dm32',      cat:'Allen & Heath', label:'DM32 MixRack',   defaultSub:'32 in / 16 out',             w:170, h:130, icon:_iconRack(4) },
-    { type:'rack.dlive-dm64',      cat:'Allen & Heath', label:'DM64 MixRack',   defaultSub:'64 in / 32 out',             w:170, h:150, icon:_iconRack(6) },
-    { type:'rack.dlive-dm0',       cat:'Allen & Heath', label:'DM0 MixRack',    defaultSub:'128 in / 64 out',            w:170, h:155, icon:_iconRack(6) },
-    { type:'io.dx168',             cat:'Allen & Heath', label:'DX168',          defaultSub:'16 in / 8 out',              w:160, h:90,  icon:_iconStagebox() },
-    { type:'io.dx32',              cat:'Allen & Heath', label:'DX32',          defaultSub:'4 slots modulaires',         w:160, h:95,  icon:_iconStagebox() },
-    { type:'io.ar2412',            cat:'Allen & Heath', label:'AR2412',         defaultSub:'24 in / 12 out',             w:160, h:90,  icon:_iconStagebox() },
-    { type:'io.ar84',              cat:'Allen & Heath', label:'AR84',           defaultSub:'8 in / 4 out',               w:150, h:85,  icon:_iconStagebox() },
 
-    /* ─── YAMAHA ─── */
-    { type:'console.yam-cl5',      cat:'Yamaha',        label:'CL5',            defaultSub:'72 mix · 8 matrix',          w:210, h:130, icon:_iconConsoleLarge() },
-    { type:'console.yam-cl3',      cat:'Yamaha',        label:'CL3',            defaultSub:'72 mix · 16 fader',          w:200, h:125, icon:_iconConsoleLarge() },
-    { type:'console.yam-cl1',      cat:'Yamaha',        label:'CL1',            defaultSub:'72 mix · 8 fader',           w:180, h:120, icon:_iconConsoleCompact() },
-    { type:'console.cl5',          cat:'Yamaha',        label:'CL5 (alias)',    defaultSub:'Console FOH Yamaha',         w:200, h:125, icon:_iconConsoleLarge() },
-    { type:'console.yam-ql5',      cat:'Yamaha',        label:'QL5',            defaultSub:'64 ch · 32 mic',             w:190, h:120, icon:_iconConsoleLarge() },
-    { type:'console.yam-ql1',      cat:'Yamaha',        label:'QL1',            defaultSub:'32 ch compact',              w:170, h:110, icon:_iconConsoleCompact() },
-    { type:'console.yam-dm7',      cat:'Yamaha',        label:'DM7',            defaultSub:'72 ch · tactile',            w:200, h:130, icon:_iconConsoleLarge() },
-    { type:'console.yam-dm3',      cat:'Yamaha',        label:'DM3',            defaultSub:'22 ch compact',              w:170, h:115, icon:_iconConsoleCompact() },
-    { type:'console.yam-rivage7',  cat:'Yamaha',        label:'Rivage PM7',     defaultSub:'144 in · grand format',      w:210, h:135, icon:_iconConsoleLarge() },
-    { type:'console.yam-rivage10', cat:'Yamaha',        label:'Rivage PM10',    defaultSub:'144 in · flagship',          w:220, h:140, icon:_iconConsoleLarge() },
-    { type:'console.yam-rivage5',  cat:'Yamaha',        label:'Rivage PM5',     defaultSub:'120 in · compact',           w:200, h:130, icon:_iconConsoleLarge() },
-    { type:'rack.yam-rio3224',     cat:'Yamaha',        label:'Rio3224-D2',     defaultSub:'32 in / 16 out · Dante',     w:170, h:120, icon:_iconRack(5) },
-    { type:'rack.yam-rio1608',     cat:'Yamaha',        label:'Rio1608-D2',     defaultSub:'16 in / 8 out · Dante',      w:170, h:100, icon:_iconRack(3) },
-    { type:'rack.yam-tio1608',     cat:'Yamaha',        label:'Tio1608-D2',     defaultSub:'16 in / 8 out · Dante',      w:170, h:100, icon:_iconRack(3) },
-    { type:'rack.yam-rpio',        cat:'Yamaha',        label:'RPio622 / 222',  defaultSub:'Rivage stagebox',            w:170, h:120, icon:_iconRack(5) },
+    /* ══════════════ CONSOLES ══════════════ */
 
-    /* ─── DiGiCo ─── */
-    { type:'console.dig-sd12',     cat:'DiGiCo',        label:'SD12',           defaultSub:'72 ch · 48 buses',           w:200, h:130, icon:_iconConsoleLarge() },
-    { type:'console.dig-sd11',     cat:'DiGiCo',        label:'SD11i',          defaultSub:'32 ch · compact',            w:180, h:115, icon:_iconConsoleCompact() },
-    { type:'console.dig-sd9',      cat:'DiGiCo',        label:'SD9',            defaultSub:'48 ch · 24 buses',           w:190, h:125, icon:_iconConsoleLarge() },
-    { type:'console.dig-s21',      cat:'DiGiCo',        label:'S21',            defaultSub:'48 ch · compact',            w:170, h:115, icon:_iconConsoleCompact() },
-    { type:'console.dig-s31',      cat:'DiGiCo',        label:'S31',            defaultSub:'48 ch · 24 fader',           w:200, h:125, icon:_iconConsoleLarge() },
-    { type:'console.dig-q338',     cat:'DiGiCo',        label:'Quantum 338',    defaultSub:'128 ch · grand format',      w:220, h:140, icon:_iconConsoleLarge() },
-    { type:'console.dig-q225',     cat:'DiGiCo',        label:'Quantum 225',    defaultSub:'128 ch · compact',           w:200, h:130, icon:_iconConsoleLarge() },
-    { type:'console.dig-q852',     cat:'DiGiCo',        label:'Quantum 852',    defaultSub:'flagship',                   w:230, h:145, icon:_iconConsoleLarge() },
-    { type:'rack.dig-sdrack',      cat:'DiGiCo',        label:'SD-Rack',        defaultSub:'56 in / 56 out',             w:170, h:140, icon:_iconRack(5) },
-    { type:'rack.dig-sdmini',      cat:'DiGiCo',        label:'SD-MiNi Rack',   defaultSub:'24 in / 16 out',             w:170, h:120, icon:_iconRack(3) },
-    { type:'rack.dig-sdnano',      cat:'DiGiCo',        label:'SD-NANO Rack',   defaultSub:'24 in / 12 out',             w:160, h:110, icon:_iconRack(3) },
+    /* Consoles — Allen & Heath */
+    { type:'console.dlive-s5000',  cat:'Consoles — Allen & Heath', label:'dLive S5000',    defaultSub:'Surface dLive',          w:200, h:130, icon:_iconConsoleLarge() },
+    { type:'console.dlive-s7000',  cat:'Consoles — Allen & Heath', label:'dLive S7000',    defaultSub:'Surface dLive grande',   w:220, h:135, icon:_iconConsoleLarge() },
+    { type:'console.dlive-c3500',  cat:'Consoles — Allen & Heath', label:'dLive C3500',    defaultSub:'Surface dLive compacte', w:180, h:120, icon:_iconConsoleCompact() },
+    { type:'console.dlive-c1500',  cat:'Consoles — Allen & Heath', label:'dLive C1500',    defaultSub:'Surface dLive compacte', w:170, h:115, icon:_iconConsoleCompact() },
+    { type:'console.ah-avantis',   cat:'Consoles — Allen & Heath', label:'Avantis',        defaultSub:'64 voies · 12 stages',   w:200, h:125, icon:_iconConsoleCompact() },
+    { type:'console.sq7',          cat:'Consoles — Allen & Heath', label:'SQ-7',           defaultSub:'48 ch · 24 mix bus',     w:190, h:118, icon:_iconConsoleCompact() },
+    { type:'console.sq6',          cat:'Consoles — Allen & Heath', label:'SQ-6',           defaultSub:'48 ch · 24 mix bus',     w:180, h:115, icon:_iconConsoleCompact() },
+    { type:'console.sq5',          cat:'Consoles — Allen & Heath', label:'SQ-5',           defaultSub:'48 ch · 24 mix bus',     w:170, h:110, icon:_iconConsoleCompact() },
+    { type:'console.qu32',         cat:'Consoles — Allen & Heath', label:'Qu-32',          defaultSub:'32 ch',                  w:180, h:115, icon:_iconConsoleCompact() },
+    { type:'console.qu24',         cat:'Consoles — Allen & Heath', label:'Qu-24',          defaultSub:'24 ch',                  w:170, h:110, icon:_iconConsoleCompact() },
 
-    /* ─── MIDAS ─── */
-    { type:'console.mid-m32',      cat:'Midas',         label:'M32',            defaultSub:'32 ch · 16 bus',             w:200, h:120, icon:_iconConsoleLarge() },
-    { type:'console.mid-m32r',     cat:'Midas',         label:'M32R Live',      defaultSub:'40 input ch',                w:180, h:115, icon:_iconConsoleCompact() },
-    { type:'console.mid-m32c',     cat:'Midas',         label:'M32C',           defaultSub:'rack',                       w:170, h:100, icon:_iconRack(3) },
-    { type:'console.m32',          cat:'Midas',         label:'M32 (alias)',    defaultSub:'Console Midas/Behringer',    w:180, h:115, icon:_iconConsoleCompact() },
-    { type:'console.mid-prox',     cat:'Midas',         label:'PRO X',          defaultSub:'168 in · flagship',          w:220, h:135, icon:_iconConsoleLarge() },
-    { type:'console.mid-pro9',     cat:'Midas',         label:'PRO9',           defaultSub:'88 in',                      w:210, h:130, icon:_iconConsoleLarge() },
-    { type:'console.mid-pro2',     cat:'Midas',         label:'PRO2',           defaultSub:'64 in · compact',            w:200, h:125, icon:_iconConsoleLarge() },
-    { type:'console.mid-pro1',     cat:'Midas',         label:'PRO1',           defaultSub:'40 in',                      w:190, h:120, icon:_iconConsoleCompact() },
-    { type:'console.mid-hd96',     cat:'Midas',         label:'HD96-24',        defaultSub:'120 in · pavillon',          w:220, h:140, icon:_iconConsoleLarge() },
-    { type:'rack.mid-dl16',        cat:'Midas',         label:'DL16',           defaultSub:'16 in / 8 out',              w:170, h:100, icon:_iconRack(3) },
-    { type:'rack.mid-dl32',        cat:'Midas',         label:'DL32',           defaultSub:'32 in / 16 out',             w:170, h:120, icon:_iconRack(4) },
-    { type:'rack.mid-dl151',       cat:'Midas',         label:'DL151',          defaultSub:'24 in · simple',             w:170, h:110, icon:_iconRack(3) },
-    { type:'rack.mid-dl251',       cat:'Midas',         label:'DL251',          defaultSub:'48 in / 16 out',             w:170, h:135, icon:_iconRack(5) },
+    /* Consoles — Yamaha */
+    { type:'console.yam-rivage10', cat:'Consoles — Yamaha', label:'Rivage PM10',  defaultSub:'144 in · flagship',      w:220, h:140, icon:_iconConsoleLarge() },
+    { type:'console.yam-rivage7',  cat:'Consoles — Yamaha', label:'Rivage PM7',   defaultSub:'144 in · grand format',  w:210, h:135, icon:_iconConsoleLarge() },
+    { type:'console.yam-rivage5',  cat:'Consoles — Yamaha', label:'Rivage PM5',   defaultSub:'120 in · compact',       w:200, h:130, icon:_iconConsoleLarge() },
+    { type:'console.yam-cl5',      cat:'Consoles — Yamaha', label:'CL5',          defaultSub:'72 mix · 8 matrix',      w:210, h:130, icon:_iconConsoleLarge() },
+    { type:'console.yam-cl3',      cat:'Consoles — Yamaha', label:'CL3',          defaultSub:'72 mix · 16 fader',      w:200, h:125, icon:_iconConsoleLarge() },
+    { type:'console.yam-cl1',      cat:'Consoles — Yamaha', label:'CL1',          defaultSub:'72 mix · 8 fader',       w:180, h:120, icon:_iconConsoleCompact() },
+    { type:'console.yam-ql5',      cat:'Consoles — Yamaha', label:'QL5',          defaultSub:'64 ch · 32 mic',         w:190, h:120, icon:_iconConsoleLarge() },
+    { type:'console.yam-ql1',      cat:'Consoles — Yamaha', label:'QL1',          defaultSub:'32 ch compact',          w:170, h:110, icon:_iconConsoleCompact() },
+    { type:'console.yam-dm7',      cat:'Consoles — Yamaha', label:'DM7',          defaultSub:'72 ch · tactile',        w:200, h:130, icon:_iconConsoleLarge() },
+    { type:'console.yam-dm3',      cat:'Consoles — Yamaha', label:'DM3',          defaultSub:'22 ch compact',          w:170, h:115, icon:_iconConsoleCompact() },
+    { type:'console.cl5',          cat:'Consoles — Yamaha', label:'CL5 (ancien)', defaultSub:'Console FOH Yamaha',     w:200, h:125, icon:_iconConsoleLarge() },
 
-    /* ─── BEHRINGER ─── */
-    { type:'console.beh-x32',      cat:'Behringer',     label:'X32',            defaultSub:'32 ch · 16 bus',             w:200, h:120, icon:_iconConsoleLarge() },
-    { type:'console.beh-x32c',     cat:'Behringer',     label:'X32 Compact',    defaultSub:'32 ch compact',              w:180, h:115, icon:_iconConsoleCompact() },
-    { type:'console.beh-x32p',     cat:'Behringer',     label:'X32 Producer',   defaultSub:'32 ch · 16 fader',           w:170, h:110, icon:_iconConsoleCompact() },
-    { type:'console.beh-x32rack',  cat:'Behringer',     label:'X32 Rack',       defaultSub:'rackmount',                  w:170, h:100, icon:_iconRack(3) },
-    { type:'console.beh-x32core',  cat:'Behringer',     label:'X32 Core',       defaultSub:'moteur sans surface',        w:160, h:85,  icon:_iconRack(2) },
-    { type:'console.beh-wing',     cat:'Behringer',     label:'Wing',           defaultSub:'48 ch · tactile',            w:210, h:130, icon:_iconConsoleLarge() },
-    { type:'rack.beh-s16',         cat:'Behringer',     label:'S16',            defaultSub:'16 in / 8 out',              w:160, h:90,  icon:_iconStagebox() },
-    { type:'rack.beh-s32',         cat:'Behringer',     label:'S32',            defaultSub:'32 in / 16 out',             w:160, h:100, icon:_iconStagebox() },
-    { type:'rack.beh-sd16',        cat:'Behringer',     label:'SD16',           defaultSub:'16 in / 8 out',              w:160, h:90,  icon:_iconStagebox() },
-    { type:'rack.beh-sd8',         cat:'Behringer',     label:'SD8',            defaultSub:'8 in / 4 out',               w:150, h:85,  icon:_iconStagebox() },
+    /* Consoles — DiGiCo */
+    { type:'console.dig-q852',     cat:'Consoles — DiGiCo', label:'Quantum 852',  defaultSub:'flagship',               w:230, h:145, icon:_iconConsoleLarge() },
+    { type:'console.dig-q338',     cat:'Consoles — DiGiCo', label:'Quantum 338',  defaultSub:'128 ch · grand format',  w:220, h:140, icon:_iconConsoleLarge() },
+    { type:'console.dig-q225',     cat:'Consoles — DiGiCo', label:'Quantum 225',  defaultSub:'128 ch · compact',       w:200, h:130, icon:_iconConsoleLarge() },
+    { type:'console.dig-sd12',     cat:'Consoles — DiGiCo', label:'SD12',         defaultSub:'72 ch · 48 buses',       w:200, h:130, icon:_iconConsoleLarge() },
+    { type:'console.dig-sd9',      cat:'Consoles — DiGiCo', label:'SD9',          defaultSub:'48 ch · 24 buses',       w:190, h:125, icon:_iconConsoleLarge() },
+    { type:'console.dig-s31',      cat:'Consoles — DiGiCo', label:'S31',          defaultSub:'48 ch · 24 fader',       w:200, h:125, icon:_iconConsoleLarge() },
+    { type:'console.dig-sd11',     cat:'Consoles — DiGiCo', label:'SD11i',        defaultSub:'32 ch · compact',        w:180, h:115, icon:_iconConsoleCompact() },
+    { type:'console.dig-s21',      cat:'Consoles — DiGiCo', label:'S21',          defaultSub:'48 ch · compact',        w:170, h:115, icon:_iconConsoleCompact() },
 
-    /* ─── SOUNDCRAFT ─── */
-    { type:'console.sc-vi3000',    cat:'Soundcraft',    label:'Vi3000',         defaultSub:'96 ch',                      w:210, h:130, icon:_iconConsoleLarge() },
-    { type:'console.sc-vi2000',    cat:'Soundcraft',    label:'Vi2000',         defaultSub:'64 ch',                      w:200, h:125, icon:_iconConsoleLarge() },
-    { type:'console.sc-vi1000',    cat:'Soundcraft',    label:'Vi1000',         defaultSub:'48 ch',                      w:190, h:120, icon:_iconConsoleCompact() },
-    { type:'console.sc-siperf',    cat:'Soundcraft',    label:'Si Performer 3', defaultSub:'80 ch · live',               w:200, h:120, icon:_iconConsoleLarge() },
-    { type:'console.sc-siexp',     cat:'Soundcraft',    label:'Si Expression 3',defaultSub:'66 ch',                      w:200, h:115, icon:_iconConsoleCompact() },
-    { type:'console.sc-siimpact',  cat:'Soundcraft',    label:'Si Impact',      defaultSub:'80 in · 40 fader',           w:200, h:120, icon:_iconConsoleLarge() },
-    { type:'rack.sc-stage64',      cat:'Soundcraft',    label:'Stagebox 64',    defaultSub:'64 in / 32 out',             w:170, h:140, icon:_iconRack(6) },
-    { type:'rack.sc-stage32',      cat:'Soundcraft',    label:'Stagebox 32',    defaultSub:'32 in / 16 out',             w:170, h:120, icon:_iconRack(4) },
+    /* Consoles — Midas */
+    { type:'console.mid-hd96',     cat:'Consoles — Midas',  label:'HD96-24',      defaultSub:'120 in · pavillon',      w:220, h:140, icon:_iconConsoleLarge() },
+    { type:'console.mid-prox',     cat:'Consoles — Midas',  label:'PRO X',        defaultSub:'168 in · flagship',      w:220, h:135, icon:_iconConsoleLarge() },
+    { type:'console.mid-pro9',     cat:'Consoles — Midas',  label:'PRO9',         defaultSub:'88 in',                  w:210, h:130, icon:_iconConsoleLarge() },
+    { type:'console.mid-pro2',     cat:'Consoles — Midas',  label:'PRO2',         defaultSub:'64 in · compact',        w:200, h:125, icon:_iconConsoleLarge() },
+    { type:'console.mid-pro1',     cat:'Consoles — Midas',  label:'PRO1',         defaultSub:'40 in',                  w:190, h:120, icon:_iconConsoleCompact() },
+    { type:'console.mid-m32',      cat:'Consoles — Midas',  label:'M32',          defaultSub:'32 ch · 16 bus',         w:200, h:120, icon:_iconConsoleLarge() },
+    { type:'console.mid-m32r',     cat:'Consoles — Midas',  label:'M32R Live',    defaultSub:'40 input ch',            w:180, h:115, icon:_iconConsoleCompact() },
+    { type:'console.mid-m32c',     cat:'Consoles — Midas',  label:'M32C',         defaultSub:'rack console',           w:170, h:100, icon:_iconRack(3) },
+    { type:'console.m32',          cat:'Consoles — Midas',  label:'M32 (ancien)', defaultSub:'Console Midas/Behringer',w:180, h:115, icon:_iconConsoleCompact() },
 
-    /* ─── AVID ─── */
-    { type:'console.av-s6l',       cat:'Avid',          label:'VENUE | S6L',    defaultSub:'192 in · flagship',          w:220, h:140, icon:_iconConsoleLarge() },
-    { type:'console.av-s3l',       cat:'Avid',          label:'S3L-X',          defaultSub:'64 in · compact',            w:200, h:120, icon:_iconConsoleCompact() },
-    { type:'console.av-profile',   cat:'Avid',          label:'VENUE Profile',  defaultSub:'96 in',                      w:210, h:130, icon:_iconConsoleLarge() },
-    { type:'console.av-sc48',      cat:'Avid',          label:'VENUE SC48',     defaultSub:'48 in compact',              w:190, h:120, icon:_iconConsoleCompact() },
-    { type:'rack.av-stage64',      cat:'Avid',          label:'Stage 64',       defaultSub:'64 in / 32 out',             w:170, h:140, icon:_iconRack(6) },
-    { type:'rack.av-stage48',      cat:'Avid',          label:'Stage 48',       defaultSub:'48 in / 24 out',             w:170, h:130, icon:_iconRack(5) },
-    { type:'rack.av-stage16',      cat:'Avid',          label:'Stage 16',       defaultSub:'16 in / 8 out',              w:170, h:100, icon:_iconRack(3) },
+    /* Consoles — Behringer */
+    { type:'console.beh-wing',     cat:'Consoles — Behringer', label:'Wing',         defaultSub:'48 ch · tactile',     w:210, h:130, icon:_iconConsoleLarge() },
+    { type:'console.beh-x32',      cat:'Consoles — Behringer', label:'X32',          defaultSub:'32 ch · 16 bus',      w:200, h:120, icon:_iconConsoleLarge() },
+    { type:'console.beh-x32c',     cat:'Consoles — Behringer', label:'X32 Compact',  defaultSub:'32 ch compact',       w:180, h:115, icon:_iconConsoleCompact() },
+    { type:'console.beh-x32p',     cat:'Consoles — Behringer', label:'X32 Producer', defaultSub:'32 ch · 16 fader',    w:170, h:110, icon:_iconConsoleCompact() },
+    { type:'console.beh-x32rack',  cat:'Consoles — Behringer', label:'X32 Rack',     defaultSub:'rackmount',           w:170, h:100, icon:_iconRack(3) },
+    { type:'console.beh-x32core',  cat:'Consoles — Behringer', label:'X32 Core',     defaultSub:'moteur sans surface', w:160, h:85,  icon:_iconRack(2) },
 
-    /* ─── SSL Live ─── */
-    { type:'console.ssl-l100',     cat:'SSL',           label:'L100',           defaultSub:'72 ch',                      w:200, h:125, icon:_iconConsoleLarge() },
-    { type:'console.ssl-l200',     cat:'SSL',           label:'L200',           defaultSub:'144 ch',                     w:210, h:130, icon:_iconConsoleLarge() },
-    { type:'console.ssl-l300',     cat:'SSL',           label:'L300',           defaultSub:'288 ch',                     w:220, h:135, icon:_iconConsoleLarge() },
-    { type:'console.ssl-l500',     cat:'SSL',           label:'L500',           defaultSub:'flagship',                   w:230, h:140, icon:_iconConsoleLarge() },
-    { type:'rack.ssl-stagebox',    cat:'SSL',           label:'SSL Live SB',    defaultSub:'32 in / 16 out',             w:170, h:120, icon:_iconRack(4) },
+    /* Consoles — Soundcraft */
+    { type:'console.sc-vi3000',    cat:'Consoles — Soundcraft', label:'Vi3000',         defaultSub:'96 ch',            w:210, h:130, icon:_iconConsoleLarge() },
+    { type:'console.sc-vi2000',    cat:'Consoles — Soundcraft', label:'Vi2000',         defaultSub:'64 ch',            w:200, h:125, icon:_iconConsoleLarge() },
+    { type:'console.sc-vi1000',    cat:'Consoles — Soundcraft', label:'Vi1000',         defaultSub:'48 ch',            w:190, h:120, icon:_iconConsoleCompact() },
+    { type:'console.sc-siperf',    cat:'Consoles — Soundcraft', label:'Si Performer 3', defaultSub:'80 ch · live',     w:200, h:120, icon:_iconConsoleLarge() },
+    { type:'console.sc-siexp',     cat:'Consoles — Soundcraft', label:'Si Expression 3',defaultSub:'66 ch',            w:200, h:115, icon:_iconConsoleCompact() },
+    { type:'console.sc-siimpact',  cat:'Consoles — Soundcraft', label:'Si Impact',      defaultSub:'80 in · 40 fader', w:200, h:120, icon:_iconConsoleLarge() },
 
-    /* ─── GENERIQUE — racks/IO sans marque ─── */
-    { type:'rack.generic',         cat:'Generique',     label:'Rack vide',      defaultSub:'',                           w:160, h:140, icon:_iconRack(4) },
-    { type:'io.stagebox',          cat:'Generique',     label:'Stagebox',       defaultSub:'Generique',                  w:150, h:80,  icon:_iconStagebox() },
-    { type:'console.generic',      cat:'Generique',     label:'Console generique', defaultSub:'',                        w:180, h:115, icon:_iconConsoleCompact() },
+    /* Consoles — Avid */
+    { type:'console.av-s6l',       cat:'Consoles — Avid', label:'VENUE | S6L',  defaultSub:'192 in · flagship',      w:220, h:140, icon:_iconConsoleLarge() },
+    { type:'console.av-profile',   cat:'Consoles — Avid', label:'VENUE Profile',defaultSub:'96 in',                  w:210, h:130, icon:_iconConsoleLarge() },
+    { type:'console.av-s3l',       cat:'Consoles — Avid', label:'S3L-X',        defaultSub:'64 in · compact',        w:200, h:120, icon:_iconConsoleCompact() },
+    { type:'console.av-sc48',      cat:'Consoles — Avid', label:'VENUE SC48',   defaultSub:'48 in compact',          w:190, h:120, icon:_iconConsoleCompact() },
 
-    /* ─── AMPLIS ─── */
-    { type:'amp.linus12',          cat:'Amplis',        label:'Coda Linus 12',  defaultSub:'4 ch · 4 x 3000W',           w:170, h:100, icon:_iconAmp() },
+    /* Consoles — SSL */
+    { type:'console.ssl-l500',     cat:'Consoles — SSL', label:'L500',          defaultSub:'flagship',                w:230, h:140, icon:_iconConsoleLarge() },
+    { type:'console.ssl-l300',     cat:'Consoles — SSL', label:'L300',          defaultSub:'288 ch',                  w:220, h:135, icon:_iconConsoleLarge() },
+    { type:'console.ssl-l200',     cat:'Consoles — SSL', label:'L200',          defaultSub:'144 ch',                  w:210, h:130, icon:_iconConsoleLarge() },
+    { type:'console.ssl-l100',     cat:'Consoles — SSL', label:'L100',          defaultSub:'72 ch',                   w:200, h:125, icon:_iconConsoleLarge() },
+
+    /* Consoles — Generique */
+    { type:'console.generic',      cat:'Consoles — Generique', label:'Console generique', defaultSub:'',             w:180, h:115, icon:_iconConsoleCompact() },
+
+    /* ══════════════ STAGEBOXES & RACKS ══════════════ */
+
+    /* Stageboxes — Allen & Heath */
+    { type:'rack.dlive-dm0',       cat:'Stageboxes — Allen & Heath', label:'DM0 MixRack',   defaultSub:'128 in / 64 out',        w:170, h:155, icon:_iconRack(6) },
+    { type:'rack.dlive-dm64',      cat:'Stageboxes — Allen & Heath', label:'DM64 MixRack',   defaultSub:'64 in / 32 out',         w:170, h:150, icon:_iconRack(6) },
+    { type:'rack.dlive-dm48',      cat:'Stageboxes — Allen & Heath', label:'DM48 MixRack',   defaultSub:'48 in / 24 out · 5 AES', w:170, h:140, icon:_iconRack(5) },
+    { type:'rack.dlive-dm32',      cat:'Stageboxes — Allen & Heath', label:'DM32 MixRack',   defaultSub:'32 in / 16 out',         w:170, h:130, icon:_iconRack(4) },
+    { type:'io.dx168',             cat:'Stageboxes — Allen & Heath', label:'DX168',           defaultSub:'16 in / 8 out',          w:160, h:90,  icon:_iconStagebox() },
+    { type:'io.dx32',              cat:'Stageboxes — Allen & Heath', label:'DX32',            defaultSub:'4 slots modulaires',     w:160, h:95,  icon:_iconStagebox() },
+    { type:'io.ar2412',            cat:'Stageboxes — Allen & Heath', label:'AR2412',          defaultSub:'24 in / 12 out',         w:160, h:90,  icon:_iconStagebox() },
+    { type:'io.ar84',              cat:'Stageboxes — Allen & Heath', label:'AR84',            defaultSub:'8 in / 4 out',           w:150, h:85,  icon:_iconStagebox() },
+
+    /* Stageboxes — Yamaha */
+    { type:'rack.yam-rpio',        cat:'Stageboxes — Yamaha', label:'RPio622 / 222',   defaultSub:'Rivage stagebox',        w:170, h:120, icon:_iconRack(5) },
+    { type:'rack.yam-rio3224',     cat:'Stageboxes — Yamaha', label:'Rio3224-D2',      defaultSub:'32 in / 16 out · Dante', w:170, h:120, icon:_iconRack(5) },
+    { type:'rack.yam-rio1608',     cat:'Stageboxes — Yamaha', label:'Rio1608-D2',      defaultSub:'16 in / 8 out · Dante',  w:170, h:100, icon:_iconRack(3) },
+    { type:'rack.yam-tio1608',     cat:'Stageboxes — Yamaha', label:'Tio1608-D2',      defaultSub:'16 in / 8 out · Dante',  w:170, h:100, icon:_iconRack(3) },
+
+    /* Stageboxes — DiGiCo */
+    { type:'rack.dig-sdrack',      cat:'Stageboxes — DiGiCo', label:'SD-Rack',         defaultSub:'56 in / 56 out',         w:170, h:140, icon:_iconRack(5) },
+    { type:'rack.dig-sdmini',      cat:'Stageboxes — DiGiCo', label:'SD-MiNi Rack',    defaultSub:'24 in / 16 out',         w:170, h:120, icon:_iconRack(3) },
+    { type:'rack.dig-sdnano',      cat:'Stageboxes — DiGiCo', label:'SD-NANO Rack',    defaultSub:'24 in / 12 out',         w:160, h:110, icon:_iconRack(3) },
+
+    /* Stageboxes — Midas */
+    { type:'rack.mid-dl251',       cat:'Stageboxes — Midas',  label:'DL251',           defaultSub:'48 in / 16 out',         w:170, h:135, icon:_iconRack(5) },
+    { type:'rack.mid-dl32',        cat:'Stageboxes — Midas',  label:'DL32',            defaultSub:'32 in / 16 out',         w:170, h:120, icon:_iconRack(4) },
+    { type:'rack.mid-dl151',       cat:'Stageboxes — Midas',  label:'DL151',           defaultSub:'24 in · simple',         w:170, h:110, icon:_iconRack(3) },
+    { type:'rack.mid-dl16',        cat:'Stageboxes — Midas',  label:'DL16',            defaultSub:'16 in / 8 out',          w:170, h:100, icon:_iconRack(3) },
+
+    /* Stageboxes — Behringer */
+    { type:'rack.beh-s32',         cat:'Stageboxes — Behringer', label:'S32',          defaultSub:'32 in / 16 out',         w:160, h:100, icon:_iconStagebox() },
+    { type:'rack.beh-s16',         cat:'Stageboxes — Behringer', label:'S16',          defaultSub:'16 in / 8 out',          w:160, h:90,  icon:_iconStagebox() },
+    { type:'rack.beh-sd16',        cat:'Stageboxes — Behringer', label:'SD16',         defaultSub:'16 in / 8 out · AES50',  w:160, h:90,  icon:_iconStagebox() },
+    { type:'rack.beh-sd8',         cat:'Stageboxes — Behringer', label:'SD8',          defaultSub:'8 in / 4 out · AES50',   w:150, h:85,  icon:_iconStagebox() },
+
+    /* Stageboxes — Soundcraft */
+    { type:'rack.sc-stage64',      cat:'Stageboxes — Soundcraft', label:'Stagebox 64', defaultSub:'64 in / 32 out',         w:170, h:140, icon:_iconRack(6) },
+    { type:'rack.sc-stage32',      cat:'Stageboxes — Soundcraft', label:'Stagebox 32', defaultSub:'32 in / 16 out',         w:170, h:120, icon:_iconRack(4) },
+
+    /* Stageboxes — Avid */
+    { type:'rack.av-stage64',      cat:'Stageboxes — Avid', label:'Stage 64',          defaultSub:'64 in / 32 out',         w:170, h:140, icon:_iconRack(6) },
+    { type:'rack.av-stage48',      cat:'Stageboxes — Avid', label:'Stage 48',          defaultSub:'48 in / 24 out',         w:170, h:130, icon:_iconRack(5) },
+    { type:'rack.av-stage16',      cat:'Stageboxes — Avid', label:'Stage 16',          defaultSub:'16 in / 8 out',          w:170, h:100, icon:_iconRack(3) },
+
+    /* Stageboxes — SSL */
+    { type:'rack.ssl-stagebox',    cat:'Stageboxes — SSL',  label:'SSL Live SB',        defaultSub:'32 in / 16 out',         w:170, h:120, icon:_iconRack(4) },
+
+    /* Stageboxes — Generique */
+    { type:'rack.generic',         cat:'Stageboxes — Generique', label:'Rack vide',    defaultSub:'',                       w:160, h:140, icon:_iconRack(4) },
+    { type:'io.stagebox',          cat:'Stageboxes — Generique', label:'Stagebox',     defaultSub:'Generique',              w:150, h:80,  icon:_iconStagebox() },
+
+    /* ══════════════ AMPLIS ══════════════ */
     { type:'amp.linus14',          cat:'Amplis',        label:'Coda Linus 14D', defaultSub:'4 ch DSP',                   w:170, h:100, icon:_iconAmp() },
+    { type:'amp.linus12',          cat:'Amplis',        label:'Coda Linus 12',  defaultSub:'4 ch · 4 x 3000W',           w:170, h:100, icon:_iconAmp() },
     { type:'amp.linus10',          cat:'Amplis',        label:'Coda Linus 10',  defaultSub:'4 ch · 4 x 2500W',           w:170, h:100, icon:_iconAmp() },
+    { type:'amp.lacoustics',       cat:'Amplis',        label:'L-Acoustics LA', defaultSub:'LA4X / LA12X',               w:170, h:100, icon:_iconAmp() },
+    { type:'amp.dnd',              cat:'Amplis',        label:'d&b D80 / D40',  defaultSub:'4 ch · controle d&b',        w:170, h:100, icon:_iconAmp() },
     { type:'amp.powersoft',        cat:'Amplis',        label:'Powersoft X4/X8',defaultSub:'4-8 ch DSP',                 w:170, h:100, icon:_iconAmp() },
     { type:'amp.lab-gruppen',      cat:'Amplis',        label:'Lab Gruppen',    defaultSub:'4 ch · jusque 5000W',        w:170, h:100, icon:_iconAmp() },
     { type:'amp.crown',            cat:'Amplis',        label:'Crown ITech',    defaultSub:'4 ch DSP',                   w:170, h:100, icon:_iconAmp() },
-    { type:'amp.dnd',              cat:'Amplis',        label:'D&B D80 / D40',  defaultSub:'4 ch · controle d&b',        w:170, h:100, icon:_iconAmp() },
-    { type:'amp.lacoustics',       cat:'Amplis',        label:'L-Acoustics LA', defaultSub:'LA4X / LA12X',               w:170, h:100, icon:_iconAmp() },
     { type:'amp.generic',          cat:'Amplis',        label:'Ampli generique',defaultSub:'',                           w:160, h:95,  icon:_iconAmp() },
 
-    /* ─── ENCEINTES ─── */
+    /* ══════════════ ENCEINTES ══════════════ */
     { type:'spk.line-top',         cat:'Enceintes',     label:'Top',            defaultSub:'Line array',                 w:130, h:115, icon:_iconLineArray() },
     { type:'spk.sub',              cat:'Enceintes',     label:'Sub',            defaultSub:'Subwoofer',                  w:130, h:105, icon:_iconSub() },
     { type:'spk.front-fill',       cat:'Enceintes',     label:'Front Fill',     defaultSub:'',                           w:130, h:100, icon:_iconSpeaker() },
@@ -4874,19 +4898,19 @@ const SynPro = (() => {
     { type:'spk.wedge',            cat:'Enceintes',     label:'Wedge',          defaultSub:'Retour de scene',            w:130, h:95,  icon:_iconWedge() },
     { type:'spk.delay',            cat:'Enceintes',     label:'Delay',          defaultSub:'Renfort delay',              w:130, h:100, icon:_iconSpeaker() },
 
-    /* ─── RESEAU ─── */
+    /* ══════════════ RESEAU ══════════════ */
     { type:'net.switch',           cat:'Reseau',        label:'Switch',         defaultSub:'Gigabit managed',            w:140, h:80,  icon:_iconSwitch() },
     { type:'net.wireless',         cat:'Reseau',        label:'WiFi',           defaultSub:'Point d\'acces',             w:130, h:80,  icon:_iconWifi() },
     { type:'net.reel',             cat:'Reseau',        label:'Touret',         defaultSub:'Bobine cable',               w:120, h:95,  icon:_iconReel() },
     { type:'net.fiber',            cat:'Reseau',        label:'Fibre',          defaultSub:'Monomode',                   w:130, h:80,  icon:_iconFiber() },
 
-    /* ─── SOURCES ─── */
+    /* ══════════════ SOURCES ══════════════ */
     { type:'src.mic',              cat:'Sources',       label:'Micro',          defaultSub:'',                           w:110, h:95,  icon:_iconMic() },
     { type:'src.di',               cat:'Sources',       label:'DI Box',         defaultSub:'Boitier d\'injection',       w:120, h:80,  icon:_iconDI() },
     { type:'src.iem',              cat:'Sources',       label:'IEM',            defaultSub:'Retour ear-monitor',         w:130, h:90,  icon:_iconIEM() },
     { type:'src.computer',         cat:'Sources',       label:'Ordinateur',     defaultSub:'',                           w:130, h:90,  icon:_iconComputer() },
 
-    /* ─── ANNOTATIONS ─── */
+    /* ══════════════ ANNOTATIONS ══════════════ */
     { type:'note',                 cat:'Annotations',   label:'Annotation',     defaultSub:'Texte libre',                w:200, h:80,  icon:_iconNote() },
   ];
 
