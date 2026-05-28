@@ -454,6 +454,11 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .sp-insp-lbl{font-family:var(--m);font-size:8px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);display:block;margin:8px 0 4px}
 .sp-insp-inp{width:100%;background:var(--surf2);border:1px solid var(--bdr2);color:var(--txt);font-size:11px;padding:6px 8px;border-radius:5px;font-family:var(--f);outline:none}
 .sp-insp-inp:focus{border-color:var(--ora)}
+/* Direction selector */
+.sp-dir-grp{display:flex;gap:4px;margin-bottom:4px}
+.sp-dir-btn{flex:1;height:30px;border:1px solid var(--bdr2);background:var(--surf2);color:var(--muted);border-radius:5px;cursor:pointer;font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;transition:background .12s,color .12s,border-color .12s}
+.sp-dir-btn:hover{background:var(--surf3);color:var(--txt)}
+.sp-dir-btn.active{background:var(--ora);color:#fff;border-color:var(--ora)}
 .sp-insp-tx{width:100%;background:var(--surf2);border:1px solid var(--bdr2);color:var(--txt);font-size:11px;padding:6px 8px;border-radius:5px;font-family:var(--f);outline:none;resize:vertical;min-height:48px;line-height:1.4}
 .sp-insp-row{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .sp-insp-color-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;margin-top:4px}
@@ -5491,10 +5496,6 @@ const SynPro = (() => {
   function _renderEdges() {
     var svg = $('sp-edges');
     if (!svg) return;
-    /* SVG covers the full world bounding box (including negative coords) so
-       edges remain visible and hit-testable when nodes are placed outside
-       the (0,0) quadrant. Paths still use raw world coords thanks to viewBox
-       being aligned with the SVG's CSS box. */
     var b = _worldBounds(80);
     var sw = b.maxX - b.minX, sh = b.maxY - b.minY;
     svg.style.left = b.minX + 'px';
@@ -5502,23 +5503,50 @@ const SynPro = (() => {
     svg.setAttribute('width', sw);
     svg.setAttribute('height', sh);
     svg.setAttribute('viewBox', b.minX + ' ' + b.minY + ' ' + sw + ' ' + sh);
-    var html = '';
+
+    /* Build defs with one arrowhead marker per network color used */
+    var colorSet = {};
+    state.cables.forEach(function(c){
+      var net = netById(c.network) || { color:'#5a6a80' };
+      colorSet[net.color] = true;
+    });
+    var defs = '<defs>';
+    Object.keys(colorSet).forEach(function(col){
+      var id = 'arr-' + col.replace('#','');
+      /* forward arrow (marker-end) — tip at path end */
+      defs += '<marker id="' + id + '-fwd" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto" markerUnits="userSpaceOnUse">' +
+              '<path d="M1,1 L8,4.5 L1,8 Z" fill="' + col + '"/></marker>';
+      /* backward arrow (marker-start) — tip at path start */
+      defs += '<marker id="' + id + '-bwd" markerWidth="9" markerHeight="9" refX="2" refY="4.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse">' +
+              '<path d="M1,1 L8,4.5 L1,8 Z" fill="' + col + '"/></marker>';
+    });
+    defs += '</defs>';
+
+    var html = defs;
     state.cables.forEach(function(c){
       var g = edgeGeom(c);
       if (!g) return;
       var net = netById(c.network) || { color:'#5a6a80', name:'' };
       var sel = (selected.kind === 'cable' && selected.id === c.id);
-      var sw = sel ? 4 : 2.5;
+      var lw  = sel ? 4 : 2.5;
       var p0 = g.p0, p1 = g.p1;
       var d = 'M' + p0.x + ',' + p0.y + ' L' + p1.x + ',' + p1.y;
+      var mid = g.mid;
+
+      /* Arrow markers based on direction */
+      var dir = c.dir || 'none';
+      var colId = net.color.replace('#','');
+      var mEnd   = (dir === 'forward' || dir === 'both') ? ' marker-end="url(#arr-' + colId + '-fwd)"' : '';
+      var mStart = (dir === 'backward' || dir === 'both') ? ' marker-start="url(#arr-' + colId + '-bwd)"' : '';
+
       html += '<path class="sp-edge-hit" data-cid="' + c.id + '" d="' + d + '" stroke="' + net.color + '" stroke-width="14" fill="none"/>';
-      html += '<path class="sp-edge' + (sel ? ' sel' : '') + '" data-cid="' + c.id + '" d="' + d + '" stroke="' + net.color + '" stroke-width="' + sw + '" stroke-linecap="round" fill="none"/>';
-      /* Label : centered, with white halo */
+      html += '<path class="sp-edge' + (sel ? ' sel' : '') + '" data-cid="' + c.id + '" d="' + d + '" stroke="' + net.color + '" stroke-width="' + lw + '" stroke-linecap="round" fill="none"' + mEnd + mStart + '/>';
+
+      /* Label */
       if (c.label && c.label.trim()) {
         var lines = c.label.split('\n');
-        var midX = g.mid.x, midY = g.mid.y;
+        var midX = mid.x, midY = mid.y;
         var lh = 12, totalH = lines.length * lh;
-        /* White rect background */
         var maxW = 0;
         lines.forEach(function(ln){ maxW = Math.max(maxW, ln.length); });
         var bw = Math.min(160, maxW * 6.5 + 12);
@@ -5578,16 +5606,32 @@ const SynPro = (() => {
       var netOpts = state.networks.map(function(nw){
         return '<option value="' + esc(nw.id) + '"' + (c.network === nw.id ? ' selected' : '') + '>' + esc(nw.name) + '</option>';
       }).join('');
+      var dir = c.dir || 'none';
       el.innerHTML =
         '<div class="sp-insp-title"><i class="ti ti-cable"></i>Cable</div>' +
         '<label class="sp-insp-lbl">Reseau</label>' +
         '<select class="sp-insp-inp" id="sp-ins-net">' + netOpts + '</select>' +
+        '<label class="sp-insp-lbl">Direction du signal</label>' +
+        '<div class="sp-dir-grp" id="sp-ins-dir">' +
+          '<button class="sp-dir-btn' + (dir === 'none'     ? ' active' : '') + '" data-dir="none"     title="Sans fleche">&#8212;</button>' +
+          '<button class="sp-dir-btn' + (dir === 'forward'  ? ' active' : '') + '" data-dir="forward"  title="De gauche a droite">&#x2192;</button>' +
+          '<button class="sp-dir-btn' + (dir === 'backward' ? ' active' : '') + '" data-dir="backward" title="De droite a gauche">&#x2190;</button>' +
+          '<button class="sp-dir-btn' + (dir === 'both'     ? ' active' : '') + '" data-dir="both"     title="Bidirectionnel">&#x21C4;</button>' +
+        '</div>' +
         '<label class="sp-insp-lbl">Etiquette (ex: Liaison gigaACE RJ45 5m)</label>' +
         '<textarea class="sp-insp-tx" id="sp-ins-clbl" rows="3" placeholder="Type + longueur">' + esc(c.label || '') + '</textarea>' +
         '<button class="btn ghost sm" id="sp-ins-cdel" style="margin-top:12px;width:100%;color:var(--err)"><i class="ti ti-trash"></i>Supprimer le cable</button>';
       $('sp-ins-net').addEventListener('change', function(e){ c.network = e.target.value; _renderEdges(); _renderLegend(); scheduleSave(); });
       $('sp-ins-clbl').addEventListener('input', function(e){ c.label = e.target.value; _renderEdges(); scheduleSave(); });
       $('sp-ins-cdel').addEventListener('click', function(){ deleteCable(c.id); });
+      el.querySelectorAll('.sp-dir-btn').forEach(function(btn){
+        btn.addEventListener('click', function(){
+          c.dir = btn.dataset.dir;
+          el.querySelectorAll('.sp-dir-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
+          _renderEdges();
+          scheduleSave();
+        });
+      });
     } else {
       el.innerHTML = '<p class="sp-insp-empty">Glissez un equipement depuis la palette sur le plan.<br><br>Pour relier : cliquez un type de cable, puis cliquez deux equipements.</p>';
     }
