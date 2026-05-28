@@ -114,6 +114,7 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .panel{display:none;padding:18px;animation:fadeIn .18s ease}
 .panel.on{display:block}
 #panel-fichiers.on{display:flex!important;flex-direction:column;padding:0}
+#panel-synoptique.on{display:flex!important;flex-direction:column;padding:0;overflow:hidden}
 .pbar{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap}
 
 /* ── MOBILE OVERRIDES ── */
@@ -357,7 +358,7 @@ body{display:flex;flex-direction:column;min-height:100vh}
 /* ══════════════════════════════════════
    SYNOPTIQUE PRO — SynPro v1
    ══════════════════════════════════════ */
-.sp-app{display:flex;flex-direction:column;gap:10px;min-height:calc(100vh - 140px)}
+.sp-app{display:flex;flex-direction:column;gap:10px;height:calc(100vh - 70px);overflow:hidden}
 .sp-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 10px;background:var(--surf);border:1px solid var(--bdr2);border-radius:10px}
 .sp-toolbar .ptitle{margin:0;flex:1;min-width:140px}
 .sp-zoom-grp{display:flex;align-items:center;gap:1px;border:1px solid var(--bdr2);border-radius:7px;background:var(--surf2);overflow:hidden}
@@ -375,8 +376,16 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .sp-zoom-slider:hover::-webkit-slider-thumb{box-shadow:0 0 8px rgba(255,102,0,.7)}
 .sp-zoom-hud-btn{width:22px;height:22px;border:none;background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;border-radius:4px;padding:0}
 .sp-zoom-hud-btn:hover{color:var(--ora);background:var(--surf3)}
+/* Export dropdown */
+.sp-export-menu{display:none;position:absolute;top:calc(100% + 5px);right:0;background:var(--surf);border:1px solid var(--bdr2);border-radius:9px;padding:5px;z-index:200;min-width:160px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+.sp-export-menu.open{display:block}
+.sp-exp-item{width:100%;display:flex;align-items:center;gap:8px;padding:7px 10px;border:none;background:transparent;color:var(--txt2);font-size:12px;border-radius:6px;cursor:pointer;text-align:left;font-family:var(--f)}
+.sp-exp-item:hover{background:var(--surf2);color:var(--txt)}
+.sp-exp-item i{font-size:14px;color:var(--muted)}
+.sp-exp-item:hover i{color:var(--ora)}
+.sp-exp-sep{height:1px;background:var(--bdr2);margin:4px 0}
 
-.sp-body{display:grid;grid-template-columns:200px 1fr 240px;gap:10px;flex:1;min-height:0;align-items:stretch}
+.sp-body{display:grid;grid-template-columns:200px 1fr 240px;gap:10px;flex:1;min-height:0;overflow:hidden;align-items:stretch}
 .sp-palette{background:var(--surf);border:1px solid var(--bdr2);border-radius:11px;display:flex;flex-direction:column;overflow:hidden}
 .sp-pal-hd{font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1.4px;color:var(--ora);padding:9px 11px 5px;display:flex;align-items:center;gap:6px;background:var(--surf2)}
 .sp-pal-cat{padding:4px 8px 0}
@@ -1298,7 +1307,16 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
             <button type="button" id="sp-fit" title="Ajuster"><i class="ti ti-arrows-maximize"></i></button>
           </div>
           <button type="button" class="btn ghost sm" id="sp-conf"><i class="ti ti-settings"></i>Marque &amp; reseaux</button>
-          <button type="button" class="btn sm" id="sp-export"><i class="ti ti-file-export"></i>Exporter</button>
+          <div style="position:relative;display:inline-block">
+            <button type="button" class="btn sm" id="sp-export"><i class="ti ti-file-export"></i>Exporter <i class="ti ti-chevron-down" style="font-size:10px;margin-left:2px"></i></button>
+            <div class="sp-export-menu" id="sp-export-menu">
+              <button class="sp-exp-item" data-fmt="png"><i class="ti ti-photo"></i>Image PNG</button>
+              <button class="sp-exp-item" data-fmt="pdf"><i class="ti ti-file-type-pdf"></i>Document PDF</button>
+              <button class="sp-exp-item" data-fmt="svg"><i class="ti ti-vector"></i>Vectoriel SVG</button>
+              <div class="sp-exp-sep"></div>
+              <button class="sp-exp-item" data-fmt="print"><i class="ti ti-printer"></i>Imprimer</button>
+            </div>
+          </div>
           <button type="button" class="btn ghost sm" id="sp-reset" title="Vider le synoptique"><i class="ti ti-trash"></i></button>
         </div>
         <div class="sp-body">
@@ -5916,8 +5934,29 @@ const SynPro = (() => {
     $('sp-zoom-out')?.addEventListener('click', function(){ _zoomBy(1/1.2); });
     $('sp-fit')?.addEventListener('click', fitView);
     $('sp-conf')?.addEventListener('click', _openConfModal);
-    $('sp-export')?.addEventListener('click', _exportPng);
     $('sp-reset')?.addEventListener('click', _resetDiagram);
+
+    /* Export dropdown */
+    var expBtn  = $('sp-export');
+    var expMenu = $('sp-export-menu');
+    if (expBtn && expMenu) {
+      expBtn.addEventListener('click', function(e){
+        e.stopPropagation();
+        expMenu.classList.toggle('open');
+      });
+      document.addEventListener('click', function(){ expMenu.classList.remove('open'); });
+      expMenu.querySelectorAll('.sp-exp-item').forEach(function(item){
+        item.addEventListener('click', function(e){
+          e.stopPropagation();
+          expMenu.classList.remove('open');
+          var fmt = item.dataset.fmt;
+          if (fmt === 'png')   _exportPng();
+          if (fmt === 'svg')   _exportSvg();
+          if (fmt === 'pdf')   _exportPdf();
+          if (fmt === 'print') _print();
+        });
+      });
+    }
 
     /* Zoom HUD — slider + buttons */
     var hudSlider = $('sp-zoom-slider');
@@ -6082,9 +6121,8 @@ const SynPro = (() => {
   }
 
   /* ── PNG export — render canvas to image ── */
-  async function _exportPng() {
-    var wrap = document.querySelector('.sp-canvas-wrap');
-    if (!wrap) return;
+  /* ── Build export SVG string (shared by PNG, PDF, SVG exports) ── */
+  function _buildExportSvg() {
     var b = _worldBounds(40);
     /* Translate world to (0,0)+ so the exported image starts at top-left */
     var ox = -b.minX, oy = -b.minY;
@@ -6153,29 +6191,102 @@ const SynPro = (() => {
     /* Footer URL */
     svg += '<text x="' + (fullW - 14) + '" y="' + (fullH - 10) + '" text-anchor="end" font-family="Outfit,sans-serif" font-size="11" font-weight="600" fill="#1d9bf0">' + esc(state.footer) + '</text>';
     svg += '</svg>';
+    return { svg: svg, w: fullW, h: fullH };
+  }
 
-    /* Convert SVG → PNG */
-    var blob = new Blob([svg], { type:'image/svg+xml;charset=utf-8' });
-    var url = URL.createObjectURL(blob);
-    var img = new Image();
-    img.onload = function() {
-      var c = document.createElement('canvas');
-      c.width = fullW * 2; c.height = fullH * 2;
-      var ctx = c.getContext('2d');
-      ctx.scale(2, 2);
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, fullW, fullH);
-      ctx.drawImage(img, 0, 0);
+  /* ── SVG → Canvas (Promise) ── */
+  function _svgToCanvas(svgStr, w, h, scale) {
+    scale = scale || 2;
+    return new Promise(function(resolve, reject) {
+      var blob = new Blob([svgStr], { type:'image/svg+xml;charset=utf-8' });
+      var url  = URL.createObjectURL(blob);
+      var img  = new Image();
+      img.onload = function() {
+        var c = document.createElement('canvas');
+        c.width = w * scale; c.height = h * scale;
+        var ctx = c.getContext('2d');
+        ctx.scale(scale, scale);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0);
+        URL.revokeObjectURL(url);
+        resolve(c);
+      };
+      img.onerror = function(){ URL.revokeObjectURL(url); reject(new Error('SVG load failed')); };
+      img.src = url;
+    });
+  }
+
+  /* ── Export PNG ── */
+  async function _exportPng() {
+    try {
+      var ex = _buildExportSvg();
+      var c = await _svgToCanvas(ex.svg, ex.w, ex.h, 2);
       c.toBlob(function(pngBlob){
         var a = document.createElement('a');
         a.href = URL.createObjectURL(pngBlob);
         a.download = (state.title || 'synoptique').replace(/\W+/g, '_') + '.png';
         a.click();
-        URL.revokeObjectURL(url);
       }, 'image/png');
-    };
-    img.onerror = function(){ toast('Erreur export'); URL.revokeObjectURL(url); };
-    img.src = url;
+    } catch(e) { toast('Erreur export PNG'); console.error(e); }
+  }
+
+  /* ── Export SVG ── */
+  function _exportSvg() {
+    var ex = _buildExportSvg();
+    var blob = new Blob([ex.svg], { type:'image/svg+xml;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (state.title || 'synoptique').replace(/\W+/g, '_') + '.svg';
+    a.click();
+  }
+
+  /* ── Export PDF (via canvas → jsPDF if available, otherwise PNG fallback) ── */
+  async function _exportPdf() {
+    try {
+      var ex = _buildExportSvg();
+      var c  = await _svgToCanvas(ex.svg, ex.w, ex.h, 2);
+      var imgData = c.toDataURL('image/png');
+
+      /* Use jsPDF if loaded; dynamically load it if not yet present */
+      async function _getJsPdf() {
+        if (window.jspdf && window.jspdf.jsPDF) return window.jspdf.jsPDF;
+        return new Promise(function(resolve, reject) {
+          var s = document.createElement('script');
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+          s.onload = function(){ resolve(window.jspdf.jsPDF); };
+          s.onerror = reject;
+          document.head.appendChild(s);
+        });
+      }
+
+      var JsPDF = await _getJsPdf();
+      /* A4 landscape or auto-size based on ratio */
+      var ratio = ex.w / ex.h;
+      var orientation = ratio >= 1 ? 'landscape' : 'portrait';
+      var pdf = new JsPDF({ orientation: orientation, unit: 'pt', format: 'a4' });
+      var pageW = pdf.internal.pageSize.getWidth();
+      var pageH = pdf.internal.pageSize.getHeight();
+      /* Fit image inside page with margins */
+      var margin = 20;
+      var maxW = pageW - margin * 2;
+      var maxH = pageH - margin * 2;
+      var scale = Math.min(maxW / ex.w, maxH / ex.h);
+      var dw = ex.w * scale, dh = ex.h * scale;
+      var dx = (pageW - dw) / 2, dy = (pageH - dh) / 2;
+      pdf.addImage(imgData, 'PNG', dx, dy, dw, dh);
+      pdf.save((state.title || 'synoptique').replace(/\W+/g, '_') + '.pdf');
+    } catch(e) { toast('Erreur export PDF'); console.error(e); }
+  }
+
+  /* ── Print ── */
+  function _print() {
+    var ex = _buildExportSvg();
+    var win = window.open('', '_blank');
+    win.document.write('<html><head><title>' + esc(state.title) + '</title><style>body{margin:0}img{max-width:100%;height:auto}</style></head><body>' + ex.svg + '</body></html>');
+    win.document.close();
+    win.focus();
+    setTimeout(function(){ win.print(); }, 400);
   }
 
   /* ── Public API ── */
