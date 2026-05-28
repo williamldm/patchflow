@@ -4995,6 +4995,18 @@ const SynPro = (() => {
   let inited = false;
   let loaded = false;
   let saveTimer = null;
+  /* localStorage key — per show, so multiple shows don't overwrite each other */
+  function _lsKey() { return 'pf_synpro_state_' + (CUR_SHOW ? CUR_SHOW.id : 'default'); }
+  function _lsSave() {
+    if (!state) return;
+    try { localStorage.setItem(_lsKey(), JSON.stringify(state)); } catch(e) {}
+  }
+  function _lsLoad() {
+    try { var s = localStorage.getItem(_lsKey()); return s ? JSON.parse(s) : null; } catch(e) { return null; }
+  }
+  function _lsClear() {
+    try { localStorage.removeItem(_lsKey()); } catch(e) {}
+  }
   let selected = { kind:null, id:null };
   let activeCable = null;  // network id when cable-drawing mode is active
   let cableFrom = null;    // first node id during cable creation
@@ -5029,11 +5041,14 @@ const SynPro = (() => {
 
   /* ── Persistence ── */
   function scheduleSave() {
+    /* 1. Save to localStorage IMMEDIATELY (synchronous, survives page reload) */
+    _lsSave();
+    /* 2. Debounce the DB write to avoid hammering Supabase */
     if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(_save, 300);  /* Reduced from 900ms for faster persistence */
+    saveTimer = setTimeout(_save, 1500);
   }
-  /* Force immediate save (no delay) — used when switching tabs or reloading */
   async function _saveNow() {
+    _lsSave();
     if (saveTimer) clearTimeout(saveTimer);
     await _save();
   }
@@ -5041,8 +5056,9 @@ const SynPro = (() => {
     if (!CUR_SHOW || !state) return;
     CUR_SHOW.synoptique_data = state;
     try {
-      const { error } = await sb.from('shows').update({ synoptique_data: JSON.stringify(state) }).eq('id', CUR_SHOW.id);
+      const { error } = await sb.from('shows').update({ synoptique_data: state }).eq('id', CUR_SHOW.id);
       if (error) console.error('SynPro save:', error);
+      else _lsClear(); /* DB confirmed — remove local cache */
     } catch (e) { console.error('SynPro save', e); }
   }
   function _load() {
@@ -5056,8 +5072,17 @@ const SynPro = (() => {
        The user explicitly asked to remove old synoptique data. */
     if (saved && (saved.scenes || saved.activeScene !== undefined)) {
       saved = null;
-      /* Wipe DB column so it doesn't keep loading garbage */
       sb.from('shows').update({ synoptique_data: null }).eq('id', CUR_SHOW.id).then(function(){});
+    }
+    /* Fallback : if DB has nothing, check localStorage (written synchronously
+       on every change so it always survives a page reload) */
+    if (!saved || saved.v !== 1) {
+      var ls = _lsLoad();
+      if (ls && ls.v === 1) {
+        saved = ls;
+        /* Push localStorage state back to DB so they stay in sync */
+        sb.from('shows').update({ synoptique_data: saved }).eq('id', CUR_SHOW.id).then(function(){});
+      }
     }
     state = saved && saved.v === 1 ? saved : _defaultState();
     if (CUR_SHOW.name && state.title === 'Diagramme reseau') state.title = CUR_SHOW.name;
