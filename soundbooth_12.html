@@ -305,8 +305,18 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .sp-body{display:grid;grid-template-columns:200px 1fr 240px;gap:10px;flex:1;min-height:0;align-items:stretch}
 .sp-palette{background:var(--surf);border:1px solid var(--bdr2);border-radius:11px;display:flex;flex-direction:column;overflow:hidden}
 .sp-pal-hd{font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1.4px;color:var(--ora);padding:9px 11px 5px;display:flex;align-items:center;gap:6px;background:var(--surf2)}
-.sp-pal-cat{padding:8px 8px 0}
-.sp-pal-cat-name{font-family:var(--m);font-size:8px;letter-spacing:1.2px;color:var(--muted);margin:6px 4px 5px;text-transform:uppercase}
+.sp-pal-cat{padding:4px 8px 0}
+.sp-pal-cat-name{font-family:var(--m);font-size:9px;letter-spacing:1.2px;color:var(--txt2);margin:6px 0 5px;text-transform:uppercase;cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:5px;transition:background .12s;background:var(--surf2)}
+.sp-pal-cat-name:hover{background:var(--surf3);color:var(--txt)}
+.sp-pal-cat-chevron{font-size:9px;transition:transform .15s ease;color:var(--ora);display:inline-block;width:8px}
+.sp-pal-cat.collapsed .sp-pal-cat-chevron{transform:rotate(-90deg)}
+.sp-pal-cat.collapsed .sp-pal-cat-items{display:none}
+.sp-pal-cat-count{margin-left:auto;font-size:9px;color:var(--muted);font-weight:400}
+.sp-pal-cat-items{padding-top:2px}
+.sp-pal-cat-add{padding:5px 7px;border-radius:5px;font-size:9px;color:var(--ora);background:rgba(255,107,26,.08);border:1px dashed rgba(255,107,26,.35);cursor:pointer;text-align:center;font-family:var(--m);letter-spacing:.5px;margin-bottom:4px;transition:all .12s}
+.sp-pal-cat-add:hover{background:rgba(255,107,26,.18);border-style:solid}
+.sp-pal-item-rem{margin-left:auto;background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:2px 4px;border-radius:3px}
+.sp-pal-item-rem:hover{color:var(--err);background:rgba(248,113,113,.1)}
 .sp-pal-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:6px;cursor:grab;font-size:10.5px;margin-bottom:3px;border:1px solid var(--bdr);background:var(--surf2);user-select:none;transition:all .12s;color:var(--txt2)}
 .sp-pal-item:hover{border-color:var(--ora);color:var(--txt);background:var(--surf3)}
 .sp-pal-item:active{cursor:grabbing}
@@ -319,9 +329,9 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .sp-cable-swatch{width:24px;height:3px;border-radius:2px;flex-shrink:0}
 
 .sp-canvas-wrap{background:#fff;border:1px solid var(--bdr2);border-radius:11px;display:flex;flex-direction:column;overflow:hidden;min-height:540px}
-.sp-doc-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 18px;background:#1d9bf0;color:#fff;border-bottom:1px solid rgba(0,0,0,.1)}
-.sp-doc-brand{font-family:Outfit,sans-serif;font-weight:800;font-size:18px;letter-spacing:.5px;min-width:140px;cursor:text}
-.sp-doc-title-h{font-family:Outfit,sans-serif;font-weight:600;font-size:17px;text-align:center;flex:1;cursor:text}
+.sp-doc-head{display:flex;align-items:center;justify-content:center;padding:12px 18px;background:#1d9bf0;color:#fff;border-bottom:1px solid rgba(0,0,0,.1)}
+.sp-doc-title-h{font-family:Outfit,sans-serif;font-weight:700;font-size:19px;letter-spacing:.3px;text-align:center;cursor:text;width:100%;outline:none}
+.sp-doc-title-h:hover{text-decoration:underline;text-decoration-style:dotted;text-underline-offset:4px}
 .sp-viewport{position:relative;flex:1;background:#f7f9fc;overflow:hidden;cursor:grab;touch-action:none;min-height:440px}
 .sp-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(0,0,0,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,.05) 1px,transparent 1px);background-size:24px 24px;pointer-events:none}
 .sp-world{position:absolute;left:0;top:0;transform-origin:0 0}
@@ -387,6 +397,15 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .sp-net-row input[type=text]{flex:1;background:transparent;border:none;color:var(--txt);font-size:11px;outline:none;font-family:var(--f)}
 .sp-net-row input[type=color]{width:32px;height:24px;border:none;background:transparent;cursor:pointer;border-radius:4px}
 .sp-net-row .btn{padding:2px 7px;font-size:10px}
+
+/* Icon grid for "new equipment" modal */
+.sp-icon-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:4px}
+.sp-icon-radio{cursor:pointer;display:block}
+.sp-icon-radio input{display:none}
+.sp-icon-radio-box{display:flex;align-items:center;justify-content:center;background:var(--surf2);border:1px solid var(--bdr2);border-radius:6px;height:44px;color:var(--txt2);transition:all .12s;padding:6px}
+.sp-icon-radio-box svg{width:100%;height:100%}
+.sp-icon-radio:hover .sp-icon-radio-box{border-color:var(--ora)}
+.sp-icon-radio input:checked + .sp-icon-radio-box{border-color:var(--ora);background:rgba(255,107,26,.12);color:var(--ora);box-shadow:0 0 0 1px var(--ora) inset}
 
 /* ── STAGE ── */
 .stage-wrap{display:grid;grid-template-columns:180px 1fr;gap:14px}
@@ -1203,9 +1222,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
           </div>
           <div class="sp-canvas-wrap">
             <div class="sp-doc-head">
-              <div class="sp-doc-brand" id="sp-brand">IMPACT EVENEMENT</div>
-              <div class="sp-doc-title-h" id="sp-doc-title-h">Diagramme reseau</div>
-              <div style="width:140px"></div>
+              <div class="sp-doc-title-h" id="sp-doc-title-h" title="Cliquez pour modifier">Cliquez pour titrer</div>
             </div>
             <div class="sp-viewport" id="sp-viewport">
               <div class="sp-grid"></div>
@@ -4780,11 +4797,29 @@ const SynPro = (() => {
     return '<svg viewBox="0 0 56 40" fill="none" stroke="#fbbf24" stroke-width="1.4"><rect x="4" y="4" width="48" height="32" rx="2" fill="#fef3c7"/><line x1="10" y1="14" x2="46" y2="14" stroke="#fbbf24" stroke-width="1"/><line x1="10" y1="20" x2="46" y2="20" stroke="#fbbf24" stroke-width="1"/><line x1="10" y1="26" x2="36" y2="26" stroke="#fbbf24" stroke-width="1"/></svg>';
   }
 
-  /* ── State ── */
+  /* ── State ──
+     Cable type defaults — couvre la majorite des reseaux et signaux audio pro.
+     L'utilisateur peut en ajouter, modifier, supprimer depuis le modal. */
   const DEFAULT_NETWORKS = [
-    { id:'A', name:'Reseau A', color:'#ea8a3b' },
-    { id:'B', name:'Reseau B', color:'#5db865' },
-    { id:'XLR', name:'Audio analogique', color:'#a0a4ab' },
+    /* Reseaux numeriques audio */
+    { id:'dante',    name:'Dante',           color:'#1d9bf0' },
+    { id:'aes50',    name:'AES50',           color:'#a855f7' },
+    { id:'madi',     name:'MADI',            color:'#fbbf24' },
+    { id:'avb',      name:'AVB',             color:'#22d3ee' },
+    /* Reseaux constructeurs */
+    { id:'gigaace',  name:'gigaACE',         color:'#ea8a3b' },
+    { id:'dxlink',   name:'DX-Link',         color:'#5db865' },
+    /* Cables audio analogiques */
+    { id:'xlr',      name:'XLR',             color:'#94a3b8' },
+    { id:'trs',      name:'Jack TRS 6.35',   color:'#cbd5e1' },
+    { id:'speakon',  name:'Speakon NL4',     color:'#dc2626' },
+    /* Fibre optique */
+    { id:'fibre',    name:'Fibre optique',   color:'#facc15' },
+    /* Cables divers */
+    { id:'midi',     name:'MIDI',            color:'#ec4899' },
+    { id:'usb',      name:'USB',             color:'#10b981' },
+    { id:'hdmi',     name:'HDMI / Video',    color:'#ef4444' },
+    { id:'power',    name:'Alimentation',    color:'#1f2937' },
   ];
 
   let state = null;        // current diagram data
@@ -4802,8 +4837,7 @@ const SynPro = (() => {
     return {
       v:1,
       title:'Diagramme reseau',
-      brand:'IMPACT EVENEMENT',
-      brandColor:'#1d9bf0',
+      headerColor:'#1d9bf0',
       footer:'www.patchflow.app',
       nodes:[],
       cables:[],
@@ -4814,7 +4848,12 @@ const SynPro = (() => {
   const $ = function(id){ return document.getElementById(id); };
   const esc = function(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
   const uid = function(){ return 'sp'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); };
-  function spec(type){ return LIB.find(function(x){ return x.type===type; }) || null; }
+  function spec(type){
+    var b = LIB.find(function(x){ return x.type===type; });
+    if (b) return b;
+    var c = _getCustomItems().find(function(x){ return x.type === type; });
+    return c ? _customSpec(c) : null;
+  }
   function nodeById(id){ return state.nodes.find(function(n){ return n.id===id; }); }
   function cableById(id){ return state.cables.find(function(c){ return c.id===id; }); }
   function netById(id){ return state.networks.find(function(n){ return n.id===id; }); }
@@ -4892,20 +4931,71 @@ const SynPro = (() => {
   }
 
   /* ── Render palette ── */
+  /* ── Custom equipment library — persisted in localStorage ── */
+  const CUSTOM_KEY = 'pf_synpro_custom_items';
+  function _getCustomItems() {
+    try { return JSON.parse(localStorage.getItem(CUSTOM_KEY) || '[]'); } catch(e) { return []; }
+  }
+  function _saveCustomItems(list) {
+    try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(list)); } catch(e){}
+  }
+  function _addCustomItem(item) {
+    var list = _getCustomItems();
+    list.push(item);
+    _saveCustomItems(list);
+  }
+  function _removeCustomItem(type) {
+    _saveCustomItems(_getCustomItems().filter(function(x){ return x.type !== type; }));
+  }
+  /* Map icon-kind key to one of the builtin icon builders */
+  const CUSTOM_ICONS = {
+    rack: _iconRack(4), console: _iconConsoleCompact(), io: _iconStagebox(), amp: _iconAmp(),
+    speaker: _iconSpeaker(), sub: _iconSub(), top: _iconLineArray(), wedge: _iconWedge(),
+    network: _iconSwitch(), wifi: _iconWifi(), reel: _iconReel(), fiber: _iconFiber(),
+    mic: _iconMic(), di: _iconDI(), iem: _iconIEM(), computer: _iconComputer(),
+    note: _iconNote(),
+  };
+  function _customSpec(it) {
+    return { type: it.type, cat: it.cat || 'Mes equipements', label: it.label, defaultSub: it.sub || '',
+             w: it.w || 150, h: it.h || 110, icon: CUSTOM_ICONS[it.iconKind] || CUSTOM_ICONS.rack };
+  }
+  /* ── Palette state — remembers per-category collapse in localStorage ── */
+  const PAL_OPEN_KEY = 'pf_synpro_pal_open';
+  function _palOpenState() {
+    try { return JSON.parse(localStorage.getItem(PAL_OPEN_KEY) || '{}'); } catch(e){ return {}; }
+  }
+  function _palSetOpen(cat, open) {
+    var s = _palOpenState();
+    s[cat] = open;
+    try { localStorage.setItem(PAL_OPEN_KEY, JSON.stringify(s)); } catch(e){}
+  }
+
   function _renderPalette() {
     var el = $('sp-pal-list');
     if (!el) return;
+    /* Merge builtin + custom items */
+    var customs = _getCustomItems();
     var cats = {};
-    LIB.forEach(function(it){
-      (cats[it.cat] = cats[it.cat] || []).push(it);
+    LIB.forEach(function(it){ (cats[it.cat] = cats[it.cat] || []).push(_palItemHtml(it, false)); });
+    customs.forEach(function(it){
+      var cat = it.cat || 'Mes equipements';
+      var sp = _customSpec(it);
+      (cats[cat] = cats[cat] || []).push(_palItemHtml(sp, true));
     });
+    /* Open state — default : first category open, others closed */
+    var openState = _palOpenState();
+    var catNames = Object.keys(cats);
     var h = '';
-    Object.keys(cats).forEach(function(c){
-      h += '<div class="sp-pal-cat"><div class="sp-pal-cat-name">' + esc(c) + '</div>';
-      cats[c].forEach(function(it){
-        h += '<div class="sp-pal-item" draggable="true" data-type="' + esc(it.type) + '" title="Glisser sur le plan"><span class="sp-pal-icon">' + it.icon + '</span><span>' + esc(it.label) + '</span></div>';
-      });
-      h += '</div>';
+    /* Master "Ajouter un equipement" button */
+    h += '<div style="padding:6px 8px 4px"><button class="sp-pal-cat-add" id="sp-pal-add" style="width:100%"><i class="ti ti-plus"></i> Nouvel equipement</button></div>';
+    catNames.forEach(function(c, idx){
+      var defOpen = idx < 2;
+      var isOpen = openState.hasOwnProperty(c) ? openState[c] : defOpen;
+      var collapsed = !isOpen ? ' collapsed' : '';
+      h += '<div class="sp-pal-cat' + collapsed + '" data-cat="' + esc(c) + '">' +
+           '<div class="sp-pal-cat-name" data-toggle><span class="sp-pal-cat-chevron">&#9660;</span><span>' + esc(c) + '</span><span class="sp-pal-cat-count">' + cats[c].length + '</span></div>' +
+           '<div class="sp-pal-cat-items">' + cats[c].join('') + '</div>' +
+           '</div>';
     });
     el.innerHTML = h;
     el.querySelectorAll('.sp-pal-item').forEach(function(item){
@@ -4914,6 +5004,79 @@ const SynPro = (() => {
         ev.dataTransfer.effectAllowed = 'copy';
       });
     });
+    el.querySelectorAll('[data-toggle]').forEach(function(t){
+      t.addEventListener('click', function(){
+        var cat = t.closest('.sp-pal-cat');
+        cat.classList.toggle('collapsed');
+        _palSetOpen(cat.dataset.cat, !cat.classList.contains('collapsed'));
+      });
+    });
+    el.querySelectorAll('.sp-pal-item-rem').forEach(function(b){
+      b.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        var type = b.dataset.rem;
+        if (confirm('Supprimer cet equipement personnalise ?')) {
+          _removeCustomItem(type);
+          _renderPalette();
+        }
+      });
+    });
+    var addBtn = el.querySelector('#sp-pal-add');
+    if (addBtn) addBtn.addEventListener('click', _openAddItemModal);
+  }
+  function _palItemHtml(it, custom) {
+    var rem = custom ? '<button class="sp-pal-item-rem" data-rem="' + esc(it.type) + '" title="Supprimer">&times;</button>' : '';
+    return '<div class="sp-pal-item" draggable="true" data-type="' + esc(it.type) + '" title="Glisser sur le plan"><span class="sp-pal-icon">' + it.icon + '</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(it.label) + '</span>' + rem + '</div>';
+  }
+
+  /* ── Modal : add custom equipment ── */
+  function _openAddItemModal() {
+    var m = $('sp-add-modal');
+    if (!m) {
+      m = document.createElement('div');
+      m.id = 'sp-add-modal';
+      m.className = 'sp-modal';
+      m.innerHTML = '<div class="sp-modal-card"><div class="sp-modal-title"><i class="ti ti-plus"></i>Nouvel equipement</div><div id="sp-add-body"></div></div>';
+      document.body.appendChild(m);
+      m.addEventListener('click', function(e){ if (e.target === m) m.classList.remove('show'); });
+    }
+    var body = m.querySelector('#sp-add-body');
+    /* Suggested categories : existing ones + free text */
+    var existing = {};
+    LIB.forEach(function(it){ existing[it.cat] = true; });
+    _getCustomItems().forEach(function(it){ existing[it.cat || 'Mes equipements'] = true; });
+    var catOpts = Object.keys(existing).map(function(c){ return '<option value="' + esc(c) + '">' + esc(c) + '</option>'; }).join('');
+    /* Icon choices */
+    var iconOptList = ['rack','console','io','amp','speaker','sub','top','wedge','network','wifi','reel','fiber','mic','di','iem','computer','note'];
+    var iconGrid = iconOptList.map(function(k, i){
+      return '<label class="sp-icon-radio" title="' + k + '"><input type="radio" name="sp-add-icon" value="' + k + '"' + (i===0?' checked':'') + '><span class="sp-icon-radio-box">' + CUSTOM_ICONS[k] + '</span></label>';
+    }).join('');
+    body.innerHTML =
+      '<label class="sp-insp-lbl">Nom *</label><input class="sp-insp-inp" id="sp-add-label" placeholder="Ex: Yamaha DM7" autofocus>' +
+      '<label class="sp-insp-lbl">Sous-titre</label><input class="sp-insp-inp" id="sp-add-sub" placeholder="Ex: Console FOH 48 voies">' +
+      '<label class="sp-insp-lbl">Categorie</label><div style="display:flex;gap:6px"><select class="sp-insp-inp" id="sp-add-catsel" style="flex:1">' + catOpts + '<option value="__new__">+ Nouvelle categorie...</option></select></div>' +
+      '<input class="sp-insp-inp" id="sp-add-catnew" placeholder="Nouvelle categorie" style="display:none;margin-top:6px">' +
+      '<label class="sp-insp-lbl">Icone</label><div class="sp-icon-grid">' + iconGrid + '</div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button class="btn ghost sm" id="sp-add-cancel">Annuler</button><button class="btn sm" id="sp-add-save"><i class="ti ti-device-floppy"></i>Enregistrer</button></div>';
+    body.querySelector('#sp-add-catsel').addEventListener('change', function(e){
+      body.querySelector('#sp-add-catnew').style.display = e.target.value === '__new__' ? 'block' : 'none';
+    });
+    body.querySelector('#sp-add-cancel').addEventListener('click', function(){ m.classList.remove('show'); });
+    body.querySelector('#sp-add-save').addEventListener('click', function(){
+      var label = body.querySelector('#sp-add-label').value.trim();
+      if (!label) { toast('Le nom est requis.'); return; }
+      var sub = body.querySelector('#sp-add-sub').value.trim();
+      var catSel = body.querySelector('#sp-add-catsel').value;
+      var cat = catSel === '__new__' ? body.querySelector('#sp-add-catnew').value.trim() || 'Mes equipements' : catSel;
+      var iconKind = body.querySelector('input[name=sp-add-icon]:checked').value;
+      var id = 'custom.' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+      _addCustomItem({ type:id, label:label, sub:sub, cat:cat, iconKind:iconKind });
+      _renderPalette();
+      m.classList.remove('show');
+      toast('Equipement "' + label + '" enregistre.');
+    });
+    m.classList.add('show');
+    setTimeout(function(){ var i = body.querySelector('#sp-add-label'); if (i) i.focus(); }, 30);
   }
 
   function _renderCablePalette() {
@@ -5037,12 +5200,11 @@ const SynPro = (() => {
 
   /* ── Render header / footer ── */
   function _renderHeader() {
-    var bEl = $('sp-brand'); if (bEl) bEl.textContent = state.brand;
     var headTitle = $('sp-doc-title-h'); if (headTitle) headTitle.textContent = state.title;
     var topTitle = $('sp-doc-title'); if (topTitle) topTitle.textContent = state.title;
     var fEl = $('sp-footer'); if (fEl) fEl.textContent = state.footer;
     var head = document.querySelector('.sp-doc-head');
-    if (head) head.style.background = state.brandColor || '#1d9bf0';
+    if (head) head.style.background = state.headerColor || '#1d9bf0';
   }
 
   /* ── Render inspector ── */
@@ -5235,9 +5397,12 @@ const SynPro = (() => {
         return;
       }
 
-      /* Pan empty canvas */
+      /* Pan empty canvas — deselect any current selection */
       selected = { kind:null, id:null };
       if (activeCable) { cableFrom = null; _updateBanner(); }
+      /* Clear .sel class from every node + edge so visual feedback matches state */
+      document.querySelectorAll('.sp-node.sel').forEach(function(el){ el.classList.remove('sel'); });
+      _renderEdges();
       _renderInspector();
       panning = { x: e.clientX, y: e.clientY, px: view.panX, py: view.panY };
       vp.setPointerCapture(e.pointerId);
@@ -5305,10 +5470,6 @@ const SynPro = (() => {
     var ttl = $('sp-doc-title-h');
     if (ttl) {
       ttl.addEventListener('click', function(){ _editText(ttl, function(v){ state.title = v; scheduleSave(); _renderHeader(); }); });
-    }
-    var brand = $('sp-brand');
-    if (brand) {
-      brand.addEventListener('click', function(){ _editText(brand, function(v){ state.brand = v; scheduleSave(); _renderHeader(); }); });
     }
     var foot = $('sp-footer');
     if (foot) {
@@ -5384,12 +5545,11 @@ const SynPro = (() => {
       return '<div class="sp-net-row" data-i="' + i + '"><span class="sp-cable-swatch" style="background:' + esc(n.color) + ';width:30px;height:6px"></span><input type="text" value="' + esc(n.name) + '" data-f="name"><input type="color" value="' + esc(n.color) + '" data-f="color"><button type="button" class="btn ghost" data-rem="' + i + '">&times;</button></div>';
     }).join('');
     body.innerHTML =
-      '<div class="sp-modal-section"><div class="sp-modal-section-title">Marque</div><input class="sp-insp-inp" id="sp-cf-brand" value="' + esc(state.brand) + '"><div style="display:flex;gap:6px;align-items:center;margin-top:6px"><span style="font-size:10px;color:var(--muted)">Couleur :</span><input type="color" id="sp-cf-brandcol" value="' + esc(state.brandColor) + '" style="width:36px;height:24px;border:none;cursor:pointer"></div></div>' +
       '<div class="sp-modal-section"><div class="sp-modal-section-title">Titre du document</div><input class="sp-insp-inp" id="sp-cf-title" value="' + esc(state.title) + '"></div>' +
+      '<div class="sp-modal-section"><div class="sp-modal-section-title">Couleur du bandeau</div><div style="display:flex;gap:8px;align-items:center"><input type="color" id="sp-cf-headcol" value="' + esc(state.headerColor || '#1d9bf0') + '" style="width:42px;height:30px;border:none;cursor:pointer;border-radius:4px"><span style="font-size:10px;color:var(--muted)">Couleur de fond du bandeau de titre</span></div></div>' +
       '<div class="sp-modal-section"><div class="sp-modal-section-title">Pied de page</div><input class="sp-insp-inp" id="sp-cf-footer" value="' + esc(state.footer) + '"></div>' +
-      '<div class="sp-modal-section"><div class="sp-modal-section-title">Reseaux / types de cables</div>' + netRows + '<button class="btn sm" id="sp-cf-addnet" style="margin-top:8px"><i class="ti ti-plus"></i>Ajouter</button></div>';
-    body.querySelector('#sp-cf-brand').addEventListener('input', function(e){ state.brand = e.target.value; scheduleSave(); _renderHeader(); });
-    body.querySelector('#sp-cf-brandcol').addEventListener('input', function(e){ state.brandColor = e.target.value; scheduleSave(); _renderHeader(); });
+      '<div class="sp-modal-section"><div class="sp-modal-section-title">Types de cables</div>' + netRows + '<button class="btn sm" id="sp-cf-addnet" style="margin-top:8px"><i class="ti ti-plus"></i>Ajouter un type</button></div>';
+    body.querySelector('#sp-cf-headcol').addEventListener('input', function(e){ state.headerColor = e.target.value; scheduleSave(); _renderHeader(); });
     body.querySelector('#sp-cf-title').addEventListener('input', function(e){ state.title = e.target.value; scheduleSave(); _renderHeader(); });
     body.querySelector('#sp-cf-footer').addEventListener('input', function(e){ state.footer = e.target.value; scheduleSave(); _renderHeader(); });
     body.querySelectorAll('.sp-net-row').forEach(function(row){
@@ -5446,10 +5606,9 @@ const SynPro = (() => {
     var headH = 56, footH = 36;
     var fullW = canvasW, fullH = canvasH + headH + footH;
     var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + fullW + '" height="' + fullH + '" viewBox="0 0 ' + fullW + ' ' + fullH + '">';
-    /* Header */
-    svg += '<rect x="0" y="0" width="' + fullW + '" height="' + headH + '" fill="' + esc(state.brandColor) + '"/>';
-    svg += '<text x="20" y="' + (headH/2+6) + '" font-family="Outfit,sans-serif" font-weight="800" font-size="20" fill="#fff">' + esc(state.brand) + '</text>';
-    svg += '<text x="' + (fullW/2) + '" y="' + (headH/2+6) + '" text-anchor="middle" font-family="Outfit,sans-serif" font-weight="600" font-size="17" fill="#fff">' + esc(state.title) + '</text>';
+    /* Header — title only, centered */
+    svg += '<rect x="0" y="0" width="' + fullW + '" height="' + headH + '" fill="' + esc(state.headerColor || '#1d9bf0') + '"/>';
+    svg += '<text x="' + (fullW/2) + '" y="' + (headH/2+7) + '" text-anchor="middle" font-family="Outfit,sans-serif" font-weight="700" font-size="20" fill="#fff">' + esc(state.title) + '</text>';
     /* Canvas bg */
     svg += '<rect x="0" y="' + headH + '" width="' + fullW + '" height="' + canvasH + '" fill="#f7f9fc"/>';
     /* Cables */
@@ -9346,7 +9505,7 @@ async function openRecapMatos(){
     var ox=pad-minX;var oy=pad-minY;
     /* Header band */
     var headH=56,footH=40;
-    var brandCol=esc(synData.brandColor||'#1d9bf0');
+    var brandCol=esc(synData.headerColor||synData.brandColor||'#1d9bf0');
     var nodeMap={};nodes.forEach(function(n){nodeMap[n.id]=n;});
     /* Cables */
     var edgeSvg='';
@@ -9385,10 +9544,9 @@ async function openRecapMatos(){
         if(n.sub){var sublines=n.sub.split('\n');sublines.forEach(function(s2,i){nodeSvg+='<text x="'+(x+w/2)+'" y="'+(y+h-8+i*11)+'" text-anchor="middle" font-family="Outfit,sans-serif" font-size="9" fill="#5a6a80">'+esc(s2)+'</text>';});}
       }
     });
-    /* Header */
+    /* Header — title only centered */
     var headSvg='<rect x="0" y="0" width="'+vw+'" height="'+headH+'" fill="'+brandCol+'"/>'
-      +'<text x="20" y="'+(headH/2+6)+'" font-family="Outfit,sans-serif" font-weight="800" font-size="20" fill="#fff">'+esc(synData.brand||'')+'</text>'
-      +'<text x="'+(vw/2)+'" y="'+(headH/2+6)+'" text-anchor="middle" font-family="Outfit,sans-serif" font-weight="600" font-size="17" fill="#fff">'+esc(synData.title||'')+'</text>';
+      +'<text x="'+(vw/2)+'" y="'+(headH/2+7)+'" text-anchor="middle" font-family="Outfit,sans-serif" font-weight="700" font-size="20" fill="#fff">'+esc(synData.title||'')+'</text>';
     /* Footer */
     var footSvg='<rect x="0" y="'+(vh+headH)+'" width="'+vw+'" height="'+footH+'" fill="#fff"/>';
     var legX=14,legY=vh+headH+25;
