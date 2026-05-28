@@ -1278,10 +1278,9 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
         </div>
         <div class="sp-body">
           <div class="sp-palette">
-            <div class="sp-pal-hd"><i class="ti ti-box"></i>Equipements</div>
+            <div class="sp-pal-hd"><i class="ti ti-box"></i>Bibliotheque</div>
             <div id="sp-pal-list" style="flex:1;overflow-y:auto"></div>
-            <div class="sp-pal-hd" style="border-top:1px solid var(--bdr2);margin-top:6px"><i class="ti ti-cable"></i>Cables</div>
-            <div id="sp-cable-list" style="padding:8px"></div>
+            <div id="sp-cable-list" style="border-top:1px solid var(--bdr2);padding:0"></div>
           </div>
           <div class="sp-canvas-wrap">
             <div class="sp-doc-head">
@@ -5145,13 +5144,31 @@ const SynPro = (() => {
   function _renderCablePalette() {
     var el = $('sp-cable-list');
     if (!el) return;
-    var h = '';
-    state.networks.forEach(function(n){
+    /* Cable section uses the same collapsible category structure as the
+       equipment palette ; collapsed state persisted in localStorage. */
+    var openState = _palOpenState();
+    var catKey = '_cables_';
+    var isOpen = openState.hasOwnProperty(catKey) ? openState[catKey] : true;
+    var collapsed = !isOpen ? ' collapsed' : '';
+    var items = state.networks.map(function(n){
       var active = activeCable === n.id ? ' active' : '';
-      h += '<div class="sp-cable-item' + active + '" data-net="' + esc(n.id) + '"><span class="sp-cable-swatch" style="background:' + esc(n.color) + '"></span><span>' + esc(n.name) + '</span></div>';
+      return '<div class="sp-cable-item' + active + '" data-net="' + esc(n.id) + '"><span class="sp-cable-swatch" style="background:' + esc(n.color) + '"></span><span style="flex:1">' + esc(n.name) + '</span></div>';
+    }).join('');
+    el.innerHTML =
+      '<div class="sp-pal-cat' + collapsed + '" data-cat="' + catKey + '">' +
+        '<div class="sp-pal-cat-name" data-toggle><span class="sp-pal-cat-chevron">&#9660;</span><span><i class="ti ti-cable" style="margin-right:4px"></i>Cables</span><span class="sp-pal-cat-count">' + state.networks.length + '</span></div>' +
+        '<div class="sp-pal-cat-items">' +
+          '<button class="sp-pal-cat-add" id="sp-cable-add" style="width:100%"><i class="ti ti-plus"></i> Nouveau type de cable</button>' +
+          items +
+          '<div style="margin-top:6px;font-size:9px;color:var(--muted);text-align:center;font-family:var(--m);line-height:1.4;padding:4px">Cliquez puis 2 equipements pour relier</div>' +
+        '</div>' +
+      '</div>';
+    el.querySelector('[data-toggle]').addEventListener('click', function(){
+      var cat = el.querySelector('.sp-pal-cat');
+      cat.classList.toggle('collapsed');
+      _palSetOpen(catKey, !cat.classList.contains('collapsed'));
     });
-    h += '<div style="margin-top:7px;font-size:9px;color:var(--muted);text-align:center;font-family:var(--m);line-height:1.4">Cliquez puis 2 equipements</div>';
-    el.innerHTML = h;
+    el.querySelector('#sp-cable-add').addEventListener('click', _openAddCableModal);
     el.querySelectorAll('.sp-cable-item').forEach(function(it){
       it.addEventListener('click', function(){
         var nid = it.dataset.net;
@@ -5166,6 +5183,46 @@ const SynPro = (() => {
         _updateBanner();
       });
     });
+  }
+
+  /* ── Modal : add a new cable type / network ── */
+  function _openAddCableModal() {
+    var m = $('sp-add-cable-modal');
+    if (!m) {
+      m = document.createElement('div');
+      m.id = 'sp-add-cable-modal';
+      m.className = 'sp-modal';
+      m.innerHTML = '<div class="sp-modal-card"><div class="sp-modal-title"><i class="ti ti-cable"></i>Nouveau type de cable</div><div id="sp-add-cable-body"></div></div>';
+      document.body.appendChild(m);
+      m.addEventListener('click', function(e){ if (e.target === m) m.classList.remove('show'); });
+    }
+    var body = m.querySelector('#sp-add-cable-body');
+    var palette = ['#ea8a3b','#5db865','#1d9bf0','#a855f7','#f43f5e','#fbbf24','#22d3ee','#10b981','#ec4899','#94a3b8','#dc2626','#facc15','#1f2937','#ef4444'];
+    var defColor = palette[state.networks.length % palette.length];
+    body.innerHTML =
+      '<label class="sp-insp-lbl">Nom du cable / reseau *</label>' +
+      '<input class="sp-insp-inp" id="sp-cab-name" placeholder="Ex: Ethernet CAT6, Optocore, Word Clock..." autofocus>' +
+      '<label class="sp-insp-lbl">Couleur</label>' +
+      '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><input type="color" id="sp-cab-color" value="' + defColor + '" style="width:42px;height:30px;border:none;cursor:pointer;border-radius:4px"><span style="font-size:10px;color:var(--muted)">Trait colore sur le synoptique &middot; legende</span></div>' +
+      '<div style="font-size:10px;color:var(--muted);background:var(--surf2);border:1px solid var(--bdr);border-radius:6px;padding:8px 10px;line-height:1.5;margin-top:8px"><i class="ti ti-info-circle" style="color:var(--ora)"></i> Une fois cree, ce type sera disponible pour tracer des cables. L\'etiquette individuelle (ex: <i>"RJ45 5m"</i>) se modifie sur chaque cable.</div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button class="btn ghost sm" id="sp-cab-cancel">Annuler</button><button class="btn sm" id="sp-cab-save"><i class="ti ti-device-floppy"></i>Enregistrer</button></div>';
+    body.querySelector('#sp-cab-cancel').addEventListener('click', function(){ m.classList.remove('show'); });
+    body.querySelector('#sp-cab-save').addEventListener('click', function(){
+      var name = body.querySelector('#sp-cab-name').value.trim();
+      if (!name) { toast('Le nom est requis.'); return; }
+      var color = body.querySelector('#sp-cab-color').value;
+      var id = 'cab.' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+      state.networks.push({ id:id, name:name, color:color });
+      scheduleSave();
+      _renderCablePalette();
+      _renderLegend();
+      m.classList.remove('show');
+      toast('Type de cable "' + name + '" ajoute.');
+    });
+    var inp = body.querySelector('#sp-cab-name');
+    inp.addEventListener('keydown', function(e){ if (e.key === 'Enter') body.querySelector('#sp-cab-save').click(); });
+    m.classList.add('show');
+    setTimeout(function(){ if (inp) inp.focus(); }, 30);
   }
 
   function _updateBanner() {
@@ -5247,7 +5304,7 @@ const SynPro = (() => {
     svg.innerHTML = html;
   }
 
-  /* ── Render legend ── */
+  /* ── Render legend — only networks with at least one cable instance ── */
   function _renderLegend() {
     var el = $('sp-legend');
     if (!el) return;
@@ -5255,7 +5312,7 @@ const SynPro = (() => {
     state.cables.forEach(function(c){ used[c.network] = true; });
     var h = '';
     state.networks.forEach(function(n){
-      if (!used[n.id] && state.cables.length > 0) return;
+      if (!used[n.id]) return;
       h += '<span class="sp-legend-item"><span class="sp-legend-line" style="background:' + esc(n.color) + '"></span>' + esc(n.name) + '</span>';
     });
     el.innerHTML = h;
