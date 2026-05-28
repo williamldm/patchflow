@@ -330,16 +330,23 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .sp-edge-hit{pointer-events:stroke;opacity:0;cursor:pointer}
 .sp-edge.sel{filter:drop-shadow(0 0 4px rgba(255,107,26,.6))}
 #sp-nodes{position:absolute;left:0;top:0;z-index:2;pointer-events:none}
-.sp-node{position:absolute;pointer-events:auto;touch-action:none;user-select:none;cursor:grab;display:flex;flex-direction:column;align-items:center;text-align:center}
+.sp-node{position:absolute;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-drag:none;cursor:grab;display:flex;flex-direction:column;align-items:center;text-align:center}
+.sp-node:active{cursor:grabbing}
 .sp-node.sel .sp-node-card{outline:2px solid #ff6b1a;outline-offset:2px}
 .sp-node.target-hint .sp-node-card{outline:2px dashed rgba(255,107,26,.7);outline-offset:2px}
-.sp-node-card{background:#fff;border:1px solid #c8d4e0;border-radius:9px;padding:10px 12px;box-shadow:0 2px 10px rgba(0,0,0,.07);display:flex;flex-direction:column;align-items:center;gap:6px;min-width:120px}
+/* Inner content does not intercept pointer events ; only the .sp-node itself
+   and the explicit delete button receive clicks. This guarantees drag works
+   no matter where inside the card the user grabs. */
+.sp-node-card{background:#fff;border:1px solid #c8d4e0;border-radius:9px;padding:10px 12px 14px;box-shadow:0 2px 10px rgba(0,0,0,.07);display:flex;flex-direction:column;align-items:center;gap:6px;min-width:120px;pointer-events:none}
+.sp-node-card *{pointer-events:none}
 .sp-node-icon{width:64px;height:64px;display:flex;align-items:center;justify-content:center;color:#1d3a5f}
-.sp-node-icon svg{width:100%;height:100%}
+.sp-node-icon svg{width:100%;height:100%;-webkit-user-drag:none}
 .sp-node-label{font-family:Outfit,sans-serif;font-weight:700;font-size:12.5px;color:#1d3a5f;line-height:1.2;margin-top:2px}
 .sp-node-sub{font-family:Outfit,sans-serif;font-size:10px;color:#5a6a80;line-height:1.3;font-weight:400}
-.sp-node-del{position:absolute;top:-7px;right:-7px;width:18px;height:18px;border:none;border-radius:50%;background:#ff4d6a;color:#fff;cursor:pointer;display:none;align-items:center;justify-content:center;font-size:10px;box-shadow:0 1px 4px rgba(0,0,0,.3);z-index:5}
-.sp-node:hover .sp-node-del,.sp-node.sel .sp-node-del{display:flex}
+/* Delete button INSIDE the card corner ; only visible when node is selected */
+.sp-node-del{position:absolute;top:4px;right:4px;width:20px;height:20px;border:none;border-radius:50%;background:rgba(255,77,106,.92);color:#fff;cursor:pointer;display:none;align-items:center;justify-content:center;font-size:12px;line-height:1;box-shadow:0 1px 4px rgba(0,0,0,.3);z-index:5;pointer-events:auto}
+.sp-node.sel .sp-node-del{display:flex}
+.sp-node-del:hover{background:#ff4d6a;transform:scale(1.1)}
 
 .sp-doc-foot{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:8px 18px;background:#fff;border-top:1px solid #e1e8f0;font-family:Outfit,sans-serif;font-size:11px;color:#5a6a80;min-height:36px}
 .sp-legend{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
@@ -5207,10 +5214,16 @@ const SynPro = (() => {
         var n = nodeById(nid2);
         if (!n) return;
         selected = { kind:'node', id:nid2 };
+        /* Apply .sel class immediately so the delete badge becomes visible
+           and the user gets visual feedback even before they release */
+        document.querySelectorAll('.sp-node').forEach(function(el){
+          el.classList.toggle('sel', el.dataset.id === nid2);
+        });
         var w = clientToWorld(e.clientX, e.clientY);
         dragging = { id:nid2, ox: w.x - n.x, oy: w.y - n.y, moved:false };
         vp.setPointerCapture(e.pointerId);
-        _renderInspector();
+        /* Inspector is re-rendered on pointerup so it doesn't interfere
+           with the drag (no DOM churn while dragging) */
         e.preventDefault();
         return;
       }
@@ -5259,6 +5272,8 @@ const SynPro = (() => {
       if (dragging) {
         if (dragging.moved) scheduleSave();
         dragging = null;
+        /* Now that the drag is done, refresh inspector for the selected node */
+        _renderInspector();
         return;
       }
       panning = null;
