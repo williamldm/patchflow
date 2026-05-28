@@ -291,6 +291,69 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .ch-pills{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:9px;max-height:40px;overflow:hidden}
 .ch-pill{background:var(--surf2);border:1px solid rgba(255,107,26,.2);border-radius:3px;font-family:var(--m);font-size:8px;padding:1px 5px;color:var(--ora)}
 
+/* ── FICHIERS CLOUD ── */
+.fich-dropzone{border:2px dashed var(--bdr2);border-radius:10px;padding:40px 20px;text-align:center;color:var(--muted);transition:all .2s;cursor:pointer;margin:14px 18px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.fich-dropzone.drag-over,.fich-dropzone.has-files.drag-over{border-color:var(--ora);background:var(--ora-d);color:var(--ora)}
+.fich-dropzone.has-files{padding:12px 20px;margin:0;border-radius:0;border:none;border-top:2px dashed var(--bdr);flex-direction:row;justify-content:center;gap:10px;background:transparent}
+.fich-dropzone .fich-dz-ico{font-size:36px;color:var(--bdr3);transition:color .2s}
+.fich-dropzone.drag-over .fich-dz-ico,.fich-dropzone.has-files.drag-over .fich-dz-ico{color:var(--ora)}
+.fich-dropzone.has-files .fich-dz-txt{font-size:11px}
+.fich-dropzone.has-files .fich-dz-ico{font-size:18px}
+.fich-filter-bar{display:flex;align-items:center;gap:7px;padding:10px 14px;border-bottom:1px solid var(--bdr);overflow-x:auto;scrollbar-width:none;flex-shrink:0}
+.fich-filter-bar::-webkit-scrollbar{display:none}
+.fich-action-btn{display:flex;align-items:center;gap:5px;font-size:10px;font-family:var(--f);font-weight:600;padding:6px 13px;border-radius:7px;cursor:pointer;white-space:nowrap;transition:all .15s;border:none}
+.fich-action-btn.upload{background:var(--ora);color:#000}
+.fich-action-btn.upload:hover{background:var(--ora2)}
+.fich-action-btn.folder{background:var(--surf2);border:1px solid var(--bdr2);color:var(--txt2)}
+.fich-action-btn.folder:hover{background:var(--surf3);border-color:var(--bdr3);color:var(--txt)}
+.fich-filter-sep{width:1px;height:20px;background:var(--bdr2);flex-shrink:0;margin:0 2px}
+.fich-filter-chip{background:var(--surf2);border:1px solid var(--bdr2);color:var(--txt2);font-size:10px;font-family:var(--f);padding:5px 12px;border-radius:20px;cursor:pointer;white-space:nowrap;transition:all .13s}
+.fich-filter-chip:hover{background:var(--surf3);border-color:var(--bdr3);color:var(--txt)}
+.fich-filter-chip.active{background:var(--ora-d);border-color:var(--ora-g);color:var(--ora);font-weight:600}
+.fich-list-wrap{flex:1;overflow-y:auto;padding:12px 14px}
+.fich-section-lbl{font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted2);padding:10px 2px 5px;display:flex;align-items:center;gap:5px}
+.fich-section-lbl:first-child{padding-top:2px}
+.fich-file-card{display:flex;align-items:center;gap:11px;padding:10px 12px;background:var(--surf2);border:1px solid var(--bdr);border-radius:9px;margin-bottom:6px;cursor:pointer;transition:all .15s}
+.fich-file-card:hover{background:var(--surf3);border-color:var(--bdr2)}
+.fich-file-ico{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px}
+.fich-file-ico.ico-pdf{background:rgba(239,68,68,.12)}
+.fich-file-ico.ico-word{background:rgba(59,130,246,.12)}
+.fich-file-ico.ico-excel{background:rgba(34,197,94,.12)}
+.fich-file-ico.ico-ppt{background:rgba(249,115,22,.12)}
+.fich-file-ico.ico-video{background:rgba(168,85,247,.12)}
+.fich-file-ico.ico-audio{background:rgba(6,182,212,.12)}
+.fich-file-ico.ico-folder{background:rgba(245,197,66,.12)}
+.fich-file-ico.ico-other{background:var(--surf3)}
+.fich-file-info{flex:1;min-width:0}
+.fich-file-name{font-size:12px;font-weight:600;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:2px}
+.fich-file-meta{font-size:10px;color:var(--muted);font-family:var(--m)}
+.fich-file-actions{display:flex;align-items:center;gap:3px;flex-shrink:0;opacity:0;transition:opacity .12s}
+.fich-file-card:hover .fich-file-actions{opacity:1}
+.fich-file-btn{background:none;border:none;color:var(--muted);cursor:pointer;width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:all .12s;font-size:14px;padding:0}
+.fich-file-btn.dl:hover{color:var(--ora);background:var(--ora-d)}
+.fich-file-btn.del:hover{color:var(--err);background:rgba(255,70,70,.12)}
+.fich-storage-row{display:flex;align-items:center;gap:10px;padding:9px 14px;border-top:1px solid var(--bdr);flex-shrink:0}
+.fich-storage-track{flex:1;height:3px;background:var(--surf3);border-radius:2px;overflow:hidden}
+.fich-storage-fill{height:100%;background:var(--ora);border-radius:2px;transition:width .6s}
+.fich-storage-lbl{font-family:var(--m);font-size:9px;color:var(--muted);white-space:nowrap}
+.fich-empty{text-align:center;padding:60px 20px;color:var(--muted)}
+.fich-empty i{font-size:44px;display:block;margin-bottom:14px;color:var(--bdr3)}
+#fich-viewer-modal{display:none;position:fixed;inset:0;z-index:1200}
+.fich-viewer-ov{position:absolute;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(4px)}
+.fich-viewer-win{position:absolute;top:3%;left:3%;right:3%;bottom:3%;background:var(--surf);border-radius:12px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.8)}
+.fich-viewer-bar{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--bdr);flex-shrink:0;background:var(--surf2);gap:10px}
+.fich-viewer-title{font-size:12px;font-weight:600;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+#fich-viewer-content{flex:1;overflow:auto;min-height:0;background:#08080f}
+#fich-viewer-content video{width:100%;height:100%;display:block;object-fit:contain;background:#000}
+.fich-audio-wrap{display:flex;align-items:center;justify-content:center;height:100%;padding:40px;background:var(--surf)}
+.fich-audio-wrap audio{width:100%;max-width:500px}
+.fich-breadcrumb{display:flex;align-items:center;gap:4px;padding:7px 14px;border-bottom:1px solid var(--bdr);font-size:11px;background:var(--surf2);flex-wrap:wrap}
+.fich-bc-seg{color:var(--muted);cursor:pointer;padding:2px 5px;border-radius:4px;transition:all .12s}
+.fich-bc-seg:hover{color:var(--txt);background:var(--surf3)}
+.fich-bc-seg.cur{color:var(--txt);font-weight:600;cursor:default}
+.fich-bc-sep{color:var(--muted2);font-size:9px}
+.fich-folder-ico{font-size:20px;color:#f5c542}
+
 /* ══════════════════════════════════════
    SYNOPTIQUE PRO — SynPro v1
    ══════════════════════════════════════ */
