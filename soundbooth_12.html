@@ -5463,6 +5463,15 @@ const SynPro = (() => {
     vp.addEventListener('pointerdown', function(e){
       if (e.button !== 0 && e.button !== 1) return;
 
+      /* Belt-and-braces : a previous interaction's pointerup may have been
+         missed (browser bug, release outside window, focus shift...). Clear
+         any stale drag/pan state so this click starts fresh. */
+      if (dragging || panning) {
+        dragging = null;
+        panning = null;
+        vp.style.cursor = '';
+      }
+
       var del = e.target.closest('.sp-node-del');
       if (del) { deleteNode(del.dataset.del); return; }
 
@@ -5568,6 +5577,33 @@ const SynPro = (() => {
       vp.style.cursor = '';
       dragging = null;
       panning = null;
+    });
+
+    /* If pointer capture is lost (window blur, focus shift, browser bug),
+       clean up so the next click can be processed normally. */
+    vp.addEventListener('lostpointercapture', function(){
+      vp.style.cursor = '';
+      if (dragging) {
+        if (dragging.moved) scheduleSave();
+        dragging = null;
+        _renderInspector();
+      }
+      panning = null;
+    });
+
+    /* Document-level failsafe : if vp.pointerup never fires (e.g. release
+       outside the iframe / window), still clear drag/pan state. */
+    document.addEventListener('pointerup', function(){
+      if (dragging) {
+        if (dragging.moved) scheduleSave();
+        dragging = null;
+        _renderInspector();
+        vp.style.cursor = '';
+      }
+      if (panning) {
+        panning = null;
+        vp.style.cursor = '';
+      }
     });
 
     /* Double-click cable or node to focus inspector */
