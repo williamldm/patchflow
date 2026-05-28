@@ -363,7 +363,18 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .sp-zoom-grp{display:flex;align-items:center;gap:1px;border:1px solid var(--bdr2);border-radius:7px;background:var(--surf2);overflow:hidden}
 .sp-zoom-grp button{width:26px;height:26px;border:none;background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px}
 .sp-zoom-grp button:hover{color:var(--ora);background:var(--surf3)}
-.sp-zoom-lbl{font-family:var(--m);font-size:10px;color:var(--txt2);min-width:38px;text-align:center;padding:0 4px}
+.sp-zoom-lbl{font-family:var(--m);font-size:10px;color:var(--txt2);min-width:44px;text-align:center;padding:0 4px;cursor:pointer;border-radius:4px;transition:background .12s,color .12s}
+.sp-zoom-lbl:hover{background:var(--surf3);color:var(--ora)}
+/* Zoom slider in bottom-right corner of canvas */
+.sp-zoom-hud{position:absolute;bottom:14px;right:14px;display:flex;align-items:center;gap:7px;background:rgba(15,21,37,.82);border:1px solid var(--bdr2);border-radius:9px;padding:5px 10px;z-index:20;backdrop-filter:blur(8px);user-select:none}
+.sp-zoom-hud-pct{font-family:var(--m);font-size:11px;font-weight:600;color:var(--txt);min-width:36px;text-align:center;cursor:pointer}
+.sp-zoom-hud-pct:hover{color:var(--ora)}
+.sp-zoom-slider{-webkit-appearance:none;appearance:none;width:90px;height:3px;border-radius:2px;background:var(--bdr2);outline:none;cursor:pointer}
+.sp-zoom-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:13px;height:13px;border-radius:50%;background:var(--ora);cursor:pointer;box-shadow:0 0 4px rgba(255,102,0,.4)}
+.sp-zoom-slider::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:var(--ora);cursor:pointer;border:none}
+.sp-zoom-slider:hover::-webkit-slider-thumb{box-shadow:0 0 8px rgba(255,102,0,.7)}
+.sp-zoom-hud-btn{width:22px;height:22px;border:none;background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;border-radius:4px;padding:0}
+.sp-zoom-hud-btn:hover{color:var(--ora);background:var(--surf3)}
 
 .sp-body{display:grid;grid-template-columns:200px 1fr 240px;gap:10px;flex:1;min-height:0;align-items:stretch}
 .sp-palette{background:var(--surf);border:1px solid var(--bdr2);border-radius:11px;display:flex;flex-direction:column;overflow:hidden}
@@ -1300,6 +1311,14 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
               <div class="sp-world" id="sp-world">
                 <svg id="sp-edges" xmlns="http://www.w3.org/2000/svg"></svg>
                 <div id="sp-nodes"></div>
+              </div>
+              <!-- Zoom HUD — bottom-right corner of canvas -->
+              <div class="sp-zoom-hud" id="sp-zoom-hud">
+                <button class="sp-zoom-hud-btn" id="sp-hud-out" title="Zoom -"><i class="ti ti-minus"></i></button>
+                <input type="range" class="sp-zoom-slider" id="sp-zoom-slider" min="20" max="300" value="100" step="5" title="Niveau de zoom">
+                <button class="sp-zoom-hud-btn" id="sp-hud-in" title="Zoom +"><i class="ti ti-plus"></i></button>
+                <span class="sp-zoom-hud-pct" id="sp-hud-pct" title="Cliquer pour revenir a 100%">100%</span>
+                <button class="sp-zoom-hud-btn" id="sp-hud-fit" title="Ajuster la vue (Ctrl+0)"><i class="ti ti-scan"></i></button>
               </div>
             </div>
             <div class="sp-doc-foot">
@@ -5579,7 +5598,7 @@ const SynPro = (() => {
     if (!state) return;
     var world = $('sp-world');
     if (world) world.style.transform = 'translate(' + view.panX + 'px,' + view.panY + 'px) scale(' + view.zoom + ')';
-    var zl = $('sp-zoom-lbl'); if (zl) zl.textContent = Math.round(view.zoom * 100) + '%';
+    _updateZoomHud();
     _renderHeader();
     _renderNodes();
     _renderEdges();
@@ -5664,7 +5683,7 @@ const SynPro = (() => {
       }
       var w = $('sp-world');
       if (w) w.style.transform = 'translate(' + view.panX + 'px,' + view.panY + 'px) scale(' + view.zoom + ')';
-      var zl = $('sp-zoom-lbl'); if (zl) zl.textContent = Math.round(view.zoom * 100) + '%';
+      _updateZoomHud();
     }, { passive:false });
 
     /* Pointer events */
@@ -5833,6 +5852,38 @@ const SynPro = (() => {
     $('sp-export')?.addEventListener('click', _exportPng);
     $('sp-reset')?.addEventListener('click', _resetDiagram);
 
+    /* Zoom HUD — slider + buttons */
+    var hudSlider = $('sp-zoom-slider');
+    var hudPct    = $('sp-hud-pct');
+    if (hudSlider) {
+      hudSlider.addEventListener('input', function(){
+        view.zoom = parseInt(hudSlider.value) / 100;
+        var world = $('sp-world');
+        if (world) world.style.transform = 'translate(' + view.panX + 'px,' + view.panY + 'px) scale(' + view.zoom + ')';
+        _updateZoomHud();
+        _renderEdges();
+      });
+    }
+    $('sp-hud-in')?.addEventListener('click',  function(){ _zoomBy(1.2); });
+    $('sp-hud-out')?.addEventListener('click', function(){ _zoomBy(1/1.2); });
+    $('sp-hud-fit')?.addEventListener('click', fitView);
+    if (hudPct) {
+      hudPct.addEventListener('click', function(){
+        /* Click the % label → reset to 100% */
+        view.zoom = 1;
+        var world = $('sp-world');
+        if (world) world.style.transform = 'translate(' + view.panX + 'px,' + view.panY + 'px) scale(1)';
+        _updateZoomHud();
+        _renderEdges();
+      });
+    }
+    /* Keyboard shortcut Ctrl+0 = fit view */
+    document.addEventListener('keydown', function(e){
+      if ((e.ctrlKey || e.metaKey) && (e.key === '0' || e.key === '=')) { e.preventDefault(); fitView(); }
+      if ((e.ctrlKey || e.metaKey) && e.key === '+') { e.preventDefault(); _zoomBy(1.2); }
+      if ((e.ctrlKey || e.metaKey) && e.key === '-') { e.preventDefault(); _zoomBy(1/1.2); }
+    });
+
     /* Editable header texts (in canvas header) */
     var ttl = $('sp-doc-title-h');
     if (ttl) {
@@ -5857,6 +5908,12 @@ const SynPro = (() => {
     if (v !== null && v !== orig) onChange(v);
   }
 
+  function _updateZoomHud() {
+    var pct = Math.round(view.zoom * 100);
+    var lbl = $('sp-zoom-lbl'); if (lbl) lbl.textContent = pct + '%';
+    var hudPct = $('sp-hud-pct'); if (hudPct) hudPct.textContent = pct + '%';
+    var slider = $('sp-zoom-slider'); if (slider) slider.value = Math.min(300, Math.max(20, pct));
+  }
   function _zoomBy(f) {
     var vp = $('sp-viewport');
     if (!vp) return;
