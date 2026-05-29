@@ -1437,13 +1437,25 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
       <div id="plan-scene-wrap" class="bp-layout">
         <div class="bp-pal">
           <div class="bp-pal-hd"><i class="ti ti-box"></i>Bibliotheque</div>
+          <div style="padding:7px 8px 6px;border-bottom:1px solid var(--bdr2);flex-shrink:0;background:var(--surf2);display:flex;flex-direction:column;gap:5px">
+            <input type="file" id="bp-bg-file" accept="image/*" style="display:none" onchange="BandPlan.loadBg(this)"/>
+            <button class="btn ghost sm" style="width:100%;justify-content:center;font-size:10.5px" onclick="document.getElementById('bp-bg-file').click()"><i class="ti ti-photo"></i> Image de fond</button>
+            <div id="bp-bg-controls" style="display:none">
+              <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)">
+                <i class="ti ti-sun" style="font-size:11px"></i>
+                <input type="range" id="bp-bg-opacity" min="5" max="100" value="100" style="flex:1;accent-color:var(--ora)" oninput="BandPlan.setBgOpacity(this.value)"/>
+                <button onclick="BandPlan.clearBg()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0">&#x2715;</button>
+              </div>
+            </div>
+          </div>
           <div class="bp-pal-head">
             <input class="bp-search" id="bp-search" placeholder="Rechercher..." oninput="BandPlan.search(this.value)">
           </div>
           <div id="bp-pal-list" class="bp-pal-list"></div>
         </div>
         <div class="bp-canvas-wrap" id="bp-canvas-wrap">
-          <div id="bp-canvas"></div>
+          <img id="bp-bg-img" style="position:absolute;top:0;left:0;transform-origin:0 0;display:none;pointer-events:none;max-width:none;z-index:0"/>
+          <div id="bp-canvas" style="position:relative;z-index:1"></div>
           <!-- Zoom HUD — same style as SynPro -->
           <div class="bp-zoom-bar">
             <button class="bp-zb" onclick="BandPlan.zoom(0.8)" title="Zoom -"><i class="ti ti-minus"></i></button>
@@ -2424,6 +2436,14 @@ async function loadShows(){
   renderSessions();
   if(SHOWS.length>0) await switchShow(SHOWS[0].id);
   else await newShowDefault();
+  /* Restore last active tab after everything is loaded */
+  try{
+    const lastTab=localStorage.getItem(TAB_PERSIST_KEY);
+    const validTabs=['sessions','fichiers','inputlist','showfiles','synoptique','stage','team'];
+    if(lastTab&&validTabs.includes(lastTab)&&lastTab!=='sessions'){
+      goTab(lastTab,null);
+    }
+  }catch(e){}
 }
 
 async function loadAllShowMembers(){
@@ -6732,11 +6752,42 @@ const BandPlan=(()=>{
   ];
   const RISER_ALTS=[0.2,0.4,0.6,0.8,1.0,1.2];
 
-  let st={els:[],nid:1,view:{z:1,px:80,py:60},cats:{},textScale:1.4,nodeScale:1.4,stageScale:1,viewMode:'vintage'};
+  let st={els:[],nid:1,view:{z:1,px:80,py:60},cats:{},textScale:1.4,nodeScale:1.4,stageScale:1,viewMode:'vintage',bgImage:null,bgOpacity:100};
   let _sel=null,_dn=null,_dnox=0,_dnoy=0,_pan=false,_pox=0,_poy=0,_inited=false,_saveT=0;
 
   function _wrap(){return document.getElementById('bp-canvas-wrap');}
   function _cv(){return document.getElementById('bp-canvas');}
+
+  /* ── Background image (same pattern as SitePlan) ── */
+  function loadBg(input){
+    const file=input.files?.[0];
+    if(!file)return;
+    if(file.size>8*1024*1024){typeof toast!=='undefined'&&toast('Image trop lourde (max 8 Mo)');return;}
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img2=new Image();
+      img2.onload=()=>{
+        const MAX=1600;let w=img2.width,h=img2.height;
+        if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}
+        const cv=document.createElement('canvas');cv.width=w;cv.height=h;
+        cv.getContext('2d').drawImage(img2,0,0,w,h);
+        st.bgImage=cv.toDataURL('image/jpeg',0.75);
+        _applyBg();saveStage();
+      };
+      img2.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+    input.value='';
+  }
+  function _applyBg(){
+    const img=document.getElementById('bp-bg-img');
+    const ctrl=document.getElementById('bp-bg-controls');
+    if(img){if(st.bgImage){img.src=st.bgImage;img.style.display='block';img.style.opacity=st.bgOpacity/100;}else{img.src='';img.style.display='none';}}
+    if(ctrl)ctrl.style.display=st.bgImage?'block':'none';
+    const sl=document.getElementById('bp-bg-opacity');if(sl)sl.value=st.bgOpacity;
+  }
+  function setBgOpacity(val){st.bgOpacity=+val;const img=document.getElementById('bp-bg-img');if(img)img.style.opacity=val/100;saveStage();}
+  function clearBg(){st.bgImage=null;st.bgOpacity=100;_applyBg();saveStage();}
   function _catOf(t){return CATS.find(c=>c.items.some(i=>i.t===t))||CATS.find(c=>c.id===(_customItems.find(i=>i.t===t)?.catId))||null;}
   function _itemOf(t){for(const c of CATS){const it=c.items.find(i=>i.t===t);if(it)return it;}return _customItems.find(i=>i.t===t)||null;}
   function _elColor(t){const it=_itemOf(t);const cat=_catOf(t);return(it&&it.c)||(cat&&cat.color)||'#5a6580';}
@@ -6803,7 +6854,10 @@ const BandPlan=(()=>{
   // ---- canvas ----
   function applyTransform(){
     const c=_cv();if(!c)return;
-    c.style.transform='matrix('+st.view.z+',0,0,'+st.view.z+','+st.view.px+','+st.view.py+')';
+    const t='matrix('+st.view.z+',0,0,'+st.view.z+','+st.view.px+','+st.view.py+')';
+    c.style.transform=t;
+    /* Sync background image to same transform */
+    const bg=document.getElementById('bp-bg-img');if(bg)bg.style.transform=t;
     const lbl=document.getElementById('bp-zoom-lbl');
     if(lbl)lbl.textContent=Math.round(st.view.z*100)+'%';
     const slider=document.getElementById('bp-zoom-slider');
@@ -7584,25 +7638,28 @@ const BandPlan=(()=>{
   }
 
   // ---- save/load ----
-  function getData(){return {els:st.els.map(e=>({...e})),nid:st.nid,view:{...st.view},textScale:st.textScale,nodeScale:st.nodeScale,stageScale:st.stageScale,viewMode:st.viewMode};}
+  function getData(){return {els:st.els.map(e=>({...e})),nid:st.nid,view:{...st.view},textScale:st.textScale,nodeScale:st.nodeScale,stageScale:st.stageScale,viewMode:st.viewMode,bgImage:st.bgImage||null,bgOpacity:st.bgOpacity??100};}
   function load(data){
     st.els=[];st.nid=1;
     _cv()?.querySelectorAll('.bp-node').forEach(n=>n.remove());
-    if(!data||!data.els)return;
+    st.bgImage=null;st.bgOpacity=100;
+    if(!data||!data.els){_applyBg();return;}
     st.els=data.els;
     st.nid=data.nid||(st.els.length?Math.max(...st.els.map(e=>e.id))+1:1);
     if(data.view)Object.assign(st.view,data.view);
     if(data.textScale)st.textScale=data.textScale;
     if(data.nodeScale)st.nodeScale=data.nodeScale;
     if(data.stageScale)st.stageScale=data.stageScale;
+    if(data.bgImage)st.bgImage=data.bgImage;
+    if(data.bgOpacity!=null)st.bgOpacity=data.bgOpacity;
     st.viewMode='vintage';  /* Always vintage now — toggle removed */
     st.els.forEach(el=>renderNode(el));
-    applyTransform();_applyGlobalScales();_sel=null;renderInspector();
+    applyTransform();_applyGlobalScales();_applyBg();_sel=null;renderInspector();
   }
   function clear(){
-    st.els=[];st.nid=1;
+    st.els=[];st.nid=1;st.bgImage=null;st.bgOpacity=100;
     _cv()?.querySelectorAll('.bp-node').forEach(n=>n.remove());
-    _sel=null;renderInspector();saveStage();
+    _applyBg();_sel=null;renderInspector();saveStage();
   }
 
   /* Returns the stage rect geometry based on current stageScale */
@@ -7701,7 +7758,7 @@ const BandPlan=(()=>{
   }
   function getVintageSVG(t,col){return _vSVG(t,col);}
   function getViewMode(){return st.viewMode;}
-  return {init,load,getData,clear,zoom,setZoomPct,resetZoom,fitView,search,toggleCat,_pdrag,_pdblclick,renderInspector,updateAlias,updPos,adjScale,adjZ,setRot,linkCh,unlinkCh,createCh,toggleStereo,linkChR,unlinkChR,createChR,linkOutCh,unlinkOutCh,createOutCh,toggleOutStereo,linkOutChR,unlinkOutChR,createOutChR,deleteNode,setTextScale,setNodeScale,setStageScale,setRiserDims,setRiserAlt,addCustomItem,removeCustomItem,linkKitCh,unlinkKitCh,createKitCh,setViewMode,getCatInfo,getVintageSVG,getViewMode};
+  return {init,load,getData,clear,zoom,setZoomPct,resetZoom,fitView,search,toggleCat,_pdrag,_pdblclick,renderInspector,updateAlias,updPos,adjScale,adjZ,setRot,linkCh,unlinkCh,createCh,toggleStereo,linkChR,unlinkChR,createChR,linkOutCh,unlinkOutCh,createOutCh,toggleOutStereo,linkOutChR,unlinkOutChR,createOutChR,deleteNode,setTextScale,setNodeScale,setStageScale,setRiserDims,setRiserAlt,addCustomItem,removeCustomItem,linkKitCh,unlinkKitCh,createKitCh,setViewMode,getCatInfo,getVintageSVG,getViewMode,loadBg,setBgOpacity,clearBg};
 })();
 
 // ══════════════════════════════════════
@@ -9823,6 +9880,7 @@ function renderFichiers() {
   loadFichiers();
 }
 
+const TAB_PERSIST_KEY = 'pf_active_tab';
 function goTab(id,el){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   document.getElementById('panel-'+id)?.classList.add('on');
@@ -9833,6 +9891,8 @@ function goTab(id,el){
   // Bottom nav sync
   document.querySelectorAll('.bn-tab').forEach(b=>b.classList.remove('on'));
   const bn=document.getElementById('bn-'+id);if(bn)bn.classList.add('on');
+  // Persist active tab
+  try{localStorage.setItem(TAB_PERSIST_KEY,id);}catch(e){}
   // Side effects
   if(id==='synoptique')SynPro.show();
   if(id==='sessions')renderSessions();
