@@ -120,18 +120,28 @@ h2 em{font-style:normal;color:var(--ora)}
 .mk-tag{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:8px;font-size:11px;font-weight:600;font-family:var(--m);cursor:pointer;border:1px solid;transition:all .15s}
 .mk-patch-tab{display:inline-flex;align-items:center;gap:6px;padding:5px 13px;border-radius:7px;border:1px solid var(--bdr2);background:var(--surf2);color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--m)}
 .mk-patch-tab.on{background:var(--ora);border-color:var(--ora);color:#000}
-.mk-stage{background:#e8e8e8;border-radius:10px;position:relative;overflow:hidden;height:260px}
-.mk-grid-bg{position:absolute;inset:0;background-image:linear-gradient(rgba(180,180,180,.4) 1px,transparent 1px),linear-gradient(90deg,rgba(180,180,180,.4) 1px,transparent 1px);background-size:30px 30px}
-.mk-stage-rect{position:absolute;left:12%;right:12%;top:12%;bottom:30%;border:2px dashed rgba(255,107,26,.35);border-radius:10px;background:rgba(255,107,26,.04);display:flex;align-items:center;justify-content:center;font-size:10px;font-family:var(--m);color:rgba(255,107,26,.3);letter-spacing:4px}
+.mk-stage{background:#fff;border-radius:10px;position:relative;overflow:hidden;height:260px}
+.mk-grid-bg{position:absolute;inset:0;background-image:linear-gradient(rgba(29,58,95,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(29,58,95,.05) 1px,transparent 1px);background-size:30px 30px}
+.mk-stage-rect{position:absolute;left:12%;right:12%;top:12%;bottom:30%;border:2px dashed rgba(255,107,26,.35);border-radius:10px;background:rgba(255,107,26,.035);display:flex;align-items:center;justify-content:center;font-size:11px;font-family:var(--f);font-weight:700;color:rgba(255,107,26,.3);letter-spacing:6px}
 .mk-node{position:absolute;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:move}
-.mk-node-body{width:44px;height:44px;border-radius:10px;background:#fff;border:2px solid;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
-.mk-node-lbl{font-size:9px;font-family:var(--m);background:rgba(255,255,255,.9);padding:1px 5px;border-radius:3px;color:#111;font-weight:600;white-space:nowrap}
-.mk-node-ch{position:absolute;top:-6px;right:-6px;background:var(--ora);color:#000;font-size:7px;font-weight:700;padding:1px 4px;border-radius:8px;font-family:var(--m)}
-.mk-kit-block{background:#fff;border:2px solid rgba(255,77,106,.3);border-radius:10px;overflow:hidden;min-width:150px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
-.mk-kit-head{background:rgba(255,77,106,.1);padding:6px 10px;display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#222}
-.mk-kit-row{padding:4px 10px;border-top:1px solid rgba(255,107,26,.1);display:flex;gap:6px;align-items:center;font-size:10px;color:#333}
+.mk-node-body{width:46px;height:46px;border-radius:11px;background:#fff;border:1.5px solid;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.10);padding:6px;position:relative}
+.mk-node-body svg{width:100%;height:100%;display:block}
+.mk-node-lbl{font-size:9px;font-family:var(--m);background:#fff;border:1px solid rgba(29,58,95,.18);padding:2px 6px;border-radius:5px;color:#1d3a5f;font-weight:600;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.mk-node-ch{position:absolute;top:-7px;right:-7px;background:var(--ora);color:#000;font-size:7px;font-weight:700;padding:1px 5px;border-radius:8px;font-family:var(--m);box-shadow:0 1px 4px rgba(0,0,0,.2)}
+.mk-kit-block{background:#fff;border:1.5px solid rgba(255,77,106,.4);border-radius:11px;overflow:hidden;min-width:152px;box-shadow:0 2px 10px rgba(0,0,0,.10)}
+.mk-kit-head{background:rgba(255,77,106,.1);padding:7px 10px;display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#1d3a5f}
+.mk-kit-row{padding:5px 10px;border-top:1px solid #e5eaf2;display:flex;gap:8px;align-items:center;font-size:10px;color:#1d3a5f}
 .mk-kit-ch{font-family:var(--m);font-weight:700;color:var(--ora);font-size:9px}
 .mk-syn-node{position:absolute;background:var(--surf);border:1px solid;border-radius:9px;padding:8px 12px;font-size:10px;font-weight:600;display:flex;align-items:center;gap:6px;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+/* New synoptique / site-plan node mockups — white cards with pro SVG logos */
+.mk-syn2{position:absolute;display:flex;flex-direction:column;align-items:center;gap:4px;width:80px}
+.mk-syn2-ic{width:56px;height:42px;background:#fff;border:1.5px solid #c8d4e0;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:5px;box-shadow:0 2px 8px rgba(0,0,0,.10)}
+.mk-syn2-ic svg{width:100%;height:100%;display:block}
+.mk-syn2 span{font-size:9px;font-weight:600;color:#1d3a5f;background:#fff;border:1px solid rgba(29,58,95,.18);border-radius:5px;padding:2px 7px;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.mk-site2{position:absolute;display:flex;flex-direction:column;align-items:center;gap:4px}
+.mk-site2-ic{width:48px;height:48px;background:#fff;border:1.5px solid;border-radius:11px;display:flex;align-items:center;justify-content:center;padding:7px;box-shadow:0 2px 8px rgba(0,0,0,.10)}
+.mk-site2-ic svg{width:100%;height:100%;display:block}
+.mk-site2 span{font-size:9px;font-weight:600;color:#1d3a5f;background:#fff;border:1px solid rgba(29,58,95,.18);border-radius:5px;padding:2px 7px;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.06)}
 .mk-cable{position:absolute;pointer-events:none}
 .mk-tpl-card{background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;padding:14px;display:flex;align-items:flex-start;gap:10px;cursor:pointer;transition:all .15s}
 .mk-tpl-card:hover{border-color:var(--ora);background:var(--surf3)}
@@ -400,7 +410,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
       </div>
       <div class="feat-item" onclick="showFeat('synoptique',this)">
         <div class="feat-item-ic" style="background:rgba(26,143,255,.12);color:var(--blu)"><i class="ti ti-topology-star"></i></div>
-        <div class="feat-item-text"><div class="feat-item-name">Synoptique</div><div class="feat-item-sub">Routage de signal</div></div>
+        <div class="feat-item-text"><div class="feat-item-name">Synoptique</div><div class="feat-item-sub">115+ equipements, cables</div></div>
         <i class="ti ti-chevron-right feat-item-arr"></i>
       </div>
       <div class="feat-item" onclick="showFeat('siteplan',this)">
@@ -420,7 +430,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
       </div>
       <div class="feat-item" onclick="showFeat('export',this)">
         <div class="feat-item-ic" style="background:rgba(26,143,255,.12);color:var(--blu)"><i class="ti ti-file-type-pdf"></i></div>
-        <div class="feat-item-text"><div class="feat-item-name">Export PDF / PNG</div><div class="feat-item-sub">Documents professionnels</div></div>
+        <div class="feat-item-text"><div class="feat-item-name">Export multi-format</div><div class="feat-item-sub">PDF · PNG · SVG · Impression</div></div>
         <i class="ti ti-chevron-right feat-item-arr"></i>
       </div>
       <div class="feat-item" onclick="showFeat('recap',this)">
@@ -626,8 +636,8 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
           <div class="feat-pane-icon" style="background:rgba(155,106,255,.12);color:var(--pur)"><i class="ti ti-layout-board"></i></div>
           <div>
             <div class="feat-pane-title">Plan de scene interactif</div>
-            <div class="feat-pane-desc">Placez vos instruments en drag &amp; drop. Praticables a dimensions reelles, mode stereo pour les claviers/DI, kit complet avec tous ses canaux, lien direct vers l'Input List et l'Output List.</div>
-            <div class="feat-tag"><i class="ti ti-arrows-left-right" style="font-size:10px"></i>Mode stereo + lien Output List</div>
+            <div class="feat-pane-desc">Placez vos instruments en drag &amp; drop avec de vrais logos dessines (batterie, guitares, claviers, cuivres...). Praticables a dimensions reelles, kit complet avec ses canaux, image de fond importable, lien direct vers l'Input List.</div>
+            <div class="feat-tag"><i class="ti ti-photo" style="font-size:10px"></i>Logos pro + image de fond</div>
           </div>
         </div>
         <div class="feat-pane-body" style="padding:14px">
@@ -635,36 +645,38 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
             <div class="mk-grid-bg"></div>
             <div class="mk-stage-rect">S C E N E</div>
             <!-- Kit -->
-            <div class="mk-kit-block" style="position:absolute;left:34%;top:18%">
-              <div class="mk-kit-head"><span>🥁</span><span>Kit complet</span><span style="margin-left:auto;font-size:9px;color:var(--ora);background:rgba(255,107,26,.12);padding:1px 6px;border-radius:6px">8 CH</span></div>
+            <div class="mk-kit-block" style="position:absolute;left:34%;top:16%">
+              <div class="mk-kit-head">
+                <svg viewBox="0 0 72 72" style="width:18px;height:18px"><circle cx="36" cy="36" r="31" fill="#f4f6fb" stroke="#1d3a5f" stroke-width="2"/><circle cx="36" cy="36" r="23" fill="#fff" stroke="#1d3a5f" stroke-width="1.5"/><circle cx="36" cy="36" r="10" fill="#1d3a5f" fill-opacity=".08" stroke="#1d3a5f" stroke-width="1.5"/></svg>
+                <span>Kit complet</span><span style="margin-left:auto;font-size:9px;color:#fff;background:#ff4d6a;padding:1px 7px;border-radius:6px;font-weight:700">8 CH</span></div>
               <div class="mk-kit-row"><span class="mk-kit-ch">CH1</span><span>Grosse caisse</span></div>
               <div class="mk-kit-row"><span class="mk-kit-ch">CH2</span><span>Caisse claire</span></div>
               <div class="mk-kit-row"><span class="mk-kit-ch">CH3</span><span>Tom basse</span></div>
               <div class="mk-kit-row"><span class="mk-kit-ch">CH4</span><span>Overhead L</span></div>
             </div>
             <!-- Guitar node -->
-            <div class="mk-node" style="left:15%;top:25%">
-              <div class="mk-node-body" style="border-color:rgba(245,197,66,.5)"><span class="mk-node-ch">CH9</span>🎸</div>
+            <div class="mk-node" style="left:14%;top:24%">
+              <div class="mk-node-body" style="border-color:#f5c54288"><span class="mk-node-ch">CH9</span><svg viewBox="0 0 72 72" fill="none"><path d="M36,9C47,9 55,17 55,27C55,33 51,35 51,39C51,54 49,63 36,64C23,63 21,54 21,39C21,35 17,33 17,27C17,17 25,9 36,9Z" fill="#fbbf24" stroke="#1d3a5f" stroke-width="1.5"/><rect x="31" y="29" width="10" height="4" rx="1" fill="#1d3a5f"/><rect x="31" y="39" width="10" height="4" rx="1" fill="#1d3a5f"/><rect x="33" y="62" width="6" height="5" rx="1" fill="#1d3a5f"/></svg></div>
               <div class="mk-node-lbl">Guitare lead</div>
             </div>
             <!-- Keys node -->
-            <div class="mk-node" style="left:62%;top:22%">
-              <div class="mk-node-body" style="border-color:rgba(155,106,255,.5)"><span class="mk-node-ch">CH13</span>🎹</div>
+            <div class="mk-node" style="left:63%;top:21%">
+              <div class="mk-node-body" style="border-color:#9b6aff88"><span class="mk-node-ch">CH13</span><svg viewBox="0 0 72 72" fill="none"><rect x="4" y="18" width="64" height="36" rx="4" fill="#1d3a5f" stroke="#1d3a5f" stroke-width="1.2"/><rect x="6" y="24" width="60" height="28" rx="2" fill="#fff"/><line x1="14" y1="24" x2="14" y2="52" stroke="#1d3a5f" stroke-width=".5"/><line x1="22" y1="24" x2="22" y2="52" stroke="#1d3a5f" stroke-width=".5"/><line x1="30" y1="24" x2="30" y2="52" stroke="#1d3a5f" stroke-width=".5"/><line x1="42" y1="24" x2="42" y2="52" stroke="#1d3a5f" stroke-width=".5"/><line x1="50" y1="24" x2="50" y2="52" stroke="#1d3a5f" stroke-width=".5"/><rect x="10" y="24" width="5" height="16" fill="#1d3a5f"/><rect x="18" y="24" width="5" height="16" fill="#1d3a5f"/><rect x="34" y="24" width="5" height="16" fill="#1d3a5f"/><rect x="42" y="24" width="5" height="16" fill="#1d3a5f"/><rect x="50" y="24" width="5" height="16" fill="#1d3a5f"/></svg></div>
               <div class="mk-node-lbl">Claviers</div>
             </div>
             <!-- Vox node -->
-            <div class="mk-node" style="left:44%;top:50%">
-              <div class="mk-node-body" style="border-color:rgba(34,214,160,.5)"><span class="mk-node-ch">CH17</span>🎤</div>
+            <div class="mk-node" style="left:44%;top:52%">
+              <div class="mk-node-body" style="border-color:#22d6a088"><span class="mk-node-ch">CH17</span><svg viewBox="0 0 72 72" fill="none"><circle cx="36" cy="60" r="11" fill="#fff" stroke="#1d3a5f" stroke-width="2"/><circle cx="36" cy="60" r="5" fill="#1d3a5f" fill-opacity=".25"/><line x1="36" y1="49" x2="36" y2="20" stroke="#1d3a5f" stroke-width="3"/><ellipse cx="36" cy="15" rx="7" ry="10" fill="#fff" stroke="#1d3a5f" stroke-width="2"/><ellipse cx="36" cy="15" rx="4.5" ry="7" fill="#1d3a5f" fill-opacity=".7"/></svg></div>
               <div class="mk-node-lbl">Chant</div>
             </div>
             <!-- Riser -->
-            <div class="mk-riser" style="position:absolute;left:70%;top:30%;width:90px;height:55px;background:rgba(90,100,120,.5);border:2px solid rgba(100,115,140,.7);border-radius:6px">
-              <div style="font-family:var(--m);font-size:9px;color:#fff;font-weight:700">2m × 1m</div>
-              <div style="font-family:var(--m);font-size:8px;color:rgba(255,255,255,.7)">⬆ 0.6m</div>
+            <div class="mk-riser" style="position:absolute;left:70%;top:30%;width:90px;height:55px;background:rgba(255,107,26,.12);border:2px solid rgba(255,107,26,.45);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center">
+              <div style="font-family:var(--m);font-size:10px;color:#1d3a5f;font-weight:700">2m × 1m</div>
+              <div style="font-family:var(--m);font-size:8px;color:#64748b">⬆ 0.6m</div>
             </div>
             <!-- Bass -->
-            <div class="mk-node" style="left:20%;top:55%">
-              <div class="mk-node-body" style="border-color:rgba(255,107,26,.5)"><span class="mk-node-ch">CH11</span>🎸</div>
+            <div class="mk-node" style="left:19%;top:56%">
+              <div class="mk-node-body" style="border-color:#22d6a088"><span class="mk-node-ch">CH11</span><svg viewBox="0 0 72 72" fill="none"><path d="M36,10C47,10 54,18 54,27C54,32 51,34 51,38C51,52 49,63 36,65C23,63 21,52 21,38C21,34 18,32 18,27C18,18 25,10 36,10Z" fill="#22d6a0" stroke="#1d3a5f" stroke-width="1.5"/><rect x="31" y="34" width="10" height="5" rx="1" fill="#1d3a5f"/><rect x="31" y="45" width="10" height="5" rx="1" fill="#1d3a5f"/></svg></div>
               <div class="mk-node-lbl">Basse</div>
             </div>
           </div>
@@ -677,22 +689,34 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
           <div class="feat-pane-icon" style="background:rgba(26,143,255,.12);color:var(--blu)"><i class="ti ti-topology-star"></i></div>
           <div>
             <div class="feat-pane-title">Synoptique de signal</div>
-            <div class="feat-pane-desc">Dessinez votre schema de routage de signal. Templates de routage predifinis, zoom jusqu'a 350 %, plusieurs scenes, connexions typees, export PDF professionnel.</div>
-            <div class="feat-tag"><i class="ti ti-template" style="font-size:10px"></i>Templates + zoom 350 %</div>
+            <div class="feat-pane-desc">Dessinez votre routage avec une bibliotheque de 115+ equipements (consoles, stageboxes, amplis) triee par type puis par marque. Cables typees et colores, fleches directionnelles, liaisons multiples entre deux appareils, export PNG / PDF / SVG.</div>
+            <div class="feat-tag"><i class="ti ti-arrow-ramp-right-2" style="font-size:10px"></i>115+ equipements &middot; cables directionnels</div>
           </div>
         </div>
-        <div class="feat-pane-body" style="padding:14px;position:relative;min-height:250px">
-          <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" xmlns="http://www.w3.org/2000/svg">
-            <defs><marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#ff6b1a"/></marker></defs>
-            <path d="M 155 80 C 155 120, 220 120, 220 80" stroke="#ff6b1a" stroke-width="2" fill="none" marker-end="url(#arr)" opacity=".7"/>
-            <path d="M 155 80 C 155 180, 340 180, 340 130" stroke="#1a8fff" stroke-width="2" fill="none" stroke-dasharray="6,3" marker-end="url(#arr)" opacity=".7"/>
-            <path d="M 310 80 C 400 80, 400 130, 430 130" stroke="#22d6a0" stroke-width="2" fill="none" marker-end="url(#arr)" opacity=".7"/>
-            <path d="M 220 80 C 270 80, 280 80, 310 80" stroke="#ff6b1a" stroke-width="2" fill="none" marker-end="url(#arr)" opacity=".7"/>
-          </svg>
-          <div class="mk-syn-node" style="left:60px;top:56px;border-color:rgba(255,107,26,.4)"><span style="color:var(--ora)">🎤</span>Scene</div>
-          <div class="mk-syn-node" style="left:220px;top:56px;border-color:rgba(255,107,26,.4)"><span>🎛</span>StagePatch</div>
-          <div class="mk-syn-node" style="left:340px;top:56px;border-color:rgba(26,143,255,.4)"><span style="color:var(--blu)">📡</span>Console FOH</div>
-          <div class="mk-syn-node" style="left:290px;top:148px;border-color:rgba(34,214,160,.4)"><span style="color:var(--grn)">🔊</span>Console MON</div>
+        <div class="feat-pane-body" style="padding:0;position:relative;min-height:270px">
+          <div style="background:#fff;border-radius:10px;height:270px;position:relative;overflow:hidden;border:1px solid var(--bdr2)">
+            <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(29,58,95,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(29,58,95,.05) 1px,transparent 1px);background-size:30px 30px"></div>
+            <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <marker id="syn-o" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M2,1 L8,4.5 L2,8 Z" fill="#ff6b1a"/></marker>
+                <marker id="syn-b" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M2,1 L8,4.5 L2,8 Z" fill="#1d9bf0"/></marker>
+                <marker id="syn-g" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M2,1 L8,4.5 L2,8 Z" fill="#22d6a0"/></marker>
+              </defs>
+              <line x1="156" y1="74" x2="206" y2="74" stroke="#ff6b1a" stroke-width="2.5" marker-end="url(#syn-o)"/>
+              <path d="M156 86 Q181 110 206 86" stroke="#1d9bf0" stroke-width="2.5" fill="none" marker-end="url(#syn-b)"/>
+              <line x1="300" y1="74" x2="352" y2="74" stroke="#22d6a0" stroke-width="2.5" marker-end="url(#syn-g)"/>
+              <path d="M256 100 Q256 150 300 168" stroke="#22d6a0" stroke-width="2.5" fill="none" marker-end="url(#syn-g)"/>
+            </svg>
+            <div class="mk-syn2" style="left:64px;top:44px"><div class="mk-syn2-ic"><svg viewBox="0 0 64 36" fill="none"><rect x="3" y="6" width="58" height="24" rx="2" fill="#2c3f5f" stroke="#1d9bf0" stroke-width=".8"/><g fill="#1a2840" stroke="#3a5378" stroke-width=".3"><circle cx="10" cy="14" r="2"/><circle cx="16" cy="14" r="2"/><circle cx="22" cy="14" r="2"/><circle cx="28" cy="14" r="2"/><circle cx="34" cy="14" r="2"/><circle cx="40" cy="14" r="2"/><circle cx="46" cy="14" r="2"/><circle cx="52" cy="14" r="2"/></g><g fill="#ff6b1a"><rect x="10" y="22" width="3" height="5" rx=".5"/><rect x="16" y="22" width="3" height="5" rx=".5"/><rect x="22" y="22" width="3" height="5" rx=".5"/><rect x="28" y="22" width="3" height="5" rx=".5"/></g></svg></div><span>Scene Box</span></div>
+            <div class="mk-syn2" style="left:204px;top:44px"><div class="mk-syn2-ic"><svg viewBox="0 0 64 48" fill="none"><rect x="4" y="4" width="56" height="42" rx="2" fill="#0d1828" stroke="#2c3f5f" stroke-width="1"/><rect x="4" y="44" width="56" height="2" fill="#1d9bf0"/><rect x="8" y="7" width="48" height="7" rx=".5" fill="#1a2840" stroke="#3a5378" stroke-width=".3"/><rect x="8" y="16" width="48" height="7" rx=".5" fill="#1a2840" stroke="#3a5378" stroke-width=".3"/><rect x="8" y="25" width="48" height="7" rx=".5" fill="#1a2840" stroke="#3a5378" stroke-width=".3"/><rect x="8" y="34" width="48" height="7" rx=".5" fill="#1a2840" stroke="#3a5378" stroke-width=".3"/><circle cx="14" cy="10.5" r="1" fill="#ff6b1a"/><circle cx="14" cy="28.5" r="1" fill="#ff6b1a"/></svg></div><span>StageRack</span></div>
+            <div class="mk-syn2" style="left:350px;top:44px"><div class="mk-syn2-ic"><svg viewBox="0 0 64 48" fill="none"><rect x="3" y="6" width="58" height="36" rx="2" fill="#2c3f5f"/><rect x="3" y="6" width="58" height="9" rx="2" fill="#1a2840"/><rect x="6" y="18" width="16" height="22" rx="1" fill="#16243d" stroke="#3a5378" stroke-width=".4"/><rect x="24" y="18" width="16" height="22" rx="1" fill="#16243d" stroke="#3a5378" stroke-width=".4"/><g fill="#1d9bf0"><rect x="42" y="20" width="2" height="9"/><rect x="46" y="20" width="2" height="9"/><rect x="50" y="20" width="2" height="9"/><rect x="54" y="20" width="2" height="9"/></g><g fill="#ff6b1a"><circle cx="43" cy="33" r="1.4"/><circle cx="47" cy="33" r="1.4"/><circle cx="51" cy="33" r="1.4"/><circle cx="55" cy="33" r="1.4"/></g></svg></div><span>Console FOH</span></div>
+            <div class="mk-syn2" style="left:294px;top:148px"><div class="mk-syn2-ic"><svg viewBox="0 0 64 48" fill="none"><rect x="6" y="10" width="52" height="32" rx="2" fill="#2c3f5f"/><rect x="6" y="10" width="52" height="7" rx="2" fill="#1a2840"/><rect x="9" y="20" width="20" height="20" rx="1" fill="#16243d" stroke="#3a5378" stroke-width=".4"/><g fill="#f5c542"><rect x="32" y="22" width="2" height="9"/><rect x="36" y="22" width="2" height="9"/><rect x="40" y="22" width="2" height="9"/><rect x="44" y="22" width="2" height="9"/><rect x="48" y="22" width="2" height="9"/></g><g fill="#ff6b1a"><circle cx="33" cy="35" r="1.2"/><circle cx="37" cy="35" r="1.2"/><circle cx="41" cy="35" r="1.2"/></g></svg></div><span>Console MON</span></div>
+            <div style="position:absolute;bottom:9px;left:12px;display:flex;gap:13px;font-size:9px;font-family:var(--m);color:#64748b">
+              <div style="display:flex;align-items:center;gap:5px"><span style="display:inline-block;width:18px;height:2.5px;background:#ff6b1a;border-radius:2px"></span>Analogique</div>
+              <div style="display:flex;align-items:center;gap:5px"><span style="display:inline-block;width:18px;height:2.5px;background:#1d9bf0;border-radius:2px"></span>AES50</div>
+              <div style="display:flex;align-items:center;gap:5px"><span style="display:inline-block;width:18px;height:2.5px;background:#22d6a0;border-radius:2px"></span>Dante</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -702,25 +726,25 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
           <div class="feat-pane-icon" style="background:rgba(34,214,160,.12);color:var(--grn)"><i class="ti ti-map-2"></i></div>
           <div>
             <div class="feat-pane-title">Plan de site technique</div>
-            <div class="feat-pane-desc">Implantez votre sonorisation sur le plan du site. Tracez vos liaisons XLR, AES, DANTE, HF. Export PNG et PDF.</div>
-            <div class="feat-tag"><i class="ti ti-photo-down" style="font-size:10px"></i>Export PNG haute resolution</div>
+            <div class="feat-pane-desc">Importez le plan du lieu en image de fond et implantez votre sonorisation par-dessus. 28 logos d'equipements professionnels, liaisons typees (XLR, AES, Dante, fibre, secteur...), export PNG / PDF avec lien et contact.</div>
+            <div class="feat-tag"><i class="ti ti-photo" style="font-size:10px"></i>Image de fond &middot; 28 logos pro</div>
           </div>
         </div>
-        <div class="feat-pane-body" style="padding:14px;position:relative">
-          <div style="background:#1a1f2e;border-radius:10px;height:240px;position:relative;overflow:hidden;border:1px solid var(--bdr2)">
-            <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);background-size:30px 30px"></div>
+        <div class="feat-pane-body" style="padding:0;position:relative">
+          <div style="background:#fff;border-radius:10px;height:250px;position:relative;overflow:hidden;border:1px solid var(--bdr2)">
+            <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(29,58,95,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(29,58,95,.05) 1px,transparent 1px);background-size:30px 30px"></div>
             <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" xmlns="http://www.w3.org/2000/svg">
-              <line x1="80" y1="80" x2="220" y2="80" stroke="#ff6b1a" stroke-width="2.5" opacity=".6"/>
-              <line x1="220" y1="80" x2="380" y2="60" stroke="#ff6b1a" stroke-width="2.5" opacity=".6"/>
-              <line x1="80" y1="80" x2="80" y2="180" stroke="#1a8fff" stroke-width="2" stroke-dasharray="6,3" opacity=".6"/>
+              <line x1="96" y1="76" x2="208" y2="76" stroke="#ff6b1a" stroke-width="2.5"/>
+              <path d="M208 84 Q260 110 360 72" stroke="#ff6b1a" stroke-width="2.5" fill="none"/>
+              <path d="M96 88 Q90 150 96 188" stroke="#1d9bf0" stroke-width="2.5" fill="none" stroke-dasharray="7,3"/>
             </svg>
-            <div style="position:absolute;left:50px;top:58px;background:var(--surf2);border:1px solid rgba(255,107,26,.4);border-radius:8px;padding:6px 10px;font-size:10px;display:flex;align-items:center;gap:6px"><span>🔊</span><span style="font-weight:600">FOH</span></div>
-            <div style="position:absolute;left:190px;top:58px;background:var(--surf2);border:1px solid rgba(255,107,26,.3);border-radius:8px;padding:6px 10px;font-size:10px;display:flex;align-items:center;gap:6px"><span>🎛</span><span style="font-weight:600">Stage Box</span></div>
-            <div style="position:absolute;left:350px;top:38px;background:var(--surf2);border:1px solid rgba(26,143,255,.3);border-radius:8px;padding:6px 10px;font-size:10px;display:flex;align-items:center;gap:6px"><span>🔺</span><span style="font-weight:600">Retours</span></div>
-            <div style="position:absolute;left:50px;top:152px;background:var(--surf2);border:1px solid rgba(26,143,255,.3);border-radius:8px;padding:6px 10px;font-size:10px;display:flex;align-items:center;gap:6px"><span>📡</span><span style="font-weight:600">IEM TX</span></div>
-            <div style="position:absolute;bottom:10px;right:12px;font-size:9px;font-family:var(--m);color:var(--muted);display:flex;flex-direction:column;gap:3px">
-              <div><span style="display:inline-block;width:20px;height:2px;background:var(--ora);vertical-align:middle;margin-right:5px"></span>XLR</div>
-              <div><span style="display:inline-block;width:20px;height:2px;background:var(--blu);border-bottom:2px dashed var(--blu);vertical-align:middle;margin-right:5px"></span>DANTE</div>
+            <div class="mk-site2" style="left:54px;top:50px"><div class="mk-site2-ic" style="border-color:#1a8fff66"><svg viewBox="0 0 48 64" fill="none"><g stroke="#2c3f5f" stroke-width="1" fill="#1d3a5f"><path d="M14 6 L34 6 L36 14 L12 14 Z"/><path d="M12 16 L36 16 L38 24 L10 24 Z"/><path d="M10 26 L38 26 L40 34 L8 34 Z"/><path d="M8 36 L40 36 L42 44 L6 44 Z"/></g><line x1="24" y1="2" x2="24" y2="6" stroke="#5a6a80" stroke-width="1.2"/></svg></div><span>Line Array</span></div>
+            <div class="mk-site2" style="left:184px;top:50px"><div class="mk-site2-ic" style="border-color:#5a658066"><svg viewBox="0 0 64 36" fill="none"><rect x="3" y="6" width="58" height="24" rx="2" fill="#5a6580" stroke="#1d3a5f" stroke-width="1"/><g fill="#16243d" stroke="#fff" stroke-width=".3"><circle cx="12" cy="14" r="2.2"/><circle cx="20" cy="14" r="2.2"/><circle cx="28" cy="14" r="2.2"/><circle cx="36" cy="14" r="2.2"/><circle cx="44" cy="14" r="2.2"/><circle cx="52" cy="14" r="2.2"/></g><g fill="#ff6b1a"><rect x="12" y="22" width="4" height="5" rx="1"/><rect x="22" y="22" width="4" height="5" rx="1"/><rect x="32" y="22" width="4" height="5" rx="1"/></g></svg></div><span>Stage Box</span></div>
+            <div class="mk-site2" style="left:336px;top:36px"><div class="mk-site2-ic" style="border-color:#f5c54266"><svg viewBox="0 0 64 56" fill="none"><rect x="6" y="6" width="52" height="44" rx="2" fill="#ff6b1a" stroke="#1d3a5f" stroke-width="1.2"/><circle cx="32" cy="28" r="16" fill="#fff" stroke="#1d3a5f" stroke-width="1"/><circle cx="32" cy="28" r="8" fill="#1d3a5f"/></svg></div><span>Sub</span></div>
+            <div class="mk-site2" style="left:54px;top:158px"><div class="mk-site2-ic" style="border-color:#9b6aff66"><svg viewBox="0 0 48 48" fill="none"><rect x="6" y="14" width="36" height="22" rx="2" fill="#c4a0ff" stroke="#1d3a5f" stroke-width="1.2"/><circle cx="15" cy="25" r="3.5" fill="#0d1828" stroke="#fff"/><line x1="22" y1="25" x2="36" y2="25" stroke="#1d3a5f" stroke-width="1.5"/><path d="M40 8 Q46 18 40 28" fill="none" stroke="#c4a0ff" stroke-width="1.5" stroke-linecap="round"/></svg></div><span>IEM TX</span></div>
+            <div style="position:absolute;bottom:9px;right:12px;display:flex;flex-direction:column;gap:3px;font-size:9px;font-family:var(--m);color:#64748b">
+              <div><span style="display:inline-block;width:18px;height:2.5px;background:#ff6b1a;vertical-align:middle;margin-right:5px;border-radius:2px"></span>XLR / HP</div>
+              <div><span style="display:inline-block;width:18px;height:0;border-top:2.5px dashed #1d9bf0;vertical-align:middle;margin-right:5px"></span>Dante</div>
             </div>
           </div>
         </div>
@@ -787,7 +811,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
           <div class="mk-share-box">
             <div style="font-size:10px;font-family:var(--m);color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Lien partage — Hellfest 2025</div>
             <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
-              <div class="mk-url" style="flex:1">https://patchflow.io/app?view=a1b2c3d4-e5f6...</div>
+              <div class="mk-url" style="flex:1">https://patchflow.fr/app?view=a1b2c3d4-e5f6...</div>
               <div style="background:var(--ora);color:#000;font-size:10px;font-weight:700;padding:6px 12px;border-radius:6px;cursor:pointer;white-space:nowrap"><i class="ti ti-copy"></i> Copier</div>
             </div>
             <div style="font-size:10px;color:var(--muted)"><i class="ti ti-info-circle" style="margin-right:4px"></i>Le patch est mis a jour en temps reel. Valable tant que le show existe.</div>
@@ -829,9 +853,9 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
         <div class="feat-pane-head">
           <div class="feat-pane-icon" style="background:rgba(26,143,255,.12);color:var(--blu)"><i class="ti ti-file-type-pdf"></i></div>
           <div>
-            <div class="feat-pane-title">Export PDF &amp; PNG professionnel</div>
-            <div class="feat-pane-desc">Generez des documents prets a imprimer ou a envoyer. Entete personnalise, lien live integre, informations de production completes — et optionnellement le recap des micros et pieds de micro.</div>
-            <div class="feat-tag"><i class="ti ti-clipboard-list" style="font-size:10px"></i>Recap materiels inclus en option</div>
+            <div class="feat-pane-title">Export multi-format professionnel</div>
+            <div class="feat-pane-desc">Exportez en PDF (A4), PNG haute resolution, SVG vectoriel ou impression directe. Entete personnalise, lien live integre, contact, infos de production — et optionnellement le recap des micros et pieds de micro.</div>
+            <div class="feat-tag"><i class="ti ti-file-export" style="font-size:10px"></i>PDF &middot; PNG &middot; SVG &middot; Impression</div>
           </div>
         </div>
         <div class="feat-pane-body">
@@ -858,7 +882,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
               <span style="font-size:12px">📱</span>
               <div>
                 <div style="font-size:8px;text-transform:uppercase;letter-spacing:1px;color:#999;font-family:var(--m)">Patch en direct — constamment mis a jour</div>
-                <div style="font-size:9px;color:#1a6fff;font-family:var(--m)">https://patchflow.io/app?view=a1b2c3...</div>
+                <div style="font-size:9px;color:#1a6fff;font-family:var(--m)">https://patchflow.fr/app?view=a1b2c3...</div>
               </div>
             </div>
             <div class="mk-pdf-body" style="padding:10px 14px">
@@ -1238,7 +1262,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
       </ul>
     </div>
     <div class="plan-ent-right">
-      <a class="btn btn-ghost btn-lg" href="mailto:contact@patchflow.io" style="white-space:nowrap;margin-bottom:12px;display:inline-flex"><i class="ti ti-mail"></i>Nous contacter</a>
+      <a class="btn btn-ghost btn-lg" href="mailto:contact@patchflow.fr" style="white-space:nowrap;margin-bottom:12px;display:inline-flex"><i class="ti ti-mail"></i>Nous contacter</a>
       <div style="font-size:11px;color:var(--muted);font-family:var(--m);margin-top:10px;line-height:1.6">Reponse sous 24h<br/>Devis gratuit sur mesure</div>
     </div>
   </div>
@@ -1354,7 +1378,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
   <div class="footer-links">
     <a href="#">Mentions legales</a>
     <a href="#">Confidentialite</a>
-    <a href="mailto:contact@patchflow.io">Contact</a>
+    <a href="mailto:contact@patchflow.fr">Contact</a>
     <a href="app.html">App</a>
   </div>
   <div class="footer-copy">© 2025 PatchFlow. Fait avec ♥ pour les techniciens son.</div>
