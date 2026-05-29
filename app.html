@@ -2318,7 +2318,7 @@ async function doLogin(){
     if(error){
       let m=error.message;
       if(m.includes('Invalid login'))m='Email ou mot de passe incorrect.';
-      else if(m.includes('Email not confirmed'))m='Confirme ton email ou désactive la confirmation dans Supabase → Auth → Settings.';
+      else if(m.includes('Email not confirmed'))m='Vérifie ta boîte mail et clique le lien de confirmation avant de te connecter.';
       authMsg(m,'err');
     }
   }catch(e){authMsg('Erreur réseau : '+e.message,'err');}
@@ -2333,10 +2333,17 @@ async function doReg(){
   if(pwd.length<6){authMsg('Mot de passe trop court.','err');return;}
   const btn=document.getElementById('r-btn');btn.disabled=true;btn.textContent='Création…';
   try{
-    const {data,error}=await sb.auth.signUp({email,password:pwd,options:{data:{full_name:name}}});
+    const {data,error}=await sb.auth.signUp({
+      email,
+      password:pwd,
+      options:{
+        data:{full_name:name,role},
+        emailRedirectTo: window.location.origin+'/app.html'
+      }
+    });
     if(error){authMsg(error.message,'err');}
-    else if(data.session){/* onAuthStateChange handles it */}
-    else{authMsg('Compte créé ! Connecte-toi directement (confirmation email désactivée).','ok');}
+    else if(data.session){/* Email confirmation disabled — onAuthStateChange handles it */}
+    else{authMsg('Compte créé ! Vérifie ta boîte mail pour confirmer ton adresse avant de te connecter.','ok');}
   }catch(e){authMsg('Erreur : '+e.message,'err');}
   btn.disabled=false;btn.textContent='Créer mon compte';
 }
