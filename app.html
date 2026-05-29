@@ -2484,10 +2484,16 @@ async function loadShows(){
   if(ownedErr){console.error('shows error:',ownedErr);throw new Error(ownedErr.message);}
 
   // Also load shows the user is a member of (invited)
-  const {data:memberData}=await sb.from('show_members')
-    .select('show_id, shows(*)')
+  // Use two queries to avoid circular RLS recursion (shows ↔ show_members)
+  const {data:memberRows}=await sb.from('show_members')
+    .select('show_id')
     .eq('user_id',ME.id);
-  const memberShows=(memberData||[]).map(m=>m.shows).filter(Boolean);
+  const memberIds=(memberRows||[]).map(m=>m.show_id).filter(Boolean);
+  let memberShows=[];
+  if(memberIds.length){
+    const {data:mShows}=await sb.from('shows').select('*').in('id',memberIds);
+    memberShows=mShows||[];
+  }
 
   // Merge, deduplicate by id
   const allShows=[...(ownedData||[]),...memberShows];
