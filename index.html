@@ -226,6 +226,15 @@ h2 em{font-style:normal;color:var(--ora)}
 .plan-card:hover{transform:translateY(-4px);box-shadow:0 24px 60px rgba(0,0,0,.4)}
 .plan-card.popular{border-color:var(--ora);background:linear-gradient(160deg,var(--surf2) 0%,var(--surf) 100%)}
 .plan-badge{position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:var(--ora);color:#000;font-size:10px;font-weight:800;font-family:var(--m);padding:4px 16px;border-radius:20px;letter-spacing:1px;text-transform:uppercase;white-space:nowrap}
+/* Promo : -50% / -70% first 2 months */
+.plan-promo{display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,rgba(34,214,160,.14),rgba(34,214,160,.06));border:1px solid rgba(34,214,160,.35);border-radius:10px;padding:9px 12px;margin-bottom:16px}
+.plan-promo-tag{flex-shrink:0;background:var(--grn);color:#04150f;font-size:11px;font-weight:800;font-family:var(--m);padding:3px 8px;border-radius:6px;letter-spacing:.5px}
+.plan-promo-txt{font-size:11.5px;line-height:1.4;color:var(--txt2)}
+.plan-promo-txt strong{color:var(--grn)}
+.promo-banner{max-width:680px;margin:28px auto 0;display:flex;align-items:center;justify-content:center;gap:12px;background:linear-gradient(135deg,rgba(255,107,26,.14),rgba(255,107,26,.05));border:1px solid rgba(255,107,26,.4);border-radius:14px;padding:14px 22px;flex-wrap:wrap}
+.promo-banner i{color:var(--ora);font-size:20px}
+.promo-banner b{color:var(--ora)}
+.promo-banner span{font-size:14px;color:var(--txt2);font-weight:500}
 .plan-name{font-size:13px;font-weight:700;font-family:var(--m);text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:12px}
 .plan-price{display:flex;align-items:baseline;gap:6px;margin-bottom:6px}
 .plan-price .amount{font-size:48px;font-weight:800;letter-spacing:-2px;line-height:1}
@@ -1257,6 +1266,11 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
   <h2 class="center">Simple, <em>transparent.</em></h2>
   <p class="section-sub center" style="max-width:560px;margin-left:auto;margin-right:auto">Commencez gratuitement. Passez au Pro quand vous en avez besoin. Annulez a tout moment.</p>
 
+  <div class="promo-banner fade-up">
+    <i class="ti ti-gift"></i>
+    <span><b>Offre de lancement</b> &mdash; vos 2 premiers mois <b>&minus;50&nbsp;%</b> sur Pro et <b>&minus;70&nbsp;%</b> sur Studio. Sans engagement.</span>
+  </div>
+
   <div class="pricing-grid">
 
     <!-- FREE -->
@@ -1297,6 +1311,10 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
       </div>
       <div class="plan-annual"><i class="ti ti-tag" style="font-size:10px"></i> ou <strong>99 € / an</strong> — 2 mois offerts</div>
       <div class="plan-tax">Soit <strong>~8,25 €/mois</strong> apres deduction IS 25 %<br/><span style="font-size:10px;opacity:.75">(charge 100 % deductible — art. 39 CGI)</span></div>
+      <div class="plan-promo">
+        <span class="plan-promo-tag">&minus;50 %</span>
+        <span class="plan-promo-txt">Lancement : <strong>5,50 €/mois</strong> les 2 premiers mois</span>
+      </div>
       <p class="plan-desc">Tout ce qu'il faut pour travailler en professionnel. Patch complet, exports PDF soignes, plan de scene et de site — plus jamais de stress avant le show.</p>
       <div class="plan-divider" style="background:rgba(255,107,26,.2)"></div>
       <ul class="plan-features">
@@ -1314,7 +1332,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
         <li class="off"><i class="ti ti-minus"></i><span>Multi-scenes / Multi-patches</span></li>
         <li class="off"><i class="ti ti-minus"></i><span>Exports personnalises (logo)</span></li>
       </ul>
-      <a class="btn btn-ora" href="app.html" style="width:100%;justify-content:center"><i class="ti ti-rocket"></i>Commencer — 14j offerts</a>
+      <a class="btn btn-ora" href="app.html" style="width:100%;justify-content:center"><i class="ti ti-rocket"></i>Profiter du &minus;50 %</a>
     </div>
 
     <!-- STUDIO -->
@@ -1327,6 +1345,10 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
       </div>
       <div class="plan-annual"><i class="ti ti-tag" style="font-size:10px"></i> ou <strong>249 € / an</strong> — 2 mois offerts</div>
       <div class="plan-tax">Soit <strong>~21,75 €/mois</strong> apres deduction IS 25 %<br/><span style="font-size:10px;opacity:.75">(charge 100 % deductible — art. 39 CGI)</span></div>
+      <div class="plan-promo">
+        <span class="plan-promo-tag">&minus;70 %</span>
+        <span class="plan-promo-txt">Lancement : <strong>8,70 €/mois</strong> les 2 premiers mois</span>
+      </div>
       <p class="plan-desc">Fait pour les prestataires qui gerent plusieurs projets en parallele. Votre marque sur chaque export, votre equipe au complet, zero limite de scenes ou de patches.</p>
       <div class="plan-divider"></div>
       <ul class="plan-features">
@@ -1344,7 +1366,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
         <li><i class="ti ti-check"></i><span>Synoptique avance</span></li>
         <li><i class="ti ti-check"></i><span>Support prioritaire</span></li>
       </ul>
-      <a class="btn btn-ghost" href="app.html" style="width:100%;justify-content:center"><i class="ti ti-rocket"></i>Essayer 14j gratuit</a>
+      <a class="btn btn-ghost" href="app.html" style="width:100%;justify-content:center"><i class="ti ti-rocket"></i>Profiter du &minus;70 %</a>
     </div>
 
   </div>
