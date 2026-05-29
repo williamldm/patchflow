@@ -5890,7 +5890,8 @@ const SynPro = (() => {
   /* ── Mutations ── */
   function createNode(type, x, y) {
     var sp = spec(type) || { w:140, h:100, label:type };
-    var n = { id: uid(), type:type, x: Math.round(x), y: Math.round(y), label: sp.label, sub: sp.defaultSub || '' };
+    var n = { id: uid(), type:type, x: Math.round(x), y: Math.round(y), label: sp.label, sub: sp.defaultSub || '',
+              iconSvg: sp && sp.icon ? sp.icon : '' };
     state.nodes.push(n);
     selected = { kind:'node', id: n.id };
     scheduleSave();
@@ -8812,6 +8813,27 @@ const SitePlan = (() => {
     ctx.closePath();
   }
 
+  /* Pre-convert SVG icon strings to HTMLImageElement for canvas drawImage() */
+  let _siteIconImgs = null;
+  function _loadSiteIconImgs(done) {
+    if (_siteIconImgs) { done(); return; }
+    _siteIconImgs = {};
+    const keys = Object.keys(SITE_ICONS);
+    let pending = keys.length;
+    if (!pending) { done(); return; }
+    keys.forEach(function(k) {
+      const img = new Image();
+      const svgBlob = new Blob([SITE_ICONS[k]], {type:'image/svg+xml'});
+      const url = URL.createObjectURL(svgBlob);
+      img.onload = img.onerror = function() {
+        _siteIconImgs[k] = img.complete && img.naturalWidth ? img : null;
+        URL.revokeObjectURL(url);
+        if (--pending === 0) done();
+      };
+      img.src = url;
+    });
+  }
+
   function _makeCanvas(cb) {
     const _draw = bgImg => {
       const els=state.elements, cables=state.cables;
@@ -8881,8 +8903,14 @@ const SitePlan = (() => {
         } else {
           ctx.fillStyle=it.color+'18'; _rrect(ctx,ex,ey,esz,esz,13*SCALE); ctx.fill();
           ctx.strokeStyle=it.color||'#667'; ctx.lineWidth=2*SCALE; ctx.stroke();
-          ctx.font=`${esz*0.44}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
-          ctx.fillStyle='#fff'; ctx.fillText(it.icon||'?', ex+esz/2, ey+esz/2);
+          const _icImg = _siteIconImgs && _siteIconImgs[el.type];
+          if (_icImg) {
+            const pad=esz*0.12;
+            ctx.drawImage(_icImg, ex+pad, ey+pad, esz-pad*2, esz-pad*2);
+          } else {
+            ctx.font=`bold ${esz*0.32}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+            ctx.fillStyle=it.color||'#fff'; ctx.fillText((el.type||'').slice(0,4).toUpperCase(), ex+esz/2, ey+esz/2);
+          }
           const lbl=el.label||el.type;
           const lblY=ey+esz+4*SCALE;
           ctx.font=`600 ${lblH}px sans-serif`; ctx.fillStyle=it.color;
@@ -8916,8 +8944,10 @@ const SitePlan = (() => {
       }
       cb(canvas);
     };
-    if(state.bgImage){ const img=new Image(); img.onload=()=>_draw(img); img.src=state.bgImage; }
-    else { _draw(null); }
+    _loadSiteIconImgs(function() {
+      if(state.bgImage){ const img=new Image(); img.onload=()=>_draw(img); img.src=state.bgImage; }
+      else { _draw(null); }
+    });
   }
 
   function exportPng() {
@@ -10740,9 +10770,13 @@ async function openRecapMatos(){
   }
 
   function _renderOUT(){
-    // Try direct column first, then snapshot embedded in rider config
+    // Try direct column first (only if non-empty), then rider snapshot
     var rider=show.stage_data&&show.stage_data.rider;
-    var outData=show.out_data||(rider&&rider.out_snapshot)||{};
+    var _od=show.out_data;
+    var _snap=rider&&rider.out_snapshot;
+    // An empty {} is truthy but useless — fall through to snapshot in that case
+    var outData=(_od&&Object.keys(_od).length)?_od
+               :(_snap&&Object.keys(_snap).length)?_snap:{};
     var allOuts=[];
     Object.keys(outData).forEach(function(pid){(outData[pid]||[]).forEach(function(o){allOuts.push(o);});});
     if(!allOuts.length) return _showMeta+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:13px">Aucune sortie configuree pour ce show.</div>';
@@ -10848,7 +10882,16 @@ async function openRecapMatos(){
         nodeSvg+='<foreignObject x="'+(x+8)+'" y="'+(y+8)+'" width="'+(w-16)+'" height="'+(h-16)+'"><div xmlns="http://www.w3.org/1999/xhtml" style="font-family:Outfit,sans-serif;font-size:11px;color:#92400e;line-height:1.4;font-weight:600">'+esc(n.label||'')+'<br>'+esc(n.sub||'')+'</div></foreignObject>';
       } else {
         nodeSvg+='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="9" fill="#fff" stroke="#c8d4e0"/>';
-        nodeSvg+='<rect x="'+(x+w/2-26)+'" y="'+(y+10)+'" width="52" height="'+(h-46)+'" rx="4" fill="#e8eef5" stroke="#c8d4e0" stroke-width=".5"/>';
+        /* Icon area */
+        var iconAreaH=h-46, iconAreaY=y+10;
+        if(n.iconSvg){
+          /* Embed SVG icon as a data URI inside an <image> element */
+          var iconDataUri='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(n.iconSvg);
+          var iw=Math.min(iconAreaH,w-20), ih=iconAreaH;
+          nodeSvg+='<image href="'+iconDataUri+'" x="'+(x+(w-iw)/2)+'" y="'+iconAreaY+'" width="'+iw+'" height="'+ih+'"/>';
+        } else {
+          nodeSvg+='<rect x="'+(x+w/2-26)+'" y="'+(iconAreaY)+'" width="52" height="'+(iconAreaH)+'" rx="4" fill="#e8eef5" stroke="#c8d4e0" stroke-width=".5"/>';
+        }
         nodeSvg+='<text x="'+(x+w/2)+'" y="'+(y+h-22)+'" text-anchor="middle" font-family="Outfit,sans-serif" font-weight="700" font-size="12" fill="#1d3a5f">'+esc(n.label||'')+'</text>';
         if(n.sub){var sublines=n.sub.split('\n');sublines.forEach(function(s2,i){nodeSvg+='<text x="'+(x+w/2)+'" y="'+(y+h-8+i*11)+'" text-anchor="middle" font-family="Outfit,sans-serif" font-size="9" fill="#5a6a80">'+esc(s2)+'</text>';});}
       }
