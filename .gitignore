@@ -7,3 +7,5 @@
 !index.html
 !serve.py
 !Downloads/patchflow_icon_v2.svg
+!supabase/
+!supabase/**

@@ -10005,17 +10005,44 @@ function openSupport() {
   document.getElementById('support-modal').className = 'modal-ov show';
 }
 function closeSupport() { document.getElementById('support-modal').className = 'modal-ov'; }
-function submitSupport() {
-  var subj = document.getElementById('support-subject');
-  var msg  = document.getElementById('support-msg');
-  if(!msg || !msg.value.trim()) { toast('Veuillez saisir un message.'); return; }
-  var subject = encodeURIComponent((subj ? subj.value : 'Support PatchFlow') + ' - PatchFlow');
-  var userInfo = ME ? ME.email : 'inconnu';
-  var plan = userPlan();
-  var body = encodeURIComponent(msg.value.trim() + '\n\n---\nUtilisateur : ' + userInfo + '\nPlan : ' + plan);
-  window.open('mailto:support@patchflow.io?subject=' + subject + '&body=' + body, '_blank');
-  toast('Votre client mail s\'ouvre avec le message pre-rempli.');
-  msg.value = '';
+async function submitSupport() {
+  var subj    = document.getElementById('support-subject');
+  var msg     = document.getElementById('support-msg');
+  var sendBtn = document.querySelector('#support-modal .btn');
+  if (!msg || !msg.value.trim()) { toast('Veuillez saisir un message.'); return; }
+  if (sendBtn) { sendBtn.disabled = true; sendBtn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin .8s linear infinite"></i> Envoi…'; }
+  try {
+    const session = (await sb.auth.getSession()).data.session;
+    if (!session) { toast('Connecte-toi pour envoyer un message.'); return; }
+    const res = await fetch(
+      'https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/send-support-email',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': 'Bearer ' + session.access_token,
+          'apikey':        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9maWl1dGN1ZW9vZ210ZHZhdXBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4NTA2NjcsImV4cCI6MjA5NDQyNjY2N30.PSZMkuq7GBJiQMhh5shH_tOZ6DAmA310K4c7au9e4mE',
+        },
+        body: JSON.stringify({
+          subject:  subj ? subj.value : 'Support PatchFlow',
+          message:  msg.value.trim(),
+          userName: PROFILE?.full_name || ME?.email || '',
+        }),
+      }
+    );
+    const json = await res.json();
+    if (!res.ok) {
+      toast(json.error || 'Erreur lors de l\'envoi.');
+    } else {
+      toast('Message envoyé ! Vérifiez votre boîte mail pour la confirmation.');
+      msg.value = '';
+      closeSupport();
+    }
+  } catch (e) {
+    toast('Erreur réseau : ' + e.message);
+  } finally {
+    if (sendBtn) { sendBtn.disabled = false; sendBtn.innerHTML = '<i class="ti ti-send"></i>Envoyer le message'; }
+  }
 }
 
 function openPlanModal() {
