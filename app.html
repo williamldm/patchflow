@@ -1842,7 +1842,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
         <button id="pdf-exp-out"  class="pmb"    onclick="setPdfExportType('out')"  style="flex:1;justify-content:center"><i class="ti ti-arrow-up-circle"></i>Output List</button>
         <button id="pdf-exp-both" class="pmb"    onclick="setPdfExportType('both')" style="flex:1;justify-content:center"><i class="ti ti-layers-union"></i>Les deux</button>
       </div>
-      <div id="pdf-free-notice" style="display:none;align-items:center;gap:9px;background:rgba(255,107,26,.07);border:1px solid rgba(255,107,26,.22);border-radius:7px;padding:8px 12px;font-size:11px;color:var(--txt2);margin-bottom:12px"><i class="ti ti-lock" style="color:var(--ora);flex-shrink:0;font-size:14px"></i><span>Plan Gratuit — nom, titre et r&ocirc;le inclus. <button onclick="closePDF();showUpgradeModal('export_pdf_pro')" style="background:none;border:none;color:var(--ora);cursor:pointer;font-size:11px;padding:0;font-family:var(--f);text-decoration:underline">Passer Pro</button> pour les champs complets.</span></div>
+      <div id="pdf-free-notice" style="display:none;align-items:center;gap:9px;background:rgba(34,214,160,.06);border:1px solid rgba(34,214,160,.22);border-radius:7px;padding:8px 12px;font-size:11px;color:var(--txt2);margin-bottom:12px"><i class="ti ti-file-type-pdf" style="color:var(--grn);flex-shrink:0;font-size:14px"></i><span>Export simplifié disponible : nom &amp; rôle inclus. <button onclick="closePDF();showUpgradeModal('export_pdf_pro')" style="background:none;border:none;color:var(--ora);cursor:pointer;font-size:11px;padding:0;font-family:var(--f);text-decoration:underline">Passer Pro</button> pour l'export complet (venue, date, révision, notes).</span></div>
       <div class="pdf-sec"><div class="pdf-sec-title"><i class="ti ti-user" style="color:var(--ora)"></i>Ing&eacute;nieur</div>
         <div class="pdf-grid">
           <div class="pdf-fld"><label class="pdf-lbl">Nom</label><input class="pdf-inp" id="pdf-eng" placeholder="Jean-Marie Leclerc"/></div>
@@ -2456,8 +2456,7 @@ async function loadProfile(){
     if(!perr) data=created;
   }
   PROFILE=data||{id:ME.id,full_name:ME.email,role:'FOH Engineer'};
-  if(!PROFILE.plan) console.warn('[PatchFlow] plan manquant pour',ME.email,'— verifiez la colonne plan dans Supabase profiles. Plan actuel:',PROFILE.plan);
-  else console.log('[PatchFlow] plan charge:',PROFILE.plan);
+  if(!PROFILE.plan) console.warn('[PatchFlow] plan manquant — verifiez la colonne plan dans Supabase profiles.');
   const init=(PROFILE.full_name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
   document.getElementById('u-av').textContent=init;
   document.getElementById('u-name').textContent=PROFILE.full_name||ME.email;
@@ -2814,7 +2813,9 @@ function moveOutRow(id, dir) {
   saveOutData(); renderOutTable();
 }
 
+const _OUT_FIELDS=new Set(['short_name','long_name','type','dest','note']);
 function updateOutField(id, field, value) {
+  if(!_OUT_FIELDS.has(field)){console.warn('[sec] champ sortie non autorisé:',field);return;}
   var r = OUT_CHS.find(function(x){return x.id===id;});
   if(!r) return;
   r[field] = value;
@@ -2988,7 +2989,9 @@ async function performDrop(srcId,dstId){
   setSaving(false);
 }
 
+const _CH_FIELDS=new Set(['short_name','long_name','source','mic','gain','phantom','iem_group','foh','mon','bc','note']);
 function scheduleSave(id,field,val){
+  if(!_CH_FIELDS.has(field)){console.warn('[sec] champ non autorisé:',field);return;}
   clearTimeout(saveT);
   const r=CHS.find(x=>x.id===id);if(r)r[field]=val;
   setSaving(true);
@@ -3341,8 +3344,22 @@ function _ilaAllChannels() {
 }
 
 async function applyILAssist() {
-  const chs = _ilaAllChannels();
+  let chs = _ilaAllChannels();
   if (!chs.length) return;
+
+  /* ── Enforce plan channel limit ── */
+  const limit = planLimit('max_channels');
+  if (limit !== Infinity) {
+    const projected = CHS.length + chs.length;
+    if (projected > limit) {
+      const available = limit - CHS.length;
+      if (available <= 0) { showUpgradeModal('max_channels'); return; }
+      /* Truncate to the remaining slots and warn */
+      chs = chs.slice(0, available);
+      toast('⚠️ Plan Gratuit : limite de ' + limit + ' canaux — seulement ' + available + ' canal' + (available > 1 ? 'ux' : '') + ' ajouté' + (available > 1 ? 's' : '') + ' sur ' + projected + ' demandés.');
+    }
+  }
+
   const btn = document.getElementById('ila-apply-btn');
   btn.disabled = true;
   btn.innerHTML = '<i class="ti ti-loader-2"></i> Creation...';
@@ -3887,6 +3904,20 @@ async function doCSVImport(){
   if(!CUR_SHOW){alert('Aucun show selectionne.');return;}
   var dataRows=_csvRawRows.slice(1).filter(function(r){return r.some(function(c){return c.trim();});});
   if(!dataRows.length){alert('Aucune donnee a importer.');return;}
+
+  /* ── Enforce plan channel limit ── */
+  var _csvLimit=planLimit('max_channels');
+  if(_csvLimit!==Infinity){
+    var _csvBase=_csvMode==='replace'?0:CHS.length;
+    var _csvProjected=_csvBase+dataRows.length;
+    if(_csvProjected>_csvLimit){
+      var _csvAvail=_csvLimit-_csvBase;
+      if(_csvAvail<=0){showUpgradeModal('max_channels');return;}
+      dataRows=dataRows.slice(0,_csvAvail);
+      toast('⚠️ Plan Gratuit : limite de '+_csvLimit+' canaux — '+_csvAvail+' ligne'+(+_csvAvail>1?'s':'')+' importée'+(+_csvAvail>1?'s':'')+' sur '+_csvProjected+' dans le fichier.');
+    }
+  }
+
   var btn=document.getElementById('csv-do-import-btn');
   btn.disabled=true;
   btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .7s linear infinite"></i> Import...';
@@ -9145,9 +9176,10 @@ function renderTplQuickBar(){
   const el=document.getElementById('tpl-quick-list');if(!el)return;
   const all=[...BLTPLS,...USER_TPLS];
   if(!all.length){el.innerHTML='<div style="font-size:11px;color:var(--muted);padding:4px 2px">Aucun template</div>';return;}
+  const _et=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   el.innerHTML=all.map(t=>`
-    <button class="tpl-dd-item" onclick="applyTemplate('${t.id}');closeTplDd()">
-      <span style="font-size:14px">${t.icon||'📋'}</span>${t.name}<span style="font-family:var(--m);font-size:9px;color:var(--muted);margin-left:auto">${(t.channels||[]).length} CH</span>
+    <button class="tpl-dd-item" onclick="applyTemplate('${_et(t.id)}');closeTplDd()">
+      <span style="font-size:14px">${/^\p{Emoji}/u.test(t.icon||'')?_et(t.icon):'📋'}</span>${_et(t.name)}<span style="font-family:var(--m);font-size:9px;color:var(--muted);margin-left:auto">${(t.channels||[]).length} CH</span>
     </button>`).join('');
 }
 
@@ -9157,7 +9189,7 @@ async function applyTemplate(tplId){
   if(!tpl){toast('Template introuvable.');return;}
   if(!CUR_SHOW){toast('Aucun show actif.');return;}
 
-  const chs=tpl.channels||[];
+  let chs=tpl.channels||[];
   if(chs.length===0){toast('Ce template est vide.');return;}
 
   const msg=TPL_MODE==='replace'
@@ -9169,6 +9201,22 @@ async function applyTemplate(tplId){
     const ids=CHS.map(r=>r.id);
     if(ids.length){const {error:de}=await sb.from('channels').delete().in('id',ids);if(de){toast('Erreur suppression : '+de.message);return;}}
     CHS=[];
+  }
+
+  /* ── Enforce plan channel limit ── */
+  {
+    const limit = planLimit('max_channels');
+    if (limit !== Infinity) {
+      const baseCount = CHS.length; /* CHS already empty after replace */
+      const totalChs = chs.length;
+      const projected = baseCount + totalChs;
+      if (projected > limit) {
+        const available = limit - baseCount;
+        if (available <= 0) { showUpgradeModal('max_channels'); return; }
+        chs = chs.slice(0, available);
+        toast('⚠️ Plan Gratuit : limite de ' + limit + ' canaux — ' + available + ' sur ' + totalChs + ' canaux du template chargés. Passez Pro pour des canaux illimités.');
+      }
+    }
   }
 
   const offset=CHS.length;
@@ -9369,23 +9417,25 @@ async function loadUserTpls(){
 function getAllTpls(){return[...BLTPLS,...USER_TPLS];}
 
 function renderSPTpls(){
+  const _et=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   document.getElementById('sp-tpls-builtin').innerHTML=BLTPLS.map(t=>`
-    <div class="sp-tpl ${SEL_TPL===t.id?'active':''}" onclick="selTpl('${t.id}')">
-      <span style="font-size:16px;width:20px;text-align:center">${t.icon}</span>
-      <span style="flex:1">${t.name}</span>
+    <div class="sp-tpl ${SEL_TPL===t.id?'active':''}" onclick="selTpl('${_et(t.id)}')">
+      <span style="font-size:16px;width:20px;text-align:center">${/^\p{Emoji}/u.test(t.icon||'')?_et(t.icon):'📋'}</span>
+      <span style="flex:1">${_et(t.name)}</span>
       <span style="font-family:var(--m);font-size:9px;color:var(--muted)">${t.channels.length} CH</span>
     </div>`).join('');
   renderSPTplsUser();
 }
 function renderSPTplsUser(){
+  const _et=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   const el=document.getElementById('sp-tpls-user');if(!el)return;
   if(USER_TPLS.length===0){el.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px 0">Aucun template.</div>';return;}
   el.innerHTML=USER_TPLS.map(t=>`
-    <div class="sp-tpl usr ${SEL_TPL===t.id?'active':''}" onclick="selTpl('${t.id}')">
-      <span style="font-size:16px;width:20px;text-align:center">${t.icon||'📋'}</span>
-      <span style="flex:1">${t.name}</span>
+    <div class="sp-tpl usr ${SEL_TPL===t.id?'active':''}" onclick="selTpl('${_et(t.id)}')">
+      <span style="font-size:16px;width:20px;text-align:center">${/^\p{Emoji}/u.test(t.icon||'')?_et(t.icon):'📋'}</span>
+      <span style="flex:1">${_et(t.name)}</span>
       <span style="font-family:var(--m);font-size:9px;color:var(--muted)">${(t.channels||[]).length} CH</span>
-      <button class="sp-tpl-del" onclick="event.stopPropagation();delUserTpl('${t.id}')"><i class="ti ti-trash"></i></button>
+      <button class="sp-tpl-del" onclick="event.stopPropagation();delUserTpl('${_et(t.id)}')"><i class="ti ti-trash"></i></button>
     </div>`).join('');
 }
 
@@ -9810,12 +9860,12 @@ function _renderFichiersGrid() {
   if (foldersShown.length && _fichFilter === 'all') {
     html += '<div class="fich-section-lbl"><i class="ti ti-folder" style="color:#f5c542;font-size:10px"></i>Dossiers</div>';
     _fichSortFiles(foldersShown).forEach(function(f) {
-      const fn = f.name.replace(/'/g, "\\'");
-      html += '<div class="fich-file-card" onclick="_fichNavTo(' + (_fichPath.length) + ');_fichPath.push(\'' + fn + '\');loadFichiers()">' +
+      const fnJ = JSON.stringify(f.name); // safe for use in onclick
+      html += '<div class="fich-file-card" onclick="_fichNavTo(' + (_fichPath.length) + ');_fichPath.push(' + fnJ + ');loadFichiers()">' +
         '<div class="fich-file-ico ico-folder"><i class="ti ti-folder-filled fich-folder-ico"></i></div>' +
         '<div class="fich-file-info"><div class="fich-file-name">' + _fEsc(f.name) + '</div><div class="fich-file-meta">Dossier</div></div>' +
         '<div class="fich-file-actions">' +
-          '<button class="fich-file-btn del" onclick="event.stopPropagation();deleteFichierFolder(\'' + fn + '\')" title="Supprimer"><i class="ti ti-trash"></i></button>' +
+          '<button class="fich-file-btn del" onclick="event.stopPropagation();deleteFichierFolder(' + fnJ + ')" title="Supprimer"><i class="ti ti-trash"></i></button>' +
         '</div>' +
         '</div>';
     });
@@ -9844,14 +9894,14 @@ function _renderFichiersGrid() {
           const size = _fmtSize(f.metadata?.size);
           const date = f.created_at ? new Date(f.created_at).toLocaleDateString('fr-FR') : '';
           const meta = [size, date ? 'Ajoute ' + date : ''].filter(Boolean).join(' · ');
-          const fp   = (_fichPathStr() + f.name).replace(/'/g, "\\'");
-          html += '<div class="fich-file-card" onclick="viewFichier(\'' + fp + '\')">' +
+          const fpJ  = JSON.stringify(_fichPathStr() + f.name); // safe for onclick
+          html += '<div class="fich-file-card" onclick="viewFichier(' + fpJ + ')">' +
             '<div class="fich-file-ico ' + (info.cls || 'ico-other') + '">' + info.icon + '</div>' +
             '<div class="fich-file-info"><div class="fich-file-name">' + _fEsc(name) + '</div><div class="fich-file-meta">' + _fEsc(meta) + '</div></div>' +
             '<div class="fich-file-actions">' +
-              '<button class="fich-file-btn" onclick="event.stopPropagation();renameFichier(\'' + fp + '\')" title="Renommer"><i class="ti ti-pencil"></i></button>' +
-              '<button class="fich-file-btn dl" onclick="event.stopPropagation();_fichDownload(\'' + fp + '\')" title="Telecharger"><i class="ti ti-download"></i></button>' +
-              '<button class="fich-file-btn del" onclick="event.stopPropagation();deleteFichier(\'' + fp + '\')" title="Supprimer"><i class="ti ti-trash"></i></button>' +
+              '<button class="fich-file-btn" onclick="event.stopPropagation();renameFichier(' + fpJ + ')" title="Renommer"><i class="ti ti-pencil"></i></button>' +
+              '<button class="fich-file-btn dl" onclick="event.stopPropagation();_fichDownload(' + fpJ + ')" title="Telecharger"><i class="ti ti-download"></i></button>' +
+              '<button class="fich-file-btn del" onclick="event.stopPropagation();deleteFichier(' + fpJ + ')" title="Supprimer"><i class="ti ti-trash"></i></button>' +
             '</div>' +
             '</div>';
         });
@@ -10160,7 +10210,7 @@ async function submitSupport() {
         headers: {
           'Content-Type':  'application/json',
           'Authorization': 'Bearer ' + session.access_token,
-          'apikey':        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9maWl1dGN1ZW9vZ210ZHZhdXBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4NTA2NjcsImV4cCI6MjA5NDQyNjY2N30.PSZMkuq7GBJiQMhh5shH_tOZ6DAmA310K4c7au9e4mE',
+          'apikey':        SB_KEY,
         },
         body: JSON.stringify({
           subject:  subj ? subj.value : 'Support PatchFlow',
@@ -10436,9 +10486,10 @@ async function openRecapMatos(){
     rFiles=cfg.files||[];
   }else{
     // Legacy ?view= URL params
+    const _VALID_SECS=new Set(['il','out','syno','stage','site','files']);
     const legacyTab=p.get('tab');
     const rawSecs=p.get('sections');
-    sections=rawSecs?rawSecs.split(',').map(function(s){return s.trim();}).filter(Boolean)
+    sections=rawSecs?rawSecs.split(',').map(function(s){return s.trim();}).filter(function(s){return _VALID_SECS.has(s);})
              :legacyTab==='stage'?['stage']:['il'];
     rTitle=p.get('rtitle')||'';
     rNote=p.get('rnote')||'';
@@ -10463,13 +10514,14 @@ async function openRecapMatos(){
   var allSections=sections.slice();
   if(rFiles.length&&allSections.indexOf('files')<0) allSections.push('files');
 
+  var _VALID_SEC_SET=new Set(['il','out','syno','stage','site','files']);
   var tabsHtml='';
   if(allSections.length>1){
     tabsHtml='<div id="sv-tabs" style="display:flex;border-bottom:1px solid #1e2a3a;margin-bottom:0;overflow-x:auto">';
-    allSections.forEach(function(s,i){
+    allSections.filter(function(s){return _VALID_SEC_SET.has(s);}).forEach(function(s,i){
       var active=i===0;
-      tabsHtml+='<button id="svt-'+s+'" style="'+(active?SV_TABCSS_ON:SV_TABCSS)+'" onclick="_svSwitch(\''+s+'\')">'
-        +(secIcons[s]||'')+' '+(secLabels[s]||s)+'</button>';
+      tabsHtml+='<button id="svt-'+s+'" style="'+(active?SV_TABCSS_ON:SV_TABCSS)+'" onclick="_svSwitch(\''+esc(s)+'\')">'
+        +(secIcons[s]||'')+' '+(secLabels[s]||'')+'</button>';
     });
     tabsHtml+='</div>';
   }

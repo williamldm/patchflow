@@ -58,10 +58,17 @@ serve(async (req) => {
     const user = data.user;
     const ed = data.email_data;
     const type = ed.email_action_type; // signup | recovery | magiclink | email_change | invite
+
+    /* Validate redirect_to to prevent open-redirect phishing attacks */
+    const rawRedirect = ed.redirect_to || '';
+    const safeRedirect = rawRedirect.startsWith(SITE_URL)
+      ? rawRedirect
+      : SITE_URL + '/app.html';
+
     const verifyUrl =
       `${Deno.env.get('SUPABASE_URL')}/auth/v1/verify` +
       `?token=${ed.token_hash}&type=${type}` +
-      `&redirect_to=${encodeURIComponent(ed.redirect_to || SITE_URL + '/app.html')}`;
+      `&redirect_to=${encodeURIComponent(safeRedirect)}`;
 
     let subject: string, html: string;
     switch (type) {
