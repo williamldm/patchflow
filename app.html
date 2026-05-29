@@ -3622,7 +3622,7 @@ async function inviteMember() {
         : `✓ Invitation envoyée à ${email} — il recevra un lien pour rejoindre PatchFlow.`;
       _invMsg(msg, true);
       emailEl.value = '';
-      loadTeam(); // refresh member list
+      loadMembers(); // refresh member list
     }
   } catch (e) {
     _invMsg('Erreur réseau : ' + e.message, false);
@@ -3637,7 +3637,7 @@ async function removeMember(memberId) {
   const { error } = await sb.from('show_members').delete().eq('id', memberId);
   if (error) { toast('Erreur : ' + error.message); return; }
   toast('Membre retiré.');
-  loadTeam();
+  loadMembers();
 }
 
 /* Process pending show invites after login */
