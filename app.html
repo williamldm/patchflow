@@ -2479,7 +2479,7 @@ async function switchShow(id){
   document.getElementById('cur-show-name').textContent=n;
   const tbn=document.getElementById('tb-show-name');if(tbn)tbn.textContent=n;
   ['il','sf','stage','team'].forEach(k=>{const el=document.getElementById('sn-'+k);if(el)el.textContent=n;});
-  document.getElementById('slink-url').textContent=`http://127.0.0.1:7821/soundbooth_12.html?view=${CUR_SHOW.id}&tab=inputlist`;
+  document.getElementById('slink-url').textContent=`http://127.0.0.1:7821/app.html?view=${CUR_SHOW.id}&tab=inputlist`;
   renderSPShows();
   // Init patches
   IL_PATCHES=loadPatchMeta();
@@ -4235,7 +4235,7 @@ function openPDFModal(){
 }
 function closePDF(){document.getElementById('pdf-modal').className='modal-ov';}
 function copyILShareLink(){
-  var url=document.getElementById('slink-url')?.textContent||('http://127.0.0.1:7821/soundbooth_12.html?view='+(CUR_SHOW?.id||'')+'\x26tab=inputlist');
+  var url=document.getElementById('slink-url')?.textContent||('http://127.0.0.1:7821/app.html?view='+(CUR_SHOW?.id||'')+'\x26tab=inputlist');
   if(!url||url==='…'){toast('Aucun lien disponible — partagez d\'abord le show.');return;}
   try{navigator.clipboard.writeText(url).then(function(){toast('Lien copie !');});} catch(e){
     var ta=document.createElement('textarea');ta.value=url;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('Lien copie !');
@@ -4750,7 +4750,7 @@ function doPDF(){
   const _inclLink=document.getElementById('pdf-incl-link')?.checked!==false;
   const _inclRecap=document.getElementById('pdf-incl-recap')?.checked===true;
   if(_inclRecap&&!canDo('recap_matos')){showUpgradeModal('recap_matos');return;}
-  const _shareUrl=_inclLink?(document.getElementById('slink-url')?.textContent||('http://127.0.0.1:7821/soundbooth_12.html?view='+(CUR_SHOW?.id||'')+'\x26tab=inputlist')):'';
+  const _shareUrl=_inclLink?(document.getElementById('slink-url')?.textContent||('http://127.0.0.1:7821/app.html?view='+(CUR_SHOW?.id||'')+'\x26tab=inputlist')):'';
   const brand=_pdfBrand();
   const _accentColor=brand.color||'#ff6b1a';
   const recapHtml=_inclRecap?_buildPdfRecapBlock(CHS,_accentColor):'';

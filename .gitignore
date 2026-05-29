@@ -3,7 +3,7 @@
 
 # Unignore project files
 !.gitignore
-!soundbooth_12.html
+!app.html
+!index.html
 !serve.py
-!patchflow_landing.html
 !Downloads/patchflow_icon_v2.svg
