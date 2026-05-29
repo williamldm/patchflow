@@ -19,7 +19,8 @@ const MAX_PER_DAY = 3;
 const transporter = nodemailer.createTransport({
   host: SMTP_HOST,
   port: SMTP_PORT,
-  secure: SMTP_PORT === 465,
+  secure: false,       /* false = STARTTLS (port 587), true = SSL (port 465) */
+  requireTLS: true,
   auth: { user: SMTP_USER, pass: SMTP_PASS },
   tls: { rejectUnauthorized: false },
 });
