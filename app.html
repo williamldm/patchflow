@@ -3561,24 +3561,38 @@ async function loadMembers(){
   const {data,error}=await sb.from('show_members').select('*,profiles(full_name,email,role,plan)').eq('show_id',CUR_SHOW.id);
   if(error)console.error('members error:',error);
   const members=(error?[]:data)||[];
-  // Update the sessions map for this show so cards reflect latest members
   SHOW_MEMBERS_MAP[CUR_SHOW.id]=members;
+
   const COLS=['rgba(255,107,26,.13)','rgba(26,143,255,.13)','rgba(245,197,66,.13)','rgba(155,106,255,.13)','rgba(34,214,160,.13)'];
   const TC=['var(--ora)','var(--blu2)','var(--warn)','#c4a0ff','var(--grn)'];
   const _es=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  const ownerName=PROFILE?.full_name||ME.email;
-  const ownerInit=ownerName.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const planPill=p=>{const labels={free:'Gratuit',pro:'Pro',studio:'Studio'};return `<span class="plan-badge-pill ${_es(p||'free')}">${_es(labels[p||'free']||p||'free')}</span>`;};
   const roleBadge=r=>{const l=ROLE_LABELS[r]||r;const c=ROLE_COLORS[r]||'var(--muted)';return `<span style="background:${c}18;color:${c};border:1px solid ${c}44;border-radius:5px;font-size:9px;padding:2px 7px;font-family:var(--m);text-transform:uppercase;letter-spacing:.5px">${_es(l)}</span>`;};
+  const mkAv=(name,bg,col)=>`<div class="tc-av" style="background:${bg};color:${col}">${_es(name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase())}</div>`;
+
   const isOwner = CUR_SHOW?.owner_id === ME?.id;
-  let html=`<div class="tc"><div class="tc-head"><div class="tc-av" style="background:var(--ora-d);color:var(--ora)">${_es(ownerInit)}</div><div><div class="tc-name">${_es(ownerName)}</div><div class="tc-role">${_es(PROFILE?.role||'')}</div></div></div><div class="tc-perms">${roleBadge('admin')}<span class="tag t-ora">Propriétaire</span>${planPill(PROFILE?.plan)}</div><div class="tc-status"><span class="on-dot"></span>En ligne · toi</div></div>`;
+  let html='';
+
+  if(isOwner){
+    /* Current user IS the owner — show them first */
+    const ownerName=PROFILE?.full_name||ME.email;
+    html=`<div class="tc"><div class="tc-head">${mkAv(ownerName,'var(--ora-d)','var(--ora)')}<div><div class="tc-name">${_es(ownerName)}</div><div class="tc-role" style="font-size:9px;color:var(--muted)">${_es(ME.email)}</div></div></div><div class="tc-perms">${roleBadge('admin')}<span class="tag t-ora">Propriétaire</span>${planPill(PROFILE?.plan)}</div><div class="tc-status"><span class="on-dot"></span>En ligne · toi</div></div>`;
+  } else {
+    /* Current user is a member — fetch actual owner's profile first */
+    const {data:ownerProf}=await sb.from('profiles').select('full_name,email,plan').eq('id',CUR_SHOW.owner_id).maybeSingle();
+    const ownerName=ownerProf?.full_name||ownerProf?.email||'Propriétaire';
+    html=`<div class="tc"><div class="tc-head">${mkAv(ownerName,'var(--ora-d)','var(--ora)')}<div><div class="tc-name">${_es(ownerName)}</div><div class="tc-role" style="font-size:9px;color:var(--muted)">${_es(ownerProf?.email||'')}</div></div></div><div class="tc-perms">${roleBadge('admin')}<span class="tag t-ora">Propriétaire</span>${planPill(ownerProf?.plan)}</div><div class="tc-status"><span class="off-dot"></span>Owner</div></div>`;
+  }
+
   members.forEach((m,i)=>{
+    const isSelf = m.user_id === ME?.id;
     const n=m.profiles?.full_name||m.profiles?.email||'Membre';
     const ci=(i+1)%COLS.length;
-    const init=n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-    const delBtn=isOwner?`<button onclick="removeMember('${_es(m.id)}')" title="Retirer du show" style="margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 5px;border-radius:4px;transition:color .15s" onmouseover="this.style.color='var(--err)'" onmouseout="this.style.color='var(--muted)'"><i class="ti ti-user-minus"></i></button>`:'';
-    html+=`<div class="tc"><div class="tc-head"><div class="tc-av" style="background:${COLS[ci]};color:${TC[ci]}">${_es(init)}</div><div><div class="tc-name">${_es(n)}</div><div class="tc-role" style="font-size:9px;color:var(--muted)">${_es(m.profiles?.email||'')}</div></div>${delBtn}</div><div class="tc-perms">${roleBadge(m.role||'editor')}${planPill(m.profiles?.plan)}</div><div class="tc-status"><span class="off-dot"></span>Membre</div></div>`;
+    const delBtn=isOwner&&!isSelf?`<button onclick="removeMember('${_es(m.id)}')" title="Retirer du show" style="margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 5px;border-radius:4px;transition:color .15s" onmouseover="this.style.color='var(--err)'" onmouseout="this.style.color='var(--muted)'"><i class="ti ti-user-minus"></i></button>`:'';
+    const status=isSelf?`<span class="on-dot"></span>En ligne · toi`:`<span class="off-dot"></span>Membre`;
+    html+=`<div class="tc"><div class="tc-head">${mkAv(n,COLS[ci],TC[ci])}<div><div class="tc-name">${_es(n)}</div><div class="tc-role" style="font-size:9px;color:var(--muted)">${_es(m.profiles?.email||'')}</div></div>${delBtn}</div><div class="tc-perms">${roleBadge(m.role||'editor')}${planPill(isSelf?PROFILE?.plan:m.profiles?.plan)}</div><div class="tc-status">${status}</div></div>`;
   });
+
   grid.innerHTML=html;grid.className='team-grid';
 }
 /* ── Role labels ── */
