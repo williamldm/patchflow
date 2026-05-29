@@ -1612,11 +1612,16 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
       <div class="pbar"><span class="ptitle"><i class="ti ti-users" style="color:var(--ora)"></i>Équipe<span class="ptitle-sep">/</span><span id="sn-team" style="color:var(--txt2)">…</span></span></div>
       <div id="team-grid" class="team-grid"><div class="loading"><div class="spinner"></div>Chargement…</div></div>
       <div class="invite-box">
-        <i class="ti ti-mail" style="color:var(--muted);font-size:15px"></i>
-        <input class="inv-inp" id="inv-email" type="email" placeholder="Inviter par e-mail…"/>
-        <select class="pdf-inp" id="inv-role" style="width:120px;padding:4px 7px"><option value="editor">Editor</option><option value="foh">FOH</option><option value="mon">Monitors</option><option value="viewer">Lecture</option></select>
-        <button class="btn" onclick="inviteMember()">Inviter</button>
+        <i class="ti ti-mail" style="color:var(--muted);font-size:15px;flex-shrink:0"></i>
+        <input class="inv-inp" id="inv-email" type="email" placeholder="Inviter par e-mail…" onkeydown="if(event.key==='Enter')inviteMember()"/>
+        <select class="pdf-inp" id="inv-role" style="width:148px;padding:4px 7px;flex-shrink:0">
+          <option value="admin">Administrateur</option>
+          <option value="editor" selected>Éditeur</option>
+          <option value="viewer">Lecture seule</option>
+        </select>
+        <button class="btn" id="inv-btn" onclick="inviteMember()"><i class="ti ti-send"></i>Inviter</button>
       </div>
+      <div id="inv-msg" style="display:none;font-size:11px;padding:7px 12px;border-radius:7px;margin-top:8px;line-height:1.5"></div>
       <div class="slink-box" id="rider-builder">
         <div class="slink-title"><i class="ti ti-link"></i>Lien rider — partage en lecture seule</div>
         <div id="rider-gate-msg" class="slink-pro-gate" style="display:none">
@@ -2429,6 +2434,7 @@ async function initApp(){
   try{
     await _withTimeout(loadProfile(),8000);
     await _withTimeout(loadShows(),10000);
+    processShowInvites(); // async, non-blocking — process pending show invites
     loadColChips();
     initStage();
   }catch(e){
@@ -2495,7 +2501,7 @@ async function loadAllShowMembers(){
   SHOW_MEMBERS_MAP={};
   if(!SHOWS.length) return;
   const ids=SHOWS.map(function(s){return s.id;});
-  const {data}=await sb.from('show_members').select('*,profiles(full_name,role,plan)').in('show_id',ids);
+  const {data}=await sb.from('show_members').select('*,profiles(full_name,email,role,plan)').in('show_id',ids);
   (data||[]).forEach(function(m){
     if(!SHOW_MEMBERS_MAP[m.show_id])SHOW_MEMBERS_MAP[m.show_id]=[];
     SHOW_MEMBERS_MAP[m.show_id].push(m);
@@ -3534,7 +3540,7 @@ if(!navigator.onLine){_showOfflineBanner();}
 // ══════════════════════════════════════
 async function loadMembers(){
   const grid=document.getElementById('team-grid');
-  const {data,error}=await sb.from('show_members').select('*,profiles(full_name,role,plan)').eq('show_id',CUR_SHOW.id);
+  const {data,error}=await sb.from('show_members').select('*,profiles(full_name,email,role,plan)').eq('show_id',CUR_SHOW.id);
   if(error)console.error('members error:',error);
   const members=(error?[]:data)||[];
   // Update the sessions map for this show so cards reflect latest members
@@ -3545,16 +3551,120 @@ async function loadMembers(){
   const ownerName=PROFILE?.full_name||ME.email;
   const ownerInit=ownerName.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const planPill=p=>{const labels={free:'Gratuit',pro:'Pro',studio:'Studio'};return `<span class="plan-badge-pill ${_es(p||'free')}">${_es(labels[p||'free']||p||'free')}</span>`;};
-  let html=`<div class="tc"><div class="tc-head"><div class="tc-av" style="background:var(--ora-d);color:var(--ora)">${_es(ownerInit)}</div><div><div class="tc-name">${_es(ownerName)}</div><div class="tc-role">${_es(PROFILE?.role||'Owner')}</div></div></div><div class="tc-perms"><span class="tag t-ora">Owner</span><span class="tag t-ora">Admin</span>${planPill(PROFILE?.plan)}</div><div class="tc-status"><span class="on-dot"></span>En ligne · toi</div></div>`;
+  const roleBadge=r=>{const l=ROLE_LABELS[r]||r;const c=ROLE_COLORS[r]||'var(--muted)';return `<span style="background:${c}18;color:${c};border:1px solid ${c}44;border-radius:5px;font-size:9px;padding:2px 7px;font-family:var(--m);text-transform:uppercase;letter-spacing:.5px">${_es(l)}</span>`;};
+  const isOwner = CUR_SHOW?.owner_id === ME?.id;
+  let html=`<div class="tc"><div class="tc-head"><div class="tc-av" style="background:var(--ora-d);color:var(--ora)">${_es(ownerInit)}</div><div><div class="tc-name">${_es(ownerName)}</div><div class="tc-role">${_es(PROFILE?.role||'')}</div></div></div><div class="tc-perms">${roleBadge('admin')}<span class="tag t-ora">Propriétaire</span>${planPill(PROFILE?.plan)}</div><div class="tc-status"><span class="on-dot"></span>En ligne · toi</div></div>`;
   members.forEach((m,i)=>{
-    const n=m.profiles?.full_name||'Membre';
+    const n=m.profiles?.full_name||m.profiles?.email||'Membre';
     const ci=(i+1)%COLS.length;
     const init=n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-    html+=`<div class="tc"><div class="tc-head"><div class="tc-av" style="background:${COLS[ci]};color:${TC[ci]}">${_es(init)}</div><div><div class="tc-name">${_es(n)}</div><div class="tc-role">${_es(m.profiles?.role||m.role||'')}</div></div></div><div class="tc-perms"><span class="tag t-ora">${_es(m.role||'')}</span>${planPill(m.profiles?.plan)}</div><div class="tc-status"><span class="off-dot"></span>Membre</div></div>`;
+    const delBtn=isOwner?`<button onclick="removeMember('${_es(m.id)}')" title="Retirer du show" style="margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 5px;border-radius:4px;transition:color .15s" onmouseover="this.style.color='var(--err)'" onmouseout="this.style.color='var(--muted)'"><i class="ti ti-user-minus"></i></button>`:'';
+    html+=`<div class="tc"><div class="tc-head"><div class="tc-av" style="background:${COLS[ci]};color:${TC[ci]}">${_es(init)}</div><div><div class="tc-name">${_es(n)}</div><div class="tc-role" style="font-size:9px;color:var(--muted)">${_es(m.profiles?.email||'')}</div></div>${delBtn}</div><div class="tc-perms">${roleBadge(m.role||'editor')}${planPill(m.profiles?.plan)}</div><div class="tc-status"><span class="off-dot"></span>Membre</div></div>`;
   });
   grid.innerHTML=html;grid.className='team-grid';
 }
-function inviteMember(){const e=document.getElementById('inv-email').value.trim();const r=document.getElementById('inv-role').value;if(!e){alert('Entrer un e-mail');return;}toast(`✓ Invitation envoyée à ${e} (${r})`);document.getElementById('inv-email').value='';}
+/* ── Role labels ── */
+const ROLE_LABELS = { admin:'Administrateur', editor:'Éditeur', viewer:'Lecture seule' };
+const ROLE_COLORS = { admin:'var(--err)', editor:'var(--ora)', viewer:'var(--muted)' };
+
+function _invMsg(msg, ok) {
+  const el = document.getElementById('inv-msg');
+  if (!el) return;
+  el.style.display = msg ? 'block' : 'none';
+  el.style.background = ok ? 'rgba(34,214,160,.08)' : 'rgba(255,77,106,.08)';
+  el.style.border = '1px solid ' + (ok ? 'rgba(34,214,160,.25)' : 'rgba(255,77,106,.25)');
+  el.style.color = ok ? 'var(--grn)' : 'var(--err)';
+  el.textContent = msg;
+}
+
+async function inviteMember() {
+  const emailEl = document.getElementById('inv-email');
+  const roleEl  = document.getElementById('inv-role');
+  const btn     = document.getElementById('inv-btn');
+  const email   = emailEl.value.trim().toLowerCase();
+  const role    = roleEl.value;
+  if (!email) { _invMsg('Renseignez une adresse email.', false); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { _invMsg('Adresse email invalide.', false); return; }
+  if (!CUR_SHOW) { _invMsg('Aucun show sélectionné.', false); return; }
+
+  /* Plan limit check */
+  const limit = planLimit('max_members');
+  const currentCount = (SHOW_MEMBERS_MAP[CUR_SHOW.id] || []).length;
+  if (limit !== Infinity && currentCount >= limit) { showUpgradeModal('max_members'); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin .7s linear infinite"></i>Envoi…';
+  _invMsg('', false);
+
+  try {
+    const session = (await sb.auth.getSession()).data.session;
+    if (!session) { _invMsg('Vous devez être connecté.', false); return; }
+
+    const res = await fetch(
+      'https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/invite-member',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + session.access_token,
+          'apikey': SB_KEY,
+        },
+        body: JSON.stringify({ showId: CUR_SHOW.id, email, role }),
+      }
+    );
+    const data = await res.json();
+    if (!res.ok) {
+      _invMsg(data.error || 'Erreur lors de l\'invitation.', false);
+    } else {
+      const action = data.action;
+      const msg = action === 'added_directly'
+        ? `✓ ${email} a été ajouté au show (compte existant).`
+        : `✓ Invitation envoyée à ${email} — il recevra un lien pour rejoindre PatchFlow.`;
+      _invMsg(msg, true);
+      emailEl.value = '';
+      loadTeam(); // refresh member list
+    }
+  } catch (e) {
+    _invMsg('Erreur réseau : ' + e.message, false);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-send"></i>Inviter';
+  }
+}
+
+async function removeMember(memberId) {
+  if (!confirm('Retirer ce membre du show ?')) return;
+  const { error } = await sb.from('show_members').delete().eq('id', memberId);
+  if (error) { toast('Erreur : ' + error.message); return; }
+  toast('Membre retiré.');
+  loadTeam();
+}
+
+/* Process pending show invites after login */
+async function processShowInvites() {
+  if (!ME?.email) return;
+  try {
+    const { data: invites } = await sb.from('show_invites')
+      .select('*')
+      .eq('invited_email', ME.email.toLowerCase());
+    if (!invites?.length) return;
+    for (const inv of invites) {
+      /* Add to show_members */
+      await sb.from('show_members').upsert({
+        show_id: inv.show_id,
+        user_id: ME.id,
+        role: inv.role,
+      }, { onConflict: 'show_id,user_id' });
+      /* Remove consumed invite */
+      await sb.from('show_invites').delete().eq('id', inv.id);
+      toast(`✓ Vous avez rejoint le show "${inv.show_name || inv.show_id}" en tant que ${ROLE_LABELS[inv.role] || inv.role}.`);
+    }
+    /* Reload shows so new ones appear */
+    await loadShows();
+  } catch (e) {
+    console.error('processShowInvites:', e);
+  }
+}
 
 /* ── Rider link builder ── */
 var _riderSections={il:true,out:false,syno:false,stage:false,site:false};

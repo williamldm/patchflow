@@ -91,12 +91,16 @@ serve(async (req) => {
           'Confirmez votre nouvelle adresse email en cliquant ci-dessous.',
           'Confirmer mon adresse', verifyUrl, 'Si vous n\'êtes pas à l\'origine de cette demande, ignorez cet email.');
         break;
-      case 'invite':
-        subject = 'Vous êtes invité sur PatchFlow';
-        html = shell('Bienvenue sur PatchFlow 🎧',
-          'Vous avez été invité à rejoindre PatchFlow. Cliquez ci-dessous pour activer votre compte.',
-          'Activer mon compte', verifyUrl, 'Ce lien expire dans 24 heures.');
+      case 'invite': {
+        const meta = user.user_metadata || {};
+        const inviter   = meta.inviter   || 'Un technicien';
+        const showName  = meta.show_name || 'un show';
+        subject = `${inviter} vous invite sur PatchFlow — "${showName}"`;
+        html = shell(`${inviter} vous invite sur PatchFlow 🎧`,
+          `<strong>${inviter}</strong> vous invite à rejoindre le show <strong>${showName}</strong> sur PatchFlow.<br/><br/>Créez votre compte en cliquant ci-dessous pour accéder au show directement.`,
+          'Créer mon compte', verifyUrl, 'Ce lien expire dans 24 heures. Si vous ne connaissez pas cet utilisateur, ignorez cet email.');
         break;
+      }
       default: // signup
         subject = 'Confirmez votre adresse email — PatchFlow';
         html = shell('Bienvenue sur PatchFlow 🎧',
