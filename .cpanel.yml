@@ -1,0 +1,5 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/lowi3581/patchflow/
+    - /bin/cp soundbooth_12.html $DEPLOYPATH/index.html
