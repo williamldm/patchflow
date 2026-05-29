@@ -2479,9 +2479,21 @@ async function loadProfile(){
 // SHOWS
 // ══════════════════════════════════════
 async function loadShows(){
-  const {data,error}=await sb.from('shows').select('*').order('created_at',{ascending:false});
-  if(error){console.error('shows error:',error);throw new Error(error.message);}
-  SHOWS=data||[];
+  // Load shows owned by the user
+  const {data:ownedData,error:ownedErr}=await sb.from('shows').select('*').order('created_at',{ascending:false});
+  if(ownedErr){console.error('shows error:',ownedErr);throw new Error(ownedErr.message);}
+
+  // Also load shows the user is a member of (invited)
+  const {data:memberData}=await sb.from('show_members')
+    .select('show_id, shows(*)')
+    .eq('user_id',ME.id);
+  const memberShows=(memberData||[]).map(m=>m.shows).filter(Boolean);
+
+  // Merge, deduplicate by id
+  const allShows=[...(ownedData||[]),...memberShows];
+  const seen=new Set();
+  SHOWS=allShows.filter(s=>{if(seen.has(s.id))return false;seen.add(s.id);return true;})
+    .sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
   await loadAllShowMembers();
   renderSPShows();
   renderSessions();
