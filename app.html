@@ -324,7 +324,29 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .fich-file-ico.ico-video{background:rgba(168,85,247,.12)}
 .fich-file-ico.ico-audio{background:rgba(6,182,212,.12)}
 .fich-file-ico.ico-folder{background:rgba(245,197,66,.12)}
+.fich-file-ico.ico-image{background:rgba(236,72,153,.12)}
+.fich-file-ico.ico-show{background:rgba(255,107,26,.12)}
+.fich-file-ico.ico-daw{background:rgba(139,92,246,.12)}
+.fich-file-ico.ico-archive{background:rgba(234,179,8,.12)}
 .fich-file-ico.ico-other{background:var(--surf3)}
+/* Search + sort toolbar */
+.fich-search{flex:1;min-width:120px;display:flex;align-items:center;gap:6px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;padding:0 10px;height:30px}
+.fich-search:focus-within{border-color:var(--ora-g)}
+.fich-search i{font-size:13px;color:var(--muted);flex-shrink:0}
+.fich-search input{flex:1;background:none;border:none;outline:none;color:var(--txt);font-family:var(--f);font-size:11px;min-width:0}
+.fich-search input::placeholder{color:var(--muted)}
+.fich-sort{background:var(--surf2);border:1px solid var(--bdr2);color:var(--txt2);font-family:var(--f);font-size:10px;border-radius:7px;padding:0 8px;height:30px;cursor:pointer;outline:none;flex-shrink:0}
+.fich-sort:hover{border-color:var(--bdr3)}
+/* Suggested folders (empty state) */
+.fich-suggest{max-width:560px;margin:8px auto 0;padding:0 14px}
+.fich-suggest-hd{font-family:var(--m);font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.fich-suggest-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fich-suggest-card{display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:9px;cursor:pointer;transition:all .14s;text-align:left}
+.fich-suggest-card:hover{border-color:var(--ora-g);background:var(--surf3);transform:translateY(-1px)}
+.fich-suggest-ico{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.fich-suggest-nm{font-size:12px;font-weight:600;color:var(--txt)}
+.fich-suggest-sub{font-size:9.5px;color:var(--muted);font-family:var(--m);margin-top:1px}
+.fich-suggest-all{margin-top:12px;width:100%;justify-content:center}
 .fich-file-info{flex:1;min-width:0}
 .fich-file-name{font-size:12px;font-weight:600;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:2px}
 .fich-file-meta{font-size:10px;color:var(--muted);font-family:var(--m)}
@@ -1392,18 +1414,35 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
         <span class="ptitle"><i class="ti ti-cloud" style="color:var(--ora)"></i>Fichiers<span class="ptitle-sep">/</span><span id="sn-fichiers" style="color:var(--txt2)">…</span></span>
         <span id="fich-upload-status" style="font-size:10px;color:var(--muted);display:none"><i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Upload…</span>
       </div>
-      <input type="file" id="fichiers-file-input" style="display:none" multiple accept=".pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.mp4,.mov,.avi,.webm,.mp3,.wav,.m4a,.aac,.flac">
+      <input type="file" id="fichiers-file-input" style="display:none" multiple>
       <div id="fich-breadcrumb" class="fich-breadcrumb" style="display:none"></div>
-      <div id="fich-filter-bar" class="fich-filter-bar">
+      <!-- Actions + search + sort -->
+      <div class="fich-filter-bar" style="border-bottom:none;padding-bottom:4px">
         <button class="fich-action-btn upload" onclick="fichImportClick()"><i class="ti ti-upload"></i> Envoyer</button>
         <button class="fich-action-btn folder" onclick="createFichierFolder()"><i class="ti ti-folder-plus"></i> Dossier</button>
-        <div class="fich-filter-sep"></div>
+        <div class="fich-search">
+          <i class="ti ti-search"></i>
+          <input type="text" id="fich-search-input" placeholder="Rechercher un fichier…" oninput="setFichSearch(this.value)">
+        </div>
+        <select class="fich-sort" id="fich-sort-select" onchange="setFichSort(this.value)" title="Trier">
+          <option value="name-asc">Nom A→Z</option>
+          <option value="name-desc">Nom Z→A</option>
+          <option value="date-desc">Plus récent</option>
+          <option value="date-asc">Plus ancien</option>
+          <option value="size-desc">Plus lourd</option>
+          <option value="size-asc">Plus léger</option>
+        </select>
+      </div>
+      <!-- Type filters -->
+      <div id="fich-filter-bar" class="fich-filter-bar">
         <button class="fich-filter-chip active" onclick="setFichFilter('all',this)">Tous</button>
         <button class="fich-filter-chip" onclick="setFichFilter('PDF',this)"><i class="ti ti-file-type-pdf" style="font-size:10px;margin-right:3px"></i>PDF</button>
-        <button class="fich-filter-chip" onclick="setFichFilter('Word',this)"><i class="ti ti-file-type-doc" style="font-size:10px;margin-right:3px"></i>Word</button>
-        <button class="fich-filter-chip" onclick="setFichFilter('Excel',this)"><i class="ti ti-file-type-xls" style="font-size:10px;margin-right:3px"></i>Excel</button>
-        <button class="fich-filter-chip" onclick="setFichFilter('PowerPoint',this)"><i class="ti ti-file-type-ppt" style="font-size:10px;margin-right:3px"></i>PowerPoint</button>
+        <button class="fich-filter-chip" onclick="setFichFilter('Show file',this)"><i class="ti ti-adjustments-alt" style="font-size:10px;margin-right:3px"></i>Show files</button>
+        <button class="fich-filter-chip" onclick="setFichFilter('Session DAW',this)"><i class="ti ti-waveform" style="font-size:10px;margin-right:3px"></i>Sessions DAW</button>
         <button class="fich-filter-chip" onclick="setFichFilter('Audio',this)"><i class="ti ti-music" style="font-size:10px;margin-right:3px"></i>Audio</button>
+        <button class="fich-filter-chip" onclick="setFichFilter('Image',this)"><i class="ti ti-photo" style="font-size:10px;margin-right:3px"></i>Images</button>
+        <button class="fich-filter-chip" onclick="setFichFilter('Document',this)"><i class="ti ti-file-type-doc" style="font-size:10px;margin-right:3px"></i>Docs</button>
+        <button class="fich-filter-chip" onclick="setFichFilter('Tableur',this)"><i class="ti ti-file-type-xls" style="font-size:10px;margin-right:3px"></i>Tableurs</button>
         <button class="fich-filter-chip" onclick="setFichFilter('Video',this)"><i class="ti ti-device-tv" style="font-size:10px;margin-right:3px"></i>Video</button>
       </div>
       <div id="fichiers-list" style="flex:1;overflow-y:auto"></div>
@@ -9561,12 +9600,20 @@ let _fichPath = []; // current folder navigation stack
 const _fEsc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
 const FICH_TYPES = {
-  pdf:  { ext:['pdf'],                               icon:'<i class="ti ti-file-type-pdf" style="color:#ef4444;font-size:20px"></i>', cls:'ico-pdf',   label:'PDF',        preview:'pdf' },
-  word: { ext:['docx','doc'],                        icon:'<i class="ti ti-file-type-doc" style="color:#3b82f6;font-size:20px"></i>', cls:'ico-word',  label:'Word',       preview:'none' },
-  excel:{ ext:['xlsx','xls'],                        icon:'<i class="ti ti-file-type-xls" style="color:#22c55e;font-size:20px"></i>', cls:'ico-excel', label:'Excel',      preview:'none' },
-  ppt:  { ext:['pptx','ppt'],                        icon:'<i class="ti ti-file-type-ppt" style="color:#f97316;font-size:20px"></i>', cls:'ico-ppt',   label:'PowerPoint', preview:'none' },
-  video:{ ext:['mp4','mov','avi','webm','mkv'],       icon:'<i class="ti ti-device-tv" style="color:#a855f7;font-size:20px"></i>',    cls:'ico-video', label:'Video',      preview:'video' },
-  audio:{ ext:['mp3','wav','m4a','aac','flac','ogg'], icon:'<i class="ti ti-music" style="color:#06b6d4;font-size:20px"></i>',        cls:'ico-audio', label:'Audio',      preview:'audio' },
+  pdf:    { ext:['pdf'],                               icon:'<i class="ti ti-file-type-pdf" style="color:#ef4444;font-size:20px"></i>',    cls:'ico-pdf',     label:'PDF',        preview:'pdf' },
+  word:   { ext:['docx','doc','odt','rtf','txt'],      icon:'<i class="ti ti-file-type-doc" style="color:#3b82f6;font-size:20px"></i>',    cls:'ico-word',    label:'Document',   preview:'none' },
+  excel:  { ext:['xlsx','xls','csv','ods'],            icon:'<i class="ti ti-file-type-xls" style="color:#22c55e;font-size:20px"></i>',    cls:'ico-excel',   label:'Tableur',    preview:'none' },
+  ppt:    { ext:['pptx','ppt','odp','key'],            icon:'<i class="ti ti-file-type-ppt" style="color:#f97316;font-size:20px"></i>',    cls:'ico-ppt',     label:'Presentation', preview:'none' },
+  image:  { ext:['png','jpg','jpeg','gif','webp','svg','heic','bmp','tif','tiff'], icon:'<i class="ti ti-photo" style="color:#ec4899;font-size:20px"></i>', cls:'ico-image', label:'Image',      preview:'image' },
+  video:  { ext:['mp4','mov','avi','webm','mkv'],       icon:'<i class="ti ti-device-tv" style="color:#a855f7;font-size:20px"></i>',       cls:'ico-video',   label:'Video',      preview:'video' },
+  audio:  { ext:['mp3','wav','m4a','aac','flac','ogg','aiff','aif'], icon:'<i class="ti ti-music" style="color:#06b6d4;font-size:20px"></i>', cls:'ico-audio', label:'Audio',      preview:'audio' },
+  /* Console show files — Yamaha, DiGiCo, A&H, Midas/Behringer, SSL, Avid... */
+  showfile:{ ext:['scn','show','dlive','dvs','avs','xml','qu','cl','sb','prj','ses','vsh','svc','daw','mid'],
+             icon:'<i class="ti ti-adjustments-alt" style="color:#ff6b1a;font-size:20px"></i>', cls:'ico-show', label:'Show file', preview:'none' },
+  /* DAW / multitrack sessions — Pro Tools, Logic, Live, Reaper, Cubase... */
+  daw:    { ext:['ptx','ptf','logicx','als','rpp','cpr','npr','song','reapeaks','flp'],
+            icon:'<i class="ti ti-waveform" style="color:#8b5cf6;font-size:20px"></i>', cls:'ico-daw', label:'Session DAW', preview:'none' },
+  archive:{ ext:['zip','rar','7z','tar','gz'],         icon:'<i class="ti ti-file-zip" style="color:#eab308;font-size:20px"></i>',         cls:'ico-archive', label:'Archive',    preview:'none' },
 };
 
 function _fichInfoOf(filename) {
@@ -9637,12 +9684,76 @@ function _fichNavTo(idx) {
 }
 
 let _fichFilter = 'all';
+let _fichSearch = '';
+let _fichSort = 'name-asc';
 
 function setFichFilter(type, btn) {
   _fichFilter = type;
   document.querySelectorAll('.fich-filter-chip').forEach(function(b) { b.classList.remove('active'); });
   if (btn) btn.classList.add('active');
   _renderFichiersGrid();
+}
+function setFichSearch(q) { _fichSearch = (q || '').toLowerCase().trim(); _renderFichiersGrid(); }
+function setFichSort(v) { _fichSort = v || 'name-asc'; _renderFichiersGrid(); }
+
+function _fichSortFiles(arr) {
+  const [key, dir] = _fichSort.split('-');
+  const mul = dir === 'desc' ? -1 : 1;
+  return arr.slice().sort(function(a, b) {
+    if (key === 'name') return mul * _fichDisplayName(a.name).localeCompare(_fichDisplayName(b.name), 'fr', { numeric:true });
+    if (key === 'size') return mul * ((a.metadata?.size || 0) - (b.metadata?.size || 0));
+    if (key === 'date') return mul * (new Date(a.created_at || 0) - new Date(b.created_at || 0));
+    return 0;
+  });
+}
+
+/* Suggested folder structure tailored to a sound tech's show */
+const FICH_SUGGEST = [
+  { name:'Riders',            sub:'Riders tech & hospitality', icon:'ti-file-description', color:'#ef4444' },
+  { name:'Show Files',        sub:'Fichiers consoles',         icon:'ti-adjustments-alt',  color:'#ff6b1a' },
+  { name:'Plans & Schemas',   sub:'Scene, site, synoptique',   icon:'ti-map-2',            color:'#22d6a0' },
+  { name:'Audio',             sub:'Multipistes, virtual SC',   icon:'ti-waveform',         color:'#8b5cf6' },
+  { name:'Logos & Visuels',   sub:'Logos prod, photos',        icon:'ti-photo',            color:'#ec4899' },
+  { name:'Contrats & Admin',  sub:'Devis, feuilles de route',  icon:'ti-folder',           color:'#3b82f6' },
+];
+
+async function _fichCreateFolderNamed(name) {
+  if (!canDo('storage')) { showUpgradeModal('storage'); return; }
+  const keepPath = CUR_SHOW.id + '/' + _fichPathStr() + name + '/.keep';
+  await sb.storage.from(FICH_BUCKET).upload(keepPath, new Blob(['']), { upsert: true });
+}
+async function fichCreateSuggested(name) {
+  await _fichCreateFolderNamed(name);
+  toast('✓ Dossier « ' + name + ' » créé');
+  await loadFichiers();
+}
+async function fichCreateAllSuggested() {
+  if (!canDo('storage')) { showUpgradeModal('storage'); return; }
+  const status = document.getElementById('fich-upload-status');
+  if (status) status.style.display = '';
+  for (const s of FICH_SUGGEST) await _fichCreateFolderNamed(s.name);
+  if (status) status.style.display = 'none';
+  toast('✓ Arborescence créée');
+  await loadFichiers();
+}
+
+async function renameFichier(relPath) {
+  const filename = relPath.split('/').pop();
+  const display = _fichDisplayName(filename);
+  const dot = display.lastIndexOf('.');
+  const base = dot > 0 ? display.slice(0, dot) : display;
+  const ext = dot > 0 ? display.slice(dot) : '';
+  const nv = prompt('Nouveau nom du fichier :', base);
+  if (nv === null) return;
+  const clean = nv.trim();
+  if (!clean || clean === base) return;
+  const prefix = filename.indexOf('_') > -1 ? filename.slice(0, filename.indexOf('_') + 1) : '';
+  const oldPath = CUR_SHOW.id + '/' + _fichPathStr() + filename;
+  const newPath = CUR_SHOW.id + '/' + _fichPathStr() + prefix + clean + ext;
+  const { error } = await sb.storage.from(FICH_BUCKET).move(oldPath, newPath);
+  if (error) { toast('Erreur renommage : ' + error.message); return; }
+  toast('✓ Fichier renommé');
+  await loadFichiers();
 }
 
 function _renderFichiersGrid() {
@@ -9655,25 +9766,50 @@ function _renderFichiersGrid() {
   const allFiles = SHOW_FILES.filter(f => f.id !== null);
 
   const isEmpty = folders.length === 0 && allFiles.length === 0;
+  /* Empty root → onboarding with suggested folder structure */
   if (isEmpty && _fichPath.length === 0) {
-    if (dz) dz.className = 'fich-dropzone';
+    if (dz) dz.className = 'fich-dropzone has-files';
     if (stor) stor.style.display = 'none';
-    list.innerHTML = '';
+    var sg = '<div class="fich-list-wrap"><div class="fich-suggest">'+
+      '<div style="text-align:center;padding:14px 0 18px">'+
+        '<i class="ti ti-cloud-plus" style="font-size:34px;color:var(--ora)"></i>'+
+        '<div style="font-size:14px;font-weight:700;color:var(--txt);margin-top:8px">Votre cloud de production</div>'+
+        '<div style="font-size:11px;color:var(--muted);margin-top:3px">Glissez vos fichiers ici, ou démarrez avec une arborescence prête pour le son.</div>'+
+      '</div>'+
+      '<div class="fich-suggest-hd"><i class="ti ti-folders"></i>Dossiers suggérés</div>'+
+      '<div class="fich-suggest-grid">';
+    FICH_SUGGEST.forEach(function(s){
+      sg += '<button class="fich-suggest-card" onclick="fichCreateSuggested(\'' + s.name.replace(/'/g,"\\'") + '\')">'+
+        '<div class="fich-suggest-ico" style="background:'+s.color+'1f;color:'+s.color+'"><i class="ti '+s.icon+'"></i></div>'+
+        '<div><div class="fich-suggest-nm">'+s.name+'</div><div class="fich-suggest-sub">'+s.sub+'</div></div>'+
+        '</button>';
+    });
+    sg += '</div>'+
+      '<button class="btn sm fich-suggest-all" onclick="fichCreateAllSuggested()"><i class="ti ti-wand"></i> Créer toute l\'arborescence</button>'+
+      '</div></div>';
+    list.innerHTML = sg;
     return;
   }
   if (dz) dz.className = 'fich-dropzone has-files';
 
-  // filter
-  const files = _fichFilter === 'all'
+  // type filter
+  let files = _fichFilter === 'all'
     ? allFiles
     : allFiles.filter(f => _fichInfoOf(_fichDisplayName(f.name)).label === _fichFilter);
 
+  // search filter (across files + folders)
+  let foldersShown = folders;
+  if (_fichSearch) {
+    files = files.filter(f => _fichDisplayName(f.name).toLowerCase().includes(_fichSearch));
+    foldersShown = folders.filter(f => f.name.toLowerCase().includes(_fichSearch));
+  }
+
   let html = '<div class="fich-list-wrap">';
 
-  // dossiers (seulement si filtre = all)
-  if (folders.length && _fichFilter === 'all') {
+  // dossiers (cache si filtre type actif)
+  if (foldersShown.length && _fichFilter === 'all') {
     html += '<div class="fich-section-lbl"><i class="ti ti-folder" style="color:#f5c542;font-size:10px"></i>Dossiers</div>';
-    folders.forEach(function(f) {
+    _fichSortFiles(foldersShown).forEach(function(f) {
       const fn = f.name.replace(/'/g, "\\'");
       html += '<div class="fich-file-card" onclick="_fichNavTo(' + (_fichPath.length) + ');_fichPath.push(\'' + fn + '\');loadFichiers()">' +
         '<div class="fich-file-ico ico-folder"><i class="ti ti-folder-filled fich-folder-ico"></i></div>' +
@@ -9695,14 +9831,16 @@ function _renderFichiersGrid() {
       if (!groups[g]) groups[g] = [];
       groups[g].push({ f, name, info });
     });
-    const ORDER = ['PDF','Word','Excel','PowerPoint','Audio','Video','Fichier'];
+    const ORDER = ['PDF','Show file','Session DAW','Audio','Image','Document','Tableur','Presentation','Video','Archive','Fichier'];
     Object.entries(groups)
       .sort(function(a,b){ return ORDER.indexOf(a[0]) - ORDER.indexOf(b[0]); })
       .forEach(function([label, items]) {
         if (_fichFilter === 'all') {
-          html += '<div class="fich-section-lbl"><i class="ti ti-tag" style="font-size:9px;color:var(--muted)"></i>' + label + '</div>';
+          html += '<div class="fich-section-lbl"><i class="ti ti-tag" style="font-size:9px;color:var(--muted)"></i>' + label + ' <span style="color:var(--muted2);font-weight:400">· ' + items.length + '</span></div>';
         }
-        items.forEach(function({ f, name, info }) {
+        _fichSortFiles(items.map(i => i.f)).forEach(function(f) {
+          const name = _fichDisplayName(f.name);
+          const info = _fichInfoOf(name);
           const size = _fmtSize(f.metadata?.size);
           const date = f.created_at ? new Date(f.created_at).toLocaleDateString('fr-FR') : '';
           const meta = [size, date ? 'Ajoute ' + date : ''].filter(Boolean).join(' · ');
@@ -9711,18 +9849,17 @@ function _renderFichiersGrid() {
             '<div class="fich-file-ico ' + (info.cls || 'ico-other') + '">' + info.icon + '</div>' +
             '<div class="fich-file-info"><div class="fich-file-name">' + _fEsc(name) + '</div><div class="fich-file-meta">' + _fEsc(meta) + '</div></div>' +
             '<div class="fich-file-actions">' +
+              '<button class="fich-file-btn" onclick="event.stopPropagation();renameFichier(\'' + fp + '\')" title="Renommer"><i class="ti ti-pencil"></i></button>' +
               '<button class="fich-file-btn dl" onclick="event.stopPropagation();_fichDownload(\'' + fp + '\')" title="Telecharger"><i class="ti ti-download"></i></button>' +
               '<button class="fich-file-btn del" onclick="event.stopPropagation();deleteFichier(\'' + fp + '\')" title="Supprimer"><i class="ti ti-trash"></i></button>' +
             '</div>' +
             '</div>';
         });
       });
-  } else if (!folders.length || _fichFilter !== 'all') {
-    html += '<div class="fich-empty"><i class="ti ti-filter"></i><p style="font-size:12px">Aucun fichier dans ce filtre</p></div>';
-  }
-
-  if (isEmpty) {
-    html += '<div class="fich-empty" style="padding:30px;text-align:center;color:var(--muted);font-size:11px"><i class="ti ti-folder-open" style="font-size:24px;display:block;margin-bottom:8px"></i>Dossier vide</div>';
+  } else if (!foldersShown.length) {
+    var emptyMsg = _fichSearch ? 'Aucun résultat pour « ' + _fEsc(_fichSearch) + ' »'
+                 : (_fichFilter !== 'all' ? 'Aucun fichier dans ce filtre' : 'Dossier vide');
+    html += '<div class="fich-empty"><i class="ti ti-filter"></i><p style="font-size:12px">' + emptyMsg + '</p></div>';
   }
 
   html += '</div>';
@@ -9868,6 +10005,8 @@ async function viewFichier(relPath) {
     content.innerHTML = '<video controls autoplay src="' + url + '"></video>';
   } else if (info.preview === 'audio') {
     content.innerHTML = '<div class="fich-audio-wrap"><audio controls autoplay src="' + url + '"></audio></div>';
+  } else if (info.preview === 'image') {
+    content.innerHTML = '<img src="' + url + '" alt="' + _fEsc(displayName) + '" style="max-width:100%;max-height:80vh;object-fit:contain;border-radius:8px;display:block;margin:0 auto"/>';
   }
 
   modal.style.display = '';
