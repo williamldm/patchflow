@@ -2338,7 +2338,7 @@ async function doReg(){
       password:pwd,
       options:{
         data:{full_name:name,role},
-        emailRedirectTo: window.location.origin+'/app.html'
+        emailRedirectTo: 'https://patchflow.fr/app.html'
       }
     });
     if(error){authMsg(error.message,'err');}
