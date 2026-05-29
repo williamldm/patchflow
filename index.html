@@ -47,7 +47,9 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(8,11,18,.85)
 h1{font-size:clamp(38px,6vw,72px);font-weight:800;line-height:1.08;letter-spacing:-2px;margin-bottom:22px;max-width:860px}
 h1 span{background:linear-gradient(135deg,var(--ora),#ff9040);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .hero-sub{font-size:clamp(16px,2vw,20px);color:var(--txt2);max-width:600px;margin:0 auto 40px;font-weight:400;line-height:1.65}
-.hero-ctas{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:56px}
+.hero-ctas{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:20px}
+.hero-reassure{display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:wrap;font-size:13px;color:var(--txt2);font-weight:500;margin-bottom:40px}
+.hero-reassure i{font-size:14px}
 .hero-social{display:flex;align-items:center;gap:24px;color:var(--muted);font-size:12px;font-family:var(--m)}
 .hero-social span{display:flex;align-items:center;gap:6px}
 .hero-social strong{color:var(--txt2)}
@@ -83,6 +85,30 @@ h2 em{font-style:normal;color:var(--ora)}
 .section-sub{font-size:16px;color:var(--muted);max-width:540px;line-height:1.7}
 .center{text-align:center}
 .center .section-sub{margin:0 auto}
+
+/* ── PAIN GRID ── */
+.pain-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;max-width:1100px;margin:0 auto}
+.pain-card{background:var(--surf);border:1px solid var(--bdr);border-radius:16px;padding:26px 22px;transition:transform .2s,border-color .2s}
+.pain-card:hover{transform:translateY(-4px);border-color:var(--bdr2)}
+.pain-ico{width:48px;height:48px;border-radius:12px;background:rgba(255,77,106,.1);color:#ff4d6a;display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:16px}
+.pain-title{font-size:15px;font-weight:700;color:var(--txt);margin-bottom:8px;line-height:1.3}
+.pain-txt{font-size:13px;color:var(--muted);line-height:1.6}
+@media(max-width:900px){.pain-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.pain-grid{grid-template-columns:1fr}}
+
+/* ── COMPARISON ── */
+.cmp-wrap{max-width:840px;margin:56px auto 0;border:1px solid var(--bdr2);border-radius:18px;overflow:hidden;background:var(--surf)}
+.cmp-row{display:grid;grid-template-columns:1.4fr 1fr 1fr}
+.cmp-row.head .cmp-cell{padding:18px 20px;font-weight:700}
+.cmp-cell{padding:15px 20px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:9px;font-size:13.5px}
+.cmp-row:last-child .cmp-cell{border-bottom:none}
+.cmp-feat{color:var(--txt2);font-weight:500}
+.cmp-old{color:var(--muted);border-left:1px solid var(--bdr)}
+.cmp-pf{color:var(--txt);border-left:1px solid rgba(255,107,26,.25);background:rgba(255,107,26,.04);font-weight:600}
+.cmp-row.head .cmp-pf{background:rgba(255,107,26,.1)}
+.cmp-yes{color:var(--grn)}.cmp-no{color:#ff4d6a;opacity:.7}
+.cmp-pf-badge{display:inline-flex;align-items:center;gap:6px;color:var(--ora)}
+@media(max-width:620px){.cmp-cell{font-size:11.5px;padding:12px 12px;gap:6px}.cmp-row.head .cmp-cell{padding:14px 12px}}
 
 /* ── FEATURES INTERACTIVE ── */
 .feat-shell{display:grid;grid-template-columns:300px 1fr;gap:0;margin-top:64px;border:1px solid var(--bdr2);border-radius:18px;overflow:hidden;min-height:520px;background:var(--surf)}
@@ -295,7 +321,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
   </div>
   <div class="nav-cta">
     <a class="btn btn-ghost" href="app.html">Se connecter</a>
-    <a class="btn btn-ora" href="app.html">Essayer gratuitement</a>
+    <a class="btn btn-ora" href="app.html">Commencer — c'est gratuit</a>
   </div>
 </nav>
 
@@ -303,19 +329,20 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
 <section class="hero">
   <div class="hero-glow"></div>
   <div class="hero-glow2"></div>
-  <div class="hero-badge"><i class="ti ti-bolt" style="font-size:11px"></i>Nouveau — Output List &amp; Recap materiels</div>
-  <h1>Le patch, le plan de scene<br/><span>tout au meme endroit.</span></h1>
-  <p class="hero-sub">PatchFlow est l'outil de gestion de patch pensé par des techniciens son, pour des techniciens son. Input List, plan de scène, synoptique — en temps réel et en équipe.</p>
+  <div class="hero-badge"><i class="ti ti-bolt" style="font-size:11px"></i>Pensé par des techniciens son, pour des techniciens son</div>
+  <h1>Tout votre patch son,<br/><span>prêt en 3 minutes.</span></h1>
+  <p class="hero-sub">Input List, plan de scène, synoptique et plan de site — créés, exportés et partagés en un lien, synchronisés en temps réel avec toute l'équipe. PatchFlow remplace vos fichiers Excel et vos PDF éparpillés par <strong style="color:var(--txt)">un seul outil pro</strong>.</p>
   <div class="hero-ctas">
-    <a class="btn btn-ora btn-xl" href="app.html"><i class="ti ti-rocket"></i>Commencer gratuitement</a>
-    <a class="btn btn-ghost btn-lg" href="#features"><i class="ti ti-play"></i>Voir les fonctionnalites</a>
+    <a class="btn btn-ora btn-xl" href="app.html"><i class="ti ti-rocket"></i>Créer mon patch gratuitement</a>
+    <a class="btn btn-ghost btn-lg" href="#features"><i class="ti ti-play"></i>Voir une démo</a>
   </div>
+  <div class="hero-reassure"><i class="ti ti-circle-check" style="color:var(--grn)"></i> Gratuit, sans carte bancaire &nbsp;·&nbsp; <i class="ti ti-circle-check" style="color:var(--grn)"></i> Prêt en 2 minutes &nbsp;·&nbsp; <i class="ti ti-circle-check" style="color:var(--grn)"></i> Annulable à tout moment</div>
   <div class="hero-social">
     <span><strong>500+</strong> techniciens</span>
     <span style="color:var(--bdr2)">|</span>
     <span><strong>1 200+</strong> shows créés</span>
     <span style="color:var(--bdr2)">|</span>
-    <span style="color:var(--grn)">● Mis à jour en temps réel</span>
+    <span style="color:var(--grn)">● Synchronisé en temps réel</span>
   </div>
 
   <!-- App preview -->
@@ -366,11 +393,47 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
   </div>
 </section>
 
+<!-- PROBLEM / PAIN -->
+<section id="probleme" style="background:var(--bg2);padding-top:90px;padding-bottom:90px">
+  <div class="center" style="margin-bottom:56px">
+    <div class="section-label center">Le quotidien d'un techos</div>
+    <h2 class="center">La prépa son, c'est <em>trop de fichiers</em><br/>et pas assez de temps.</h2>
+    <p class="section-sub center">Vous connaissez la chanson. PatchFlow met fin à tout ça.</p>
+  </div>
+  <div class="pain-grid">
+    <div class="pain-card fade-up">
+      <div class="pain-ico"><i class="ti ti-file-x"></i></div>
+      <div class="pain-title">Le fichier Excel v7_FINAL_vraiment.xlsx</div>
+      <div class="pain-txt">Personne ne sait quelle version fait foi. Le régisseur a la v4, le backline la v6, et le patch change encore la veille.</div>
+    </div>
+    <div class="pain-card fade-up stagger-1">
+      <div class="pain-ico"><i class="ti ti-mail-off"></i></div>
+      <div class="pain-title">Les allers-retours par mail</div>
+      <div class="pain-txt">Input list par mail, plan de scène en PDF, retours sur WhatsApp. Trois sources, zéro synchro, des erreurs garanties.</div>
+    </div>
+    <div class="pain-card fade-up stagger-2">
+      <div class="pain-ico"><i class="ti ti-clock-exclamation"></i></div>
+      <div class="pain-title">Tout refaire à chaque date</div>
+      <div class="pain-txt">Repartir d'une feuille blanche, recopier le même patch, redessiner le même plan de scène. Encore et encore.</div>
+    </div>
+    <div class="pain-card fade-up stagger-3">
+      <div class="pain-ico"><i class="ti ti-alert-triangle"></i></div>
+      <div class="pain-title">Le stress de la balance</div>
+      <div class="pain-txt">Un canal oublié, un +48V manquant, un retour mal routé. Et c'est la course juste avant l'ouverture des portes.</div>
+    </div>
+  </div>
+  <div style="text-align:center;margin-top:48px">
+    <div style="display:inline-flex;align-items:center;gap:10px;font-size:17px;font-weight:600;color:var(--txt)">
+      <i class="ti ti-arrow-down" style="color:var(--ora);font-size:20px"></i>Il existe une bien meilleure façon de travailler.
+    </div>
+  </div>
+</section>
+
 <!-- FEATURES -->
 <section id="features">
   <div class="section-label center">Fonctionnalites</div>
-  <h2 class="center">Tout ce dont vous avez besoin,<br/><em>rien de superflu.</em></h2>
-  <p class="section-sub center">Cliquez sur une fonctionnalite pour voir un apercu.</p>
+  <h2 class="center">Une seule app pour <em>tout</em> votre patch.</h2>
+  <p class="section-sub center">Cliquez sur une fonctionnalite pour voir un apercu en direct.</p>
 
   <div class="feat-shell fade-up">
 
@@ -1096,8 +1159,61 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
   </div>
 </section>
 
+<!-- COMPARISON -->
+<section id="comparaison">
+  <div class="section-label center">Pourquoi PatchFlow</div>
+  <h2 class="center">Excel et Word n'ont <em>jamais été faits</em><br/>pour le live.</h2>
+  <p class="section-sub center">Comparez ce que vous faites aujourd'hui avec ce que PatchFlow vous apporte.</p>
+
+  <div class="cmp-wrap fade-up">
+    <div class="cmp-row head">
+      <div class="cmp-cell cmp-feat" style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px;font-family:var(--m)">Au quotidien</div>
+      <div class="cmp-cell cmp-old" style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px;font-family:var(--m)">Excel / Word / Papier</div>
+      <div class="cmp-cell cmp-pf"><span class="cmp-pf-badge"><svg width="16" height="16" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M70 60 C100 60 100 140 130 140" fill="none" stroke="#FF6B2B" stroke-width="16" stroke-linecap="round"/><path d="M130 60 C100 60 100 140 70 140" fill="none" stroke="#FF6B2B" stroke-width="16" stroke-linecap="round" opacity="0.45"/><circle cx="60" cy="60" r="13" fill="#FF6B2B"/><circle cx="140" cy="60" r="13" fill="#FF6B2B"/><circle cx="60" cy="140" r="13" fill="#FF6B2B"/><circle cx="140" cy="140" r="13" fill="#FF6B2B"/></svg>PatchFlow</span></div>
+    </div>
+    <div class="cmp-row">
+      <div class="cmp-cell cmp-feat">Input list, plan de scène & synoptique</div>
+      <div class="cmp-cell cmp-old">3 fichiers séparés</div>
+      <div class="cmp-cell cmp-pf"><i class="ti ti-check cmp-yes"></i>Un seul projet</div>
+    </div>
+    <div class="cmp-row">
+      <div class="cmp-cell cmp-feat">Mise à jour pour toute l'équipe</div>
+      <div class="cmp-cell cmp-old"><i class="ti ti-x cmp-no"></i>Renvoyer le fichier</div>
+      <div class="cmp-cell cmp-pf"><i class="ti ti-check cmp-yes"></i>Temps réel, automatique</div>
+    </div>
+    <div class="cmp-row">
+      <div class="cmp-cell cmp-feat">Partage au groupe / backline</div>
+      <div class="cmp-cell cmp-old"><i class="ti ti-x cmp-no"></i>Pièce jointe figée</div>
+      <div class="cmp-cell cmp-pf"><i class="ti ti-check cmp-yes"></i>Un lien, vue mobile</div>
+    </div>
+    <div class="cmp-row">
+      <div class="cmp-cell cmp-feat">Réutiliser un patch existant</div>
+      <div class="cmp-cell cmp-old">Copier-coller hasardeux</div>
+      <div class="cmp-cell cmp-pf"><i class="ti ti-check cmp-yes"></i>Templates en 1 clic</div>
+    </div>
+    <div class="cmp-row">
+      <div class="cmp-cell cmp-feat">Plan de scène & site visuels</div>
+      <div class="cmp-cell cmp-old"><i class="ti ti-x cmp-no"></i>À refaire sur Illustrator</div>
+      <div class="cmp-cell cmp-pf"><i class="ti ti-check cmp-yes"></i>Drag & drop intégré</div>
+    </div>
+    <div class="cmp-row">
+      <div class="cmp-cell cmp-feat">Export PDF pro prêt à envoyer</div>
+      <div class="cmp-cell cmp-old">Mise en page manuelle</div>
+      <div class="cmp-cell cmp-pf"><i class="ti ti-check cmp-yes"></i>PDF / PNG / SVG instantané</div>
+    </div>
+    <div class="cmp-row">
+      <div class="cmp-cell cmp-feat">Recap micros & pieds</div>
+      <div class="cmp-cell cmp-old"><i class="ti ti-x cmp-no"></i>Comptage à la main</div>
+      <div class="cmp-cell cmp-pf"><i class="ti ti-check cmp-yes"></i>Calculé automatiquement</div>
+    </div>
+  </div>
+  <div style="text-align:center;margin-top:36px">
+    <a class="btn btn-ora btn-lg" href="app.html"><i class="ti ti-rocket"></i>Passer à PatchFlow gratuitement</a>
+  </div>
+</section>
+
 <!-- TESTIMONIALS -->
-<section>
+<section style="padding-top:60px">
   <div class="section-label center">Ils nous font confiance</div>
   <h2 class="center">Ce que disent les <em>professionnels</em></h2>
 
@@ -1349,12 +1465,17 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
 
 <!-- CTA FINAL -->
 <div class="cta-final fade-up">
-  <div class="section-label center">Pret a demarrer ?</div>
-  <h2>Votre prochain show commence <em>ici.</em></h2>
-  <p>Rejoignez des centaines de techniciens qui ont simplifie leur workflow avec PatchFlow. Gratuit pour commencer, professionnel par nature.</p>
+  <div class="section-label center">Votre prochain show</div>
+  <h2>Arrivez serein,<br/><em>repartez en avance.</em></h2>
+  <p>Créez votre premier patch en 3 minutes — gratuitement, sans carte bancaire. Rejoignez les 500+ techniciens qui ont rangé Excel au placard.</p>
   <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap">
-    <a class="btn btn-ora btn-xl" href="app.html"><i class="ti ti-rocket"></i>Creer mon compte gratuit</a>
+    <a class="btn btn-ora btn-xl" href="app.html"><i class="ti ti-rocket"></i>Créer mon compte gratuit</a>
     <a class="btn btn-ghost btn-lg" href="#pricing">Voir les tarifs</a>
+  </div>
+  <div style="margin-top:24px;font-size:13px;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap">
+    <i class="ti ti-shield-check" style="color:var(--grn)"></i>Aucune carte bancaire requise
+    <span style="opacity:.4">·</span>Données hébergées en Europe
+    <span style="opacity:.4">·</span>Annulable à tout moment
   </div>
 </div>
 
