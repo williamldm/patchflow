@@ -574,6 +574,12 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .site-insp-col{display:flex;flex-direction:column;background:var(--surf);border:1px solid var(--bdr2);border-radius:11px;overflow:hidden}
 .site-insp-hd{font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1.4px;color:var(--ora);padding:9px 11px 5px;display:flex;align-items:center;gap:6px;background:var(--surf2)}
 .site-insp{flex:1;padding:12px;overflow-y:auto;min-height:0}
+/* Inspector form labels / inputs — used by site plan, synoptique rider, etc. */
+.syn-insp-title{font-family:var(--f);font-size:12px;font-weight:600;margin-bottom:9px;line-height:1.2;display:flex;align-items:center;gap:7px}
+.syn-insp-lbl{font-family:var(--m);font-size:8.5px;text-transform:uppercase;letter-spacing:1.1px;color:var(--muted);display:block;margin:8px 0 4px}
+.syn-insp-inp{width:100%;background:var(--surf2);border:1px solid var(--bdr2);color:var(--txt);font-family:var(--f);font-size:11px;padding:6px 8px;border-radius:6px;outline:none;box-sizing:border-box}
+.syn-insp-inp:focus{border-color:var(--ora-g)}
+.syn-insp-empty{color:var(--muted);font-size:11px;text-align:center;padding:20px 12px;line-height:1.5;font-family:var(--f)}
 .site-insp-footer{flex-shrink:0;border-top:1px solid var(--bdr2);padding:8px 10px;background:var(--surf2);display:flex;flex-direction:column;gap:5px}
 .site-insp-footer-row{display:flex;align-items:center;justify-content:space-between;font-size:9px;font-family:var(--m);text-transform:uppercase;letter-spacing:1.1px;color:var(--muted)}
 .site-insp-footer-row .spl-ts-btn{width:22px;height:22px;font-size:11px}
@@ -1411,7 +1417,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 
     <!-- PLANS -->
     <div class="panel" id="panel-stage">
-      <div class="pbar">
+      <div class="pbar" style="margin:0;padding:10px 14px;border-bottom:1px solid var(--bdr2);flex-shrink:0;background:var(--surf);flex-wrap:nowrap">
         <span class="ptitle"><i class="ti ti-map-2" style="color:var(--ora)"></i>Plans<span class="ptitle-sep">/</span><span id="sn-stage" style="color:var(--txt2)">…</span></span>
         <div style="display:flex;gap:8px;align-items:center">
           <div class="plan-mode-bar">
@@ -1871,6 +1877,13 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
           <div class="pdf-fld"><label class="pdf-lbl">Ingenieur</label><input class="pdf-inp" id="bppdf-eng"/></div>
         </div>
       </div>
+      <div class="pdf-sec">
+        <div class="pdf-sec-title"><i class="ti ti-link" style="color:var(--ora)"></i>Lien / Contact</div>
+        <div class="pdf-grid c3">
+          <div class="pdf-fld" style="grid-column:span 2"><label class="pdf-lbl">Lien (site, rider partage...)</label><input class="pdf-inp" id="bppdf-link" placeholder="https://exemple.com/rider"/></div>
+          <div class="pdf-fld"><label class="pdf-lbl">Contact</label><input class="pdf-inp" id="bppdf-contact" placeholder="email / tel"/></div>
+        </div>
+      </div>
       <div class="pdf-sec" style="margin-bottom:0">
         <div class="pdf-sec-title"><i class="ti ti-note" style="color:var(--ora)"></i>Notes</div>
         <div class="pdf-fld full"><textarea class="pdf-inp" id="bppdf-notes" placeholder="Notes techniques, remarques..."></textarea></div>
@@ -1923,6 +1936,13 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
           <div class="pdf-fld"><label class="pdf-lbl">Venue</label><input class="pdf-inp" id="sppdf-venue" placeholder="Zenith de Paris"/></div>
           <div class="pdf-fld"><label class="pdf-lbl">Date</label><input class="pdf-inp" id="sppdf-date" placeholder="15/05/2025"/></div>
           <div class="pdf-fld"><label class="pdf-lbl">Ingenieur</label><input class="pdf-inp" id="sppdf-eng" placeholder="Jean-Marie"/></div>
+        </div>
+      </div>
+      <div class="pdf-sec">
+        <div class="pdf-sec-title"><i class="ti ti-link" style="color:var(--ora)"></i>Lien / Contact</div>
+        <div class="pdf-grid c3">
+          <div class="pdf-fld" style="grid-column:span 2"><label class="pdf-lbl">Lien (site, rider partage...)</label><input class="pdf-inp" id="sppdf-link" placeholder="https://exemple.com/rider"/></div>
+          <div class="pdf-fld"><label class="pdf-lbl">Contact</label><input class="pdf-inp" id="sppdf-contact" placeholder="email / tel"/></div>
         </div>
       </div>
       <div class="pdf-sec" style="margin-bottom:0">
@@ -4491,18 +4511,20 @@ const _PF_LOGO_PX='<svg width="34" height="34" viewBox="0 0 200 200" xmlns="http
 
 function doBpPDF(){
   const $b=id=>document.getElementById(id);
-  const meta={title:($b('bppdf-title').value.trim()||'Plan de Scene'),sub:$b('bppdf-sub').value.trim(),venue:$b('bppdf-venue').value.trim(),date:$b('bppdf-date').value.trim(),eng:$b('bppdf-eng').value.trim(),rev:$b('bppdf-rev').value.trim(),notes:$b('bppdf-notes').value.trim()};
-  const shareUrl=window.location.origin+window.location.pathname+'?view='+(CUR_SHOW?.id||'')+'&tab=stage';
+  const meta={title:($b('bppdf-title').value.trim()||'Plan de Scene'),sub:$b('bppdf-sub').value.trim(),venue:$b('bppdf-venue').value.trim(),date:$b('bppdf-date').value.trim(),eng:$b('bppdf-eng').value.trim(),rev:$b('bppdf-rev').value.trim(),notes:$b('bppdf-notes').value.trim(),link:($b('bppdf-link')?.value||'').trim(),contact:($b('bppdf-contact')?.value||'').trim()};
+  /* If user specified a custom link, use it; otherwise default to live share */
+  const shareUrl=meta.link||(window.location.origin+window.location.pathname+'?view='+(CUR_SHOW?.id||'')+'&tab=stage');
   closeBpPDF();
   if(!BandPlan.getData().els.length){toast('Plan vide — rien a exporter.');return;}
   _makeBpCanvas(cv=>{
     const dataUrl=cv.toDataURL('image/png');
     const now=new Date().toLocaleString('fr-FR');
-    const metaBar=(meta.venue||meta.date||meta.eng)
+    const metaBar=(meta.venue||meta.date||meta.eng||meta.contact)
       ?'<div class="mb">'
         +(meta.venue?'<div class="mc"><div class="ml">Venue</div><div class="mv">'+meta.venue+'</div></div>':'')
         +(meta.date?'<div class="mc"><div class="ml">Date</div><div class="mv">'+meta.date+'</div></div>':'')
         +(meta.eng?'<div class="mc"><div class="ml">Ingenieur</div><div class="mvo">'+meta.eng+'</div></div>':'')
+        +(meta.contact?'<div class="mc"><div class="ml">Contact</div><div class="mv">'+meta.contact+'</div></div>':'')
         +'</div>':'' ;
     const notesBlock=meta.notes?'<div class="ns"><div class="nl">Notes</div><div class="nt">'+meta.notes+'</div></div>':'';
     const html='<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/>'
@@ -4585,24 +4607,35 @@ function $i(id){return document.getElementById(id);}
 
 function doSitePlanPDF(){
   const meta={
-    title: ($i('sppdf-title').value.trim()||'Plan de Site'),
-    sub:   $i('sppdf-sub').value.trim(),
-    venue: $i('sppdf-venue').value.trim(),
-    date:  $i('sppdf-date').value.trim(),
-    eng:   $i('sppdf-eng').value.trim(),
-    rev:   $i('sppdf-rev').value.trim(),
-    notes: $i('sppdf-notes').value.trim()
+    title:   ($i('sppdf-title').value.trim()||'Plan de Site'),
+    sub:     $i('sppdf-sub').value.trim(),
+    venue:   $i('sppdf-venue').value.trim(),
+    date:    $i('sppdf-date').value.trim(),
+    eng:     $i('sppdf-eng').value.trim(),
+    rev:     $i('sppdf-rev').value.trim(),
+    notes:   $i('sppdf-notes').value.trim(),
+    link:    ($i('sppdf-link')?.value||'').trim(),
+    contact: ($i('sppdf-contact')?.value||'').trim()
   };
   closeSitePDF();
   SitePlan.exportCanvas(canvas=>{
     const dataUrl=canvas.toDataURL('image/png');
     const now=new Date().toLocaleString('fr-FR');
-    const metaBar=(meta.venue||meta.date||meta.eng)
+    const metaBar=(meta.venue||meta.date||meta.eng||meta.contact)
       ? '<div class="mb">'
-        +(meta.venue?'<div class="mc"><div class="ml">Venue</div><div class="mv">'+meta.venue+'</div></div>':'')
-        +(meta.date ?'<div class="mc"><div class="ml">Date</div><div class="mv">'+meta.date+'</div></div>':'')
-        +(meta.eng  ?'<div class="mc"><div class="ml">Ingenieur</div><div class="mvo">'+meta.eng+'</div></div>':'')
+        +(meta.venue  ?'<div class="mc"><div class="ml">Venue</div><div class="mv">'+meta.venue+'</div></div>':'')
+        +(meta.date   ?'<div class="mc"><div class="ml">Date</div><div class="mv">'+meta.date+'</div></div>':'')
+        +(meta.eng    ?'<div class="mc"><div class="ml">Ingenieur</div><div class="mvo">'+meta.eng+'</div></div>':'')
+        +(meta.contact?'<div class="mc"><div class="ml">Contact</div><div class="mv">'+meta.contact+'</div></div>':'')
         +'</div>' : '';
+    const linkBlock=meta.link
+      ? '<div style="display:flex;align-items:center;gap:5mm;padding:2.5mm 10mm;background:#fffbf0;border-bottom:1px solid #ffe0a0;flex-shrink:0">'
+        +'<div style="width:6mm;height:6mm;border-radius:50%;background:#ff6b1a;display:flex;align-items:center;justify-content:center;color:#fff;font-size:3.5mm;flex-shrink:0">&#x1F517;</div>'
+        +'<div style="flex:1">'
+          +'<div style="font-size:2.2mm;text-transform:uppercase;letter-spacing:1px;color:#999;font-family:\'DM Mono\',monospace;margin-bottom:0.8mm">Lien</div>'
+          +'<a href="'+meta.link+'" style="font-size:2.8mm;color:#1a6fff;font-family:\'DM Mono\',monospace;word-break:break-all;text-decoration:none">'+meta.link+'</a>'
+        +'</div>'
+      +'</div>' : '';
     const notesBlock=meta.notes
       ? '<div class="ns"><div class="nl">Notes</div><div class="nt">'+meta.notes+'</div></div>' : '';
     const html='<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/>'
@@ -4641,6 +4674,7 @@ function doSitePlanPDF(){
         +'<div class="hl"><div class="logo">'+_PF_LOGO_MM+'</div><div><div class="ht">'+meta.title+'</div>'+(meta.sub?'<div class="hs">'+meta.sub+'</div>':'')+'</div></div>'
         +'<div class="hr"><div class="hdt">Plan de Site</div><div class="hdm">'+(meta.rev?'Rev. '+meta.rev+' &nbsp;&middot;&nbsp; ':'')+now+'</div></div>'
       +'</div>'
+      +linkBlock
       +metaBar
       +'<div class="plan"><img src="'+dataUrl+'" alt="Plan de site"/></div>'
       +notesBlock
@@ -6012,7 +6046,7 @@ const SynPro = (() => {
           var fmt = item.dataset.fmt;
           if (fmt === 'png')   _exportPng();
           if (fmt === 'svg')   _exportSvg();
-          if (fmt === 'pdf')   _exportPdf();
+          if (fmt === 'pdf')   _openPdfMetaModal();
           if (fmt === 'print') _print();
         });
       });
@@ -6396,31 +6430,141 @@ const SynPro = (() => {
   }
 
   /* ── Export PDF — A4, image fitted with margins ── */
-  async function _exportPdf() {
+  /* ── PDF meta modal — title / subtitle / venue / date / link / contact / notes ── */
+  const PDF_META_KEY = 'pf_synpro_pdfmeta';
+  function _loadPdfMeta() {
+    try { return JSON.parse(localStorage.getItem(PDF_META_KEY) || '{}'); } catch(e) { return {}; }
+  }
+  function _savePdfMeta(m) {
+    try { localStorage.setItem(PDF_META_KEY, JSON.stringify(m)); } catch(e) {}
+  }
+  function _openPdfMetaModal() {
+    var m = $('sp-pdfmeta-modal');
+    var saved = _loadPdfMeta();
+    if (!m) {
+      m = document.createElement('div');
+      m.id = 'sp-pdfmeta-modal';
+      m.className = 'sp-modal';
+      m.innerHTML =
+        '<div class="sp-modal-card" style="max-width:540px">'+
+          '<div class="sp-modal-title"><i class="ti ti-file-type-pdf"></i>Exporter PDF</div>'+
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 0 4px 0">'+
+            '<div style="grid-column:span 2"><label class="syn-insp-lbl">Titre du document</label><input class="syn-insp-inp" id="sppm-title"/></div>'+
+            '<div><label class="syn-insp-lbl">Sous-titre / Production</label><input class="syn-insp-inp" id="sppm-sub"/></div>'+
+            '<div><label class="syn-insp-lbl">Revision</label><input class="syn-insp-inp" id="sppm-rev" placeholder="v1.0"/></div>'+
+            '<div><label class="syn-insp-lbl">Venue</label><input class="syn-insp-inp" id="sppm-venue"/></div>'+
+            '<div><label class="syn-insp-lbl">Date</label><input class="syn-insp-inp" id="sppm-date" placeholder="15/05/2025"/></div>'+
+            '<div><label class="syn-insp-lbl">Ingenieur</label><input class="syn-insp-inp" id="sppm-eng"/></div>'+
+            '<div><label class="syn-insp-lbl">Contact</label><input class="syn-insp-inp" id="sppm-contact" placeholder="email / tel"/></div>'+
+            '<div style="grid-column:span 2"><label class="syn-insp-lbl">Lien (site, rider partage...)</label><input class="syn-insp-inp" id="sppm-link" placeholder="https://exemple.com/rider"/></div>'+
+            '<div style="grid-column:span 2"><label class="syn-insp-lbl">Notes</label><textarea class="syn-insp-inp" id="sppm-notes" rows="3" style="resize:vertical"></textarea></div>'+
+          '</div>'+
+          '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">'+
+            '<button class="btn ghost sm" id="sppm-cancel">Annuler</button>'+
+            '<button class="btn sm" id="sppm-go"><i class="ti ti-file-type-pdf"></i>Generer</button>'+
+          '</div>'+
+        '</div>';
+      document.body.appendChild(m);
+      m.addEventListener('click', function(e){ if (e.target === m) m.classList.remove('show'); });
+    }
+    /* Pre-fill from previously saved values + current diagram state */
+    var prefill = function(id, v) { var el = $(id); if (el) el.value = v || ''; };
+    prefill('sppm-title',   state.title || saved.title || '');
+    prefill('sppm-sub',     saved.sub || '');
+    prefill('sppm-rev',     saved.rev || '');
+    prefill('sppm-venue',   saved.venue || (CUR_SHOW && CUR_SHOW.venue) || '');
+    prefill('sppm-date',    saved.date || '');
+    prefill('sppm-eng',     saved.eng || '');
+    prefill('sppm-contact', saved.contact || '');
+    prefill('sppm-link',    saved.link || '');
+    prefill('sppm-notes',   saved.notes || '');
+    m.classList.add('show');
+    $('sppm-cancel').onclick = function(){ m.classList.remove('show'); };
+    $('sppm-go').onclick = function(){
+      var meta = {
+        title:   $('sppm-title').value.trim(),
+        sub:     $('sppm-sub').value.trim(),
+        rev:     $('sppm-rev').value.trim(),
+        venue:   $('sppm-venue').value.trim(),
+        date:    $('sppm-date').value.trim(),
+        eng:     $('sppm-eng').value.trim(),
+        contact: $('sppm-contact').value.trim(),
+        link:    $('sppm-link').value.trim(),
+        notes:   $('sppm-notes').value.trim(),
+      };
+      _savePdfMeta(meta);
+      m.classList.remove('show');
+      _exportPdf(meta);
+    };
+  }
+
+  async function _exportPdf(meta) {
     try {
       toast('Generation PDF en cours…');
+      meta = meta || {};
       var ex = _buildExportSvg();
       /* Render at 3x for sharp PDF quality */
       var c = await _svgToCanvas(ex.svg, ex.w, ex.h, 3);
       var imgData = c.toDataURL('image/jpeg', 0.96);
 
       var JsPDF = await _getJsPdf();
-      /* A4 = 595.28 × 841.89 pt. Choose orientation based on diagram ratio. */
+      /* A4 — orientation based on diagram ratio */
       var ratio = ex.w / ex.h;
       var orientation = ratio >= 1.1 ? 'landscape' : 'portrait';
       var pdf = new JsPDF({ orientation: orientation, unit: 'pt', format: 'a4', compress: true });
       var pageW = pdf.internal.pageSize.getWidth();
       var pageH = pdf.internal.pageSize.getHeight();
-      /* 14pt margins on all sides */
-      var margin = 14;
-      var maxW = pageW - margin * 2;
-      var maxH = pageH - margin * 2;
-      var sc = Math.min(maxW / ex.w, maxH / ex.h);
+
+      /* Reserve a footer band for meta info (only if there is any meta to show) */
+      var hasMeta = meta.sub || meta.rev || meta.venue || meta.date || meta.eng || meta.contact || meta.link || meta.notes;
+      var footerH = hasMeta ? 96 : 0;
+
+      /* Image fills full page width, anchored to top so the orange header
+         band touches the very top edge — no top margin. */
+      var availH = pageH - footerH;
+      var sc = Math.min(pageW / ex.w, availH / ex.h);
       var dw = ex.w * sc, dh = ex.h * sc;
-      var dx = margin + (maxW - dw) / 2;
-      var dy = margin + (maxH - dh) / 2;
+      var dx = (pageW - dw) / 2;
+      var dy = 0;
       pdf.addImage(imgData, 'JPEG', dx, dy, dw, dh);
-      pdf.save((state.title || 'synoptique').replace(/\W+/g, '_') + '.pdf');
+
+      /* Meta footer band */
+      if (hasMeta) {
+        var fy = pageH - footerH;
+        pdf.setFillColor(245, 247, 250);
+        pdf.rect(0, fy, pageW, footerH, 'F');
+        pdf.setDrawColor(226, 232, 240);
+        pdf.setLineWidth(0.5);
+        pdf.line(0, fy, pageW, fy);
+
+        var pad = 24, y = fy + 18;
+        pdf.setTextColor(29, 58, 95);
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11);
+        var headerLine = [meta.sub, meta.rev, meta.venue, meta.date].filter(Boolean).join('  ·  ');
+        if (headerLine) { pdf.text(headerLine, pad, y); y += 14; }
+
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
+        pdf.setTextColor(100, 116, 139);
+        var infoLine = [];
+        if (meta.eng)     infoLine.push('Ingenieur : ' + meta.eng);
+        if (meta.contact) infoLine.push('Contact : ' + meta.contact);
+        if (infoLine.length) { pdf.text(infoLine.join('  ·  '), pad, y); y += 11; }
+
+        if (meta.link) {
+          pdf.setTextColor(255, 107, 26);
+          pdf.textWithLink(meta.link, pad, y, { url: meta.link });
+          y += 11;
+        }
+
+        if (meta.notes) {
+          pdf.setTextColor(71, 85, 105);
+          var noteLines = pdf.splitTextToSize(meta.notes, pageW - pad * 2);
+          pdf.text(noteLines.slice(0, 3), pad, y);
+        }
+      }
+
+      var fname = (meta.title || state.title || 'synoptique').replace(/\W+/g, '_') + '.pdf';
+      pdf.save(fname);
     } catch(e) { toast('Erreur export PDF : ' + e.message); console.error(e); }
   }
 
@@ -8106,8 +8250,12 @@ const SitePlan = (() => {
         ? `<label class="syn-insp-lbl">Contenu</label><textarea class="syn-insp-inp" id="si-txt" rows="4" style="resize:vertical;font-size:11px">${esc(el.label)}</textarea>`
         : `<label class="syn-insp-lbl">Nom</label><input class="syn-insp-inp" id="si-lbl" value="${esc(el.label)}"/>`+
           `<label class="syn-insp-lbl">Note / Reference</label><input class="syn-insp-inp" id="si-note" value="${esc(el.note||'')}" placeholder="ex: SN 12345"/>`;
+      const isSvgIcon = typeof it.icon === 'string' && it.icon.charAt(0) === '<';
+      const titleIcon = isSvgIcon
+        ? `<span style="width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;border:1px solid ${it.color}55;border-radius:5px;background:#fff;padding:2px;box-sizing:border-box;flex-shrink:0">${it.icon}</span>`
+        : `<span style="font-size:16px;line-height:1">${it.icon}</span>`;
       insp.innerHTML =
-        `<div class="syn-insp-title" style="color:${it.color}">${it.icon} ${esc(el.label.split('\n')[0])}</div>`+
+        `<div class="syn-insp-title" style="color:${it.color};display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;margin-bottom:9px;line-height:1.2">${titleIcon}<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(el.label.split('\n')[0])}</span></div>`+
         textBlock+
         `<label class="syn-insp-lbl">${sizeLabel}</label>`+
         `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">`+
