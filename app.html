@@ -4074,10 +4074,16 @@ function updateStats(){const n=CHS.length,ph=CHS.filter(r=>r.phantom).length;['y
 // ══════════════════════════════════════
 // PDF EXPORT
 // ══════════════════════════════════════
+/* _pdfVisibleTypes : which buttons are shown in the current context */
+let _pdfVisibleTypes = ['in','out','both','stage','site','syno'];
+
 function setPdfExportType(type){
   _pdfExportType=type;
   ['in','out','both','stage','site','syno'].forEach(function(t){
-    document.getElementById('pdf-exp-'+t)?.classList.toggle('on', t===type);
+    const btn=document.getElementById('pdf-exp-'+t);
+    if(!btn) return;
+    btn.classList.toggle('on', t===type);
+    btn.style.display = _pdfVisibleTypes.includes(t) ? '' : 'none';
   });
   const titles={in:'Export PDF — Input List',out:'Export PDF — Output List',both:'Export PDF — Input + Output',stage:'Export PDF — Plan de scène',site:'Export PDF — Plan de site',syno:'Export PDF — Synoptique'};
   const titleEl=document.getElementById('pdf-modal-title');
@@ -4087,16 +4093,12 @@ function setPdfExportType(type){
   // Show subtitle only for visual plans
   const subRow = document.getElementById('pdf-sub-row');
   if(subRow) subRow.style.display = isVisual ? '' : 'none';
-  // Hide "Les deux" toggle and list options when visual plan selected
-  const expBoth = document.getElementById('pdf-exp-both');
-  if(expBoth) expBoth.style.display = isVisual ? 'none' : '';
-  const expOut  = document.getElementById('pdf-exp-out');
-  if(expOut) expOut.style.display = isVisual ? 'none' : '';
-  const expIn   = document.getElementById('pdf-exp-in');
-  if(expIn) expIn.style.display = isVisual ? 'none' : '';
   // Hide link/recap checkboxes for visual plans
   const foot1 = document.querySelector('#pdf-modal .modal-foot > div:first-child');
   if(foot1) foot1.style.display = isTable ? '' : 'none';
+  // Hide toggle row entirely if only one option visible
+  const toggleRow = document.querySelector('#pdf-modal .modal-body > div:first-child');
+  if(toggleRow) toggleRow.style.display = _pdfVisibleTypes.length <= 1 ? 'none' : '';
 }
 function loadPdfLogo(input){
   var file=input.files[0];if(!file)return;
@@ -4409,6 +4411,12 @@ ${infoBar}
 </body></html>`;
 }
 function openPDFModal(forceType){
+  // Determine which toggle buttons to show based on context
+  if(forceType==='stage')      _pdfVisibleTypes=['stage'];
+  else if(forceType==='site')  _pdfVisibleTypes=['site'];
+  else if(forceType==='syno')  _pdfVisibleTypes=['syno'];
+  else                         _pdfVisibleTypes=['in','out','both']; // Input List context
+
   const isFree=userPlan()==='free';
   const isStudio=canDo('custom_exports');
   document.querySelectorAll('.pdf-pro-fld').forEach(function(el){el.style.display=isFree?'none':'';});
