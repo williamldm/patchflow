@@ -234,7 +234,18 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .iltable tr.dragging{opacity:.3}
 .iltable tr.drag-over td{border-top:2px solid var(--ora) !important}
 
-/* IL patch tabs + Scene tabs (shared style) */
+/* ── Mobile plan viewer ── */
+.mob-plan-ov{position:absolute;inset:0;z-index:80;display:flex;flex-direction:column;background:var(--bg2)}
+.mob-plan-ov.hidden{display:none}
+.mob-plan-bar{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surf);border-bottom:1px solid var(--bdr2);flex-shrink:0}
+.mob-plan-title{font-size:13px;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mob-plan-hint{font-size:9.5px;font-family:var(--m);color:var(--muted);letter-spacing:.5px;background:var(--surf3);border:1px solid var(--bdr2);border-radius:5px;padding:3px 7px;white-space:nowrap}
+.mob-plan-scroll{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y pinch-zoom;position:relative;display:flex;align-items:flex-start;justify-content:flex-start}
+.mob-plan-scroll svg,.mob-plan-scroll img{display:block;max-width:none;user-select:none;-webkit-user-drag:none}
+.mob-plan-foot{padding:8px 14px;font-size:10px;color:var(--muted);font-family:var(--m);text-align:center;border-top:1px solid var(--bdr);flex-shrink:0;background:var(--surf)}
+.mob-plan-loading{flex:1;display:flex;align-items:center;justify-content:center;gap:10px;color:var(--muted);font-size:13px}
+
+/* ── IL patch tabs + Scene tabs (shared style) ── */
 .il-patch-tabs{display:flex;align-items:center;gap:5px;margin-bottom:10px;flex-wrap:wrap}
 .scene-tabs-bar{display:flex;align-items:center;gap:5px;padding:7px 14px 0;flex-wrap:wrap;flex-shrink:0}
 .scene-tabs-bar.hidden{display:none}
@@ -1356,7 +1367,20 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
     </div>
 
     <!-- SYNOPTIQUE -->
-    <div class="panel" id="panel-synoptique">
+    <div class="panel" id="panel-synoptique" style="position:relative">
+      <!-- Mobile read-only viewer (remplace l'éditeur sur téléphone) -->
+      <div class="mob-plan-ov hidden" id="mob-syno-ov">
+        <div class="mob-plan-bar">
+          <i class="ti ti-topology-star" style="color:var(--ora);font-size:16px;flex-shrink:0"></i>
+          <span class="mob-plan-title" id="mob-syno-title">Synoptique</span>
+          <span class="mob-plan-hint"><i class="ti ti-lock" style="font-size:9px"></i> Lecture</span>
+          <button class="btn ghost sm" onclick="openPDFModal('syno')" style="font-size:10px;padding:5px 9px;flex-shrink:0"><i class="ti ti-file-type-pdf"></i>PDF</button>
+        </div>
+        <div class="mob-plan-scroll" id="mob-syno-scroll">
+          <div class="mob-plan-loading"><div class="spinner"></div>Génération…</div>
+        </div>
+        <div class="mob-plan-foot">↔ Faites glisser · Pincez pour zoomer · Éditez sur ordinateur</div>
+      </div>
       <div class="sp-app">
         <div class="sp-toolbar pbar" style="margin:0">
           <span class="ptitle"><i class="ti ti-topology-star" style="color:var(--ora)"></i>Synoptique<span class="ptitle-sep">/</span><span id="sp-doc-title" style="color:var(--txt2)">Diagramme reseau</span></span>
@@ -1469,7 +1493,20 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 
 
     <!-- PLANS -->
-    <div class="panel" id="panel-stage">
+    <div class="panel" id="panel-stage" style="position:relative">
+      <!-- Mobile read-only viewer -->
+      <div class="mob-plan-ov hidden" id="mob-stage-ov">
+        <div class="mob-plan-bar">
+          <i class="ti ti-layout-board" style="color:var(--ora);font-size:16px;flex-shrink:0" id="mob-stage-icon"></i>
+          <span class="mob-plan-title" id="mob-stage-title">Plan de scène</span>
+          <span class="mob-plan-hint"><i class="ti ti-lock" style="font-size:9px"></i> Lecture</span>
+          <button class="btn ghost sm" id="mob-stage-pdf-btn" onclick="openPDFModal('stage')" style="font-size:10px;padding:5px 9px;flex-shrink:0"><i class="ti ti-file-type-pdf"></i>PDF</button>
+        </div>
+        <div class="mob-plan-scroll" id="mob-stage-scroll">
+          <div class="mob-plan-loading"><div class="spinner"></div>Génération…</div>
+        </div>
+        <div class="mob-plan-foot">↔ Faites glisser · Pincez pour zoomer · Éditez sur ordinateur</div>
+      </div>
       <div class="pbar" style="margin:0;padding:10px 14px;border-bottom:1px solid var(--bdr2);flex-shrink:0;background:var(--surf);flex-wrap:nowrap">
         <span class="ptitle"><i class="ti ti-map-2" style="color:var(--ora)"></i>Plans<span class="ptitle-sep">/</span><span id="sn-stage" style="color:var(--txt2)">…</span></span>
         <div style="display:flex;gap:8px;align-items:center">
@@ -8365,7 +8402,8 @@ function setPlanMode(mode,save=true){
   if(expBtn)expBtn.style.display=mode==='site'?'':'none';
   const pdfBtn=document.getElementById('btn-site-pdf');
   if(pdfBtn)pdfBtn.style.display=mode==='site'?'':'none';
-  if(mode==='scene') setTimeout(()=>BandPlan.fitView(),50);
+  if(_isMobile()){ _showMobilePlanView(mode); } // re-render mobile view when mode changes
+  else if(mode==='scene') setTimeout(()=>BandPlan.fitView(),50);
   if(save)saveStage();
 }
 
@@ -10677,11 +10715,89 @@ function goTab(id,el){
   // Persist active tab
   try{localStorage.setItem(TAB_PERSIST_KEY,id);}catch(e){}
   // Side effects
-  if(id==='synoptique')SynPro.show();
+  if(id==='synoptique'){
+    if(window.innerWidth<=768){ _showMobilePlanView('syno'); }
+    else { _hideMobilePlanView('syno'); SynPro.show(); }
+  }
   if(id==='sessions')renderSessions();
-  if(id==='stage'){SitePlan.init();BandPlan.init();setTimeout(()=>BandPlan.fitView(),80);}
+  if(id==='stage'){
+    SitePlan.init(); BandPlan.init();
+    if(window.innerWidth<=768){ _showMobilePlanView(PLAN_MODE==='site'?'site':'stage'); }
+    else { _hideMobilePlanView('stage'); setTimeout(()=>BandPlan.fitView(),80); }
+  }
   if(id==='fichiers')renderFichiers();
   if(id==='team'){_initRiderBuilder();}
+}
+
+const _MOB_PLAN_W = 1200; // largeur de rendu SVG/canvas mobile
+
+function _isMobile(){ return window.innerWidth <= 768; }
+
+function _hideMobilePlanView(type){
+  const ov=document.getElementById(type==='syno'?'mob-syno-ov':'mob-stage-ov');
+  if(ov) ov.classList.add('hidden');
+}
+
+async function _showMobilePlanView(type){
+  /* type : 'syno' | 'stage' | 'site' */
+  const isSyno = type==='syno';
+  const ovId   = isSyno ? 'mob-syno-ov' : 'mob-stage-ov';
+  const scrollId= isSyno ? 'mob-syno-scroll' : 'mob-stage-scroll';
+  const titleId = isSyno ? 'mob-syno-title' : 'mob-stage-title';
+  const ov     = document.getElementById(ovId);
+  const scroll = document.getElementById(scrollId);
+  if(!ov||!scroll) return;
+  ov.classList.remove('hidden');
+
+  /* Update title & icon for stage/site */
+  if(!isSyno){
+    const icon=document.getElementById('mob-stage-icon');
+    const pdfBtn=document.getElementById('mob-stage-pdf-btn');
+    if(type==='site'){
+      if(icon) icon.className='ti ti-map-2';
+      document.getElementById('mob-stage-title').textContent='Plan de site';
+      if(pdfBtn) pdfBtn.setAttribute('onclick',"openPDFModal('site')");
+    } else {
+      if(icon) icon.className='ti ti-layout-board';
+      document.getElementById('mob-stage-title').textContent='Plan de scène';
+      if(pdfBtn) pdfBtn.setAttribute('onclick',"openPDFModal('stage')");
+    }
+  }
+
+  /* Show loading */
+  scroll.innerHTML='<div class="mob-plan-loading"><div class="spinner"></div>Génération…</div>';
+
+  try {
+    if(isSyno){
+      /* Synoptique → inline SVG */
+      if(!SynPro.isLoaded()){ SynPro.show(); await new Promise(r=>setTimeout(r,100)); }
+      const ex = SynPro.buildExportSvg();
+      if(!ex||!ex.svg){ scroll.innerHTML='<div class="mob-plan-loading" style="flex-direction:column;gap:12px"><i class="ti ti-topology-star" style="font-size:32px;opacity:.3"></i><span>Synoptique vide</span></div>'; return; }
+      /* Set a minimum width so the SVG is readable */
+      const svgStr = ex.svg.replace('<svg ', `<svg style="min-width:${Math.max(_MOB_PLAN_W,ex.w)}px;height:auto" `);
+      scroll.innerHTML = svgStr;
+    } else if(type==='stage'){
+      /* Plan de scène → canvas PNG */
+      if(!BandPlan.getData().els.length){ scroll.innerHTML='<div class="mob-plan-loading" style="flex-direction:column;gap:12px"><i class="ti ti-layout-board" style="font-size:32px;opacity:.3"></i><span>Plan vide</span></div>'; return; }
+      await new Promise((resolve)=>{
+        _makeBpCanvas(function(cv){
+          const img=new Image(); img.src=cv.toDataURL('image/png');
+          img.style.cssText='min-width:'+Math.max(_MOB_PLAN_W,cv.width)+'px;height:auto;display:block';
+          scroll.innerHTML=''; scroll.appendChild(img);
+          resolve();
+        });
+      });
+    } else {
+      /* Plan de site → canvas PNG */
+      SitePlan.exportCanvas(function(cv){
+        const img=new Image(); img.src=cv.toDataURL('image/png');
+        img.style.cssText='min-width:'+Math.max(_MOB_PLAN_W,cv.width)+'px;height:auto;display:block';
+        scroll.innerHTML=''; scroll.appendChild(img);
+      });
+    }
+  } catch(e){
+    scroll.innerHTML='<div class="mob-plan-loading">Erreur : '+e.message+'</div>';
+  }
 }
 function toggleUD(){document.getElementById('user-dd').classList.toggle('show');}
 function closeUD(){document.getElementById('user-dd').classList.remove('show');}
