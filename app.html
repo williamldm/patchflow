@@ -1850,14 +1850,19 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 <!-- PDF MODAL -->
 <div class="modal-ov" id="pdf-modal">
   <div class="modal-box" style="width:580px">
-    <div class="modal-head"><i class="ti ti-file-type-pdf" style="font-size:18px;color:var(--ora)"></i><div class="modal-title">Exporter en PDF</div><button class="btn ghost sm" onclick="closePDF()"><i class="ti ti-x"></i></button></div>
+    <div class="modal-head"><i class="ti ti-file-type-pdf" style="font-size:18px;color:var(--ora)"></i><div class="modal-title" id="pdf-modal-title">Exporter en PDF</div><button class="btn ghost sm" onclick="closePDF()"><i class="ti ti-x"></i></button></div>
     <div class="modal-body">
-      <!-- Export type toggle — tous plans -->
-      <div style="display:flex;gap:3px;background:var(--surf3);border:1px solid var(--bdr2);border-radius:8px;padding:3px;margin-bottom:14px">
-        <button id="pdf-exp-in"   class="pmb on" onclick="setPdfExportType('in')"   style="flex:1;justify-content:center"><i class="ti ti-arrow-down-circle"></i>Input List</button>
-        <button id="pdf-exp-out"  class="pmb"    onclick="setPdfExportType('out')"  style="flex:1;justify-content:center"><i class="ti ti-arrow-up-circle"></i>Output List</button>
-        <button id="pdf-exp-both" class="pmb"    onclick="setPdfExportType('both')" style="flex:1;justify-content:center"><i class="ti ti-layers-union"></i>Les deux</button>
+      <!-- Export type toggle — unifié -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:3px;background:var(--surf3);border:1px solid var(--bdr2);border-radius:8px;padding:3px;margin-bottom:10px">
+        <button id="pdf-exp-in"    class="pmb on" onclick="setPdfExportType('in')"    style="justify-content:center;font-size:10px"><i class="ti ti-arrow-down-circle" style="font-size:11px"></i>Input List</button>
+        <button id="pdf-exp-out"   class="pmb"    onclick="setPdfExportType('out')"   style="justify-content:center;font-size:10px"><i class="ti ti-arrow-up-circle" style="font-size:11px"></i>Output List</button>
+        <button id="pdf-exp-both"  class="pmb"    onclick="setPdfExportType('both')"  style="justify-content:center;font-size:10px"><i class="ti ti-layers-union" style="font-size:11px"></i>Les deux</button>
+        <button id="pdf-exp-stage" class="pmb"    onclick="setPdfExportType('stage')" style="justify-content:center;font-size:10px"><i class="ti ti-layout-board" style="font-size:11px"></i>Plan de scène</button>
+        <button id="pdf-exp-site"  class="pmb"    onclick="setPdfExportType('site')"  style="justify-content:center;font-size:10px"><i class="ti ti-map-2" style="font-size:11px"></i>Plan de site</button>
+        <button id="pdf-exp-syno"  class="pmb"    onclick="setPdfExportType('syno')"  style="justify-content:center;font-size:10px"><i class="ti ti-topology-star" style="font-size:11px"></i>Synoptique</button>
       </div>
+      <!-- Sous-titre — utile pour plans visuels -->
+      <div id="pdf-sub-row" class="pdf-fld" style="display:none;margin-bottom:10px"><label class="pdf-lbl">Sous-titre / Production</label><input class="pdf-inp" id="pdf-sub" placeholder="Nom de la production, tournée…"/></div>
       <div id="pdf-free-notice" style="display:none;align-items:center;gap:9px;background:rgba(34,214,160,.06);border:1px solid rgba(34,214,160,.22);border-radius:7px;padding:8px 12px;font-size:11px;color:var(--txt2);margin-bottom:12px"><i class="ti ti-file-type-pdf" style="color:var(--grn);flex-shrink:0;font-size:14px"></i><span>Export simplifié disponible : nom &amp; rôle inclus. <button onclick="closePDF();showUpgradeModal('export_pdf_pro')" style="background:none;border:none;color:var(--ora);cursor:pointer;font-size:11px;padding:0;font-family:var(--f);text-decoration:underline">Passer Pro</button> pour l'export complet (venue, date, révision, notes).</span></div>
       <div class="pdf-sec"><div class="pdf-sec-title"><i class="ti ti-user" style="color:var(--ora)"></i>Ing&eacute;nieur</div>
         <div class="pdf-grid">
@@ -1924,45 +1929,8 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 
 <!-- SITE PLAN PDF MODAL -->
 <!-- BandPlan PDF modal -->
-<div class="modal-ov" id="bp-pdf-modal">
-  <div class="modal-box" style="width:540px">
-    <div class="modal-head"><i class="ti ti-layout-board" style="font-size:15px;color:var(--ora)"></i><div class="modal-title">Exporter Plan de Scene — PDF</div><button class="btn ghost sm" onclick="closeBpPDF()"><i class="ti ti-x"></i></button></div>
-    <div class="modal-body">
-      <div class="pdf-sec">
-        <div class="pdf-sec-title"><i class="ti ti-file-description" style="color:var(--ora)"></i>Document</div>
-        <div class="pdf-grid">
-          <div class="pdf-fld full"><label class="pdf-lbl">Titre</label><input class="pdf-inp" id="bppdf-title" placeholder="Plan de Scene"/></div>
-          <div class="pdf-fld"><label class="pdf-lbl">Sous-titre / Production</label><input class="pdf-inp" id="bppdf-sub" placeholder="Nom de la production"/></div>
-          <div class="pdf-fld"><label class="pdf-lbl">Revision</label><input class="pdf-inp" id="bppdf-rev" placeholder="v1.0"/></div>
-        </div>
-      </div>
-      <div class="pdf-sec">
-        <div class="pdf-sec-title"><i class="ti ti-map-pin" style="color:var(--ora)"></i>Evenement</div>
-        <div class="pdf-grid c3">
-          <div class="pdf-fld"><label class="pdf-lbl">Venue</label><input class="pdf-inp" id="bppdf-venue"/></div>
-          <div class="pdf-fld"><label class="pdf-lbl">Date</label><input class="pdf-inp" id="bppdf-date"/></div>
-          <div class="pdf-fld"><label class="pdf-lbl">Ingenieur</label><input class="pdf-inp" id="bppdf-eng"/></div>
-        </div>
-      </div>
-      <div class="pdf-sec">
-        <div class="pdf-sec-title"><i class="ti ti-link" style="color:var(--ora)"></i>Lien / Contact</div>
-        <div class="pdf-grid c3">
-          <div class="pdf-fld" style="grid-column:span 2"><label class="pdf-lbl">Lien (site, rider partage...)</label><input class="pdf-inp" id="bppdf-link" placeholder="https://exemple.com/rider"/></div>
-          <div class="pdf-fld"><label class="pdf-lbl">Contact</label><input class="pdf-inp" id="bppdf-contact" placeholder="email / tel"/></div>
-        </div>
-      </div>
-      <div class="pdf-sec" style="margin-bottom:0">
-        <div class="pdf-sec-title"><i class="ti ti-note" style="color:var(--ora)"></i>Notes</div>
-        <div class="pdf-fld full"><textarea class="pdf-inp" id="bppdf-notes" placeholder="Notes techniques, remarques..."></textarea></div>
-      </div>
-    </div>
-    <div class="modal-foot">
-      <div style="flex:1;font-size:10px;color:var(--muted);font-family:var(--m);align-self:center"><i class="ti ti-info-circle" style="font-size:11px;margin-right:3px"></i>Nouvel onglet &rarr; Imprimer &rarr; Enregistrer en PDF</div>
-      <button class="btn ghost sm" onclick="closeBpPDF()">Annuler</button>
-      <button class="btn" onclick="doBpPDF()"><i class="ti ti-file-type-pdf"></i>Generer</button>
-    </div>
-  </div>
-</div>
+<!-- bp-pdf-modal replaced by unified pdf-modal — kept as empty stub for legacy event listeners -->
+<div class="modal-ov" id="bp-pdf-modal"></div>
 
 <!-- BandPlan Share modal -->
 <div class="modal-ov" id="bp-share-modal">
@@ -1985,45 +1953,8 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
   </div>
 </div>
 
-<div class="modal-ov" id="site-pdf-modal">
-  <div class="modal-box" style="width:540px">
-    <div class="modal-head"><i class="ti ti-map-2" style="font-size:15px;color:var(--ora)"></i><div class="modal-title">Exporter Plan de Site — PDF</div><button class="btn ghost sm" onclick="closeSitePDF()"><i class="ti ti-x"></i></button></div>
-    <div class="modal-body">
-      <div class="pdf-sec">
-        <div class="pdf-sec-title"><i class="ti ti-file-description" style="color:var(--ora)"></i>Document</div>
-        <div class="pdf-grid">
-          <div class="pdf-fld full"><label class="pdf-lbl">Titre</label><input class="pdf-inp" id="sppdf-title" placeholder="Plan de Site" value="Plan de Site"/></div>
-          <div class="pdf-fld"><label class="pdf-lbl">Sous-titre / Production</label><input class="pdf-inp" id="sppdf-sub" placeholder="Nom de la production"/></div>
-          <div class="pdf-fld"><label class="pdf-lbl">Revision</label><input class="pdf-inp" id="sppdf-rev" placeholder="v1.0"/></div>
-        </div>
-      </div>
-      <div class="pdf-sec">
-        <div class="pdf-sec-title"><i class="ti ti-map-pin" style="color:var(--ora)"></i>Evenement</div>
-        <div class="pdf-grid c3">
-          <div class="pdf-fld"><label class="pdf-lbl">Venue</label><input class="pdf-inp" id="sppdf-venue" placeholder="Zenith de Paris"/></div>
-          <div class="pdf-fld"><label class="pdf-lbl">Date</label><input class="pdf-inp" id="sppdf-date" placeholder="15/05/2025"/></div>
-          <div class="pdf-fld"><label class="pdf-lbl">Ingenieur</label><input class="pdf-inp" id="sppdf-eng" placeholder="Jean-Marie"/></div>
-        </div>
-      </div>
-      <div class="pdf-sec">
-        <div class="pdf-sec-title"><i class="ti ti-link" style="color:var(--ora)"></i>Lien / Contact</div>
-        <div class="pdf-grid c3">
-          <div class="pdf-fld" style="grid-column:span 2"><label class="pdf-lbl">Lien (site, rider partage...)</label><input class="pdf-inp" id="sppdf-link" placeholder="https://exemple.com/rider"/></div>
-          <div class="pdf-fld"><label class="pdf-lbl">Contact</label><input class="pdf-inp" id="sppdf-contact" placeholder="email / tel"/></div>
-        </div>
-      </div>
-      <div class="pdf-sec" style="margin-bottom:0">
-        <div class="pdf-sec-title"><i class="ti ti-note" style="color:var(--ora)"></i>Notes</div>
-        <div class="pdf-fld full"><textarea class="pdf-inp" id="sppdf-notes" placeholder="Informations complementaires, notes techniques..."></textarea></div>
-      </div>
-    </div>
-    <div class="modal-foot">
-      <div style="flex:1;font-size:10px;color:var(--muted);font-family:var(--m);align-self:center"><i class="ti ti-info-circle" style="font-size:11px;margin-right:3px"></i>Nouvel onglet &rarr; Imprimer &rarr; Enregistrer en PDF</div>
-      <button class="btn ghost sm" onclick="closeSitePDF()">Annuler</button>
-      <button class="btn" onclick="doSitePlanPDF()"><i class="ti ti-file-type-pdf"></i>Generer</button>
-    </div>
-  </div>
-</div>
+<!-- site-pdf-modal replaced by unified pdf-modal — kept as empty stub for legacy event listeners -->
+<div class="modal-ov" id="site-pdf-modal"></div>
 
 <!-- PROFILE MODAL -->
 <div id="fich-viewer-modal">
@@ -4145,9 +4076,27 @@ function updateStats(){const n=CHS.length,ph=CHS.filter(r=>r.phantom).length;['y
 // ══════════════════════════════════════
 function setPdfExportType(type){
   _pdfExportType=type;
-  document.getElementById('pdf-exp-in')?.classList.toggle('on',type==='in');
-  document.getElementById('pdf-exp-out')?.classList.toggle('on',type==='out');
-  document.getElementById('pdf-exp-both')?.classList.toggle('on',type==='both');
+  ['in','out','both','stage','site','syno'].forEach(function(t){
+    document.getElementById('pdf-exp-'+t)?.classList.toggle('on', t===type);
+  });
+  const titles={in:'Export PDF — Input List',out:'Export PDF — Output List',both:'Export PDF — Input + Output',stage:'Export PDF — Plan de scène',site:'Export PDF — Plan de site',syno:'Export PDF — Synoptique'};
+  const titleEl=document.getElementById('pdf-modal-title');
+  if(titleEl) titleEl.textContent = titles[type]||'Exporter en PDF';
+  const isVisual = type==='stage'||type==='site'||type==='syno';
+  const isTable  = !isVisual;
+  // Show subtitle only for visual plans
+  const subRow = document.getElementById('pdf-sub-row');
+  if(subRow) subRow.style.display = isVisual ? '' : 'none';
+  // Hide "Les deux" toggle and list options when visual plan selected
+  const expBoth = document.getElementById('pdf-exp-both');
+  if(expBoth) expBoth.style.display = isVisual ? 'none' : '';
+  const expOut  = document.getElementById('pdf-exp-out');
+  if(expOut) expOut.style.display = isVisual ? 'none' : '';
+  const expIn   = document.getElementById('pdf-exp-in');
+  if(expIn) expIn.style.display = isVisual ? 'none' : '';
+  // Hide link/recap checkboxes for visual plans
+  const foot1 = document.querySelector('#pdf-modal .modal-foot > div:first-child');
+  if(foot1) foot1.style.display = isTable ? '' : 'none';
 }
 function loadPdfLogo(input){
   var file=input.files[0];if(!file)return;
@@ -4459,7 +4408,7 @@ ${infoBar}
 <script>window.onload=()=>window.print();<\/script>
 </body></html>`;
 }
-function openPDFModal(){
+function openPDFModal(forceType){
   const isFree=userPlan()==='free';
   const isStudio=canDo('custom_exports');
   document.querySelectorAll('.pdf-pro-fld').forEach(function(el){el.style.display=isFree?'none':'';});
@@ -4470,7 +4419,19 @@ function openPDFModal(){
   const brandSec=document.getElementById('pdf-brand-sec');
   if(brandSec)brandSec.style.display=isStudio?'':'none';
   if(isStudio)loadPdfBranding();
-  setPdfExportType(CUR_IL_MODE);
+  // Pre-fill common fields from show/profile
+  const engEl=document.getElementById('pdf-eng');
+  if(engEl&&!engEl.value) engEl.value=PROFILE?.full_name||'';
+  const roleEl=document.getElementById('pdf-role');
+  if(roleEl&&!roleEl.value) roleEl.value=PROFILE?.role||'';
+  const venueEl=document.getElementById('pdf-venue');
+  if(venueEl&&!venueEl.value&&CUR_SHOW?.venue) venueEl.value=CUR_SHOW.venue;
+  const dateEl=document.getElementById('pdf-date');
+  if(dateEl&&!dateEl.value&&CUR_SHOW?.show_date) dateEl.value=CUR_SHOW.show_date;
+  const subEl=document.getElementById('pdf-sub');
+  if(subEl&&!subEl.value&&CUR_SHOW?.name) subEl.value=CUR_SHOW.name;
+  const type = forceType || CUR_IL_MODE;
+  setPdfExportType(type);
   document.getElementById('pdf-modal').className='modal-ov show';
 }
 function closePDF(){document.getElementById('pdf-modal').className='modal-ov';}
@@ -4753,17 +4714,8 @@ function exportBpPng(){
   });
 }
 
-function openBpPDF(){
-  const s=CUR_SHOW;
-  if(s){
-    document.getElementById('bppdf-title').value=s.name||'Plan de Scene';
-    document.getElementById('bppdf-venue').value=s.venue||'';
-    document.getElementById('bppdf-date').value=s.show_date||'';
-    document.getElementById('bppdf-eng').value=PROFILE?.full_name||'';
-  }
-  document.getElementById('bp-pdf-modal').className='modal-ov show';
-}
-function closeBpPDF(){document.getElementById('bp-pdf-modal').className='modal-ov';}
+function openBpPDF(){ openPDFModal('stage'); }
+function closeBpPDF(){ closePDF(); }
 
 /* PatchFlow SVG logo — used in all PDF exports */
 const _PF_LOGO_MM='<svg width="10mm" height="10mm" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M70 60 C100 60 100 140 130 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round"/><path d="M130 60 C100 60 100 140 70 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round" opacity="0.45"/><circle cx="60" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="60" r="5" fill="#FF6B2B"/><circle cx="140" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="60" r="5" fill="#FF6B2B"/><circle cx="60" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="140" r="5" fill="#FF6B2B"/><circle cx="140" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="140" r="5" fill="#FF6B2B"/></svg>';
@@ -4855,14 +4807,8 @@ async function doCopyShareLink(){
   setTimeout(()=>{document.getElementById('bp-share-copy-ok').style.display='none';},2500);
 }
 
-function openSitePDF(){
-  const v=$i('sppdf-venue'), d=$i('sppdf-date'), s=$i('sppdf-sub');
-  if(v&&CUR_SHOW?.venue&&!v.value) v.value=CUR_SHOW.venue;
-  if(d&&CUR_SHOW?.show_date&&!d.value) d.value=CUR_SHOW.show_date;
-  if(s&&CUR_SHOW?.name&&!s.value) s.value=CUR_SHOW.name;
-  document.getElementById('site-pdf-modal').className='modal-ov show';
-}
-function closeSitePDF(){document.getElementById('site-pdf-modal').className='modal-ov';}
+function openSitePDF(){ openPDFModal('site'); }
+function closeSitePDF(){ closePDF(); }
 function $i(id){return document.getElementById(id);}
 
 function doSitePlanPDF(){
@@ -4987,17 +4933,192 @@ function _buildPdfRecapBlock(rows,accentColor){
 }
 
 function doPDF(){
-  const _inclLink=document.getElementById('pdf-incl-link')?.checked!==false;
-  const _inclRecap=document.getElementById('pdf-incl-recap')?.checked===true;
-  if(_inclRecap&&!canDo('recap_matos')){showUpgradeModal('recap_matos');return;}
-  const _shareUrl=_inclLink?(document.getElementById('slink-url')?.textContent||('http://127.0.0.1:7821/app.html?view='+(CUR_SHOW?.id||'')+'\x26tab=inputlist')):'';
-  const brand=_pdfBrand();
-  const _accentColor=brand.color||'#ff6b1a';
-  const recapHtml=_inclRecap?_buildPdfRecapBlock(CHS,_accentColor):'';
-  const meta={eng:document.getElementById('pdf-eng').value,role:document.getElementById('pdf-role').value,title:document.getElementById('pdf-title')?.value||'',co:document.getElementById('pdf-co').value,tel:document.getElementById('pdf-tel').value,venue:document.getElementById('pdf-venue').value,date:document.getElementById('pdf-date').value,rev:document.getElementById('pdf-rev').value,notes:document.getElementById('pdf-notes').value,shareLink:_shareUrl,recapHtml:recapHtml};
+  const type = _pdfExportType;
+  const $v = id => (document.getElementById(id)?.value||'').trim();
+  const brand = _pdfBrand();
+
+  // Shared meta — common to ALL export types
+  const meta = {
+    eng:   $v('pdf-eng'),
+    role:  $v('pdf-role'),
+    title: $v('pdf-title'),
+    co:    $v('pdf-co'),
+    tel:   $v('pdf-tel'),
+    venue: $v('pdf-venue'),
+    date:  $v('pdf-date'),
+    rev:   $v('pdf-rev'),
+    notes: $v('pdf-notes'),
+    sub:   $v('pdf-sub'),  // sous-titre pour plans visuels
+  };
+
   closePDF();
-  const html=_pdfExportType==='both'?_buildPdfBothHTML(meta,brand):_pdfExportType==='out'?_buildPdfOutHTML(meta,brand):_buildPdfInHTML(meta,brand);
-  const w=window.open('','_blank','width=1100,height=750');if(!w){alert('Autorise les popups');return;}w.document.write(html);w.document.close();
+
+  /* ── Visual plans — image-based exports ── */
+  if(type === 'stage'){
+    if(!BandPlan.getData().els.length){toast('Plan de scène vide — rien à exporter.');return;}
+    _makeBpCanvas(function(cv){
+      const dataUrl = cv.toDataURL('image/png');
+      const shareUrl = window.location.origin+window.location.pathname+'?view='+(CUR_SHOW?.id||'')+'&tab=stage';
+      _openVisualPdf('Plan de scene', meta, dataUrl, shareUrl, brand);
+    });
+    return;
+  }
+  if(type === 'site'){
+    SitePlan.exportCanvas(function(cv){
+      const dataUrl = cv.toDataURL('image/png');
+      const shareUrl = window.location.origin+window.location.pathname+'?view='+(CUR_SHOW?.id||'')+'&tab=site';
+      _openVisualPdf('Plan de site', meta, dataUrl, shareUrl, brand);
+    });
+    return;
+  }
+  if(type === 'syno'){
+    /* Build SVG snapshot inline */
+    const synEl = document.getElementById('sp-world');
+    if(!synEl||!synEl.children.length){toast('Synoptique vide — rien à exporter.');return;}
+    const svgEl = document.getElementById('sp-edges');
+    const synHtml = (svgEl?svgEl.outerHTML:'') + synEl.innerHTML;
+    const shareUrl = window.location.origin+window.location.pathname+'?view='+(CUR_SHOW?.id||'')+'&tab=syno';
+    _openSynoPdf(meta, synHtml, shareUrl, brand);
+    return;
+  }
+
+  /* ── Table-based (Input / Output / Both) ── */
+  const _inclLink  = document.getElementById('pdf-incl-link')?.checked !== false;
+  const _inclRecap = document.getElementById('pdf-incl-recap')?.checked === true;
+  if(_inclRecap && !canDo('recap_matos')){showUpgradeModal('recap_matos');return;}
+  const _shareUrl = _inclLink ? (document.getElementById('slink-url')?.textContent || '') : '';
+  const _accentColor = brand.color||'#ff6b1a';
+  const recapHtml = _inclRecap ? _buildPdfRecapBlock(CHS, _accentColor) : '';
+  meta.shareLink = _shareUrl;
+  meta.recapHtml = recapHtml;
+  const html = type==='both' ? _buildPdfBothHTML(meta,brand)
+             : type==='out'  ? _buildPdfOutHTML(meta,brand)
+             :                 _buildPdfInHTML(meta,brand);
+  const w = window.open('','_blank','width=1100,height=750');
+  if(!w){alert('Autorisez les popups');return;}
+  w.document.write(html); w.document.close();
+}
+
+/* Shared visual PDF (stage / site) — full-page landscape image */
+function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand){
+  const now = new Date().toLocaleString('fr-FR');
+  const accentColor = brand.color||'#ff6b1a';
+  const showTitle = meta.title || CUR_SHOW?.name || docType;
+  const subLine   = meta.sub || '';
+  const engLine   = [meta.eng, meta.role].filter(Boolean).join(' — ');
+  const metaBar   = (meta.venue||meta.date||engLine)
+    ? '<div class="mb">'
+      +(meta.venue ? '<div class="mc"><div class="ml">Venue</div><div class="mv">'+meta.venue+'</div></div>' : '')
+      +(meta.date  ? '<div class="mc"><div class="ml">Date</div><div class="mv">'+meta.date+'</div></div>'  : '')
+      +(engLine    ? '<div class="mc"><div class="ml">Ingénieur</div><div class="mvo">'+engLine+'</div></div>' : '')
+      +(meta.co    ? '<div class="mc"><div class="ml">Société</div><div class="mv">'+meta.co+'</div></div>'  : '')
+      +'</div>' : '';
+  const notesBlock = meta.notes ? '<div class="ns"><div class="nl">Notes</div><div class="nt">'+meta.notes+'</div></div>' : '';
+  const html = '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/>'
+    +'<title>'+showTitle+' — '+docType+'</title>'
+    +'<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet"/>'
+    +'<style>*{box-sizing:border-box;margin:0;padding:0}:root{--o:'+accentColor+'}'
+    +'html,body{width:100%;height:100%}body{font-family:Outfit,sans-serif;background:#fff;color:#1a1a2e;display:flex;flex-direction:column;height:100%}'
+    +'@page{size:A4 landscape;margin:0}'
+    +'.hd{background:#0a0f1c;color:#fff;padding:8mm 10mm 6mm;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}'
+    +'.hl{display:flex;align-items:center;gap:8mm}.logo{width:10mm;height:10mm;display:flex;align-items:center;justify-content:center;flex-shrink:0}'
+    +'.ht{font-size:5.5mm;font-weight:700;line-height:1.2}.hs{font-size:3mm;color:#8090a8;font-family:"DM Mono",monospace;margin-top:1mm}'
+    +'.hr{text-align:right}.hdt{font-size:3mm;font-weight:700;color:var(--o);font-family:"DM Mono",monospace;letter-spacing:1.5px;text-transform:uppercase}'
+    +'.hdm{font-size:2.8mm;color:#556;font-family:"DM Mono",monospace;margin-top:0.5mm}'
+    +'.mb{display:flex;background:#f4f5f7;border-bottom:1px solid #dde;flex-shrink:0}'
+    +'.mc{padding:2.5mm 4mm;border-right:1px solid #dde;display:flex;flex-direction:column;gap:0.5mm}.mc:last-child{border-right:none}'
+    +'.ml{font-size:2.2mm;color:#aaa;text-transform:uppercase;letter-spacing:.8px;font-family:"DM Mono",monospace}'
+    +'.mv{font-size:3mm;color:#333;font-weight:500;font-family:"DM Mono",monospace}'
+    +'.mvo{font-size:3mm;color:var(--o);font-weight:600;font-family:"DM Mono",monospace}'
+    +'.plan{flex:1;display:flex;align-items:center;justify-content:center;padding:4mm 6mm;overflow:hidden;min-height:0}'
+    +'.plan img{max-width:100%;max-height:100%;object-fit:contain}'
+    +'.ns{padding:2.5mm 10mm;background:#fffbf7;border-top:1px solid #ffe0c8;flex-shrink:0}'
+    +'.nl{font-family:"DM Mono",monospace;font-size:2.5mm;text-transform:uppercase;letter-spacing:1px;color:#ccc;margin-bottom:1mm}'
+    +'.nt{font-size:3mm;color:#555;white-space:pre-wrap}'
+    +'.ft{display:flex;align-items:center;justify-content:space-between;padding:2mm 10mm;border-top:1px solid #eee;font-size:2.5mm;color:#bbb;font-family:"DM Mono",monospace;flex-shrink:0;background:#fafafa}'
+    +'.fl{font-weight:700;color:var(--o);letter-spacing:1px}'
+    +'@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body>'
+    +'<div class="hd">'
+      +'<div class="hl"><div class="logo">'+_PF_LOGO_MM+'</div><div><div class="ht">'+showTitle+'</div>'+(subLine?'<div class="hs">'+subLine+'</div>':'')+'</div></div>'
+      +'<div class="hr"><div class="hdt">'+docType+'</div><div class="hdm">'+(meta.rev?'Rev. '+meta.rev+' &middot; ':'')+now+'</div></div>'
+    +'</div>'
+    +metaBar
+    +'<div class="plan"><img src="'+dataUrl+'" alt="'+docType+'"/></div>'
+    +notesBlock
+    +'<div class="ft"><span class="fl">PATCHFLOW</span><span>'+showTitle+(subLine?' &middot; '+subLine:'')+'</span><span>'+now+'</span></div>'
+    +'<script>window.onload=()=>window.print();<\/script></body></html>';
+  const w = window.open('','_blank');
+  if(!w){alert('Autorisez les popups');return;}
+  w.document.write(html); w.document.close();
+}
+
+/* Synoptique PDF — SVG screenshot via html2canvas fallback or native SVG in print */
+function _openSynoPdf(meta, synHtml, shareUrl, brand){
+  /* Use the share-view SVG renderer which is already clean */
+  const synData = document.getElementById('sp-world') ? (() => {
+    try { return JSON.parse(localStorage.getItem('pf_syn_'+CUR_SHOW?.id)||'null'); } catch(e){ return null; }
+  })() : null;
+  /* Fall back to canvas screenshot of the viewport */
+  const spVp = document.getElementById('sp-viewport');
+  if(!spVp){toast('Ouvre le synoptique avant d\'exporter.');return;}
+  const now = new Date().toLocaleString('fr-FR');
+  const accentColor = brand.color||'#ff6b1a';
+  const showTitle = meta.title || CUR_SHOW?.name || 'Synoptique';
+  const subLine   = meta.sub || '';
+  const engLine   = [meta.eng, meta.role].filter(Boolean).join(' — ');
+  /* Clone the viewport SVG and world for a static print */
+  const svgEls = spVp.querySelectorAll('svg');
+  const nodeEls = document.getElementById('sp-nodes');
+  /* Build a high-fidelity HTML print page using the live DOM snapshot */
+  const clonedNodes = nodeEls ? nodeEls.innerHTML : '';
+  const clonedSvg = Array.from(svgEls).map(s=>s.outerHTML).join('');
+  const metaBar = (meta.venue||meta.date||engLine)
+    ? '<div style="display:flex;background:#f4f5f7;border-bottom:1px solid #dde;flex-shrink:0">'
+      +(meta.venue ? '<div style="padding:5px 10px;border-right:1px solid #dde"><div style="font-size:8px;color:#aaa;text-transform:uppercase;letter-spacing:.8px;font-family:DM Mono,monospace">Venue</div><div style="font-size:10px;color:#333;font-family:DM Mono,monospace">'+meta.venue+'</div></div>' : '')
+      +(meta.date  ? '<div style="padding:5px 10px;border-right:1px solid #dde"><div style="font-size:8px;color:#aaa;text-transform:uppercase;letter-spacing:.8px;font-family:DM Mono,monospace">Date</div><div style="font-size:10px;color:#333;font-family:DM Mono,monospace">'+meta.date+'</div></div>' : '')
+      +(engLine    ? '<div style="padding:5px 10px"><div style="font-size:8px;color:#aaa;text-transform:uppercase;letter-spacing:.8px;font-family:DM Mono,monospace">Ingénieur</div><div style="font-size:10px;color:'+accentColor+';font-weight:600;font-family:DM Mono,monospace">'+engLine+'</div></div>' : '')
+      +'</div>' : '';
+  const notesBlock = meta.notes ? '<div style="padding:5px 26px;background:#fffbf7;border-top:1px solid #ffe0c8;flex-shrink:0"><div style="font-size:8px;font-family:DM Mono,monospace;text-transform:uppercase;letter-spacing:1px;color:#ccc;margin-bottom:3px">Notes</div><div style="font-size:10px;color:#555;white-space:pre-wrap">'+meta.notes+'</div></div>' : '';
+  const html = '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/>'
+    +'<title>'+showTitle+' — Synoptique</title>'
+    +'<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet"/>'
+    +'<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css"/>'
+    +'<style>'
+    +'*{box-sizing:border-box;margin:0;padding:0}'
+    +'html,body{height:100%;background:#fff}'
+    +'body{font-family:Outfit,sans-serif;display:flex;flex-direction:column}'
+    +'@page{size:A4 landscape;margin:0}'
+    +'.sp-node{position:absolute;cursor:default} .sp-node-card{background:#fff;border:1.5px solid #c8d4e0;border-radius:9px;padding:0;overflow:hidden;display:flex;flex-direction:column;align-items:center;min-width:100px}'
+    +'.sp-node-icon{width:64px;height:64px;display:flex;align-items:center;justify-content:center;color:#1d3a5f;padding:8px 8px 0}'
+    +'.sp-node-icon svg{width:100%;height:100%}'
+    +'.sp-node-label{font-size:11px;font-weight:700;color:#1d3a5f;text-align:center;padding:4px 8px 2px}'
+    +'.sp-node-sub{font-size:9px;color:#5a6a80;text-align:center;padding:0 8px 6px;font-family:DM Mono,monospace}'
+    +'@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.no-print{display:none}}'
+    +'</style></head><body>'
+    +'<div style="background:#0a0f1c;color:#fff;padding:6mm 10mm 4mm;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">'
+      +'<div style="display:flex;align-items:center;gap:6mm">'
+        +'<div style="width:8mm;height:8mm">'+_PF_LOGO_MM+'</div>'
+        +'<div><div style="font-size:5mm;font-weight:700">'+showTitle+'</div>'+(subLine?'<div style="font-size:2.8mm;color:#8090a8;font-family:DM Mono,monospace;margin-top:1mm">'+subLine+'</div>':'')+'</div>'
+      +'</div>'
+      +'<div style="text-align:right"><div style="font-size:2.8mm;font-weight:700;color:'+accentColor+';font-family:DM Mono,monospace;text-transform:uppercase;letter-spacing:1.5px">Synoptique</div>'
+        +'<div style="font-size:2.5mm;color:#556;font-family:DM Mono,monospace;margin-top:0.5mm">'+(meta.rev?'Rev. '+meta.rev+' &middot; ':'')+now+'</div>'
+      +'</div>'
+    +'</div>'
+    +metaBar
+    +'<div style="flex:1;position:relative;overflow:hidden;background:#f7f9fc">'
+      +'<div id="sp-edges" style="position:absolute;pointer-events:none">'+clonedSvg+'</div>'
+      +'<div id="sp-nodes" style="position:absolute">'+clonedNodes+'</div>'
+    +'</div>'
+    +notesBlock
+    +'<div style="display:flex;align-items:center;justify-content:space-between;padding:2mm 10mm;border-top:1px solid #eee;font-size:2.5mm;color:#bbb;font-family:DM Mono,monospace;background:#fafafa;flex-shrink:0">'
+      +'<span style="font-weight:700;color:'+accentColor+';letter-spacing:1px">PATCHFLOW</span>'
+      +'<span>'+showTitle+(subLine?' &middot; '+subLine:'')+'</span>'
+      +'<span>'+now+'</span>'
+    +'</div>'
+    +'<script>window.onload=()=>window.print();<\/script></body></html>';
+  const w = window.open('','_blank');
+  if(!w){alert('Autorisez les popups');return;}
+  w.document.write(html); w.document.close();
 }
 
 // ══════════════════════════════════════
@@ -6700,63 +6821,10 @@ const SynPro = (() => {
     try { localStorage.setItem(PDF_META_KEY, JSON.stringify(m)); } catch(e) {}
   }
   function _openPdfMetaModal() {
-    var m = $('sp-pdfmeta-modal');
-    var saved = _loadPdfMeta();
-    if (!m) {
-      m = document.createElement('div');
-      m.id = 'sp-pdfmeta-modal';
-      m.className = 'sp-modal';
-      m.innerHTML =
-        '<div class="sp-modal-card" style="max-width:540px">'+
-          '<div class="sp-modal-title"><i class="ti ti-file-type-pdf"></i>Exporter PDF</div>'+
-          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 0 4px 0">'+
-            '<div style="grid-column:span 2"><label class="syn-insp-lbl">Titre du document</label><input class="syn-insp-inp" id="sppm-title"/></div>'+
-            '<div><label class="syn-insp-lbl">Sous-titre / Production</label><input class="syn-insp-inp" id="sppm-sub"/></div>'+
-            '<div><label class="syn-insp-lbl">Revision</label><input class="syn-insp-inp" id="sppm-rev" placeholder="v1.0"/></div>'+
-            '<div><label class="syn-insp-lbl">Venue</label><input class="syn-insp-inp" id="sppm-venue"/></div>'+
-            '<div><label class="syn-insp-lbl">Date</label><input class="syn-insp-inp" id="sppm-date" placeholder="15/05/2025"/></div>'+
-            '<div><label class="syn-insp-lbl">Ingenieur</label><input class="syn-insp-inp" id="sppm-eng"/></div>'+
-            '<div><label class="syn-insp-lbl">Contact</label><input class="syn-insp-inp" id="sppm-contact" placeholder="email / tel"/></div>'+
-            '<div style="grid-column:span 2"><label class="syn-insp-lbl">Lien (site, rider partage...)</label><input class="syn-insp-inp" id="sppm-link" placeholder="https://exemple.com/rider"/></div>'+
-            '<div style="grid-column:span 2"><label class="syn-insp-lbl">Notes</label><textarea class="syn-insp-inp" id="sppm-notes" rows="3" style="resize:vertical"></textarea></div>'+
-          '</div>'+
-          '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">'+
-            '<button class="btn ghost sm" id="sppm-cancel">Annuler</button>'+
-            '<button class="btn sm" id="sppm-go"><i class="ti ti-file-type-pdf"></i>Generer</button>'+
-          '</div>'+
-        '</div>';
-      document.body.appendChild(m);
-      m.addEventListener('click', function(e){ if (e.target === m) m.classList.remove('show'); });
-    }
-    /* Pre-fill from previously saved values + current diagram state */
-    var prefill = function(id, v) { var el = $(id); if (el) el.value = v || ''; };
-    prefill('sppm-title',   state.title || saved.title || '');
-    prefill('sppm-sub',     saved.sub || '');
-    prefill('sppm-rev',     saved.rev || '');
-    prefill('sppm-venue',   saved.venue || (CUR_SHOW && CUR_SHOW.venue) || '');
-    prefill('sppm-date',    saved.date || '');
-    prefill('sppm-eng',     saved.eng || '');
-    prefill('sppm-contact', saved.contact || '');
-    prefill('sppm-link',    saved.link || '');
-    prefill('sppm-notes',   saved.notes || '');
-    m.classList.add('show');
-    $('sppm-cancel').onclick = function(){ m.classList.remove('show'); };
-    $('sppm-go').onclick = function(){
-      var meta = {
-        title:   $('sppm-title').value.trim(),
-        sub:     $('sppm-sub').value.trim(),
-        rev:     $('sppm-rev').value.trim(),
-        venue:   $('sppm-venue').value.trim(),
-        date:    $('sppm-date').value.trim(),
-        eng:     $('sppm-eng').value.trim(),
-        contact: $('sppm-contact').value.trim(),
-        link:    $('sppm-link').value.trim(),
-        notes:   $('sppm-notes').value.trim(),
-      };
-      _savePdfMeta(meta);
-      m.classList.remove('show');
-      _exportPdf(meta);
-    };
+    /* Pre-fill synoptique title into the unified pdf-title field */
+    var titleEl = document.getElementById('pdf-title');
+    if (titleEl && !titleEl.value && state.title) titleEl.value = state.title;
+    openPDFModal('syno');
   }
 
   async function _exportPdf(meta) {
