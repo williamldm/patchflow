@@ -10946,7 +10946,7 @@ function closeUD(){document.getElementById('user-dd').classList.remove('show');}
 const PLAN_PERMS = {
   free:   { max_shows:3,        max_channels:32,       max_members:1,        max_templates:5,
             export_pdf:true,    share_link:false,      site_plan:false,
-            storage:false,      multi_scenes:false,    multi_patches:false,  custom_exports:false,  vintage_view:false },
+            storage:true,       multi_scenes:false,    multi_patches:false,  custom_exports:false,  vintage_view:false },
   pro:    { max_shows:Infinity, max_channels:Infinity, max_members:5,        max_templates:Infinity,
             export_pdf:true,    share_link:true,       site_plan:true,
             storage:true,       multi_scenes:false,    multi_patches:false,  custom_exports:false,  vintage_view:true,  recap_matos:true,  recent_activity:true  },
@@ -10964,7 +10964,7 @@ const PLAN_META = {
 const GATE_META = {
   export_pdf:     { icon:'ti-file-type-pdf',    title:'Export PDF professionnel',     desc:'Generez des PDF soignes avec tous vos canaux, prets a imprimer ou a partager avec votre equipe.', plan:'pro',    feats:['Mise en page professionnelle complete','Impression directe depuis le navigateur','Inclus dans les plans Pro et Studio'] },
   share_link:     { icon:'ti-link',             title:'Lien de partage',              desc:'Partagez votre patch en lecture seule avec vos collegues ou votre client via un lien securise.', plan:'pro',    feats:['Lien unique en lecture seule','Acces sans compte requis','Mise a jour en temps reel'] },
-  storage:        { icon:'ti-cloud',            title:'Stockage fichiers',            desc:'Uploadez et partagez vos riders, plans, logos et show files directement dans votre show.', plan:'pro',    feats:['50 Go de stockage sur Pro — 200 Go sur Studio','Acces a tous les membres du show','PDF, Word, Excel, Audio, Video...'] },
+  storage:        { icon:'ti-cloud',            title:'Stockage fichiers',            desc:'Uploadez et partagez vos riders, plans, logos et show files directement dans votre show.', plan:'pro',    feats:['500 Mo inclus en gratuit — 50 Go Pro — 500 Go Studio','Acces a tous les membres du show','PDF, Word, Excel, Audio, Video...'] },
   site_plan:      { icon:'ti-map-2',            title:'Plan de site',                 desc:'Implantez votre sonorisation sur le plan du site. Tracez vos liaisons XLR, DANTE et HF.', plan:'pro',    feats:['Edition drag & drop du plan de site','Export PNG et PDF du plan','Disponible sur les plans Pro et Studio'] },
   max_shows:      { icon:'ti-calendar-event',   title:'Limite de shows atteinte',     desc:'Le plan Gratuit est limite a 3 shows actifs. Passez au Pro pour des shows illimites.', plan:'pro',    feats:['Shows illimites sur Pro et Studio','Canaux illimites par show','Archivage et gestion avancee'] },
   max_channels:   { icon:'ti-list-numbers',     title:'Limite de canaux atteinte',    desc:'Le plan Gratuit est limite a 32 canaux par show. Passez au Pro pour des canaux illimites.', plan:'pro',    feats:['Canaux illimites sur Pro et Studio','Pas de restriction sur le nombre de prises','Full festival patch sans limite'] },
