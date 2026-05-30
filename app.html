@@ -234,8 +234,10 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .iltable tr.dragging{opacity:.3}
 .iltable tr.drag-over td{border-top:2px solid var(--ora) !important}
 
-/* IL patch tabs */
+/* IL patch tabs + Scene tabs (shared style) */
 .il-patch-tabs{display:flex;align-items:center;gap:5px;margin-bottom:10px;flex-wrap:wrap}
+.scene-tabs-bar{display:flex;align-items:center;gap:5px;padding:7px 14px 0;flex-wrap:wrap;flex-shrink:0}
+.scene-tabs-bar.hidden{display:none}
 .il-ptab{display:flex;align-items:center;gap:5px;padding:4px 11px;border-radius:6px;border:1px solid var(--bdr2);background:var(--surf2);color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s;font-family:var(--f)}
 .il-ptab:hover{border-color:var(--bdr3);color:var(--txt2)}
 .il-ptab.active{background:var(--ora);border-color:var(--ora);color:#000}
@@ -1378,6 +1380,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
           <span id="sp-save-status" style="font-size:10px;font-family:var(--m);display:flex;align-items:center;gap:4px;color:var(--muted)"></span>
           <button type="button" class="btn ghost sm" id="sp-reset" title="Vider le synoptique"><i class="ti ti-trash"></i></button>
         </div>
+        <div id="scene-tabs-syno" class="scene-tabs-bar hidden"></div>
         <div class="sp-body">
           <div class="sp-palette">
             <div class="sp-pal-hd"><i class="ti ti-box"></i>Bibliotheque</div>
@@ -1483,6 +1486,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
         </div>
       </div>
 
+      <div id="scene-tabs-stage" class="scene-tabs-bar hidden"></div>
       <!-- Plan de scene BandPlan -->
       <div id="plan-scene-wrap" class="bp-layout">
         <div class="bp-pal">
@@ -2264,6 +2268,8 @@ const sb=supabase.createClient(SB_URL,SB_KEY);
 // ══════════════════════════════════════
 let ME=null, PROFILE=null;
 let SHOWS=[], CUR_SHOW=null, SHOW_MEMBERS_MAP={}, SHOW_OWNERS_CACHE={}, SHOW_STORAGE_MAP={};
+let SHOW_SCENES={syno:[],stage:[],site:[]};
+let CUR_SCENES={syno:null,stage:null,site:null};
 let CHS=[];
 let IL_PATCHES=[{id:'main',name:'Patch 1',pos:0}];
 let CUR_PATCH_ID='main';
@@ -2471,6 +2477,138 @@ async function loadShows(){
   }catch(e){}
 }
 
+// ══════════════════════════════════════
+// MULTI-SCÈNES (Studio uniquement)
+// ══════════════════════════════════════
+const SCENE_TYPES=['syno','stage','site'];
+const SCENE_LABELS={syno:'Synoptique',stage:'Plan de scène',site:'Plan de site'};
+
+async function loadScenes(showId){
+  SHOW_SCENES={syno:[],stage:[],site:[]};
+  CUR_SCENES={syno:null,stage:null,site:null};
+  if(userPlan()!=='studio') return; // Studio uniquement
+  const {data,error}=await sb.from('show_scenes').select('*').eq('show_id',showId).order('position');
+  if(error){console.error('loadScenes:',error);return;}
+  (data||[]).forEach(function(s){
+    if(!SHOW_SCENES[s.type]) SHOW_SCENES[s.type]=[];
+    SHOW_SCENES[s.type].push(s);
+  });
+  // Initialiser la scène courante sur la première de chaque type
+  SCENE_TYPES.forEach(function(t){
+    CUR_SCENES[t]=SHOW_SCENES[t][0]?.id||null;
+  });
+  _renderAllSceneTabs();
+}
+
+function _renderAllSceneTabs(){
+  SCENE_TYPES.forEach(_renderSceneTabs);
+}
+
+function _renderSceneTabs(type){
+  const elId='scene-tabs-'+type;
+  const el=document.getElementById(elId);
+  if(!el) return;
+  const scenes=SHOW_SCENES[type]||[];
+  const isStudio=userPlan()==='studio';
+  if(!isStudio){el.classList.add('hidden');return;}
+  el.classList.remove('hidden');
+  el.innerHTML=scenes.map(function(s){
+    const active=s.id===CUR_SCENES[type];
+    return `<div class="il-ptab${active?' active':''}" onclick="switchScene('${type}','${s.id}')" ondblclick="renameScene('${type}','${s.id}')" title="Double-clic pour renommer">
+      ${s.name}
+      ${scenes.length>1?`<button class="il-ptab-del" onclick="event.stopPropagation();deleteScene('${type}','${s.id}')" title="Supprimer">×</button>`:''}
+    </div>`;
+  }).join('')+'<button class="il-ptab-add" onclick="addScene(\''+type+'\')" title="Nouvelle scène">+</button>';
+}
+
+async function switchScene(type,sceneId){
+  if(sceneId===CUR_SCENES[type]) return;
+  // Sauvegarder la scène courante avant de changer
+  if(type==='syno' && CUR_SCENES.syno) await SynPro._saveNow();
+  if(type==='stage'||type==='site') await saveStage();
+  CUR_SCENES[type]=sceneId;
+  _renderSceneTabs(type);
+  // Charger la nouvelle scène
+  const scene=SHOW_SCENES[type]?.find(s=>s.id===sceneId);
+  if(!scene) return;
+  if(type==='syno'){
+    SynPro.setSceneData(scene.data);
+    SynPro.setSceneId(sceneId);
+  } else if(type==='stage'){
+    _loadSceneStage(scene);
+  } else if(type==='site'){
+    _loadSceneSite(scene);
+  }
+}
+
+async function addScene(type){
+  if(!CUR_SHOW){return;}
+  if(userPlan()!=='studio'){showUpgradeModal('multi_patches');return;}
+  const name=prompt(`Nom du ${SCENE_LABELS[type]} :`, (SCENE_LABELS[type]+' '+(SHOW_SCENES[type].length+1)));
+  if(!name||!name.trim()) return;
+  const pos=SHOW_SCENES[type].length;
+  const {data,error}=await sb.from('show_scenes').insert({
+    show_id:CUR_SHOW.id, type, name:name.trim(), data:null, position:pos
+  }).select().single();
+  if(error){toast('Erreur : '+error.message);return;}
+  SHOW_SCENES[type].push(data);
+  await switchScene(type,data.id);
+}
+
+async function deleteScene(type,sceneId){
+  if(SHOW_SCENES[type].length<=1){toast('Impossible de supprimer la dernière scène.');return;}
+  const scene=SHOW_SCENES[type].find(s=>s.id===sceneId);
+  if(!confirm('Supprimer "'+( scene?.name||'cette scène')+'\" ?')) return;
+  const {error}=await sb.from('show_scenes').delete().eq('id',sceneId);
+  if(error){toast('Erreur : '+error.message);return;}
+  SHOW_SCENES[type]=SHOW_SCENES[type].filter(s=>s.id!==sceneId);
+  // Aller sur la première scène restante
+  const next=SHOW_SCENES[type][0]?.id||null;
+  CUR_SCENES[type]=next;
+  _renderSceneTabs(type);
+  if(next) await switchScene(type,next);
+}
+
+async function renameScene(type,sceneId){
+  const scene=SHOW_SCENES[type]?.find(s=>s.id===sceneId);
+  if(!scene) return;
+  const name=prompt('Renommer la scène :',scene.name);
+  if(!name||!name.trim()||name===scene.name) return;
+  const {error}=await sb.from('show_scenes').update({name:name.trim()}).eq('id',sceneId);
+  if(error){toast('Erreur : '+error.message);return;}
+  scene.name=name.trim();
+  _renderSceneTabs(type);
+}
+
+/* Sauvegarde la scène courante dans show_scenes */
+async function _saveScene(type,dataObj){
+  const sceneId=CUR_SCENES[type];
+  if(!sceneId||userPlan()!=='studio') return false;
+  await sb.from('show_scenes').update({data:dataObj}).eq('id',sceneId);
+  // Mettre à jour le cache local
+  const scene=SHOW_SCENES[type]?.find(s=>s.id===sceneId);
+  if(scene) scene.data=dataObj;
+  return true;
+}
+
+/* Charge les données d'une scène stage */
+function _loadSceneStage(scene){
+  const raw=scene?.data;
+  let bandData=null;
+  if(raw&&raw.band) bandData=raw.band;
+  BandPlan.load(bandData);
+  setPlanMode('scene',false);
+}
+
+/* Charge les données d'une scène site */
+function _loadSceneSite(scene){
+  const raw=scene?.data;
+  let siteData=null;
+  if(raw&&raw.site) siteData=raw.site;
+  SitePlan.load(siteData);
+  setPlanMode('site',false);
+}
+
 /* Calcule la taille de stockage de chaque show en arrière-plan */
 async function loadShowStorage(){
   SHOW_STORAGE_MAP={};
@@ -2564,7 +2702,15 @@ async function switchShow(id){
   CUR_PATCH_ID=IL_PATCHES[0]?.id||'main';
   renderPatchTabs();
   // Load all show-specific data in parallel
-  if(typeof SynPro!=="undefined")SynPro.resetLoaded();
+  if(typeof SynPro!=="undefined"){SynPro.resetLoaded();SynPro.setSceneId(null);}
+  // Charger les scènes multi (Studio) avant les plans
+  await loadScenes(id);
+  // Configurer la scène synoptique courante
+  if(userPlan()==='studio' && CUR_SCENES.syno){
+    const sc=SHOW_SCENES.syno?.find(s=>s.id===CUR_SCENES.syno);
+    if(sc) SynPro.setSceneData(sc.data);
+    SynPro.setSceneId(CUR_SCENES.syno);
+  }
   await Promise.all([
     loadChs(),
     loadAmps(),
@@ -5202,29 +5348,66 @@ function _saveChsSnapshot(){
 }
 function loadStage(){
   _stageReady=false;
-  const raw=CUR_SHOW?.stage_data;
-  let bandData=null,siteData=null,savedMode='scene';
-  if(raw&&raw.v>=2){bandData=raw.band||null;siteData=raw.site||null;savedMode=raw.planMode||'scene';}
-  BandPlan.load(bandData);
-  SitePlan.load(siteData);
-  setPlanMode(savedMode,false);
+  if(userPlan()==='studio' && (CUR_SCENES.stage||CUR_SCENES.site)){
+    // Studio : charger depuis les scènes
+    const stageScene=SHOW_SCENES.stage?.find(s=>s.id===CUR_SCENES.stage);
+    const siteScene=SHOW_SCENES.site?.find(s=>s.id===CUR_SCENES.site);
+    BandPlan.load(stageScene?.data?.band||null);
+    SitePlan.load(siteScene?.data?.site||null);
+    // Déterminer quel plan afficher (utiliser le plan mode sauvegardé du show)
+    const raw=CUR_SHOW?.stage_data;
+    const savedMode=(raw&&raw.planMode)||'scene';
+    setPlanMode(savedMode,false);
+  } else {
+    // Non-studio ou pas encore de scènes : comportement original
+    const raw=CUR_SHOW?.stage_data;
+    let bandData=null,siteData=null,savedMode='scene';
+    if(raw&&raw.v>=2){bandData=raw.band||null;siteData=raw.site||null;savedMode=raw.planMode||'scene';}
+    BandPlan.load(bandData);
+    SitePlan.load(siteData);
+    setPlanMode(savedMode,false);
+  }
   _stageReady=true;
 }
 
 let saveStageTimer=null;
 async function saveStage(){
   if(!CUR_SHOW)return;
+  if(userPlan()==='studio' && CUR_SCENES.stage){
+    // Studio : sauvegarder dans la scène courante
+    const stageData={band:BandPlan.getData()};
+    await _saveScene('stage',stageData);
+    // Sauvegarder planMode dans shows.stage_data pour mémoriser le dernier plan vu
+    const existing=CUR_SHOW.stage_data||{};
+    const chsSnap=(typeof CHS!=='undefined'?CHS:[]).map(function(r){return{id:r.id,ch:r.ch,short_name:r.short_name||'',long_name:r.long_name||'',source:r.source||'',mic:r.mic||'',phantom:!!r.phantom,foh:!!r.foh,mon:!!r.mon,note:r.note||''};});
+    const sd=Object.assign({},existing,{v:2,planMode:PLAN_MODE,chs:chsSnap});
+    CUR_SHOW.stage_data=sd;
+    clearTimeout(saveStageTimer);
+    saveStageTimer=setTimeout(async()=>{
+      await sb.from('shows').update({stage_data:sd}).eq('id',CUR_SHOW.id);
+    },1000);
+    return;
+  }
+  // Non-Studio : comportement original
   const chsSnap=(typeof CHS!=='undefined'?CHS:[]).map(function(r){return{id:r.id,ch:r.ch,short_name:r.short_name||'',long_name:r.long_name||'',source:r.source||'',mic:r.mic||'',phantom:!!r.phantom,foh:!!r.foh,mon:!!r.mon,note:r.note||''};});
   const existing=CUR_SHOW.stage_data||{};
   const data={v:2,planMode:PLAN_MODE,band:BandPlan.getData(),site:SitePlan.getData(),chs:chsSnap};
-  if(existing.rider)data.rider=existing.rider; // preserve rider config
+  if(existing.rider)data.rider=existing.rider;
   CUR_SHOW.stage_data=data;
   clearTimeout(saveStageTimer);
   saveStageTimer=setTimeout(async()=>{
     await sb.from('shows').update({stage_data:data}).eq('id',CUR_SHOW.id);
   },1000);
 }
-function saveSite(){saveStage();}
+async function saveSite(){
+  if(!CUR_SHOW)return;
+  if(userPlan()==='studio' && CUR_SCENES.site){
+    const siteData={site:SitePlan.getData()};
+    await _saveScene('site',siteData);
+    return;
+  }
+  saveStage();
+}
 
 
 
@@ -5557,8 +5740,16 @@ const SynPro = (() => {
     if (saveTimer) clearTimeout(saveTimer);
     await _save();
   }
+  var _activeSceneId = null; // set by setSceneId() for Studio multi-scene
   async function _save() {
     if (!CUR_SHOW || !state) return;
+    /* Studio : save to show_scenes table */
+    if (_activeSceneId && typeof _saveScene === 'function') {
+      await _saveScene('syno', state);
+      _lsClear();
+      _setSaveStatus('saved');
+      return;
+    }
     CUR_SHOW.synoptique_data = state;
     try {
       const { error } = await sb.from('shows').update({ synoptique_data: state }).eq('id', CUR_SHOW.id);
@@ -5581,8 +5772,16 @@ const SynPro = (() => {
       _setSaveStatus('error');
     }
   }
+  var _injectedSceneData = null; // data to load from scene (Studio)
   function _load() {
     if (!CUR_SHOW) return false;
+    /* Studio : use injected scene data if available */
+    if (_injectedSceneData !== null) {
+      var sd = _injectedSceneData;
+      _injectedSceneData = null;
+      state = (sd && sd.v === 1) ? sd : _defaultState();
+      return true;
+    }
     var saved = CUR_SHOW.synoptique_data;
     /* Parse JSON string if needed (Supabase may return string or object) */
     if (typeof saved === 'string') {
@@ -6977,7 +7176,9 @@ const SynPro = (() => {
     document.addEventListener('visibilitychange', function(){ if (document.hidden) _saveNow(); });
   }
 
-  return { init, show, render, resetLoaded, isLoaded, getData, cancelCable, _saveNow, buildExportSvg: _buildExportSvg };
+  function setSceneId(id){ _activeSceneId = id||null; }
+  function setSceneData(data){ _injectedSceneData = data||null; }
+  return { init, show, render, resetLoaded, isLoaded, getData, cancelCable, _saveNow, buildExportSvg: _buildExportSvg, setSceneId, setSceneData };
 })();
 
 window.SynPro = SynPro;
