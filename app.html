@@ -2263,7 +2263,7 @@ const sb=supabase.createClient(SB_URL,SB_KEY);
 // STATE
 // ══════════════════════════════════════
 let ME=null, PROFILE=null;
-let SHOWS=[], CUR_SHOW=null, SHOW_MEMBERS_MAP={}, SHOW_OWNERS_CACHE={};
+let SHOWS=[], CUR_SHOW=null, SHOW_MEMBERS_MAP={}, SHOW_OWNERS_CACHE={}, SHOW_STORAGE_MAP={};
 let CHS=[];
 let IL_PATCHES=[{id:'main',name:'Patch 1',pos:0}];
 let CUR_PATCH_ID='main';
@@ -2450,6 +2450,7 @@ async function loadShows(){
   await loadAllShowMembers();
   renderSPShows();
   renderSessions();
+  loadShowStorage(); // async, non-bloquant
   if(SHOWS.length>0){
     /* Restore last active show — fallback to first if not found / no longer accessible */
     let targetId=SHOWS[0].id;
@@ -2468,6 +2469,51 @@ async function loadShows(){
       goTab(lastTab,null);
     }
   }catch(e){}
+}
+
+/* Calcule la taille de stockage de chaque show en arrière-plan */
+async function loadShowStorage(){
+  SHOW_STORAGE_MAP={};
+  if(!SHOWS.length || !canDo('storage')) return;
+  await Promise.all(SHOWS.map(async function(s){
+    try{
+      // Liste récursive des fichiers du show
+      const {data}=await sb.storage.from('show-files').list(s.id+'/',{limit:1000,offset:0});
+      if(!data) return;
+      // Calculer la taille totale (les dossiers n'ont pas de size)
+      let total=0;
+      // Pour chaque dossier, lister son contenu
+      const files=data.filter(f=>f.metadata?.size);
+      files.forEach(f=>{ total+=f.metadata.size||0; });
+      // Récursion shallow (1 niveau) pour les sous-dossiers
+      const folders=data.filter(f=>!f.metadata?.size);
+      await Promise.all(folders.map(async function(folder){
+        const {data:sub}=await sb.storage.from('show-files').list(s.id+'/'+folder.name+'/',{limit:1000});
+        if(sub) sub.filter(f=>f.metadata?.size).forEach(f=>{ total+=f.metadata.size||0; });
+      }));
+      SHOW_STORAGE_MAP[s.id]=total;
+    }catch(e){}
+  }));
+  // Re-render les cards pour afficher les tailles
+  renderSessions();
+}
+
+/* Quitter un show où on est invité */
+async function leaveShow(showId,e){
+  if(e) e.stopPropagation();
+  const s=SHOWS.find(x=>x.id===showId);
+  if(!confirm('Quitter le show "'+( s?.name||'ce show')+'" ?\nVous perdrez l\'accès à ce show.')) return;
+  const {error}=await sb.from('show_members').delete().eq('show_id',showId).eq('user_id',ME.id);
+  if(error){toast('Erreur : '+error.message);return;}
+  // Retirer le show de la liste locale
+  SHOWS=SHOWS.filter(x=>x.id!==showId);
+  if(CUR_SHOW?.id===showId){
+    if(SHOWS.length>0) await switchShow(SHOWS[0].id);
+    else await newShowDefault();
+  }
+  renderSPShows();
+  renderSessions();
+  toast('✓ Vous avez quitté le show.');
 }
 
 async function loadAllShowMembers(){
@@ -9253,6 +9299,7 @@ function renderSessions(){
           (s.show_date?'<span class="sess-tag"><i class="ti ti-calendar" style="font-size:9px"></i>'+_e(s.show_date)+'</span>':'')+
           '<span class="sess-tag'+(isActive?' active':'')+'"><i class="ti ti-list" style="font-size:9px"></i>'+chCount+' canaux</span>'+
           '<span class="sess-tag"><i class="ti ti-users" style="font-size:9px"></i>'+totalMembers+' membre'+(totalMembers!==1?'s':'')+'</span>'+
+          (SHOW_STORAGE_MAP[s.id]?'<span class="sess-tag"><i class="ti ti-cloud" style="font-size:9px"></i>'+_fmtSize(SHOW_STORAGE_MAP[s.id])+'</span>':'')+
           (!isOwn?'<span class="sess-tag" style="border-color:rgba(26,143,255,.3);color:var(--blu2)"><i class="ti ti-share" style="font-size:9px"></i>Partagé</span>':'')+
         '</div>'+
         '<div class="sess-members-row">'+renderMembersRow(s)+'</div>'+
@@ -9261,6 +9308,7 @@ function renderSessions(){
         '<button class="sess-open-btn" onclick="event.stopPropagation();sessionSwitch(\''+s.id+'\')">'+(isActive?'<i class="ti ti-check"></i> Actif':'Ouvrir')+'</button>'+
         (isOwn?'<button class="sess-icon-btn" onclick="event.stopPropagation();editShowMeta(\''+s.id+'\')" title="Modifier"><i class="ti ti-pencil"></i></button>':'')+
         (isOwn?'<button class="sess-icon-btn danger" onclick="event.stopPropagation();delShow(\''+s.id+'\')" title="Supprimer"><i class="ti ti-trash"></i></button>':'')+
+        (!isOwn?'<button class="sess-icon-btn" onclick="leaveShow(\''+s.id+'\',event)" title="Quitter ce show" style="color:var(--muted)" onmouseover="this.style.color=\'var(--err)\';this.style.borderColor=\'rgba(255,77,106,.3)\'" onmouseout="this.style.color=\'var(--muted)\';this.style.borderColor=\'\'"><i class="ti ti-door-exit"></i></button>':'')+
       '</div>'+
     '</div>';
   }
