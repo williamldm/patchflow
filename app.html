@@ -717,7 +717,10 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .tc{background:var(--surf);border:1px solid var(--bdr2);border-radius:11px;padding:14px;transition:border-color .18s}
 .tc:hover{border-color:var(--bdr3)}
 .tc-head{display:flex;align-items:center;gap:10px;margin-bottom:9px}
-.tc-av{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0}
+.tc-av{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;overflow:hidden}
+.tc-av img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block}
+.user-av{overflow:hidden}
+.user-av img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block}
 .tc-name{font-size:13px;font-weight:600}.tc-role{font-size:10px;color:var(--muted);font-family:var(--m);margin-top:1px}
 .tc-perms{display:flex;flex-wrap:wrap;gap:4px}
 .tc-status{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted);margin-top:9px;border-top:1px solid var(--bdr);padding-top:9px}
@@ -1008,7 +1011,15 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 /* profile modal */
 .profile-box{width:520px;max-width:96vw}
 .prof-avatar-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;padding:20px 0 4px}
-.prof-avatar{width:72px;height:72px;border-radius:50%;background:var(--ora);color:#000;font-size:26px;font-weight:800;font-family:var(--m);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.prof-avatar{width:72px;height:72px;border-radius:50%;background:var(--ora);color:#000;font-size:26px;font-weight:800;font-family:var(--m);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;position:relative;cursor:pointer;transition:filter .15s}
+.prof-avatar:hover{filter:brightness(.75)}
+.prof-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block}
+.prof-avatar-camera{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s;font-size:20px;color:#fff}
+.prof-avatar:hover .prof-avatar-camera{opacity:1}
+/* Plan ring on any avatar — wraps the element */
+.av-ring{display:inline-flex;border-radius:50%;padding:2px;flex-shrink:0}
+.av-ring.pro   {background:conic-gradient(#ff4d6a,#ff6b1a,#ff4d6a)}
+.av-ring.studio{background:conic-gradient(#9b6aff,#c084fc,#9b6aff)}
 .prof-email-lbl{font-size:11px;color:var(--muted);font-family:var(--m)}
 .prof-section{border-top:1px solid var(--bdr);margin-top:16px;padding-top:14px}
 .prof-section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:6px}
@@ -2040,7 +2051,13 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 
       <!-- Avatar + email -->
       <div class="prof-avatar-wrap">
-        <div class="prof-avatar" id="p-avatar">??</div>
+        <div id="p-avatar-ring">
+          <div class="prof-avatar" id="p-avatar" onclick="document.getElementById('avatar-file-input').click()" title="Changer la photo">
+            <span id="p-avatar-init">??</span>
+            <div class="prof-avatar-camera"><i class="ti ti-camera"></i></div>
+          </div>
+        </div>
+        <input type="file" id="avatar-file-input" accept="image/*" style="display:none" onchange="uploadAvatar(this)"/>
         <div style="text-align:center">
           <div style="font-size:13px;font-weight:700;color:var(--txt)" id="p-display-name">—</div>
           <div class="prof-email-lbl" id="p-display-email">—</div>
@@ -2463,10 +2480,9 @@ async function loadProfile(){
   }
   PROFILE=data||{id:ME.id,full_name:ME.email,role:'FOH Engineer'};
   if(!PROFILE.plan) console.warn('[PatchFlow] plan manquant — verifiez la colonne plan dans Supabase profiles.');
-  const init=(PROFILE.full_name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-  document.getElementById('u-av').textContent=init;
   document.getElementById('u-name').textContent=PROFILE.full_name||ME.email;
   document.getElementById('u-email').textContent=ME.email;
+  _refreshAllAvatars();
   _refreshPlanBadge();
   // Pre-fill PDF meta with profile
   document.getElementById('pdf-eng').value=PROFILE.full_name||'';
@@ -2519,7 +2535,7 @@ async function loadAllShowMembers(){
   SHOW_MEMBERS_MAP={};
   if(!SHOWS.length) return;
   const ids=SHOWS.map(function(s){return s.id;});
-  const {data}=await sb.from('show_members').select('*,profiles(full_name,email,role,plan)').in('show_id',ids);
+  const {data}=await sb.from('show_members').select('*,profiles(full_name,email,role,plan,avatar_url)').in('show_id',ids);
   (data||[]).forEach(function(m){
     if(!SHOW_MEMBERS_MAP[m.show_id])SHOW_MEMBERS_MAP[m.show_id]=[];
     SHOW_MEMBERS_MAP[m.show_id].push(m);
@@ -3558,7 +3574,7 @@ if(!navigator.onLine){_showOfflineBanner();}
 // ══════════════════════════════════════
 async function loadMembers(){
   const grid=document.getElementById('team-grid');
-  const {data,error}=await sb.from('show_members').select('*,profiles(full_name,email,role,plan)').eq('show_id',CUR_SHOW.id);
+  const {data,error}=await sb.from('show_members').select('*,profiles(full_name,email,role,plan,avatar_url)').eq('show_id',CUR_SHOW.id);
   if(error)console.error('members error:',error);
   const members=(error?[]:data)||[];
   SHOW_MEMBERS_MAP[CUR_SHOW.id]=members;
@@ -3568,7 +3584,10 @@ async function loadMembers(){
   const _es=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   const planPill=p=>{const labels={free:'Gratuit',pro:'Pro',studio:'Studio'};return `<span class="plan-badge-pill ${_es(p||'free')}">${_es(labels[p||'free']||p||'free')}</span>`;};
   const roleBadge=r=>{const l=ROLE_LABELS[r]||r;const c=ROLE_COLORS[r]||'var(--muted)';return `<span style="background:${c}18;color:${c};border:1px solid ${c}44;border-radius:5px;font-size:9px;padding:2px 7px;font-family:var(--m);text-transform:uppercase;letter-spacing:.5px">${_es(l)}</span>`;};
-  const mkAv=(name,bg,col)=>`<div class="tc-av" style="background:${bg};color:${col}">${_es(name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase())}</div>`;
+  const mkAv=(name,bg,col,avatarUrl,plan)=>{
+    const inner=_avHtml(name,avatarUrl,plan,38,bg,col);
+    return `<div class="tc-av" style="background:transparent">${inner}</div>`;
+  };
 
   const isOwner = CUR_SHOW?.owner_id === ME?.id;
   let html='';
@@ -3576,21 +3595,23 @@ async function loadMembers(){
   if(isOwner){
     /* Current user IS the owner — show them first */
     const ownerName=PROFILE?.full_name||ME.email;
-    html=`<div class="tc"><div class="tc-head">${mkAv(ownerName,'var(--ora-d)','var(--ora)')}<div><div class="tc-name">${_es(ownerName)}</div><div class="tc-role" style="font-size:9px;color:var(--muted)">${_es(ME.email)}</div></div></div><div class="tc-perms">${roleBadge('admin')}<span class="tag t-ora">Propriétaire</span>${planPill(PROFILE?.plan)}</div><div class="tc-status"><span class="on-dot"></span>En ligne · toi</div></div>`;
+    html=`<div class="tc"><div class="tc-head">${mkAv(ownerName,'var(--ora-d)','var(--ora)',PROFILE?.avatar_url,PROFILE?.plan)}<div><div class="tc-name">${_es(ownerName)}</div><div class="tc-role" style="font-size:9px;color:var(--muted)">${_es(ME.email)}</div></div></div><div class="tc-perms">${roleBadge('admin')}<span class="tag t-ora">Propriétaire</span>${planPill(PROFILE?.plan)}</div><div class="tc-status"><span class="on-dot"></span>En ligne · toi</div></div>`;
   } else {
     /* Current user is a member — fetch actual owner's profile first */
-    const {data:ownerProf}=await sb.from('profiles').select('full_name,email,plan').eq('id',CUR_SHOW.owner_id).maybeSingle();
+    const {data:ownerProf}=await sb.from('profiles').select('full_name,email,plan,avatar_url').eq('id',CUR_SHOW.owner_id).maybeSingle();
     const ownerName=ownerProf?.full_name||ownerProf?.email||'Propriétaire';
-    html=`<div class="tc"><div class="tc-head">${mkAv(ownerName,'var(--ora-d)','var(--ora)')}<div><div class="tc-name">${_es(ownerName)}</div><div class="tc-role" style="font-size:9px;color:var(--muted)">${_es(ownerProf?.email||'')}</div></div></div><div class="tc-perms">${roleBadge('admin')}<span class="tag t-ora">Propriétaire</span>${planPill(ownerProf?.plan)}</div><div class="tc-status"><span class="off-dot"></span>Owner</div></div>`;
+    html=`<div class="tc"><div class="tc-head">${mkAv(ownerName,'var(--ora-d)','var(--ora)',ownerProf?.avatar_url,ownerProf?.plan)}<div><div class="tc-name">${_es(ownerName)}</div><div class="tc-role" style="font-size:9px;color:var(--muted)">${_es(ownerProf?.email||'')}</div></div></div><div class="tc-perms">${roleBadge('admin')}<span class="tag t-ora">Propriétaire</span>${planPill(ownerProf?.plan)}</div><div class="tc-status"><span class="off-dot"></span>Owner</div></div>`;
   }
 
   members.forEach((m,i)=>{
     const isSelf = m.user_id === ME?.id;
     const n=m.profiles?.full_name||m.profiles?.email||'Membre';
     const ci=(i+1)%COLS.length;
+    const mPlan=isSelf?PROFILE?.plan:m.profiles?.plan;
+    const mAvatar=isSelf?PROFILE?.avatar_url:m.profiles?.avatar_url;
     const delBtn=isOwner&&!isSelf?`<button onclick="removeMember('${_es(m.id)}')" title="Retirer du show" style="margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 5px;border-radius:4px;transition:color .15s" onmouseover="this.style.color='var(--err)'" onmouseout="this.style.color='var(--muted)'"><i class="ti ti-user-minus"></i></button>`:'';
     const status=isSelf?`<span class="on-dot"></span>En ligne · toi`:`<span class="off-dot"></span>Membre`;
-    html+=`<div class="tc"><div class="tc-head">${mkAv(n,COLS[ci],TC[ci])}<div><div class="tc-name">${_es(n)}</div><div class="tc-role" style="font-size:9px;color:var(--muted)">${_es(m.profiles?.email||'')}</div></div>${delBtn}</div><div class="tc-perms">${roleBadge(m.role||'editor')}${planPill(isSelf?PROFILE?.plan:m.profiles?.plan)}</div><div class="tc-status">${status}</div></div>`;
+    html+=`<div class="tc"><div class="tc-head">${mkAv(n,COLS[ci],TC[ci],mAvatar,mPlan)}<div><div class="tc-name">${_es(n)}</div><div class="tc-role" style="font-size:9px;color:var(--muted)">${_es(m.profiles?.email||'')}</div></div>${delBtn}</div><div class="tc-perms">${roleBadge(m.role||'editor')}${planPill(mPlan)}</div><div class="tc-status">${status}</div></div>`;
   });
 
   grid.innerHTML=html;grid.className='team-grid';
@@ -9748,6 +9769,89 @@ async function delUserTpl(id){
 // ══════════════════════════════════════
 // PROFILE
 // ══════════════════════════════════════
+/* ── Avatar helpers ── */
+function _planRingClass(plan){ return plan==='studio'?'studio':plan==='pro'?'pro':''; }
+
+/* Renders a single avatar element: photo or initials, with optional plan ring */
+function _avHtml(name, avatarUrl, plan, sizePx, bgColor, textColor){
+  const sz=sizePx||38;
+  const ring=_planRingClass(plan);
+  const fs=Math.round(sz*0.37);
+  const init=(name||'?').split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
+  const inner=avatarUrl
+    ? `<img src="${avatarUrl}" style="width:${sz}px;height:${sz}px;object-fit:cover;border-radius:50%;display:block" onerror="this.style.display='none';this.nextSibling.style.display='flex'">`
+      +`<span style="display:none;width:${sz}px;height:${sz}px;border-radius:50%;background:${bgColor||'var(--surf3)'};color:${textColor||'var(--txt)'};font-size:${fs}px;font-weight:700;align-items:center;justify-content:center;flex-shrink:0">${init}</span>`
+    : `<span style="display:flex;width:${sz}px;height:${sz}px;border-radius:50%;background:${bgColor||'var(--surf3)'};color:${textColor||'var(--txt)'};font-size:${fs}px;font-weight:700;align-items:center;justify-content:center;flex-shrink:0">${init}</span>`;
+  if(!ring) return `<div style="display:inline-flex;flex-shrink:0">${inner}</div>`;
+  return `<div class="av-ring ${ring}" style="display:inline-flex;flex-shrink:0;border-radius:50%"><div style="background:var(--surf);border-radius:50%;padding:2px">${inner}</div></div>`;
+}
+
+/* Update all avatar displays in the UI */
+function _refreshAllAvatars(){
+  const url=PROFILE?.avatar_url||'';
+  const plan=PROFILE?.plan||'free';
+  const name=PROFILE?.full_name||ME?.email||'?';
+  const init=name.split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
+  // Topbar
+  const uav=document.getElementById('u-av');
+  if(uav){
+    if(url){ uav.innerHTML=`<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" onerror="this.style.display='none'">`;
+    } else { uav.textContent=init; }
+  }
+  // Profile modal avatar
+  const pav=document.getElementById('p-avatar');
+  if(pav){
+    const img=pav.querySelector('img');
+    const sp=document.getElementById('p-avatar-init');
+    if(url){
+      if(!img){const i=document.createElement('img');i.src=url;i.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:50%;display:block';pav.insertBefore(i,pav.firstChild);}
+      else{img.src=url;}
+      if(sp)sp.style.display='none';
+    } else {
+      if(img)img.remove();
+      if(sp){sp.style.display='';sp.textContent=init;}
+    }
+    // Ring on wrapper
+    const ring=_planRingClass(plan);
+    const wrapper=document.getElementById('p-avatar-ring');
+    if(wrapper){
+      wrapper.className=ring?`av-ring ${ring}`:'';
+      wrapper.style.cssText=ring?'display:inline-flex;border-radius:50%':'';
+    }
+  }
+}
+
+async function uploadAvatar(input){
+  const file=input.files[0];if(!file)return;
+  if(file.size>5*1024*1024){toast('Image trop grande (max 5 Mo).');return;}
+  // Compress to canvas ≤ 400px
+  const img=new Image();
+  const reader=new FileReader();
+  reader.onload=function(e){
+    img.onload=async function(){
+      const MAX=400;
+      const scale=Math.min(1,MAX/Math.max(img.width,img.height));
+      const cv=document.createElement('canvas');
+      cv.width=Math.round(img.width*scale);cv.height=Math.round(img.height*scale);
+      cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+      cv.toBlob(async function(blob){
+        const path=ME.id+'/avatar.jpg';
+        const {error:upErr}=await sb.storage.from('avatars').upload(path,blob,{contentType:'image/jpeg',upsert:true});
+        if(upErr){toast('Erreur upload : '+upErr.message);return;}
+        const {data:urlData}=sb.storage.from('avatars').getPublicUrl(path);
+        const publicUrl=urlData?.publicUrl+'?t='+Date.now();
+        await sb.from('profiles').update({avatar_url:publicUrl}).eq('id',ME.id);
+        PROFILE.avatar_url=publicUrl;
+        _refreshAllAvatars();
+        toast('✓ Photo mise à jour.');
+      },'image/jpeg',0.82);
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+  input.value='';
+}
+
 function openProfile(){
   closeUD();
   // Infos
@@ -9758,7 +9862,8 @@ function openProfile(){
   // Avatar + display
   const name=PROFILE?.full_name||ME?.email||'?';
   const init=name.split(' ').map(function(w){return w[0];}).join('').slice(0,2).toUpperCase();
-  document.getElementById('p-avatar').textContent=init;
+  document.getElementById('p-avatar-init').textContent=init;
+  _refreshAllAvatars();
   document.getElementById('p-display-name').textContent=name;
   document.getElementById('p-display-email').textContent=ME?.email||'';
   // Reset champs sécurité
@@ -9782,11 +9887,9 @@ async function saveProfile(){
   var {error}=await sb.from('profiles').update(u).eq('id',ME.id);
   if(error){_profMsg('p-info-msg','Erreur : '+error.message,true);return;}
   PROFILE={...PROFILE,...u};
-  const init=u.full_name.split(' ').map(function(w){return w[0];}).join('').slice(0,2).toUpperCase();
-  document.getElementById('u-av').textContent=init;
   document.getElementById('u-name').textContent=u.full_name;
-  document.getElementById('p-avatar').textContent=init;
   document.getElementById('p-display-name').textContent=u.full_name;
+  _refreshAllAvatars();
   _profMsg('p-info-msg','✓ Profil mis a jour','');
 }
 async function changeEmail(){
