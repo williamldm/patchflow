@@ -2486,7 +2486,10 @@ const SCENE_LABELS={syno:'Synoptique',stage:'Plan de scène',site:'Plan de site'
 async function loadScenes(showId){
   SHOW_SCENES={syno:[],stage:[],site:[]};
   CUR_SCENES={syno:null,stage:null,site:null};
-  if(userPlan()!=='studio') return; // Studio uniquement
+  if(userPlan()!=='studio'){
+    _renderAllSceneTabs(); // Afficher l'aperçu verrouillé pour non-Studio
+    return;
+  }
   const {data,error}=await sb.from('show_scenes').select('*').eq('show_id',showId).order('position');
   if(error){console.error('loadScenes:',error);return;}
   (data||[]).forEach(function(s){
@@ -2508,10 +2511,22 @@ function _renderSceneTabs(type){
   const elId='scene-tabs-'+type;
   const el=document.getElementById(elId);
   if(!el) return;
-  const scenes=SHOW_SCENES[type]||[];
   const isStudio=userPlan()==='studio';
-  if(!isStudio){el.classList.add('hidden');return;}
   el.classList.remove('hidden');
+
+  if(!isStudio){
+    /* Non-Studio : afficher un aperçu verrouillé */
+    el.innerHTML=`
+      <div class="il-ptab active" style="opacity:.5;cursor:default">Scène 1</div>
+      <div class="il-ptab" style="opacity:.35;cursor:default">Scène 2</div>
+      <button class="il-ptab-add" onclick="showUpgradeModal('multi_patches')" title="Plusieurs scènes — Studio uniquement" style="position:relative">+</button>
+      <span onclick="showUpgradeModal('multi_patches')" style="display:inline-flex;align-items:center;gap:5px;font-size:10px;font-family:var(--m);color:#c084fc;background:rgba(155,106,255,.12);border:1px solid rgba(155,106,255,.3);border-radius:6px;padding:3px 9px;cursor:pointer;white-space:nowrap" title="Disponible avec le plan Studio">
+        <i class="ti ti-lock" style="font-size:11px"></i>Studio
+      </span>`;
+    return;
+  }
+
+  const scenes=SHOW_SCENES[type]||[];
   el.innerHTML=scenes.map(function(s){
     const active=s.id===CUR_SCENES[type];
     return `<div class="il-ptab${active?' active':''}" onclick="switchScene('${type}','${s.id}')" ondblclick="renameScene('${type}','${s.id}')" title="Double-clic pour renommer">
