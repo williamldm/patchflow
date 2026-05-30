@@ -240,8 +240,9 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .mob-plan-bar{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surf);border-bottom:1px solid var(--bdr2);flex-shrink:0}
 .mob-plan-title{font-size:13px;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mob-plan-hint{font-size:9.5px;font-family:var(--m);color:var(--muted);letter-spacing:.5px;background:var(--surf3);border:1px solid var(--bdr2);border-radius:5px;padding:3px 7px;white-space:nowrap}
-.mob-plan-scroll{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y pinch-zoom;position:relative;display:flex;align-items:flex-start;justify-content:flex-start}
-.mob-plan-scroll svg,.mob-plan-scroll img{display:block;max-width:none;user-select:none;-webkit-user-drag:none}
+.mob-plan-scroll{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y pinch-zoom;position:relative;background:var(--bg)}
+.mob-plan-scroll img{display:block;max-width:none;user-select:none;-webkit-user-drag:none;cursor:grab}
+.mob-plan-scroll img:active{cursor:grabbing}
 .mob-plan-foot{padding:8px 14px;font-size:10px;color:var(--muted);font-family:var(--m);text-align:center;border-top:1px solid var(--bdr);flex-shrink:0;background:var(--surf)}
 .mob-plan-loading{flex:1;display:flex;align-items:center;justify-content:center;gap:10px;color:var(--muted);font-size:13px}
 
@@ -8416,8 +8417,10 @@ function setPlanMode(mode,save=true){
   if(expBtn)expBtn.style.display=mode==='site'?'':'none';
   const pdfBtn=document.getElementById('btn-site-pdf');
   if(pdfBtn)pdfBtn.style.display=mode==='site'?'':'none';
-  if(_isMobile()){ _showMobilePlanView(mode); } // re-render mobile view when mode changes
-  else if(mode==='scene') setTimeout(()=>BandPlan.fitView(),50);
+  /* Re-render mobile view only if stage panel is currently visible */
+  if(_isMobile() && document.getElementById('panel-stage')?.classList.contains('on')){
+    _showMobilePlanView(mode);
+  } else if(!_isMobile() && mode==='scene') setTimeout(()=>BandPlan.fitView(),50);
   if(save)saveStage();
 }
 
@@ -9483,8 +9486,14 @@ const SitePlan = (() => {
     if(state.elements.length===0 && !state.bgImage){ alert('Plan vide — rien a exporter'); return; }
     _makeCanvas(cb);
   }
+  function exportCanvasSafe(cb) {
+    /* Comme exportCanvas mais sans alert — pour l'usage interne (vue mobile) */
+    if(state.elements.length===0 && !state.bgImage){ cb(null); return; }
+    _makeCanvas(cb);
+  }
+  function hasContent(){ return state && (state.elements.length > 0 || !!state.bgImage); }
 
-  return {init,load,getData,loadBg,setBgOpacity,clearBg,clear,zoom,setZoomPct,fitView,resetView,selectCable,exportPng,exportCanvas,setActiveCableType,toggleCableMode,setTextScale,setLegendScale,deleteCustomCableType,addCustomCableType:function(t){if(!CABLE_TYPES.find(function(x){return x.id===t.id;})){CABLE_TYPES.push(t);_saveCustomCableTypes();renderCablePicker();}}};
+  return {init,load,getData,loadBg,setBgOpacity,clearBg,clear,zoom,setZoomPct,fitView,resetView,selectCable,exportPng,exportCanvas,exportCanvasSafe,hasContent,setActiveCableType,toggleCableMode,setTextScale,setLegendScale,deleteCustomCableType,addCustomCableType:function(t){if(!CABLE_TYPES.find(function(x){return x.id===t.id;})){CABLE_TYPES.push(t);_saveCustomCableTypes();renderCablePicker();}}};
 })();
 
 // ══════════════════════════════════════
@@ -10752,65 +10761,96 @@ function _hideMobilePlanView(type){
   if(ov) ov.classList.add('hidden');
 }
 
+function _mobEmptyState(icon, label){
+  return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;min-height:200px;padding:40px;color:var(--muted);text-align:center">
+    <i class="ti ${icon}" style="font-size:48px;opacity:.25"></i>
+    <div style="font-size:13px">${label}</div>
+    <div style="font-size:11px;font-family:var(--m);color:var(--muted2)">Créez du contenu sur ordinateur pour le visualiser ici</div>
+  </div>`;
+}
+
+function _mobImgFromCanvas(cv, scroll){
+  const w = Math.max(_MOB_PLAN_W, cv.width);
+  const img = new Image();
+  img.src = cv.toDataURL('image/png');
+  img.style.cssText = 'width:'+w+'px;height:auto;display:block;touch-action:none;user-select:none';
+  scroll.innerHTML = '';
+  scroll.appendChild(img);
+}
+
 async function _showMobilePlanView(type){
-  /* type : 'syno' | 'stage' | 'site' */
   const isSyno = type==='syno';
-  const ovId   = isSyno ? 'mob-syno-ov' : 'mob-stage-ov';
-  const scrollId= isSyno ? 'mob-syno-scroll' : 'mob-stage-scroll';
-  const titleId = isSyno ? 'mob-syno-title' : 'mob-stage-title';
-  const ov     = document.getElementById(ovId);
-  const scroll = document.getElementById(scrollId);
-  if(!ov||!scroll) return;
+  const ovId    = isSyno ? 'mob-syno-ov' : 'mob-stage-ov';
+  const scrollId = isSyno ? 'mob-syno-scroll' : 'mob-stage-scroll';
+  const ov      = document.getElementById(ovId);
+  const scroll  = document.getElementById(scrollId);
+  if(!ov || !scroll) return;
   ov.classList.remove('hidden');
 
   /* Update title & icon for stage/site */
   if(!isSyno){
-    const icon=document.getElementById('mob-stage-icon');
-    const pdfBtn=document.getElementById('mob-stage-pdf-btn');
+    const icon   = document.getElementById('mob-stage-icon');
+    const pdfBtn = document.getElementById('mob-stage-pdf-btn');
     if(type==='site'){
-      if(icon) icon.className='ti ti-map-2';
-      document.getElementById('mob-stage-title').textContent='Plan de site';
-      if(pdfBtn) pdfBtn.setAttribute('onclick',"openPDFModal('site')");
+      if(icon) icon.className = 'ti ti-map-2';
+      document.getElementById('mob-stage-title').textContent = 'Plan de site';
+      if(pdfBtn) pdfBtn.setAttribute('onclick', "openPDFModal('site')");
     } else {
-      if(icon) icon.className='ti ti-layout-board';
-      document.getElementById('mob-stage-title').textContent='Plan de scène';
-      if(pdfBtn) pdfBtn.setAttribute('onclick',"openPDFModal('stage')");
+      if(icon) icon.className = 'ti ti-layout-board';
+      document.getElementById('mob-stage-title').textContent = 'Plan de scène';
+      if(pdfBtn) pdfBtn.setAttribute('onclick', "openPDFModal('stage')");
     }
   }
 
-  /* Show loading */
-  scroll.innerHTML='<div class="mob-plan-loading"><div class="spinner"></div>Génération…</div>';
+  scroll.innerHTML = '<div class="mob-plan-loading"><div class="spinner"></div>Génération…</div>';
 
   try {
     if(isSyno){
-      /* Synoptique → inline SVG */
-      if(!SynPro.isLoaded()){ SynPro.show(); await new Promise(r=>setTimeout(r,100)); }
-      const ex = SynPro.buildExportSvg();
-      if(!ex||!ex.svg){ scroll.innerHTML='<div class="mob-plan-loading" style="flex-direction:column;gap:12px"><i class="ti ti-topology-star" style="font-size:32px;opacity:.3"></i><span>Synoptique vide</span></div>'; return; }
-      /* Set a minimum width so the SVG is readable */
-      const svgStr = ex.svg.replace('<svg ', `<svg style="min-width:${Math.max(_MOB_PLAN_W,ex.w)}px;height:auto" `);
-      scroll.innerHTML = svgStr;
+      /* Synoptique → SVG converti en <img> via Blob URL pour le pinch-zoom natif */
+      if(!SynPro.isLoaded()){ SynPro.show(); await new Promise(r=>setTimeout(r,150)); }
+      let ex;
+      try { ex = SynPro.buildExportSvg(); } catch(e){ ex = null; }
+      if(!ex || !ex.svg || !SynPro.getData()?.nodes?.length){
+        scroll.innerHTML = _mobEmptyState('ti-topology-star', 'Synoptique vide');
+        return;
+      }
+      /* Blob URL → img : pinch-zoom via overflow fonctionne correctement */
+      const blob = new Blob([ex.svg], {type:'image/svg+xml;charset=utf-8'});
+      const url  = URL.createObjectURL(blob);
+      const img  = new Image();
+      img.onload = function(){
+        const w = Math.max(_MOB_PLAN_W, ex.w || 1200);
+        img.style.cssText = 'width:'+w+'px;height:auto;display:block;touch-action:none;user-select:none';
+        scroll.innerHTML = '';
+        scroll.appendChild(img);
+        /* Libérer l'URL après usage */
+        setTimeout(()=>URL.revokeObjectURL(url), 5000);
+      };
+      img.onerror = function(){
+        scroll.innerHTML = _mobEmptyState('ti-topology-star', 'Erreur de rendu');
+      };
+      img.src = url;
+
     } else if(type==='stage'){
-      /* Plan de scène → canvas PNG */
-      if(!BandPlan.getData().els.length){ scroll.innerHTML='<div class="mob-plan-loading" style="flex-direction:column;gap:12px"><i class="ti ti-layout-board" style="font-size:32px;opacity:.3"></i><span>Plan vide</span></div>'; return; }
-      await new Promise((resolve)=>{
-        _makeBpCanvas(function(cv){
-          const img=new Image(); img.src=cv.toDataURL('image/png');
-          img.style.cssText='min-width:'+Math.max(_MOB_PLAN_W,cv.width)+'px;height:auto;display:block';
-          scroll.innerHTML=''; scroll.appendChild(img);
-          resolve();
-        });
-      });
+      if(!BandPlan.getData().els.length){
+        scroll.innerHTML = _mobEmptyState('ti-layout-board', 'Plan de scène vide');
+        return;
+      }
+      _makeBpCanvas(function(cv){ _mobImgFromCanvas(cv, scroll); });
+
     } else {
-      /* Plan de site → canvas PNG */
-      SitePlan.exportCanvas(function(cv){
-        const img=new Image(); img.src=cv.toDataURL('image/png');
-        img.style.cssText='min-width:'+Math.max(_MOB_PLAN_W,cv.width)+'px;height:auto;display:block';
-        scroll.innerHTML=''; scroll.appendChild(img);
+      /* Plan de site — utiliser exportCanvasSafe (pas d'alert) */
+      if(!SitePlan.hasContent()){
+        scroll.innerHTML = _mobEmptyState('ti-map-2', 'Plan de site vide');
+        return;
+      }
+      SitePlan.exportCanvasSafe(function(cv){
+        if(!cv){ scroll.innerHTML = _mobEmptyState('ti-map-2', 'Plan de site vide'); return; }
+        _mobImgFromCanvas(cv, scroll);
       });
     }
   } catch(e){
-    scroll.innerHTML='<div class="mob-plan-loading">Erreur : '+e.message+'</div>';
+    scroll.innerHTML = '<div class="mob-plan-loading">Erreur : '+e.message+'</div>';
   }
 }
 function toggleUD(){document.getElementById('user-dd').classList.toggle('show');}
