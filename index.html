@@ -105,13 +105,27 @@ h2 em{font-style:normal;color:var(--ora)}
 .cmp-row.head .cmp-cell{padding:18px 20px;font-weight:700}
 .cmp-cell{padding:15px 20px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:9px;font-size:13.5px}
 .cmp-row:last-child .cmp-cell{border-bottom:none}
+.cmp-cell-lbl{display:none}
 .cmp-feat{color:var(--txt2);font-weight:500}
 .cmp-old{color:var(--muted);border-left:1px solid var(--bdr)}
 .cmp-pf{color:var(--txt);border-left:1px solid rgba(255,107,26,.25);background:rgba(255,107,26,.04);font-weight:600}
 .cmp-row.head .cmp-pf{background:rgba(255,107,26,.1)}
 .cmp-yes{color:var(--grn)}.cmp-no{color:#ff4d6a;opacity:.7}
 .cmp-pf-badge{display:inline-flex;align-items:center;gap:6px;color:var(--ora)}
-@media(max-width:620px){.cmp-cell{font-size:11.5px;padding:12px 12px;gap:6px}.cmp-row.head .cmp-cell{padding:14px 12px}}
+@media(max-width:620px){
+  /* Comparison table → card layout */
+  .cmp-wrap{border-radius:14px;background:transparent;border:none;display:flex;flex-direction:column;gap:14px}
+  .cmp-row.head{display:none}
+  .cmp-row{display:flex;flex-direction:column;background:var(--surf);border:1px solid var(--bdr2);border-radius:14px;overflow:hidden}
+  .cmp-cell{padding:11px 16px;border-bottom:1px solid var(--bdr);font-size:13px;display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center}
+  .cmp-row:last-child .cmp-cell{border-bottom:1px solid var(--bdr)}
+  .cmp-row .cmp-cell:last-child{border-bottom:none}
+  .cmp-cell-lbl{display:inline-block;font-family:var(--m);font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:700;min-width:74px;padding-right:8px;border-right:1px solid var(--bdr)}
+  .cmp-cell.cmp-feat{background:rgba(255,107,26,.05);font-weight:600;color:var(--txt);font-size:13.5px;padding:14px 16px;grid-template-columns:1fr}
+  .cmp-cell.cmp-feat .cmp-cell-lbl{display:none}
+  .cmp-cell.cmp-pf{background:rgba(255,107,26,.04)}
+  .cmp-cell.cmp-old{color:var(--txt2)}
+}
 
 /* ── FEATURES INTERACTIVE ── */
 .feat-shell{display:grid;grid-template-columns:300px 1fr;gap:0;margin-top:64px;border:1px solid var(--bdr2);border-radius:18px;overflow:hidden;min-height:520px;background:var(--surf)}
@@ -369,8 +383,9 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
   .hero-badge{font-size:9.5px}
   .pain-card{padding:20px 18px}
   .pain-card-icon{font-size:28px}
-  .cmp-cell{font-size:11px;padding:10px 8px;gap:4px}
-  .cmp-row.head .cmp-cell{padding:12px 8px;font-size:10px}
+  .cmp-cell{font-size:12.5px;padding:10px 14px}
+  .cmp-cell.cmp-feat{padding:12px 14px}
+  .cmp-cell-lbl{min-width:64px;font-size:9px;padding-right:6px}
   .plan-card{padding:26px 20px}
   .plan-features li{font-size:12.5px}
   .plan-promo{padding:8px 10px;font-size:11px}
@@ -1287,43 +1302,43 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
     </div>
     <div class="cmp-row">
       <div class="cmp-cell cmp-feat">Input list, plan de scène & synoptique</div>
-      <div class="cmp-cell cmp-old">3 fichiers séparés</div>
-      <div class="cmp-cell cmp-pf"><i class="ti ti-check cmp-yes"></i>Un seul projet</div>
+      <div class="cmp-cell cmp-old"><span class="cmp-cell-lbl">Avant</span>3 fichiers séparés</div>
+      <div class="cmp-cell cmp-pf"><span class="cmp-cell-lbl">PatchFlow</span><i class="ti ti-check cmp-yes"></i>Un seul projet</div>
     </div>
     <div class="cmp-row">
       <div class="cmp-cell cmp-feat">Mise à jour pour toute l'équipe</div>
-      <div class="cmp-cell cmp-old"><i class="ti ti-x cmp-no"></i>Renvoyer le fichier</div>
-      <div class="cmp-cell cmp-pf"><i class="ti ti-check cmp-yes"></i>Temps réel, automatique</div>
+      <div class="cmp-cell cmp-old"><span class="cmp-cell-lbl">Avant</span><i class="ti ti-x cmp-no"></i>Renvoyer le fichier</div>
+      <div class="cmp-cell cmp-pf"><span class="cmp-cell-lbl">PatchFlow</span><i class="ti ti-check cmp-yes"></i>Temps réel, automatique</div>
     </div>
     <div class="cmp-row">
       <div class="cmp-cell cmp-feat">Partage au groupe / backline</div>
-      <div class="cmp-cell cmp-old"><i class="ti ti-x cmp-no"></i>Pièce jointe figée</div>
-      <div class="cmp-cell cmp-pf"><i class="ti ti-check cmp-yes"></i>Un lien, vue mobile</div>
+      <div class="cmp-cell cmp-old"><span class="cmp-cell-lbl">Avant</span><i class="ti ti-x cmp-no"></i>Pièce jointe figée</div>
+      <div class="cmp-cell cmp-pf"><span class="cmp-cell-lbl">PatchFlow</span><i class="ti ti-check cmp-yes"></i>Un lien, vue mobile</div>
     </div>
     <div class="cmp-row">
       <div class="cmp-cell cmp-feat">Réutiliser un patch existant</div>
-      <div class="cmp-cell cmp-old">Copier-coller hasardeux</div>
-      <div class="cmp-cell cmp-pf"><i class="ti ti-check cmp-yes"></i>Templates en 1 clic</div>
+      <div class="cmp-cell cmp-old"><span class="cmp-cell-lbl">Avant</span>Copier-coller hasardeux</div>
+      <div class="cmp-cell cmp-pf"><span class="cmp-cell-lbl">PatchFlow</span><i class="ti ti-check cmp-yes"></i>Templates en 1 clic</div>
     </div>
     <div class="cmp-row">
       <div class="cmp-cell cmp-feat">Plan de scène & site visuels</div>
-      <div class="cmp-cell cmp-old"><i class="ti ti-x cmp-no"></i>À refaire sur Illustrator</div>
-      <div class="cmp-cell cmp-pf"><i class="ti ti-check cmp-yes"></i>Drag & drop intégré</div>
+      <div class="cmp-cell cmp-old"><span class="cmp-cell-lbl">Avant</span><i class="ti ti-x cmp-no"></i>À refaire sur Illustrator</div>
+      <div class="cmp-cell cmp-pf"><span class="cmp-cell-lbl">PatchFlow</span><i class="ti ti-check cmp-yes"></i>Drag & drop intégré</div>
     </div>
     <div class="cmp-row">
       <div class="cmp-cell cmp-feat">Export PDF pro prêt à envoyer</div>
-      <div class="cmp-cell cmp-old">Mise en page manuelle</div>
-      <div class="cmp-cell cmp-pf"><i class="ti ti-check cmp-yes"></i>PDF / PNG / SVG instantané</div>
+      <div class="cmp-cell cmp-old"><span class="cmp-cell-lbl">Avant</span>Mise en page manuelle</div>
+      <div class="cmp-cell cmp-pf"><span class="cmp-cell-lbl">PatchFlow</span><i class="ti ti-check cmp-yes"></i>PDF / PNG / SVG instantané</div>
     </div>
     <div class="cmp-row">
       <div class="cmp-cell cmp-feat">Recap micros & pieds</div>
-      <div class="cmp-cell cmp-old"><i class="ti ti-x cmp-no"></i>Comptage à la main</div>
-      <div class="cmp-cell cmp-pf"><i class="ti ti-check cmp-yes"></i>Calculé automatiquement</div>
+      <div class="cmp-cell cmp-old"><span class="cmp-cell-lbl">Avant</span><i class="ti ti-x cmp-no"></i>Comptage à la main</div>
+      <div class="cmp-cell cmp-pf"><span class="cmp-cell-lbl">PatchFlow</span><i class="ti ti-check cmp-yes"></i>Calculé automatiquement</div>
     </div>
     <div class="cmp-row">
       <div class="cmp-cell cmp-feat">Riders, show files & fichiers son</div>
-      <div class="cmp-cell cmp-old">Dropbox à part, dossiers en vrac</div>
-      <div class="cmp-cell cmp-pf"><i class="ti ti-check cmp-yes"></i>Cloud rangé dans chaque show</div>
+      <div class="cmp-cell cmp-old"><span class="cmp-cell-lbl">Avant</span>Dropbox à part, dossiers en vrac</div>
+      <div class="cmp-cell cmp-pf"><span class="cmp-cell-lbl">PatchFlow</span><i class="ti ti-check cmp-yes"></i>Cloud rangé dans chaque show</div>
     </div>
   </div>
   <div style="text-align:center;margin-top:36px">
@@ -1378,7 +1393,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
 
   <div class="promo-banner fade-up">
     <i class="ti ti-gift"></i>
-    <span><b>Offre de lancement</b> &mdash; vos 2 premiers mois <b>&minus;50&nbsp;%</b> sur Pro et <b>&minus;70&nbsp;%</b> sur Studio. Sans engagement.</span>
+    <span><b>Offre saison d'été</b> &mdash; vos 2 premiers mois <b>&minus;50&nbsp;%</b> sur Pro et <b>&minus;70&nbsp;%</b> sur Studio. Sans engagement.</span>
   </div>
 
   <div class="pricing-grid">
