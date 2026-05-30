@@ -3522,7 +3522,7 @@ if(!navigator.onLine){_showOfflineBanner();}
 async function loadMembers(){
   const grid=document.getElementById('team-grid');
   const {data,error}=await sb.from('show_members').select('*,profiles(full_name,email,role,plan,avatar_url)').eq('show_id',CUR_SHOW.id);
-  if(error)console.error('members error:',error);
+  if(error){console.error('members error:',error);toast('Erreur membres : '+error.message);}
   const members=(error?[]:data)||[];
   SHOW_MEMBERS_MAP[CUR_SHOW.id]=members;
 
