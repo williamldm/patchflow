@@ -237,14 +237,19 @@ body{display:flex;flex-direction:column;min-height:100vh}
 /* ── Mobile plan viewer ── */
 .mob-plan-ov{position:absolute;inset:0;z-index:80;display:flex;flex-direction:column;background:var(--bg2)}
 .mob-plan-ov.hidden{display:none}
-.mob-plan-bar{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surf);border-bottom:1px solid var(--bdr2);flex-shrink:0}
+.mob-plan-bar{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surf);border-bottom:1px solid var(--bdr2);flex-shrink:0}
 .mob-plan-title{font-size:13px;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mob-plan-hint{font-size:9.5px;font-family:var(--m);color:var(--muted);letter-spacing:.5px;background:var(--surf3);border:1px solid var(--bdr2);border-radius:5px;padding:3px 7px;white-space:nowrap}
-.mob-plan-scroll{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y pinch-zoom;position:relative;background:var(--bg)}
-.mob-plan-scroll img{display:block;max-width:none;user-select:none;-webkit-user-drag:none;cursor:grab}
-.mob-plan-scroll img:active{cursor:grabbing}
-.mob-plan-foot{padding:8px 14px;font-size:10px;color:var(--muted);font-family:var(--m);text-align:center;border-top:1px solid var(--bdr);flex-shrink:0;background:var(--surf)}
-.mob-plan-loading{flex:1;display:flex;align-items:center;justify-content:center;gap:10px;color:var(--muted);font-size:13px}
+.mob-plan-hint{font-size:9.5px;font-family:var(--m);color:var(--muted);letter-spacing:.5px;background:var(--surf3);border:1px solid var(--bdr2);border-radius:5px;padding:3px 7px;white-space:nowrap;flex-shrink:0}
+/* Canvas de navigation — overflow hidden, le zoom/pan est géré via transform JS */
+.mob-plan-canvas{flex:1;overflow:hidden;position:relative;background:var(--bg);touch-action:none;cursor:grab}
+.mob-plan-canvas:active{cursor:grabbing}
+.mob-plan-canvas .mob-img{position:absolute;top:0;left:0;transform-origin:0 0;user-select:none;-webkit-user-drag:none;display:block;image-rendering:auto}
+/* Zoom HUD */
+.mob-zoom-hud{position:absolute;bottom:12px;right:12px;display:flex;flex-direction:column;gap:4px;z-index:10}
+.mob-zoom-btn{width:38px;height:38px;border-radius:50%;background:rgba(15,22,37,.85);border:1px solid var(--bdr2);color:var(--txt);font-size:19px;display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(8px);box-shadow:0 2px 12px rgba(0,0,0,.5)}
+.mob-zoom-btn:active{background:var(--ora);color:#000}
+.mob-plan-foot{padding:7px 14px;font-size:10px;color:var(--muted);font-family:var(--m);text-align:center;border-top:1px solid var(--bdr);flex-shrink:0;background:var(--surf)}
+.mob-plan-loading{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:48px 24px;color:var(--muted);font-size:13px;position:absolute;inset:0}
 
 /* ── IL patch tabs + Scene tabs (shared style) ── */
 .il-patch-tabs{display:flex;align-items:center;gap:5px;margin-bottom:10px;flex-wrap:wrap}
@@ -1377,10 +1382,15 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
           <span class="mob-plan-hint"><i class="ti ti-lock" style="font-size:9px"></i> Lecture</span>
           <button class="btn ghost sm" onclick="openPDFModal('syno')" style="font-size:10px;padding:5px 9px;flex-shrink:0"><i class="ti ti-file-type-pdf"></i>PDF</button>
         </div>
-        <div class="mob-plan-scroll" id="mob-syno-scroll">
+        <div class="mob-plan-canvas" id="mob-syno-scroll">
           <div class="mob-plan-loading"><div class="spinner"></div>Génération…</div>
+          <div class="mob-zoom-hud">
+            <button class="mob-zoom-btn" onclick="_mobZoom('mob-syno-scroll',1.35)"><i class="ti ti-plus"></i></button>
+            <button class="mob-zoom-btn" onclick="_mobZoomFit('mob-syno-scroll')" style="font-size:15px"><i class="ti ti-arrows-maximize"></i></button>
+            <button class="mob-zoom-btn" onclick="_mobZoom('mob-syno-scroll',0.74)"><i class="ti ti-minus"></i></button>
+          </div>
         </div>
-        <div class="mob-plan-foot">↔ Faites glisser · Pincez pour zoomer · Éditez sur ordinateur</div>
+        <div class="mob-plan-foot">Glissez pour naviguer · Pincez pour zoomer</div>
       </div>
       <div class="sp-app">
         <div class="sp-toolbar pbar" style="margin:0">
@@ -1503,10 +1513,15 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
           <span class="mob-plan-hint"><i class="ti ti-lock" style="font-size:9px"></i> Lecture</span>
           <button class="btn ghost sm" id="mob-stage-pdf-btn" onclick="openPDFModal('stage')" style="font-size:10px;padding:5px 9px;flex-shrink:0"><i class="ti ti-file-type-pdf"></i>PDF</button>
         </div>
-        <div class="mob-plan-scroll" id="mob-stage-scroll">
+        <div class="mob-plan-canvas" id="mob-stage-scroll">
           <div class="mob-plan-loading"><div class="spinner"></div>Génération…</div>
+          <div class="mob-zoom-hud">
+            <button class="mob-zoom-btn" onclick="_mobZoom('mob-stage-scroll',1.35)"><i class="ti ti-plus"></i></button>
+            <button class="mob-zoom-btn" onclick="_mobZoomFit('mob-stage-scroll')" style="font-size:15px"><i class="ti ti-arrows-maximize"></i></button>
+            <button class="mob-zoom-btn" onclick="_mobZoom('mob-stage-scroll',0.74)"><i class="ti ti-minus"></i></button>
+          </div>
         </div>
-        <div class="mob-plan-foot">↔ Faites glisser · Pincez pour zoomer · Éditez sur ordinateur</div>
+        <div class="mob-plan-foot">Glissez pour naviguer · Pincez pour zoomer</div>
       </div>
       <div class="pbar" style="margin:0;padding:10px 14px;border-bottom:1px solid var(--bdr2);flex-shrink:0;background:var(--surf);flex-wrap:nowrap">
         <span class="ptitle"><i class="ti ti-map-2" style="color:var(--ora)"></i>Plans<span class="ptitle-sep">/</span><span id="sn-stage" style="color:var(--txt2)">…</span></span>
@@ -10761,6 +10776,101 @@ function _hideMobilePlanView(type){
   if(ov) ov.classList.add('hidden');
 }
 
+/* ── Moteur pinch-zoom + pan pour vues mobiles ── */
+const _mobZoomState = {};
+
+function _mobApplyTransform(cid){
+  const s=_mobZoomState[cid]; if(!s)return;
+  const img=document.querySelector('#'+cid+' .mob-img');
+  if(img) img.style.transform='translate('+s.tx+'px,'+s.ty+'px) scale('+s.scale+')';
+}
+function _mobFitToCanvas(cid,iw,ih){
+  const canvas=document.getElementById(cid); if(!canvas||!iw||!ih)return;
+  const cw=canvas.clientWidth, ch=canvas.clientHeight;
+  const scale=Math.min(cw/iw, ch/ih, 1);
+  _mobZoomState[cid]={scale, tx:(cw-iw*scale)/2, ty:(ch-ih*scale)/2, iw, ih};
+  _mobApplyTransform(cid);
+}
+function _mobZoom(cid,factor){
+  const s=_mobZoomState[cid]; if(!s)return;
+  const canvas=document.getElementById(cid); if(!canvas)return;
+  const cx=canvas.clientWidth/2, cy=canvas.clientHeight/2;
+  const ns=Math.max(0.1,Math.min(10,s.scale*factor));
+  const r=ns/s.scale;
+  s.tx=cx-r*(cx-s.tx); s.ty=cy-r*(cy-s.ty); s.scale=ns;
+  _mobApplyTransform(cid);
+}
+function _mobZoomFit(cid){
+  const s=_mobZoomState[cid]; if(!s)return;
+  _mobFitToCanvas(cid,s.iw,s.ih);
+}
+function _mobInitGestures(cid){
+  const canvas=document.getElementById(cid); if(!canvas)return;
+  let t0=null,t1=null,startScale=1,startTx=0,startTy=0,startDist=0,startMidX=0,startMidY=0,lastTap=0;
+  const D=(a,b)=>Math.hypot(b.clientX-a.clientX,b.clientY-a.clientY);
+  canvas.addEventListener('touchstart',function(e){
+    const ts=Array.from(e.touches);
+    const s=_mobZoomState[cid]; if(!s)return;
+    if(ts.length===1){t0=ts[0];t1=null;startTx=s.tx;startTy=s.ty;}
+    else if(ts.length>=2){
+      t0=ts[0];t1=ts[1];startDist=D(t0,t1);startScale=s.scale;startTx=s.tx;startTy=s.ty;
+      const r=canvas.getBoundingClientRect();
+      startMidX=(t0.clientX+t1.clientX)/2-r.left;
+      startMidY=(t0.clientY+t1.clientY)/2-r.top;
+    }
+    e.preventDefault();
+  },{passive:false});
+  canvas.addEventListener('touchmove',function(e){
+    const ts=Array.from(e.touches);
+    const s=_mobZoomState[cid]; if(!s)return;
+    if(ts.length===1&&t0&&!t1){
+      s.tx=startTx+(ts[0].clientX-t0.clientX);
+      s.ty=startTy+(ts[0].clientY-t0.clientY);
+    } else if(ts.length>=2&&t0&&t1){
+      const d=D(ts[0],ts[1]);
+      const ns=Math.max(0.1,Math.min(10,startScale*d/startDist));
+      const ratio=ns/startScale;
+      s.tx=startMidX-ratio*(startMidX-startTx);
+      s.ty=startMidY-ratio*(startMidY-startTy);
+      s.scale=ns;
+    }
+    _mobApplyTransform(cid);
+    e.preventDefault();
+  },{passive:false});
+  canvas.addEventListener('touchend',function(e){
+    const ts=Array.from(e.touches);
+    const now=Date.now();
+    if(now-lastTap<280){_mobZoomFit(cid);}
+    lastTap=now;
+    if(ts.length===0){t0=null;t1=null;}
+    else if(ts.length===1){
+      const s=_mobZoomState[cid]; if(!s)return;
+      t0=ts[0];t1=null;startTx=s.tx;startTy=s.ty;
+    }
+  });
+}
+function _mobSetImage(cid, img){
+  const canvas=document.getElementById(cid); if(!canvas)return;
+  img.className='mob-img';
+  img.style.cssText='position:absolute;top:0;left:0;transform-origin:0 0;user-select:none;-webkit-user-drag:none;display:block;max-width:none';
+  const old=canvas.querySelector('.mob-img'); if(old)old.remove();
+  canvas.appendChild(img);
+  const doFit=()=>_mobFitToCanvas(cid,img.naturalWidth,img.naturalHeight);
+  if(img.naturalWidth) doFit(); else img.onload=doFit;
+  _mobInitGestures(cid);
+}
+function _mobClearCanvas(cid){
+  const canvas=document.getElementById(cid); if(!canvas)return;
+  const old=canvas.querySelector('.mob-img'); if(old)old.remove();
+  canvas.insertAdjacentHTML('afterbegin','<div class="mob-plan-loading"><div class="spinner"></div>Génération…</div>');
+}
+function _mobShowEmpty(cid,icon,label){
+  const canvas=document.getElementById(cid); if(!canvas)return;
+  const old=canvas.querySelector('.mob-img'); if(old)old.remove();
+  const ld=canvas.querySelector('.mob-plan-loading'); if(ld)ld.remove();
+  canvas.insertAdjacentHTML('afterbegin',`<div class="mob-plan-loading" style="flex-direction:column;gap:12px"><i class="ti ${icon}" style="font-size:40px;opacity:.25"></i><div>${label}</div><div style="font-size:10px;font-family:var(--m);color:var(--muted2)">Créez du contenu sur ordinateur</div></div>`);
+}
+
 function _mobEmptyState(icon, label){
   return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;min-height:200px;padding:40px;color:var(--muted);text-align:center">
     <i class="ti ${icon}" style="font-size:48px;opacity:.25"></i>
@@ -10769,22 +10879,12 @@ function _mobEmptyState(icon, label){
   </div>`;
 }
 
-function _mobImgFromCanvas(cv, scroll){
-  const w = Math.max(_MOB_PLAN_W, cv.width);
-  const img = new Image();
-  img.src = cv.toDataURL('image/png');
-  img.style.cssText = 'width:'+w+'px;height:auto;display:block;touch-action:none;user-select:none';
-  scroll.innerHTML = '';
-  scroll.appendChild(img);
-}
-
 async function _showMobilePlanView(type){
   const isSyno = type==='syno';
   const ovId    = isSyno ? 'mob-syno-ov' : 'mob-stage-ov';
-  const scrollId = isSyno ? 'mob-syno-scroll' : 'mob-stage-scroll';
+  const cid     = isSyno ? 'mob-syno-scroll' : 'mob-stage-scroll';
   const ov      = document.getElementById(ovId);
-  const scroll  = document.getElementById(scrollId);
-  if(!ov || !scroll) return;
+  if(!ov) return;
   ov.classList.remove('hidden');
 
   /* Update title & icon for stage/site */
@@ -10802,55 +10902,39 @@ async function _showMobilePlanView(type){
     }
   }
 
-  scroll.innerHTML = '<div class="mob-plan-loading"><div class="spinner"></div>Génération…</div>';
+  _mobClearCanvas(cid);
 
   try {
     if(isSyno){
-      /* Synoptique → SVG converti en <img> via Blob URL pour le pinch-zoom natif */
       if(!SynPro.isLoaded()){ SynPro.show(); await new Promise(r=>setTimeout(r,150)); }
       let ex;
       try { ex = SynPro.buildExportSvg(); } catch(e){ ex = null; }
       if(!ex || !ex.svg || !SynPro.getData()?.nodes?.length){
-        scroll.innerHTML = _mobEmptyState('ti-topology-star', 'Synoptique vide');
-        return;
+        _mobShowEmpty(cid,'ti-topology-star','Synoptique vide'); return;
       }
-      /* Blob URL → img : pinch-zoom via overflow fonctionne correctement */
       const blob = new Blob([ex.svg], {type:'image/svg+xml;charset=utf-8'});
       const url  = URL.createObjectURL(blob);
       const img  = new Image();
-      img.onload = function(){
-        const w = Math.max(_MOB_PLAN_W, ex.w || 1200);
-        img.style.cssText = 'width:'+w+'px;height:auto;display:block;touch-action:none;user-select:none';
-        scroll.innerHTML = '';
-        scroll.appendChild(img);
-        /* Libérer l'URL après usage */
-        setTimeout(()=>URL.revokeObjectURL(url), 5000);
-      };
-      img.onerror = function(){
-        scroll.innerHTML = _mobEmptyState('ti-topology-star', 'Erreur de rendu');
-      };
+      img.onerror = ()=>{ _mobShowEmpty(cid,'ti-topology-star','Erreur de rendu'); URL.revokeObjectURL(url); };
+      img.onload  = ()=>{ setTimeout(()=>URL.revokeObjectURL(url),10000); };
       img.src = url;
+      _mobSetImage(cid, img);
 
     } else if(type==='stage'){
-      if(!BandPlan.getData().els.length){
-        scroll.innerHTML = _mobEmptyState('ti-layout-board', 'Plan de scène vide');
-        return;
-      }
-      _makeBpCanvas(function(cv){ _mobImgFromCanvas(cv, scroll); });
+      if(!BandPlan.getData().els.length){ _mobShowEmpty(cid,'ti-layout-board','Plan de scène vide'); return; }
+      _makeBpCanvas(function(cv){
+        const img=new Image(); img.src=cv.toDataURL('image/png'); _mobSetImage(cid,img);
+      });
 
     } else {
-      /* Plan de site — utiliser exportCanvasSafe (pas d'alert) */
-      if(!SitePlan.hasContent()){
-        scroll.innerHTML = _mobEmptyState('ti-map-2', 'Plan de site vide');
-        return;
-      }
+      if(!SitePlan.hasContent()){ _mobShowEmpty(cid,'ti-map-2','Plan de site vide'); return; }
       SitePlan.exportCanvasSafe(function(cv){
-        if(!cv){ scroll.innerHTML = _mobEmptyState('ti-map-2', 'Plan de site vide'); return; }
-        _mobImgFromCanvas(cv, scroll);
+        if(!cv){ _mobShowEmpty(cid,'ti-map-2','Plan de site vide'); return; }
+        const img=new Image(); img.src=cv.toDataURL('image/png'); _mobSetImage(cid,img);
       });
     }
   } catch(e){
-    scroll.innerHTML = '<div class="mob-plan-loading">Erreur : '+e.message+'</div>';
+    _mobShowEmpty(cid,'ti-alert-triangle','Erreur : '+e.message);
   }
 }
 function toggleUD(){document.getElementById('user-dd').classList.toggle('show');}
