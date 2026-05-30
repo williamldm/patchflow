@@ -48,8 +48,11 @@ h1{font-size:clamp(38px,6vw,72px);font-weight:800;line-height:1.08;letter-spacin
 h1 span{background:linear-gradient(135deg,var(--ora),#ff9040);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .hero-sub{font-size:clamp(16px,2vw,20px);color:var(--txt2);max-width:600px;margin:0 auto 40px;font-weight:400;line-height:1.65}
 .hero-ctas{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:20px}
-.hero-reassure{display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:wrap;font-size:13px;color:var(--txt2);font-weight:500;margin-bottom:40px}
+.hero-reassure{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--txt2);font-weight:500;margin-bottom:40px}
+.hero-reassure span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
 .hero-reassure i{font-size:14px}
+.hero-reassure .hr-sep{color:var(--muted);padding:0 2px}
+@media(max-width:600px){.hero-reassure .hr-sep{display:none}}
 .hero-social{display:flex;align-items:center;gap:24px;color:var(--muted);font-size:12px;font-family:var(--m)}
 .hero-social span{display:flex;align-items:center;gap:6px}
 .hero-social strong{color:var(--txt2)}
@@ -275,22 +278,105 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
 .footer-links a:hover{color:var(--txt)}
 .footer-copy{font-size:11px;color:var(--muted);font-family:var(--m)}
 
-/* ── RESPONSIVE ── */
-@media(max-width:900px){
-  .pricing-grid,.how-steps{grid-template-columns:1fr 1fr}
-  .plan-enterprise{grid-template-columns:1fr;gap:24px}
-  .plan-ent-left{grid-template-columns:1fr}
-  .plan-ent-feats{grid-template-columns:1fr 1fr}
-  .plan-ent-right{text-align:left}
-  .plan-card.popular{transform:none}
-  .preview-screen{grid-template-columns:1fr}
-  .preview-sidebar{display:none}
+/* ── Hamburger menu (mobile) ── */
+.nav-burger{display:none;background:transparent;border:1px solid var(--bdr2);border-radius:8px;width:38px;height:38px;align-items:center;justify-content:center;cursor:pointer;color:var(--txt);margin-left:auto}
+.nav-burger:hover{background:var(--surf2)}
+.nav-burger i{font-size:20px}
+.nav-drawer{position:fixed;top:64px;left:0;right:0;background:rgba(8,11,18,.98);backdrop-filter:blur(20px);border-bottom:1px solid var(--bdr);padding:14px 5vw 22px;display:none;flex-direction:column;gap:4px;z-index:99;max-height:calc(100vh - 64px);overflow-y:auto}
+.nav-drawer.open{display:flex}
+.nav-drawer a.drawer-link{color:var(--txt2);text-decoration:none;font-size:15px;font-weight:500;padding:14px 4px;border-bottom:1px solid var(--bdr);transition:color .15s}
+.nav-drawer a.drawer-link:hover{color:var(--ora)}
+.nav-drawer .drawer-cta{display:flex;gap:10px;margin-top:14px;flex-direction:column}
+.nav-drawer .drawer-cta .btn{justify-content:center;padding:14px 20px;font-size:14px}
+
+/* ── RESPONSIVE — 1000px (tablets) ── */
+@media(max-width:1000px){
   nav .nav-links{display:none}
+  nav .nav-cta{display:none}
+  .nav-burger{display:flex}
 }
+
+/* ── RESPONSIVE — 900px ── */
+@media(max-width:900px){
+  section{padding:72px 5vw}
+  .pricing-grid,.how-steps{grid-template-columns:1fr 1fr}
+  .plan-enterprise{grid-template-columns:1fr;gap:24px;padding:28px 24px}
+  .plan-ent-left{grid-template-columns:1fr;gap:20px}
+  .plan-ent-meta{min-width:0}
+  .plan-ent-feats{grid-template-columns:1fr 1fr}
+  .plan-ent-right{text-align:left;min-width:0}
+  .plan-card.popular{transform:none}
+  .preview-screen{grid-template-columns:1fr;min-height:auto}
+  .preview-sidebar{display:none}
+  .hero-preview{margin-top:50px}
+  .testimonials{grid-template-columns:1fr}
+  footer{flex-direction:column;align-items:flex-start;gap:18px;text-align:left}
+  .footer-links{flex-wrap:wrap;gap:16px}
+}
+
+/* ── RESPONSIVE — 720px (mobile landscape / large phones) ── */
+@media(max-width:720px){
+  .pricing-grid{grid-template-columns:1fr}
+  .plan-card{padding:30px 24px}
+  .plan-card.popular{order:-1}
+  .cta-final{padding:60px 24px;margin:0 5vw 60px;border-radius:18px}
+  .promo-banner{padding:14px 18px;font-size:13px;text-align:center}
+  .promo-banner span{font-size:13px}
+  .preview-frame{border-radius:14px}
+  .preview-canvas{padding:12px}
+  .preview-table th,.preview-table td{padding:6px 8px;font-size:10px}
+}
+
+/* ── RESPONSIVE — 600px (phones) ── */
 @media(max-width:600px){
+  .hero{padding:96px 5vw 50px;min-height:auto}
+  h1{letter-spacing:-1px;line-height:1.1;margin-bottom:18px}
+  .hero-sub{font-size:15px;margin-bottom:30px;line-height:1.55}
+  .hero-badge{font-size:10px;padding:5px 12px;letter-spacing:1px;margin-bottom:20px}
+  .hero-ctas{flex-direction:column;width:100%;gap:10px;margin-bottom:18px}
+  .hero-ctas .btn{width:100%;justify-content:center}
+  .btn-xl{padding:15px 24px;font-size:15px}
+  .btn-lg{padding:13px 24px;font-size:14px}
+  .hero-reassure{font-size:11.5px;line-height:1.7;gap:2px;flex-direction:column;align-items:flex-start;text-align:left;padding:0 8px}
+  .hero-reassure i{margin-right:4px}
+  .hero-social{flex-wrap:wrap;justify-content:center;gap:14px;font-size:11px}
+  h2{letter-spacing:-.5px}
+  .section-label{font-size:10px;letter-spacing:1.5px}
+  .section-sub{font-size:14px;line-height:1.6}
   .features-grid{grid-template-columns:1fr}
-  h1{letter-spacing:-1px}
-  .hero-social{flex-wrap:wrap;justify-content:center}
+  .how-steps{grid-template-columns:1fr;gap:14px}
+  .plan-ent-feats{grid-template-columns:1fr}
+  .plan-price .amount{font-size:42px}
+  .testi{padding:22px 20px}
+  .testi-text{font-size:13.5px}
+  .faq-q{padding:16px 18px;font-size:14px}
+  .faq-a{padding:0 18px 16px;font-size:13.5px}
+  .cta-final h2{margin-bottom:14px}
+  .cta-final p{font-size:14.5px;margin-bottom:30px}
+}
+
+/* ── RESPONSIVE — 480px (small phones) ── */
+@media(max-width:480px){
+  nav{padding:0 4vw;height:58px}
+  .nav-logo-icon svg{width:30px;height:30px}
+  .nav-logo-text{font-size:15px}
+  .nav-drawer{top:58px}
+  .hero{padding:84px 4vw 40px}
+  section{padding:56px 4vw}
+  h1{font-size:30px;letter-spacing:-.5px;margin-bottom:14px}
+  h2{font-size:24px}
+  .hero-sub{font-size:14px}
+  .hero-badge{font-size:9.5px}
+  .pain-card{padding:20px 18px}
+  .pain-card-icon{font-size:28px}
+  .cmp-cell{font-size:11px;padding:10px 8px;gap:4px}
+  .cmp-row.head .cmp-cell{padding:12px 8px;font-size:10px}
+  .plan-card{padding:26px 20px}
+  .plan-features li{font-size:12.5px}
+  .plan-promo{padding:8px 10px;font-size:11px}
+  .cta-final{padding:48px 20px;margin:0 4vw 50px;border-radius:16px}
+  .cta-final h2{font-size:24px}
+  footer{padding:30px 4vw}
 }
 
 /* ── ANIMATIONS ── */
@@ -332,7 +418,20 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
     <a class="btn btn-ghost" href="app.html">Se connecter</a>
     <a class="btn btn-ora" href="app.html">Commencer — c'est gratuit</a>
   </div>
+  <button class="nav-burger" id="nav-burger" onclick="document.getElementById('nav-drawer').classList.toggle('open');this.querySelector('i').className=document.getElementById('nav-drawer').classList.contains('open')?'ti ti-x':'ti ti-menu-2'" aria-label="Menu"><i class="ti ti-menu-2"></i></button>
 </nav>
+
+<!-- Mobile drawer -->
+<div class="nav-drawer" id="nav-drawer">
+  <a class="drawer-link" href="#features" onclick="document.getElementById('nav-drawer').classList.remove('open');document.querySelector('#nav-burger i').className='ti ti-menu-2'">Fonctionnalités</a>
+  <a class="drawer-link" href="#how" onclick="document.getElementById('nav-drawer').classList.remove('open');document.querySelector('#nav-burger i').className='ti ti-menu-2'">Comment ça marche</a>
+  <a class="drawer-link" href="#pricing" onclick="document.getElementById('nav-drawer').classList.remove('open');document.querySelector('#nav-burger i').className='ti ti-menu-2'">Tarifs</a>
+  <a class="drawer-link" href="#faq" onclick="document.getElementById('nav-drawer').classList.remove('open');document.querySelector('#nav-burger i').className='ti ti-menu-2'">FAQ</a>
+  <div class="drawer-cta">
+    <a class="btn btn-ghost" href="app.html">Se connecter</a>
+    <a class="btn btn-ora" href="app.html"><i class="ti ti-rocket"></i>Commencer — c'est gratuit</a>
+  </div>
+</div>
 
 <!-- HERO -->
 <section class="hero">
@@ -345,7 +444,13 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
     <a class="btn btn-ora btn-xl" href="app.html"><i class="ti ti-rocket"></i>Créer mon patch gratuitement</a>
     <a class="btn btn-ghost btn-lg" href="#features"><i class="ti ti-play"></i>Voir une démo</a>
   </div>
-  <div class="hero-reassure"><i class="ti ti-circle-check" style="color:var(--grn)"></i> Gratuit, sans carte bancaire &nbsp;·&nbsp; <i class="ti ti-circle-check" style="color:var(--grn)"></i> Prêt en 2 minutes &nbsp;·&nbsp; <i class="ti ti-circle-check" style="color:var(--grn)"></i> Annulable à tout moment</div>
+  <div class="hero-reassure">
+    <span><i class="ti ti-circle-check" style="color:var(--grn)"></i> Gratuit, sans carte bancaire</span>
+    <span class="hr-sep">·</span>
+    <span><i class="ti ti-circle-check" style="color:var(--grn)"></i> Prêt en 2 minutes</span>
+    <span class="hr-sep">·</span>
+    <span><i class="ti ti-circle-check" style="color:var(--grn)"></i> Annulable à tout moment</span>
+  </div>
   <div class="hero-social">
     <span><strong>500+</strong> techniciens</span>
     <span style="color:var(--bdr2)">|</span>
