@@ -436,13 +436,15 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .sp-zoom-hud-btn{width:22px;height:22px;border:none;background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;border-radius:4px;padding:0}
 .sp-zoom-hud-btn:hover{color:var(--ora);background:var(--surf3)}
 /* Export dropdown */
-.sp-export-menu{display:none;position:absolute;top:calc(100% + 5px);right:0;background:var(--surf);border:1px solid var(--bdr2);border-radius:9px;padding:5px;z-index:200;min-width:160px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
-.sp-export-menu.open{display:block}
-.sp-exp-item{width:100%;display:flex;align-items:center;gap:8px;padding:7px 10px;border:none;background:transparent;color:var(--txt2);font-size:12px;border-radius:6px;cursor:pointer;text-align:left;font-family:var(--f)}
-.sp-exp-item:hover{background:var(--surf2);color:var(--txt)}
-.sp-exp-item i{font-size:14px;color:var(--muted)}
-.sp-exp-item:hover i{color:var(--ora)}
-.sp-exp-sep{height:1px;background:var(--bdr2);margin:4px 0}
+/* Export dropdown — partagé entre synoptique, plans et input list */
+.sp-export-menu,.exp-menu{display:none;position:absolute;top:calc(100% + 5px);right:0;background:var(--surf);border:1px solid var(--bdr2);border-radius:9px;padding:5px;z-index:200;min-width:170px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+.sp-export-menu.open,.exp-menu.open{display:block}
+.sp-exp-item,.exp-item{width:100%;display:flex;align-items:center;gap:8px;padding:7px 10px;border:none;background:transparent;color:var(--txt2);font-size:12px;border-radius:6px;cursor:pointer;text-align:left;font-family:var(--f)}
+.sp-exp-item:hover,.exp-item:hover{background:var(--surf2);color:var(--txt)}
+.sp-exp-item i,.exp-item i{font-size:14px;color:var(--muted)}
+.sp-exp-item:hover i,.exp-item:hover i{color:var(--ora)}
+.sp-exp-sep,.exp-sep{height:1px;background:var(--bdr2);margin:4px 0}
+.exp-wrap{position:relative;display:inline-block}
 
 .sp-body{display:grid;grid-template-columns:200px 1fr 240px;gap:10px;flex:1;min-height:0;overflow:hidden;align-items:stretch}
 .sp-palette{background:var(--surf);border:1px solid var(--bdr2);border-radius:11px;display:flex;flex-direction:column;overflow:hidden}
@@ -1329,13 +1331,24 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
             </div>
           </div>
           <button class="btn" style="background:var(--surf2);border-color:var(--bdr2);color:var(--err)" onclick="clearAllRows()"><i class="ti ti-trash"></i>Tout supprimer</button>
-          <button class="btn blu" onclick="exportCSV()"><i class="ti ti-download"></i>CSV</button>
           <input type="file" id="csv-import-input" accept=".csv,.txt" style="display:none" onchange="importCSVLoad(this)">
           <button class="btn" style="background:var(--surf2);border-color:var(--bdr2)" onclick="importCSVClick()"><i class="ti ti-upload"></i>Import CSV</button>
-          <button class="btn ghost" onclick="openPDFModal()"><i class="ti ti-file-type-pdf"></i>PDF</button>
           <button class="btn ghost" onclick="toggleColPanel()" id="col-btn"><i class="ti ti-columns"></i>Colonnes</button>
-          <button class="btn ghost" onclick="copyILShareLink()" title="Copier le lien de partage"><i class="ti ti-link"></i>Lien</button>
-          <button class="btn ghost" onclick="openRecapMatos()" title="Recapitulatif micros et pieds"><i class="ti ti-clipboard-list"></i>Recap</button>
+          <div class="exp-wrap">
+            <button class="btn sm" id="il-exp-btn" onclick="toggleExpMenu('il-exp-menu','il-exp-btn')"><i class="ti ti-file-export"></i>Exporter <i class="ti ti-chevron-down" style="font-size:10px;margin-left:2px"></i></button>
+            <div class="exp-menu" id="il-exp-menu">
+              <button class="exp-item" onclick="exportCSV();closeExpMenu('il-exp-menu')"><i class="ti ti-file-type-csv"></i>Input List CSV</button>
+              <button class="exp-item" onclick="openPDFModal('in');closeExpMenu('il-exp-menu')"><i class="ti ti-file-type-pdf"></i>Input List PDF</button>
+              <div class="exp-sep"></div>
+              <button class="exp-item" onclick="exportOutCSV();closeExpMenu('il-exp-menu')"><i class="ti ti-file-type-csv"></i>Output List CSV</button>
+              <button class="exp-item" onclick="openPDFModal('out');closeExpMenu('il-exp-menu')"><i class="ti ti-file-type-pdf"></i>Output List PDF</button>
+              <div class="exp-sep"></div>
+              <button class="exp-item" onclick="openRecapMatos();closeExpMenu('il-exp-menu')"><i class="ti ti-clipboard-list"></i>Recap matériels</button>
+              <button class="exp-item" onclick="copyILShareLink();closeExpMenu('il-exp-menu')"><i class="ti ti-link"></i>Lien de partage</button>
+              <div class="exp-sep"></div>
+              <button class="exp-item" onclick="window.print();closeExpMenu('il-exp-menu')"><i class="ti ti-printer"></i>Imprimer</button>
+            </div>
+          </div>
         </span>
         <!-- Boutons spécifiques OUT -->
         <span id="il-out-btns" style="display:none">
@@ -1546,12 +1559,24 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
             <button class="pmb on" id="pmb-scene" onclick="setPlanMode('scene')"><i class="ti ti-layout-board"></i> Scène</button>
             <button class="pmb" id="pmb-site" onclick="setPlanMode('site')"><i class="ti ti-map-2"></i> Site</button>
           </div>
-          <button class="btn ghost sm" id="btn-bp-export" style="display:none" onclick="exportBpPng()" title="Exporter PNG"><i class="ti ti-photo-down"></i> PNG</button>
-          <button class="btn ghost sm" id="btn-bp-pdf" style="display:none" onclick="openBpPDF()" title="Exporter PDF"><i class="ti ti-file-type-pdf"></i> PDF</button>
-          <button class="btn ghost sm" id="btn-bp-share" style="display:none" onclick="openBpShare()" title="Lien partage"><i class="ti ti-link"></i> Lien</button>
-          <button class="btn ghost sm" id="btn-site-export" style="display:none" onclick="SitePlan.exportPng()" title="Exporter PNG"><i class="ti ti-photo-down"></i> PNG</button>
-          <button class="btn ghost sm" id="btn-site-pdf" style="display:none" onclick="openSitePDF()" title="Exporter PDF"><i class="ti ti-file-type-pdf"></i> PDF</button>
+          <div class="exp-wrap" id="plan-exp-wrap" style="display:none">
+            <button class="btn sm" id="plan-exp-btn" onclick="toggleExpMenu('plan-exp-menu','plan-exp-btn')"><i class="ti ti-file-export"></i>Exporter <i class="ti ti-chevron-down" style="font-size:10px;margin-left:2px"></i></button>
+            <div class="exp-menu" id="plan-exp-menu">
+              <button class="exp-item" id="plan-exp-png" onclick="_planExpPng();closeExpMenu('plan-exp-menu')"><i class="ti ti-photo"></i>Image PNG</button>
+              <button class="exp-item" id="plan-exp-pdf" onclick="_planExpPdf();closeExpMenu('plan-exp-menu')"><i class="ti ti-file-type-pdf"></i>Document PDF</button>
+              <div class="exp-sep"></div>
+              <button class="exp-item" id="plan-exp-share" onclick="_planExpShare();closeExpMenu('plan-exp-menu')"><i class="ti ti-link"></i>Lien de partage</button>
+              <div class="exp-sep"></div>
+              <button class="exp-item" onclick="window.print();closeExpMenu('plan-exp-menu')"><i class="ti ti-printer"></i>Imprimer</button>
+            </div>
+          </div>
           <button class="btn ghost sm" onclick="clearCurrentPlan()"><i class="ti ti-trash"></i></button>
+          <!-- Legacy IDs kept pour setPlanMode -->
+          <span id="btn-bp-export" style="display:none"></span>
+          <span id="btn-bp-pdf" style="display:none"></span>
+          <span id="btn-bp-share" style="display:none"></span>
+          <span id="btn-site-export" style="display:none"></span>
+          <span id="btn-site-pdf" style="display:none"></span>
         </div>
       </div>
 
@@ -5085,6 +5110,54 @@ function _makeBpCanvas(cb){
   cb(cv);
 }
 
+/* ── Export dropdown helpers — partagés entre toutes les sections ── */
+function toggleExpMenu(menuId, btnId) {
+  const menu = document.getElementById(menuId);
+  if (!menu) return;
+  const isOpen = menu.classList.contains('open');
+  /* Fermer tous les menus ouverts */
+  document.querySelectorAll('.exp-menu.open, .sp-export-menu.open').forEach(function(m){ m.classList.remove('open'); });
+  if (!isOpen) menu.classList.add('open');
+}
+function closeExpMenu(menuId) {
+  const m = document.getElementById(menuId); if(m) m.classList.remove('open');
+}
+/* Fermer au clic outside */
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.exp-wrap') && !e.target.closest('[id="sp-export"]') && !e.target.closest('.sp-export-menu')) {
+    document.querySelectorAll('.exp-menu.open').forEach(function(m){ m.classList.remove('open'); });
+  }
+});
+
+/* Actions export plan (scène ou site selon le mode actif) */
+function _planExpPng() {
+  if (PLAN_MODE === 'site') { SitePlan.exportPng(); }
+  else { exportBpPng(); }
+}
+function _planExpPdf() {
+  if (PLAN_MODE === 'site') { openPDFModal('site'); }
+  else { openPDFModal('stage'); }
+}
+function _planExpShare() {
+  if (PLAN_MODE === 'site') {
+    const url = window.location.origin + window.location.pathname + '?view=' + (CUR_SHOW?.id||'') + '&tab=site';
+    navigator.clipboard.writeText(url).then(function(){ toast('Lien copie !'); }).catch(function(){ toast(url); });
+  } else { openBpShare(); }
+}
+
+/* Mise à jour du bouton export plan quand le mode change */
+function _updatePlanExpWrap() {
+  const wrap = document.getElementById('plan-exp-wrap');
+  if (!wrap) return;
+  wrap.style.display = '';
+  const pngBtn   = document.getElementById('plan-exp-png');
+  const pdfBtn   = document.getElementById('plan-exp-pdf');
+  const shareBtn = document.getElementById('plan-exp-share');
+  if (pngBtn)   pngBtn.firstChild.nextSibling.textContent = PLAN_MODE === 'site' ? 'Plan de site PNG' : 'Plan de scène PNG';
+  if (pdfBtn)   pdfBtn.firstChild.nextSibling.textContent = PLAN_MODE === 'site' ? 'Plan de site PDF' : 'Plan de scène PDF';
+  if (shareBtn) shareBtn.style.display = PLAN_MODE === 'site' ? 'none' : '';
+}
+
 function exportBpPng(){
   if(!BandPlan.getData().els.length){toast('Plan vide — rien a exporter.');return;}
   _makeBpCanvas(cv=>{
@@ -8500,13 +8573,8 @@ function setPlanMode(mode,save=true){
   document.getElementById('plan-site-wrap').style.display=mode==='site'?'':'none';
   document.getElementById('pmb-scene').classList.toggle('on',mode==='scene');
   document.getElementById('pmb-site').classList.toggle('on',mode==='site');
-  document.getElementById('btn-bp-export').style.display=mode==='scene'?'':'none';
-  document.getElementById('btn-bp-pdf').style.display=mode==='scene'?'':'none';
-  document.getElementById('btn-bp-share').style.display=mode==='scene'?'':'none';
-  const expBtn=document.getElementById('btn-site-export');
-  if(expBtn)expBtn.style.display=mode==='site'?'':'none';
-  const pdfBtn=document.getElementById('btn-site-pdf');
-  if(pdfBtn)pdfBtn.style.display=mode==='site'?'':'none';
+  /* Unified export dropdown — update labels/visibility */
+  if(typeof _updatePlanExpWrap==='function') _updatePlanExpWrap();
   /* Re-render mobile view only if stage panel is currently visible */
   if(_isMobile() && document.getElementById('panel-stage')?.classList.contains('on')){
     _showMobilePlanView(mode);
