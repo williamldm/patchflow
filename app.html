@@ -10781,7 +10781,7 @@ async function _openPdfJs(url, container){
     await renderPage(1, 1.3);
 
   } catch(e) {
-    container.innerHTML = '<div class="fich-pdf-loading" style="flex-direction:column;gap:10px"><i class="ti ti-file-broken" style="font-size:36px;opacity:.4"></i><span style="font-size:12px">Impossible d'ouvrir ce PDF<br/><span style="opacity:.6">' + e.message + '</span></span></div>';
+    container.innerHTML = '<div class="fich-pdf-loading" style="flex-direction:column;gap:10px"><i class="ti ti-file-broken" style="font-size:36px;opacity:.4"></i><span style="font-size:12px">Impossible d\'ouvrir ce PDF<br/><span style="opacity:.6">' + e.message + '</span></span></div>';
   }
 }
 
