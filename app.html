@@ -379,9 +379,9 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .fich-file-info{flex:1;min-width:0}
 .fich-file-name{font-size:12px;font-weight:600;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:2px}
 .fich-file-meta{font-size:10px;color:var(--muted);font-family:var(--m)}
-.fich-file-actions{display:flex;align-items:center;gap:3px;flex-shrink:0;opacity:0;transition:opacity .12s}
-.fich-file-card:hover .fich-file-actions{opacity:1}
-.fich-file-btn{background:none;border:none;color:var(--muted);cursor:pointer;width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:all .12s;font-size:14px;padding:0}
+.fich-file-actions{display:flex;align-items:center;gap:3px;flex-shrink:0;opacity:1}
+.fich-file-btn{background:none;border:none;color:var(--muted);cursor:pointer;width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:all .12s;font-size:14px;padding:0}
+.fich-file-btn:hover{color:var(--txt2);background:var(--surf3)}
 .fich-file-btn.dl:hover{color:var(--ora);background:var(--ora-d)}
 .fich-file-btn.del:hover{color:var(--err);background:rgba(255,70,70,.12)}
 .fich-storage-row{display:flex;align-items:center;gap:10px;padding:9px 14px;border-top:1px solid var(--bdr);flex-shrink:0}
@@ -10529,17 +10529,19 @@ async function renameFichier(relPath) {
   const display = _fichDisplayName(filename);
   const dot = display.lastIndexOf('.');
   const base = dot > 0 ? display.slice(0, dot) : display;
-  const ext = dot > 0 ? display.slice(dot) : '';
-  const nv = prompt('Nouveau nom du fichier :', base);
+  const ext  = dot > 0 ? display.slice(dot) : '';
+  const nv = await _promptModal('Renommer le fichier', 'Nouveau nom :', base);
   if (nv === null) return;
   const clean = nv.trim();
   if (!clean || clean === base) return;
+  /* Build paths directly from relPath — no dependency on current _fichPath state */
+  const dir = relPath.includes('/') ? relPath.slice(0, relPath.lastIndexOf('/') + 1) : '';
   const prefix = filename.indexOf('_') > -1 ? filename.slice(0, filename.indexOf('_') + 1) : '';
-  const oldPath = CUR_SHOW.id + '/' + _fichPathStr() + filename;
-  const newPath = CUR_SHOW.id + '/' + _fichPathStr() + prefix + clean + ext;
+  const oldPath = CUR_SHOW.id + '/' + relPath;
+  const newPath = CUR_SHOW.id + '/' + dir + prefix + clean + ext;
   const { error } = await sb.storage.from(FICH_BUCKET).move(oldPath, newPath);
   if (error) { toast('Erreur renommage : ' + error.message); return; }
-  toast('✓ Fichier renommé');
+  toast('Fichier renomme');
   await loadFichiers();
 }
 
@@ -10741,7 +10743,7 @@ async function createFichierFolder() {
 
 async function deleteFichierFolder(folderName) {
   if (!CUR_SHOW) return;
-  if (!confirm('Supprimer le dossier « ' + folderName + ' » et tout son contenu ?')) return;
+  if (!await _confirmModal('Supprimer « ' + folderName + ' » ?', 'Tout le contenu du dossier sera supprimé.')) return;
   const prefix = _fichFullPath(folderName + '/');
   const { data } = await sb.storage.from(FICH_BUCKET).list(prefix);
   const paths = (data || []).map(f => prefix + f.name);
@@ -10753,10 +10755,10 @@ async function deleteFichierFolder(folderName) {
 async function deleteFichier(relPath) {
   if (!CUR_SHOW) return;
   const displayName = _fichDisplayName(relPath.split('/').pop());
-  if (!confirm('Supprimer « ' + displayName + ' » ?')) return;
+  if (!await _confirmModal('Supprimer « ' + displayName + ' » ?', 'Cette action est irréversible.')) return;
   const { error } = await sb.storage.from(FICH_BUCKET).remove([CUR_SHOW.id + '/' + relPath]);
   if (error) { toast('Erreur : ' + error.message); return; }
-  toast('✓ Fichier supprimé');
+  toast('Fichier supprimé');
   await loadFichiers();
 }
 
@@ -11345,6 +11347,51 @@ document.addEventListener('click',e=>{
 // TOAST
 // ══════════════════════════════════════
 let toastT;
+/* ── Modal confirm / prompt (remplacent confirm() et prompt() natifs) ── */
+function _confirmModal(title, sub) {
+  return new Promise(function(resolve) {
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)';
+    ov.innerHTML = '<div style="background:var(--surf);border:1px solid var(--bdr2);border-radius:14px;padding:24px;max-width:380px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.6)">'
+      + '<div style="font-size:15px;font-weight:700;color:var(--txt);margin-bottom:6px">' + _fEsc(title) + '</div>'
+      + (sub ? '<div style="font-size:12px;color:var(--muted);margin-bottom:20px">' + _fEsc(sub) + '</div>' : '<div style="margin-bottom:20px"></div>')
+      + '<div style="display:flex;gap:8px;justify-content:flex-end">'
+      + '<button id="_mc-cancel" style="background:var(--surf2);border:1px solid var(--bdr2);color:var(--txt2);font-size:12px;font-weight:600;padding:8px 16px;border-radius:8px;cursor:pointer;font-family:var(--f)">Annuler</button>'
+      + '<button id="_mc-ok" style="background:#ef4444;border:none;color:#fff;font-size:12px;font-weight:700;padding:8px 16px;border-radius:8px;cursor:pointer;font-family:var(--f)">Supprimer</button>'
+      + '</div></div>';
+    document.body.appendChild(ov);
+    ov.querySelector('#_mc-ok').onclick = function() { document.body.removeChild(ov); resolve(true); };
+    ov.querySelector('#_mc-cancel').onclick = function() { document.body.removeChild(ov); resolve(false); };
+    ov.addEventListener('keydown', function(e) { if(e.key==='Escape'){document.body.removeChild(ov);resolve(false);} });
+  });
+}
+
+function _promptModal(title, label, defaultVal) {
+  return new Promise(function(resolve) {
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)';
+    ov.innerHTML = '<div style="background:var(--surf);border:1px solid var(--bdr2);border-radius:14px;padding:24px;max-width:380px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.6)">'
+      + '<div style="font-size:15px;font-weight:700;color:var(--txt);margin-bottom:16px">' + _fEsc(title) + '</div>'
+      + '<label style="font-size:11px;font-family:var(--m);color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px">' + _fEsc(label) + '</label>'
+      + '<input id="_mp-inp" type="text" value="' + _fEsc(defaultVal||'') + '" style="width:100%;background:var(--surf2);border:1px solid var(--bdr2);color:var(--txt);font-size:13px;padding:9px 12px;border-radius:8px;outline:none;font-family:var(--f);box-sizing:border-box;margin-bottom:16px" />'
+      + '<div style="display:flex;gap:8px;justify-content:flex-end">'
+      + '<button id="_mp-cancel" style="background:var(--surf2);border:1px solid var(--bdr2);color:var(--txt2);font-size:12px;font-weight:600;padding:8px 16px;border-radius:8px;cursor:pointer;font-family:var(--f)">Annuler</button>'
+      + '<button id="_mp-ok" style="background:var(--ora);border:none;color:#000;font-size:12px;font-weight:700;padding:8px 16px;border-radius:8px;cursor:pointer;font-family:var(--f)">Renommer</button>'
+      + '</div></div>';
+    document.body.appendChild(ov);
+    const inp = ov.querySelector('#_mp-inp');
+    inp.focus(); inp.select();
+    const done = function(v) { document.body.removeChild(ov); resolve(v); };
+    ov.querySelector('#_mp-ok').onclick = function() { done(inp.value||null); };
+    ov.querySelector('#_mp-cancel').onclick = function() { done(null); };
+    inp.addEventListener('keydown', function(e) {
+      if(e.key==='Enter'){ done(inp.value||null); }
+      if(e.key==='Escape'){ done(null); }
+    });
+    ov.addEventListener('keydown', function(e) { if(e.key==='Escape'){ done(null); } });
+  });
+}
+
 function toast(msg){
   const el=document.getElementById('toast');el.textContent=msg;
   el.style.transform='translateX(-50%) translateY(0)';el.style.opacity='1';
