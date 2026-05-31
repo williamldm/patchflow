@@ -54,6 +54,15 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .auth-msg.err{background:rgba(255,77,106,.1);border:1px solid rgba(255,77,106,.3);color:var(--err)}
 .auth-msg.ok{background:var(--grn-d);border:1px solid rgba(34,214,160,.3);color:var(--grn)}
 .auth-footer{text-align:center;padding:12px;border-top:1px solid var(--bdr);font-size:9px;color:var(--muted);font-family:var(--m)}
+.auth-sep{display:flex;align-items:center;gap:10px;margin:16px 0;color:var(--muted);font-size:10px;font-family:var(--m)}
+.auth-sep::before,.auth-sep::after{content:'';flex:1;height:1px;background:var(--bdr2)}
+.auth-social-btn{width:100%;background:var(--surf2);border:1px solid var(--bdr2);color:var(--txt);font-size:13px;font-weight:600;padding:10px;border-radius:8px;cursor:pointer;font-family:var(--f);transition:all .15s;display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:8px}
+.auth-social-btn:hover{border-color:var(--bdr3);background:var(--surf3)}
+.auth-social-btn svg{flex-shrink:0}
+.auth-forgot{background:none;border:none;color:var(--muted);font-size:11px;font-family:var(--f);cursor:pointer;padding:0;margin-top:10px;display:block;width:100%;text-align:right;text-decoration:underline;text-underline-offset:2px}
+.auth-forgot:hover{color:var(--ora)}
+.auth-back{background:none;border:none;color:var(--muted);font-size:11px;font-family:var(--f);cursor:pointer;padding:0;margin-top:12px;display:block;width:100%;text-align:center}
+.auth-back:hover{color:var(--txt)}
 
 /* ── APP SHELL ── */
 #app{display:none;flex-direction:column;flex:1;min-height:100vh}
@@ -1161,21 +1170,47 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
           <circle cx="140" cy="140" r="5" fill="#FF6B2B"/>
         </svg>
       </div>
-      <div class="auth-title">Sound<b>Booth</b></div>
-      <div class="auth-sub">Live Sound Patch Manager</div>
+      <div class="auth-title">Patch<b>Flow</b></div>
+      <div class="auth-sub">Par des techniciens, pour des techniciens</div>
     </div>
     <div class="auth-body">
-      <div class="auth-tabs">
+      <!-- Tabs connexion / créer un compte -->
+      <div class="auth-tabs" id="auth-tabs-bar">
         <button class="auth-tab on" id="tab-login" onclick="authTab('login')">Connexion</button>
         <button class="auth-tab" id="tab-reg" onclick="authTab('reg')">Créer un compte</button>
       </div>
       <div class="auth-msg" id="auth-msg"></div>
+
+      <!-- Formulaire connexion -->
       <div id="form-login">
+        <!-- Boutons sociaux -->
+        <button class="auth-social-btn" onclick="doOAuth('google')">
+          <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
+          Continuer avec Google
+        </button>
+        <button class="auth-social-btn" onclick="doOAuth('apple')">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><path d="M12.874 0c.073 1.04-.29 2.073-.952 2.83-.67.77-1.71 1.28-2.73 1.21-.09-1.01.31-2.03.95-2.77C10.79.5 11.87-.01 12.874 0zm3.14 13.08c-.47 1.01-.7 1.46-1.31 2.35-.85 1.24-2.05 2.78-3.54 2.8-1.32.02-1.66-.85-3.45-.84-1.79.01-2.17.86-3.49.84-1.49-.02-2.63-1.4-3.48-2.64C-.3 13.01-.42 9.7.64 8.06c.73-1.12 1.9-1.77 3.02-1.77 1.13 0 1.84.86 3.45.86 1.57 0 2.52-.87 3.79-.87 1 0 2.04.54 2.79 1.48-2.45 1.35-2.05 4.87.33 6.37z"/></svg>
+          Continuer avec Apple
+        </button>
+        <div class="auth-sep">ou</div>
         <div class="auth-field"><label class="auth-lbl">E-mail</label><input class="auth-inp" id="l-email" type="email" placeholder="vous@son.com" autocomplete="email"/></div>
         <div class="auth-field"><label class="auth-lbl">Mot de passe</label><input class="auth-inp" id="l-pwd" type="password" placeholder="••••••••" autocomplete="current-password"/></div>
-        <button class="auth-btn" id="l-btn" onclick="doLogin()">Se connecter</button>
+        <button class="auth-forgot" onclick="authTab('forgot')">Mot de passe oublié ?</button>
+        <button class="auth-btn" id="l-btn" onclick="doLogin()" style="margin-top:12px">Se connecter</button>
       </div>
+
+      <!-- Formulaire inscription -->
       <div id="form-reg" style="display:none">
+        <!-- Boutons sociaux -->
+        <button class="auth-social-btn" onclick="doOAuth('google')">
+          <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
+          S'inscrire avec Google
+        </button>
+        <button class="auth-social-btn" onclick="doOAuth('apple')">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><path d="M12.874 0c.073 1.04-.29 2.073-.952 2.83-.67.77-1.71 1.28-2.73 1.21-.09-1.01.31-2.03.95-2.77C10.79.5 11.87-.01 12.874 0zm3.14 13.08c-.47 1.01-.7 1.46-1.31 2.35-.85 1.24-2.05 2.78-3.54 2.8-1.32.02-1.66-.85-3.45-.84-1.79.01-2.17.86-3.49.84-1.49-.02-2.63-1.4-3.48-2.64C-.3 13.01-.42 9.7.64 8.06c.73-1.12 1.9-1.77 3.02-1.77 1.13 0 1.84.86 3.45.86 1.57 0 2.52-.87 3.79-.87 1 0 2.04.54 2.79 1.48-2.45 1.35-2.05 4.87.33 6.37z"/></svg>
+          S'inscrire avec Apple
+        </button>
+        <div class="auth-sep">ou</div>
         <div class="auth-field"><label class="auth-lbl">Nom complet</label><input class="auth-inp" id="r-name" type="text" placeholder="Jean-Marie Leclerc"/></div>
         <div class="auth-field"><label class="auth-lbl">E-mail</label><input class="auth-inp" id="r-email" type="email" placeholder="vous@son.com"/></div>
         <div class="auth-field"><label class="auth-lbl">Mot de passe</label><input class="auth-inp" id="r-pwd" type="password" placeholder="6 caractères min"/></div>
@@ -1184,8 +1219,16 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
         </div>
         <button class="auth-btn" id="r-btn" onclick="doReg()">Créer mon compte</button>
       </div>
+
+      <!-- Formulaire mot de passe oublié -->
+      <div id="form-forgot" style="display:none">
+        <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6">Saisis ton adresse e-mail — on t'enverra un lien pour réinitialiser ton mot de passe.</p>
+        <div class="auth-field"><label class="auth-lbl">E-mail</label><input class="auth-inp" id="f-email" type="email" placeholder="vous@son.com" autocomplete="email"/></div>
+        <button class="auth-btn" id="f-btn" onclick="doForgot()">Envoyer le lien</button>
+        <button class="auth-back" onclick="authTab('login')">← Retour à la connexion</button>
+      </div>
     </div>
-    <div class="auth-footer">PatchFlow · v3.0</div>
+    <div class="auth-footer">PatchFlow · v3.0 · <a href="https://patchflow.fr" style="color:var(--ora);text-decoration:none">patchflow.fr</a></div>
   </div>
 </div>
 
@@ -2323,9 +2366,39 @@ let prevType='';
 function authTab(t){
   document.getElementById('form-login').style.display=t==='login'?'block':'none';
   document.getElementById('form-reg').style.display=t==='reg'?'block':'none';
-  document.getElementById('tab-login').className='auth-tab'+(t==='login'?' on':'');
-  document.getElementById('tab-reg').className='auth-tab'+(t==='reg'?' on':'');
+  document.getElementById('form-forgot').style.display=t==='forgot'?'block':'none';
+  const tabBar=document.getElementById('auth-tabs-bar');
+  if(tabBar) tabBar.style.display=t==='forgot'?'none':'flex';
+  if(t!=='forgot'){
+    document.getElementById('tab-login').className='auth-tab'+(t==='login'?' on':'');
+    document.getElementById('tab-reg').className='auth-tab'+(t==='reg'?' on':'');
+  }
   authMsg('','');
+}
+
+async function doOAuth(provider){
+  try{
+    const {error}=await sb.auth.signInWithOAuth({
+      provider,
+      options:{ redirectTo: window.location.origin+window.location.pathname }
+    });
+    if(error) authMsg(error.message,'err');
+  }catch(e){ authMsg('Erreur : '+e.message,'err'); }
+}
+
+async function doForgot(){
+  const email=document.getElementById('f-email').value.trim();
+  if(!email){authMsg('Saisis ton adresse e-mail.','err');return;}
+  const btn=document.getElementById('f-btn');
+  btn.disabled=true;btn.textContent='Envoi…';
+  try{
+    const {error}=await sb.auth.resetPasswordForEmail(email,{
+      redirectTo: window.location.origin+window.location.pathname+'?reset=1'
+    });
+    if(error){ authMsg(error.message,'err'); }
+    else{ authMsg('Lien envoyé ! Vérifie ta boîte mail.','ok'); btn.textContent='Envoyé ✓'; return; }
+  }catch(e){ authMsg('Erreur réseau : '+e.message,'err'); }
+  btn.disabled=false; btn.textContent='Envoyer le lien';
 }
 function authMsg(msg,type){
   const el=document.getElementById('auth-msg');
