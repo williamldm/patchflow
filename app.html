@@ -1736,13 +1736,13 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
               <input class="rider-meta-inp" id="rider-info" placeholder="ex: Son FOH: Yamaha CL5 — Mon: Avid SC48">
             </div>
           </div>
-          <!-- Studio : fichiers cloud -->
+          <!-- Pro : fichiers cloud -->
           <div id="rider-files-block">
-            <div class="slink-sep"><i class="ti ti-paperclip" style="font-size:10px"></i>Fichiers joints <span style="font-size:9px;color:#c084fc;font-family:var(--m);margin-left:4px">Studio</span></div>
+            <div class="slink-sep"><i class="ti ti-paperclip" style="font-size:10px"></i>Fichiers joints <span style="font-size:9px;color:var(--ora);font-family:var(--m);margin-left:4px">Pro</span></div>
             <div id="rider-studio-gate" class="rider-studio-gate" style="display:none">
               <i class="ti ti-sparkles"></i>
-              <span>La selection de fichiers est reservee aux abonnes <strong>Studio</strong>.
-                <button onclick="showUpgradeModal('storage')" style="background:none;border:none;color:#c084fc;cursor:pointer;font-size:11px;padding:0 0 0 4px;font-family:var(--f);text-decoration:underline">Passer Studio</button>
+              <span>La selection de fichiers est reservee aux abonnes <strong>Pro</strong>.
+                <button onclick="showUpgradeModal('storage')" style="background:none;border:none;color:var(--ora);cursor:pointer;font-size:11px;padding:0 0 0 4px;font-family:var(--f);text-decoration:underline">Passer Pro</button>
               </span>
             </div>
             <div id="rider-file-list" style="display:none;max-height:180px;overflow-y:auto"></div>
@@ -1924,7 +1924,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
       </div>
       <!-- Sous-titre — utile pour plans visuels -->
       <div id="pdf-sub-row" class="pdf-fld" style="display:none;margin-bottom:10px"><label class="pdf-lbl">Sous-titre / Production</label><input class="pdf-inp" id="pdf-sub" placeholder="Nom de la production, tournée…"/></div>
-      <div id="pdf-free-notice" style="display:none;align-items:center;gap:9px;background:rgba(34,214,160,.06);border:1px solid rgba(34,214,160,.22);border-radius:7px;padding:8px 12px;font-size:11px;color:var(--txt2);margin-bottom:12px"><i class="ti ti-file-type-pdf" style="color:var(--grn);flex-shrink:0;font-size:14px"></i><span>Export simplifié disponible : nom &amp; rôle inclus. <button onclick="closePDF();showUpgradeModal('export_pdf_pro')" style="background:none;border:none;color:var(--ora);cursor:pointer;font-size:11px;padding:0;font-family:var(--f);text-decoration:underline">Passer Pro</button> pour l'export complet (venue, date, révision, notes).</span></div>
+      <div id="pdf-free-notice" style="display:none;align-items:center;gap:9px;background:rgba(255,107,26,.06);border:1px solid rgba(255,107,26,.22);border-radius:7px;padding:8px 12px;font-size:11px;color:var(--txt2);margin-bottom:12px"><i class="ti ti-droplet" style="color:var(--ora);flex-shrink:0;font-size:14px"></i><span>Plan Gratuit : l'export inclut un <strong>léger filigrane</strong> PatchFlow. <button onclick="closePDF();showUpgradeModal('export_pdf_pro')" style="background:none;border:none;color:var(--ora);cursor:pointer;font-size:11px;padding:0;font-family:var(--f);text-decoration:underline">Passer Pro</button> pour un PDF sans filigrane + champs complets.</span></div>
       <div class="pdf-sec"><div class="pdf-sec-title"><i class="ti ti-user" style="color:var(--ora)"></i>Ing&eacute;nieur</div>
         <div class="pdf-grid">
           <div class="pdf-fld"><label class="pdf-lbl">Nom</label><input class="pdf-inp" id="pdf-eng" placeholder="Jean-Marie Leclerc"/></div>
@@ -1944,8 +1944,8 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
       <div class="pdf-sec pdf-pro-fld" id="pdf-notes-sec"><div class="pdf-sec-title"><i class="ti ti-note" style="color:var(--ora)"></i>Notes</div>
         <div class="pdf-fld full"><label class="pdf-lbl">Notes techniques</label><textarea class="pdf-inp" id="pdf-notes" placeholder="Vérifier gain console avant bal…"></textarea></div>
       </div>
-      <!-- Branding Studio -->
-      <div id="pdf-brand-sec" style="display:none"><div class="pdf-sec" style="margin-bottom:0;border-top:1px solid rgba(155,106,255,.2);padding-top:14px"><div class="pdf-sec-title"><i class="ti ti-building" style="color:#c084fc"></i>Branding <span style="font-size:8px;background:rgba(155,106,255,.14);color:#c084fc;padding:2px 7px;border-radius:8px;font-weight:700;margin-left:4px">Studio</span></div>
+      <!-- Branding Pro -->
+      <div id="pdf-brand-sec" style="display:none"><div class="pdf-sec" style="margin-bottom:0;border-top:1px solid var(--ora-g);padding-top:14px"><div class="pdf-sec-title"><i class="ti ti-building" style="color:var(--ora)"></i>Branding <span style="font-size:8px;background:var(--ora-d);color:var(--ora);padding:2px 7px;border-radius:8px;font-weight:700;margin-left:4px">Pro</span></div>
         <div class="pdf-grid c3">
           <div class="pdf-fld">
             <label class="pdf-lbl">Logo</label>
@@ -2543,7 +2543,7 @@ const SCENE_LABELS={syno:'Synoptique',stage:'Plan de scène',site:'Plan de site'
 async function loadScenes(showId){
   SHOW_SCENES={syno:[],stage:[],site:[]};
   CUR_SCENES={syno:null,stage:null,site:null};
-  if(userPlan()!=='studio'){
+  if(!canDo('multi_scenes')){
     _renderAllSceneTabs(); // Afficher l'aperçu verrouillé pour non-Studio
     return;
   }
@@ -2568,7 +2568,7 @@ function _renderSceneTabs(type){
   const elId='scene-tabs-'+type;
   const el=document.getElementById(elId);
   if(!el) return;
-  const isStudio=userPlan()==='studio';
+  const isStudio=canDo('multi_scenes');
   el.classList.remove('hidden');
 
   if(!isStudio){
@@ -2576,9 +2576,9 @@ function _renderSceneTabs(type){
     el.innerHTML=`
       <div class="il-ptab active" style="opacity:.5;cursor:default">Scène 1</div>
       <div class="il-ptab" style="opacity:.35;cursor:default">Scène 2</div>
-      <button class="il-ptab-add" onclick="showUpgradeModal('multi_patches')" title="Plusieurs scènes — Studio uniquement" style="position:relative">+</button>
-      <span onclick="showUpgradeModal('multi_patches')" style="display:inline-flex;align-items:center;gap:5px;font-size:10px;font-family:var(--m);color:#c084fc;background:rgba(155,106,255,.12);border:1px solid rgba(155,106,255,.3);border-radius:6px;padding:3px 9px;cursor:pointer;white-space:nowrap" title="Disponible avec le plan Studio">
-        <i class="ti ti-lock" style="font-size:11px"></i>Studio
+      <button class="il-ptab-add" onclick="showUpgradeModal('multi_patches')" title="Plusieurs scènes — Pro" style="position:relative">+</button>
+      <span onclick="showUpgradeModal('multi_patches')" style="display:inline-flex;align-items:center;gap:5px;font-size:10px;font-family:var(--m);color:var(--ora);background:var(--ora-d);border:1px solid var(--ora-g);border-radius:6px;padding:3px 9px;cursor:pointer;white-space:nowrap" title="Disponible avec le plan Pro">
+        <i class="ti ti-lock" style="font-size:11px"></i>Pro
       </span>`;
     return;
   }
@@ -2615,7 +2615,7 @@ async function switchScene(type,sceneId){
 
 async function addScene(type){
   if(!CUR_SHOW){return;}
-  if(userPlan()!=='studio'){showUpgradeModal('multi_patches');return;}
+  if(!canDo('multi_scenes')){showUpgradeModal('multi_patches');return;}
   const name=prompt(`Nom du ${SCENE_LABELS[type]} :`, (SCENE_LABELS[type]+' '+(SHOW_SCENES[type].length+1)));
   if(!name||!name.trim()) return;
   const pos=SHOW_SCENES[type].length;
@@ -2655,7 +2655,7 @@ async function renameScene(type,sceneId){
 /* Sauvegarde la scène courante dans show_scenes */
 async function _saveScene(type,dataObj){
   const sceneId=CUR_SCENES[type];
-  if(!sceneId||userPlan()!=='studio') return false;
+  if(!sceneId||!canDo('multi_scenes')) return false;
   await sb.from('show_scenes').update({data:dataObj}).eq('id',sceneId);
   // Mettre à jour le cache local
   const scene=SHOW_SCENES[type]?.find(s=>s.id===sceneId);
@@ -2778,7 +2778,7 @@ async function switchShow(id){
   // Charger les scènes multi (Studio) avant les plans
   await loadScenes(id);
   // Configurer la scène synoptique courante
-  if(userPlan()==='studio' && CUR_SCENES.syno){
+  if(canDo('multi_scenes') && CUR_SCENES.syno){
     const sc=SHOW_SCENES.syno?.find(s=>s.id===CUR_SCENES.syno);
     if(sc) SynPro.setSceneData(sc.data);
     SynPro.setSceneId(CUR_SCENES.syno);
@@ -2903,15 +2903,15 @@ function savePatchMeta(){
 
 function renderPatchTabs(){
   const el=document.getElementById('il-patch-tabs');if(!el)return;
-  const isStudio=userPlan()==='studio';
+  const isStudio=canDo('multi_scenes');
   if(!isStudio){
     /* Non-Studio : aperçu verrouillé identique aux scene tabs */
     el.innerHTML=`
       <div class="il-ptab active" style="opacity:.5;cursor:default">Patch A</div>
       <div class="il-ptab" style="opacity:.35;cursor:default">Patch B</div>
-      <button class="il-ptab-add" onclick="showUpgradeModal('multi_patches')" title="Multi-patches — Studio uniquement">+</button>
-      <span onclick="showUpgradeModal('multi_patches')" style="display:inline-flex;align-items:center;gap:5px;font-size:10px;font-family:var(--m);color:#c084fc;background:rgba(155,106,255,.12);border:1px solid rgba(155,106,255,.3);border-radius:6px;padding:3px 9px;cursor:pointer;white-space:nowrap" title="Disponible avec le plan Studio">
-        <i class="ti ti-lock" style="font-size:11px"></i>Studio
+      <button class="il-ptab-add" onclick="showUpgradeModal('multi_patches')" title="Multi-patches — Pro">+</button>
+      <span onclick="showUpgradeModal('multi_patches')" style="display:inline-flex;align-items:center;gap:5px;font-size:10px;font-family:var(--m);color:var(--ora);background:var(--ora-d);border:1px solid var(--ora-g);border-radius:6px;padding:3px 9px;cursor:pointer;white-space:nowrap" title="Disponible avec le plan Pro">
+        <i class="ti ti-lock" style="font-size:11px"></i>Pro
       </span>`;
     return;
   }
@@ -2926,7 +2926,7 @@ function renderPatchTabs(){
 
 async function switchPatch(id){
   if(id===CUR_PATCH_ID)return;
-  if(userPlan()!=='studio'){showUpgradeModal('multi_patches');return;}
+  if(!canDo('multi_scenes')){showUpgradeModal('multi_patches');return;}
   CUR_PATCH_ID=id;
   renderPatchTabs();
   await loadChs();
@@ -2935,7 +2935,7 @@ async function switchPatch(id){
 }
 
 function addPatch(){
-  if(userPlan()!=='studio'){showUpgradeModal('multi_patches');return;}
+  if(!canDo('multi_scenes')){showUpgradeModal('multi_patches');return;}
   const name=prompt('Nom du patch :','Patch '+(IL_PATCHES.length+1));
   if(!name||!name.trim())return;
   const id='p'+Date.now();
@@ -3807,7 +3807,7 @@ async function loadMembers(){
   const COLS=['rgba(255,107,26,.13)','rgba(26,143,255,.13)','rgba(245,197,66,.13)','rgba(155,106,255,.13)','rgba(34,214,160,.13)'];
   const TC=['var(--ora)','var(--blu2)','var(--warn)','#c4a0ff','var(--grn)'];
   const _es=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  const planPill=p=>{const labels={free:'Gratuit',pro:'Pro',studio:'Studio'};return `<span class="plan-badge-pill ${_es(p||'free')}">${_es(labels[p||'free']||p||'free')}</span>`;};
+  const planPill=p=>{const labels={free:'Gratuit',pro:'Pro'};return `<span class="plan-badge-pill ${_es(p||'free')}">${_es(labels[p||'free']||p||'free')}</span>`;};
   const roleBadge=r=>{const l=ROLE_LABELS[r]||r;const c=ROLE_COLORS[r]||'var(--muted)';return `<span style="background:${c}18;color:${c};border:1px solid ${c}44;border-radius:5px;font-size:9px;padding:2px 7px;font-family:var(--m);text-transform:uppercase;letter-spacing:.5px">${_es(l)}</span>`;};
   const mkAv=(name,bg,col,avatarUrl,plan)=>{
     const inner=_avHtml(name,avatarUrl,plan,38,bg,col);
@@ -4001,7 +4001,7 @@ function _loadRiderConfig(){
 
 function _initRiderBuilder(){
   var isPro=canDo('share_link');
-  var isStudio=userPlan()==='studio';
+  var isStudio=canDo('multi_scenes');
   var gate=document.getElementById('rider-gate-msg');
   var inner=document.getElementById('rider-builder-inner');
   if(gate)  gate.style.display=isPro?'none':'flex';
@@ -4449,12 +4449,22 @@ function _pdfBrand(){
   const isStudio=canDo('custom_exports');
   return {
     co:   isStudio&&_pdfBranding.co   ? _pdfBranding.co   : 'PATCHFLOW',
-    site: isStudio&&_pdfBranding.site ? _pdfBranding.site : 'patchflow.io',
+    site: isStudio&&_pdfBranding.site ? _pdfBranding.site : 'patchflow.fr',
     color:_pdfBranding.color||'#ff6b1a',
     tagline:isStudio?(_pdfBranding.tagline||''):'',
     logo: isStudio&&_pdfLogoDataUrl   ? _pdfLogoDataUrl   : null,
-    isStudio:isStudio
+    isStudio:isStudio,
+    watermark: (PLAN_PERMS[userPlan()]||PLAN_PERMS.free).pdf_watermark === true /* true pour les comptes gratuits */
   };
+}
+
+/* Filigrane diagonal répété pour les exports gratuits */
+function _pdfWatermarkHtml(brand){
+  if(!brand.watermark) return '';
+  return '<div style="position:fixed;inset:0;z-index:9999;pointer-events:none;overflow:hidden;opacity:.06">'
+    +'<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-32deg);white-space:nowrap;font-family:Outfit,sans-serif;font-weight:800;font-size:54px;line-height:2.4;color:#1a1a2e;letter-spacing:4px;text-align:center">'
+    +('PATCHFLOW · GRATUIT &nbsp; ').repeat(60)
+    +'</div></div>';
 }
 function _buildPdfInHTML(meta,brand){
   const show=CUR_SHOW?.name||'Show';const now=new Date().toLocaleString('fr-FR');
@@ -4512,6 +4522,7 @@ td{padding:4px 7px;border-bottom:1px solid #f0eee8;vertical-align:middle}
 .fl{font-weight:700;color:var(--o);letter-spacing:1px}
 @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 </style></head><body>
+${_pdfWatermarkHtml(brand)}
 <div class="hd"><div class="hl"><div class="logo">${logoHtml}</div><div><div class="ht">${show}</div><div class="hs">${subLine}</div></div></div><div class="hr"><div class="hdt">Input List</div><div class="hdm">${meta.rev?`Rev. ${meta.rev}<br/>`:''}${now}</div></div></div>
 <div class="ib">
   ${engLine?`<div class="ic"><div class="il">Ing&eacute;nieur</div><div class="iv ivo">${engLine}</div></div>`:''}
@@ -4585,6 +4596,7 @@ td{padding:4px 7px;border-bottom:1px solid #f0eee8;vertical-align:middle}
 .fl{font-weight:700;color:var(--o);letter-spacing:1px}
 @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 </style></head><body>
+${_pdfWatermarkHtml(brand)}
 <div class="hd"><div class="hl"><div class="logo">${logoHtml}</div><div><div class="ht">${show}</div><div class="hs">${subLine}</div></div></div><div class="hr"><div class="hdt">Output List</div><div class="hdm">${meta.rev?`Rev. ${meta.rev}<br/>`:''}${now}</div></div></div>
 <div class="ib">
   ${engLine?`<div class="ic"><div class="il">Ing&eacute;nieur</div><div class="iv ivo">${engLine}</div></div>`:''}
@@ -4683,6 +4695,7 @@ td{padding:4px 7px;border-bottom:1px solid #f0eee8;vertical-align:middle}
   return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/><title>${brand.co} — ${show}</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet"/>
 <style>${sharedCSS}</style></head><body>
+${_pdfWatermarkHtml(brand)}
 <div class="hd"><div class="hl"><div class="logo">${logoHtml}</div><div><div class="ht">${show}</div><div class="hs">${docTitle} · INPUT LIST</div></div></div><div class="hr"><div class="hdt">Input List</div><div class="hdm">${meta.rev?`Rev. ${meta.rev}<br/>`:''}${now}</div></div></div>
 ${infoBar}
 <div class="tw">${inBody}</div>
@@ -5066,6 +5079,7 @@ function doBpPDF(){
       +'.fl{font-weight:700;color:var(--o);letter-spacing:1px}'
       +'.lnk{font-size:2.2mm;color:#1a8fff;word-break:break-all}'
       +'@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body>'
+      +_pdfWatermarkHtml(brand)
       +'<div class="hd">'
         +'<div class="hl"><div class="logo">'+_PF_LOGO_MM+'</div><div><div class="ht">'+meta.title+'</div>'+(meta.sub?'<div class="hs">'+meta.sub+'</div>':'')+'</div></div>'
         +'<div class="hr"><div class="hdt">Plan de Scene</div><div class="hdm">'+(meta.rev?'Rev. '+meta.rev+' &nbsp;&middot;&nbsp; ':'')+now+'</div></div>'
@@ -5340,6 +5354,7 @@ function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand){
     +'.ft{display:flex;align-items:center;justify-content:space-between;padding:2mm 10mm;border-top:1px solid #eee;font-size:2.5mm;color:#bbb;font-family:"DM Mono",monospace;flex-shrink:0;background:#fafafa}'
     +'.fl{font-weight:700;color:var(--o);letter-spacing:1px}'
     +'@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body>'
+    +_pdfWatermarkHtml(brand)
     +'<div class="hd">'
       +'<div class="hl"><div class="logo">'+_PF_LOGO_MM+'</div><div><div class="ht">'+showTitle+'</div>'+(subLine?'<div class="hs">'+subLine+'</div>':'')+'</div></div>'
       +'<div class="hr"><div class="hdt">'+docType+'</div><div class="hdm">'+(meta.rev?'Rev. '+meta.rev+' &middot; ':'')+now+'</div></div>'
@@ -5434,7 +5449,7 @@ function _saveChsSnapshot(){
 }
 function loadStage(){
   _stageReady=false;
-  if(userPlan()==='studio' && (CUR_SCENES.stage||CUR_SCENES.site)){
+  if(canDo('multi_scenes') && (CUR_SCENES.stage||CUR_SCENES.site)){
     // Studio : charger depuis les scènes
     const stageScene=SHOW_SCENES.stage?.find(s=>s.id===CUR_SCENES.stage);
     const siteScene=SHOW_SCENES.site?.find(s=>s.id===CUR_SCENES.site);
@@ -5459,7 +5474,7 @@ function loadStage(){
 let saveStageTimer=null;
 async function saveStage(){
   if(!CUR_SHOW)return;
-  if(userPlan()==='studio' && CUR_SCENES.stage){
+  if(canDo('multi_scenes') && CUR_SCENES.stage){
     // Studio : sauvegarder dans la scène courante
     const stageData={band:BandPlan.getData()};
     await _saveScene('stage',stageData);
@@ -5487,7 +5502,7 @@ async function saveStage(){
 }
 async function saveSite(){
   if(!CUR_SHOW)return;
-  if(userPlan()==='studio' && CUR_SCENES.site){
+  if(canDo('multi_scenes') && CUR_SCENES.site){
     const siteData={site:SitePlan.getData()};
     await _saveScene('site',siteData);
     return;
@@ -9534,7 +9549,7 @@ function renderSessions(){
 
   function planChip(plan){
     var p=plan||'free';
-    var labels={free:'Gratuit',pro:'Pro',studio:'Studio'};
+    var labels={free:'Gratuit',pro:'Pro'};
     return '<span class="sess-plan-chip '+p+'">'+(labels[p]||p)+'</span>';
   }
 
@@ -10161,7 +10176,7 @@ async function delUserTpl(id){
 // PROFILE
 // ══════════════════════════════════════
 /* ── Avatar helpers ── */
-function _planRingClass(plan){ return plan==='studio'?'studio':plan==='pro'?'pro':''; }
+function _planRingClass(plan){ return plan==='pro'?'pro':''; }
 
 /* Renders a single avatar element: photo or initials, with optional plan ring */
 function _avHtml(name, avatarUrl, plan, sizePx, bgColor, textColor){
@@ -10583,7 +10598,7 @@ function _renderFichiersGrid() {
 
   // barre de stockage (plan-aware)
   const plan = userPlan ? userPlan() : 'free';
-  const QUOTA_GO = { free: 0, pro: 50, studio: 200 };
+  const QUOTA_GO = { free: 0.5, pro: 50 };
   const quotaGo  = QUOTA_GO[plan] || 0;
   const lblEl  = document.getElementById('fich-storage-lbl');
   const fillEl = document.getElementById('fich-storage-fill');
@@ -10971,37 +10986,33 @@ function closeUD(){document.getElementById('user-dd').classList.remove('show');}
 // PLANS & PERMISSIONS
 // ══════════════════════════════════════
 const PLAN_PERMS = {
-  free:   { max_shows:3,        max_channels:32,       max_members:1,        max_templates:5,
-            export_pdf:true,    share_link:false,      site_plan:false,
-            storage:true,       multi_scenes:false,    multi_patches:false,  custom_exports:false,  vintage_view:false },
-  pro:    { max_shows:Infinity, max_channels:Infinity, max_members:5,        max_templates:Infinity,
-            export_pdf:true,    share_link:true,       site_plan:true,
-            storage:true,       multi_scenes:false,    multi_patches:false,  custom_exports:false,  vintage_view:true,  recap_matos:true,  recent_activity:true  },
-  studio: { max_shows:Infinity, max_channels:Infinity, max_members:Infinity, max_templates:Infinity,
-            export_pdf:true,    share_link:true,       site_plan:true,
+  free:   { max_shows:3,        max_channels:26,       max_members:1,        max_templates:5,
+            export_pdf:true,    share_link:true,       site_plan:true,       pdf_watermark:true,
+            storage:true,       multi_scenes:false,    multi_patches:false,  custom_exports:false,  vintage_view:false, recap_matos:false, recent_activity:false },
+  pro:    { max_shows:Infinity, max_channels:Infinity, max_members:Infinity, max_templates:Infinity,
+            export_pdf:true,    share_link:true,       site_plan:true,       pdf_watermark:false,
             storage:true,       multi_scenes:true,     multi_patches:true,   custom_exports:true,   vintage_view:true,  recap_matos:true,  recent_activity:true  },
 };
 
 const PLAN_META = {
-  free:   { label:'Gratuit', color:'var(--muted)',  price:'0 €',  period:'/mois' },
-  pro:    { label:'Pro',     color:'var(--ora)',    price:'11 €', period:'/mois' },
-  studio: { label:'Studio',  color:'#c084fc',       price:'29 €', period:'/mois' },
+  free:   { label:'Gratuit', color:'var(--muted)',  price:'0 €',     period:'/mois' },
+  pro:    { label:'Pro',     color:'var(--ora)',    price:'11,99 €', period:'/mois' },
 };
 
 const GATE_META = {
-  export_pdf:     { icon:'ti-file-type-pdf',    title:'Export PDF professionnel',     desc:'Generez des PDF soignes avec tous vos canaux, prets a imprimer ou a partager avec votre equipe.', plan:'pro',    feats:['Mise en page professionnelle complete','Impression directe depuis le navigateur','Inclus dans les plans Pro et Studio'] },
+  export_pdf:     { icon:'ti-file-type-pdf',    title:'Export PDF sans filigrane',    desc:'Generez des PDF professionnels sans filigrane, prets a imprimer ou a partager avec votre equipe.', plan:'pro',    feats:['PDF sans filigrane PatchFlow','Mise en page professionnelle complete','Impression directe depuis le navigateur'] },
   share_link:     { icon:'ti-link',             title:'Lien de partage',              desc:'Partagez votre patch en lecture seule avec vos collegues ou votre client via un lien securise.', plan:'pro',    feats:['Lien unique en lecture seule','Acces sans compte requis','Mise a jour en temps reel'] },
-  storage:        { icon:'ti-cloud',            title:'Stockage fichiers',            desc:'Uploadez et partagez vos riders, plans, logos et show files directement dans votre show.', plan:'pro',    feats:['500 Mo inclus en gratuit — 50 Go Pro — 500 Go Studio','Acces a tous les membres du show','PDF, Word, Excel, Audio, Video...'] },
-  site_plan:      { icon:'ti-map-2',            title:'Plan de site',                 desc:'Implantez votre sonorisation sur le plan du site. Tracez vos liaisons XLR, DANTE et HF.', plan:'pro',    feats:['Edition drag & drop du plan de site','Export PNG et PDF du plan','Disponible sur les plans Pro et Studio'] },
-  max_shows:      { icon:'ti-calendar-event',   title:'Limite de shows atteinte',     desc:'Le plan Gratuit est limite a 3 shows actifs. Passez au Pro pour des shows illimites.', plan:'pro',    feats:['Shows illimites sur Pro et Studio','Canaux illimites par show','Archivage et gestion avancee'] },
-  max_channels:   { icon:'ti-list-numbers',     title:'Limite de canaux atteinte',    desc:'Le plan Gratuit est limite a 32 canaux par show. Passez au Pro pour des canaux illimites.', plan:'pro',    feats:['Canaux illimites sur Pro et Studio','Pas de restriction sur le nombre de prises','Full festival patch sans limite'] },
-  max_members:    { icon:'ti-users',            title:'Limite de membres atteinte',   desc:'Votre plan limite le nombre de membres par show. Passez a l\'offre superieure pour inviter plus de collaborateurs.', plan:'pro', feats:['5 membres sur Pro — Illimites sur Studio','Roles et permissions par membre','Collaboration en temps reel'] },
-  multi_patches:  { icon:'ti-layers-subtract',  title:'Multi-patches',                desc:'Creez plusieurs variantes de patch (A/B, festival, acoustique) pour le meme show.', plan:'studio', feats:['Variantes A/B, festival, acoustique','Basculement rapide entre patches','Exclusif plan Studio'] },
-  custom_exports: { icon:'ti-photo',            title:'Exports personnalises',        desc:'Ajoutez votre logo et les informations de votre societe sur tous les exports PDF.', plan:'studio', feats:['Logo sur chaque page PDF','Entete avec vos coordonnees','Charte graphique de votre societe'] },
-  vintage_view:   { icon:'ti-photo-film',       title:'Affichage Vintage',            desc:'Mode theatral avec les instruments dessines en vue de dessus sur un plateau sombre.', plan:'pro', feats:['Vue en plongee de chaque instrument','Fond de scene theatral avec parquet','Disponible sur les plans Pro et Studio'] },
-  recap_matos:    { icon:'ti-clipboard-list',   title:'Recap materiels',              desc:'Obtenez le decompte exact de chaque micro et pied necessaires — indispensable avant un show pour ne rien oublier.', plan:'pro', feats:['Decompte par modele de micro ou DI','Decompte par type de pied','Studio : total consolide sur tous les patches'] },
-  recent_activity:{ icon:'ti-history',          title:'Activite recente',             desc:'Visualisez les derniers canaux modifies par votre equipe en temps reel — utile pour savoir qui a touche a quoi.', plan:'pro', feats:['5 derniers canaux modifies','Horodatage relatif (il y a X min)','Disponible sur les plans Pro et Studio'] },
-  export_pdf_pro: { icon:'ti-file-type-pdf',    title:'Export PDF complet',           desc:'Ajoutez societe, contact, venue, date, revision et notes techniques a vos exports PDF.', plan:'pro', feats:['Coordonnees completes en en-tete','Venue, date et numero de revision','Notes techniques sur chaque export'] },
+  storage:        { icon:'ti-cloud',            title:'Stockage 500 Go',              desc:'Ajoutez l\'option stockage 500 Go pour seulement 3,50 €/mois et centralisez tous vos fichiers de production.', plan:'pro',    feats:['Option 500 Go a 3,50 €/mois','Acces a tous les membres du show','PDF, Word, Excel, Audio, Video...'] },
+  site_plan:      { icon:'ti-map-2',            title:'Plan de site',                 desc:'Implantez votre sonorisation sur le plan du site. Tracez vos liaisons XLR, DANTE et HF.', plan:'pro',    feats:['Edition drag & drop du plan de site','Export PNG et PDF du plan','Inclus dans le plan Pro'] },
+  max_shows:      { icon:'ti-calendar-event',   title:'Limite de shows atteinte',     desc:'Le plan Gratuit est limite a 3 shows actifs. Passez au Pro pour des shows illimites.', plan:'pro',    feats:['Shows illimites sur Pro','Canaux illimites par show','Archivage et gestion avancee'] },
+  max_channels:   { icon:'ti-list-numbers',     title:'Limite de canaux atteinte',    desc:'Le plan Gratuit est limite a 26 canaux par show. Passez au Pro pour des canaux illimites.', plan:'pro',    feats:['Canaux illimites sur Pro','Pas de restriction sur le nombre de prises','Full festival patch sans limite'] },
+  max_members:    { icon:'ti-users',            title:'Limite de membres atteinte',   desc:'Le plan Gratuit est limite a 1 membre. Passez au Pro pour inviter votre equipe sans limite.', plan:'pro', feats:['Membres illimites sur Pro','Roles et permissions par membre','Collaboration en temps reel'] },
+  multi_patches:  { icon:'ti-layers-subtract',  title:'Multi-patches & multi-scenes', desc:'Creez plusieurs variantes de patch (A/B, festival) et plusieurs synoptiques / plans par show.', plan:'pro', feats:['Variantes A/B, festival, acoustique','Plusieurs synoptiques et plans par show','Inclus dans le plan Pro'] },
+  custom_exports: { icon:'ti-photo',            title:'Exports personnalises',        desc:'Ajoutez votre logo et les informations de votre societe sur tous les exports PDF.', plan:'pro', feats:['Logo sur chaque page PDF','Entete avec vos coordonnees','Charte graphique de votre societe'] },
+  vintage_view:   { icon:'ti-photo-film',       title:'Affichage Vintage',            desc:'Mode theatral avec les instruments dessines en vue de dessus sur un plateau sombre.', plan:'pro', feats:['Vue en plongee de chaque instrument','Fond de scene theatral avec parquet','Inclus dans le plan Pro'] },
+  recap_matos:    { icon:'ti-clipboard-list',   title:'Recap materiels',              desc:'Obtenez le decompte exact de chaque micro et pied necessaires — indispensable avant un show pour ne rien oublier.', plan:'pro', feats:['Decompte par modele de micro ou DI','Decompte par type de pied','Total consolide sur tous les patches'] },
+  recent_activity:{ icon:'ti-history',          title:'Activite recente',             desc:'Visualisez les derniers canaux modifies par votre equipe en temps reel — utile pour savoir qui a touche a quoi.', plan:'pro', feats:['5 derniers canaux modifies','Horodatage relatif (il y a X min)','Inclus dans le plan Pro'] },
+  export_pdf_pro: { icon:'ti-file-type-pdf',    title:'Export PDF complet',           desc:'Retirez le filigrane et ajoutez societe, contact, venue, date, revision et notes techniques.', plan:'pro', feats:['PDF sans filigrane','Coordonnees completes en en-tete','Notes techniques sur chaque export'] },
 };
 
 function userPlan() { return PROFILE?.plan || 'free'; }
@@ -11021,9 +11032,9 @@ function planLimit(feat) {
 function showUpgradeModal(feat) {
   const m = GATE_META[feat] || { icon:'ti-lock', title:'Fonctionnalite reservee', desc:'Non disponible dans votre offre.', plan:'pro', feats:[] };
   const pm = PLAN_META[m.plan] || PLAN_META.pro;
-  const pilClr = m.plan === 'studio' ? '#c084fc' : 'var(--ora)';
-  const pilBg  = m.plan === 'studio' ? 'rgba(155,106,255,.12)' : 'var(--ora-d)';
-  const pilBdr = m.plan === 'studio' ? 'rgba(155,106,255,.3)'  : 'var(--ora-g)';
+  const pilClr = 'var(--ora)';
+  const pilBg  = 'var(--ora-d)';
+  const pilBdr = 'var(--ora-g)';
   document.getElementById('gate-icon').className = 'ti ' + m.icon;
   document.getElementById('gate-icon').style.color = pilClr;
   document.getElementById('gate-title').textContent = m.title;
@@ -11041,10 +11052,10 @@ function closeGateModal() { document.getElementById('gate-modal').className = 'm
 /* ── Portail facturation ── */
 function openPortal() {
   var cur = userPlan();
-  var icons  = { free:'🎙️', pro:'⚡', studio:'✦' };
-  var names  = { free:'Plan Gratuit', pro:'Plan Pro', studio:'Plan Studio' };
-  var iconBg = { free:'var(--surf3)', pro:'var(--ora-d)', studio:'rgba(155,106,255,.12)' };
-  var chips  = { free:'Gratuit', pro:'Pro · Actif', studio:'Studio · Actif' };
+  var icons  = { free:'🎙️', pro:'⚡' };
+  var names  = { free:'Plan Gratuit', pro:'Plan Pro' };
+  var iconBg = { free:'var(--surf3)', pro:'var(--ora-d)' };
+  var chips  = { free:'Gratuit', pro:'Pro · Actif' };
   var ci = document.getElementById('portal-cur-icon');
   if(ci){ ci.textContent = icons[cur]||'🎙️'; ci.style.background = iconBg[cur]||'var(--surf3)'; }
   var cn = document.getElementById('portal-cur-name');
@@ -11105,30 +11116,28 @@ async function submitSupport() {
 function openPlanModal() {
   const cur = userPlan();
   const descs = {
-    free:   'Passez au Pro pour debloquer les exports PDF, le lien partage et bien plus.',
-    pro:    'Vous beneficiez des exports PDF, du lien partage et du stockage 50 Go.',
-    studio: 'Vous avez acces a toutes les fonctionnalites de PatchFlow.',
+    free:   'Passez au Pro pour debloquer le PDF sans filigrane, le multi-patches, l\'equipe illimitee et bien plus.',
+    pro:    'Vous avez acces a toutes les fonctionnalites de PatchFlow.',
   };
-  const icons = { free:'🎙️', pro:'⚡', studio:'✦' };
-  const iconBg = { free:'var(--surf3)', pro:'var(--ora-d)', studio:'rgba(155,106,255,.12)' };
-  const chips  = { free:'Gratuit · Actif', pro:'Pro · Actif', studio:'Studio · Actif' };
+  const icons = { free:'🎙️', pro:'⚡' };
+  const iconBg = { free:'var(--surf3)', pro:'var(--ora-d)' };
+  const chips  = { free:'Gratuit · Actif', pro:'Pro · Actif' };
   const pm = PLAN_META[cur] || PLAN_META.free;
   document.getElementById('sub-current-label').textContent = 'Plan ' + pm.label;
   document.getElementById('sub-current-desc').textContent = descs[cur] || '';
   const iconEl = document.getElementById('plan-cur-icon');
-  if(iconEl){iconEl.textContent=icons[cur]||'✦';iconEl.style.background=iconBg[cur]||'var(--surf3)';}
+  if(iconEl){iconEl.textContent=icons[cur]||'⚡';iconEl.style.background=iconBg[cur]||'var(--surf3)';}
   const chipEl = document.getElementById('plan-billing-chip');
   if(chipEl){chipEl.textContent=chips[cur]||'Actif';}
   const FEATS = {
-    free:   [['Canaux/show','32',false],['Shows actifs','3',false],['Membres/show','1',false],['Export PDF','Non',true],['Stockage fichiers','Non',true],['Lien partage','Non',true]],
-    pro:    [['Canaux/show','Illimites',false],['Shows actifs','Illimites',false],['Membres/show','5',false],['Export PDF','Oui',false],['Stockage fichiers','50 Go',false],['Plan de site','Oui',false]],
-    studio: [['Canaux/show','Illimites',false],['Shows actifs','Illimites',false],['Membres/show','Illimites',false],['Export PDF','Oui',false],['Stockage fichiers','200 Go',false],['Multi-patches','Oui',false]],
+    free:   [['Canaux/show','26',false],['Shows actifs','3',false],['Membres/show','1',false],['Export PDF','Filigrane',false],['Lien partage','Oui',false],['Multi-patches','Non',true]],
+    pro:    [['Canaux/show','Illimites',false],['Shows actifs','Illimites',false],['Membres/show','Illimites',false],['Export PDF','Sans filigrane',false],['Multi-scenes & patches','Oui',false],['Exports a votre logo','Oui',false]],
   };
   const grid = document.getElementById('sub-plans-grid');
-  grid.innerHTML = ['free','pro','studio'].map(function(p) {
+  grid.innerHTML = ['free','pro'].map(function(p) {
     const pm = PLAN_META[p];
     const isCur = p === cur;
-    const isUp  = ['free','pro','studio'].indexOf(p) > ['free','pro','studio'].indexOf(cur);
+    const isUp  = ['free','pro'].indexOf(p) > ['free','pro'].indexOf(cur);
     const isPopular = p === 'pro';
     const rows = (FEATS[p] || []).map(function(r) {
       const ko = r[2];
@@ -11157,7 +11166,7 @@ function subCTA(plan) {
 
 function _refreshPlanBadge() {
   const p = userPlan();
-  const cls = p === 'studio' ? 'studio' : p === 'pro' ? 'pro' : 'free';
+  const cls = p === 'pro' ? 'pro' : 'free';
   const lbl = PLAN_META[p]?.label || 'Gratuit';
   const el = document.getElementById('u-plan-badge');
   if (el) el.innerHTML = '<span class="plan-badge-pill ' + cls + '">' + lbl + '</span>';
@@ -11246,7 +11255,7 @@ async function openRecapMatos(){
   body.innerHTML='<div class="loading"><div class="spinner"></div>Calcul en cours…</div>';
   scopeLbl.textContent='';
 
-  var isStudio=userPlan()==='studio';
+  var isStudio=canDo('multi_scenes');
   var PATCH_COLORS=['var(--ora)','var(--blu2)','var(--grn)','#c084fc','var(--warn)','#22d6a0','#f97316'];
 
   try{

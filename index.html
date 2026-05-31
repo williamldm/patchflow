@@ -227,6 +227,19 @@ h2 em{font-style:normal;color:var(--ora)}
 /* ── PRICING ── */
 #pricing{background:var(--bg2)}
 .pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:56px;align-items:start}
+.pricing-grid-2{grid-template-columns:repeat(2,1fr);max-width:780px;margin-left:auto;margin-right:auto}
+/* Storage add-on card */
+.storage-addon{max-width:780px;margin:20px auto 0;display:flex;align-items:center;gap:20px;background:linear-gradient(135deg,var(--surf2),var(--surf));border:1px solid var(--bdr2);border-radius:16px;padding:22px 26px;transition:box-shadow .2s}
+.storage-addon:hover{box-shadow:0 12px 40px rgba(0,0,0,.3)}
+.storage-addon-icon{width:52px;height:52px;border-radius:13px;background:rgba(26,143,255,.12);color:var(--blu);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0}
+.storage-addon-body{flex:1;min-width:0}
+.storage-addon-title{font-size:16px;font-weight:700;margin-bottom:4px}
+.storage-addon-title strong{color:var(--blu)}
+.storage-addon-desc{font-size:12.5px;color:var(--muted);line-height:1.55}
+.storage-addon-right{display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0}
+.storage-addon-price{display:flex;align-items:baseline;gap:4px}
+.storage-addon-price .amount{font-size:26px;font-weight:800;color:var(--txt);letter-spacing:-1px}
+.storage-addon-price .period{font-size:12px;color:var(--muted);font-family:var(--m)}
 .plan-annual{font-size:11px;color:var(--grn);font-family:var(--m);margin-bottom:10px;min-height:16px}
 .plan-tax{font-size:11px;color:var(--muted);font-family:var(--m);margin-bottom:18px;min-height:14px;line-height:1.5}
 .plan-tax strong{color:var(--grn)}
@@ -330,7 +343,9 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
 
 /* ── RESPONSIVE — 720px (mobile landscape / large phones) ── */
 @media(max-width:720px){
-  .pricing-grid{grid-template-columns:1fr}
+  .pricing-grid,.pricing-grid-2{grid-template-columns:1fr}
+  .storage-addon{flex-direction:column;align-items:flex-start;text-align:left}
+  .storage-addon-right{align-items:flex-start;width:100%}
   .plan-card{padding:30px 24px}
   .plan-card.popular{order:-1}
   .cta-final{padding:60px 24px;margin:0 5vw 60px;border-radius:18px}
@@ -582,7 +597,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
       </div>
       <div class="feat-item" onclick="showFeat('multipatches',this)">
         <div class="feat-item-ic" style="background:rgba(245,197,66,.12);color:#f5c542"><i class="ti ti-layout-grid"></i></div>
-        <div class="feat-item-text"><div class="feat-item-name">Multi-patches &amp; Multi-scènes <span style="display:inline-flex;align-items:center;padding:1px 6px;border-radius:4px;font-size:9px;font-family:var(--m);font-weight:700;background:rgba(155,106,255,.12);color:#c084fc;border:1px solid rgba(155,106,255,.3);vertical-align:middle;margin-left:3px">Studio</span></div><div class="feat-item-sub">Patches A/B, scènes multiples</div></div>
+        <div class="feat-item-text"><div class="feat-item-name">Multi-patches &amp; Multi-scènes <span style="display:inline-flex;align-items:center;padding:1px 6px;border-radius:4px;font-size:9px;font-family:var(--m);font-weight:700;background:var(--ora-d);color:var(--ora);border:1px solid var(--ora-g);vertical-align:middle;margin-left:3px">Pro</span></div><div class="feat-item-sub">Patches A/B, scènes multiples</div></div>
         <i class="ti ti-chevron-right feat-item-arr"></i>
       </div>
       <div class="feat-item" onclick="showFeat('assistant',this)">
@@ -1198,8 +1213,8 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
           <div class="feat-pane-icon" style="background:rgba(255,107,26,.12);color:var(--ora)"><i class="ti ti-clipboard-list"></i></div>
           <div>
             <div class="feat-pane-title">Recapitulatif materiels</div>
-            <div class="feat-pane-desc">Obtenez le decompte exact de chaque micro et pied de micro necessaires pour votre show. Plan Pro+, ou consolide sur tous les patches en Studio.</div>
-            <div class="feat-tag"><i class="ti ti-crown" style="font-size:10px"></i>Pro+ — Studio consolide tous les patches</div>
+            <div class="feat-pane-desc">Obtenez le decompte exact de chaque micro et pied de micro necessaires pour votre show. Inclus dans le plan Pro, consolidé sur tous les patches du show.</div>
+            <div class="feat-tag"><i class="ti ti-crown" style="font-size:10px"></i>Pro — consolidé sur tous les patches</div>
           </div>
         </div>
         <div class="feat-pane-body">
@@ -1248,7 +1263,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
                 </div>
               </div>
               <div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--bdr)">
-                <div style="font-size:9px;font-family:var(--m);color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">Studio — tous patches</div>
+                <div style="font-size:9px;font-family:var(--m);color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">Pro — tous patches</div>
                 <div style="font-size:10px;color:var(--txt2)">Consolide automatiquement les besoins de chaque artiste du show en un seul recap.</div>
               </div>
             </div>
@@ -1393,10 +1408,10 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
 
   <div class="promo-banner fade-up">
     <i class="ti ti-gift"></i>
-    <span><b>Offre saison d'été</b> &mdash; vos 2 premiers mois <b>&minus;50&nbsp;%</b> sur Pro et <b>&minus;70&nbsp;%</b> sur Studio (soit 5,70&nbsp;€/mois). Sans engagement.</span>
+    <span><b>Offre saison d'été</b> &mdash; vos 2 premiers mois <b>&minus;50&nbsp;%</b> sur Pro, soit <b>5,99&nbsp;€/mois</b>. Sans engagement.</span>
   </div>
 
-  <div class="pricing-grid">
+  <div class="pricing-grid pricing-grid-2">
 
     <!-- FREE -->
     <div class="plan-card fade-up">
@@ -1406,91 +1421,71 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
         <span class="amount">0</span>
         <span class="period">/ mois</span>
       </div>
-      <div class="plan-annual">&nbsp;</div>
+      <div class="plan-annual">Pour toujours &mdash; sans carte bancaire</div>
       <div class="plan-tax">&nbsp;</div>
-      <p class="plan-desc">Lancez-vous sans risque. Gerez vos premiers shows, testez l'Input List et le plan de scene — sans carte bancaire, sans limite de duree.</p>
+      <p class="plan-desc">Tout pour gérer vos shows au quotidien : Input List, plans, synoptique, lien de partage et même un export PDF. Idéal pour démarrer.</p>
       <div class="plan-divider"></div>
       <ul class="plan-features">
         <li><i class="ti ti-check"></i><span><strong>3 shows</strong> actifs</span></li>
-        <li><i class="ti ti-check"></i><span><strong>32 canaux</strong> par show</span></li>
+        <li><i class="ti ti-check"></i><span><strong>26 canaux</strong> par show</span></li>
         <li><i class="ti ti-check"></i><span>Input List + Output List + export CSV</span></li>
         <li><i class="ti ti-check"></i><span>Plan de scène · Synoptique · Plan de site</span></li>
-        <li><i class="ti ti-check"></i><span>Vue <strong>mobile lecture seule</strong> (pan + zoom)</span></li>
-        <li><i class="ti ti-check"></i><span>Export PDF simplifié</span></li>
-        <li><i class="ti ti-check"></i><span>Invitation équipe <strong>1 membre</strong></span></li>
-        <li><i class="ti ti-check"></i><span>5 templates de patch</span></li>
-        <li><i class="ti ti-check"></i><span>Stockage fichiers <strong>500 Mo</strong></span></li>
-        <li class="off"><i class="ti ti-minus"></i><span>PDF complet + lien partage</span></li>
+        <li><i class="ti ti-check"></i><span>Vue <strong>mobile</strong> lecture seule (pan + zoom)</span></li>
+        <li><i class="ti ti-check"></i><span><strong>Lien de partage</strong> lecture seule</span></li>
+        <li><i class="ti ti-check"></i><span>Export PDF <strong>avec filigrane</strong></span></li>
+        <li><i class="ti ti-check"></i><span>1 membre · 5 templates</span></li>
+        <li class="off"><i class="ti ti-minus"></i><span>PDF sans filigrane + champs complets</span></li>
         <li class="off"><i class="ti ti-minus"></i><span>Multi-scènes / Multi-patches</span></li>
-        <li class="off"><i class="ti ti-minus"></i><span>Recap matériels auto</span></li>
+        <li class="off"><i class="ti ti-minus"></i><span>Recap matériels · équipe illimitée</span></li>
       </ul>
       <a class="btn btn-ghost" href="app.html" style="width:100%;justify-content:center">Commencer gratuitement</a>
     </div>
 
     <!-- PRO -->
     <div class="plan-card popular fade-up stagger-1">
-      <div class="plan-badge">Le plus populaire</div>
+      <div class="plan-badge">Tout inclus</div>
       <div class="plan-name" style="color:var(--ora)">Pro</div>
       <div class="plan-price">
         <span class="currency" style="color:var(--ora)">€</span>
-        <span class="amount" style="color:var(--ora)">11</span>
+        <span class="amount" style="color:var(--ora)">11,99</span>
         <span class="period">/ mois</span>
       </div>
-      <div class="plan-annual"><i class="ti ti-tag" style="font-size:10px"></i> ou <strong>99 € / an</strong> — 2 mois offerts</div>
-      <div class="plan-tax">Soit <strong>~8,25 €/mois</strong> apres deduction IS 25 %<br/><span style="font-size:10px;opacity:.75">(charge 100 % deductible — art. 39 CGI)</span></div>
+      <div class="plan-annual"><i class="ti ti-tag" style="font-size:10px"></i> ou <strong>119 € / an</strong> — 2 mois offerts (~9,92 €/mois)</div>
+      <div class="plan-tax">Soit <strong>~8,99 €/mois</strong> apres deduction IS 25 %<br/><span style="font-size:10px;opacity:.75">(charge 100 % deductible — art. 39 CGI)</span></div>
       <div class="plan-promo">
         <span class="plan-promo-tag">&minus;50 %</span>
-        <span class="plan-promo-txt">Lancement : <strong>5,50 €/mois</strong> les 2 premiers mois</span>
+        <span class="plan-promo-txt">Saison d'été : <strong>5,99 €/mois</strong> les 2 premiers mois</span>
       </div>
-      <p class="plan-desc">Tout ce qu'il faut pour travailler en professionnel. Patch complet, exports PDF soignes, plan de scene et de site — plus jamais de stress avant le show.</p>
+      <p class="plan-desc">Toutes les fonctionnalités de PatchFlow, sans aucune limite. Pour les techniciens qui veulent travailler au plus haut niveau, sur tous leurs shows.</p>
       <div class="plan-divider" style="background:rgba(255,107,26,.2)"></div>
       <ul class="plan-features">
-        <li><i class="ti ti-check"></i><span><strong>Shows illimités</strong></span></li>
-        <li><i class="ti ti-check"></i><span><strong>Canaux illimités</strong></span></li>
-        <li><i class="ti ti-check"></i><span>Input List + Output List + CSV + <strong>PDF professionnel</strong></span></li>
-        <li><i class="ti ti-check"></i><span><strong>Recap matériels</strong> — micros &amp; pieds</span></li>
-        <li><i class="ti ti-check"></i><span>Plan de scène · Synoptique · Plan de site <strong>complets</strong></span></li>
-        <li><i class="ti ti-check"></i><span><strong>Lien partage</strong> — vue mobile pinch-zoom</span></li>
-        <li><i class="ti ti-check"></i><span><strong>5 membres</strong> par show (rôles admin/éditeur/lecteur)</span></li>
-        <li><i class="ti ti-check"></i><span>Templates <strong>illimités</strong></span></li>
-        <li><i class="ti ti-check"></i><span>Photo de profil + anneau Pro</span></li>
-        <li><i class="ti ti-check"></i><span>Stockage fichiers <strong>50 Go</strong></span></li>
-        <li class="off"><i class="ti ti-minus"></i><span>Multi-scènes / Multi-patches</span></li>
-        <li class="off"><i class="ti ti-minus"></i><span>Exports personnalisés (logo société)</span></li>
+        <li><i class="ti ti-check"></i><span><strong>Shows &amp; canaux illimités</strong></span></li>
+        <li><i class="ti ti-check"></i><span><strong>PDF sans filigrane</strong> + champs complets</span></li>
+        <li><i class="ti ti-check"></i><span><strong>Multi-scènes</strong> — plusieurs synoptiques &amp; plans par show</span></li>
+        <li><i class="ti ti-check"></i><span><strong>Multi-patches</strong> — variantes A/B, festival, acoustique</span></li>
+        <li><i class="ti ti-check"></i><span><strong>Recap matériels</strong> consolidé — micros &amp; pieds</span></li>
+        <li><i class="ti ti-check"></i><span><strong>Exports à votre image</strong> — logo, société, couleur</span></li>
+        <li><i class="ti ti-check"></i><span><strong>Équipe illimitée</strong> — rôles admin/éditeur/lecteur</span></li>
+        <li><i class="ti ti-check"></i><span>Templates illimités · photo + anneau Pro</span></li>
+        <li><i class="ti ti-check"></i><span>Lien partage avancé · vue mobile pinch-zoom</span></li>
+        <li><i class="ti ti-check"></i><span>Support prioritaire</span></li>
       </ul>
       <a class="btn btn-ora" href="app.html" style="width:100%;justify-content:center"><i class="ti ti-rocket"></i>Profiter du &minus;50 %</a>
     </div>
 
-    <!-- STUDIO -->
-    <div class="plan-card fade-up stagger-2">
-      <div class="plan-name">Studio</div>
-      <div class="plan-price">
-        <span class="currency">€</span>
-        <span class="amount">19</span>
-        <span class="period">/ mois</span>
-      </div>
-      <div class="plan-annual"><i class="ti ti-tag" style="font-size:10px"></i> ou <strong>190 € / an</strong> — 2 mois offerts</div>
-      <div class="plan-tax">Soit <strong>~14,25 €/mois</strong> apres deduction IS 25 %<br/><span style="font-size:10px;opacity:.75">(charge 100 % deductible — art. 39 CGI)</span></div>
-      <div class="plan-promo">
-        <span class="plan-promo-tag">&minus;70 %</span>
-        <span class="plan-promo-txt">Saison d'été : <strong>5,70 €/mois</strong> les 2 premiers mois</span>
-      </div>
-      <p class="plan-desc">Fait pour les prestataires qui gerent plusieurs projets en parallele. Votre marque sur chaque export, votre equipe au complet, zero limite de scenes ou de patches.</p>
-      <div class="plan-divider"></div>
-      <ul class="plan-features">
-        <li><i class="ti ti-check"></i><span><strong>Tout le plan Pro</strong></span></li>
-        <li><i class="ti ti-check"></i><span><strong>Membres illimités</strong> par show (rôles avancés)</span></li>
-        <li><i class="ti ti-check"></i><span><strong>Multi-scènes</strong> — synoptique, plan scène &amp; site par show</span></li>
-        <li><i class="ti ti-check"></i><span><strong>Multi-patches</strong> — variantes A/B, festival, acoustique</span></li>
-        <li><i class="ti ti-check"></i><span><strong>Recap consolidé</strong> — tous les patches d'un show</span></li>
-        <li><i class="ti ti-check"></i><span><strong>Exports à votre image</strong> — logo, infos société, couleur</span></li>
-        <li><i class="ti ti-check"></i><span>Photo de profil + <strong>anneau Studio</strong> violet</span></li>
-        <li><i class="ti ti-check"></i><span>Stockage fichiers <strong>500 Go</strong></span></li>
-        <li><i class="ti ti-check"></i><span>Support prioritaire</span></li>
-      </ul>
-      <a class="btn btn-ghost" href="app.html" style="width:100%;justify-content:center"><i class="ti ti-rocket"></i>Profiter du &minus;70 %</a>
-    </div>
+  </div>
 
+  <!-- STORAGE ADD-ON -->
+  <div class="storage-addon fade-up">
+    <div class="storage-addon-icon"><i class="ti ti-database"></i></div>
+    <div class="storage-addon-body">
+      <div class="storage-addon-title">Option Stockage <strong>500 Go</strong></div>
+      <div class="storage-addon-desc">Centralisez tous vos riders, show files, multipistes et visuels. Accessible à toute l'équipe, classé par show — votre Dropbox métier.</div>
+    </div>
+    <div class="storage-addon-right">
+      <div class="storage-addon-price"><span class="amount">3,50&nbsp;€</span><span class="period">/ mois</span></div>
+      <a class="btn btn-ghost sm" href="app.html" style="white-space:nowrap">Ajouter l'option</a>
+    </div>
   </div>
 
   <!-- ENTERPRISE (full width) -->
@@ -1507,7 +1502,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
         <p style="font-size:13px;color:var(--muted);line-height:1.6">Pour les societes de prestation son, agences et grandes productions. Tarif sur mesure selon le volume.</p>
       </div>
       <ul class="plan-ent-feats" style="list-style:none;margin:0;padding:0">
-        <li><i class="ti ti-check"></i><span><strong>Tout le plan Studio</strong></span></li>
+        <li><i class="ti ti-check"></i><span><strong>Tout le plan Pro</strong></span></li>
         <li><i class="ti ti-check"></i><span><strong>Membres illimites</strong></span></li>
         <li><i class="ti ti-check"></i><span>Stockage <strong>illimite</strong></span></li>
         <li><i class="ti ti-check"></i><span>SSO / Active Directory</span></li>
