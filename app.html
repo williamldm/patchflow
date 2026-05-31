@@ -10667,7 +10667,7 @@ function _renderFichiersGrid() {
   if (foldersShown.length && _fichFilter === 'all') {
     html += '<div class="fich-section-lbl"><i class="ti ti-folder" style="color:#f5c542;font-size:10px"></i>Dossiers</div>';
     _fichSortFiles(foldersShown).forEach(function(f) {
-      const fnJ = JSON.stringify(f.name); // safe for use in onclick
+      const fnJ = _fEsc(JSON.stringify(f.name)); // HTML-escape so quotes survive inside onclick="..."
       html += '<div class="fich-file-card" onclick="_fichNavTo(' + (_fichPath.length) + ');_fichPath.push(' + fnJ + ');loadFichiers()">' +
         '<div class="fich-file-ico ico-folder"><i class="ti ti-folder-filled fich-folder-ico"></i></div>' +
         '<div class="fich-file-info"><div class="fich-file-name">' + _fEsc(f.name) + '</div><div class="fich-file-meta">Dossier</div></div>' +
@@ -10701,7 +10701,7 @@ function _renderFichiersGrid() {
           const size = _fmtSize(f.metadata?.size);
           const date = f.created_at ? new Date(f.created_at).toLocaleDateString('fr-FR') : '';
           const meta = [size, date ? 'Ajoute ' + date : ''].filter(Boolean).join(' · ');
-          const fpJ  = JSON.stringify(_fichPathStr() + f.name); // safe for onclick
+          const fpJ  = _fEsc(JSON.stringify(_fichPathStr() + f.name)); // HTML-escape so quotes survive inside onclick="..."
           html += '<div class="fich-file-card" onclick="viewFichier(' + fpJ + ')">' +
             '<div class="fich-file-ico ' + (info.cls || 'ico-other') + '">' + info.icon + '</div>' +
             '<div class="fich-file-info"><div class="fich-file-name">' + _fEsc(name) + '</div><div class="fich-file-meta">' + _fEsc(meta) + '</div></div>' +
