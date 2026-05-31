@@ -235,12 +235,10 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .iltable tr.drag-over td{border-top:2px solid var(--ora) !important}
 
 /* ── Mobile plan viewer ── */
-.mob-plan-ov{position:absolute;inset:0;z-index:55;display:flex;flex-direction:column;background:var(--bg2)}
-.mob-plan-ov.hidden{display:none}
-/* Sur mobile : overlay fixe entre topbar (50px) et bottom-nav (62px) */
-@media(max-width:768px){
-  .mob-plan-ov{position:fixed;top:50px;left:0;right:0;bottom:62px;inset:auto;z-index:55}
-}
+/* Mobile plan viewer — fixed au niveau body, toujours au dessus des panels */
+.mob-plan-ov{display:none;position:fixed;top:50px;left:0;right:0;bottom:62px;z-index:55;flex-direction:column;background:var(--bg2)}
+.mob-plan-ov.hidden{display:none!important}
+@media(max-width:768px){.mob-plan-ov:not(.hidden){display:flex}}
 .mob-plan-bar{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surf);border-bottom:1px solid var(--bdr2);flex-shrink:0}
 .mob-plan-title{font-size:13px;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mob-plan-hint{font-size:9.5px;font-family:var(--m);color:var(--muted);letter-spacing:.5px;background:var(--surf3);border:1px solid var(--bdr2);border-radius:5px;padding:3px 7px;white-space:nowrap;flex-shrink:0}
@@ -1377,26 +1375,8 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
     </div>
 
     <!-- SYNOPTIQUE -->
-    <div class="panel" id="panel-synoptique" style="position:relative">
-      <!-- Mobile read-only viewer (remplace l'éditeur sur téléphone) -->
-      <div class="mob-plan-ov hidden" id="mob-syno-ov">
-        <div class="mob-plan-bar">
-          <i class="ti ti-topology-star" style="color:var(--ora);font-size:16px;flex-shrink:0"></i>
-          <span class="mob-plan-title" id="mob-syno-title">Synoptique</span>
-          <span class="mob-plan-hint"><i class="ti ti-lock" style="font-size:9px"></i> Lecture</span>
-          <button class="btn ghost sm" onclick="openPDFModal('syno')" style="font-size:10px;padding:5px 9px;flex-shrink:0"><i class="ti ti-file-type-pdf"></i>PDF</button>
-        </div>
-        <div class="mob-plan-canvas" id="mob-syno-scroll">
-          <div class="mob-plan-loading"><div class="spinner"></div>Génération…</div>
-          <div class="mob-zoom-hud">
-            <button class="mob-zoom-btn" onclick="_mobZoom('mob-syno-scroll',1.35)"><i class="ti ti-plus"></i></button>
-            <button class="mob-zoom-btn" onclick="_mobZoomFit('mob-syno-scroll')" style="font-size:15px"><i class="ti ti-arrows-maximize"></i></button>
-            <button class="mob-zoom-btn" onclick="_mobZoom('mob-syno-scroll',0.74)"><i class="ti ti-minus"></i></button>
-          </div>
-        </div>
-        <div class="mob-plan-foot">Glissez pour naviguer · Pincez pour zoomer</div>
-      </div>
-      <div class="sp-app">
+    <div class="panel" id="panel-synoptique">
+<div class="sp-app">
         <div class="sp-toolbar pbar" style="margin:0">
           <span class="ptitle"><i class="ti ti-topology-star" style="color:var(--ora)"></i>Synoptique<span class="ptitle-sep">/</span><span id="sp-doc-title" style="color:var(--txt2)">Diagramme reseau</span></span>
           <div class="sp-zoom-grp">
@@ -1508,26 +1488,8 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 
 
     <!-- PLANS -->
-    <div class="panel" id="panel-stage" style="position:relative">
-      <!-- Mobile read-only viewer -->
-      <div class="mob-plan-ov hidden" id="mob-stage-ov">
-        <div class="mob-plan-bar">
-          <i class="ti ti-layout-board" style="color:var(--ora);font-size:16px;flex-shrink:0" id="mob-stage-icon"></i>
-          <span class="mob-plan-title" id="mob-stage-title">Plan de scène</span>
-          <span class="mob-plan-hint"><i class="ti ti-lock" style="font-size:9px"></i> Lecture</span>
-          <button class="btn ghost sm" id="mob-stage-pdf-btn" onclick="openPDFModal('stage')" style="font-size:10px;padding:5px 9px;flex-shrink:0"><i class="ti ti-file-type-pdf"></i>PDF</button>
-        </div>
-        <div class="mob-plan-canvas" id="mob-stage-scroll">
-          <div class="mob-plan-loading"><div class="spinner"></div>Génération…</div>
-          <div class="mob-zoom-hud">
-            <button class="mob-zoom-btn" onclick="_mobZoom('mob-stage-scroll',1.35)"><i class="ti ti-plus"></i></button>
-            <button class="mob-zoom-btn" onclick="_mobZoomFit('mob-stage-scroll')" style="font-size:15px"><i class="ti ti-arrows-maximize"></i></button>
-            <button class="mob-zoom-btn" onclick="_mobZoom('mob-stage-scroll',0.74)"><i class="ti ti-minus"></i></button>
-          </div>
-        </div>
-        <div class="mob-plan-foot">Glissez pour naviguer · Pincez pour zoomer</div>
-      </div>
-      <div class="pbar" style="margin:0;padding:10px 14px;border-bottom:1px solid var(--bdr2);flex-shrink:0;background:var(--surf);flex-wrap:nowrap">
+    <div class="panel" id="panel-stage">
+<div class="pbar" style="margin:0;padding:10px 14px;border-bottom:1px solid var(--bdr2);flex-shrink:0;background:var(--surf);flex-wrap:nowrap">
         <span class="ptitle"><i class="ti ti-map-2" style="color:var(--ora)"></i>Plans<span class="ptitle-sep">/</span><span id="sn-stage" style="color:var(--txt2)">…</span></span>
         <div style="display:flex;gap:8px;align-items:center">
           <div class="plan-mode-bar">
@@ -11908,5 +11870,40 @@ async function openRecapMatos(){
   window._svSwitch(first);
 })();
 </script>
+<!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
+<div class="mob-plan-ov hidden" id="mob-syno-ov">
+  <div class="mob-plan-bar">
+    <i class="ti ti-topology-star" style="color:var(--ora);font-size:16px;flex-shrink:0"></i>
+    <span class="mob-plan-title" id="mob-syno-title">Synoptique</span>
+    <span class="mob-plan-hint"><i class="ti ti-lock" style="font-size:9px"></i> Lecture</span>
+    <button class="btn ghost sm" onclick="openPDFModal('syno')" style="font-size:10px;padding:5px 9px;flex-shrink:0"><i class="ti ti-file-type-pdf"></i>PDF</button>
+  </div>
+  <div class="mob-plan-canvas" id="mob-syno-scroll">
+    <div class="mob-plan-loading"><div class="spinner"></div>Génération…</div>
+    <div class="mob-zoom-hud">
+      <button class="mob-zoom-btn" onclick="_mobZoom('mob-syno-scroll',1.35)"><i class="ti ti-plus"></i></button>
+      <button class="mob-zoom-btn" onclick="_mobZoomFit('mob-syno-scroll')" style="font-size:15px"><i class="ti ti-arrows-maximize"></i></button>
+      <button class="mob-zoom-btn" onclick="_mobZoom('mob-syno-scroll',0.74)"><i class="ti ti-minus"></i></button>
+    </div>
+  </div>
+  <div class="mob-plan-foot">Glissez pour naviguer · Pincez pour zoomer</div>
+</div>
+
+<div class="mob-plan-ov hidden" id="mob-stage-ov">
+  <div class="mob-plan-bar">
+    <i class="ti ti-layout-board" style="color:var(--ora);font-size:16px;flex-shrink:0" id="mob-stage-icon"></i>
+    <span class="mob-plan-title" id="mob-stage-title">Plan de scène</span>
+    <span class="mob-plan-hint"><i class="ti ti-lock" style="font-size:9px"></i> Lecture</span>
+    <button class="btn ghost sm" id="mob-stage-pdf-btn" onclick="openPDFModal('stage')" style="font-size:10px;padding:5px 9px;flex-shrink:0"><i class="ti ti-file-type-pdf"></i>PDF</button>
+  </div>
+  <div class="mob-plan-canvas" id="mob-stage-scroll">
+    <div class="mob-plan-loading"><div class="spinner"></div>Génération…</div>
+    <div class="mob-zoom-hud">
+      <button class="mob-zoom-btn" onclick="_mobZoom('mob-stage-scroll',1.35)"><i class="ti ti-plus"></i></button>
+      <button class="mob-zoom-btn" onclick="_mobZoomFit('mob-stage-scroll')" style="font-size:15px"><i class="ti ti-arrows-maximize"></i></button>
+      <button class="mob-zoom-btn" onclick="_mobZoom('mob-stage-scroll',0.74)"><i class="ti ti-minus"></i></button>
+    </div>
+  </div>
+  <div class="mob-plan-foot">Glissez pour naviguer · Pincez pour zoomer</div>
+</div>
 </body>
-</html>

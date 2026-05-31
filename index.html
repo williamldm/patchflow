@@ -254,8 +254,8 @@ h2 em{font-style:normal;color:var(--ora)}
 .plan-ent-right{text-align:center;flex-shrink:0;min-width:180px}
 .plan-card{background:var(--surf);border:1px solid var(--bdr);border-radius:18px;padding:36px 32px;position:relative;transition:transform .2s,box-shadow .2s}
 .plan-card:hover{transform:translateY(-4px);box-shadow:0 24px 60px rgba(0,0,0,.4)}
-.plan-card.popular{border-color:var(--ora);background:linear-gradient(160deg,var(--surf2) 0%,var(--surf) 100%)}
-.plan-badge{position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:var(--ora);color:#000;font-size:10px;font-weight:800;font-family:var(--m);padding:4px 16px;border-radius:20px;letter-spacing:1px;text-transform:uppercase;white-space:nowrap}
+.plan-card.popular{border-color:var(--ora);border-width:2px;background:linear-gradient(150deg,rgba(255,107,26,.18) 0%,rgba(255,80,0,.08) 50%,var(--surf) 100%);box-shadow:0 0 0 1px rgba(255,107,26,.3),0 20px 60px rgba(255,107,26,.15)}
+.plan-badge{position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:linear-gradient(90deg,#ff6b1a,#ff3d00);color:#fff;font-size:10px;font-weight:800;font-family:var(--m);padding:5px 18px;border-radius:20px;letter-spacing:1.5px;text-transform:uppercase;white-space:nowrap;box-shadow:0 4px 16px rgba(255,80,0,.45)}
 /* Promo : -50% / -70% first 2 months */
 .plan-promo{display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,rgba(34,214,160,.14),rgba(34,214,160,.06));border:1px solid rgba(34,214,160,.35);border-radius:10px;padding:9px 12px;margin-bottom:16px}
 .plan-promo-tag{flex-shrink:0;background:var(--grn);color:#04150f;font-size:11px;font-weight:800;font-family:var(--m);padding:3px 8px;border-radius:6px;letter-spacing:.5px}
@@ -1447,7 +1447,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
       <div class="plan-name" style="color:var(--ora)">Pro</div>
       <div class="plan-price">
         <span class="currency" style="color:var(--ora)">€</span>
-        <span class="amount" style="color:var(--ora)">11,99</span>
+        <span class="amount" style="color:#ff5a00;text-shadow:0 0 30px rgba(255,80,0,.3)">11,99</span>
         <span class="period">/ mois</span>
       </div>
       <div class="plan-annual"><i class="ti ti-tag" style="font-size:10px"></i> ou <strong>119 € / an</strong> — 2 mois offerts (~9,92 €/mois)</div>
@@ -1457,7 +1457,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
         <span class="plan-promo-txt">Saison d'été : <strong>5,99 €/mois</strong> les 2 premiers mois</span>
       </div>
       <p class="plan-desc">Toutes les fonctionnalités de PatchFlow, sans aucune limite. Pour les techniciens qui veulent travailler au plus haut niveau, sur tous leurs shows.</p>
-      <div class="plan-divider" style="background:rgba(255,107,26,.2)"></div>
+      <div class="plan-divider" style="background:rgba(255,80,0,.35)"></div>
       <ul class="plan-features">
         <li><i class="ti ti-check"></i><span><strong>Shows &amp; canaux illimités</strong></span></li>
         <li><i class="ti ti-check"></i><span><strong>PDF sans filigrane</strong> + champs complets</span></li>
@@ -1499,7 +1499,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
           <span class="period">+ / mois</span>
         </div>
         <div class="plan-tax" style="margin-bottom:12px">Soit <strong>~37,50 €/mois</strong> apres deduction IS 25 %<br/><span style="font-size:10px;opacity:.75">(charge deductible — art. 39 CGI)</span></div>
-        <p style="font-size:13px;color:var(--muted);line-height:1.6">Pour les societes de prestation son, agences et grandes productions. Tarif sur mesure selon le volume.</p>
+        <p style="font-size:13px;color:var(--muted);line-height:1.6">Pour les sociétés de prestation son, agences et grandes productions. Tout le plan Pro, plus les options sur-mesure.</p>
       </div>
       <ul class="plan-ent-feats" style="list-style:none;margin:0;padding:0">
         <li><i class="ti ti-check"></i><span><strong>Tout le plan Pro</strong></span></li>
