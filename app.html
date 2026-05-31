@@ -235,10 +235,9 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .iltable tr.drag-over td{border-top:2px solid var(--ora) !important}
 
 /* ── Mobile plan viewer ── */
-/* Mobile plan viewer — fixed au niveau body, toujours au dessus des panels */
-.mob-plan-ov{display:none;position:fixed;top:50px;left:0;right:0;bottom:62px;z-index:55;flex-direction:column;background:var(--bg2);pointer-events:none}
-.mob-plan-ov.hidden{display:none!important;pointer-events:none!important}
-@media(max-width:768px){.mob-plan-ov:not(.hidden){display:flex;pointer-events:auto}}
+/* Mobile plan viewer — activé uniquement par JS (.mob-plan-show) */
+.mob-plan-ov{display:none!important;position:fixed;top:50px;left:0;right:0;bottom:62px;z-index:55;flex-direction:column;background:var(--bg2);pointer-events:none}
+.mob-plan-ov.mob-plan-show{display:flex!important;pointer-events:auto}
 .mob-plan-bar{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surf);border-bottom:1px solid var(--bdr2);flex-shrink:0}
 .mob-plan-title{font-size:13px;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mob-plan-hint{font-size:9.5px;font-family:var(--m);color:var(--muted);letter-spacing:.5px;background:var(--surf3);border:1px solid var(--bdr2);border-radius:5px;padding:3px 7px;white-space:nowrap;flex-shrink:0}
@@ -2376,7 +2375,7 @@ async function doLogout(){
   await sb.auth.signOut();
   /* Masquer les overlays mobiles avant de revenir à l'auth */
   ['mob-syno-ov','mob-stage-ov'].forEach(function(id){
-    var el=document.getElementById(id);if(el)el.classList.add('hidden');
+    var el=document.getElementById(id);if(el)el.classList.remove('mob-plan-show');
   });
   document.getElementById('auth-wrap').className='auth-wrap show';
   document.getElementById('app').className='';
@@ -10873,7 +10872,7 @@ function _isMobile(){ return window.innerWidth <= 768; }
 
 function _hideMobilePlanView(type){
   const ov=document.getElementById(type==='syno'?'mob-syno-ov':'mob-stage-ov');
-  if(ov) ov.classList.add('hidden');
+  if(ov) ov.classList.remove('mob-plan-show');
 }
 
 /* Re-fit les vues mobiles au changement d'orientation / redimensionnement */
@@ -10884,7 +10883,7 @@ window.addEventListener('resize',function(){
     ['mob-syno-scroll','mob-stage-scroll'].forEach(function(cid){
       const s=_mobZoomState[cid];
       const ov=document.getElementById(cid)?.closest('.mob-plan-ov');
-      if(s && ov && !ov.classList.contains('hidden')){
+      if(s && ov && ov.classList.contains('mob-plan-show')){
         _mobFitToCanvas(cid,s.iw,s.ih);
       }
     });
@@ -11011,7 +11010,7 @@ async function _showMobilePlanView(type){
   const cid     = isSyno ? 'mob-syno-scroll' : 'mob-stage-scroll';
   const ov      = document.getElementById(ovId);
   if(!ov) return;
-  ov.classList.remove('hidden');
+  ov.classList.add('mob-plan-show');
 
   /* Update title & icon for stage/site */
   if(!isSyno){
@@ -11998,7 +11997,7 @@ async function openRecapMatos(){
 })();
 </script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
-<div class="mob-plan-ov hidden" id="mob-syno-ov">
+<div class="mob-plan-ov" id="mob-syno-ov">
   <div class="mob-plan-bar">
     <i class="ti ti-topology-star" style="color:var(--ora);font-size:16px;flex-shrink:0"></i>
     <span class="mob-plan-title" id="mob-syno-title">Synoptique</span>
@@ -12016,7 +12015,7 @@ async function openRecapMatos(){
   <div class="mob-plan-foot">Glissez pour naviguer · Pincez pour zoomer</div>
 </div>
 
-<div class="mob-plan-ov hidden" id="mob-stage-ov">
+<div class="mob-plan-ov" id="mob-stage-ov">
   <div class="mob-plan-bar">
     <i class="ti ti-layout-board" style="color:var(--ora);font-size:16px;flex-shrink:0" id="mob-stage-icon"></i>
     <span class="mob-plan-title" id="mob-stage-title">Plan de scène</span>
