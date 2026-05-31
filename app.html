@@ -235,8 +235,12 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .iltable tr.drag-over td{border-top:2px solid var(--ora) !important}
 
 /* ── Mobile plan viewer ── */
-.mob-plan-ov{position:absolute;inset:0;z-index:80;display:flex;flex-direction:column;background:var(--bg2)}
+.mob-plan-ov{position:absolute;inset:0;z-index:55;display:flex;flex-direction:column;background:var(--bg2)}
 .mob-plan-ov.hidden{display:none}
+/* Sur mobile : overlay fixe entre topbar (50px) et bottom-nav (62px) */
+@media(max-width:768px){
+  .mob-plan-ov{position:fixed;top:50px;left:0;right:0;bottom:62px;inset:auto;z-index:55}
+}
 .mob-plan-bar{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surf);border-bottom:1px solid var(--bdr2);flex-shrink:0}
 .mob-plan-title{font-size:13px;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mob-plan-hint{font-size:9.5px;font-family:var(--m);color:var(--muted);letter-spacing:.5px;background:var(--surf3);border:1px solid var(--bdr2);border-radius:5px;padding:3px 7px;white-space:nowrap;flex-shrink:0}
@@ -10776,6 +10780,21 @@ function _hideMobilePlanView(type){
   if(ov) ov.classList.add('hidden');
 }
 
+/* Re-fit les vues mobiles au changement d'orientation / redimensionnement */
+let _mobResizeTimer=null;
+window.addEventListener('resize',function(){
+  clearTimeout(_mobResizeTimer);
+  _mobResizeTimer=setTimeout(function(){
+    ['mob-syno-scroll','mob-stage-scroll'].forEach(function(cid){
+      const s=_mobZoomState[cid];
+      const ov=document.getElementById(cid)?.closest('.mob-plan-ov');
+      if(s && ov && !ov.classList.contains('hidden')){
+        _mobFitToCanvas(cid,s.iw,s.ih);
+      }
+    });
+  },200);
+});
+
 /* ── Moteur pinch-zoom + pan pour vues mobiles ── */
 const _mobZoomState = {};
 
@@ -10784,10 +10803,16 @@ function _mobApplyTransform(cid){
   const img=document.querySelector('#'+cid+' .mob-img');
   if(img) img.style.transform='translate('+s.tx+'px,'+s.ty+'px) scale('+s.scale+')';
 }
-function _mobFitToCanvas(cid,iw,ih){
+function _mobFitToCanvas(cid,iw,ih,_retries){
   const canvas=document.getElementById(cid); if(!canvas||!iw||!ih)return;
   const cw=canvas.clientWidth, ch=canvas.clientHeight;
-  const scale=Math.min(cw/iw, ch/ih, 1);
+  /* Si le canvas n'est pas encore dimensionné (layout pas prêt), réessayer */
+  if((cw<10||ch<10) && (_retries||0)<10){
+    requestAnimationFrame(()=>_mobFitToCanvas(cid,iw,ih,(_retries||0)+1));
+    return;
+  }
+  /* Scale pour afficher le plan en pleine largeur (pas de plafond à 1 — on veut remplir l'écran) */
+  const scale=Math.min(cw/iw, ch/ih);
   _mobZoomState[cid]={scale, tx:(cw-iw*scale)/2, ty:(ch-ih*scale)/2, iw, ih};
   _mobApplyTransform(cid);
 }
@@ -10806,6 +10831,8 @@ function _mobZoomFit(cid){
 }
 function _mobInitGestures(cid){
   const canvas=document.getElementById(cid); if(!canvas)return;
+  if(canvas.dataset.gesturesReady==='1') return; // éviter le double-attachement
+  canvas.dataset.gesturesReady='1';
   let t0=null,t1=null,startScale=1,startTx=0,startTy=0,startDist=0,startMidX=0,startMidY=0,lastTap=0;
   const D=(a,b)=>Math.hypot(b.clientX-a.clientX,b.clientY-a.clientY);
   canvas.addEventListener('touchstart',function(e){
