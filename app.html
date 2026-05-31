@@ -6326,43 +6326,29 @@ const SynPro = (() => {
       var sel = (selected.kind === 'cable' && selected.id === c.id);
       var lw  = sel ? 4 : 2.5;
 
-      /* Parallel cable handling — use cubic bezier curve per cable in a group.
-         Cable 0 = straight line. Cable 1 = curves above. Cable 2 = below. Etc.
-         Bulge magnitude scales with how many cables are in the group. */
+      /* Parallel cable handling — offset each cable perpendicularly (true parallel lines) */
       var key = [c.from, c.to].sort().join('|');
       var group  = pairGroups[key] || [c.id];
       var idx    = group.indexOf(c.id);
       var count  = group.length;
 
       var p0 = g.p0, p1 = g.p1;
-      var mx = (p0.x + p1.x) / 2;
-      var my = (p0.y + p1.y) / 2;
 
-      /* Perpendicular unit vector for bulge direction */
+      /* Perpendicular unit vector */
       var dx = p1.x - p0.x, dy = p1.y - p0.y;
       var linLen = Math.sqrt(dx*dx + dy*dy) || 1;
       var perpX = -dy / linLen, perpY = dx / linLen;
 
-      /* idx 0 -> bulge 0 (straight), idx 1 -> bulge +B, idx 2 -> bulge -B, idx 3 -> +2B, ... */
-      var B = Math.max(40, linLen * 0.22);  /* bulge size: at least 40u or 22% of length */
-      var sign = (idx === 0) ? 0 : (idx % 2 === 1 ? 1 : -1);
-      var magnitude = Math.ceil(idx / 2);
-      var bulge = sign * magnitude * B;
+      /* Offset: cables spaced by STEP px, centered around 0 */
+      var STEP = 7;  /* px between parallel cables */
+      var totalSpan = (count - 1) * STEP;
+      var offset = idx * STEP - totalSpan / 2;
 
-      /* Control point for quadratic bezier (single midpoint bulge) */
-      var cpx = mx + perpX * bulge;
-      var cpy = my + perpY * bulge;
+      var sx0 = p0.x + perpX * offset, sy0 = p0.y + perpY * offset;
+      var sx1 = p1.x + perpX * offset, sy1 = p1.y + perpY * offset;
+      var midX = (sx0 + sx1) / 2, midY = (sy0 + sy1) / 2;
 
-      var d, midX, midY;
-      if (bulge === 0) {
-        d = 'M' + p0.x + ',' + p0.y + ' L' + p1.x + ',' + p1.y;
-        midX = mx; midY = my;
-      } else {
-        d = 'M' + p0.x + ',' + p0.y + ' Q' + cpx + ',' + cpy + ' ' + p1.x + ',' + p1.y;
-        /* True midpoint of quadratic bezier at t=0.5 */
-        midX = 0.25*p0.x + 0.5*cpx + 0.25*p1.x;
-        midY = 0.25*p0.y + 0.5*cpy + 0.25*p1.y;
-      }
+      var d = 'M' + sx0 + ',' + sy0 + ' L' + sx1 + ',' + sy1;
 
       /* Arrow markers */
       var dir = c.dir || 'none';
@@ -6969,20 +6955,14 @@ const SynPro = (() => {
       var dx = p1x - p0x, dy = p1y - p0y;
       var linLen = Math.sqrt(dx*dx + dy*dy) || 1;
       var perpX = -dy / linLen, perpY = dx / linLen;
-      var B = Math.max(40, linLen * 0.22);
-      var sign = (idx===0) ? 0 : (idx%2===1 ? 1 : -1);
-      var bulge = sign * Math.ceil(idx/2) * B;
-      var cpx = mx + perpX * bulge, cpy = my + perpY * bulge;
-
-      var d, midX, midY;
-      if (bulge === 0) {
-        d = 'M' + p0x + ',' + p0y + ' L' + p1x + ',' + p1y;
-        midX = mx; midY = my;
-      } else {
-        d = 'M' + p0x + ',' + p0y + ' Q' + cpx + ',' + cpy + ' ' + p1x + ',' + p1y;
-        midX = 0.25*p0x + 0.5*cpx + 0.25*p1x;
-        midY = 0.25*p0y + 0.5*cpy + 0.25*p1y;
-      }
+      /* Parallel lines — perpendicular offset */
+      var STEP = 7;
+      var totalSpan = (count - 1) * STEP;
+      var offset = idx * STEP - totalSpan / 2;
+      var sx0 = p0x + perpX * offset, sy0 = p0y + perpY * offset;
+      var sx1 = p1x + perpX * offset, sy1 = p1y + perpY * offset;
+      var midX = (sx0 + sx1) / 2, midY = (sy0 + sy1) / 2;
+      var d = 'M' + sx0 + ',' + sy0 + ' L' + sx1 + ',' + sy1;
 
       var dir = c.dir || 'none';
       var colId = net.color.replace('#','');
@@ -11829,10 +11809,15 @@ async function openRecapMatos(){
         /* Icon area */
         var iconAreaH=h-46, iconAreaY=y+10;
         if(n.iconSvg){
-          /* Embed SVG icon as a data URI inside an <image> element */
-          var iconDataUri='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(n.iconSvg);
+          /* Inline SVG icon directly (no data URI — works everywhere) */
           var iw=Math.min(iconAreaH,w-20), ih=iconAreaH;
-          nodeSvg+='<image href="'+iconDataUri+'" x="'+(x+(w-iw)/2)+'" y="'+iconAreaY+'" width="'+iw+'" height="'+ih+'"/>';
+          var ix=(x+(w-iw)/2), iy=iconAreaY;
+          /* Strip outer <svg> wrapper and re-wrap with correct position/size */
+          var inner=n.iconSvg.replace(/^<svg[^>]*>/,'').replace(/<\/svg>\s*$/,'');
+          /* Extract original viewBox from the icon SVG */
+          var vbMatch=n.iconSvg.match(/viewBox=["']([^"']+)["']/);
+          var vbAttr=vbMatch?'viewBox="'+vbMatch[1]+'"':'viewBox="0 0 64 48"';
+          nodeSvg+='<svg x="'+ix+'" y="'+iy+'" width="'+iw+'" height="'+ih+'" overflow="visible" '+vbAttr+' preserveAspectRatio="xMidYMid meet">'+inner+'</svg>';
         } else {
           nodeSvg+='<rect x="'+(x+w/2-26)+'" y="'+(iconAreaY)+'" width="52" height="'+(iconAreaH)+'" rx="4" fill="#e8eef5" stroke="#c8d4e0" stroke-width=".5"/>';
         }
