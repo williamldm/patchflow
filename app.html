@@ -4151,7 +4151,7 @@ async function _riderPreviewPdf(encodedPath, displayName){
   if (!modal) return;
   if (titleEl) titleEl.textContent = displayName;
   if (dlLink) { dlLink.href = url; dlLink.download = displayName; }
-  modal.style.display = '';
+  modal.style.display = 'flex';
   _openPdfJs(url, content);
 }
 
@@ -10858,7 +10858,7 @@ async function viewFichier(relPath) {
   if (info.preview === 'pdf') {
     if (titleEl) titleEl.textContent = displayName;
     if (dlLink) { dlLink.href = url; dlLink.download = displayName; }
-    modal.style.display = '';
+    modal.style.display = 'flex';
     _openPdfJs(url, content);
     return;
   } else if (info.preview === 'video') {
@@ -10869,7 +10869,7 @@ async function viewFichier(relPath) {
     content.innerHTML = '<img src="' + url + '" alt="' + _fEsc(displayName) + '" style="max-width:100%;max-height:80vh;object-fit:contain;border-radius:8px;display:block;margin:0 auto"/>';
   }
 
-  modal.style.display = '';
+  modal.style.display = 'flex';
 }
 
 
