@@ -61,17 +61,11 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
   try {
-    // Log env check (values presence only, never secrets)
-    console.log('[b2] B2_ENDPOINT set:', !!Deno.env.get('B2_ENDPOINT'),
-      '| B2_BUCKET set:', !!Deno.env.get('B2_BUCKET'),
-      '| B2_KEY_ID set:', !!Deno.env.get('B2_KEY_ID'),
-      '| SUPABASE_URL set:', !!Deno.env.get('SUPABASE_URL'));
+    const body = await req.json();
+    const { action } = body;
 
     const user = await getUser(req);
     if (!user) return json({ error: 'Unauthorized — session token invalid or missing' }, 401);
-
-    const body = await req.json();
-    const { action } = body;
 
     // ── list ──
     if (action === 'list') {
