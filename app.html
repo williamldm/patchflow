@@ -8581,11 +8581,19 @@ function setPlanMode(mode,save=true){
   document.getElementById('plan-site-wrap').style.display=mode==='site'?'':'none';
   document.getElementById('pmb-scene').classList.toggle('on',mode==='scene');
   document.getElementById('pmb-site').classList.toggle('on',mode==='site');
+  /* Bouton mobile — affiche le mode opposé (action future) */
+  var mobLbl=document.getElementById('mob-plan-mode-lbl');
+  var mobBtn=document.getElementById('mob-plan-mode-btn');
+  if(mobLbl) mobLbl.textContent=mode==='site'?'Scène':'Site';
+  if(mobBtn){
+    var mobIcon=mobBtn.querySelector('i');
+    if(mobIcon) mobIcon.className=mode==='site'?'ti ti-layout-board':'ti ti-map-2';
+  }
   /* Unified export dropdown — update labels/visibility */
   if(typeof _updatePlanExpWrap==='function') _updatePlanExpWrap();
   /* Re-render mobile view only if stage panel is currently visible */
-  if(_isMobile() && document.getElementById('panel-stage')?.classList.contains('on')){
-    _showMobilePlanView(mode);
+  if(_isMobile() && document.getElementById('mob-stage-ov')?.classList.contains('mob-plan-show')){
+    _showMobilePlanView(mode==='site'?'site':'stage');
   } else if(!_isMobile() && mode==='scene') setTimeout(()=>BandPlan.fitView(),50);
   if(save)saveStage();
 }
@@ -11008,6 +11016,11 @@ function renderFichiers() {
 const TAB_PERSIST_KEY = 'pf_active_tab';
 const SHOW_PERSIST_KEY = 'pf_active_show';
 function goTab(id,el){
+  /* Toujours masquer les overlays mobiles — ils sont re-affichés uniquement pour syno/stage */
+  ['mob-syno-ov','mob-stage-ov'].forEach(function(oid){
+    var ov=document.getElementById(oid);
+    if(ov) ov.classList.remove('mob-plan-show');
+  });
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   document.getElementById('panel-'+id)?.classList.add('on');
   // Desktop tabs
@@ -11022,13 +11035,13 @@ function goTab(id,el){
   // Side effects
   if(id==='synoptique'){
     if(window.innerWidth<=768){ _showMobilePlanView('syno'); }
-    else { _hideMobilePlanView('syno'); SynPro.show(); }
+    else { SynPro.show(); }
   }
   if(id==='sessions')renderSessions();
   if(id==='stage'){
     SitePlan.init(); BandPlan.init();
     if(window.innerWidth<=768){ _showMobilePlanView(PLAN_MODE==='site'?'site':'stage'); }
-    else { _hideMobilePlanView('stage'); setTimeout(()=>BandPlan.fitView(),80); }
+    else { setTimeout(()=>BandPlan.fitView(),80); }
   }
   if(id==='fichiers')renderFichiers();
   if(id==='team'){_initRiderBuilder();}
@@ -11096,17 +11109,18 @@ function _mobInitGestures(cid){
   const canvas=document.getElementById(cid); if(!canvas)return;
   if(canvas.dataset.gesturesReady==='1') return; // éviter le double-attachement
   canvas.dataset.gesturesReady='1';
-  let t0=null,t1=null,startScale=1,startTx=0,startTy=0,startDist=0,startMidX=0,startMidY=0,lastTap=0;
+  let t0=null,t1=null,startScale=1,startTx=0,startTy=0,startDist=0,startMidX=0,startMidY=0,lastTap=0,wasPinch=false;
   const D=(a,b)=>Math.hypot(b.clientX-a.clientX,b.clientY-a.clientY);
   canvas.addEventListener('touchstart',function(e){
     const ts=Array.from(e.touches);
     const s=_mobZoomState[cid]; if(!s)return;
-    if(ts.length===1){t0=ts[0];t1=null;startTx=s.tx;startTy=s.ty;}
+    if(ts.length===1){t0=ts[0];t1=null;startTx=s.tx;startTy=s.ty;wasPinch=false;}
     else if(ts.length>=2){
       t0=ts[0];t1=ts[1];startDist=D(t0,t1);startScale=s.scale;startTx=s.tx;startTy=s.ty;
       const r=canvas.getBoundingClientRect();
       startMidX=(t0.clientX+t1.clientX)/2-r.left;
       startMidY=(t0.clientY+t1.clientY)/2-r.top;
+      wasPinch=true;
     }
     e.preventDefault();
   },{passive:false});
@@ -11130,9 +11144,9 @@ function _mobInitGestures(cid){
   canvas.addEventListener('touchend',function(e){
     const ts=Array.from(e.touches);
     const now=Date.now();
-    if(now-lastTap<280){_mobZoomFit(cid);}
-    lastTap=now;
-    if(ts.length===0){t0=null;t1=null;}
+    /* Double-tap to fit — uniquement pour des taps 1 doigt (jamais après un pinch) */
+    if(!wasPinch && ts.length===0 && (now-lastTap<280)){_mobZoomFit(cid);}
+    if(ts.length===0){lastTap=now; t0=null;t1=null; wasPinch=false;}
     else if(ts.length===1){
       const s=_mobZoomState[cid]; if(!s)return;
       t0=ts[0];t1=null;startTx=s.tx;startTy=s.ty;
@@ -12261,7 +12275,8 @@ async function openRecapMatos(){
   <div class="mob-plan-bar">
     <i class="ti ti-layout-board" style="color:var(--ora);font-size:16px;flex-shrink:0" id="mob-stage-icon"></i>
     <span class="mob-plan-title" id="mob-stage-title">Plan de scène</span>
-    <span class="mob-plan-hint"><i class="ti ti-lock" style="font-size:9px"></i> Lecture</span>
+    <span class="mob-plan-hint" style="flex:1"><i class="ti ti-lock" style="font-size:9px"></i> Lecture</span>
+    <button id="mob-plan-mode-btn" onclick="setPlanMode(PLAN_MODE==='site'?'scene':'site')" style="flex-shrink:0;background:var(--surf2);border:1px solid var(--bdr2);color:var(--txt2);font-size:10px;font-weight:600;padding:5px 9px;border-radius:7px;cursor:pointer;display:flex;align-items:center;gap:5px;font-family:var(--f)"><i class="ti ti-map-2" style="font-size:12px"></i><span id="mob-plan-mode-lbl">Site</span></button>
     <button class="btn ghost sm" id="mob-stage-pdf-btn" onclick="openPDFModal('stage')" style="font-size:10px;padding:5px 9px;flex-shrink:0"><i class="ti ti-file-type-pdf"></i>PDF</button>
   </div>
   <div class="mob-plan-canvas" id="mob-stage-scroll">
