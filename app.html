@@ -4016,7 +4016,7 @@ async function processShowInvites() {
 }
 
 /* ── Rider link builder ── */
-var _riderSections={il:true,out:false,syno:false,stage:false,site:false};
+var _riderSections={il:true,out:true,syno:true,stage:true,site:true};
 var _riderPickedFiles=new Set();
 
 async function generateRiderLink(){
@@ -5984,6 +5984,13 @@ const SynPro = (() => {
   var _activeSceneId = null; // set by setSceneId() for Studio multi-scene
   async function _save() {
     if (!CUR_SHOW || !state) return;
+    /* Populate missing iconSvg fields before any save (retrocompat with older nodes) */
+    state.nodes.forEach(function(n){
+      if(!n.iconSvg && n.type!=='note'){
+        var sp2=spec(n.type);
+        if(sp2&&sp2.icon) n.iconSvg=sp2.icon;
+      }
+    });
     /* Studio : save to show_scenes table */
     if (_activeSceneId && typeof _saveScene === 'function') {
       await _saveScene('syno', state);
@@ -7408,7 +7415,8 @@ const SynPro = (() => {
 
   function setSceneId(id){ _activeSceneId = id||null; }
   function setSceneData(data){ _injectedSceneData = data||null; }
-  return { init, show, render, resetLoaded, isLoaded, getData, cancelCable, _saveNow, buildExportSvg: _buildExportSvg, setSceneId, setSceneData };
+  function getIconByType(type){ var s=spec(type); return (s&&s.icon)?s.icon:''; }
+  return { init, show, render, resetLoaded, isLoaded, getData, cancelCable, _saveNow, buildExportSvg: _buildExportSvg, setSceneId, setSceneData, getIconByType };
 })();
 
 window.SynPro = SynPro;
@@ -8681,8 +8689,8 @@ const SitePlan = (() => {
   const CUSTOM_ITEMS_KEY   = 'siteplan_custom_items';
 
   function _getCustomSiteItems()  { try { return JSON.parse(localStorage.getItem(CUSTOM_ITEMS_KEY)||'[]'); } catch(e2){ return []; } }
-  function _saveCustomSiteItem(it){ var list=_getCustomSiteItems().filter(function(x){return x.type!==it.type;}); list.push(it); localStorage.setItem(CUSTOM_ITEMS_KEY,JSON.stringify(list)); }
-  function _removeCustomSiteItem(type){ localStorage.setItem(CUSTOM_ITEMS_KEY,JSON.stringify(_getCustomSiteItems().filter(function(x){return x.type!==type;}))); }
+  function _saveCustomSiteItem(it){ var list=_getCustomSiteItems().filter(function(x){return x.type!==it.type;}); list.push(it); localStorage.setItem(CUSTOM_ITEMS_KEY,JSON.stringify(list)); _invalidateSiteIconImgs(); }
+  function _removeCustomSiteItem(type){ localStorage.setItem(CUSTOM_ITEMS_KEY,JSON.stringify(_getCustomSiteItems().filter(function(x){return x.type!==type;}))); _invalidateSiteIconImgs(); }
 
   function _loadCustomCableTypes() {
     try {
@@ -9494,18 +9502,26 @@ const SitePlan = (() => {
 
   /* Pre-convert SVG icon strings to HTMLImageElement for canvas drawImage() */
   let _siteIconImgs = null;
+  function _invalidateSiteIconImgs(){ _siteIconImgs = null; }
   function _loadSiteIconImgs(done) {
     if (_siteIconImgs) { done(); return; }
     _siteIconImgs = {};
-    const keys = Object.keys(SITE_ICONS);
+    /* Combine built-in + custom item icons */
+    var allIcons = Object.assign({}, SITE_ICONS);
+    _getCustomSiteItems().forEach(function(it){ if(it.type&&it.icon) allIcons[it.type]=it.icon; });
+    const keys = Object.keys(allIcons);
     let pending = keys.length;
     if (!pending) { done(); return; }
     keys.forEach(function(k) {
       const img = new Image();
-      const svgBlob = new Blob([SITE_ICONS[k]], {type:'image/svg+xml'});
+      /* Add explicit width/height so naturalWidth > 0 on all browsers (SVG-as-img quirk) */
+      var svgStr = allIcons[k];
+      if(svgStr && !/\bwidth=/.test(svgStr)) svgStr = svgStr.replace(/^<svg /, '<svg width="64" height="64" ');
+      const svgBlob = new Blob([svgStr], {type:'image/svg+xml'});
       const url = URL.createObjectURL(svgBlob);
       img.onload = img.onerror = function() {
-        _siteIconImgs[k] = img.complete && img.naturalWidth ? img : null;
+        /* Accept the image even if naturalWidth is 0 (some browsers report 0 for SVG) */
+        _siteIconImgs[k] = img.complete ? img : null;
         URL.revokeObjectURL(url);
         if (--pending === 0) done();
       };
@@ -12038,14 +12054,16 @@ async function openRecapMatos(){
         nodeSvg+='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="9" fill="#fff" stroke="#c8d4e0"/>';
         /* Icon area */
         var iconAreaH=h-46, iconAreaY=y+10;
-        if(n.iconSvg){
+        /* Use stored iconSvg; fall back to live LIB lookup for older nodes */
+        var _icSvg=n.iconSvg||(window.SynPro&&typeof window.SynPro.getIconByType==='function'?window.SynPro.getIconByType(n.type):'');
+        if(_icSvg){
           /* Inline SVG icon directly (no data URI — works everywhere) */
           var iw=Math.min(iconAreaH,w-20), ih=iconAreaH;
           var ix=(x+(w-iw)/2), iy=iconAreaY;
           /* Strip outer <svg> wrapper and re-wrap with correct position/size */
-          var inner=n.iconSvg.replace(/^<svg[^>]*>/,'').replace(/<\/svg>\s*$/,'');
+          var inner=_icSvg.replace(/^<svg[^>]*>/,'').replace(/<\/svg>\s*$/,'');
           /* Extract original viewBox from the icon SVG */
-          var vbMatch=n.iconSvg.match(/viewBox=["']([^"']+)["']/);
+          var vbMatch=_icSvg.match(/viewBox=["']([^"']+)["']/);
           var vbAttr=vbMatch?'viewBox="'+vbMatch[1]+'"':'viewBox="0 0 64 48"';
           nodeSvg+='<svg x="'+ix+'" y="'+iy+'" width="'+iw+'" height="'+ih+'" overflow="visible" '+vbAttr+' preserveAspectRatio="xMidYMid meet">'+inner+'</svg>';
         } else {
