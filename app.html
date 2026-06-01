@@ -503,6 +503,7 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .sp-node-card{background:#fff;border:1px solid #c8d4e0;border-radius:9px;padding:10px 12px 14px;box-shadow:0 2px 10px rgba(0,0,0,.07);display:flex;flex-direction:column;align-items:center;gap:6px;min-width:120px;pointer-events:none}
 .sp-node-card *{pointer-events:none}
 .sp-node-icon{width:64px;height:64px;display:flex;align-items:center;justify-content:center;color:#1d3a5f}
+.sp-node-icon.img{width:var(--sp-img-sz,90px);height:var(--sp-img-sz,90px)}
 .sp-node-icon svg{width:100%;height:100%;-webkit-user-drag:none}
 .sp-node-label{font-family:Outfit,sans-serif;font-weight:700;font-size:12.5px;color:#1d3a5f;line-height:1.2;margin-top:2px}
 .sp-node-sub{font-family:Outfit,sans-serif;font-size:10px;color:#5a6a80;line-height:1.3;font-weight:400}
@@ -6035,6 +6036,7 @@ const SynPro = (() => {
     /* ══════════════ ANNOTATIONS ══════════════ */
     { type:'note',                 cat:'Annotations',label:'Annotation',     defaultSub:'Texte libre',                w:200, h:80,  icon:_iconNote() },
     { type:'text_label',           cat:'Annotations',label:'Texte simple',   defaultSub:'',                           w:160, h:50,  icon:_iconTextLabel() },
+    { type:'image_frame',          cat:'Annotations',label:'Image',          defaultSub:'',                           w:120, h:120, icon:_iconImageFrame() },
   ];
 
   /* ── SVG icon builders — stylized, neutral grey/blue, scalable ── */
@@ -6100,6 +6102,9 @@ const SynPro = (() => {
   }
   function _iconTextLabel() {
     return '<svg viewBox="0 0 56 32" fill="none"><text x="4" y="22" font-family="Outfit,sans-serif" font-size="16" font-weight="700" fill="#e8edf8">Aa</text></svg>';
+  }
+  function _iconImageFrame() {
+    return '<svg viewBox="0 0 56 48" fill="none"><rect x="4" y="4" width="48" height="40" rx="5" fill="#1a2840" stroke="#3a5378" stroke-width="1.2"/><path d="M4 32 L16 20 L26 28 L34 18 L52 36 L52 44 L4 44 Z" fill="#2c4060"/><circle cx="40" cy="16" r="6" fill="#f5c542" opacity=".8"/><line x1="14" y1="14" x2="14" y2="10" stroke="#3a5378" stroke-width="1"/><line x1="14" y1="14" x2="18" y2="14" stroke="#3a5378" stroke-width="1"/></svg>';
   }
 
   /* ── State ──
@@ -6659,14 +6664,25 @@ const SynPro = (() => {
         iconHtml = '<div class="sp-node-card" style="background:#fef3c7;border-color:#fbbf24;min-width:180px;padding:10px 14px"><div style="font-size:12px;color:#92400e;line-height:1.4;font-weight:600;white-space:pre-wrap">' + esc(label || 'Note') + '</div>' + (sub ? '<div style="font-size:10px;color:#a16207;margin-top:4px;white-space:pre-wrap">' + esc(sub) + '</div>' : '') + '</div>';
       } else if (n.type === 'text_label') {
         iconHtml = '<div style="font-family:Outfit,sans-serif;font-size:14px;font-weight:700;color:var(--txt);white-space:pre-wrap;min-width:80px;padding:4px 2px;cursor:grab;user-select:none">' + esc(label || 'Texte') + '</div>';
+      } else if (n.type === 'image_frame') {
+        /* Image flottante indépendante — pas de fond de carte */
+        var ifSz = (n.imgPx || 120) + 'px';
+        iconHtml = n.iconImg
+          ? '<img src="' + n.iconImg + '" style="width:'+ifSz+';height:'+ifSz+';object-fit:contain;border-radius:6px;display:block;pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.15)"/>'
+            + (label ? '<div class="sp-node-label" style="margin-top:4px">'+esc(label)+'</div>' : '')
+          : '<div style="width:'+ifSz+';height:'+ifSz+';border:2px dashed var(--bdr2);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-direction:column;gap:6px" onclick="SynPro.uploadNodeIcon(\''+n.id+'\')">'
+            + '<i class="ti ti-photo" style="font-size:28px;color:var(--muted)"></i>'
+            + '<span style="font-size:10px;color:var(--muted);font-family:var(--m)">Ajouter une image</span></div>';
       } else if (n.iconImg) {
-        /* Custom image icon */
-        iconHtml = '<div class="sp-node-card"><div class="sp-node-icon" style="background:transparent"><img src="' + n.iconImg + '" style="width:100%;height:100%;object-fit:contain;border-radius:4px;pointer-events:none"/></div><div class="sp-node-label">' + esc(label) + '</div>' + (sub ? '<div class="sp-node-sub">' + esc(sub).replace(/\n/g,'<br>') + '</div>' : '') + '</div>';
+        /* Custom image icon with adaptive size */
+        var imgSz = (n.imgPx || 90) + 'px';
+        iconHtml = '<div class="sp-node-card"><div class="sp-node-icon" style="width:'+imgSz+';height:'+imgSz+';background:transparent"><img src="' + n.iconImg + '" style="width:100%;height:100%;object-fit:contain;border-radius:4px;pointer-events:none"/></div><div class="sp-node-label">' + esc(label) + '</div>' + (sub ? '<div class="sp-node-sub">' + esc(sub).replace(/\n/g,'<br>') + '</div>' : '') + '</div>';
       } else {
         var icon = sp ? sp.icon : _iconRack(3);
         iconHtml = '<div class="sp-node-card"><div class="sp-node-icon">' + icon + '</div><div class="sp-node-label">' + esc(label) + '</div>' + (sub ? '<div class="sp-node-sub">' + esc(sub).replace(/\n/g, '<br>') + '</div>' : '') + '</div>';
       }
-      h += '<div class="sp-node' + sel + target + '" data-id="' + n.id + '" data-type="' + esc(n.type) + '" style="left:' + n.x + 'px;top:' + n.y + 'px;min-width:' + w + 'px">' + iconHtml + '<button type="button" class="sp-node-del" data-del="' + n.id + '" title="Supprimer">&times;</button></div>';
+      var nodeMinW = (n.type === 'image_frame') ? '0' : w + 'px';
+      h += '<div class="sp-node' + sel + target + '" data-id="' + n.id + '" data-type="' + esc(n.type) + '" style="left:' + n.x + 'px;top:' + n.y + 'px;min-width:' + nodeMinW + '">' + iconHtml + '<button type="button" class="sp-node-del" data-del="' + n.id + '" title="Supprimer">&times;</button></div>';
     });
     host.innerHTML = h;
   }
@@ -6812,6 +6828,7 @@ const SynPro = (() => {
         '<input class="sp-insp-inp" id="sp-ins-label" value="' + esc(n.label != null ? n.label : (sp ? sp.label : '')) + '">' +
         '<label class="sp-insp-lbl">Sous-titre</label>' +
         '<textarea class="sp-insp-tx" id="sp-ins-sub" rows="2">' + esc(n.sub != null ? n.sub : (sp ? sp.defaultSub : '')) + '</textarea>' +
+        ((n.iconImg || n.type==='image_frame') ? '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr2)"><div style="font-size:9px;font-family:var(--m);text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:5px">Taille de l\'image</div><div style="display:flex;align-items:center;gap:7px"><button class="spl-ts-btn" onclick="SynPro.adjImgPx(\''+ nId +'\',-20)">−</button><span id="sp-img-px-lbl" style="flex:1;text-align:center;font-size:10px;color:var(--muted)">'+(n.imgPx||90)+'px</span><button class="spl-ts-btn" onclick="SynPro.adjImgPx(\''+ nId +'\',20)">+</button></div></div>' : '') +
         (n.type !== 'note' && n.type !== 'text_label' ? _iconImgInspHtml(nId, !!n.iconImg, n.iconImg||'', "SynPro.uploadNodeIcon('"+nId+"')", "SynPro.clearNodeIcon('"+nId+"')") : '') +
         '<button class="btn ghost sm" id="sp-ins-del" style="margin-top:12px;width:100%;color:var(--err)"><i class="ti ti-trash"></i>Supprimer</button>';
       $('sp-ins-label').addEventListener('input', function(e){ n.label = e.target.value; var el2 = document.querySelector('.sp-node[data-id="' + n.id + '"] .sp-node-label'); if (el2) el2.textContent = n.label; scheduleSave(); });
@@ -6873,10 +6890,13 @@ const SynPro = (() => {
     var sp = spec(type) || { w:140, h:100, label:type };
     var n = { id: uid(), type:type, x: Math.round(x), y: Math.round(y), label: sp.label, sub: sp.defaultSub || '',
               iconSvg: sp && sp.icon ? sp.icon : '' };
+    if(type === 'image_frame') { n.imgPx = 120; n.label = ''; }
     state.nodes.push(n);
     selected = { kind:'node', id: n.id };
     scheduleSave();
     render();
+    /* Auto-open file picker for image_frame */
+    if(type === 'image_frame') setTimeout(function(){ uploadNodeIcon(n.id); }, 100);
   }
   function deleteNode(id) {
     state.nodes = state.nodes.filter(function(n){ return n.id !== id; });
@@ -7412,6 +7432,15 @@ const SynPro = (() => {
         return;
       }
 
+      if (n.type === 'image_frame') {
+        var ifSz = n.imgPx || 120;
+        if (n.iconImg) {
+          svg += '<image x="' + x + '" y="' + y + '" width="' + ifSz + '" height="' + ifSz + '" href="' + n.iconImg + '" preserveAspectRatio="xMidYMid meet"/>';
+          if (label) svg += '<text x="' + (x+ifSz/2) + '" y="' + (y+ifSz+14) + '" text-anchor="middle" font-family="Outfit,sans-serif" font-size="11" fill="#1d3a5f">' + esc(label) + '</text>';
+        }
+        return;
+      }
+
       /* Equipment card — white box with border */
       svg += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="8" fill="#ffffff" stroke="#c8d4e0" stroke-width="1.5"/>';
 
@@ -7663,6 +7692,15 @@ const SynPro = (() => {
     document.addEventListener('visibilitychange', function(){ if (document.hidden) _saveNow(); });
   }
 
+  /* ── Adjust image pixel size ── */
+  function adjImgPx(nodeId, delta){
+    var n=nodeById(nodeId); if(!n)return;
+    n.imgPx=Math.max(40,Math.min(400,(n.imgPx||(n.type==='image_frame'?120:90))+delta));
+    var lbl=document.getElementById('sp-img-px-lbl');
+    if(lbl)lbl.textContent=n.imgPx+'px';
+    scheduleSave(); render();
+  }
+
   /* ── Custom icon upload/clear (Pro) ── */
   function uploadNodeIcon(nodeId){
     _pickIconFile(async function(file){
@@ -7702,7 +7740,7 @@ const SynPro = (() => {
     setTimeout(fitView, 50);
   }
   function getIconByType(type){ var s=spec(type); return (s&&s.icon)?s.icon:''; }
-  return { init, show, render, resetLoaded, isLoaded, getData, cancelCable, _saveNow, buildExportSvg: _buildExportSvg, setSceneId, setSceneData, loadSceneDirect, getIconByType, uploadNodeIcon, clearNodeIcon };
+  return { init, show, render, resetLoaded, isLoaded, getData, cancelCable, _saveNow, buildExportSvg: _buildExportSvg, setSceneId, setSceneData, loadSceneDirect, getIconByType, uploadNodeIcon, clearNodeIcon, adjImgPx };
 })();
 
 window.SynPro = SynPro;
@@ -8246,7 +8284,7 @@ const BandPlan=(()=>{
         +'</div>';
     } else {
       const iconHtml = el.iconImg
-        ? '<img src="'+el.iconImg+'" style="width:48px;height:48px;object-fit:contain;border-radius:5px;pointer-events:none"/>'
+        ? '<img src="'+el.iconImg+'" style="width:calc(68px * var(--bp-ns,1));height:calc(68px * var(--bp-ns,1));object-fit:contain;border-radius:5px;pointer-events:none"/>'
         : '<div style="pointer-events:none">'+it.e+'</div>';
       div.innerHTML=
         '<div class="bp-node-body" style="border-color:'+c+'55">'
@@ -8996,7 +9034,8 @@ const SitePlan = (() => {
       { type:'zone_lbl',  label:'Zone / Label',    icon:SITE_ICONS.zone_lbl,  color:'#3d4a62' },
     ]},
     { cat:'Texte',     color:'#aabbdd', items:[
-      { type:'text_lbl', label:'Texte libre', icon:SITE_ICONS.text_lbl, color:'#aabbdd' },
+      { type:'text_lbl',    label:'Texte libre', icon:SITE_ICONS.text_lbl, color:'#aabbdd' },
+      { type:'image_frame', label:'Image / Photo', icon:'<svg viewBox="0 0 56 48" fill="none"><rect x="4" y="4" width="48" height="40" rx="5" fill="#1a2840" stroke="#3a5378" stroke-width="1.2"/><path d="M4 32 L16 20 L26 28 L34 18 L52 36 L52 44 L4 44 Z" fill="#2c4060"/><circle cx="40" cy="16" r="6" fill="#f5c542" opacity=".8"/></svg>', color:'#ec4899' },
     ]},
   ];
 
@@ -9267,8 +9306,21 @@ const SitePlan = (() => {
         const sz = el.elSize || 72;
         const isSvg = typeof it.icon === 'string' && it.icon.charAt(0) === '<';
         const iconSz = Math.round(sz * 0.44);
+        if(el.type === 'image_frame'){
+          /* Image flottante libre — pas de fond */
+          const ifSz = (el.imgPx || sz) + 'px';
+          div.innerHTML = el.iconImg
+            ? `<button class="spl-del" data-del="${el.id}">×</button>`+
+              `<img src="${el.iconImg}" style="width:${ifSz};height:${ifSz};object-fit:contain;border-radius:6px;display:block;pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.2)"/>`+
+              `<div class="spl-lbl">${esc(el.label)}</div>`+
+              `<button class="spl-conn" data-conn="${el.id}" title="Connecter"><i class="ti ti-bolt" style="font-size:11px"></i></button>`
+            : `<button class="spl-del" data-del="${el.id}">×</button>`+
+              `<div style="width:${ifSz};height:${ifSz};border:2px dashed var(--bdr2);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;cursor:pointer" onclick="SitePlan.uploadElementIcon('${el.id}')">`+
+              `<i class="ti ti-photo" style="font-size:28px;color:var(--muted)"></i><span style="font-size:10px;color:var(--muted);font-family:var(--m)">Ajouter une image</span></div>`+
+              `<button class="spl-conn" data-conn="${el.id}" title="Connecter"><i class="ti ti-bolt" style="font-size:11px"></i></button>`;
+        } else {
         const iconMarkup = el.iconImg
-          ? `<img src="${el.iconImg}" style="width:${Math.round(sz*0.8)}px;height:${Math.round(sz*0.8)}px;object-fit:contain;pointer-events:none;border-radius:4px"/>`
+          ? `<img src="${el.iconImg}" style="width:${sz-6}px;height:${sz-6}px;object-fit:contain;pointer-events:none;border-radius:4px"/>`
           : isSvg
             ? it.icon
             : `<div class="spl-body-emoji" style="font-size:${iconSz}px;color:${it.color}">${it.icon}</div>`;
@@ -9278,6 +9330,7 @@ const SitePlan = (() => {
           `<div class="spl-lbl">${esc(el.label)}</div>`+
           (el.note?`<div class="spl-note">${esc(el.note)}</div>`:'')+
           `<button class="spl-conn" data-conn="${el.id}" title="Connecter"><i class="ti ti-bolt" style="font-size:11px"></i></button>`;
+        }
       }
     });
   }
@@ -9420,6 +9473,7 @@ const SitePlan = (() => {
         `<span id="si-etval" style="flex:1;font-size:10px;color:var(--muted);text-align:center">${Math.round(elTs*100)}%</span>`+
         `<button class="spl-ts-btn" id="si-etplus">A+</button></div>`+
         (connList?`<div style="padding-top:8px;border-top:1px solid var(--bdr2);margin-bottom:6px"><div style="font-size:9px;color:var(--muted);font-family:var(--m);margin-bottom:5px">CONNEXIONS</div>${connList}</div>`:``) +
+        ((el.iconImg || el.type==='image_frame') ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr2)"><div style="font-size:9px;font-family:var(--m);text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:5px">Taille de l'image</div><div style="display:flex;align-items:center;gap:7px"><button class="spl-ts-btn" onclick="SitePlan.adjImgPx('${el.id}',-16)">−</button><span id="si-img-px-lbl" style="flex:1;text-align:center;font-size:10px;color:var(--muted)">${el.imgPx||el.elSize||72}px</span><button class="spl-ts-btn" onclick="SitePlan.adjImgPx('${el.id}',16)">+</button></div></div>` : '') +
         (el.type!=='text_lbl' ? _iconImgInspHtml(el.id, !!el.iconImg, el.iconImg||'', `SitePlan.uploadElementIcon('${el.id}')`, `SitePlan.clearElementIcon('${el.id}')`) : '') +
         `<button class="btn sm" style="width:100%;margin-top:6px;background:rgba(255,77,106,.12);border-color:var(--err);color:var(--err)" id="si-del"><i class="ti ti-trash"></i> Supprimer</button>`;
       // Events
@@ -9644,9 +9698,11 @@ const SitePlan = (() => {
   function addElement(type,x,y) {
     const it=findItem(type);
     const el={id:uid(),type,label:it.label,x:Math.round(x),y:Math.round(y),note:''};
+    if(type==='image_frame'){el.imgPx=120;el.elSize=120;el.label='';}
     state.elements.push(el);
     state.selected={kind:'el',id:el.id};
     saveSite(); render();
+    if(type==='image_frame') setTimeout(function(){ uploadElementIcon(el.id); },80);
   }
 
   function createCable(fromId,toId) {
@@ -10026,7 +10082,8 @@ const SitePlan = (() => {
         var b2Key=(typeof CUR_SHOW!=='undefined'&&CUR_SHOW?.id||'unknown')+'/node-icons/site-'+elId+'-'+Date.now()+'.jpg';
         _b2DeleteIcon(el.iconImgB2);
         el.iconImg=b64; el.iconImgB2=b2Key;
-        _siteCustomImgCache=null; // invalider le cache canvas
+        if(!el.imgPx) el.imgPx=el.elSize||72;
+        _siteCustomImgCache=null;
         saveSite(); renderNodes(); renderInspector();
         _b2UploadIcon(file, b2Key);
       }catch(e){ if(typeof toast!=='undefined')toast('Erreur image : '+e.message); }
@@ -10039,7 +10096,22 @@ const SitePlan = (() => {
     _siteCustomImgCache=null;
     saveSite(); renderNodes(); renderInspector();
   }
-  return {init,load,getData,loadBg,setBgOpacity,clearBg,clear,zoom,setZoomPct,fitView,resetView,selectCable,exportPng,exportCanvas,exportCanvasSafe,hasContent,setActiveCableType,toggleCableMode,setTextScale,setLegendScale,deleteCustomCableType,uploadElementIcon,clearElementIcon,addCustomCableType:function(t){if(!CABLE_TYPES.find(function(x){return x.id===t.id;})){CABLE_TYPES.push(t);_saveCustomCableTypes();renderCablePicker();}}};
+  function adjImgPx(elId, delta){
+    var el=state.elements.find(function(e){return e.id===elId;}); if(!el)return;
+    el.imgPx=Math.max(24,Math.min(600,(el.imgPx||el.elSize||72)+delta));
+    var lbl=document.getElementById('si-img-px-lbl'); if(lbl)lbl.textContent=el.imgPx+'px';
+    _siteCustomImgCache=null;
+    saveSite(); renderNodes();
+  }
+  function addElement_image(x,y){
+    /* Crée un image_frame et ouvre le sélecteur de fichier */
+    const id='spl_'+Date.now().toString(36);
+    state.elements.push({id,type:'image_frame',label:'',x,y,elSize:120,imgPx:120,note:'',iconImg:null,iconImgB2:null});
+    state.selected={kind:'el',id};
+    saveSite(); render(); renderInspector();
+    setTimeout(function(){ uploadElementIcon(id); },80);
+  }
+  return {init,load,getData,loadBg,setBgOpacity,clearBg,clear,zoom,setZoomPct,fitView,resetView,selectCable,exportPng,exportCanvas,exportCanvasSafe,hasContent,setActiveCableType,toggleCableMode,setTextScale,setLegendScale,deleteCustomCableType,uploadElementIcon,clearElementIcon,adjImgPx,addCustomCableType:function(t){if(!CABLE_TYPES.find(function(x){return x.id===t.id;})){CABLE_TYPES.push(t);_saveCustomCableTypes();renderCablePicker();}}};
 })();
 
 // ══════════════════════════════════════
@@ -12493,7 +12565,10 @@ async function openRecapMatos(){
     var netMap={};nets.forEach(function(n){netMap[n.id]=n;});
     /* Bounding box from node positions + default sizes (we don\'t have the LIB in share view) */
     var DEF={'console':{w:200,h:130},'rack':{w:170,h:140},'io':{w:160,h:90},'amp':{w:170,h:100},'spk':{w:130,h:110},'net':{w:140,h:80},'src':{w:120,h:90},'note':{w:200,h:80},'text_label':{w:160,h:30}};
-    function sz(n){return DEF[n.type]||DEF[(n.type||'').split('.')[0]]||{w:140,h:100};}
+    function sz(n){
+      if(n.type==='image_frame'){var p=n.imgPx||120;return{w:p,h:p};}
+      return DEF[n.type]||DEF[(n.type||'').split('.')[0]]||{w:140,h:100};
+    }
     var minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
     nodes.forEach(function(n){var s=sz(n);minX=Math.min(minX,n.x||0);minY=Math.min(minY,n.y||0);maxX=Math.max(maxX,(n.x||0)+s.w);maxY=Math.max(maxY,(n.y||0)+s.h);});
     var pad=40;var vw=Math.max(1100,maxX-minX+pad*2);var vh=Math.max(560,maxY-minY+pad*2);
@@ -12562,6 +12637,11 @@ async function openRecapMatos(){
       } else if(n.type==='text_label'){
         var tls=(n.label||'').split('\n');
         tls.forEach(function(tl,i){nodeSvg+='<text x="'+x+'" y="'+(y+16+i*18)+'" font-family="Outfit,sans-serif" font-size="14" font-weight="700" fill="#1d3a5f">'+esc(tl)+'</text>';});
+      } else if(n.type==='image_frame'){
+        if(n.iconImg){
+          nodeSvg+='<image x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" href="'+n.iconImg+'" preserveAspectRatio="xMidYMid meet"/>';
+          if(n.label)nodeSvg+='<text x="'+(x+w/2)+'" y="'+(y+h+14)+'" text-anchor="middle" font-family="Outfit,sans-serif" font-size="11" fill="#1d3a5f">'+esc(n.label)+'</text>';
+        }
       } else {
         nodeSvg+='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="9" fill="#fff" stroke="#c8d4e0"/>';
         /* Icon area */
