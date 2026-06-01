@@ -2625,6 +2625,30 @@ async function loadScenes(showId){
     if(!SHOW_SCENES[s.type]) SHOW_SCENES[s.type]=[];
     SHOW_SCENES[s.type].push(s);
   });
+
+  /* ── Auto-migration : les données créées avant le multi-scènes sont dans
+     shows.stage_data / shows.synoptique_data. Si un type n'a encore aucune
+     scène dans show_scenes, on crée automatiquement "Scène 1" avec ces données
+     pour ne pas les perdre quand l'utilisateur clique "+" la première fois. ── */
+  const raw=CUR_SHOW?.stage_data;
+  const toInsert=[];
+  if(SHOW_SCENES.stage.length===0 && raw?.band!=null)
+    toInsert.push({show_id:showId,type:'stage',name:'Plan de scène 1',data:{band:raw.band},position:0});
+  if(SHOW_SCENES.site.length===0  && raw?.site!=null)
+    toInsert.push({show_id:showId,type:'site', name:'Plan de site 1', data:{site:raw.site}, position:0});
+  if(SHOW_SCENES.syno.length===0  && CUR_SHOW?.synoptique_data!=null)
+    toInsert.push({show_id:showId,type:'syno', name:'Synoptique 1',   data:CUR_SHOW.synoptique_data, position:0});
+
+  if(toInsert.length){
+    const {data:migrated,error:migErr}=await sb.from('show_scenes').insert(toInsert).select();
+    if(!migErr && migrated){
+      migrated.forEach(function(s){
+        if(!SHOW_SCENES[s.type]) SHOW_SCENES[s.type]=[];
+        SHOW_SCENES[s.type].push(s);
+      });
+    }
+  }
+
   // Initialiser la scène courante sur la première de chaque type
   SCENE_TYPES.forEach(function(t){
     CUR_SCENES[t]=SHOW_SCENES[t][0]?.id||null;
