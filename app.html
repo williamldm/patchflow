@@ -2626,6 +2626,21 @@ async function loadScenes(showId){
     SHOW_SCENES[s.type].push(s);
   });
 
+  /* ── Nettoyage des doublons créés par l'ancienne migration (race condition).
+     Pour chaque type, on garde la PREMIÈRE scène de chaque nom et on supprime
+     les extras de la DB silencieusement en arrière-plan. ── */
+  SCENE_TYPES.forEach(function(t){
+    var seenNames={}, seenIds={}, toDelete=[];
+    SHOW_SCENES[t]=SHOW_SCENES[t].filter(function(s){
+      if(seenIds[s.id]){toDelete.push(s.id);return false;} // même ID (impossible mais sûr)
+      seenIds[s.id]=true;
+      if(seenNames[s.name]){toDelete.push(s.id);return false;} // même nom = doublon
+      seenNames[s.name]=true;
+      return true;
+    });
+    if(toDelete.length) sb.from('show_scenes').delete().in('id',toDelete).then(function(){});
+  });
+
   // Initialiser la scène courante sur la première de chaque type
   SCENE_TYPES.forEach(function(t){
     CUR_SCENES[t]=SHOW_SCENES[t][0]?.id||null;
