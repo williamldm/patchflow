@@ -4180,9 +4180,32 @@ td{padding:4px 7px;border-bottom:1px solid #f0eee8;vertical-align:middle}
     return '<div class="ft"><span class="fl">PATCHFLOW</span><span>'+_fEsc(show)+' · '+now+'</span><span>patchflow.app</span></div>';
   }
 
+  /* ── Helper : Promise avec timeout pour les opérations canvas async ── */
+  function _canvasPromise(fn, timeoutMs){
+    return new Promise(function(resolve){
+      var done=false;
+      var timer=setTimeout(function(){ if(!done){done=true;resolve(null);} },timeoutMs||8000);
+      try{
+        fn(function(result){
+          if(!done){done=true;clearTimeout(timer);resolve(result);}
+        });
+      }catch(e){ if(!done){done=true;clearTimeout(timer);resolve(null);} }
+    });
+  }
+
+  /* ── S'assurer que stage/site sont chargés (si l'onglet n'a jamais été ouvert) ── */
+  if(secs.includes('stage')||secs.includes('site')||secs.includes('syno')){
+    if(!_stageReady) loadStage();
+    if(secs.includes('syno') && !SynPro.isLoaded()){
+      try{ SynPro.show(); }catch(e){}
+      await new Promise(function(r){ setTimeout(r,150); });
+    }
+  }
+
   /* ── Construire les sections ── */
   var pages=[];
 
+  try{
   for(var si=0;si<secs.length;si++){
     var s=secs[si];
 
@@ -4227,17 +4250,15 @@ td{padding:4px 7px;border-bottom:1px solid #f0eee8;vertical-align:middle}
       try{
         var ex=SynPro.buildExportSvg();
         if(ex&&ex.svg){
-          /* Inline SVG in the page */
           var svgWrapped='<div class="img-wrap" style="padding:0">'+ex.svg+'</div>';
-          pages.push('<div class="page" style="size:A4 landscape">'+_hdr('Synoptique')+svgWrapped+_ftr()+'</div>');
+          pages.push('<div class="page">'+_hdr('Synoptique')+svgWrapped+_ftr()+'</div>');
         }
-      }catch(e){}
+      }catch(e){ console.warn('exportRiderPdf syno:',e); }
     }
 
     else if(s==='stage'){
-      var stageDataUrl=await new Promise(function(resolve){
-        try{ _makeBpCanvas(function(cv){ resolve(cv.toDataURL('image/png')); }); }
-        catch(e){ resolve(null); }
+      var stageDataUrl=await _canvasPromise(function(resolve){
+        _makeBpCanvas(function(cv){ resolve(cv?cv.toDataURL('image/png'):null); });
       });
       if(stageDataUrl){
         pages.push('<div class="page">'+_hdr('Plan de scène')
@@ -4246,12 +4267,8 @@ td{padding:4px 7px;border-bottom:1px solid #f0eee8;vertical-align:middle}
     }
 
     else if(s==='site'){
-      var siteDataUrl=await new Promise(function(resolve){
-        try{
-          SitePlan.exportCanvasSafe(function(cv){
-            resolve(cv?cv.toDataURL('image/png'):null);
-          });
-        }catch(e){ resolve(null); }
+      var siteDataUrl=await _canvasPromise(function(resolve){
+        SitePlan.exportCanvasSafe(function(cv){ resolve(cv?cv.toDataURL('image/png'):null); });
       });
       if(siteDataUrl){
         pages.push('<div class="page">'+_hdr('Plan de site')
@@ -4259,8 +4276,10 @@ td{padding:4px 7px;border-bottom:1px solid #f0eee8;vertical-align:middle}
       }
     }
   }
-
-  if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-file-type-pdf"></i>Exporter PDF rider';}
+  }catch(e){ console.error('exportRiderPdf:',e); toast('Erreur génération PDF : '+e.message); }
+  finally{
+    if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-file-type-pdf"></i>Exporter PDF rider';}
+  }
 
   if(!pages.length){toast('Aucune section à exporter.');return;}
 
