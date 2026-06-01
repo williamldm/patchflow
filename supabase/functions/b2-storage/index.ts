@@ -12,7 +12,9 @@ import {
 import { getSignedUrl } from 'npm:@aws-sdk/s3-request-presigner@3.490.0';
 
 // ── B2 configuration from environment ──
-const B2_ENDPOINT = Deno.env.get('B2_ENDPOINT')!;   // e.g. https://s3.us-east-005.backblazeb2.com
+// Ensure the endpoint always starts with https:// (common mistake to omit it)
+const _rawEndpoint = Deno.env.get('B2_ENDPOINT') || '';
+const B2_ENDPOINT = _rawEndpoint.startsWith('http') ? _rawEndpoint : 'https://' + _rawEndpoint;
 const B2_REGION   = Deno.env.get('B2_REGION')!;     // e.g. us-east-005
 const B2_BUCKET   = Deno.env.get('B2_BUCKET')!;     // e.g. patchflow-files
 const B2_KEY_ID   = Deno.env.get('B2_KEY_ID')!;     // Application Key ID
