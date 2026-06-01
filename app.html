@@ -1793,6 +1793,15 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
             </div>
             <div style="font-size:10px;color:var(--grn);font-family:var(--m);margin-top:6px;display:none" id="rider-saved-ok"><i class="ti ti-check"></i> Lien sauvegardé</div>
           </div>
+          <!-- Export PDF rider complet -->
+          <div style="margin-top:8px;padding-top:10px;border-top:1px solid var(--bdr2)">
+            <button class="btn ghost" id="rider-pdf-btn" onclick="exportRiderPdf()" style="width:100%;justify-content:center;gap:7px">
+              <i class="ti ti-file-type-pdf" style="color:#ef4444;font-size:14px"></i>Exporter PDF rider
+            </button>
+            <div style="font-size:9.5px;color:var(--muted);font-family:var(--m);text-align:center;margin-top:5px;line-height:1.4">
+              Génère un PDF imprimable avec toutes les sections cochées ci-dessus
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -4105,6 +4114,164 @@ async function generateRiderLink(){
   if(row)row.style.display='block';
   var ok=document.getElementById('rider-saved-ok');
   if(ok){ok.style.display='block';setTimeout(function(){ok.style.display='none';},3000);}
+}
+
+/* ── Export PDF complet du rider (toutes sections cochées) ── */
+async function exportRiderPdf(){
+  if(!CUR_SHOW){toast('Aucun show sélectionné.');return;}
+  var btn=document.getElementById('rider-pdf-btn');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Génération…';}
+
+  var secs=Object.keys(_riderSections).filter(function(k){return _riderSections[k];});
+  var rTitle=(document.getElementById('rider-title')?.value||'').trim()||CUR_SHOW.name||'Rider';
+  var rNote =(document.getElementById('rider-note')?.value||'').trim();
+  var rInfo =(document.getElementById('rider-info')?.value||'').trim();
+  var show  =CUR_SHOW.name||'';
+  var now   =new Date().toLocaleString('fr-FR');
+  var accentColor='#ff6b1a';
+
+  /* ── CSS partagé ── */
+  var css=`*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Outfit',sans-serif;background:#fff;color:#1a1a2e;font-size:9.5px}
+@page{size:A4 portrait;margin:10mm 12mm}
+@page landscape{size:A4 landscape;margin:8mm 10mm}
+.page{page-break-after:always}
+.page:last-child{page-break-after:auto}
+.hd{display:flex;align-items:flex-start;justify-content:space-between;padding:12px 16px 10px;border-bottom:3px solid ${accentColor}}
+.hl{display:flex;align-items:center;gap:10px}.ht{font-size:15px;font-weight:700}
+.hs{font-size:9px;color:#888;font-family:'DM Mono',monospace;letter-spacing:.5px}
+.hr{text-align:right}.hdt{font-size:10px;font-weight:700;color:${accentColor};text-transform:uppercase;letter-spacing:1.5px;font-family:'DM Mono',monospace}
+.hdm{font-size:8px;color:#666;font-family:'DM Mono',monospace}
+.meta-bar{padding:8px 16px;background:#fffbf7;border-bottom:1px solid #ffe0c8}
+.meta-title{font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:3px}
+.meta-note{font-size:9px;color:#666;line-height:1.5;white-space:pre-wrap}
+.meta-info{font-size:8.5px;color:#888;margin-top:3px;font-family:'DM Mono',monospace}
+.tw{padding:7px 16px 0}
+table{width:100%;border-collapse:collapse}
+thead tr{background:${accentColor}}
+th{color:#fff;padding:5px 7px;text-align:left;font-size:8px;letter-spacing:.8px;text-transform:uppercase;font-family:'DM Mono',monospace;white-space:nowrap}
+td{padding:4px 7px;border-bottom:1px solid #f0eee8;vertical-align:middle}
+.ch{font-family:'DM Mono',monospace;font-weight:700;color:${accentColor};text-align:center;width:26px}
+.mo{font-family:'DM Mono',monospace;font-size:9px;color:#555}.mu{color:#888}
+.badge-ph{background:#e8faf5;color:#22a07a;border:1px solid #b8e8d8;border-radius:3px;padding:1px 4px;font-size:7.5px;font-family:'DM Mono',monospace}
+.badge-type{border:1px solid;border-radius:3px;padding:1px 5px;font-size:7.5px;font-family:'DM Mono',monospace;white-space:nowrap}
+.ck{color:#1a8fff;font-weight:700}.ck-m{color:#f5c542;font-weight:700}
+.sb{display:flex;flex-wrap:wrap;padding:5px 16px;background:#f8f8fa;border-top:1px solid #eee;font-family:'DM Mono',monospace;font-size:8px;gap:0}
+.si{padding:0 14px 0 0;margin-right:14px;border-right:1px solid #e0e0e0;color:#666}.si:last-child{border-right:none}.sv{font-weight:700;color:${accentColor}}
+.ft{display:flex;align-items:center;justify-content:space-between;padding:5px 16px;border-top:1px solid #eee;font-size:8px;color:#bbb;font-family:'DM Mono',monospace;margin-top:auto}
+.fl{font-weight:700;color:${accentColor};letter-spacing:1px}
+.img-wrap{padding:10px 16px;display:flex;justify-content:center}
+.img-wrap img{max-width:100%;height:auto;border-radius:4px}
+.sec-lbl{font-family:'DM Mono',monospace;font-size:8px;text-transform:uppercase;letter-spacing:1.5px;color:${accentColor};padding:5px 16px 2px;background:#fff8f4}
+@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}`;
+
+  /* ── Header commun ── */
+  function _hdr(secLabel){
+    return '<div class="hd"><div class="hl"><div style="font-size:22px;font-weight:900;color:'+accentColor+'">P</div>'
+      +'<div><div class="ht">'+_fEsc(show)+'</div><div class="hs">'+_fEsc(rTitle)+(secLabel?' · '+secLabel:'')+'</div></div></div>'
+      +'<div class="hr"><div class="hdt">'+secLabel+'</div><div class="hdm">'+now+'</div></div></div>'
+      +(rNote||rInfo?'<div class="meta-bar">'
+        +(rNote?'<div class="meta-note">'+_fEsc(rNote)+'</div>':'')
+        +(rInfo?'<div class="meta-info">'+_fEsc(rInfo)+'</div>':'')
+      +'</div>':'');
+  }
+  function _ftr(){
+    return '<div class="ft"><span class="fl">PATCHFLOW</span><span>'+_fEsc(show)+' · '+now+'</span><span>patchflow.app</span></div>';
+  }
+
+  /* ── Construire les sections ── */
+  var pages=[];
+
+  for(var si=0;si<secs.length;si++){
+    var s=secs[si];
+
+    if(s==='il'){
+      var ilBody='<table><thead><tr><th>CH</th><th>Court</th><th>Nom Long</th><th>Source</th><th>Micro/DI</th><th>+48V</th><th>FOH</th><th>MON</th></tr></thead><tbody>';
+      CHS.forEach(function(r,i){
+        ilBody+='<tr style="'+(i%2===1?'background:#fdf8f4':'')+'"><td class="ch">'+r.ch+'</td>'
+          +'<td><b>'+_fEsc((r.short_name||'').trim())+'</b></td>'
+          +'<td><span class="mu">'+_fEsc(r.long_name||'')+'</span></td>'
+          +'<td><span class="mo">'+_fEsc(r.source||'')+'</span></td>'
+          +'<td><span class="mo">'+_fEsc(r.mic||'')+'</span></td>'
+          +'<td>'+(r.phantom?'<span class="badge-ph">+48V</span>':'')+'</td>'
+          +'<td>'+(r.foh?'<span class="ck">✓</span>':'')+'</td>'
+          +'<td>'+(r.mon?'<span class="ck-m">✓</span>':'')+'</td></tr>';
+      });
+      ilBody+='</tbody></table>';
+      pages.push('<div class="page">'+_hdr('Input List')+'<div class="tw">'+ilBody+'</div>'
+        +'<div class="sb"><div class="si">Total <span class="sv">'+CHS.length+'</span> canaux</div>'
+        +'<div class="si">+48V <span class="sv">'+CHS.filter(function(r){return r.phantom;}).length+'</span></div>'
+        +'<div class="si">FOH <span class="sv">'+CHS.filter(function(r){return r.foh;}).length+'</span></div>'
+        +'<div class="si">MON <span class="sv">'+CHS.filter(function(r){return r.mon;}).length+'</span></div>'
+        +'</div>'+_ftr()+'</div>');
+    }
+
+    else if(s==='out'){
+      var outBody='<table><thead><tr><th>CH</th><th>Court</th><th>Nom Long</th><th>Type</th><th>Destination</th></tr></thead><tbody>';
+      OUT_CHS.forEach(function(r,i){
+        var t=OUT_TYPES[r.type]||OUT_TYPES.other;
+        outBody+='<tr style="'+(i%2===1?'background:#fdf8f4':'')+'"><td class="ch">'+r.ch+'</td>'
+          +'<td><b>'+_fEsc((r.short_name||'').trim())+'</b></td>'
+          +'<td><span class="mu">'+_fEsc(r.long_name||'')+'</span></td>'
+          +'<td><span class="badge-type" style="background:'+t.bg+';color:'+t.color+';border-color:'+t.color+'40">'+t.label+'</span></td>'
+          +'<td><span class="mo">'+_fEsc(r.dest||'')+'</span></td></tr>';
+      });
+      outBody+='</tbody></table>';
+      pages.push('<div class="page">'+_hdr('Output List')+'<div class="tw">'+outBody+'</div>'
+        +'<div class="sb"><div class="si">Total <span class="sv">'+OUT_CHS.length+'</span> sorties</div></div>'
+        +_ftr()+'</div>');
+    }
+
+    else if(s==='syno'){
+      try{
+        var ex=SynPro.buildExportSvg();
+        if(ex&&ex.svg){
+          /* Inline SVG in the page */
+          var svgWrapped='<div class="img-wrap" style="padding:0">'+ex.svg+'</div>';
+          pages.push('<div class="page" style="size:A4 landscape">'+_hdr('Synoptique')+svgWrapped+_ftr()+'</div>');
+        }
+      }catch(e){}
+    }
+
+    else if(s==='stage'){
+      var stageDataUrl=await new Promise(function(resolve){
+        try{ _makeBpCanvas(function(cv){ resolve(cv.toDataURL('image/png')); }); }
+        catch(e){ resolve(null); }
+      });
+      if(stageDataUrl){
+        pages.push('<div class="page">'+_hdr('Plan de scène')
+          +'<div class="img-wrap"><img src="'+stageDataUrl+'"/></div>'+_ftr()+'</div>');
+      }
+    }
+
+    else if(s==='site'){
+      var siteDataUrl=await new Promise(function(resolve){
+        try{
+          SitePlan.exportCanvasSafe(function(cv){
+            resolve(cv?cv.toDataURL('image/png'):null);
+          });
+        }catch(e){ resolve(null); }
+      });
+      if(siteDataUrl){
+        pages.push('<div class="page">'+_hdr('Plan de site')
+          +'<div class="img-wrap"><img src="'+siteDataUrl+'"/></div>'+_ftr()+'</div>');
+      }
+    }
+  }
+
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-file-type-pdf"></i>Exporter PDF rider';}
+
+  if(!pages.length){toast('Aucune section à exporter.');return;}
+
+  var html='<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/><title>'+_fEsc(rTitle)+'</title>'
+    +'<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet"/>'
+    +'<style>'+css+'</style></head><body>'
+    +pages.join('')
+    +'<script>window.onload=()=>window.print();<\/script>'
+    +'</body></html>';
+  var w=window.open('','_blank');
+  if(w){w.document.write(html);w.document.close();}
+  else{toast('Autoriser les popups pour exporter le PDF.');}
 }
 
 function _loadRiderConfig(){
