@@ -35,13 +35,16 @@ const SKIP = new Set(['.keep', '.emptyFolderPlaceholder']);
 // ── Auth helper ──
 async function getUser(req: Request) {
   const auth = req.headers.get('Authorization');
-  if (!auth) return null;
+  if (!auth) { console.error('[b2-auth] No Authorization header'); return null; }
+  // Use service role key so getUser() always has full access to verify any JWT
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_ANON_KEY')!;
   const sb = createClient(
     Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_ANON_KEY')!,
-    { global: { headers: { Authorization: auth } } }
+    serviceKey,
+    { global: { headers: { Authorization: auth } }, auth: { persistSession: false } }
   );
   const { data: { user }, error } = await sb.auth.getUser();
+  if (error) console.error('[b2-auth] getUser error:', error.message, '| status:', error.status);
   return error ? null : user;
 }
 
@@ -56,8 +59,14 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
   try {
+    // Log env check (values presence only, never secrets)
+    console.log('[b2] B2_ENDPOINT set:', !!Deno.env.get('B2_ENDPOINT'),
+      '| B2_BUCKET set:', !!Deno.env.get('B2_BUCKET'),
+      '| B2_KEY_ID set:', !!Deno.env.get('B2_KEY_ID'),
+      '| SUPABASE_URL set:', !!Deno.env.get('SUPABASE_URL'));
+
     const user = await getUser(req);
-    if (!user) return json({ error: 'Unauthorized' }, 401);
+    if (!user) return json({ error: 'Unauthorized — session token invalid or missing' }, 401);
 
     const body = await req.json();
     const { action } = body;

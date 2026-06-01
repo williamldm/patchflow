@@ -10697,7 +10697,8 @@ async function loadFichiers() {
   const list = document.getElementById('fichiers-list');
   const dz = document.getElementById('fichiers-drop-zone');
   if (error) {
-    if (list) list.innerHTML = '<div class="fich-empty"><i class="ti ti-alert-triangle"></i><p style="font-size:12px">Impossible de charger les fichiers.<br>Vérifiez la configuration B2 Storage.</p></div>';
+    const errMsg = error?.message || 'Erreur inconnue';
+    if (list) list.innerHTML = '<div class="fich-empty"><i class="ti ti-alert-triangle"></i><p style="font-size:12px">Erreur stockage B2 :<br><code style="font-size:10px;word-break:break-all;color:var(--err)">' + errMsg + '</code></p></div>';
     if (dz) dz.style.display = 'none';
     return;
   }
