@@ -4308,7 +4308,7 @@ td{padding:4px 7px;border-bottom:1px solid #f0eee8;vertical-align:middle}
 
     else if(s==='syno'){
       try{
-        var ex=SynPro.buildExportSvg();
+        var ex=SynPro.buildExportSvg({skipHeader:true});
         if(ex&&ex.svg){
           var svgWrapped='<div class="img-wrap" style="padding:0">'+ex.svg+'</div>';
           pages.push('<div class="page">'+_hdr('Synoptique')+svgWrapped+_ftr()+'</div>');
@@ -6006,7 +6006,9 @@ function _openSynoPdf(meta, synHtml, shareUrl, brand){
     toast('Module synoptique indisponible.');return;
   }
   let ex;
-  try { ex = SynPro.buildExportSvg(); }
+  /* skipHeader : le PDF a déjà son propre en-tête → on évite le double titre
+     et le diagramme s'aligne proprement sous le titre de la page */
+  try { ex = SynPro.buildExportSvg({skipHeader:true}); }
   catch(e){ toast('Erreur synoptique : '+e.message);return; }
   if(!ex || !ex.svg){toast('Synoptique vide ou non chargé.');return;}
 
@@ -7586,12 +7588,14 @@ const SynPro = (() => {
 
   /* ── PNG export — render canvas to image ── */
   /* ── Build export SVG string (shared by PNG, PDF, SVG exports) ── */
-  function _buildExportSvg() {
+  function _buildExportSvg(opts) {
+    opts = opts || {};
+    var skipHeader = !!opts.skipHeader; /* pour les PDF qui ont déjà leur propre en-tête */
     var b = _worldBounds(40);
     var ox = -b.minX, oy = -b.minY;
     var canvasW = b.maxX - b.minX;
     var canvasH = b.maxY - b.minY;
-    var headH = 56, footH = 42;
+    var headH = skipHeader ? 0 : 56, footH = 42;
     var fullW = canvasW, fullH = canvasH + headH + footH;
 
     /* ── Arrow defs (same logic as _renderEdges) ── */
@@ -7608,17 +7612,18 @@ const SynPro = (() => {
     defs += '<clipPath id="exp-clip"><rect x="0" y="' + headH + '" width="' + fullW + '" height="' + canvasH + '"/></clipPath>';
     defs += '</defs>';
 
-    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + fullW + '" height="' + fullH + '" viewBox="0 0 ' + fullW + ' ' + fullH + '">' + defs;
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="' + fullW + '" height="' + fullH + '" viewBox="0 0 ' + fullW + ' ' + fullH + '">' + defs;
 
     /* White background */
     svg += '<rect width="' + fullW + '" height="' + fullH + '" fill="#ffffff"/>';
 
-    /* Header band */
-    svg += '<rect x="0" y="0" width="' + fullW + '" height="' + headH + '" fill="' + esc(state.headerColor || '#1d3a5f') + '"/>';
-    svg += '<text x="' + (fullW/2) + '" y="' + (headH/2+8) + '" text-anchor="middle" font-family="Outfit,sans-serif" font-weight="700" font-size="22" fill="#ffffff">' + esc(state.title) + '</text>';
-
-    /* Thin separator line between header and canvas */
-    svg += '<line x1="0" y1="' + headH + '" x2="' + fullW + '" y2="' + headH + '" stroke="#e2e8f0" stroke-width="1"/>';
+    if (!skipHeader) {
+      /* Header band */
+      svg += '<rect x="0" y="0" width="' + fullW + '" height="' + headH + '" fill="' + esc(state.headerColor || '#1d3a5f') + '"/>';
+      svg += '<text x="' + (fullW/2) + '" y="' + (headH/2+8) + '" text-anchor="middle" font-family="Outfit,sans-serif" font-weight="700" font-size="22" fill="#ffffff">' + esc(state.title) + '</text>';
+      /* Thin separator line between header and canvas */
+      svg += '<line x1="0" y1="' + headH + '" x2="' + fullW + '" y2="' + headH + '" stroke="#e2e8f0" stroke-width="1"/>';
+    }
 
     /* ── Parallel cable groups (same logic as _renderEdges) ── */
     var pairGroups = {};
@@ -7704,7 +7709,7 @@ const SynPro = (() => {
       if (n.type === 'image_frame') {
         var ifSz = n.imgPx || 120;
         if (n.iconImg) {
-          svg += '<image x="' + x + '" y="' + y + '" width="' + ifSz + '" height="' + ifSz + '" href="' + n.iconImg + '" preserveAspectRatio="xMidYMid meet"/>';
+          svg += '<image x="' + x + '" y="' + y + '" width="' + ifSz + '" height="' + ifSz + '" href="' + n.iconImg + '" xlink:href="' + n.iconImg + '" preserveAspectRatio="xMidYMid meet"/>';
           if (label) svg += '<text x="' + (x+ifSz/2) + '" y="' + (y+ifSz+14) + '" text-anchor="middle" font-family="Outfit,sans-serif" font-size="11" fill="#1d3a5f">' + esc(label) + '</text>';
         }
         return;
@@ -7720,8 +7725,8 @@ const SynPro = (() => {
       var iconX = x + (w - iconSize) / 2;
       var iconY = y + 6;
       if (n.iconImg) {
-        /* Custom image — embed as <image> data URI */
-        svg += '<image x="' + iconX + '" y="' + iconY + '" width="' + iconSize + '" height="' + iconSize + '" href="' + n.iconImg + '" preserveAspectRatio="xMidYMid meet"/>';
+        /* Custom image — embed as <image> data URI (xlink:href requis pour SVG-as-img) */
+        svg += '<image x="' + iconX + '" y="' + iconY + '" width="' + iconSize + '" height="' + iconSize + '" href="' + n.iconImg + '" xlink:href="' + n.iconImg + '" preserveAspectRatio="xMidYMid meet"/>';
       } else if (sp.icon) {
         var iconInner = sp.icon.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
         svg += '<svg x="' + iconX + '" y="' + iconY + '" width="' + iconSize + '" height="' + iconSize + '" overflow="visible">' + iconInner + '</svg>';
@@ -13031,7 +13036,7 @@ async function openRecapMatos(){
         tls.forEach(function(tl,i){nodeSvg+='<text x="'+x+'" y="'+(y+16+i*18)+'" font-family="Outfit,sans-serif" font-size="14" font-weight="700" fill="#1d3a5f">'+esc(tl)+'</text>';});
       } else if(n.type==='image_frame'){
         if(n.iconImg){
-          nodeSvg+='<image x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" href="'+n.iconImg+'" preserveAspectRatio="xMidYMid meet"/>';
+          nodeSvg+='<image x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" href="'+n.iconImg+'" xlink:href="'+n.iconImg+'" preserveAspectRatio="xMidYMid meet"/>';
           if(n.label)nodeSvg+='<text x="'+(x+w/2)+'" y="'+(y+h+14)+'" text-anchor="middle" font-family="Outfit,sans-serif" font-size="11" fill="#1d3a5f">'+esc(n.label)+'</text>';
         }
       } else {
@@ -13042,7 +13047,7 @@ async function openRecapMatos(){
         if(n.iconImg){
           var iw2=Math.min(iconAreaH,w-20),ih2=iconAreaH;
           var ix2=(x+(w-iw2)/2),iy2=iconAreaY;
-          nodeSvg+='<image x="'+ix2+'" y="'+iy2+'" width="'+iw2+'" height="'+ih2+'" href="'+n.iconImg+'" preserveAspectRatio="xMidYMid meet"/>';
+          nodeSvg+='<image x="'+ix2+'" y="'+iy2+'" width="'+iw2+'" height="'+ih2+'" href="'+n.iconImg+'" xlink:href="'+n.iconImg+'" preserveAspectRatio="xMidYMid meet"/>';
         }
         /* Use stored iconSvg; fall back to live LIB lookup for older nodes */
         var _icSvg=n.iconImg?null:(n.iconSvg||(window.SynPro&&typeof window.SynPro.getIconByType==='function'?window.SynPro.getIconByType(n.type):''));
@@ -13078,7 +13083,7 @@ async function openRecapMatos(){
     /* Canvas bg */
     var bgSvg='<rect x="0" y="'+headH+'" width="'+vw+'" height="'+vh+'" fill="#f7f9fc"/>';
     var fullH=vh+headH+footH;
-    var svgStr='<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 '+vw+' '+fullH+'" style="max-width:100%;border-radius:10px;border:1px solid #1e2a3a;background:#fff;display:block">'+headSvg+bgSvg+edgeSvg+nodeSvg+footSvg+'</svg>';
+    var svgStr='<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100%" viewBox="0 0 '+vw+' '+fullH+'" style="max-width:100%;border-radius:10px;border:1px solid #1e2a3a;background:#fff;display:block">'+headSvg+bgSvg+edgeSvg+nodeSvg+footSvg+'</svg>';
     return _showMeta+svgStr
       +'<div style="margin-top:14px;text-align:center;font-size:10px;color:#3a4a5a;font-family:DM Mono,monospace">PatchFlow &middot; Synoptique &middot; '+now+'</div>';
   }
