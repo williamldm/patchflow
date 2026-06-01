@@ -6091,6 +6091,8 @@ const SynPro = (() => {
       var sd = _injectedSceneData;
       _injectedSceneData = undefined;
       state = (sd && sd.v === 1) ? sd : _defaultState();
+      if (CUR_SHOW && CUR_SHOW.name && state.title === 'Diagramme reseau') state.title = CUR_SHOW.name;
+      loaded = true;
       return true;
     }
     var saved = CUR_SHOW.synoptique_data;
