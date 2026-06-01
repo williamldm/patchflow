@@ -6659,6 +6659,9 @@ const SynPro = (() => {
         iconHtml = '<div class="sp-node-card" style="background:#fef3c7;border-color:#fbbf24;min-width:180px;padding:10px 14px"><div style="font-size:12px;color:#92400e;line-height:1.4;font-weight:600;white-space:pre-wrap">' + esc(label || 'Note') + '</div>' + (sub ? '<div style="font-size:10px;color:#a16207;margin-top:4px;white-space:pre-wrap">' + esc(sub) + '</div>' : '') + '</div>';
       } else if (n.type === 'text_label') {
         iconHtml = '<div style="font-family:Outfit,sans-serif;font-size:14px;font-weight:700;color:var(--txt);white-space:pre-wrap;min-width:80px;padding:4px 2px;cursor:grab;user-select:none">' + esc(label || 'Texte') + '</div>';
+      } else if (n.iconImg) {
+        /* Custom image icon */
+        iconHtml = '<div class="sp-node-card"><div class="sp-node-icon" style="background:transparent"><img src="' + n.iconImg + '" style="width:100%;height:100%;object-fit:contain;border-radius:4px;pointer-events:none"/></div><div class="sp-node-label">' + esc(label) + '</div>' + (sub ? '<div class="sp-node-sub">' + esc(sub).replace(/\n/g,'<br>') + '</div>' : '') + '</div>';
       } else {
         var icon = sp ? sp.icon : _iconRack(3);
         iconHtml = '<div class="sp-node-card"><div class="sp-node-icon">' + icon + '</div><div class="sp-node-label">' + esc(label) + '</div>' + (sub ? '<div class="sp-node-sub">' + esc(sub).replace(/\n/g, '<br>') + '</div>' : '') + '</div>';
@@ -6802,12 +6805,14 @@ const SynPro = (() => {
       var n = nodeById(selected.id);
       if (!n) { selected = { kind:null, id:null }; _renderInspector(); return; }
       var sp = spec(n.type);
+      var nId = n.id;
       el.innerHTML =
         '<div class="sp-insp-title"><i class="ti ti-box"></i>' + esc(sp ? sp.label : n.type) + '</div>' +
         '<label class="sp-insp-lbl">Nom affiche</label>' +
         '<input class="sp-insp-inp" id="sp-ins-label" value="' + esc(n.label != null ? n.label : (sp ? sp.label : '')) + '">' +
         '<label class="sp-insp-lbl">Sous-titre</label>' +
         '<textarea class="sp-insp-tx" id="sp-ins-sub" rows="2">' + esc(n.sub != null ? n.sub : (sp ? sp.defaultSub : '')) + '</textarea>' +
+        (n.type !== 'note' && n.type !== 'text_label' ? _iconImgInspHtml(nId, !!n.iconImg, n.iconImg||'', "SynPro.uploadNodeIcon('"+nId+"')", "SynPro.clearNodeIcon('"+nId+"')") : '') +
         '<button class="btn ghost sm" id="sp-ins-del" style="margin-top:12px;width:100%;color:var(--err)"><i class="ti ti-trash"></i>Supprimer</button>';
       $('sp-ins-label').addEventListener('input', function(e){ n.label = e.target.value; var el2 = document.querySelector('.sp-node[data-id="' + n.id + '"] .sp-node-label'); if (el2) el2.textContent = n.label; scheduleSave(); });
       $('sp-ins-sub').addEventListener('input', function(e){ n.sub = e.target.value; var el2 = document.querySelector('.sp-node[data-id="' + n.id + '"] .sp-node-sub'); if (el2) el2.innerHTML = esc(n.sub).replace(/\n/g, '<br>'); scheduleSave(); });
@@ -7416,7 +7421,10 @@ const SynPro = (() => {
       var iconSize  = Math.max(20, Math.min(iconArea, w - 20));
       var iconX = x + (w - iconSize) / 2;
       var iconY = y + 6;
-      if (sp.icon) {
+      if (n.iconImg) {
+        /* Custom image — embed as <image> data URI */
+        svg += '<image x="' + iconX + '" y="' + iconY + '" width="' + iconSize + '" height="' + iconSize + '" href="' + n.iconImg + '" preserveAspectRatio="xMidYMid meet"/>';
+      } else if (sp.icon) {
         var iconInner = sp.icon.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
         svg += '<svg x="' + iconX + '" y="' + iconY + '" width="' + iconSize + '" height="' + iconSize + '" overflow="visible">' + iconInner + '</svg>';
       }
@@ -7655,6 +7663,27 @@ const SynPro = (() => {
     document.addEventListener('visibilitychange', function(){ if (document.hidden) _saveNow(); });
   }
 
+  /* ── Custom icon upload/clear (Pro) ── */
+  function uploadNodeIcon(nodeId){
+    _pickIconFile(async function(file){
+      try{
+        var b64=await _resizeIconToB64(file);
+        var n=nodeById(nodeId); if(!n)return;
+        var b2Key=(CUR_SHOW?.id||'unknown')+'/node-icons/syno-'+nodeId+'-'+Date.now()+'.jpg';
+        _b2DeleteIcon(n.iconImgB2);
+        n.iconImg=b64; n.iconImgB2=b2Key;
+        scheduleSave(); render(); _renderInspector();
+        _b2UploadIcon(file, b2Key);
+      }catch(e){ toast('Erreur image : '+e.message); }
+    });
+  }
+  function clearNodeIcon(nodeId){
+    var n=nodeById(nodeId); if(!n)return;
+    _b2DeleteIcon(n.iconImgB2);
+    n.iconImg=null; n.iconImgB2=null;
+    scheduleSave(); render(); _renderInspector();
+  }
+
   function setSceneId(id){ _activeSceneId = id||null; }
   function setSceneData(data){ _injectedSceneData = (data!==undefined) ? (data||null) : undefined; }
   /* Direct scene loading — avoids the sentinel/resetLoaded race.
@@ -7673,7 +7702,7 @@ const SynPro = (() => {
     setTimeout(fitView, 50);
   }
   function getIconByType(type){ var s=spec(type); return (s&&s.icon)?s.icon:''; }
-  return { init, show, render, resetLoaded, isLoaded, getData, cancelCable, _saveNow, buildExportSvg: _buildExportSvg, setSceneId, setSceneData, loadSceneDirect, getIconByType };
+  return { init, show, render, resetLoaded, isLoaded, getData, cancelCable, _saveNow, buildExportSvg: _buildExportSvg, setSceneId, setSceneData, loadSceneDirect, getIconByType, uploadNodeIcon, clearNodeIcon };
 })();
 
 window.SynPro = SynPro;
@@ -8216,10 +8245,13 @@ const BandPlan=(()=>{
         +rowsHtml
         +'</div>';
     } else {
+      const iconHtml = el.iconImg
+        ? '<img src="'+el.iconImg+'" style="width:48px;height:48px;object-fit:contain;border-radius:5px;pointer-events:none"/>'
+        : '<div style="pointer-events:none">'+it.e+'</div>';
       div.innerHTML=
         '<div class="bp-node-body" style="border-color:'+c+'55">'
         +chBadge
-        +'<div style="pointer-events:none">'+it.e+'</div>'
+        +iconHtml
         +'<button class="bp-node-del" onclick="BandPlan.deleteNode('+el.id+')" title="Supprimer">\xd7</button>'
         +'</div>'
         +'<div class="bp-node-lbl">'+el.label.replace(/</g,'&lt;')+'</div>';
@@ -8399,7 +8431,9 @@ const BandPlan=(()=>{
                  +'<button class="bp-il-create" onclick="BandPlan.createChR()"><i class="ti ti-plus"></i>Creer un canal R</button>'
                 :''
               )
-              +'</div>';
+              +'</div>'
+              /* Image personnalisée */
+              +_iconImgInspHtml(sel.id, !!sel.iconImg, sel.iconImg||'', "BandPlan.uploadElementIcon('"+sel.id+"')", "BandPlan.clearElementIcon('"+sel.id+"')");
           })()
       );
   }
@@ -8782,7 +8816,28 @@ const BandPlan=(()=>{
   }
   function getVintageSVG(t,col){return _vSVG(t,col);}
   function getViewMode(){return st.viewMode;}
-  return {init,load,getData,clear,zoom,setZoomPct,resetZoom,fitView,search,toggleCat,_pdrag,_pdblclick,renderInspector,updateAlias,updPos,adjScale,adjZ,setRot,linkCh,unlinkCh,createCh,toggleStereo,linkChR,unlinkChR,createChR,linkOutCh,unlinkOutCh,createOutCh,toggleOutStereo,linkOutChR,unlinkOutChR,createOutChR,deleteNode,setTextScale,setNodeScale,setStageScale,setRiserDims,setRiserAlt,addCustomItem,removeCustomItem,linkKitCh,unlinkKitCh,createKitCh,setViewMode,getCatInfo,getVintageSVG,getViewMode,loadBg,setBgOpacity,clearBg};
+
+  function uploadElementIcon(elId){
+    _pickIconFile(async function(file){
+      try{
+        const b64=await _resizeIconToB64(file);
+        const el=st.els.find(e=>e.id===elId); if(!el)return;
+        const b2Key=(typeof CUR_SHOW!=='undefined'&&CUR_SHOW?.id||'unknown')+'/node-icons/bp-'+elId+'-'+Date.now()+'.jpg';
+        _b2DeleteIcon(el.iconImgB2);
+        el.iconImg=b64; el.iconImgB2=b2Key;
+        renderNode(el); renderInspector(); saveStage();
+        _b2UploadIcon(file, b2Key);
+      }catch(e){ if(typeof toast!=='undefined')toast('Erreur image : '+e.message); }
+    });
+  }
+  function clearElementIcon(elId){
+    const el=st.els.find(e=>e.id===elId); if(!el)return;
+    _b2DeleteIcon(el.iconImgB2);
+    el.iconImg=null; el.iconImgB2=null;
+    renderNode(el); renderInspector(); saveStage();
+  }
+
+  return {init,load,getData,clear,zoom,setZoomPct,resetZoom,fitView,search,toggleCat,_pdrag,_pdblclick,renderInspector,updateAlias,updPos,adjScale,adjZ,setRot,linkCh,unlinkCh,createCh,toggleStereo,linkChR,unlinkChR,createChR,linkOutCh,unlinkOutCh,createOutCh,toggleOutStereo,linkOutChR,unlinkOutChR,createOutChR,deleteNode,setTextScale,setNodeScale,setStageScale,setRiserDims,setRiserAlt,addCustomItem,removeCustomItem,linkKitCh,unlinkKitCh,createKitCh,setViewMode,getCatInfo,getVintageSVG,getViewMode,loadBg,setBgOpacity,clearBg,uploadElementIcon,clearElementIcon};
 })();
 
 // ══════════════════════════════════════
@@ -9212,9 +9267,11 @@ const SitePlan = (() => {
         const sz = el.elSize || 72;
         const isSvg = typeof it.icon === 'string' && it.icon.charAt(0) === '<';
         const iconSz = Math.round(sz * 0.44);
-        const iconMarkup = isSvg
-          ? it.icon
-          : `<div class="spl-body-emoji" style="font-size:${iconSz}px;color:${it.color}">${it.icon}</div>`;
+        const iconMarkup = el.iconImg
+          ? `<img src="${el.iconImg}" style="width:${Math.round(sz*0.8)}px;height:${Math.round(sz*0.8)}px;object-fit:contain;pointer-events:none;border-radius:4px"/>`
+          : isSvg
+            ? it.icon
+            : `<div class="spl-body-emoji" style="font-size:${iconSz}px;color:${it.color}">${it.icon}</div>`;
         div.innerHTML =
           `<button class="spl-del" data-del="${el.id}">×</button>`+
           `<div class="spl-body" style="border-color:${it.color};width:${sz}px;height:${sz}px">${iconMarkup}</div>`+
@@ -9363,6 +9420,7 @@ const SitePlan = (() => {
         `<span id="si-etval" style="flex:1;font-size:10px;color:var(--muted);text-align:center">${Math.round(elTs*100)}%</span>`+
         `<button class="spl-ts-btn" id="si-etplus">A+</button></div>`+
         (connList?`<div style="padding-top:8px;border-top:1px solid var(--bdr2);margin-bottom:6px"><div style="font-size:9px;color:var(--muted);font-family:var(--m);margin-bottom:5px">CONNEXIONS</div>${connList}</div>`:``) +
+        (el.type!=='text_lbl' ? _iconImgInspHtml(el.id, !!el.iconImg, el.iconImg||'', `SitePlan.uploadElementIcon('${el.id}')`, `SitePlan.clearElementIcon('${el.id}')`) : '') +
         `<button class="btn sm" style="width:100%;margin-top:6px;background:rgba(255,77,106,.12);border-color:var(--err);color:var(--err)" id="si-del"><i class="ti ti-trash"></i> Supprimer</button>`;
       // Events
       $('si-txt')?.addEventListener('input',e=>{el.label=e.target.value;saveSite();renderNodes();});
@@ -9774,7 +9832,22 @@ const SitePlan = (() => {
 
   /* Pre-convert SVG icon strings to HTMLImageElement for canvas drawImage() */
   let _siteIconImgs = null;
+  let _siteCustomImgCache = null; // cache des images personnalisées pour le canvas
   function _invalidateSiteIconImgs(){ _siteIconImgs = null; }
+  function _loadSiteCustomImgs(done){
+    const els = state.elements.filter(e=>e.iconImg);
+    _siteCustomImgCache = {};
+    if(!els.length){ done(); return; }
+    let pending = els.length;
+    els.forEach(function(el){
+      const img = new Image();
+      img.onload = img.onerror = function(){
+        _siteCustomImgCache[el.id] = img.complete && img.width > 0 ? img : null;
+        if(--pending === 0) done();
+      };
+      img.src = el.iconImg;
+    });
+  }
   function _loadSiteIconImgs(done) {
     if (_siteIconImgs) { done(); return; }
     _siteIconImgs = {};
@@ -9870,8 +9943,12 @@ const SitePlan = (() => {
         } else {
           ctx.fillStyle=it.color+'18'; _rrect(ctx,ex,ey,esz,esz,13*SCALE); ctx.fill();
           ctx.strokeStyle=it.color||'#667'; ctx.lineWidth=2*SCALE; ctx.stroke();
+          const _customImg = _siteCustomImgCache && _siteCustomImgCache[el.id];
           const _icImg = _siteIconImgs && _siteIconImgs[el.type];
-          if (_icImg) {
+          if (_customImg) {
+            const pad=esz*0.1;
+            ctx.drawImage(_customImg, ex+pad, ey+pad, esz-pad*2, esz-pad*2);
+          } else if (_icImg) {
             const pad=esz*0.12;
             ctx.drawImage(_icImg, ex+pad, ey+pad, esz-pad*2, esz-pad*2);
           } else {
@@ -9912,8 +9989,10 @@ const SitePlan = (() => {
       cb(canvas);
     };
     _loadSiteIconImgs(function() {
-      if(state.bgImage){ const img=new Image(); img.onload=()=>_draw(img); img.src=state.bgImage; }
-      else { _draw(null); }
+      _loadSiteCustomImgs(function(){
+        if(state.bgImage){ const img=new Image(); img.onload=()=>_draw(img); img.src=state.bgImage; }
+        else { _draw(null); }
+      });
     });
   }
 
@@ -9939,7 +10018,28 @@ const SitePlan = (() => {
   }
   function hasContent(){ return state && (state.elements.length > 0 || !!state.bgImage); }
 
-  return {init,load,getData,loadBg,setBgOpacity,clearBg,clear,zoom,setZoomPct,fitView,resetView,selectCable,exportPng,exportCanvas,exportCanvasSafe,hasContent,setActiveCableType,toggleCableMode,setTextScale,setLegendScale,deleteCustomCableType,addCustomCableType:function(t){if(!CABLE_TYPES.find(function(x){return x.id===t.id;})){CABLE_TYPES.push(t);_saveCustomCableTypes();renderCablePicker();}}};
+  function uploadElementIcon(elId){
+    _pickIconFile(async function(file){
+      try{
+        var b64=await _resizeIconToB64(file);
+        var el=state.elements.find(function(e){return e.id===elId;}); if(!el)return;
+        var b2Key=(typeof CUR_SHOW!=='undefined'&&CUR_SHOW?.id||'unknown')+'/node-icons/site-'+elId+'-'+Date.now()+'.jpg';
+        _b2DeleteIcon(el.iconImgB2);
+        el.iconImg=b64; el.iconImgB2=b2Key;
+        _siteCustomImgCache=null; // invalider le cache canvas
+        saveSite(); renderNodes(); renderInspector();
+        _b2UploadIcon(file, b2Key);
+      }catch(e){ if(typeof toast!=='undefined')toast('Erreur image : '+e.message); }
+    });
+  }
+  function clearElementIcon(elId){
+    var el=state.elements.find(function(e){return e.id===elId;}); if(!el)return;
+    _b2DeleteIcon(el.iconImgB2);
+    el.iconImg=null; el.iconImgB2=null;
+    _siteCustomImgCache=null;
+    saveSite(); renderNodes(); renderInspector();
+  }
+  return {init,load,getData,loadBg,setBgOpacity,clearBg,clear,zoom,setZoomPct,fitView,resetView,selectCable,exportPng,exportCanvas,exportCanvasSafe,hasContent,setActiveCableType,toggleCableMode,setTextScale,setLegendScale,deleteCustomCableType,uploadElementIcon,clearElementIcon,addCustomCableType:function(t){if(!CABLE_TYPES.find(function(x){return x.id===t.id;})){CABLE_TYPES.push(t);_saveCustomCableTypes();renderCablePicker();}}};
 })();
 
 // ══════════════════════════════════════
@@ -10736,6 +10836,68 @@ async function changePassword(){
 // FICHIERS CLOUD
 // ══════════════════════════════════════
 const FICH_BUCKET = 'show-files'; // kept for reference only — storage is now Backblaze B2
+
+/* ══════════════════════════════════════
+   ICÔNES PERSONNALISÉES (images JPEG/PNG)
+   Resize → base64 (stocké dans le nœud) + upload B2 (comptage stockage)
+   ══════════════════════════════════════ */
+const _ICON_MAX_BYTES = 5 * 1024 * 1024; // 5 Mo max
+const _ICON_PX        = 200;             // redimensionner à 200×200 max
+
+async function _resizeIconToB64(file){
+  if(!['image/jpeg','image/png'].includes(file.type)) throw new Error('Format non supporté (JPEG ou PNG uniquement)');
+  if(file.size > _ICON_MAX_BYTES) throw new Error('Image trop grande (max 5 Mo)');
+  return new Promise(function(resolve,reject){
+    var url=URL.createObjectURL(file);
+    var img=new Image();
+    img.onload=function(){
+      var s=Math.min(_ICON_PX/img.width,_ICON_PX/img.height,1);
+      var c=document.createElement('canvas');
+      c.width=Math.round(img.width*s); c.height=Math.round(img.height*s);
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg',0.82));
+    };
+    img.onerror=function(){ URL.revokeObjectURL(url); reject(new Error("Impossible de lire l'image")); };
+    img.src=url;
+  });
+}
+
+function _pickIconFile(cb){
+  if(!canDo('multi_scenes')){ showUpgradeModal('multi_patches'); return; }
+  var inp=document.createElement('input');
+  inp.type='file'; inp.accept='image/jpeg,image/png';
+  inp.onchange=function(){ if(inp.files[0]) cb(inp.files[0]); };
+  inp.click();
+}
+
+async function _b2UploadIcon(file, b2Key){
+  /* Upload silencieux — erreur non fatale, sert uniquement au comptage stockage */
+  try{ await B2Storage.upload(b2Key, file, { contentType: file.type }); }
+  catch(e){ console.warn('[icon b2]', e.message); }
+}
+
+function _b2DeleteIcon(b2Key){
+  if(!b2Key) return;
+  B2Storage.remove([b2Key]).catch(function(){});
+}
+
+/* Badge "Image perso" pour les inspecteurs */
+function _iconImgInspHtml(objId, hasImg, thumbSrc, uploadFn, clearFn){
+  var proGate = canDo('multi_scenes') ? '' :
+    '<div style="font-size:9px;color:var(--muted);font-family:var(--m);margin-top:4px"><i class="ti ti-lock" style="color:var(--ora)"></i> Pro uniquement</div>';
+  return '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--bdr2)">'
+    +'<div style="font-size:9px;font-family:var(--m);text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">Image personnalisée</div>'
+    +(hasImg ? '<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">'
+        +'<img src="'+thumbSrc+'" style="width:40px;height:40px;object-fit:contain;border-radius:5px;border:1px solid var(--bdr2);background:#fff"/>'
+        +'<button class="btn ghost sm" style="flex:1;font-size:10px" onclick="'+clearFn+'"><i class="ti ti-x"></i> Retirer</button>'
+      +'</div>' : '')
+    +'<button class="btn ghost sm" style="width:100%;justify-content:center;font-size:10px" onclick="'+uploadFn+'"'+(canDo('multi_scenes')?'':' disabled')+'>'
+      +'<i class="ti ti-photo" style="color:var(--ora)"></i> '+(hasImg?'Remplacer':'Ajouter une image')+' <span style="font-size:8px;color:var(--muted);margin-left:4px">JPEG/PNG · max 5 Mo</span>'
+    +'</button>'
+    +proGate
+    +'</div>';
+}
 
 /* ── B2Storage : drop-in replacement for B2Storage ──
    All file operations are proxied through the Supabase Edge Function
@@ -12404,8 +12566,14 @@ async function openRecapMatos(){
         nodeSvg+='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="9" fill="#fff" stroke="#c8d4e0"/>';
         /* Icon area */
         var iconAreaH=h-46, iconAreaY=y+10;
+        /* Custom image takes priority over SVG icon */
+        if(n.iconImg){
+          var iw2=Math.min(iconAreaH,w-20),ih2=iconAreaH;
+          var ix2=(x+(w-iw2)/2),iy2=iconAreaY;
+          nodeSvg+='<image x="'+ix2+'" y="'+iy2+'" width="'+iw2+'" height="'+ih2+'" href="'+n.iconImg+'" preserveAspectRatio="xMidYMid meet"/>';
+        }
         /* Use stored iconSvg; fall back to live LIB lookup for older nodes */
-        var _icSvg=n.iconSvg||(window.SynPro&&typeof window.SynPro.getIconByType==='function'?window.SynPro.getIconByType(n.type):'');
+        var _icSvg=n.iconImg?null:(n.iconSvg||(window.SynPro&&typeof window.SynPro.getIconByType==='function'?window.SynPro.getIconByType(n.type):''));
         if(_icSvg){
           /* Inline SVG icon directly (no data URI — works everywhere) */
           var iw=Math.min(iconAreaH,w-20), ih=iconAreaH;
