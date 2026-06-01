@@ -5944,12 +5944,12 @@ function _pdfQrFooterHtml(shareUrl){
 }
 /* CSS commun du bloc QR (à inclure dans le <style> de chaque PDF) */
 const _PDF_QR_CSS =
-  '.qrft{display:flex;align-items:center;gap:4mm;padding:3mm 10mm;background:#f4faff;border-top:2px solid #1a8fff;flex-shrink:0}'
-  +'.qrimg{width:16mm;height:16mm;flex-shrink:0;border-radius:1.5mm}'
-  +'.qrtx{display:flex;flex-direction:column;gap:0.5mm;min-width:0}'
-  +'.qrlbl{font-family:"DM Mono",monospace;font-size:2.4mm;text-transform:uppercase;letter-spacing:1px;color:#1a8fff;font-weight:600}'
-  +'.qrlink{font-size:3mm;color:#1a4fff;font-family:"DM Mono",monospace;word-break:break-all;text-decoration:none;font-weight:600}'
-  +'.qrsub{font-size:2.4mm;color:#7a8a9a;font-family:"DM Mono",monospace}';
+  '.qrft{display:flex;align-items:center;gap:3.5mm;padding:2mm 10mm;background:#f4faff;border-top:2px solid #1a8fff;flex-shrink:0}'
+  +'.qrimg{width:12mm;height:12mm;flex-shrink:0;border-radius:1.5mm}'
+  +'.qrtx{display:flex;flex-direction:column;gap:0.3mm;min-width:0}'
+  +'.qrlbl{font-family:"DM Mono",monospace;font-size:2.2mm;text-transform:uppercase;letter-spacing:1px;color:#1a8fff;font-weight:600}'
+  +'.qrlink{font-size:2.8mm;color:#1a4fff;font-family:"DM Mono",monospace;word-break:break-all;text-decoration:none;font-weight:600}'
+  +'.qrsub{font-size:2.2mm;color:#7a8a9a;font-family:"DM Mono",monospace}';
 
 function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand){
   const now = new Date().toLocaleString('fr-FR');
@@ -5961,7 +5961,7 @@ function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand){
     ? '<div class="mb">'
       +(meta.venue ? '<div class="mc"><div class="ml">Venue</div><div class="mv">'+meta.venue+'</div></div>' : '')
       +(meta.date  ? '<div class="mc"><div class="ml">Date</div><div class="mv">'+meta.date+'</div></div>'  : '')
-      +(engLine    ? '<div class="mc"><div class="ml">Ingénieur</div><div class="mvo">'+engLine+'</div></div>' : '')
+      +(engLine    ? '<div class="mc"><div class="ml">Créateur</div><div class="mvo">'+engLine+'</div></div>' : '')
       +(meta.co    ? '<div class="mc"><div class="ml">Société</div><div class="mv">'+meta.co+'</div></div>'  : '')
       +'</div>' : '';
   const notesBlock = meta.notes ? '<div class="ns"><div class="nl">Notes</div><div class="nt">'+meta.notes+'</div></div>' : '';
@@ -5972,23 +5972,23 @@ function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand){
     +'<style>*{box-sizing:border-box;margin:0;padding:0}:root{--o:'+accentColor+'}'
     +'html,body{width:100%;height:100%}body{font-family:Outfit,sans-serif;background:#fff;color:#1a1a2e;display:flex;flex-direction:column;height:100%}'
     +'@page{size:A4 landscape;margin:0}'
-    /* Header compact : bandeau accent fin, peu de hauteur */
-    +'.hd{padding:3.5mm 10mm;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-bottom:2px solid var(--o)}'
-    +'.hl{display:flex;align-items:center;gap:4mm}.logo{width:7mm;height:7mm;display:flex;align-items:center;justify-content:center;flex-shrink:0}'
-    +'.ht{font-size:4.5mm;font-weight:700;line-height:1.1;color:#1a1a2e}.hs{font-size:2.6mm;color:#8090a8;font-family:"DM Mono",monospace;margin-top:0.5mm}'
-    +'.hr{text-align:right}.hdt{font-size:2.8mm;font-weight:700;color:var(--o);font-family:"DM Mono",monospace;letter-spacing:1.5px;text-transform:uppercase}'
-    +'.hdm{font-size:2.5mm;color:#889;font-family:"DM Mono",monospace;margin-top:0.4mm}'
+    /* Header sombre compact : fond noir, faible hauteur */
+    +'.hd{background:#0a0f1c;color:#fff;padding:2.6mm 10mm;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-bottom:2px solid var(--o)}'
+    +'.hl{display:flex;align-items:center;gap:3.5mm}.logo{width:6mm;height:6mm;display:flex;align-items:center;justify-content:center;flex-shrink:0}'
+    +'.ht{font-size:4mm;font-weight:700;line-height:1.1;color:#fff}.hs{font-size:2.4mm;color:#8090a8;font-family:"DM Mono",monospace;margin-top:0.3mm}'
+    +'.hr{text-align:right}.hdt{font-size:2.6mm;font-weight:700;color:var(--o);font-family:"DM Mono",monospace;letter-spacing:1.5px;text-transform:uppercase}'
+    +'.hdm{font-size:2.3mm;color:#7a8aa0;font-family:"DM Mono",monospace;margin-top:0.3mm}'
     +'.mb{display:flex;background:#f7f8fa;border-bottom:1px solid #e6e8ec;flex-shrink:0}'
-    +'.mc{padding:1.8mm 4mm;border-right:1px solid #e6e8ec;display:flex;flex-direction:column;gap:0.3mm}.mc:last-child{border-right:none}'
-    +'.ml{font-size:2mm;color:#aaa;text-transform:uppercase;letter-spacing:.8px;font-family:"DM Mono",monospace}'
-    +'.mv{font-size:2.8mm;color:#333;font-weight:500;font-family:"DM Mono",monospace}'
-    +'.mvo{font-size:2.8mm;color:var(--o);font-weight:600;font-family:"DM Mono",monospace}'
-    /* Zone du plan : centrée parfaitement, prend tout l'espace dispo */
-    +'.plan{flex:1;display:flex;align-items:center;justify-content:center;padding:5mm 8mm;overflow:hidden;min-height:0}'
+    +'.mc{padding:1.4mm 4mm;border-right:1px solid #e6e8ec;display:flex;flex-direction:column;gap:0.2mm}.mc:last-child{border-right:none}'
+    +'.ml{font-size:1.9mm;color:#aaa;text-transform:uppercase;letter-spacing:.8px;font-family:"DM Mono",monospace}'
+    +'.mv{font-size:2.7mm;color:#333;font-weight:500;font-family:"DM Mono",monospace}'
+    +'.mvo{font-size:2.7mm;color:var(--o);font-weight:600;font-family:"DM Mono",monospace}'
+    /* Zone du plan : maximisée — padding minimal pour agrandir le diagramme */
+    +'.plan{flex:1;display:flex;align-items:center;justify-content:center;padding:2mm 3mm;overflow:hidden;min-height:0}'
     +'.plan img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;margin:auto}'
-    +'.ns{padding:2mm 10mm;background:#fffbf7;border-top:1px solid #ffe0c8;flex-shrink:0}'
-    +'.nl{font-family:"DM Mono",monospace;font-size:2.4mm;text-transform:uppercase;letter-spacing:1px;color:#ccc;margin-bottom:0.8mm}'
-    +'.nt{font-size:2.8mm;color:#555;white-space:pre-wrap}'
+    +'.ns{padding:1.6mm 10mm;background:#fffbf7;border-top:1px solid #ffe0c8;flex-shrink:0}'
+    +'.nl{font-family:"DM Mono",monospace;font-size:2.3mm;text-transform:uppercase;letter-spacing:1px;color:#ccc;margin-bottom:0.6mm}'
+    +'.nt{font-size:2.7mm;color:#555;white-space:pre-wrap}'
     +_PDF_QR_CSS
     +'@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body>'
     +_pdfWatermarkHtml(brand)
