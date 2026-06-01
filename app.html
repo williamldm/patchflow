@@ -2626,34 +2626,25 @@ async function loadScenes(showId){
     SHOW_SCENES[s.type].push(s);
   });
 
-  /* ── Auto-migration : les données créées avant le multi-scènes sont dans
-     shows.stage_data / shows.synoptique_data. Si un type n'a encore aucune
-     scène dans show_scenes, on crée automatiquement "Scène 1" avec ces données
-     pour ne pas les perdre quand l'utilisateur clique "+" la première fois. ── */
-  const raw=CUR_SHOW?.stage_data;
-  const toInsert=[];
-  if(SHOW_SCENES.stage.length===0 && raw?.band!=null)
-    toInsert.push({show_id:showId,type:'stage',name:'Plan de scène 1',data:{band:raw.band},position:0});
-  if(SHOW_SCENES.site.length===0  && raw?.site!=null)
-    toInsert.push({show_id:showId,type:'site', name:'Plan de site 1', data:{site:raw.site}, position:0});
-  if(SHOW_SCENES.syno.length===0  && CUR_SHOW?.synoptique_data!=null)
-    toInsert.push({show_id:showId,type:'syno', name:'Synoptique 1',   data:CUR_SHOW.synoptique_data, position:0});
-
-  if(toInsert.length){
-    const {data:migrated,error:migErr}=await sb.from('show_scenes').insert(toInsert).select();
-    if(!migErr && migrated){
-      migrated.forEach(function(s){
-        if(!SHOW_SCENES[s.type]) SHOW_SCENES[s.type]=[];
-        SHOW_SCENES[s.type].push(s);
-      });
-    }
-  }
-
   // Initialiser la scène courante sur la première de chaque type
   SCENE_TYPES.forEach(function(t){
     CUR_SCENES[t]=SHOW_SCENES[t][0]?.id||null;
   });
   _renderAllSceneTabs();
+}
+/* ── Migration paresseuse : retourne les données à utiliser pour une scène.
+   Si la scène est vide (data===null) ET qu'il n'y a qu'une seule scène de ce
+   type (= la toute première), on restitue les anciennes données de
+   shows.stage_data / shows.synoptique_data comme point de départ.
+   On NE FAIT PAS d'insert en DB — évite les doublons par race condition. ── */
+function _firstSceneFallback(type, sceneData){
+  if(sceneData!=null) return sceneData;  // scène déjà sauvegardée → utiliser ses données
+  if((SHOW_SCENES[type]?.length||0)>1) return null; // plusieurs scènes → nouvelle scène vide
+  const raw=CUR_SHOW?.stage_data;
+  if(type==='stage' && raw?.band!=null) return {band:raw.band};
+  if(type==='site'  && raw?.site!=null)  return {site:raw.site};
+  if(type==='syno'  && CUR_SHOW?.synoptique_data!=null) return CUR_SHOW.synoptique_data;
+  return null;
 }
 
 function _renderAllSceneTabs(){
@@ -2762,21 +2753,17 @@ async function _saveScene(type,dataObj){
   return true;
 }
 
-/* Charge les données d'une scène stage */
+/* Charge les données d'une scène stage (fallback migration paresseuse pour scène vide) */
 function _loadSceneStage(scene){
-  const raw=scene?.data;
-  let bandData=null;
-  if(raw&&raw.band) bandData=raw.band;
-  BandPlan.load(bandData);
+  const d=_firstSceneFallback('stage', scene?.data??null);
+  BandPlan.load(d?.band??null);
   setPlanMode('scene',false);
 }
 
-/* Charge les données d'une scène site */
+/* Charge les données d'une scène site (fallback migration paresseuse pour scène vide) */
 function _loadSceneSite(scene){
-  const raw=scene?.data;
-  let siteData=null;
-  if(raw&&raw.site) siteData=raw.site;
-  SitePlan.load(siteData);
+  const d=_firstSceneFallback('site', scene?.data??null);
+  SitePlan.load(d?.site??null);
   setPlanMode('site',false);
 }
 
@@ -2876,10 +2863,11 @@ async function switchShow(id){
   if(typeof SynPro!=="undefined"){SynPro.resetLoaded();SynPro.setSceneId(null);}
   // Charger les scènes multi (Studio) avant les plans
   await loadScenes(id);
-  // Configurer la scène synoptique courante
+  // Configurer la scène synoptique courante (avec fallback migration paresseuse)
   if(canDo('multi_scenes') && CUR_SCENES.syno){
     const sc=SHOW_SCENES.syno?.find(s=>s.id===CUR_SCENES.syno);
-    if(sc) SynPro.setSceneData(sc.data);
+    const synoData=_firstSceneFallback('syno', sc?.data??null);
+    if(synoData) SynPro.setSceneData(synoData);
     SynPro.setSceneId(CUR_SCENES.syno);
   }
   await Promise.all([
@@ -5618,11 +5606,13 @@ function _saveChsSnapshot(){
 function loadStage(){
   _stageReady=false;
   if(canDo('multi_scenes') && (CUR_SCENES.stage||CUR_SCENES.site)){
-    // Studio : charger depuis les scènes
+    // Studio : charger depuis les scènes (avec fallback migration paresseuse)
     const stageScene=SHOW_SCENES.stage?.find(s=>s.id===CUR_SCENES.stage);
     const siteScene=SHOW_SCENES.site?.find(s=>s.id===CUR_SCENES.site);
-    BandPlan.load(stageScene?.data?.band||null);
-    SitePlan.load(siteScene?.data?.site||null);
+    const stageData=_firstSceneFallback('stage', stageScene?.data??null);
+    const siteData =_firstSceneFallback('site',  siteScene?.data??null);
+    BandPlan.load(stageData?.band??null);
+    SitePlan.load(siteData?.site??null);
     // Déterminer quel plan afficher (utiliser le plan mode sauvegardé du show)
     const raw=CUR_SHOW?.stage_data;
     const savedMode=(raw&&raw.planMode)||'scene';
