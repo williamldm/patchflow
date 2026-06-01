@@ -1105,6 +1105,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 .plan-cur-name{font-size:14px;font-weight:700;margin-bottom:2px}
 .plan-cur-desc{font-size:11px;color:var(--muted)}
 .plan-billing-chip{font-family:var(--m);font-size:9px;padding:3px 9px;border-radius:8px;background:var(--surf3);border:1px solid var(--bdr2);color:var(--muted);white-space:nowrap}
+.bp-toggle-btn.on{background:var(--ora);color:#000}
 .plan-footer-links{display:flex;align-items:center;justify-content:center;gap:20px;margin-top:12px;font-size:10px;color:var(--muted);font-family:var(--m)}
 .plan-footer-links a,.plan-footer-links button{color:var(--muted);background:none;border:none;cursor:pointer;font-family:var(--m);font-size:10px;text-decoration:underline;padding:0}
 .plan-footer-links a:hover,.plan-footer-links button:hover{color:var(--txt)}
@@ -2321,6 +2322,11 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
           </div>
         </div>
       </div>
+      <!-- Sélecteur période de facturation (masqué pour les abonnés Pro) -->
+      <div id="sub-billing-toggle" style="display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:14px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:9px;padding:3px;width:fit-content;margin-left:auto;margin-right:auto">
+        <button class="bp-toggle-btn on" data-bp="monthly" onclick="setBillingPeriod('monthly')" style="border:none;background:none;color:var(--txt2);font-size:11px;font-weight:600;padding:6px 16px;border-radius:7px;cursor:pointer;font-family:var(--f);transition:all .15s">Mensuel</button>
+        <button class="bp-toggle-btn" data-bp="yearly" onclick="setBillingPeriod('yearly')" style="border:none;background:none;color:var(--txt2);font-size:11px;font-weight:600;padding:6px 16px;border-radius:7px;cursor:pointer;font-family:var(--f);transition:all .15s">Annuel <span style="font-size:9px;color:var(--grn);background:var(--grn-d);border-radius:6px;padding:1px 5px;margin-left:3px">-17%</span></button>
+      </div>
       <!-- Comparatif plans -->
       <div class="sub-plans-grid" id="sub-plans-grid"></div>
       <!-- Liens de bas de page -->
@@ -2570,6 +2576,7 @@ async function initApp(){
   setILBody('<div class="loading"><div class="spinner"></div>Connexion a Supabase…</div>',true);
   try{
     await _withTimeout(loadProfile(),8000);
+    _handleCheckoutReturn(); // retour de paiement Lemon Squeezy
     await _withTimeout(loadShows(),10000);
     processShowInvites(); // async, non-blocking — process pending show invites
     loadColChips();
@@ -12232,7 +12239,7 @@ function showUpgradeModal(feat) {
 function closeGateModal() { document.getElementById('gate-modal').className = 'modal-ov'; }
 
 /* ── Portail facturation ── */
-function openPortal() {
+async function openPortal() {
   var cur = userPlan();
   var icons  = { free:'🎙️', pro:'⚡' };
   var names  = { free:'Plan Gratuit', pro:'Plan Pro' };
@@ -12247,6 +12254,38 @@ function openPortal() {
   var cc = document.getElementById('portal-billing-chip');
   if(cc) cc.textContent = chips[cur]||'Gratuit';
   document.getElementById('portal-modal').className = 'modal-ov show';
+
+  /* Charger les détails de l'abonnement Lemon Squeezy */
+  var payBtn = document.querySelector('.portal-pay-btn');
+  var invList = document.getElementById('portal-invoice-list');
+  if(cur !== 'pro'){
+    if(cd) cd.textContent = 'Aucun abonnement actif';
+    if(payBtn){ payBtn.onclick=function(){ closePortal(); openPlanModal(); }; payBtn.querySelector('span').textContent='Passer au plan Pro'; }
+    return;
+  }
+  try{
+    const {data} = await _lsCall('portal', {});
+    if(data){
+      if(cd){
+        var info = [];
+        if(data.card_brand && data.card_last_four) info.push(data.card_brand+' •••• '+data.card_last_four);
+        if(data.status==='cancelled' && data.ends_at) info.push('Se termine le '+new Date(data.ends_at).toLocaleDateString('fr-FR'));
+        else if(data.renews_at) info.push('Renouvelé le '+new Date(data.renews_at).toLocaleDateString('fr-FR'));
+        cd.textContent = info.join(' · ') || 'Actif';
+      }
+      var portalUrl = data.customer_portal_url || data.update_payment_url;
+      if(payBtn && portalUrl){
+        payBtn.onclick = function(){ window.open(portalUrl, '_blank'); };
+        payBtn.querySelector('span').textContent = 'Gérer mon abonnement / paiement';
+      }
+      if(invList && portalUrl){
+        invList.innerHTML = '<div style="padding:14px;text-align:center;font-size:12px;color:var(--muted)">'
+          +'<i class="ti ti-external-link" style="font-size:24px;color:var(--ora);display:block;margin-bottom:8px"></i>'
+          +'Vos factures et reçus sont disponibles dans le portail client sécurisé Lemon Squeezy.'
+          +'<br><a href="'+portalUrl+'" target="_blank" style="color:var(--ora);text-decoration:underline;font-family:var(--m);font-size:11px;display:inline-block;margin-top:8px">Ouvrir le portail →</a></div>';
+      }
+    }
+  }catch(e){ console.warn('portal:',e); }
 }
 function closePortal() { document.getElementById('portal-modal').className = 'modal-ov'; }
 
@@ -12327,15 +12366,21 @@ function openPlanModal() {
     }).join('');
     const ctaLabel = isCur ? 'Plan actuel' : (isUp ? 'Passer au ' + pm.label : 'Downgrader');
     const ctaCls   = isCur ? '' : (isUp ? ' upgrade-cta' : '');
+    const priceId  = p==='pro' ? ' id="sub-pro-price"'  : '';
+    const periodId = p==='pro' ? ' id="sub-pro-period"' : '';
     return '<div class="sub-plan-card' + (isCur ? ' current' : '') + (isPopular && !isCur ? ' popular' : '') + '">' +
       (isCur ? '<div class="sub-current-badge">Actuel</div>' : '') +
       '<div class="sub-plan-name">' + pm.label + '</div>' +
-      '<div class="sub-plan-price" style="color:' + (p === 'free' ? 'var(--txt)' : pm.color) + '">' + pm.price + '</div>' +
-      '<div class="sub-plan-period">' + pm.period + '</div>' +
+      '<div class="sub-plan-price"'+priceId+' style="color:' + (p === 'free' ? 'var(--txt)' : pm.color) + '">' + pm.price + '</div>' +
+      '<div class="sub-plan-period"'+periodId+'>' + pm.period + '</div>' +
       '<ul class="sub-plan-feats">' + rows + '</ul>' +
       '<button class="sub-plan-cta' + ctaCls + '"' + (isCur ? ' disabled' : ' onclick="subCTA(\'' + p + '\')"') + '>' +
       (isCur ? '<i class="ti ti-check"></i> ' : (isUp ? '<i class="ti ti-rocket"></i> ' : '')) + ctaLabel + '</button></div>';
   }).join('');
+  // Masquer le sélecteur de période pour les abonnés Pro (déjà abonnés)
+  var bpToggle = document.getElementById('sub-billing-toggle');
+  if(bpToggle) bpToggle.style.display = (cur==='pro') ? 'none' : 'flex';
+  setBillingPeriod(_billingPeriod); // applique les prix selon la période
   document.getElementById('plan-modal').className = 'modal-ov show';
   // Load storage stats async
   _loadSubStorageStats();
@@ -12385,10 +12430,96 @@ async function _loadSubStorageStats(){
   }
 }
 
-function subCTA(plan) {
-  if (plan === 'free') { toast('Pour modifier votre abonnement, contactez le support.'); return; }
-  closePlanModal();
-  toast('Redirection vers le paiement... (disponible prochainement)');
+/* Période de facturation sélectionnée dans la modale d'abonnement */
+let _billingPeriod = 'monthly';
+function setBillingPeriod(p){
+  _billingPeriod = (p==='yearly') ? 'yearly' : 'monthly';
+  document.querySelectorAll('.bp-toggle-btn').forEach(function(b){
+    b.classList.toggle('on', b.dataset.bp===_billingPeriod);
+  });
+  // Mettre à jour les prix affichés
+  var priceEl = document.getElementById('sub-pro-price');
+  var perEl   = document.getElementById('sub-pro-period');
+  if(priceEl) priceEl.textContent = _billingPeriod==='yearly' ? '9,92 €' : '11,99 €';
+  if(perEl)   perEl.textContent   = _billingPeriod==='yearly' ? '/mois · facturé 119 €/an' : '/mois';
+}
+
+/* URL de la fonction edge Lemon Squeezy */
+const _LS_FN_URL = (()=>{
+  const h = window.location.hostname;
+  const base = (h==='127.0.0.1'||h==='localhost')
+    ? 'http://127.0.0.1:54321/functions/v1'
+    : 'https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1';
+  return base;
+})();
+
+async function _lsCall(action, params){
+  const sess=(await sb.auth.getSession()).data?.session;
+  const res=await fetch(_LS_FN_URL+'/lemonsqueezy-checkout',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+(sess?.access_token||'')},
+    body:JSON.stringify({action,...params}),
+  });
+  if(!res.ok){ const t=await res.text().catch(()=>''); return {data:null,error:{message:'HTTP '+res.status+': '+t}}; }
+  return await res.json();
+}
+
+async function subCTA(plan) {
+  if (plan === 'free') {
+    toast('Pour résilier votre abonnement, utilisez le portail de facturation.');
+    return;
+  }
+  if (plan === 'pro' && userPlan() === 'pro') { toast('Vous êtes déjà abonné Pro.'); return; }
+
+  // Désactiver le bouton pendant la création du checkout
+  const btns = document.querySelectorAll('.sub-plan-cta.upgrade-cta');
+  btns.forEach(b=>{ b.disabled=true; b.dataset.old=b.innerHTML; b.innerHTML='<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Redirection…'; });
+
+  const {data,error} = await _lsCall('checkout', { variant: _billingPeriod });
+
+  btns.forEach(b=>{ b.disabled=false; if(b.dataset.old) b.innerHTML=b.dataset.old; });
+
+  if(error || !data?.url){
+    toast('Paiement indisponible : ' + (error?.message || 'configuration manquante') + '. Contactez le support.');
+    return;
+  }
+  // Redirection vers le checkout hébergé Lemon Squeezy
+  window.location.href = data.url;
+}
+
+/* Après retour du checkout : rafraîchir le plan depuis la DB */
+async function _refreshPlanFromDb(){
+  if(!ME) return null;
+  try{
+    const {data} = await sb.from('profiles').select('plan').eq('id',ME.id).maybeSingle();
+    if(data?.plan && PROFILE){ PROFILE.plan = data.plan; _refreshPlanBadge(); }
+    return data?.plan || null;
+  }catch(e){ return null; }
+}
+
+/* Détecte ?checkout=success au retour du paiement et attend que le webhook
+   ait activé le plan Pro (polling court, le webhook arrive en quelques secondes) */
+function _handleCheckoutReturn(){
+  const p = new URLSearchParams(window.location.search);
+  if(p.get('checkout') !== 'success') return;
+  // Nettoyer l'URL
+  const clean = window.location.origin + window.location.pathname;
+  window.history.replaceState({}, '', clean);
+
+  toast('✓ Paiement reçu — activation de votre abonnement Pro…');
+  let tries = 0;
+  const poll = async ()=>{
+    tries++;
+    const plan = await _refreshPlanFromDb();
+    if(plan === 'pro'){
+      toast('🎉 Bienvenue dans PatchFlow Pro ! Toutes les fonctionnalités sont débloquées.');
+      _refreshPlanBadge();
+      return;
+    }
+    if(tries < 12){ setTimeout(poll, 2500); } // ~30s max
+    else { toast('Abonnement en cours d\'activation. Rechargez la page dans un instant si besoin.'); }
+  };
+  setTimeout(poll, 2000);
 }
 
 function _refreshPlanBadge() {

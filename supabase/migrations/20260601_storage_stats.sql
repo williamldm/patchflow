@@ -14,8 +14,7 @@ AS $$
     'shows_bytes', COALESCE((
       SELECT SUM(
         COALESCE(pg_column_size(synoptique_data), 0) +
-        COALESCE(pg_column_size(stage_data), 0) +
-        COALESCE(pg_column_size(out_data), 0)
+        COALESCE(pg_column_size(stage_data), 0)
       )
       FROM shows
       WHERE owner_id = auth.uid()

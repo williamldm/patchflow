@@ -21,14 +21,17 @@ CREATE UNIQUE INDEX IF NOT EXISTS show_invites_show_email_key
 -- 2. RLS sur show_invites
 ALTER TABLE public.show_invites ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "show_invites_owner_all" ON public.show_invites;
 CREATE POLICY "show_invites_owner_all" ON public.show_invites
   FOR ALL
   USING (show_id IN (SELECT id FROM public.shows WHERE owner_id = auth.uid()));
 
+DROP POLICY IF EXISTS "show_invites_invitee_select" ON public.show_invites;
 CREATE POLICY "show_invites_invitee_select" ON public.show_invites
   FOR SELECT
   USING (invited_email = (SELECT email FROM auth.users WHERE id = auth.uid()));
 
+DROP POLICY IF EXISTS "show_invites_invitee_delete" ON public.show_invites;
 CREATE POLICY "show_invites_invitee_delete" ON public.show_invites
   FOR DELETE
   USING (invited_email = (SELECT email FROM auth.users WHERE id = auth.uid()));
@@ -37,11 +40,13 @@ CREATE POLICY "show_invites_invitee_delete" ON public.show_invites
 ALTER TABLE public.show_members ENABLE ROW LEVEL SECURITY;
 
 -- Owner peut tout faire sur les membres de ses shows
+DROP POLICY IF EXISTS "show_members_owner_all" ON public.show_members;
 CREATE POLICY "show_members_owner_all" ON public.show_members
   FOR ALL
   USING (show_id IN (SELECT id FROM public.shows WHERE owner_id = auth.uid()));
 
 -- Un membre peut lire sa propre entrée (pour que loadShows() trouve ses shows)
+DROP POLICY IF EXISTS "show_members_self_select" ON public.show_members;
 CREATE POLICY "show_members_self_select" ON public.show_members
   FOR SELECT
   USING (user_id = auth.uid());
@@ -55,7 +60,8 @@ BEGIN
     WHERE tablename = 'shows' AND policyname = 'shows_members_can_read'
   ) THEN
     EXECUTE $policy$
-      CREATE POLICY "shows_members_can_read" ON public.shows
+      DROP POLICY IF EXISTS "shows_members_can_read" ON public.shows;
+CREATE POLICY "shows_members_can_read" ON public.shows
         FOR SELECT
         USING (
           owner_id = auth.uid() OR
