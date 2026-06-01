@@ -2953,6 +2953,9 @@ async function switchShow(id){
   subRT();
   renderSessions();
   renderTplQuickBar();
+  /* Pré-charger le cache de stockage en arrière-plan pour que les checks soient instantanés */
+  _storageCache = null;
+  if(typeof _getStorageUsage === 'function') _getStorageUsage(true).catch(function(){});
 }
 
 async function newShow(){
@@ -10986,7 +10989,12 @@ function _pickIconFile(cb){
   if(!canDo('multi_scenes')){ showUpgradeModal('multi_patches'); return; }
   var inp=document.createElement('input');
   inp.type='file'; inp.accept='image/jpeg,image/png';
-  inp.onchange=function(){ if(inp.files[0]) cb(inp.files[0]); };
+  inp.onchange=async function(){
+    var file=inp.files[0]; if(!file) return;
+    /* Vérifier le quota avant de charger l'image */
+    if(!await _quotaCheck(file.size)) return;
+    cb(file);
+  };
   inp.click();
 }
 
@@ -10994,6 +11002,62 @@ async function _b2UploadIcon(file, b2Key){
   /* Upload silencieux — erreur non fatale, sert uniquement au comptage stockage */
   try{ await B2Storage.upload(b2Key, file, { contentType: file.type }); }
   catch(e){ console.warn('[icon b2]', e.message); }
+  _storageCache = null; // invalider le cache après upload
+}
+
+/* ══════════════════════════════════════
+   QUOTA DE STOCKAGE — vérification avant chaque upload
+   ══════════════════════════════════════ */
+let _storageCache = null; // { total:bytes, b2:bytes, db:bytes, ts:ms }
+const _STORAGE_CACHE_TTL = 3 * 60 * 1000; // 3 min
+
+function _storageQuotaBytes(){
+  /* 500 Mo gratuit, 50 Go Pro */
+  return canDo('multi_scenes') ? 50 * 1073741824 : 500 * 1048576;
+}
+
+async function _getStorageUsage(force){
+  const now = Date.now();
+  if(!force && _storageCache && (now - _storageCache.ts) < _STORAGE_CACHE_TTL) return _storageCache;
+  try{
+    const showIds = (SHOWS||[]).filter(s=>s.owner_id===ME?.id).map(s=>s.id);
+    if(!showIds.length) return {total:0,b2:0,db:0,ts:now};
+    const {data,error} = await _b2Call('user-storage',{showIds});
+    if(error||!data) return _storageCache || {total:0,b2:0,db:0,ts:now};
+    _storageCache = {
+      total: data.total_bytes||0,
+      b2:    data.b2_bytes||0,
+      db:    data.db_bytes||0,
+      ts:    now
+    };
+    return _storageCache;
+  }catch(e){
+    return _storageCache || {total:0,b2:0,db:0,ts:now};
+  }
+}
+
+/* Vérifie si l'upload est possible. Affiche un modal bloquant si dépassement.
+   sizeBytes = taille estimée du fichier à ajouter.
+   Returns true si OK, false si quota dépassé. */
+async function _quotaCheck(sizeBytes){
+  const quota = _storageQuotaBytes();
+  const usage = await _getStorageUsage(false);
+  const after  = usage.total + sizeBytes;
+  if(after <= quota) return true;
+  /* Dépassement — afficher un message clair */
+  const remaining = Math.max(0, quota - usage.total);
+  const plan = userPlan();
+  const upgradeMsg = plan === 'free'
+    ? '<br><br>Passez au <strong>Pro</strong> pour obtenir 50 Go de stockage.'
+    : '<br><br>Supprimez des fichiers pour libérer de l\'espace.';
+  /* Afficher un toast d'erreur (non bloquant mais clair) */
+  if(plan === 'free'){
+    toast('🚫 Quota dépassé (' + _fmtSize(remaining) + ' restants). Passez Pro pour 50 Go.');
+    setTimeout(function(){ openPlanModal(); }, 800);
+  } else {
+    toast('🚫 Quota dépassé — il reste ' + _fmtSize(remaining) + '. Supprimez des fichiers pour libérer de l\'espace.');
+  }
+  return false;
 }
 
 function _b2DeleteIcon(b2Key){
@@ -11425,11 +11489,13 @@ async function _uploadFichiers(files) {
   if (status) status.style.display = '';
   let ok = 0;
   for (const file of files) {
+    /* Vérifier le quota AVANT chaque fichier */
+    if (!await _quotaCheck(file.size)) break;
     const prefix = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
     const path = _fichFullPath(prefix + '_' + file.name);
     const { error } = await B2Storage.upload(path, file, { upsert: false });
     if (error) { toast('Erreur upload : ' + error.message); }
-    else ok++;
+    else { ok++; _storageCache = null; } // invalider le cache après chaque upload réussi
   }
   if (status) status.style.display = 'none';
   if (ok) toast(ok === 1 ? '✓ Fichier importé' : '✓ ' + ok + ' fichiers importés');
