@@ -301,6 +301,11 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .lg-w{background:rgba(255,60,80,.14);border:1px solid rgba(255,60,80,.35);color:#ff8899}
 .lg-d{background:var(--grn-d);border:1px solid rgba(34,214,160,.3);color:var(--grn)}
 .lg-s{background:rgba(155,106,255,.14);border:1px solid rgba(155,106,255,.35);color:#c4a0ff}
+.lg-x{background:rgba(255,160,0,.14);border:1px solid rgba(255,160,0,.4);color:#ffb733}
+.lg-g{background:rgba(0,200,180,.12);border:1px solid rgba(0,200,180,.35);color:#2ad6c0}
+.lg-a{background:rgba(120,120,130,.18);border:1px solid rgba(160,160,170,.4);color:#c0c4cc}
+.lg-r{background:rgba(0,100,220,.12);border:1px solid rgba(0,100,220,.3);color:#5aa0ff}
+.lg-sc{background:rgba(230,80,40,.14);border:1px solid rgba(230,80,40,.35);color:#ff8866}
 .sf-name{font-size:13px;font-weight:600}.sf-sub{font-size:10px;color:var(--muted);font-family:var(--m)}
 .sf-body{padding:13px}
 .fmt-tag{display:inline-flex;align-items:center;gap:4px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:4px;font-family:var(--m);font-size:9px;padding:2px 8px;margin-bottom:10px;color:var(--muted)}
@@ -315,6 +320,7 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .gen-btn.w:hover{border-color:#ff8899;color:#ff8899;background:rgba(255,60,80,.06)}
 .gen-btn.d:hover{border-color:var(--grn);color:var(--grn);background:var(--grn-d)}
 .gen-btn.s:hover{border-color:#c4a0ff;color:#c4a0ff;background:rgba(155,106,255,.07)}
+.gen-btn.univ:hover{border-color:var(--ora);color:var(--ora);background:var(--ora-d)}
 .sf-stat{font-size:9px;color:var(--muted);display:flex;align-items:center;gap:4px;margin-top:7px;font-family:var(--m)}
 .dp{width:5px;height:5px;border-radius:50%;flex-shrink:0;display:inline-block}
 .dg{background:var(--grn)}.dw{background:var(--warn)}
@@ -1429,12 +1435,25 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 
     <!-- SHOW FILES -->
     <div class="panel" id="panel-showfiles">
-      <div class="pbar"><span class="ptitle"><i class="ti ti-device-floppy" style="color:var(--ora)"></i>Show Files<span class="ptitle-sep">/</span><span id="sn-sf" style="color:var(--txt2)">…</span></span></div>
+      <div class="pbar"><span class="ptitle"><i class="ti ti-device-floppy" style="color:var(--ora)"></i>Show Files<span class="ptitle-sep">/</span><span id="sn-sf" style="color:var(--txt2)">…</span></span>
+        <button class="gen-btn univ" onclick="dlFile('univ')" style="width:auto;margin:0;padding:6px 12px;text-transform:none;letter-spacing:0"><i class="ti ti-file-spreadsheet"></i>CSV universel</button>
+      </div>
+      <!-- Bandeau Pro -->
+      <div id="sf-pro-banner" style="display:none;align-items:center;gap:10px;margin:0 0 14px;padding:11px 15px;background:linear-gradient(135deg,rgba(255,107,26,.1),rgba(255,107,26,.04));border:1px solid rgba(255,107,26,.28);border-radius:10px">
+        <i class="ti ti-device-floppy" style="font-size:20px;color:var(--ora);flex-shrink:0"></i>
+        <div style="flex:1;font-size:11.5px;color:var(--txt2);line-height:1.5">Les <strong>exports console</strong> sont réservés au plan <strong style="color:var(--ora)">Pro</strong>. Chargez vos noms de voies, couleurs, gains et +48V directement dans votre console.</div>
+        <button class="btn sm" onclick="showUpgradeModal('console_export')" style="flex-shrink:0"><i class="ti ti-rocket"></i>Passer Pro</button>
+      </div>
       <div class="sf-grid">
-        <div class="sf-card"><div class="sf-head"><div class="sf-logo lg-y">CL/QL</div><div><div class="sf-name">Yamaha CL / QL</div><div class="sf-sub">CL5 · CL3 · QL5 · QL1</div></div></div><div class="sf-body"><div class="fmt-tag real">CSV — CL/QL Editor v4.1+</div><div class="ch-pills" id="pills-y"></div><div class="sf-steps"><div class="sf-step"><div class="sf-snum">1</div>Télécharger <span class="cb2">CH_NAME.csv</span></div><div class="sf-step"><div class="sf-snum">2</div>CL/QL Editor → File → CSV File Import</div></div><button class="gen-btn y" onclick="prevFile('y')"><i class="ti ti-eye"></i>Prévisualiser</button><button class="gen-btn y" onclick="dlFile('y')"><i class="ti ti-file-download"></i>CH_NAME.csv</button><div class="sf-stat"><span class="dp dg"></span><span id="st-y">—</span></div></div></div>
-        <div class="sf-card"><div class="sf-head"><div class="sf-logo lg-w">WING</div><div><div class="sf-name">Behringer Wing</div><div class="sf-sub">Wing · Wing Compact · Wing Rack</div></div></div><div class="sf-body"><div class="fmt-tag real">Snapshot JSON natif (.snap)</div><div class="ch-pills" id="pills-w"></div><div class="sf-steps"><div class="sf-step"><div class="sf-snum">1</div>Télécharger <span class="cb2">snapshot.snap</span></div><div class="sf-step"><div class="sf-snum">2</div>USB → <span class="cb2">/Snaps/</span> → Wing → Library → Load</div></div><button class="gen-btn w" onclick="prevFile('w')"><i class="ti ti-eye"></i>Prévisualiser JSON</button><button class="gen-btn w" onclick="dlFile('w')"><i class="ti ti-file-download"></i>snapshot.snap</button><div class="sf-stat"><span class="dp dg"></span><span id="st-w">—</span></div></div></div>
+        <div class="sf-card"><div class="sf-head"><div class="sf-logo lg-x">X32<br>M32</div><div><div class="sf-name">Behringer X32 / Midas M32</div><div class="sf-sub">X32 · M32 · X32 Rack · M32R</div></div></div><div class="sf-body"><div class="fmt-tag real">Scène native .scn — noms, couleurs, gain, +48V</div><div class="ch-pills" id="pills-x32"></div><div class="sf-steps"><div class="sf-step"><div class="sf-snum">1</div>Télécharger <span class="cb2">patchflow.scn</span></div><div class="sf-step"><div class="sf-snum">2</div>USB → console → Scenes → Import</div></div><button class="gen-btn y" onclick="prevFile('x32')"><i class="ti ti-eye"></i>Prévisualiser</button><button class="gen-btn y" onclick="dlFile('x32')"><i class="ti ti-file-download"></i>patchflow.scn</button><div class="sf-stat"><span class="dp dg"></span><span id="st-x32">—</span></div></div></div>
+        <div class="sf-card"><div class="sf-head"><div class="sf-logo lg-y">CL<br>QL</div><div><div class="sf-name">Yamaha CL / QL</div><div class="sf-sub">CL5 · CL3 · QL5 · QL1</div></div></div><div class="sf-body"><div class="fmt-tag real">CSV — CL/QL Editor v4.1+</div><div class="ch-pills" id="pills-y"></div><div class="sf-steps"><div class="sf-step"><div class="sf-snum">1</div>Télécharger <span class="cb2">CH_NAME.csv</span></div><div class="sf-step"><div class="sf-snum">2</div>CL/QL Editor → File → CSV File Import</div></div><button class="gen-btn y" onclick="prevFile('y')"><i class="ti ti-eye"></i>Prévisualiser</button><button class="gen-btn y" onclick="dlFile('y')"><i class="ti ti-file-download"></i>CH_NAME.csv</button><div class="sf-stat"><span class="dp dg"></span><span id="st-y">—</span></div></div></div>
+        <div class="sf-card"><div class="sf-head"><div class="sf-logo lg-r">RIVAGE</div><div><div class="sf-name">Yamaha Rivage PM</div><div class="sf-sub">PM10 · PM7 · PM5 · PM3</div></div></div><div class="sf-body"><div class="fmt-tag real">CSV nommage de voies</div><div class="ch-pills" id="pills-riv"></div><div class="sf-steps"><div class="sf-step"><div class="sf-snum">1</div>Télécharger <span class="cb2">Rivage_channels.csv</span></div><div class="sf-step"><div class="sf-snum">2</div>RIVAGE Editor → Import noms</div></div><button class="gen-btn y" onclick="prevFile('riv')"><i class="ti ti-eye"></i>Prévisualiser</button><button class="gen-btn y" onclick="dlFile('riv')"><i class="ti ti-file-download"></i>Rivage_channels.csv</button><div class="sf-stat"><span class="dp dg"></span><span id="st-riv">—</span></div></div></div>
+        <div class="sf-card"><div class="sf-head"><div class="sf-logo lg-w">WING</div><div><div class="sf-name">Behringer Wing</div><div class="sf-sub">Wing · Compact · Rack</div></div></div><div class="sf-body"><div class="fmt-tag real">Snapshot JSON natif (.snap)</div><div class="ch-pills" id="pills-w"></div><div class="sf-steps"><div class="sf-step"><div class="sf-snum">1</div>Télécharger <span class="cb2">snapshot.snap</span></div><div class="sf-step"><div class="sf-snum">2</div>USB → <span class="cb2">/Snaps/</span> → Library → Load</div></div><button class="gen-btn w" onclick="prevFile('w')"><i class="ti ti-eye"></i>Prévisualiser JSON</button><button class="gen-btn w" onclick="dlFile('w')"><i class="ti ti-file-download"></i>snapshot.snap</button><div class="sf-stat"><span class="dp dg"></span><span id="st-w">—</span></div></div></div>
         <div class="sf-card"><div class="sf-head"><div class="sf-logo lg-d">dLive</div><div><div class="sf-name">Allen &amp; Heath dLive</div><div class="sf-sub">C/S/CDM — via Director</div></div></div><div class="sf-body"><div class="fmt-tag real">CSV Director — colonnes A&amp;H officielles</div><div class="ch-pills" id="pills-d"></div><div class="sf-steps"><div class="sf-step"><div class="sf-snum">1</div>Télécharger <span class="cb2">dLive_channels.csv</span></div><div class="sf-step"><div class="sf-snum">2</div>dLive Director → Surface → Import CSV</div></div><button class="gen-btn d" onclick="prevFile('d')"><i class="ti ti-eye"></i>Prévisualiser</button><button class="gen-btn d" onclick="dlFile('d')"><i class="ti ti-file-download"></i>dLive_channels.csv</button><div class="sf-stat"><span class="dp dg"></span><span id="st-d">—</span></div></div></div>
-        <div class="sf-card"><div class="sf-head"><div class="sf-logo lg-s">SQ5</div><div><div class="sf-name">Allen &amp; Heath SQ5/6</div><div class="sf-sub">SQ Series — SQ-MixPad / USB</div></div></div><div class="sf-body"><div class="fmt-tag real">CSV SQ-MixPad + Patch List</div><div class="ch-pills" id="pills-s"></div><div class="sf-steps"><div class="sf-step"><div class="sf-snum">1</div>Télécharger CSV + Patch List</div><div class="sf-step"><div class="sf-snum">2</div>SQ-MixPad → File → Import Channel Names</div></div><button class="gen-btn s" onclick="prevFile('s')"><i class="ti ti-eye"></i>Prévisualiser</button><button class="gen-btn s" onclick="dlFile('s')"><i class="ti ti-file-download"></i>SQ_channels.csv</button><button class="gen-btn s" onclick="dlFile('sp')"><i class="ti ti-file-text"></i>patch_list.txt</button><div class="sf-stat"><span class="dp dw"></span><span id="st-s">—</span></div></div></div>
+        <div class="sf-card"><div class="sf-head"><div class="sf-logo lg-s">SQ</div><div><div class="sf-name">Allen &amp; Heath SQ</div><div class="sf-sub">SQ-5 · SQ-6 · SQ-7</div></div></div><div class="sf-body"><div class="fmt-tag real">CSV SQ-MixPad + Patch List</div><div class="ch-pills" id="pills-s"></div><div class="sf-steps"><div class="sf-step"><div class="sf-snum">1</div>Télécharger CSV + Patch List</div><div class="sf-step"><div class="sf-snum">2</div>SQ-MixPad → File → Import Channel Names</div></div><button class="gen-btn s" onclick="prevFile('s')"><i class="ti ti-eye"></i>Prévisualiser</button><button class="gen-btn s" onclick="dlFile('s')"><i class="ti ti-file-download"></i>SQ_channels.csv</button><button class="gen-btn s" onclick="dlFile('sp')"><i class="ti ti-file-text"></i>patch_list.txt</button><div class="sf-stat"><span class="dp dw"></span><span id="st-s">—</span></div></div></div>
+        <div class="sf-card"><div class="sf-head"><div class="sf-logo lg-g">DiGiCo</div><div><div class="sf-name">DiGiCo SD / Quantum</div><div class="sf-sub">SD9 · SD12 · Q225 · Q338</div></div></div><div class="sf-body"><div class="fmt-tag real">CSV liste de voies</div><div class="ch-pills" id="pills-digi"></div><div class="sf-steps"><div class="sf-step"><div class="sf-snum">1</div>Télécharger <span class="cb2">DiGiCo_channels.csv</span></div><div class="sf-step"><div class="sf-snum">2</div>Importer la liste dans la session</div></div><button class="gen-btn d" onclick="prevFile('digi')"><i class="ti ti-eye"></i>Prévisualiser</button><button class="gen-btn d" onclick="dlFile('digi')"><i class="ti ti-file-download"></i>DiGiCo_channels.csv</button><div class="sf-stat"><span class="dp dg"></span><span id="st-digi">—</span></div></div></div>
+        <div class="sf-card"><div class="sf-head"><div class="sf-logo lg-a">VENUE</div><div><div class="sf-name">Avid VENUE S6L</div><div class="sf-sub">S6L · Profile · SC48</div></div></div><div class="sf-body"><div class="fmt-tag real">CSV noms de voies</div><div class="ch-pills" id="pills-avid"></div><div class="sf-steps"><div class="sf-step"><div class="sf-snum">1</div>Télécharger <span class="cb2">VENUE_channels.csv</span></div><div class="sf-step"><div class="sf-snum">2</div>Patchbay → Import Channel Names</div></div><button class="gen-btn s" onclick="prevFile('avid')"><i class="ti ti-eye"></i>Prévisualiser</button><button class="gen-btn s" onclick="dlFile('avid')"><i class="ti ti-file-download"></i>VENUE_channels.csv</button><div class="sf-stat"><span class="dp dg"></span><span id="st-avid">—</span></div></div></div>
+        <div class="sf-card"><div class="sf-head"><div class="sf-logo lg-sc">Sound<br>craft</div><div><div class="sf-name">Soundcraft Vi / Si</div><div class="sf-sub">Vi · Si Impact · Si Expression</div></div></div><div class="sf-body"><div class="fmt-tag real">CSV labels de voies</div><div class="ch-pills" id="pills-sc"></div><div class="sf-steps"><div class="sf-step"><div class="sf-snum">1</div>Télécharger <span class="cb2">Soundcraft_labels.csv</span></div><div class="sf-step"><div class="sf-snum">2</div>Importer les labels</div></div><button class="gen-btn w" onclick="prevFile('sc')"><i class="ti ti-eye"></i>Prévisualiser</button><button class="gen-btn w" onclick="dlFile('sc')"><i class="ti ti-file-download"></i>Soundcraft_labels.csv</button><div class="sf-stat"><span class="dp dg"></span><span id="st-sc">—</span></div></div></div>
       </div>
     </div>
 
@@ -4489,32 +4508,153 @@ function colPreset(n){visCol=new Set(COL_PRESETS[n]||COLS.map(c=>c.id));applyCol
 function toggleColPanel(){const p=document.getElementById('col-panel');p.style.display=p.style.display==='none'||!p.style.display?'block':'none';if(p.style.display==='block')loadColChips();}
 
 // ══════════════════════════════════════
-// SHOW FILES GENERATORS
+// SHOW FILES GENERATORS — exports console (Pro)
+// Couleurs/icônes intelligentes basées sur le contenu du canal
 // ══════════════════════════════════════
-const WC=['blue','blue','blue','blue','yellow','yellow','green','green','green','yellow','yellow','red','red','red','white','white'];
-const AHC=['Blue','Blue','Blue','Blue','Yellow','Yellow','Green','Green','Green','Yellow','Yellow','Red','Red','Red','White','White'];
-const YC=['WHITE','BLUE','BLUE','BLUE','YELLOW','YELLOW','GREEN','GREEN','GREEN','YELLOW','YELLOW','RED','RED','RED','WHITE','WHITE'];
 
+/* Détecte le groupe d'instrument à partir du nom/source/micro */
+function _instrGroup(r){
+  const n=((r.short_name||'')+' '+(r.long_name||'')+' '+(r.source||'')+' '+(r.mic||'')).toLowerCase();
+  if(/kick|\bbd\b|grosse|kik|gc\b/.test(n)) return 'kick';
+  if(/snare|\bsn\b|caisse.?cl|cdc/.test(n)) return 'snare';
+  if(/\btom|floor|rototom/.test(n)) return 'tom';
+  if(/hi.?hat|\bhh\b|\bhat\b|charley|charlie/.test(n)) return 'hat';
+  if(/overhead|\boh\b|cymbal|ride|crash|cymbale/.test(n)) return 'oh';
+  if(/\bdrum|batterie|\bperc|djembe|conga|cajon/.test(n)) return 'drums';
+  if(/\bbass|basse|\bdib\b/.test(n)) return 'bass';
+  if(/\bgtr|guit|guitar|gratte/.test(n)) return 'guitar';
+  if(/key|piano|synth|clavier|nord|rhodes|organ|orgue|wurli/.test(n)) return 'keys';
+  if(/lead.?vox|lead.?voc|\blv\b|chant.?lead|lead.?sing/.test(n)) return 'leadvox';
+  if(/vox|vocal|voix|chant|choeur|chœur|chorus|\bbgv\b|backing|lead/.test(n)) return 'vox';
+  if(/sax|trumpet|trompet|trombone|\bhorn|brass|cuivre|\bfl\b|flute|flûte/.test(n)) return 'horns';
+  if(/click|track|playback|\bpb\b|\bseq|sample|backtrack/.test(n)) return 'track';
+  if(/\bfx\b|reverb|delay|verb|effet/.test(n)) return 'fx';
+  if(/talk|\btb\b|com|intercom/.test(n)) return 'talk';
+  return 'other';
+}
+
+/* Maps de couleurs par console (par groupe d'instrument) */
+const _COL_YAMAHA={kick:'YELLOW',snare:'YELLOW',tom:'YELLOW',hat:'YELLOW',oh:'YELLOW',drums:'YELLOW',bass:'GREEN',guitar:'PURPLE',keys:'CYAN',leadvox:'RED',vox:'RED',horns:'BLUE',track:'WHITE',fx:'WHITE',talk:'WHITE',other:'WHITE'};
+const _COL_AH={kick:'Yellow',snare:'Yellow',tom:'Yellow',hat:'Yellow',oh:'Yellow',drums:'Yellow',bass:'Green',guitar:'Purple',keys:'Cyan',leadvox:'Red',vox:'Red',horns:'Blue',track:'White',fx:'White',talk:'White',other:'White'};
+const _COL_WING={kick:'yellow',snare:'yellow',tom:'yellow',hat:'yellow',oh:'yellow',drums:'yellow',bass:'green',guitar:'purple',keys:'cyan',leadvox:'red',vox:'red',horns:'blue',track:'white',fx:'white',talk:'white',other:'white'};
+/* X32/M32 — codes couleur : OFF RD GN YE BL MG CY WH */
+const _COL_X32={kick:'YE',snare:'YE',tom:'YE',hat:'YE',oh:'YE',drums:'YE',bass:'GN',guitar:'MG',keys:'CY',leadvox:'RD',vox:'RD',horns:'BL',track:'WH',fx:'WH',talk:'WH',other:'WH'};
+/* X32/M32 — index d'icône (1-74) approximatif par groupe */
+const _ICON_X32={kick:8,snare:9,tom:10,hat:11,oh:12,drums:7,bass:14,guitar:17,keys:22,leadvox:33,vox:34,horns:29,track:50,fx:60,talk:36,other:1};
+
+function _shortUp(r,len){return (r.short_name||r.long_name||'CH'+r.ch).trim().slice(0,len||8);}
+function _longName(r){return (r.long_name||r.short_name||'CH'+r.ch).trim();}
+
+/* ── Yamaha CL / QL / CL Editor — CH_NAME.csv ── */
 function genY(){
   const q=s=>'"'+String(s||'').replace(/"/g,'""')+'"';
   let o='Target,"INPUT CH"\r\nDataName,"Short Name","Long Name","Color","Icon","Input Patch"\r\n"","Short Name","Long Name","Color","Icon","Input Patch"\r\n';
-  CHS.forEach((r,i)=>o+=`"Input Ch ${i+1}",${q((r.short_name||'').trim().slice(0,4).toUpperCase())},${q(r.long_name||'')},${q(YC[i]||'WHITE')},"","Dante${i+1}"\r\n`);
+  CHS.forEach((r,i)=>{
+    const col=_COL_YAMAHA[_instrGroup(r)]||'WHITE';
+    o+=`"Input Ch ${i+1}",${q(_shortUp(r,8).toUpperCase())},${q(_longName(r))},${q(col)},"",${q('Dante'+(i+1))}\r\n`;
+  });
   return o;
 }
+
+/* ── Yamaha Rivage PM — CSV nommage ── */
+function genRiv(){
+  const q=s=>'"'+String(s||'').replace(/"/g,'""')+'"';
+  let o='Ch,Name,Color,Icon,HA Gain,+48V\r\n';
+  CHS.forEach((r,i)=>{
+    const col=_COL_YAMAHA[_instrGroup(r)]||'WHITE';
+    o+=`${i+1},${q(_longName(r))},${q(col)},,${r.gain||0},${r.phantom?'ON':'OFF'}\r\n`;
+  });
+  return o;
+}
+
+/* ── Behringer X32 / Midas M32 — fichier scène .scn natif ── */
+function genX32(){
+  const name=(CUR_SHOW?.name||'PatchFlow').slice(0,12);
+  const esc=s=>String(s||'').replace(/"/g,'');
+  let o=`#4.0# "${esc(name)}" "PatchFlow" %000000000 1 1\n`;
+  /* Config des voies : nom, couleur, icône, source */
+  CHS.forEach((r,i)=>{
+    if(i>=32) return; // X32 = 32 voies d'entrée
+    const g=_instrGroup(r);
+    const nm=esc(_shortUp(r,12));
+    const col=_COL_X32[g]||'WH';
+    const icon=_ICON_X32[g]||1;
+    const src=i+1; // patch local 1:1
+    const num=String(i+1).padStart(2,'0');
+    o+=`/ch/${num}/config "${nm}" ${col} ${icon} ${src}\n`;
+  });
+  /* Head amps : gain + alimentation fantôme */
+  CHS.forEach((r,i)=>{
+    if(i>=32) return;
+    const num=String(i).padStart(3,'0'); // headamp 000-031
+    const gain=(typeof r.gain==='number'?r.gain:18).toFixed(1);
+    const g=gain.startsWith('-')?gain:'+'+gain;
+    o+=`/headamp/${num} ${g} ${r.phantom?'ON':'OFF'}\n`;
+  });
+  return o;
+}
+
+/* ── Behringer Wing — snapshot JSON ── */
 function genW(){
   const snap={ch:{},bus:{},main:{}};
-  CHS.forEach((r,i)=>{snap.ch[String(i+1)]={cfg:{name:(r.short_name||'').trim().slice(0,8),color:WC[i]||'white',on:1},ha:{gain:r.gain||0,phantom:r.phantom?1:0,pad:0},fdr:{val:-10,on:1}};});
+  CHS.forEach((r,i)=>{
+    const col=_COL_WING[_instrGroup(r)]||'white';
+    snap.ch[String(i+1)]={cfg:{name:_shortUp(r,12),color:col,on:1},ha:{gain:r.gain||0,phantom:r.phantom?1:0,pad:0},fdr:{val:-10,on:1}};
+  });
   for(let b=1;b<=16;b++)snap.bus[String(b)]={cfg:{name:'Bus '+b,color:'white',on:1},fdr:{val:-10,on:0}};
   snap.main={lr:{cfg:{name:'LR',color:'white',on:1},fdr:{val:0,on:1}}};
   return JSON.stringify(snap);
 }
+
+/* ── DiGiCo SD / Quantum — CSV liste de voies ── */
+function genDigi(){
+  const q=s=>'"'+String(s||'').replace(/"/g,'""')+'"';
+  let o='Channel,Name,Colour,Gain,48V\r\n';
+  const DC={kick:'Yellow',snare:'Yellow',tom:'Yellow',hat:'Yellow',oh:'Yellow',drums:'Yellow',bass:'Green',guitar:'Purple',keys:'Cyan',leadvox:'Red',vox:'Red',horns:'Blue',track:'White',fx:'White',talk:'White',other:'White'};
+  CHS.forEach((r,i)=>{
+    const col=DC[_instrGroup(r)]||'White';
+    o+=`${i+1},${q(_longName(r))},${col},${r.gain||0},${r.phantom?'On':'Off'}\r\n`;
+  });
+  return o;
+}
+
+/* ── Avid VENUE S6L / Profile — CSV noms de voies ── */
+function genAvid(){
+  const q=s=>'"'+String(s||'').replace(/"/g,'""')+'"';
+  let o='Channel Number,Channel Name,Phantom,Gain (dB)\r\n';
+  CHS.forEach((r,i)=>{
+    o+=`${i+1},${q(_longName(r))},${r.phantom?'On':'Off'},${r.gain||0}\r\n`;
+  });
+  return o;
+}
+
+/* ── Soundcraft Vi / Si — CSV noms de voies ── */
+function genSC(){
+  const q=s=>'"'+String(s||'').replace(/"/g,'""')+'"';
+  let o='Input,Label,Color,Gain,48V\r\n';
+  const SCC={kick:'Yellow',snare:'Yellow',tom:'Yellow',hat:'Yellow',oh:'Yellow',drums:'Yellow',bass:'Green',guitar:'Magenta',keys:'Cyan',leadvox:'Red',vox:'Red',horns:'Blue',track:'White',fx:'White',talk:'White',other:'White'};
+  CHS.forEach((r,i)=>{
+    const col=SCC[_instrGroup(r)]||'White';
+    o+=`${i+1},${q(_shortUp(r,10))},${col},${r.gain||0},${r.phantom?'On':'Off'}\r\n`;
+  });
+  return o;
+}
+
+/* ── Allen & Heath dLive — CSV Director ── */
 function genD(){
   const q=s=>'"'+String(s||'').replace(/"/g,'""')+'"';
   let o='Name,Colour,Source,Channel,Gain,Pad,Phantom\r\n';
-  CHS.forEach((r,i)=>{const g=r.gain||0;o+=`${q(r.long_name||r.short_name||'CH'+(i+1))},${AHC[i]||'White'},Local,${i+1},${g},Off,${r.phantom?'On':'Off'}\r\n`;});
+  CHS.forEach((r,i)=>{
+    const col=_COL_AH[_instrGroup(r)]||'White';
+    o+=`${q(_longName(r))},${col},Local,${i+1},${r.gain||0},Off,${r.phantom?'On':'Off'}\r\n`;
+  });
   return o;
 }
+
+/* ── Allen & Heath SQ — CSV SQ-MixPad ── */
 function genS(){return genD();}
+
+/* ── Allen & Heath SQ — Patch List texte ── */
 function genSP(){
   const n=CUR_SHOW?.name||'Show';const now=new Date().toLocaleString('fr-FR');
   let o=`PATCHFLOW — SQ Patch List\nShow: ${n}\nDate: ${now}\n${'═'.repeat(70)}\n`;
@@ -4522,15 +4662,40 @@ function genSP(){
   CHS.forEach(r=>{o+=`${String(r.ch).padEnd(5)}${(r.short_name||'').trim().padEnd(7)}${(r.long_name||'').slice(0,19).padEnd(20)}${(r.mic||'').slice(0,13).padEnd(14)}${String(r.gain||0).padEnd(6)}${(r.phantom?'+48V':'---').padEnd(5)}${r.iem_group||'—'}\n`;});
   o+=`\n${'═'.repeat(70)}\n${CHS.length} canaux | PatchFlow\n`;return o;
 }
+
+/* ── CSV universel (toute console acceptant un import générique) ── */
+function genUniv(){
+  const q=s=>'"'+String(s||'').replace(/"/g,'""')+'"';
+  let o='Channel,Short,Long,Source,Mic,Gain,Phantom,FOH,MON\r\n';
+  CHS.forEach((r,i)=>{
+    o+=`${i+1},${q((r.short_name||'').trim())},${q(r.long_name||'')},${q(r.source||'')},${q(r.mic||'')},${r.gain||0},${r.phantom?'Yes':'No'},${r.foh?'Yes':'No'},${r.mon?'Yes':'No'}\r\n`;
+  });
+  return o;
+}
+
 const FMETA={
-  y:{title:'Yamaha CL/QL — CH_NAME.csv',fn:'CH_NAME.csv',type:'text/csv',gen:genY},
-  w:{title:'Behringer Wing — snapshot.snap',fn:'snapshot.snap',type:'application/json',gen:genW},
-  d:{title:'A&H dLive — dLive_channels.csv',fn:'dLive_channels.csv',type:'text/csv',gen:genD},
-  s:{title:'A&H SQ — SQ_channels.csv',fn:'SQ_channels.csv',type:'text/csv',gen:genS},
-  sp:{title:'A&H SQ — patch_list.txt',fn:'patch_list.txt',type:'text/plain',gen:genSP},
+  y:   {title:'Yamaha CL/QL — CH_NAME.csv',          fn:'CH_NAME.csv',         type:'text/csv',          gen:genY},
+  riv: {title:'Yamaha Rivage PM — channels.csv',     fn:'Rivage_channels.csv', type:'text/csv',          gen:genRiv},
+  x32: {title:'Behringer X32 / Midas M32 — scène .scn', fn:'patchflow.scn',     type:'text/plain',        gen:genX32},
+  w:   {title:'Behringer Wing — snapshot.snap',      fn:'snapshot.snap',       type:'application/json',  gen:genW},
+  digi:{title:'DiGiCo SD/Quantum — channels.csv',    fn:'DiGiCo_channels.csv', type:'text/csv',          gen:genDigi},
+  avid:{title:'Avid VENUE S6L — channels.csv',       fn:'VENUE_channels.csv',  type:'text/csv',          gen:genAvid},
+  sc:  {title:'Soundcraft Vi/Si — labels.csv',       fn:'Soundcraft_labels.csv',type:'text/csv',         gen:genSC},
+  d:   {title:'A&H dLive — dLive_channels.csv',      fn:'dLive_channels.csv',  type:'text/csv',          gen:genD},
+  s:   {title:'A&H SQ — SQ_channels.csv',            fn:'SQ_channels.csv',     type:'text/csv',          gen:genS},
+  sp:  {title:'A&H SQ — patch_list.txt',             fn:'patch_list.txt',      type:'text/plain',        gen:genSP},
+  univ:{title:'CSV universel — channels.csv',        fn:'channels.csv',        type:'text/csv',          gen:genUniv},
 };
 function dl(content,type,fn){const b=new Blob([content],{type});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=fn;a.click();URL.revokeObjectURL(a.href);}
-function dlFile(t){const m=FMETA[t];if(!m)return;const slug=CUR_SHOW?.slug||'show';dl(m.gen(),m.type,slug+'_'+m.fn);}
+function dlFile(t){
+  const m=FMETA[t];if(!m)return;
+  /* Export console = fonctionnalité Pro */
+  if(!canDo('console_export')){ showUpgradeModal('console_export'); return; }
+  if(!CHS.length){ toast('Aucun canal à exporter — ajoutez des canaux dans l\'Input List.'); return; }
+  const slug=CUR_SHOW?.slug||'show';
+  dl(m.gen(),m.type,slug+'_'+m.fn);
+  toast('✓ '+m.fn+' téléchargé');
+}
 // ── CSV IMPORT ──────────────────────────────────────────────────
 var _csvRawRows=[], _csvHeaders=[], _csvColMap={}, _csvMode='append';
 var _CSV_FIELDS=[
@@ -4719,11 +4884,21 @@ async function doCSVImport(){
 }
 // ────────────────────────────────────────────────────────────────
 function exportCSV(){let c='CH,Court,Nom Long,Source,Micro/DI,Gain,Phantom,IEM,FOH,MON,BC,Note\n';CHS.forEach(r=>{c+=`${r.ch},"${(r.short_name||'').trim()}","${r.long_name||''}","${r.source||''}","${r.mic||''}",${r.gain||0},${r.phantom?'On':'Off'},"${r.iem_group||''}",${r.foh?1:0},${r.mon?1:0},${r.bc?1:0},"${r.note||''}"\n`;});dl(c,'text/csv',(CUR_SHOW?.slug||'show')+'_inputlist.csv');}
-function prevFile(t){const m=FMETA[t];if(!m)return;prevType=t;let c=m.gen();if(t==='w'){try{c=JSON.stringify(JSON.parse(c),null,2);}catch(e){}}const lines=c.split('\n');document.getElementById('prev-title').textContent=m.title;document.getElementById('prev-code').textContent=lines.length>70?lines.slice(0,70).join('\n')+'\n\n[… '+(lines.length-70)+' lignes]':c;document.getElementById('prev-modal').className='modal-ov show';}
+const _SF_KEYS=['y','riv','x32','w','digi','avid','sc','d','s'];
+function prevFile(t){
+  const m=FMETA[t];if(!m)return;
+  if(!canDo('console_export')){ showUpgradeModal('console_export'); return; }
+  prevType=t;let c=m.gen();
+  if(t==='w'){try{c=JSON.stringify(JSON.parse(c),null,2);}catch(e){}}
+  const lines=c.split('\n');
+  document.getElementById('prev-title').textContent=m.title;
+  document.getElementById('prev-code').textContent=lines.length>70?lines.slice(0,70).join('\n')+'\n\n[… '+(lines.length-70)+' lignes]':c;
+  document.getElementById('prev-modal').className='modal-ov show';
+}
 function closePrevModal(){document.getElementById('prev-modal').className='modal-ov';}
 function dlFromPrev(){dlFile(prevType);}
-function renderPills(){['y','w','d','s'].forEach(id=>{const el=document.getElementById('pills-'+id);if(!el)return;el.innerHTML=CHS.slice(0,10).map(r=>`<span class="ch-pill">${r.ch}·${(r.short_name||r.long_name||'CH'+r.ch).trim()}</span>`).join('');});}
-function updateStats(){const n=CHS.length,ph=CHS.filter(r=>r.phantom).length;['y','w','d','s'].forEach(id=>{const el=document.getElementById('st-'+id);if(el)el.textContent=`${n} canaux`+(id==='w'?` · ${ph} avec +48V`:id==='s'?' · CSV + Patch List':'');});}
+function renderPills(){_SF_KEYS.forEach(id=>{const el=document.getElementById('pills-'+id);if(!el)return;el.innerHTML=CHS.slice(0,10).map(r=>`<span class="ch-pill">${r.ch}·${(r.short_name||r.long_name||'CH'+r.ch).trim()}</span>`).join('');});}
+function updateStats(){const n=CHS.length,ph=CHS.filter(r=>r.phantom).length;_SF_KEYS.forEach(id=>{const el=document.getElementById('st-'+id);if(el)el.textContent=`${n} canaux`+(ph?` · ${ph} ×+48V`:'');});}
 
 // ══════════════════════════════════════
 // PDF EXPORT
@@ -11725,6 +11900,11 @@ function goTab(id,el){
   }
   if(id==='fichiers')renderFichiers();
   if(id==='team'){_initRiderBuilder();}
+  if(id==='showfiles'){
+    renderPills(); updateStats();
+    var sfB=document.getElementById('sf-pro-banner');
+    if(sfB) sfB.style.display = canDo('console_export') ? 'none' : 'flex';
+  }
 }
 
 const _MOB_PLAN_W = 1200; // largeur de rendu SVG/canvas mobile
@@ -11933,10 +12113,10 @@ function closeUD(){document.getElementById('user-dd').classList.remove('show');}
 const PLAN_PERMS = {
   free:   { max_shows:3,        max_channels:26,       max_members:1,        max_templates:5,
             export_pdf:true,    share_link:true,       site_plan:true,       pdf_watermark:true,
-            storage:true,       multi_scenes:false,    multi_patches:false,  custom_exports:false,  vintage_view:false, recap_matos:false, recent_activity:false },
+            storage:true,       multi_scenes:false,    multi_patches:false,  custom_exports:false,  vintage_view:false, recap_matos:false, recent_activity:false, console_export:false },
   pro:    { max_shows:Infinity, max_channels:Infinity, max_members:Infinity, max_templates:Infinity,
             export_pdf:true,    share_link:true,       site_plan:true,       pdf_watermark:false,
-            storage:true,       multi_scenes:true,     multi_patches:true,   custom_exports:true,   vintage_view:true,  recap_matos:true,  recent_activity:true  },
+            storage:true,       multi_scenes:true,     multi_patches:true,   custom_exports:true,   vintage_view:true,  recap_matos:true,  recent_activity:true, console_export:true },
 };
 
 const PLAN_META = {
@@ -11958,6 +12138,7 @@ const GATE_META = {
   recap_matos:    { icon:'ti-clipboard-list',   title:'Recap materiels',              desc:'Obtenez le decompte exact de chaque micro et pied necessaires — indispensable avant un show pour ne rien oublier.', plan:'pro', feats:['Decompte par modele de micro ou DI','Decompte par type de pied','Total consolide sur tous les patches'] },
   recent_activity:{ icon:'ti-history',          title:'Activite recente',             desc:'Visualisez les derniers canaux modifies par votre equipe en temps reel — utile pour savoir qui a touche a quoi.', plan:'pro', feats:['5 derniers canaux modifies','Horodatage relatif (il y a X min)','Inclus dans le plan Pro'] },
   export_pdf_pro: { icon:'ti-file-type-pdf',    title:'Export PDF complet',           desc:'Retirez le filigrane et ajoutez societe, contact, venue, date, revision et notes techniques.', plan:'pro', feats:['PDF sans filigrane','Coordonnees completes en en-tete','Notes techniques sur chaque export'] },
+  console_export: { icon:'ti-device-floppy',    title:'Exports console (Show Files)',  desc:'Generez les fichiers natifs pour charger vos noms de voies, couleurs, gains et +48V directement dans votre console.', plan:'pro', feats:['Yamaha, Behringer, Midas, DiGiCo, Avid, A&H...','Scene X32/M32 native, CSV officiels','Couleurs et icones intelligentes par instrument'] },
 };
 
 function userPlan() { return PROFILE?.plan || 'free'; }
