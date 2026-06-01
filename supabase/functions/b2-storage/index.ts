@@ -167,6 +167,69 @@ serve(async (req) => {
       return json({ data: { bytes: total }, error: null });
     }
 
+    // ── user-storage : total B2 + DB storage for the authenticated user ──
+    if (action === 'user-storage') {
+      const { showIds } = body as { showIds: string[] };
+
+      // 1. B2 — scan all shows in parallel (max 10 concurrent)
+      let b2Bytes = 0;
+      const chunkSize = 10;
+      for (let i = 0; i < showIds.length; i += chunkSize) {
+        const chunk = showIds.slice(i, i + chunkSize);
+        const counts = await Promise.all(chunk.map(async (sid) => {
+          let bytes = 0;
+          let token: string | undefined;
+          do {
+            const cmd = new ListObjectsV2Command({
+              Bucket: B2_BUCKET, Prefix: sid + '/',
+              ContinuationToken: token, MaxKeys: 1000,
+            });
+            const r = await s3.send(cmd);
+            (r.Contents ?? []).forEach((o) => { bytes += o.Size ?? 0; });
+            token = r.IsTruncated ? r.NextContinuationToken : undefined;
+          } while (token);
+          return bytes;
+        }));
+        counts.forEach((n) => { b2Bytes += n; });
+      }
+
+      // 2. DB — use service role Supabase client to run size queries
+      const sbAdmin = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      );
+
+      // shows.synoptique_data + shows.stage_data
+      const { data: showsData } = await sbAdmin
+        .from('shows')
+        .select('synoptique_data, stage_data')
+        .in('id', showIds);
+
+      let dbBytes = 0;
+      (showsData ?? []).forEach((s: Record<string, unknown>) => {
+        if (s.synoptique_data) dbBytes += JSON.stringify(s.synoptique_data).length;
+        if (s.stage_data)      dbBytes += JSON.stringify(s.stage_data).length;
+      });
+
+      // show_scenes.data
+      const { data: scenesData } = await sbAdmin
+        .from('show_scenes')
+        .select('data')
+        .in('show_id', showIds);
+      (scenesData ?? []).forEach((sc: Record<string, unknown>) => {
+        if (sc.data) dbBytes += JSON.stringify(sc.data).length;
+      });
+
+      // channels (estimate 400 bytes each)
+      const { count: chCount } = await sbAdmin
+        .from('channels')
+        .select('id', { count: 'exact', head: true })
+        .in('show_id', showIds);
+      dbBytes += (chCount ?? 0) * 400;
+
+      return json({ data: { b2_bytes: b2Bytes, db_bytes: dbBytes, total_bytes: b2Bytes + dbBytes }, error: null });
+    }
+
     return json({ error: 'Unknown action: ' + action }, 400);
 
   } catch (err) {

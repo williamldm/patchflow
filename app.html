@@ -2277,6 +2277,31 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
         </div>
         <div class="plan-billing-chip" id="plan-billing-chip">Gratuit</div>
       </div>
+      <!-- Stockage -->
+      <div id="sub-storage-section" style="margin-bottom:16px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;padding:14px 16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:7px">
+            <i class="ti ti-cloud" style="color:var(--ora);font-size:15px"></i>
+            <span style="font-size:12px;font-weight:600">Stockage</span>
+          </div>
+          <span id="sub-storage-total" style="font-size:11px;font-family:var(--m);color:var(--muted)">Calcul en cours…</span>
+        </div>
+        <div style="height:6px;background:var(--surf3);border-radius:3px;overflow:hidden;margin-bottom:8px">
+          <div id="sub-storage-bar" style="height:100%;background:var(--ora);border-radius:3px;transition:width .8s ease;width:0%"></div>
+        </div>
+        <div id="sub-storage-detail" style="display:flex;gap:16px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)">
+            <div style="width:8px;height:8px;border-radius:50%;background:var(--ora);flex-shrink:0"></div>
+            <span>Fichiers cloud</span>
+            <span id="sub-s-b2" style="font-family:var(--m);color:var(--txt2)">—</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)">
+            <div style="width:8px;height:8px;border-radius:50%;background:var(--blu2);flex-shrink:0"></div>
+            <span>Données (patches, plans, images)</span>
+            <span id="sub-s-db" style="font-family:var(--m);color:var(--txt2)">—</span>
+          </div>
+        </div>
+      </div>
       <!-- Comparatif plans -->
       <div class="sub-plans-grid" id="sub-plans-grid"></div>
       <!-- Liens de bas de page -->
@@ -12009,8 +12034,53 @@ function openPlanModal() {
       (isCur ? '<i class="ti ti-check"></i> ' : (isUp ? '<i class="ti ti-rocket"></i> ' : '')) + ctaLabel + '</button></div>';
   }).join('');
   document.getElementById('plan-modal').className = 'modal-ov show';
+  // Load storage stats async
+  _loadSubStorageStats();
 }
 function closePlanModal() { document.getElementById('plan-modal').className = 'modal-ov'; }
+
+async function _loadSubStorageStats(){
+  const set = (id, txt) => { const el=document.getElementById(id); if(el)el.textContent=txt; };
+  const fmt = (bytes) => {
+    if(bytes < 1024) return bytes + ' o';
+    if(bytes < 1048576) return (bytes/1024).toFixed(1) + ' Ko';
+    if(bytes < 1073741824) return (bytes/1048576).toFixed(1) + ' Mo';
+    return (bytes/1073741824).toFixed(2) + ' Go';
+  };
+  const QUOTA_BYTES = canDo('multi_scenes') ? 50*1073741824 : 500*1048576; // 50 Go Pro, 500 Mo Free
+
+  try {
+    // Get all show IDs for this user
+    const showIds = (SHOWS||[]).filter(s=>s.owner_id===ME?.id).map(s=>s.id);
+    if(!showIds.length){ set('sub-storage-total','0 o / '+fmt(QUOTA_BYTES)); return; }
+
+    const {data,error} = await _b2Call('user-storage', {showIds});
+    if(error || !data){
+      set('sub-storage-total','Erreur calcul stockage');
+      return;
+    }
+    const b2 = data.b2_bytes || 0;
+    const db = data.db_bytes || 0;
+    const total = data.total_bytes || (b2 + db);
+    const pct = Math.min(100, total / QUOTA_BYTES * 100);
+    const warn = pct >= 80;
+
+    set('sub-storage-total', fmt(total) + ' / ' + fmt(QUOTA_BYTES));
+    set('sub-s-b2', fmt(b2));
+    set('sub-s-db', fmt(db));
+
+    const bar = document.getElementById('sub-storage-bar');
+    if(bar){
+      bar.style.width = pct.toFixed(1) + '%';
+      bar.style.background = warn ? 'var(--err)' : pct >= 60 ? 'var(--warn)' : 'var(--ora)';
+    }
+    // Warn label color
+    const tot = document.getElementById('sub-storage-total');
+    if(tot) tot.style.color = warn ? 'var(--err)' : 'var(--txt2)';
+  } catch(e) {
+    set('sub-storage-total', 'Erreur : ' + e.message);
+  }
+}
 
 function subCTA(plan) {
   if (plan === 'free') { toast('Pour modifier votre abonnement, contactez le support.'); return; }
