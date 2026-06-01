@@ -2626,7 +2626,7 @@ async function loadScenes(showId){
     SHOW_SCENES[s.type].push(s);
   });
 
-  /* ── Nettoyage de doublons d'ID (ne devrait pas arriver, mais sécurité) ── */
+  /* ── Nettoyage de doublons d'ID ── */
   SCENE_TYPES.forEach(function(t){
     var seenIds={};
     SHOW_SCENES[t]=SHOW_SCENES[t].filter(function(s){
@@ -2635,6 +2635,36 @@ async function loadScenes(showId){
       return true;
     });
   });
+
+  /* ── Auto-création de la Scène 1 pour les types sans scène.
+     Le premier tab doit toujours être présent visuellement dès l'ouverture ;
+     le "+" ne sert qu'à créer les scènes suivantes.
+     On inclut les données legacy (stage_data / synoptique_data) si elles existent,
+     pour que la scène 1 contienne déjà le travail existant. ── */
+  const toInit=[];
+  const raw=CUR_SHOW?.stage_data;
+  SCENE_TYPES.forEach(function(t){
+    if(SHOW_SCENES[t].length===0){
+      var initialData=null;
+      if(t==='stage' && raw?.band!=null)                   initialData={band:raw.band};
+      else if(t==='site' && raw?.site!=null)               initialData={site:raw.site};
+      else if(t==='syno' && CUR_SHOW?.synoptique_data!=null) initialData=CUR_SHOW.synoptique_data;
+      toInit.push({show_id:showId,type:t,name:SCENE_LABELS[t]+' 1',data:initialData,position:0});
+    }
+  });
+  if(toInit.length){
+    const {data:created,error:cErr}=await sb.from('show_scenes').insert(toInit).select();
+    if(!cErr && created){
+      created.forEach(function(s){ SHOW_SCENES[s.type].push(s); });
+    } else if(cErr){
+      /* Race condition (deux onglets) : recharger ce qui est en DB */
+      const {data:re}=await sb.from('show_scenes').select('*').eq('show_id',showId).order('position');
+      (re||[]).forEach(function(s){
+        if(!SHOW_SCENES[s.type]) SHOW_SCENES[s.type]=[];
+        if(!SHOW_SCENES[s.type].find(function(x){return x.id===s.id;})) SHOW_SCENES[s.type].push(s);
+      });
+    }
+  }
 
   // Restaurer la dernière scène active (mémorisée dans localStorage), sinon la première
   var _lsSceneKey='pf_cur_scenes_'+showId;
@@ -2647,30 +2677,12 @@ async function loadScenes(showId){
   });
   _renderAllSceneTabs();
 }
-/* ── Migration paresseuse : retourne les données à utiliser pour une scène.
-   Si la scène est vide (data===null) ET qu'il n'y a qu'une seule scène de ce
-   type (= la toute première), on restitue les anciennes données de
-   shows.stage_data / shows.synoptique_data comme point de départ.
-   On persiste aussi immédiatement en DB pour que la donnée survive quand
-   une deuxième scène est créée (le fallback ne s'applique plus avec 2+ scènes). ── */
+/* ── Retourne les données d'une scène.
+   La scène 1 est maintenant créée avec les données legacy directement
+   dans loadScenes(), donc ce fallback ne sert plus qu'aux nouvelles scènes
+   créées vides intentionnellement (elles doivent rester vides). ── */
 function _firstSceneFallback(type, sceneData){
-  if(sceneData!=null) return sceneData;  // scène déjà sauvegardée → utiliser ses données
-  if((SHOW_SCENES[type]?.length||0)>1) return null; // plusieurs scènes → nouvelle scène vide intentionnelle
-  const raw=CUR_SHOW?.stage_data;
-  var fallback=null;
-  if(type==='stage' && raw?.band!=null)              fallback={band:raw.band};
-  else if(type==='site' && raw?.site!=null)           fallback={site:raw.site};
-  else if(type==='syno' && CUR_SHOW?.synoptique_data!=null) fallback=CUR_SHOW.synoptique_data;
-  if(fallback!=null){
-    var sc=SHOW_SCENES[type]?.[0];
-    if(sc && sc.data==null){
-      /* Persister immédiatement : si l'utilisateur crée une 2ème scène,
-         le fallback ne s'applique plus — la donnée doit être en DB */
-      sc.data=fallback;
-      sb.from('show_scenes').update({data:fallback}).eq('id',sc.id).then(function(){});
-    }
-  }
-  return fallback;
+  return sceneData ?? null; // données telles quelles (null = scène vide)
 }
 
 function _renderAllSceneTabs(){
