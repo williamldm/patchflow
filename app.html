@@ -2943,7 +2943,7 @@ async function switchShow(id){
   document.getElementById('cur-show-name').textContent=n;
   const tbn=document.getElementById('tb-show-name');if(tbn)tbn.textContent=n;
   ['il','sf','stage','team'].forEach(k=>{const el=document.getElementById('sn-'+k);if(el)el.textContent=n;});
-  document.getElementById('slink-url').textContent=`http://127.0.0.1:7821/app.html?view=${CUR_SHOW.id}&tab=inputlist`;
+  document.getElementById('slink-url').textContent=`${window.location.origin}${window.location.pathname}?view=${CUR_SHOW.id}&tab=il`;
   renderSPShows();
   // Init patches
   IL_PATCHES=loadPatchMeta();
@@ -4224,7 +4224,20 @@ td{padding:4px 7px;border-bottom:1px solid #f0eee8;vertical-align:middle}
       +'</div>':'');
   }
   function _ftr(){
-    return '<div class="ft"><span class="fl">PATCHFLOW</span><span>'+_fEsc(show)+' · '+now+'</span><span>patchflow.app</span></div>';
+    return '<div class="ft"><span>'+_fEsc(show)+'</span><span>'+_fEsc(rTitle)+'</span><span>'+now+'</span></div>';
+  }
+  /* Lien partagé du rider + QR (le plus important — repris du style Input List) */
+  const _riderShareUrl = window.location.origin+window.location.pathname+'?rider='+(CUR_SHOW?.id||'');
+  function _riderQrBlock(){
+    const qr='https://api.qrserver.com/v1/create-qr-code/?size=130x130&data='
+      +encodeURIComponent(_riderShareUrl)+'&color=1a8fff&bgcolor=f4faff&margin=0&qzone=1';
+    return '<div style="display:flex;align-items:center;gap:14px;padding:10px 16px;background:#f4faff;border-top:2px solid #1a8fff">'
+      +'<img src="'+qr+'" width="58" height="58" style="flex-shrink:0;border-radius:5px"/>'
+      +'<div style="min-width:0">'
+        +'<div style="font-family:\'DM Mono\',monospace;font-size:8px;text-transform:uppercase;letter-spacing:1px;color:#1a8fff;font-weight:600;margin-bottom:2px">Fiche à jour en ligne</div>'
+        +'<a href="'+_riderShareUrl+'" style="font-size:10px;color:#1a4fff;font-family:\'DM Mono\',monospace;word-break:break-all;text-decoration:none;font-weight:600">'+_riderShareUrl+'</a>'
+        +'<div style="font-size:8px;color:#7a8a9a;margin-top:2px;font-family:\'DM Mono\',monospace">Scannez le QR code ou ouvrez le lien pour retrouver cette fiche à jour à tout moment.</div>'
+      +'</div></div>';
   }
 
   /* ── Helper : Promise avec timeout pour les opérations canvas async ── */
@@ -4329,6 +4342,14 @@ td{padding:4px 7px;border-bottom:1px solid #f0eee8;vertical-align:middle}
   }
 
   if(!pages.length){toast('Aucune section à exporter.');return;}
+
+  /* Insérer le bloc QR + lien à la fin de la dernière page (avant son footer) */
+  if(pages.length){
+    var last=pages[pages.length-1];
+    var fi=last.lastIndexOf('<div class="ft">');
+    if(fi>=0){ pages[pages.length-1]=last.slice(0,fi)+_riderQrBlock()+last.slice(fi); }
+    else { pages[pages.length-1]=last.replace(/<\/div>\s*$/, _riderQrBlock()+'</div>'); }
+  }
 
   var html='<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/><title>'+_fEsc(rTitle)+'</title>'
     +'<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet"/>'
@@ -5286,7 +5307,7 @@ function openPDFModal(forceType){
 }
 function closePDF(){document.getElementById('pdf-modal').className='modal-ov';}
 function copyILShareLink(){
-  var url=document.getElementById('slink-url')?.textContent||('http://127.0.0.1:7821/app.html?view='+(CUR_SHOW?.id||'')+'\x26tab=inputlist');
+  var url=document.getElementById('slink-url')?.textContent||(window.location.origin+window.location.pathname+'?view='+(CUR_SHOW?.id||'')+'\x26tab=il');
   if(!url||url==='…'){toast('Aucun lien disponible — partagez d\'abord le show.');return;}
   try{navigator.clipboard.writeText(url).then(function(){toast('Lien copie !');});} catch(e){
     var ta=document.createElement('textarea');ta.value=url;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('Lien copie !');
@@ -5899,6 +5920,30 @@ function doPDF(){
 }
 
 /* Shared visual PDF (stage / site) — full-page landscape image */
+/* ── Bloc QR + lien partagé par TOUS les exports PDF (le plus important) ──
+   Reprend le style de l'Input List : QR code bleu + lien + sous-texte. */
+function _pdfQrFooterHtml(shareUrl){
+  if(!shareUrl) return '';
+  const qr = 'https://api.qrserver.com/v1/create-qr-code/?size=120x120&data='
+    + encodeURIComponent(shareUrl) + '&color=1a8fff&bgcolor=f4faff&margin=0&qzone=1';
+  return '<div class="qrft">'
+    + '<img class="qrimg" src="' + qr + '" alt="QR"/>'
+    + '<div class="qrtx">'
+      + '<div class="qrlbl">Fiche à jour en ligne</div>'
+      + '<a class="qrlink" href="' + shareUrl + '">' + shareUrl + '</a>'
+      + '<div class="qrsub">Scannez le QR code ou ouvrez le lien pour retrouver cette fiche à jour à tout moment.</div>'
+    + '</div>'
+  + '</div>';
+}
+/* CSS commun du bloc QR (à inclure dans le <style> de chaque PDF) */
+const _PDF_QR_CSS =
+  '.qrft{display:flex;align-items:center;gap:4mm;padding:3mm 10mm;background:#f4faff;border-top:2px solid #1a8fff;flex-shrink:0}'
+  +'.qrimg{width:16mm;height:16mm;flex-shrink:0;border-radius:1.5mm}'
+  +'.qrtx{display:flex;flex-direction:column;gap:0.5mm;min-width:0}'
+  +'.qrlbl{font-family:"DM Mono",monospace;font-size:2.4mm;text-transform:uppercase;letter-spacing:1px;color:#1a8fff;font-weight:600}'
+  +'.qrlink{font-size:3mm;color:#1a4fff;font-family:"DM Mono",monospace;word-break:break-all;text-decoration:none;font-weight:600}'
+  +'.qrsub{font-size:2.4mm;color:#7a8a9a;font-family:"DM Mono",monospace}';
+
 function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand){
   const now = new Date().toLocaleString('fr-FR');
   const accentColor = brand.color||'#ff6b1a';
@@ -5913,29 +5958,31 @@ function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand){
       +(meta.co    ? '<div class="mc"><div class="ml">Société</div><div class="mv">'+meta.co+'</div></div>'  : '')
       +'</div>' : '';
   const notesBlock = meta.notes ? '<div class="ns"><div class="nl">Notes</div><div class="nt">'+meta.notes+'</div></div>' : '';
+  const qrBlock = _pdfQrFooterHtml(shareUrl);
   const html = '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/>'
     +'<title>'+showTitle+' — '+docType+'</title>'
     +'<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet"/>'
     +'<style>*{box-sizing:border-box;margin:0;padding:0}:root{--o:'+accentColor+'}'
     +'html,body{width:100%;height:100%}body{font-family:Outfit,sans-serif;background:#fff;color:#1a1a2e;display:flex;flex-direction:column;height:100%}'
     +'@page{size:A4 landscape;margin:0}'
-    +'.hd{background:#0a0f1c;color:#fff;padding:8mm 10mm 6mm;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}'
-    +'.hl{display:flex;align-items:center;gap:8mm}.logo{width:10mm;height:10mm;display:flex;align-items:center;justify-content:center;flex-shrink:0}'
-    +'.ht{font-size:5.5mm;font-weight:700;line-height:1.2}.hs{font-size:3mm;color:#8090a8;font-family:"DM Mono",monospace;margin-top:1mm}'
-    +'.hr{text-align:right}.hdt{font-size:3mm;font-weight:700;color:var(--o);font-family:"DM Mono",monospace;letter-spacing:1.5px;text-transform:uppercase}'
-    +'.hdm{font-size:2.8mm;color:#556;font-family:"DM Mono",monospace;margin-top:0.5mm}'
-    +'.mb{display:flex;background:#f4f5f7;border-bottom:1px solid #dde;flex-shrink:0}'
-    +'.mc{padding:2.5mm 4mm;border-right:1px solid #dde;display:flex;flex-direction:column;gap:0.5mm}.mc:last-child{border-right:none}'
-    +'.ml{font-size:2.2mm;color:#aaa;text-transform:uppercase;letter-spacing:.8px;font-family:"DM Mono",monospace}'
-    +'.mv{font-size:3mm;color:#333;font-weight:500;font-family:"DM Mono",monospace}'
-    +'.mvo{font-size:3mm;color:var(--o);font-weight:600;font-family:"DM Mono",monospace}'
-    +'.plan{flex:1;display:flex;align-items:center;justify-content:center;padding:4mm 6mm;overflow:hidden;min-height:0}'
-    +'.plan img{max-width:100%;max-height:100%;object-fit:contain}'
-    +'.ns{padding:2.5mm 10mm;background:#fffbf7;border-top:1px solid #ffe0c8;flex-shrink:0}'
-    +'.nl{font-family:"DM Mono",monospace;font-size:2.5mm;text-transform:uppercase;letter-spacing:1px;color:#ccc;margin-bottom:1mm}'
-    +'.nt{font-size:3mm;color:#555;white-space:pre-wrap}'
-    +'.ft{display:flex;align-items:center;justify-content:space-between;padding:2mm 10mm;border-top:1px solid #eee;font-size:2.5mm;color:#bbb;font-family:"DM Mono",monospace;flex-shrink:0;background:#fafafa}'
-    +'.fl{font-weight:700;color:var(--o);letter-spacing:1px}'
+    /* Header compact : bandeau accent fin, peu de hauteur */
+    +'.hd{padding:3.5mm 10mm;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-bottom:2px solid var(--o)}'
+    +'.hl{display:flex;align-items:center;gap:4mm}.logo{width:7mm;height:7mm;display:flex;align-items:center;justify-content:center;flex-shrink:0}'
+    +'.ht{font-size:4.5mm;font-weight:700;line-height:1.1;color:#1a1a2e}.hs{font-size:2.6mm;color:#8090a8;font-family:"DM Mono",monospace;margin-top:0.5mm}'
+    +'.hr{text-align:right}.hdt{font-size:2.8mm;font-weight:700;color:var(--o);font-family:"DM Mono",monospace;letter-spacing:1.5px;text-transform:uppercase}'
+    +'.hdm{font-size:2.5mm;color:#889;font-family:"DM Mono",monospace;margin-top:0.4mm}'
+    +'.mb{display:flex;background:#f7f8fa;border-bottom:1px solid #e6e8ec;flex-shrink:0}'
+    +'.mc{padding:1.8mm 4mm;border-right:1px solid #e6e8ec;display:flex;flex-direction:column;gap:0.3mm}.mc:last-child{border-right:none}'
+    +'.ml{font-size:2mm;color:#aaa;text-transform:uppercase;letter-spacing:.8px;font-family:"DM Mono",monospace}'
+    +'.mv{font-size:2.8mm;color:#333;font-weight:500;font-family:"DM Mono",monospace}'
+    +'.mvo{font-size:2.8mm;color:var(--o);font-weight:600;font-family:"DM Mono",monospace}'
+    /* Zone du plan : centrée parfaitement, prend tout l'espace dispo */
+    +'.plan{flex:1;display:flex;align-items:center;justify-content:center;padding:5mm 8mm;overflow:hidden;min-height:0}'
+    +'.plan img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;margin:auto}'
+    +'.ns{padding:2mm 10mm;background:#fffbf7;border-top:1px solid #ffe0c8;flex-shrink:0}'
+    +'.nl{font-family:"DM Mono",monospace;font-size:2.4mm;text-transform:uppercase;letter-spacing:1px;color:#ccc;margin-bottom:0.8mm}'
+    +'.nt{font-size:2.8mm;color:#555;white-space:pre-wrap}'
+    +_PDF_QR_CSS
     +'@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body>'
     +_pdfWatermarkHtml(brand)
     +'<div class="hd">'
@@ -5945,7 +5992,7 @@ function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand){
     +metaBar
     +'<div class="plan"><img src="'+dataUrl+'" alt="'+docType+'"/></div>'
     +notesBlock
-    +'<div class="ft"><span class="fl">PATCHFLOW</span><span>'+showTitle+(subLine?' &middot; '+subLine:'')+'</span><span>'+now+'</span></div>'
+    +qrBlock
     +'<script>window.onload=()=>window.print();<\/script></body></html>';
   const w = window.open('','_blank');
   if(!w){alert('Autorisez les popups');return;}
@@ -7693,7 +7740,7 @@ const SynPro = (() => {
       }
     });
 
-    /* ── Legend ── */
+    /* ── Legend (noms de câbles / réseaux) — toujours conservée ── */
     var legY = canvasH + headH + 16;
     var legends = state.networks.filter(function(n){ return state.cables.some(function(c){ return c.network===n.id; }); });
     legends.forEach(function(n, i){
@@ -7701,8 +7748,12 @@ const SynPro = (() => {
       svg += '<text x="' + (38+i*140) + '" y="' + legY + '" font-family="Outfit,sans-serif" font-size="10" fill="#64748b">' + esc(n.name) + '</text>';
     });
 
-    /* Footer */
-    svg += '<text x="' + (fullW-14) + '" y="' + (fullH-12) + '" text-anchor="end" font-family="Outfit,sans-serif" font-size="10" font-weight="600" fill="#94a3b8">' + esc(state.footer||'') + '</text>';
+    /* Footer — uniquement si l'utilisateur a défini un texte personnalisé
+       (on n'affiche plus la marque "www.patchflow.app" par défaut) */
+    var ftxt = (state.footer || '').trim();
+    if (ftxt && ftxt.toLowerCase() !== 'www.patchflow.app' && ftxt.toLowerCase() !== 'patchflow.app') {
+      svg += '<text x="' + (fullW-14) + '" y="' + (fullH-12) + '" text-anchor="end" font-family="Outfit,sans-serif" font-size="10" font-weight="600" fill="#94a3b8">' + esc(ftxt) + '</text>';
+    }
     svg += '</svg>';
     return { svg: svg, w: fullW, h: fullH };
   }
@@ -12582,8 +12633,10 @@ async function openRecapMatos(){
     const _VALID_SECS=new Set(['il','out','syno','stage','site','files']);
     const legacyTab=p.get('tab');
     const rawSecs=p.get('sections');
+    /* Mapper le tab legacy vers la bonne section (QR codes des exports PDF) */
+    const _tabMap={stage:'stage',site:'site',syno:'syno',out:'out',il:'il',inputlist:'il',outputlist:'out'};
     sections=rawSecs?rawSecs.split(',').map(function(s){return s.trim();}).filter(function(s){return _VALID_SECS.has(s);})
-             :legacyTab==='stage'?['stage']:['il'];
+             :(_tabMap[legacyTab]?[_tabMap[legacyTab]]:['il']);
     rTitle=p.get('rtitle')||'';
     rNote=p.get('rnote')||'';
     rInfo=p.get('rinfo')||'';
