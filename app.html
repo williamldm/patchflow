@@ -2822,24 +2822,11 @@ async function loadShowStorage(){
   if(!SHOWS.length || !canDo('storage')) return;
   await Promise.all(SHOWS.map(async function(s){
     try{
-      // Liste récursive des fichiers du show
-      const {data}=await sb.storage.from('show-files').list(s.id+'/',{limit:1000,offset:0});
-      if(!data) return;
-      // Calculer la taille totale (les dossiers n'ont pas de size)
-      let total=0;
-      // Pour chaque dossier, lister son contenu
-      const files=data.filter(f=>f.metadata?.size);
-      files.forEach(f=>{ total+=f.metadata.size||0; });
-      // Récursion shallow (1 niveau) pour les sous-dossiers
-      const folders=data.filter(f=>!f.metadata?.size);
-      await Promise.all(folders.map(async function(folder){
-        const {data:sub}=await sb.storage.from('show-files').list(s.id+'/'+folder.name+'/',{limit:1000});
-        if(sub) sub.filter(f=>f.metadata?.size).forEach(f=>{ total+=f.metadata.size||0; });
-      }));
-      SHOW_STORAGE_MAP[s.id]=total;
+      /* Use the b2-storage edge function storage-used action (recursive count) */
+      const {data}=await _b2Call('storage-used',{showId:s.id});
+      if(data?.bytes!=null) SHOW_STORAGE_MAP[s.id]=data.bytes;
     }catch(e){}
   }));
-  // Re-render les cards pour afficher les tailles
   renderSessions();
 }
 
@@ -4171,7 +4158,7 @@ async function _loadRiderFiles(){
   if(!fl)return;
   fl.innerHTML='<div style="font-size:11px;color:var(--muted);padding:8px 0">Chargement…</div>';
   var prefix=CUR_SHOW.id+'/';
-  var {data,error}=await sb.storage.from(FICH_BUCKET).list(prefix,{sortBy:{column:'name',order:'asc'}});
+  var {data,error}=await B2Storage.list(prefix,{sortBy:{column:'name',order:'asc'}});
   if(error||!data||!data.length){fl.innerHTML='<div style="font-size:11px;color:var(--muted);padding:8px 0">Aucun fichier dans le cloud pour ce show.</div>';return;}
   var SKIP=new Set(['.emptyFolderPlaceholder','.keep']);
   var files=data.filter(function(f){return !SKIP.has(f.name)&&f.name;});
@@ -4207,7 +4194,7 @@ function _toggleRiderFile(encodedPath){
 
 async function _riderPreviewPdf(encodedPath, displayName){
   var path = decodeURIComponent(encodedPath);
-  var { data, error } = await sb.storage.from(FICH_BUCKET).createSignedUrl(path, 3600);
+  var { data, error } = await B2Storage.createSignedUrl(path, 3600);
   if (error || !data?.signedUrl) { toast('Erreur : ' + (error?.message || 'URL invalide')); return; }
   var url = data.signedUrl;
   var modal   = document.getElementById('fich-viewer-modal');
@@ -10581,7 +10568,75 @@ async function changePassword(){
 // ══════════════════════════════════════
 // FICHIERS CLOUD
 // ══════════════════════════════════════
-const FICH_BUCKET = 'show-files';
+const FICH_BUCKET = 'show-files'; // kept for reference only — storage is now Backblaze B2
+
+/* ── B2Storage : drop-in replacement for B2Storage ──
+   All file operations are proxied through the Supabase Edge Function
+   b2-storage, which holds B2 credentials securely server-side.
+   Uploads use presigned PUT URLs so files go directly browser → B2. ── */
+const _B2_FN_URL = (()=>{
+  const h = window.location.hostname;
+  const base = (h==='127.0.0.1'||h==='localhost')
+    ? 'http://127.0.0.1:54321/functions/v1'
+    : 'https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1';
+  return base + '/b2-storage';
+})();
+
+async function _b2Call(action, params){
+  try{
+    const sess=(await sb.auth.getSession()).data?.session;
+    const res=await fetch(_B2_FN_URL,{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':'Bearer '+(sess?.access_token||''),
+      },
+      body:JSON.stringify({action,...params}),
+    });
+    if(!res.ok){
+      const txt=await res.text().catch(()=>'');
+      return {data:null,error:{message:'HTTP '+res.status+': '+txt}};
+    }
+    return await res.json();
+  }catch(e){
+    return {data:null,error:{message:e.message}};
+  }
+}
+
+const B2Storage={
+  /* list files and folders at a prefix */
+  async list(prefix,_opts){
+    return _b2Call('list',{prefix});
+  },
+  /* upload: get presigned PUT URL, then PUT directly to B2 */
+  async upload(path,file,_opts){
+    const {data,error}=await _b2Call('upload-presigned',{
+      path,
+      contentType:file.type||'application/octet-stream',
+    });
+    if(error||!data?.uploadUrl) return {data:null,error:error||{message:'Presigned URL error'}};
+    const put=await fetch(data.uploadUrl,{
+      method:'PUT',
+      headers:{'Content-Type':file.type||'application/octet-stream'},
+      body:file,
+    });
+    if(!put.ok) return {data:null,error:{message:'Upload B2 failed: '+put.statusText}};
+    return {data:{path},error:null};
+  },
+  /* move / rename */
+  async move(fromPath,toPath){
+    return _b2Call('move',{fromPath,toPath});
+  },
+  /* delete one or many objects */
+  async remove(paths){
+    return _b2Call('delete',{paths});
+  },
+  /* presigned GET for view / download */
+  async createSignedUrl(path,expiresIn){
+    return _b2Call('signed-url',{path,expiresIn:expiresIn||3600});
+  },
+};
+
 let SHOW_FILES = [];
 let _fichInited = false;
 let _fichPath = []; // current folder navigation stack
@@ -10636,13 +10691,13 @@ function _fichFullPath(filename) {
 async function loadFichiers() {
   if (!CUR_SHOW) return;
   const prefix = CUR_SHOW.id + '/' + _fichPathStr();
-  const { data, error } = await sb.storage.from(FICH_BUCKET).list(prefix, {
+  const { data, error } = await B2Storage.list(prefix, {
     sortBy: { column: 'name', order: 'asc' },
   });
   const list = document.getElementById('fichiers-list');
   const dz = document.getElementById('fichiers-drop-zone');
   if (error) {
-    if (list) list.innerHTML = '<div class="fich-empty"><i class="ti ti-alert-triangle"></i><p style="font-size:12px">Bucket &laquo; show-files &raquo; introuvable.<br>Créez le bucket dans Supabase Storage et activez les policies.</p></div>';
+    if (list) list.innerHTML = '<div class="fich-empty"><i class="ti ti-alert-triangle"></i><p style="font-size:12px">Impossible de charger les fichiers.<br>Vérifiez la configuration B2 Storage.</p></div>';
     if (dz) dz.style.display = 'none';
     return;
   }
@@ -10709,7 +10764,7 @@ const FICH_SUGGEST = [
 async function _fichCreateFolderNamed(name) {
   if (!canDo('storage')) { showUpgradeModal('storage'); return; }
   const keepPath = CUR_SHOW.id + '/' + _fichPathStr() + name + '/.keep';
-  await sb.storage.from(FICH_BUCKET).upload(keepPath, new Blob(['']), { upsert: true });
+  await B2Storage.upload(keepPath, new Blob(['']), { upsert: true });
 }
 async function fichCreateSuggested(name) {
   await _fichCreateFolderNamed(name);
@@ -10741,7 +10796,7 @@ async function renameFichier(relPath) {
   const prefix = filename.indexOf('_') > -1 ? filename.slice(0, filename.indexOf('_') + 1) : '';
   const oldPath = CUR_SHOW.id + '/' + relPath;
   const newPath = CUR_SHOW.id + '/' + dir + prefix + clean + ext;
-  const { error } = await sb.storage.from(FICH_BUCKET).move(oldPath, newPath);
+  const { error } = await B2Storage.move(oldPath, newPath);
   if (error) { toast('Erreur renommage : ' + error.message); return; }
   toast('Fichier renomme');
   await loadFichiers();
@@ -10881,7 +10936,7 @@ async function _fichDownload(relPath) {
   const filename = relPath.split('/').pop();
   const displayName = _fichDisplayName(filename);
   const path = CUR_SHOW.id + '/' + relPath;
-  const { data, error } = await sb.storage.from(FICH_BUCKET).createSignedUrl(path, 3600);
+  const { data, error } = await B2Storage.createSignedUrl(path, 3600);
   if (error || !data?.signedUrl) { toast('Erreur telechargement'); return; }
   const a = document.createElement('a');
   a.href = data.signedUrl; a.download = displayName; a.target = '_blank'; a.click();
@@ -10923,7 +10978,7 @@ async function _uploadFichiers(files) {
   for (const file of files) {
     const prefix = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
     const path = _fichFullPath(prefix + '_' + file.name);
-    const { error } = await sb.storage.from(FICH_BUCKET).upload(path, file, { upsert: false });
+    const { error } = await B2Storage.upload(path, file, { upsert: false });
     if (error) { toast('Erreur upload : ' + error.message); }
     else ok++;
   }
@@ -10937,7 +10992,7 @@ async function createFichierFolder() {
   if (!name?.trim()) return;
   const clean = name.trim().replace(/[/\\?%*:|"<>]/g, '_');
   const keepPath = _fichFullPath(clean + '/.keep');
-  const { error } = await sb.storage.from(FICH_BUCKET).upload(keepPath, new Blob(['']), { upsert: true });
+  const { error } = await B2Storage.upload(keepPath, new Blob(['']), { upsert: true });
   if (error) { toast('Erreur : ' + error.message); return; }
   toast('✓ Dossier « ' + clean + ' » créé');
   await loadFichiers();
@@ -10947,9 +11002,9 @@ async function deleteFichierFolder(folderName) {
   if (!CUR_SHOW) return;
   if (!await _confirmModal('Supprimer « ' + folderName + ' » ?', 'Tout le contenu du dossier sera supprimé.')) return;
   const prefix = _fichFullPath(folderName + '/');
-  const { data } = await sb.storage.from(FICH_BUCKET).list(prefix);
+  const { data } = await B2Storage.list(prefix);
   const paths = (data || []).map(f => prefix + f.name);
-  if (paths.length) await sb.storage.from(FICH_BUCKET).remove(paths);
+  if (paths.length) await B2Storage.remove(paths);
   toast('✓ Dossier supprimé');
   await loadFichiers();
 }
@@ -10958,7 +11013,7 @@ async function deleteFichier(relPath) {
   if (!CUR_SHOW) return;
   const displayName = _fichDisplayName(relPath.split('/').pop());
   if (!await _confirmModal('Supprimer « ' + displayName + ' » ?', 'Cette action est irréversible.')) return;
-  const { error } = await sb.storage.from(FICH_BUCKET).remove([CUR_SHOW.id + '/' + relPath]);
+  const { error } = await B2Storage.remove([CUR_SHOW.id + '/' + relPath]);
   if (error) { toast('Erreur : ' + error.message); return; }
   toast('Fichier supprimé');
   await loadFichiers();
@@ -10970,7 +11025,7 @@ async function viewFichier(relPath) {
   const info = _fichInfoOf(displayName);
   const path = CUR_SHOW.id + '/' + relPath;
 
-  const { data, error } = await sb.storage.from(FICH_BUCKET).createSignedUrl(path, 3600);
+  const { data, error } = await B2Storage.createSignedUrl(path, 3600);
   if (error || !data?.signedUrl) { toast('Erreur : ' + (error?.message || 'URL invalide')); return; }
   const url = data.signedUrl;
 
@@ -11851,7 +11906,7 @@ async function openRecapMatos(){
   var _signedUrls={};
   if(rFiles.length){
     Promise.all(rFiles.map(function(path){
-      return sb.storage.from(FICH_BUCKET).createSignedUrl(path,604800).then(function(res){
+      return B2Storage.createSignedUrl(path,604800).then(function(res){
         if(!res.error&&res.data) _signedUrls[path]=res.data.signedUrl;
       });
     }));
