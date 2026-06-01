@@ -2626,19 +2626,14 @@ async function loadScenes(showId){
     SHOW_SCENES[s.type].push(s);
   });
 
-  /* ── Nettoyage des doublons créés par l'ancienne migration (race condition).
-     Pour chaque type, on garde la PREMIÈRE scène de chaque nom et on supprime
-     les extras de la DB silencieusement en arrière-plan. ── */
+  /* ── Nettoyage de doublons d'ID (ne devrait pas arriver, mais sécurité) ── */
   SCENE_TYPES.forEach(function(t){
-    var seenNames={}, seenIds={}, toDelete=[];
+    var seenIds={};
     SHOW_SCENES[t]=SHOW_SCENES[t].filter(function(s){
-      if(seenIds[s.id]){toDelete.push(s.id);return false;} // même ID (impossible mais sûr)
+      if(seenIds[s.id]) return false;
       seenIds[s.id]=true;
-      if(seenNames[s.name]){toDelete.push(s.id);return false;} // même nom = doublon
-      seenNames[s.name]=true;
       return true;
     });
-    if(toDelete.length) sb.from('show_scenes').delete().in('id',toDelete).then(function(){});
   });
 
   // Restaurer la dernière scène active (mémorisée dans localStorage), sinon la première
@@ -2719,29 +2714,30 @@ async function switchScene(type,sceneId){
   // Sauvegarder la scène courante avant de changer (selon le type)
   if(type==='syno')   await SynPro._saveNow();
   if(type==='stage')  await saveStage();
-  if(type==='site')   await saveSite();   // était saveStage() → ne sauvegardait pas le plan de site !
+  if(type==='site')   await saveSite();
   CUR_SCENES[type]=sceneId;
-  // Mémoriser la scène active pour la restaurer au prochain rechargement
-  try{
-    var _k='pf_cur_scenes_'+(CUR_SHOW?.id||'');
-    var _cur=JSON.parse(localStorage.getItem(_k)||'{}');
-    _cur[type]=sceneId;
-    localStorage.setItem(_k,JSON.stringify(_cur));
-  }catch(e){}
+  _persistCurScenes();
   _renderSceneTabs(type);
   // Charger la nouvelle scène
   const scene=SHOW_SCENES[type]?.find(s=>s.id===sceneId);
   if(!scene) return;
   if(type==='syno'){
-    SynPro.setSceneData(scene.data);  // null = scène vide → _defaultState() via sentinel undefined/null
+    /* IMPORTANT : setSceneId AVANT resetLoaded, car resetLoaded efface
+       _injectedSceneData. On passe les données directement à _load via
+       le champ .data du scene objet — pas via setSceneData. */
     SynPro.setSceneId(sceneId);
-    SynPro.resetLoaded();  // force _load() au prochain show()
-    SynPro.show();         // re-render avec les nouvelles données
+    SynPro.loadSceneDirect(scene.data);  // charge directement sans sentinel
   } else if(type==='stage'){
     _loadSceneStage(scene);
   } else if(type==='site'){
     _loadSceneSite(scene);
   }
+}
+function _persistCurScenes(){
+  try{
+    var _k='pf_cur_scenes_'+(CUR_SHOW?.id||'');
+    localStorage.setItem(_k,JSON.stringify(CUR_SCENES));
+  }catch(e){}
 }
 
 async function addScene(type){
@@ -2908,7 +2904,8 @@ async function switchShow(id){
   if(canDo('multi_scenes') && CUR_SCENES.syno){
     const sc=SHOW_SCENES.syno?.find(s=>s.id===CUR_SCENES.syno);
     const synoData=_firstSceneFallback('syno', sc?.data??null);
-    if(synoData) SynPro.setSceneData(synoData);
+    /* Use setSceneData which sets the sentinel AFTER resetLoaded cleared it */
+    SynPro.setSceneData(synoData);
     SynPro.setSceneId(CUR_SCENES.syno);
   }
   await Promise.all([
@@ -7492,8 +7489,23 @@ const SynPro = (() => {
 
   function setSceneId(id){ _activeSceneId = id||null; }
   function setSceneData(data){ _injectedSceneData = (data!==undefined) ? (data||null) : undefined; }
+  /* Direct scene loading — avoids the sentinel/resetLoaded race.
+     Used by switchScene() and initial scene setup. */
+  function loadSceneDirect(data){
+    init();
+    loaded = false;
+    state = (data && data.v === 1) ? data : _defaultState();
+    if (CUR_SHOW && CUR_SHOW.name && state.title === 'Diagramme reseau') state.title = CUR_SHOW.name;
+    selected = { kind:null, id:null };
+    activeCable = null; cableFrom = null;
+    view = { zoom:1, panX:0, panY:0 };
+    _injectedSceneData = undefined;
+    loaded = true;
+    render();
+    setTimeout(fitView, 50);
+  }
   function getIconByType(type){ var s=spec(type); return (s&&s.icon)?s.icon:''; }
-  return { init, show, render, resetLoaded, isLoaded, getData, cancelCable, _saveNow, buildExportSvg: _buildExportSvg, setSceneId, setSceneData, getIconByType };
+  return { init, show, render, resetLoaded, isLoaded, getData, cancelCable, _saveNow, buildExportSvg: _buildExportSvg, setSceneId, setSceneData, loadSceneDirect, getIconByType };
 })();
 
 window.SynPro = SynPro;
