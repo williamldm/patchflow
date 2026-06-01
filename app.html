@@ -5845,6 +5845,7 @@ const SynPro = (() => {
 
     /* ══════════════ ANNOTATIONS ══════════════ */
     { type:'note',                 cat:'Annotations',label:'Annotation',     defaultSub:'Texte libre',                w:200, h:80,  icon:_iconNote() },
+    { type:'text_label',           cat:'Annotations',label:'Texte simple',   defaultSub:'',                           w:160, h:50,  icon:_iconTextLabel() },
   ];
 
   /* ── SVG icon builders — stylized, neutral grey/blue, scalable ── */
@@ -5908,6 +5909,9 @@ const SynPro = (() => {
   function _iconNote() {
     return '<svg viewBox="0 0 56 40" fill="none" stroke="#fbbf24" stroke-width="1.4"><rect x="4" y="4" width="48" height="32" rx="2" fill="#fef3c7"/><line x1="10" y1="14" x2="46" y2="14" stroke="#fbbf24" stroke-width="1"/><line x1="10" y1="20" x2="46" y2="20" stroke="#fbbf24" stroke-width="1"/><line x1="10" y1="26" x2="36" y2="26" stroke="#fbbf24" stroke-width="1"/></svg>';
   }
+  function _iconTextLabel() {
+    return '<svg viewBox="0 0 56 32" fill="none"><text x="4" y="22" font-family="Outfit,sans-serif" font-size="16" font-weight="700" fill="#e8edf8">Aa</text></svg>';
+  }
 
   /* ── State ──
      Cable type defaults — couvre la majorite des reseaux et signaux audio pro.
@@ -5961,7 +5965,7 @@ const SynPro = (() => {
     return {
       v:1,
       title:'Diagramme reseau',
-      headerColor:'#1d9bf0',
+      headerColor:'#ff6b1a',
       footer:'www.patchflow.app',
       nodes:[],
       cables:[],
@@ -6053,13 +6057,16 @@ const SynPro = (() => {
       _setSaveStatus('error');
     }
   }
-  var _injectedSceneData = null; // data to load from scene (Studio)
+  var _injectedSceneData = undefined; // data to load from scene (Studio) — undefined=non défini, null=scène vide intentionnelle
   function _load() {
     if (!CUR_SHOW) return false;
-    /* Studio : use injected scene data if available */
-    if (_injectedSceneData !== null) {
+    /* Studio : use injected scene data if available.
+       undefined = pas d'injection (chemin non-Studio)
+       null      = scène vide intentionnelle (nouvelle scène) → defaultState
+       object    = données de scène à charger */
+    if (_injectedSceneData !== undefined) {
       var sd = _injectedSceneData;
-      _injectedSceneData = null;
+      _injectedSceneData = undefined;
       state = (sd && sd.v === 1) ? sd : _defaultState();
       return true;
     }
@@ -6459,6 +6466,8 @@ const SynPro = (() => {
       var iconHtml = '';
       if (n.type === 'note') {
         iconHtml = '<div class="sp-node-card" style="background:#fef3c7;border-color:#fbbf24;min-width:180px;padding:10px 14px"><div style="font-size:12px;color:#92400e;line-height:1.4;font-weight:600;white-space:pre-wrap">' + esc(label || 'Note') + '</div>' + (sub ? '<div style="font-size:10px;color:#a16207;margin-top:4px;white-space:pre-wrap">' + esc(sub) + '</div>' : '') + '</div>';
+      } else if (n.type === 'text_label') {
+        iconHtml = '<div style="font-family:Outfit,sans-serif;font-size:14px;font-weight:700;color:var(--txt);white-space:pre-wrap;min-width:80px;padding:4px 2px;cursor:grab;user-select:none">' + esc(label || 'Texte') + '</div>';
       } else {
         var icon = sp ? sp.icon : _iconRack(3);
         iconHtml = '<div class="sp-node-card"><div class="sp-node-icon">' + icon + '</div><div class="sp-node-label">' + esc(label) + '</div>' + (sub ? '<div class="sp-node-sub">' + esc(sub).replace(/\n/g, '<br>') + '</div>' : '') + '</div>';
@@ -7199,6 +7208,14 @@ const SynPro = (() => {
         return;
       }
 
+      if (n.type === 'text_label') {
+        var txtLines = label.split('\n');
+        txtLines.forEach(function(tl, i){
+          svg += '<text x="' + x + '" y="' + (y+16+i*18) + '" font-family="Outfit,sans-serif" font-size="14" font-weight="700" fill="#1d3a5f">' + esc(tl) + '</text>';
+        });
+        return;
+      }
+
       /* Equipment card — white box with border */
       svg += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="8" fill="#ffffff" stroke="#c8d4e0" stroke-width="1.5"/>';
 
@@ -7436,6 +7453,7 @@ const SynPro = (() => {
     activeCable = null;
     cableFrom = null;
     view = { zoom:1, panX:0, panY:0 };
+    _injectedSceneData = undefined; // reset sentinel
   }
   function isLoaded() { return loaded; }
   function getData() { return state; }
@@ -7447,7 +7465,7 @@ const SynPro = (() => {
   }
 
   function setSceneId(id){ _activeSceneId = id||null; }
-  function setSceneData(data){ _injectedSceneData = data||null; }
+  function setSceneData(data){ _injectedSceneData = (data!==undefined) ? (data||null) : undefined; }
   function getIconByType(type){ var s=spec(type); return (s&&s.icon)?s.icon:''; }
   return { init, show, render, resetLoaded, isLoaded, getData, cancelCable, _saveNow, buildExportSvg: _buildExportSvg, setSceneId, setSceneData, getIconByType };
 })();
@@ -12037,8 +12055,8 @@ async function openRecapMatos(){
     if(!nodes.length) return _showMeta+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:13px">Synoptique vide.</div>';
     var netMap={};nets.forEach(function(n){netMap[n.id]=n;});
     /* Bounding box from node positions + default sizes (we don\'t have the LIB in share view) */
-    var DEF={'console':{w:200,h:130},'rack':{w:170,h:140},'io':{w:160,h:90},'amp':{w:170,h:100},'spk':{w:130,h:110},'net':{w:140,h:80},'src':{w:120,h:90},'note':{w:200,h:80}};
-    function sz(n){var t=(n.type||'').split('.')[0];return DEF[t]||{w:140,h:100};}
+    var DEF={'console':{w:200,h:130},'rack':{w:170,h:140},'io':{w:160,h:90},'amp':{w:170,h:100},'spk':{w:130,h:110},'net':{w:140,h:80},'src':{w:120,h:90},'note':{w:200,h:80},'text_label':{w:160,h:30}};
+    function sz(n){return DEF[n.type]||DEF[(n.type||'').split('.')[0]]||{w:140,h:100};}
     var minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
     nodes.forEach(function(n){var s=sz(n);minX=Math.min(minX,n.x||0);minY=Math.min(minY,n.y||0);maxX=Math.max(maxX,(n.x||0)+s.w);maxY=Math.max(maxY,(n.y||0)+s.h);});
     var pad=40;var vw=Math.max(1100,maxX-minX+pad*2);var vh=Math.max(560,maxY-minY+pad*2);
@@ -12104,6 +12122,9 @@ async function openRecapMatos(){
       if(n.type==='note'){
         nodeSvg+='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="6" fill="#fef3c7" stroke="#fbbf24"/>';
         nodeSvg+='<foreignObject x="'+(x+8)+'" y="'+(y+8)+'" width="'+(w-16)+'" height="'+(h-16)+'"><div xmlns="http://www.w3.org/1999/xhtml" style="font-family:Outfit,sans-serif;font-size:11px;color:#92400e;line-height:1.4;font-weight:600">'+esc(n.label||'')+'<br>'+esc(n.sub||'')+'</div></foreignObject>';
+      } else if(n.type==='text_label'){
+        var tls=(n.label||'').split('\n');
+        tls.forEach(function(tl,i){nodeSvg+='<text x="'+x+'" y="'+(y+16+i*18)+'" font-family="Outfit,sans-serif" font-size="14" font-weight="700" fill="#1d3a5f">'+esc(tl)+'</text>';});
       } else {
         nodeSvg+='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="9" fill="#fff" stroke="#c8d4e0"/>';
         /* Icon area */
