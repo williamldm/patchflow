@@ -1581,6 +1581,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
       </div>
 
       <div id="scene-tabs-stage" class="scene-tabs-bar hidden"></div>
+      <div id="scene-tabs-site"  class="scene-tabs-bar hidden"></div>
       <!-- Plan de scene BandPlan -->
       <div id="plan-scene-wrap" class="bp-layout">
         <div class="bp-pal">
@@ -2640,7 +2641,10 @@ function _renderSceneTabs(type){
   const el=document.getElementById(elId);
   if(!el) return;
   const isStudio=canDo('multi_scenes');
-  el.classList.remove('hidden');
+  /* Pour syno : toujours afficher. Pour stage/site : setPlanMode gère la visibilité */
+  if(type==='syno') el.classList.remove('hidden');
+  else if(type==='stage') el.classList.toggle('hidden', PLAN_MODE!=='scene');
+  else if(type==='site')  el.classList.toggle('hidden', PLAN_MODE!=='site');
 
   if(!isStudio){
     /* Non-Studio : afficher un aperçu verrouillé */
@@ -8581,6 +8585,13 @@ function setPlanMode(mode,save=true){
   document.getElementById('plan-site-wrap').style.display=mode==='site'?'':'none';
   document.getElementById('pmb-scene').classList.toggle('on',mode==='scene');
   document.getElementById('pmb-site').classList.toggle('on',mode==='site');
+  /* Scene tabs — chaque mode a sa propre barre, masquer l'autre */
+  var stTabs=document.getElementById('scene-tabs-stage');
+  var siTabs=document.getElementById('scene-tabs-site');
+  if(stTabs) stTabs.classList.toggle('hidden', mode!=='scene');
+  if(siTabs) siTabs.classList.toggle('hidden', mode!=='site');
+  /* Ré-rendre les tabs du mode actif (au cas où pas encore peuplés) */
+  _renderSceneTabs(mode==='site'?'site':'stage');
   /* Bouton mobile — affiche le mode opposé (action future) */
   var mobLbl=document.getElementById('mob-plan-mode-lbl');
   var mobBtn=document.getElementById('mob-plan-mode-btn');
