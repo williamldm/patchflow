@@ -2323,6 +2323,20 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
           </div>
         </div>
       </div>
+      <!-- Liens de partage (push abonnement) -->
+      <div id="sub-sharelinks-row" style="margin-bottom:16px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;padding:14px 16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:7px">
+            <i class="ti ti-link" style="color:var(--ora);font-size:15px"></i>
+            <span style="font-size:12px;font-weight:600">Liens de partage</span>
+          </div>
+          <span id="sub-sl-val" style="font-size:11px;font-family:var(--m);color:var(--muted)">—</span>
+        </div>
+        <div style="height:6px;background:var(--surf3);border-radius:3px;overflow:hidden;margin-bottom:8px">
+          <div id="sub-sl-bar" style="height:100%;background:var(--ora);border-radius:3px;transition:width .8s ease;width:0%"></div>
+        </div>
+        <div id="sub-sl-hint" style="font-size:10px;color:var(--muted)">Input list, output, synoptique, plans, rider — tout type de lien compte.</div>
+      </div>
       <!-- Sélecteur période de facturation (masqué pour les abonnés Pro) -->
       <div id="sub-billing-toggle" style="display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:14px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:9px;padding:3px;width:fit-content;margin-left:auto;margin-right:auto">
         <button class="bp-toggle-btn on" data-bp="monthly" onclick="setBillingPeriod('monthly')" style="border:none;background:none;color:var(--txt2);font-size:11px;font-weight:600;padding:6px 16px;border-radius:7px;cursor:pointer;font-family:var(--f);transition:all .15s">Mensuel</button>
@@ -2579,6 +2593,7 @@ async function initApp(){
     await _withTimeout(loadProfile(),8000);
     _handleCheckoutReturn(); // retour de paiement Lemon Squeezy
     await _withTimeout(loadShows(),10000);
+    _initSharedLinks(); // suivi des liens de partage (limite Gratuit)
     processShowInvites(); // async, non-blocking — process pending show invites
     loadColChips();
     initStage();
@@ -2597,7 +2612,7 @@ async function initApp(){
 }
 
 async function loadProfile(){
-  let {data}=await sb.from('profiles').select('id,full_name,role,company,contact,avatar_url,plan').eq('id',ME.id).maybeSingle();
+  let {data}=await sb.from('profiles').select('id,full_name,role,company,contact,avatar_url,plan,shared_links').eq('id',ME.id).maybeSingle();
   if(!data){
     // Profil absent — le creer pour satisfaire la FK shows.owner_id -> profiles.id
     const {data:created,error:perr}=await sb.from('profiles').upsert(
@@ -4137,22 +4152,89 @@ async function processShowInvites() {
 var _riderSections={il:true,out:true,syno:true,stage:true,site:true};
 var _riderPickedFiles=new Set();
 
-/* Compte les liens de partage actifs (shows possédés ayant une config rider) */
-function _countShareLinks(){
-  return (SHOWS||[]).filter(function(s){
-    return s.owner_id===ME?.id && s.stage_data && s.stage_data.rider;
-  }).length;
+/* ══════════════════════════════════════
+   SUIVI UNIFIÉ DES LIENS DE PARTAGE
+   Compte TOUS les liens (input list, output, synoptique, plans, rider).
+   Clé = "showId:section". Persisté dans profiles.shared_links.
+   Limite : 5 au total pour le plan Gratuit, illimité Pro.
+   ══════════════════════════════════════ */
+let SHARED_LINKS = new Set();
+
+/* Initialise le set depuis le profil + migre les liens rider existants */
+function _initSharedLinks(){
+  SHARED_LINKS = new Set();
+  try{
+    var arr = (PROFILE && PROFILE.shared_links) || [];
+    if(Array.isArray(arr)) arr.forEach(function(k){ SHARED_LINKS.add(k); });
+  }catch(e){}
+  /* Rétro-compat : les shows ayant déjà une config rider comptent comme 1 lien */
+  (SHOWS||[]).forEach(function(s){
+    if(s.owner_id===ME?.id && s.stage_data && s.stage_data.rider){
+      SHARED_LINKS.add(s.id+':rider');
+    }
+  });
+}
+
+function _countShareLinks(){ return SHARED_LINKS.size; }
+
+async function _persistSharedLinks(){
+  try{
+    var arr = Array.from(SHARED_LINKS);
+    if(PROFILE) PROFILE.shared_links = arr;
+    await sb.from('profiles').update({shared_links:arr}).eq('id',ME.id);
+  }catch(e){ console.warn('persist shared_links:',e); }
+}
+
+/* Enregistre un lien de partage. Retourne true si autorisé, false si limite atteinte.
+   section : 'il' | 'out' | 'syno' | 'stage' | 'site' | 'rider' */
+function registerShareLink(section){
+  if(!CUR_SHOW) return true;
+  var key = CUR_SHOW.id + ':' + section;
+  if(SHARED_LINKS.has(key)) return true; // déjà compté
+  var lim = planLimit('max_share_links');
+  if(lim !== Infinity && SHARED_LINKS.size >= lim){
+    showUpgradeModal('max_share_links');
+    return false;
+  }
+  SHARED_LINKS.add(key);
+  _persistSharedLinks();
+  _updateShareQuotaUI();
+  return true;
+}
+
+/* Met à jour les affichages du compteur (builder rider + modale abonnement) */
+function _updateShareQuotaUI(){
+  var lim = planLimit('max_share_links');
+  var used = SHARED_LINKS.size;
+  // Builder rider
+  var quota=document.getElementById('rider-quota');
+  if(quota){
+    if(lim===Infinity){ quota.style.display='none'; }
+    else{
+      quota.style.display='block';
+      quota.innerHTML='<i class="ti ti-link" style="font-size:10px"></i> '+used+' / '+lim+' liens utilisés'
+        +(used>=lim?' — <span style="color:var(--ora);cursor:pointer;text-decoration:underline" onclick="showUpgradeModal(\'max_share_links\')">Passez Pro pour des liens illimités</span>':'');
+    }
+  }
+  // Modale abonnement
+  var subEl=document.getElementById('sub-sharelinks-row');
+  if(subEl){
+    if(lim===Infinity){
+      subEl.querySelector('#sub-sl-val').textContent='Illimités';
+      var bar=subEl.querySelector('#sub-sl-bar'); if(bar)bar.style.width='100%';
+    }else{
+      subEl.querySelector('#sub-sl-val').textContent=used+' / '+lim;
+      var pct=Math.min(100,used/lim*100);
+      var bar2=subEl.querySelector('#sub-sl-bar');
+      if(bar2){ bar2.style.width=pct+'%'; bar2.style.background=used>=lim?'var(--err)':used>=lim*0.6?'var(--warn)':'var(--ora)'; }
+    }
+  }
 }
 
 async function generateRiderLink(){
   if(!CUR_SHOW){toast('Aucun show selectionne.');return;}
   /* Limite de liens de partage pour le plan Gratuit (5 max, tout compris) */
-  var _limit=planLimit('max_share_links');
-  var _alreadyHasLink=!!(CUR_SHOW.stage_data && CUR_SHOW.stage_data.rider);
-  if(_limit!==Infinity && !_alreadyHasLink && _countShareLinks()>=_limit){
-    showUpgradeModal('max_share_links');
-    return;
-  }
+  if(!registerShareLink('rider')) return;
   var btn=document.getElementById('rider-gen-btn');
   if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Sauvegarde...';}
   var t=document.getElementById('rider-title');
@@ -4184,12 +4266,7 @@ async function generateRiderLink(){
   if(row)row.style.display='block';
   var ok=document.getElementById('rider-saved-ok');
   if(ok){ok.style.display='block';setTimeout(function(){ok.style.display='none';},3000);}
-  // Rafraîchir le compteur de liens
-  var quota=document.getElementById('rider-quota');
-  if(quota){
-    var lim=planLimit('max_share_links');
-    if(lim!==Infinity){ quota.style.display='block'; quota.innerHTML='<i class="ti ti-link" style="font-size:10px"></i> '+_countShareLinks()+' / '+lim+' liens utilisés'; }
-  }
+  _updateShareQuotaUI();
 }
 
 /* ── Export PDF complet du rider (toutes sections cochées) ── */
@@ -5348,10 +5425,10 @@ function openPDFModal(forceType){
 }
 function closePDF(){document.getElementById('pdf-modal').className='modal-ov';}
 function copyILShareLink(){
-  var url=document.getElementById('slink-url')?.textContent||(window.location.origin+window.location.pathname+'?view='+(CUR_SHOW?.id||'')+'\x26tab=il');
-  if(!url||url==='…'){toast('Aucun lien disponible — partagez d\'abord le show.');return;}
-  try{navigator.clipboard.writeText(url).then(function(){toast('Lien copie !');});} catch(e){
-    var ta=document.createElement('textarea');ta.value=url;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('Lien copie !');
+  if(!registerShareLink('il')) return;
+  var url=window.location.origin+window.location.pathname+'?view='+(CUR_SHOW?.id||'')+'&tab=il';
+  try{navigator.clipboard.writeText(url).then(function(){toast('Lien copié !');});} catch(e){
+    var ta=document.createElement('textarea');ta.value=url;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('Lien copié !');
   }
 }
 
@@ -5645,9 +5722,13 @@ function _planExpPdf() {
 }
 function _planExpShare() {
   if (PLAN_MODE === 'site') {
+    if(!registerShareLink('site')) return;
     const url = window.location.origin + window.location.pathname + '?view=' + (CUR_SHOW?.id||'') + '&tab=site';
-    navigator.clipboard.writeText(url).then(function(){ toast('Lien copie !'); }).catch(function(){ toast(url); });
-  } else { openBpShare(); }
+    navigator.clipboard.writeText(url).then(function(){ toast('Lien copié !'); }).catch(function(){ toast(url); });
+  } else {
+    if(!registerShareLink('stage')) return;
+    openBpShare();
+  }
 }
 
 /* Mise à jour du bouton export plan quand le mode change */
@@ -12421,6 +12502,17 @@ function openPlanModal() {
   document.getElementById('plan-modal').className = 'modal-ov show';
   // Load storage stats async
   _loadSubStorageStats();
+  // Compteur de liens de partage
+  _updateShareQuotaUI();
+  var slHint=document.getElementById('sub-sl-hint');
+  if(slHint){
+    var slLim=planLimit('max_share_links');
+    if(slLim!==Infinity && _countShareLinks()>=slLim){
+      slHint.innerHTML='<span style="color:var(--ora);font-weight:600">Limite atteinte — passez au Pro pour des liens illimités.</span>';
+    } else {
+      slHint.textContent='Input list, output, synoptique, plans, rider — tout type de lien compte.';
+    }
+  }
 }
 function closePlanModal() { document.getElementById('plan-modal').className = 'modal-ov'; }
 
