@@ -1807,6 +1807,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
             <div id="rider-file-list" style="display:none;max-height:180px;overflow-y:auto"></div>
           </div>
           <button class="btn" id="rider-gen-btn" onclick="generateRiderLink()" style="width:100%;margin-top:14px"><i class="ti ti-link"></i>Générer le lien</button>
+          <div id="rider-quota" style="display:none;font-size:10px;font-family:var(--m);color:var(--muted);text-align:center;margin-top:6px"></div>
           <div id="rider-link-row" style="display:none;margin-top:10px">
             <div class="slink-row">
               <div class="slink-url" id="slink-url"></div>
@@ -4136,8 +4137,22 @@ async function processShowInvites() {
 var _riderSections={il:true,out:true,syno:true,stage:true,site:true};
 var _riderPickedFiles=new Set();
 
+/* Compte les liens de partage actifs (shows possédés ayant une config rider) */
+function _countShareLinks(){
+  return (SHOWS||[]).filter(function(s){
+    return s.owner_id===ME?.id && s.stage_data && s.stage_data.rider;
+  }).length;
+}
+
 async function generateRiderLink(){
   if(!CUR_SHOW){toast('Aucun show selectionne.');return;}
+  /* Limite de liens de partage pour le plan Gratuit (5 max, tout compris) */
+  var _limit=planLimit('max_share_links');
+  var _alreadyHasLink=!!(CUR_SHOW.stage_data && CUR_SHOW.stage_data.rider);
+  if(_limit!==Infinity && !_alreadyHasLink && _countShareLinks()>=_limit){
+    showUpgradeModal('max_share_links');
+    return;
+  }
   var btn=document.getElementById('rider-gen-btn');
   if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Sauvegarde...';}
   var t=document.getElementById('rider-title');
@@ -4169,6 +4184,12 @@ async function generateRiderLink(){
   if(row)row.style.display='block';
   var ok=document.getElementById('rider-saved-ok');
   if(ok){ok.style.display='block';setTimeout(function(){ok.style.display='none';},3000);}
+  // Rafraîchir le compteur de liens
+  var quota=document.getElementById('rider-quota');
+  if(quota){
+    var lim=planLimit('max_share_links');
+    if(lim!==Infinity){ quota.style.display='block'; quota.innerHTML='<i class="ti ti-link" style="font-size:10px"></i> '+_countShareLinks()+' / '+lim+' liens utilisés'; }
+  }
 }
 
 /* ── Export PDF complet du rider (toutes sections cochées) ── */
@@ -4411,6 +4432,19 @@ function _initRiderBuilder(){
     if(urlEl)urlEl.textContent=url;
     var row=document.getElementById('rider-link-row');
     if(row)row.style.display='block';
+  }
+  // Compteur de liens de partage (plan Gratuit)
+  var quota=document.getElementById('rider-quota');
+  if(quota){
+    var lim=planLimit('max_share_links');
+    if(lim===Infinity){ quota.style.display='none'; }
+    else{
+      var used=_countShareLinks();
+      var remaining=Math.max(0,lim-used);
+      quota.style.display='block';
+      quota.innerHTML='<i class="ti ti-link" style="font-size:10px"></i> '+used+' / '+lim+' liens utilisés'
+        +(remaining===0?' — <span style="color:var(--ora);cursor:pointer;text-decoration:underline" onclick="showUpgradeModal(\'max_share_links\')">Passez Pro pour des liens illimités</span>':'');
+    }
   }
 }
 
@@ -5951,7 +5985,9 @@ const _PDF_QR_CSS =
   +'.qrlink{font-size:2.8mm;color:#1a4fff;font-family:"DM Mono",monospace;word-break:break-all;text-decoration:none;font-weight:600}'
   +'.qrsub{font-size:2.2mm;color:#7a8a9a;font-family:"DM Mono",monospace}';
 
-function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand){
+function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand, opts){
+  opts = opts || {};
+  const bigPlan = !!opts.bigPlan; /* maximise le diagramme (synoptique) */
   const now = new Date().toLocaleString('fr-FR');
   const accentColor = brand.color||'#ff6b1a';
   const showTitle = meta.title || CUR_SHOW?.name || docType;
@@ -5984,7 +6020,7 @@ function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand){
     +'.mv{font-size:2.7mm;color:#333;font-weight:500;font-family:"DM Mono",monospace}'
     +'.mvo{font-size:2.7mm;color:var(--o);font-weight:600;font-family:"DM Mono",monospace}'
     /* Zone du plan : maximisée — padding minimal pour agrandir le diagramme */
-    +'.plan{flex:1;display:flex;align-items:center;justify-content:center;padding:2mm 3mm;overflow:hidden;min-height:0}'
+    +'.plan{flex:1;display:flex;align-items:center;justify-content:center;padding:'+(bigPlan?'0.5mm 1mm':'2mm 3mm')+';overflow:hidden;min-height:0}'
     +'.plan img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;margin:auto}'
     +'.ns{padding:1.6mm 10mm;background:#fffbf7;border-top:1px solid #ffe0c8;flex-shrink:0}'
     +'.nl{font-family:"DM Mono",monospace;font-size:2.3mm;text-transform:uppercase;letter-spacing:1px;color:#ccc;margin-bottom:0.6mm}'
@@ -6023,7 +6059,7 @@ function _openSynoPdf(meta, synHtml, shareUrl, brand){
   const svgDataUri = 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(ex.svg);
 
   /* Reuse the unified visual PDF layout — fits the SVG in landscape A4 */
-  _openVisualPdf('Synoptique', meta, svgDataUri, shareUrl, brand);
+  _openVisualPdf('Synoptique', meta, svgDataUri, shareUrl, brand, {bigPlan:true});
 }
 
 // ══════════════════════════════════════
@@ -12174,10 +12210,10 @@ function closeUD(){document.getElementById('user-dd').classList.remove('show');}
 // PLANS & PERMISSIONS
 // ══════════════════════════════════════
 const PLAN_PERMS = {
-  free:   { max_shows:3,        max_channels:26,       max_members:1,        max_templates:5,
+  free:   { max_shows:3,        max_channels:26,       max_members:1,        max_templates:5,        max_share_links:5,
             export_pdf:true,    share_link:true,       site_plan:true,       pdf_watermark:true,
             storage:true,       multi_scenes:false,    multi_patches:false,  custom_exports:false,  vintage_view:false, recap_matos:false, recent_activity:false, console_export:false },
-  pro:    { max_shows:Infinity, max_channels:Infinity, max_members:Infinity, max_templates:Infinity,
+  pro:    { max_shows:Infinity, max_channels:Infinity, max_members:Infinity, max_templates:Infinity, max_share_links:Infinity,
             export_pdf:true,    share_link:true,       site_plan:true,       pdf_watermark:false,
             storage:true,       multi_scenes:true,     multi_patches:true,   custom_exports:true,   vintage_view:true,  recap_matos:true,  recent_activity:true, console_export:true },
 };
@@ -12202,6 +12238,7 @@ const GATE_META = {
   recent_activity:{ icon:'ti-history',          title:'Activite recente',             desc:'Visualisez les derniers canaux modifies par votre equipe en temps reel — utile pour savoir qui a touche a quoi.', plan:'pro', feats:['5 derniers canaux modifies','Horodatage relatif (il y a X min)','Inclus dans le plan Pro'] },
   export_pdf_pro: { icon:'ti-file-type-pdf',    title:'Export PDF complet',           desc:'Retirez le filigrane et ajoutez societe, contact, venue, date, revision et notes techniques.', plan:'pro', feats:['PDF sans filigrane','Coordonnees completes en en-tete','Notes techniques sur chaque export'] },
   console_export: { icon:'ti-device-floppy',    title:'Exports console (Show Files)',  desc:'Generez les fichiers natifs pour charger vos noms de voies, couleurs, gains et +48V directement dans votre console.', plan:'pro', feats:['Yamaha, Behringer, Midas, DiGiCo, Avid, A&H...','Scene X32/M32 native, CSV officiels','Couleurs et icones intelligentes par instrument'] },
+  max_share_links:{ icon:'ti-link',             title:'Limite de liens de partage',   desc:'Le plan Gratuit est limite a 5 liens de partage au total. Passez au Pro pour des liens illimites.', plan:'pro', feats:['Liens de partage illimites sur Pro','Partagez chaque show en lecture seule','Mise a jour en temps reel'] },
 };
 
 function userPlan() { return PROFILE?.plan || 'free'; }
