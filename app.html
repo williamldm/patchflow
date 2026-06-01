@@ -10913,22 +10913,23 @@ const FICH_BUCKET = 'show-files'; // kept for reference only — storage is now 
    ICÔNES PERSONNALISÉES (images JPEG/PNG)
    Resize → base64 (stocké dans le nœud) + upload B2 (comptage stockage)
    ══════════════════════════════════════ */
-const _ICON_MAX_BYTES = 5 * 1024 * 1024; // 5 Mo max
-const _ICON_PX        = 200;             // redimensionner à 200×200 max
+const _ICON_MAX_BYTES = 10 * 1024 * 1024; // 10 Mo max
+const _ICON_PX        = 800;             // stocker à 800×800 max — préserve la qualité jusqu'à ~600px d'affichage
 
 async function _resizeIconToB64(file){
   if(!['image/jpeg','image/png'].includes(file.type)) throw new Error('Format non supporté (JPEG ou PNG uniquement)');
-  if(file.size > _ICON_MAX_BYTES) throw new Error('Image trop grande (max 5 Mo)');
+  if(file.size > _ICON_MAX_BYTES) throw new Error('Image trop grande (max 10 Mo)');
   return new Promise(function(resolve,reject){
     var url=URL.createObjectURL(file);
     var img=new Image();
     img.onload=function(){
+      /* Pas d'upscale — limiter uniquement si plus grand que _ICON_PX */
       var s=Math.min(_ICON_PX/img.width,_ICON_PX/img.height,1);
       var c=document.createElement('canvas');
       c.width=Math.round(img.width*s); c.height=Math.round(img.height*s);
       c.getContext('2d').drawImage(img,0,0,c.width,c.height);
       URL.revokeObjectURL(url);
-      resolve(c.toDataURL('image/jpeg',0.82));
+      resolve(c.toDataURL('image/jpeg',0.88));
     };
     img.onerror=function(){ URL.revokeObjectURL(url); reject(new Error("Impossible de lire l'image")); };
     img.src=url;
