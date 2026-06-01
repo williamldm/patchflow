@@ -10933,7 +10933,7 @@ const FICH_BUCKET = 'show-files'; // kept for reference only — storage is now 
    Resize → base64 (stocké dans le nœud) + upload B2 (comptage stockage)
    ══════════════════════════════════════ */
 const _ICON_MAX_BYTES = 10 * 1024 * 1024; // 10 Mo max
-const _ICON_PX        = 800;             // stocker à 800×800 max — préserve la qualité jusqu'à ~600px d'affichage
+const _ICON_PX        = 1200;            // stocker à 1200px max — préserve la qualité à toutes les tailles usuelles
 
 async function _resizeIconToB64(file){
   if(!['image/jpeg','image/png'].includes(file.type)) throw new Error('Format non supporté (JPEG ou PNG uniquement)');
@@ -10948,7 +10948,9 @@ async function _resizeIconToB64(file){
       c.width=Math.round(img.width*s); c.height=Math.round(img.height*s);
       c.getContext('2d').drawImage(img,0,0,c.width,c.height);
       URL.revokeObjectURL(url);
-      resolve(c.toDataURL('image/jpeg',0.88));
+      /* Conserver le format d'origine : PNG reste PNG (lossless), JPEG reste JPEG */
+      var isPng = file.type === 'image/png';
+      resolve(isPng ? c.toDataURL('image/png') : c.toDataURL('image/jpeg', 0.92));
     };
     img.onerror=function(){ URL.revokeObjectURL(url); reject(new Error("Impossible de lire l'image")); };
     img.src=url;
