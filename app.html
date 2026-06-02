@@ -4515,8 +4515,11 @@ td{padding:4px 7px;border-bottom:1px solid #f0eee8;vertical-align:middle}
 .si{padding:0 14px 0 0;margin-right:14px;border-right:1px solid #e0e0e0;color:#666}.si:last-child{border-right:none}.sv{font-weight:700;color:${accentColor}}
 .ft{display:flex;align-items:center;justify-content:space-between;padding:5px 16px;border-top:1px solid #eee;font-size:8px;color:#bbb;font-family:'DM Mono',monospace;margin-top:auto}
 .fl{font-weight:700;color:${accentColor};letter-spacing:1px}
-.img-wrap{padding:10px 16px;display:flex;justify-content:center}
+.img-wrap{padding:10px 16px;display:flex;justify-content:center;align-items:center}
 .img-wrap img{max-width:100%;height:auto;border-radius:4px}
+/* SVG inline (synoptique) : doit aussi être contraint à la largeur du conteneur,
+   sinon il est rendu à ses dimensions natives et déborde de la page A4 → câbles coupés */
+.img-wrap svg{max-width:100%;max-height:170mm;width:auto;height:auto;display:block}
 .sec-lbl{font-family:'DM Mono',monospace;font-size:8px;text-transform:uppercase;letter-spacing:1.5px;color:${accentColor};padding:5px 16px 2px;background:#fff8f4}
 @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}`;
 
@@ -6347,6 +6350,7 @@ const _PDF_QR_CSS =
 function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand, opts){
   opts = opts || {};
   const bigPlan = !!opts.bigPlan; /* maximise le diagramme (synoptique) */
+  const inlineSvg = !!opts.inlineSvg; /* SVG inline plutôt que <img src="data:..."> — préserve marqueurs et structure complète */
   const now = new Date().toLocaleString('fr-FR');
   const E = _fEsc; /* escape HTML pour tout texte interpolé dans le PDF (anti-XSS) */
   const accentColor = _safeColor(brand.color)||'#ff6b1a';
@@ -6382,6 +6386,8 @@ function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand, opts){
     /* Zone du plan : maximisée — padding minimal pour agrandir le diagramme */
     +'.plan{flex:1;display:flex;align-items:center;justify-content:center;padding:'+(bigPlan?'0.5mm 1mm':'2mm 3mm')+';overflow:hidden;min-height:0}'
     +'.plan img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;margin:auto}'
+    /* SVG inline (synoptique) : ajuster automatiquement à la zone disponible */
+    +'.plan-svg svg{max-width:100%;max-height:100%;width:auto;height:auto;display:block}'
     +'.ns{padding:1.6mm 10mm;background:#fffbf7;border-top:1px solid #ffe0c8;flex-shrink:0}'
     +'.nl{font-family:"DM Mono",monospace;font-size:2.3mm;text-transform:uppercase;letter-spacing:1px;color:#ccc;margin-bottom:0.6mm}'
     +'.nt{font-size:2.7mm;color:#555;white-space:pre-wrap}'
@@ -6393,7 +6399,12 @@ function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand, opts){
       +'<div class="hr"><div class="hdt">'+E(docType)+'</div><div class="hdm">'+(meta.rev?'Rev. '+E(meta.rev)+' &middot; ':'')+now+'</div></div>'
     +'</div>'
     +metaBar
-    +'<div class="plan"><img src="'+dataUrl+'" alt="'+E(docType)+'"/></div>'
+    /* SVG inline (synoptique) ou <img> selon l'option — l'inline préserve les
+       marqueurs SVG (flèches) et le rendu interne complet (câbles, etc.)
+       qui peuvent disparaître quand un SVG est utilisé comme <img src="data:..."> */
+    +(inlineSvg
+      ? '<div class="plan plan-svg">'+dataUrl+'</div>'
+      : '<div class="plan"><img src="'+dataUrl+'" alt="'+E(docType)+'"/></div>')
     +notesBlock
     +qrBlock
     +'<script>window.onload=()=>window.print();<\/script></body></html>';
@@ -6402,24 +6413,22 @@ function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand, opts){
   w.document.write(html); w.document.close();
 }
 
-/* Synoptique PDF — SVG screenshot via html2canvas fallback or native SVG in print */
+/* Synoptique PDF — SVG inline pour préserver les câbles, flèches et marqueurs.
+   Quand on injecte un SVG via <img src="data:image/svg+xml...">, les marqueurs
+   (flèches) et parfois les paths internes ne s'affichent pas correctement à
+   l'impression (sandboxing). Solution : rendre le SVG en INLINE dans le HTML. */
 function _openSynoPdf(meta, synHtml, shareUrl, brand){
-  /* Use SynPro's clean SVG export — bornes calculées automatiquement, rien n'est coupé */
   if(!window.SynPro || !SynPro.buildExportSvg){
     toast('Module synoptique indisponible.');return;
   }
   let ex;
-  /* skipHeader : le PDF a déjà son propre en-tête → on évite le double titre
-     et le diagramme s'aligne proprement sous le titre de la page */
   try { ex = SynPro.buildExportSvg({skipHeader:true}); }
   catch(e){ toast('Erreur synoptique : '+e.message);return; }
   if(!ex || !ex.svg){toast('Synoptique vide ou non chargé.');return;}
 
-  /* Convert SVG to data URI for embedding in print page */
-  const svgDataUri = 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(ex.svg);
-
-  /* Reuse the unified visual PDF layout — fits the SVG in landscape A4 */
-  _openVisualPdf('Synoptique', meta, svgDataUri, shareUrl, brand, {bigPlan:true});
+  /* On passe le SVG STRING directement (pas un data URI) au visual PDF.
+     _openVisualPdf détecte le préfixe '<svg' et l'inline dans la page. */
+  _openVisualPdf('Synoptique', meta, ex.svg, shareUrl, brand, {bigPlan:true, inlineSvg:true});
 }
 
 // ══════════════════════════════════════
