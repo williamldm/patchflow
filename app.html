@@ -248,6 +248,8 @@ body{display:flex;flex-direction:column;min-height:100vh}
 /* Mobile plan viewer — activé uniquement par JS (.mob-plan-show) */
 .mob-plan-ov{display:none!important;position:fixed;top:50px;left:0;right:0;bottom:62px;z-index:55;flex-direction:column;background:var(--bg2);pointer-events:none}
 .mob-plan-ov.mob-plan-show{display:flex!important;pointer-events:auto}
+/* Plein écran natif : l'overlay couvre tout l'écran (barres système cachées) */
+.mob-plan-ov.mob-fs{top:0!important;bottom:0!important;z-index:9999}
 .mob-plan-bar{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surf);border-bottom:1px solid var(--bdr2);flex-shrink:0}
 .mob-plan-title{font-size:13px;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mob-plan-hint{font-size:9.5px;font-family:var(--m);color:var(--muted);letter-spacing:.5px;background:var(--surf3);border:1px solid var(--bdr2);border-radius:5px;padding:3px 7px;white-space:nowrap;flex-shrink:0}
@@ -255,10 +257,11 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .mob-plan-canvas{flex:1;overflow:hidden;position:relative;background:var(--bg);touch-action:none;cursor:grab}
 .mob-plan-canvas:active{cursor:grabbing}
 .mob-plan-canvas .mob-img{position:absolute;top:0;left:0;transform-origin:0 0;user-select:none;-webkit-user-drag:none;display:block;image-rendering:auto}
-/* Zoom HUD */
-.mob-zoom-hud{position:absolute;bottom:12px;right:12px;display:flex;flex-direction:column;gap:4px;z-index:10}
-.mob-zoom-btn{width:38px;height:38px;border-radius:50%;background:rgba(15,22,37,.85);border:1px solid var(--bdr2);color:var(--txt);font-size:19px;display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(8px);box-shadow:0 2px 12px rgba(0,0,0,.5)}
-.mob-zoom-btn:active{background:var(--ora);color:#000}
+/* Zoom HUD — sibling du canvas, positionné en absolu par rapport à l'overlay */
+.mob-zoom-hud{position:absolute;bottom:44px;right:12px;display:flex;flex-direction:column;gap:6px;z-index:20;pointer-events:auto}
+.mob-plan-ov.mob-fs .mob-zoom-hud{bottom:12px}
+.mob-zoom-btn{width:42px;height:42px;border-radius:50%;background:rgba(10,15,28,.9);border:1px solid rgba(255,255,255,.15);color:var(--txt);font-size:19px;display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(12px);box-shadow:0 2px 16px rgba(0,0,0,.6);-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.mob-zoom-btn:active{background:var(--ora);color:#000;transform:scale(.9)}
 .mob-plan-foot{padding:7px 14px;font-size:10px;color:var(--muted);font-family:var(--m);text-align:center;border-top:1px solid var(--bdr);flex-shrink:0;background:var(--surf)}
 .mob-plan-loading{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:48px 24px;color:var(--muted);font-size:13px;position:absolute;inset:0}
 
@@ -12254,6 +12257,59 @@ function _mobZoomFit(cid){
   const s=_mobZoomState[cid]; if(!s)return;
   _mobFitToCanvas(cid,s.iw,s.ih);
 }
+
+/* Plein écran : utilise l'API Fullscreen quand disponible (Android Chrome),
+   sinon bascule en mode .mob-fs (iOS Safari) qui étend l'overlay à top:0/bottom:0.
+   Le bouton bascule entre plein écran et vue normale. */
+function _mobFullscreen(ovId, cid){
+  const ov = document.getElementById(ovId);
+  if(!ov) return;
+  const isFs = ov.classList.contains('mob-fs')
+             || !!(document.fullscreenElement || document.webkitFullscreenElement);
+
+  if(isFs){
+    /* Sortir du plein écran */
+    ov.classList.remove('mob-fs');
+    if(document.exitFullscreen) document.exitFullscreen().catch(()=>{});
+    else if(document.webkitExitFullscreen) document.webkitExitFullscreen();
+    /* Mettre à jour l'icône du bouton */
+    const btn = ov.parentElement?.querySelector('[id$="-fs-btn"]') || ov.querySelector('[id$="-fs-btn"]');
+    if(btn) btn.innerHTML = '<i class="ti ti-arrows-maximize"></i>';
+  } else {
+    /* Entrer en plein écran — essayer l'API native d'abord */
+    const req = ov.requestFullscreen || ov.webkitRequestFullscreen;
+    if(req) {
+      req.call(ov).then(function(){
+        ov.classList.add('mob-fs');
+      }).catch(function(){
+        /* Fallback iOS Safari : étendre l'overlay manuellement */
+        ov.classList.add('mob-fs');
+      });
+    } else {
+      ov.classList.add('mob-fs');
+    }
+    const btn = document.getElementById(ovId==='mob-syno-ov'?'mob-syno-fs-btn':'mob-stage-fs-btn');
+    if(btn) btn.innerHTML = '<i class="ti ti-arrows-minimize"></i>';
+    /* Recalculer le fit après l'agrandissement */
+    setTimeout(function(){ _mobZoomFit(cid); }, 120);
+  }
+}
+/* Synchroniser le bouton si l'utilisateur sort du plein écran via le geste système */
+document.addEventListener('fullscreenchange', function(){
+  if(!document.fullscreenElement){
+    ['mob-syno-ov','mob-stage-ov'].forEach(function(id){
+      const ov = document.getElementById(id);
+      if(ov) ov.classList.remove('mob-fs');
+    });
+    var b1 = document.getElementById('mob-syno-fs-btn');
+    var b2 = document.getElementById('mob-stage-fs-btn');
+    if(b1) b1.innerHTML = '<i class="ti ti-arrows-maximize"></i>';
+    if(b2) b2.innerHTML = '<i class="ti ti-arrows-maximize"></i>';
+  }
+});
+document.addEventListener('webkitfullscreenchange', function(){
+  document.dispatchEvent(new Event('fullscreenchange'));
+});
 function _mobInitGestures(cid){
   const canvas=document.getElementById(cid); if(!canvas)return;
   if(canvas.dataset.gesturesReady==='1') return; // éviter le double-attachement
@@ -13610,15 +13666,17 @@ async function openRecapMatos(){
     <span class="mob-plan-hint"><i class="ti ti-lock" style="font-size:9px"></i> Lecture</span>
     <button class="btn ghost sm" onclick="openPDFModal('syno')" style="font-size:10px;padding:5px 9px;flex-shrink:0"><i class="ti ti-file-type-pdf"></i>PDF</button>
   </div>
+  <!-- Canvas : sans le HUD pour éviter que touchstart mange les taps -->
   <div class="mob-plan-canvas" id="mob-syno-scroll">
     <div class="mob-plan-loading"><div class="spinner"></div>Génération…</div>
-    <div class="mob-zoom-hud">
-      <button class="mob-zoom-btn" onclick="_mobZoom('mob-syno-scroll',1.35)"><i class="ti ti-plus"></i></button>
-      <button class="mob-zoom-btn" onclick="_mobZoomFit('mob-syno-scroll')" style="font-size:15px"><i class="ti ti-arrows-maximize"></i></button>
-      <button class="mob-zoom-btn" onclick="_mobZoom('mob-syno-scroll',0.74)"><i class="ti ti-minus"></i></button>
-    </div>
   </div>
-  <div class="mob-plan-foot">Glissez pour naviguer · Pincez pour zoomer</div>
+  <!-- HUD en sibling du canvas (pas enfant) → les taps arrivent directement -->
+  <div class="mob-zoom-hud">
+    <button class="mob-zoom-btn" ontouchend="_mobZoom('mob-syno-scroll',1.35);event.preventDefault()" onclick="_mobZoom('mob-syno-scroll',1.35)"><i class="ti ti-plus"></i></button>
+    <button class="mob-zoom-btn" ontouchend="_mobFullscreen('mob-syno-ov','mob-syno-scroll');event.preventDefault()" onclick="_mobFullscreen('mob-syno-ov','mob-syno-scroll')" style="font-size:15px" id="mob-syno-fs-btn"><i class="ti ti-arrows-maximize"></i></button>
+    <button class="mob-zoom-btn" ontouchend="_mobZoom('mob-syno-scroll',0.74);event.preventDefault()" onclick="_mobZoom('mob-syno-scroll',0.74)"><i class="ti ti-minus"></i></button>
+  </div>
+  <div class="mob-plan-foot">Glissez · Pincez pour zoomer · Double-tap pour ajuster</div>
 </div>
 
 <div class="mob-plan-ov" id="mob-stage-ov">
@@ -13631,12 +13689,12 @@ async function openRecapMatos(){
   </div>
   <div class="mob-plan-canvas" id="mob-stage-scroll">
     <div class="mob-plan-loading"><div class="spinner"></div>Génération…</div>
-    <div class="mob-zoom-hud">
-      <button class="mob-zoom-btn" onclick="_mobZoom('mob-stage-scroll',1.35)"><i class="ti ti-plus"></i></button>
-      <button class="mob-zoom-btn" onclick="_mobZoomFit('mob-stage-scroll')" style="font-size:15px"><i class="ti ti-arrows-maximize"></i></button>
-      <button class="mob-zoom-btn" onclick="_mobZoom('mob-stage-scroll',0.74)"><i class="ti ti-minus"></i></button>
-    </div>
   </div>
-  <div class="mob-plan-foot">Glissez pour naviguer · Pincez pour zoomer</div>
+  <div class="mob-zoom-hud">
+    <button class="mob-zoom-btn" ontouchend="_mobZoom('mob-stage-scroll',1.35);event.preventDefault()" onclick="_mobZoom('mob-stage-scroll',1.35)"><i class="ti ti-plus"></i></button>
+    <button class="mob-zoom-btn" ontouchend="_mobFullscreen('mob-stage-ov','mob-stage-scroll');event.preventDefault()" onclick="_mobFullscreen('mob-stage-ov','mob-stage-scroll')" style="font-size:15px" id="mob-stage-fs-btn"><i class="ti ti-arrows-maximize"></i></button>
+    <button class="mob-zoom-btn" ontouchend="_mobZoom('mob-stage-scroll',0.74);event.preventDefault()" onclick="_mobZoom('mob-stage-scroll',0.74)"><i class="ti ti-minus"></i></button>
+  </div>
+  <div class="mob-plan-foot">Glissez · Pincez pour zoomer · Double-tap pour ajuster</div>
 </div>
 </body>
