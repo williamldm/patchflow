@@ -4462,6 +4462,56 @@ td{padding:4px 7px;border-bottom:1px solid #f0eee8;vertical-align:middle}
       }
     }
   }
+
+  /* ── Fichiers joints (documents sélectionnés dans le rider builder) ── */
+  var pickedFiles=Array.from(_riderPickedFiles);
+  if(pickedFiles.length){
+    /* Récupérer les signed URLs pour chaque fichier */
+    var fileUrls={};
+    await Promise.all(pickedFiles.map(async function(path){
+      try{
+        var res=await B2Storage.createSignedUrl(path,3600);
+        if(!res.error&&res.data?.signedUrl) fileUrls[path]=res.data.signedUrl;
+      }catch(e){}
+    }));
+
+    var filesHtml='';
+    for(var fi=0;fi<pickedFiles.length;fi++){
+      var fp=pickedFiles[fi];
+      var fname=fp.split('/').pop()||fp;
+      var fdisp=typeof _fichDisplayName==='function'?_fichDisplayName(fname):fname;
+      var finfo=typeof _fichInfoOf==='function'?_fichInfoOf(fdisp):{label:'Fichier'};
+      var furl=fileUrls[fp]||'#';
+      var isImage=/\.(png|jpg|jpeg|gif|webp)$/i.test(fdisp);
+      var isPDF=/\.pdf$/i.test(fdisp);
+
+      if(isImage&&furl!=='#'){
+        /* Image : une page avec l'image en grand */
+        filesHtml+='<div class="page">'
+          +_hdr('Fichier joint — '+_fEsc(fdisp))
+          +'<div class="img-wrap"><img src="'+furl+'" style="max-width:100%;max-height:160mm;object-fit:contain"/></div>'
+          +_ftr()+'</div>';
+      } else {
+        /* Autres fichiers : liste avec lien cliquable */
+        if(!filesHtml.includes('class="fj-list"')){
+          filesHtml+='<div class="page"><style>.fj-list{padding:14px 16px;display:flex;flex-direction:column;gap:8px}.fj-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid #e8edf4;border-radius:7px;background:#f8fafc}.fj-name{font-size:11px;font-weight:600;color:#1a1a2e;flex:1}.fj-type{font-size:9px;color:#888;font-family:"DM Mono",monospace;padding:2px 6px;background:#f0f2f5;border-radius:4px}.fj-dl{font-size:9px;color:#1a8fff;text-decoration:none;font-family:"DM Mono",monospace;padding:3px 8px;border:1px solid #b3d4ff;border-radius:4px;flex-shrink:0}</style>'
+            +_hdr('Fichiers joints')
+            +'<div class="fj-list">';
+        }
+        filesHtml+='<div class="fj-item">'
+          +'<div class="fj-name">'+_fEsc(fdisp)+'</div>'
+          +'<span class="fj-type">'+_fEsc(finfo.label||'Fichier')+'</span>'
+          +(furl!=='#'?'<a class="fj-dl" href="'+furl+'" target="_blank">Ouvrir ↗</a>':'')
+          +'</div>';
+      }
+    }
+    /* Fermer la liste si elle a été ouverte */
+    if(filesHtml.includes('class="fj-list"')){
+      filesHtml+=_ftr()+'</div></div>';
+    }
+    if(filesHtml) pages.push(filesHtml);
+  }
+
   }catch(e){ console.error('exportRiderPdf:',e); toast('Erreur génération PDF : '+e.message); }
   finally{
     if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-file-type-pdf"></i>Exporter PDF rider';}
