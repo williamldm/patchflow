@@ -8037,6 +8037,31 @@ const SynPro = (() => {
       svg += '<line x1="0" y1="' + headH + '" x2="' + fullW + '" y2="' + headH + '" stroke="#e2e8f0" stroke-width="1"/>';
     }
 
+    /* nodeCenterExport : version SANS DOM utilisée exclusivement pour l'export.
+       nodeCenter() utilise getBoundingClientRect() qui retourne {0,0,0,0}
+       quand l'onglet synoptique est caché (ex: export depuis onglet Équipe).
+       Ici on se base uniquement sur n.x/n.y stockés dans state — toujours fiables. */
+    function nodeCenterExport(n) {
+      var sp2 = spec(n.type) || { w:140, h:100 };
+      return { x: n.x + sp2.w/2, y: n.y + sp2.h/2, w: sp2.w, h: sp2.h };
+    }
+    function edgeGeomExport(c) {
+      var fn = nodeById(c.from), tn = nodeById(c.to);
+      if (!fn || !tn) return null;
+      var a = nodeCenterExport(fn), b = nodeCenterExport(tn);
+      var dx = b.x - a.x, dy = b.y - a.y;
+      var horiz = Math.abs(dx) >= Math.abs(dy);
+      var p0, p1;
+      if (horiz) {
+        p0 = { x: a.x + (dx >= 0 ? a.w/2 : -a.w/2), y: a.y };
+        p1 = { x: b.x + (dx >= 0 ? -b.w/2 : b.w/2), y: b.y };
+      } else {
+        p0 = { x: a.x, y: a.y + (dy >= 0 ? a.h/2 : -a.h/2) };
+        p1 = { x: b.x, y: b.y + (dy >= 0 ? -b.h/2 : b.h/2) };
+      }
+      return { p0:p0, p1:p1, mid:{ x:(p0.x+p1.x)/2, y:(p0.y+p1.y)/2 } };
+    }
+
     /* ── Parallel cable groups (same logic as _renderEdges) ── */
     var pairGroups = {};
     state.cables.forEach(function(c){
@@ -8045,9 +8070,9 @@ const SynPro = (() => {
       (pairGroups[key] = pairGroups[key] || []).push(c.id);
     });
 
-    /* ── Cables ── */
+    /* ── Cables — utilise edgeGeomExport (basé sur state, pas DOM) ── */
     state.cables.forEach(function(c){
-      var g = edgeGeom(c);
+      var g = edgeGeomExport(c);
       if (!g) return;
       var net = netById(c.network) || { color:'#5a6a80', name:'' };
 
