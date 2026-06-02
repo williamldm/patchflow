@@ -4432,12 +4432,16 @@ async function generateRiderLink(){
   var synSnap=CUR_SHOW.synoptique_data||null;
 
   /* Snapshot du plan de site en PNG base64 (SitePlan ne peut pas se re-rendre
-     dans la vue lecture seule car le DOM #site-viewport n'y est pas) */
+     dans la vue lecture seule car le DOM #site-viewport n'y est pas).
+     Charger les données si SitePlan est vide (onglet jamais ouvert dans cette session). */
+  if(!SitePlan.hasContent() && CUR_SHOW?.stage_data?.site){
+    SitePlan.load(CUR_SHOW.stage_data.site);
+  }
   var siteSnap=null;
   try{
     siteSnap = await new Promise(function(resolve){
       var timer=setTimeout(function(){resolve(null);},6000);
-      SitePlan.exportCanvas(function(cv){
+      SitePlan.exportCanvasSafe(function(cv){
         clearTimeout(timer);
         resolve(cv?cv.toDataURL('image/png'):null);
       });
@@ -4637,6 +4641,10 @@ td{padding:4px 7px;border-bottom:1px solid #f0eee8;vertical-align:middle}
     }
 
     else if(s==='site'){
+      /* Charger SitePlan si pas encore initialisé dans cette session */
+      if(!SitePlan.hasContent() && CUR_SHOW?.stage_data?.site){
+        SitePlan.load(CUR_SHOW.stage_data.site);
+      }
       var siteDataUrl=await _canvasPromise(function(resolve){
         SitePlan.exportCanvasSafe(function(cv){ resolve(cv?cv.toDataURL('image/png'):null); });
       });
@@ -6287,7 +6295,12 @@ function doPDF(){
     return;
   }
   if(type === 'site'){
+    /* S'assurer que SitePlan est chargé (l'onglet peut ne jamais avoir été ouvert) */
+    if(!SitePlan.hasContent() && CUR_SHOW?.stage_data?.site){
+      SitePlan.load(CUR_SHOW.stage_data.site);
+    }
     SitePlan.exportCanvas(function(cv){
+      if(!cv){toast('Plan de site vide — rien à exporter.');return;}
       const dataUrl = cv.toDataURL('image/png');
       const shareUrl = window.location.origin+window.location.pathname+'?view='+(CUR_SHOW?.id||'')+'&tab=site';
       _openVisualPdf('Plan de site', meta, dataUrl, shareUrl, brand);
@@ -6538,7 +6551,14 @@ async function saveStage(){
   // Non-Studio : comportement original
   const chsSnap=(typeof CHS!=='undefined'?CHS:[]).map(function(r){return{id:r.id,ch:r.ch,short_name:r.short_name||'',long_name:r.long_name||'',source:r.source||'',mic:r.mic||'',phantom:!!r.phantom,foh:!!r.foh,mon:!!r.mon,note:r.note||''};});
   const existing=CUR_SHOW.stage_data||{};
-  const data={v:2,planMode:PLAN_MODE,band:BandPlan.getData(),site:SitePlan.getData(),chs:chsSnap};
+  /* IMPORTANT : ne sauvegarder site que si SitePlan a du contenu OU qu'il était
+     déjà chargé. Si l'onglet plan de site n'a jamais été ouvert dans cette
+     session, SitePlan.getData() retourne {elements:[]} et écraserait les
+     données réelles stockées dans existing.site. */
+  var siteData = SitePlan.hasContent()
+    ? SitePlan.getData()
+    : (existing.site || SitePlan.getData()); // fallback : existing si SitePlan est vide
+  const data={v:2,planMode:PLAN_MODE,band:BandPlan.getData(),site:siteData,chs:chsSnap};
   if(existing.rider)data.rider=existing.rider;
   CUR_SHOW.stage_data=data;
   clearTimeout(saveStageTimer);
