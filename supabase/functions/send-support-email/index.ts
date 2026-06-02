@@ -121,14 +121,30 @@ async function sendEmailSmtp(to: string, subject: string, html: string): Promise
   conn.close();
 }
 
-/* ── Dispatcher : Resend si dispo, sinon SMTP natif ── */
+/* ── Dispatcher : Resend si dispo (recommandé), sinon SMTP natif ──
+   Resend est conseillé pour les emails vers des domaines externes (gmail, etc.)
+   car les SMTP mutualisés bloquent souvent le relay externe.
+   Pour configurer Resend : https://resend.com → API Key → secret RESEND_API_KEY */
 async function sendEmail(to: string, subject: string, html: string): Promise<void> {
   if (RESEND_API_KEY) {
-    await sendEmailResend(to, subject, html, SMTP_USER || `noreply@patchflow.fr`);
+    const fromEmail = SMTP_USER || `noreply@patchflow.fr`;
+    await sendEmailResend(to, subject, html, fromEmail);
   } else if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
     await sendEmailSmtp(to, subject, html);
   } else {
     throw new Error('Aucun service email configuré (RESEND_API_KEY ou SMTP_* requis)');
+  }
+}
+
+/* Forcer Resend pour un destinataire externe même si SMTP disponible.
+   Les SMTP mutualisés refusent souvent le relay vers gmail.com, yahoo.fr etc. */
+async function sendEmailExternal(to: string, subject: string, html: string): Promise<void> {
+  if (RESEND_API_KEY) {
+    const fromEmail = SMTP_USER || `noreply@patchflow.fr`;
+    await sendEmailResend(to, subject, html, fromEmail);
+  } else {
+    // Tentative SMTP — peut échouer si le serveur interdit le relay externe
+    await sendEmailSmtp(to, subject, html);
   }
 }
 
@@ -243,10 +259,17 @@ serve(async (req) => {
   </div>
 </div></body></html>`;
 
-    await Promise.all([
-      sendEmail(user.email!, `[PatchFlow] Votre message a bien été reçu — ${subjectSafe}`, userHtml),
-      sendEmail(SUPPORT_EMAIL, `[Support] ${subjectSafe} — ${displayName} (${user.email})`, teamHtml),
-    ]);
+    // Email support (vers patchflow.fr — marche via SMTP)
+    await sendEmail(SUPPORT_EMAIL, `[Support] ${subjectSafe} — ${displayName} (${user.email})`, teamHtml);
+
+    // Email confirmation client (vers domaine externe potentiel — gmail, yahoo, etc.)
+    // Utilise Resend si configuré, sinon SMTP avec best-effort (peut échouer sur relay externe)
+    try {
+      await sendEmailExternal(user.email!, `[PatchFlow] Votre message a bien été reçu — ${subjectSafe}`, userHtml);
+    } catch (emailErr) {
+      console.warn('[send-support-email] Confirmation client non envoyée (relay externe refusé?):', emailErr instanceof Error ? emailErr.message : emailErr);
+      // Non bloquant — le ticket est sauvé et le support est notifié
+    }
 
     return json({ ok: true });
 
