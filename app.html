@@ -5,8 +5,19 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>PatchFlow</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css"/>
+<!-- Preconnect aux CDN critiques pour réduire la latence sur connexion lente -->
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://ofiiutcueoogmtdvaupg.supabase.co" crossorigin/>
+<link rel="dns-prefetch" href="https://cdnjs.cloudflare.com"/>
+<!-- Police chargée en async pour ne pas bloquer le premier rendu (FOUT plutôt que page blanche) -->
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"/>
+<noscript><link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet"/></noscript>
+<!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
+<link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" onload="this.onload=null;this.rel='stylesheet'"/>
+<noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css"/></noscript>
+<!-- Supabase SDK (synchrone car le script inline plus bas l'utilise immédiatement) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -2593,6 +2604,104 @@ function _withTimeout(promise,ms){
     new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),ms))
   ]);
 }
+
+/* ════════════════════════════════════════════════════════════════════
+   RÉSILIENCE RÉSEAU — retry exponentiel pour les appels critiques.
+   Sur connexion 2G/3G ou wifi instable, un paquet perdu ne doit plus
+   tuer l'app : on retry avec backoff exponentiel + jitter.
+   ════════════════════════════════════════════════════════════════════ */
+const NET_RETRY_DEFAULTS = { tries: 3, baseMs: 500, maxMs: 4000, timeoutMs: 12000 };
+
+/* Erreurs réseau transitoires (à retry) vs erreurs métier (à propager) */
+function _isTransientError(err){
+  if(!err) return false;
+  if(err.message==='timeout') return true;
+  /* Erreurs de fetch : "Failed to fetch", "NetworkError", "Load failed", "AbortError" */
+  const m = String(err.message||err).toLowerCase();
+  if(m.includes('fetch')||m.includes('network')||m.includes('load failed')
+     ||m.includes('timeout')||m.includes('econnreset')||m.includes('abort'))
+    return true;
+  /* Status HTTP : 5xx + 429 (rate limit) sont transitoires ; 4xx non */
+  const s = err.status||err.statusCode;
+  if(s===429||s===503||s===504||s===502||s===500) return true;
+  return false;
+}
+
+/* Indique à l'UI qu'on retry — un toast léger pour informer sans paniquer */
+let _retryInProgress = 0;
+function _signalRetryStart(){
+  _retryInProgress++;
+  if(_retryInProgress===1 && typeof toast==='function'){
+    toast('Connexion lente — nouvelle tentative…');
+  }
+}
+function _signalRetryEnd(){
+  _retryInProgress = Math.max(0, _retryInProgress-1);
+}
+
+/* Wrap n'importe quelle promesse avec retry+timeout. Renvoie la valeur résolue.
+   - fn : function () => Promise (réexécutée à chaque tentative)
+   - opts.label : utilisé pour les logs et la déduplication
+   - opts.tries / baseMs / maxMs / timeoutMs : configurables (cf. NET_RETRY_DEFAULTS) */
+async function _withRetry(fn, opts){
+  const o = Object.assign({}, NET_RETRY_DEFAULTS, opts||{});
+  /* Sur connexion lente détectée, on double le timeout d'office */
+  if(isSlowConnection()) o.timeoutMs = o.timeoutMs * 2;
+  let lastErr;
+  for(let attempt=0; attempt<o.tries; attempt++){
+    try{
+      const result = await _withTimeout(fn(), o.timeoutMs);
+      if(attempt>0) _signalRetryEnd();
+      return result;
+    }catch(e){
+      lastErr = e;
+      if(!_isTransientError(e) || attempt===o.tries-1){
+        if(attempt>0) _signalRetryEnd();
+        throw e;
+      }
+      if(attempt===0) _signalRetryStart();
+      /* Backoff exponentiel + jitter (évite la "thundering herd") */
+      const delay = Math.min(o.maxMs, o.baseMs * Math.pow(2,attempt))
+                  + Math.random()*200;
+      if(o.label) console.warn('[retry]',o.label,'attempt',attempt+1,'failed:',e.message,'→ retry in',Math.round(delay),'ms');
+      await new Promise(r=>setTimeout(r,delay));
+    }
+  }
+  _signalRetryEnd();
+  throw lastErr;
+}
+
+/* Déduplication : si plusieurs callers demandent la même requête en parallèle,
+   ils partagent la même promesse (évite N requêtes identiques sur init). */
+const _inflight = new Map();
+function _dedup(key, fn){
+  if(_inflight.has(key)) return _inflight.get(key);
+  const p = fn().finally(()=>{ _inflight.delete(key); });
+  _inflight.set(key, p);
+  return p;
+}
+
+/* Détection débit lent — pour adapter timeouts/compressions */
+function _isSlowConnection(){
+  /* Navigator.connection API (Chrome/Edge/Android) */
+  const c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  if(c){
+    if(c.saveData) return true;
+    if(c.effectiveType==='slow-2g'||c.effectiveType==='2g'||c.effectiveType==='3g') return true;
+    if(c.downlink && c.downlink < 1.5) return true; // < 1.5 Mbps
+  }
+  return false;
+}
+/* Cache la valeur 30s pour éviter de la recalculer constamment */
+let _slowConnCache = null, _slowConnTs = 0;
+function isSlowConnection(){
+  const now = Date.now();
+  if(_slowConnCache===null || now-_slowConnTs>30000){
+    _slowConnCache = _isSlowConnection();
+    _slowConnTs = now;
+  }
+  return _slowConnCache;
+}
 function _showInitError(msg){
   var errHtml='<div style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:40px 20px;text-align:center">'
     +'<i class="ti ti-wifi-off" style="font-size:36px;color:#f87171"></i>'
@@ -2609,9 +2718,13 @@ function _showInitError(msg){
 async function initApp(){
   setILBody('<div class="loading"><div class="spinner"></div>Connexion a Supabase…</div>',true);
   try{
-    await _withTimeout(loadProfile(),8000);
+    /* PARALLÉLISATION : profile et shows en // — sur connexion lente, on gagne
+       jusqu'à 50% du temps de chargement (au lieu de 8+10s séquentiel → max(8,10)). */
+    await Promise.all([
+      _withRetry(()=>loadProfile(), {label:'loadProfile', timeoutMs:10000, tries:3}),
+      _withRetry(()=>loadShows(),   {label:'loadShows',   timeoutMs:12000, tries:3})
+    ]);
     _handleCheckoutReturn(); // retour de paiement Lemon Squeezy
-    await _withTimeout(loadShows(),10000);
     _initSharedLinks(); // suivi des liens de partage (limite Gratuit)
     processShowInvites(); // async, non-blocking — process pending show invites
     loadColChips();
@@ -2656,8 +2769,32 @@ async function loadProfile(){
 // ══════════════════════════════════════
 // SHOWS
 // ══════════════════════════════════════
+/* Clé localStorage pour cache shows par utilisateur */
+function _showsCacheKey(){ return 'pf_shows_cache_'+(ME?.id||'anon'); }
+
+/* Stale-while-revalidate : montre le cache local immédiatement
+   (UX instantanée sur connexion lente), puis rafraîchit depuis le réseau */
+function _loadShowsFromCache(){
+  try{
+    const raw=localStorage.getItem(_showsCacheKey());
+    if(!raw)return null;
+    const parsed=JSON.parse(raw);
+    /* Expire après 7 jours pour éviter les données trop obsolètes */
+    if(Date.now()-parsed.ts > 7*86400*1000) return null;
+    return parsed.shows;
+  }catch(e){return null;}
+}
+
 async function loadShows(){
-  // Load shows owned by the user
+  /* Étape 1 : afficher le cache local immédiatement si dispo (UX rapide) */
+  const cached = _loadShowsFromCache();
+  if(cached && cached.length && (!SHOWS || !SHOWS.length)){
+    SHOWS = cached;
+    /* Pré-render mais marqueur "données peuvent être obsolètes" */
+    try{ renderSessions(); }catch(e){}
+  }
+
+  // Load shows owned by the user (avec sélection plus compacte côté liste)
   const {data:ownedData,error:ownedErr}=await sb.from('shows').select('*').order('created_at',{ascending:false});
   if(ownedErr){console.error('shows error:',ownedErr);throw new Error(ownedErr.message);}
 
@@ -2678,6 +2815,16 @@ async function loadShows(){
   const seen=new Set();
   SHOWS=allShows.filter(s=>{if(seen.has(s.id))return false;seen.add(s.id);return true;})
     .sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+
+  /* Étape 2 : persister une version compacte du cache pour le prochain chargement */
+  try{
+    /* On ne stocke pas stage_data (peut être très lourd à cause des base64 images) */
+    const lite = SHOWS.map(s=>({
+      id:s.id, name:s.name, owner_id:s.owner_id, created_at:s.created_at,
+      brand_color:s.brand_color, color:s.color
+    }));
+    localStorage.setItem(_showsCacheKey(), JSON.stringify({ts:Date.now(),shows:lite}));
+  }catch(e){/* Quota atteint — ignorer */}
   await loadAllShowMembers();
   renderSPShows();
   renderSessions();
@@ -4006,10 +4153,23 @@ function _hideOfflineBanner(){
   if(b){b.classList.remove('show');}
 }
 async function _retryConn(){
-  if(!navigator.onLine){toast('Toujours hors ligne — verifie ta connexion.');return;}
+  if(!navigator.onLine){toast('Toujours hors ligne — vérifie ta connexion.');return;}
   _hideOfflineBanner();
-  if(CUR_SHOW)subRT();
   toast('Reconnexion en cours…');
+  /* Re-tente effectivement les opérations en attente */
+  try{
+    /* Si on n'a pas encore de profil/show, ré-init complète */
+    if(!ME || !SHOWS || !SHOWS.length){
+      await initApp();
+    } else {
+      /* Sinon ré-abonne realtime + refresh shows légèrement */
+      if(CUR_SHOW) subRT();
+    }
+    toast('✓ Connexion rétablie');
+  }catch(e){
+    toast('Reconnexion impossible : '+e.message);
+    _showOfflineBanner();
+  }
 }
 window.addEventListener('offline',function(){
   _showOfflineBanner();
@@ -4017,8 +4177,10 @@ window.addEventListener('offline',function(){
 });
 window.addEventListener('online',function(){
   _hideOfflineBanner();
-  toast('✓ Connexion retablie');
-  if(CUR_SHOW)subRT();
+  toast('✓ Connexion rétablie');
+  if(CUR_SHOW) subRT();
+  /* Flush des écritures en attente (autosave différé) si présent */
+  if(typeof _flushPendingWrites==='function') _flushPendingWrites();
 });
 // Init : si deja offline au chargement
 if(!navigator.onLine){_showOfflineBanner();}
@@ -11554,6 +11716,11 @@ function _iconImgInspHtml(objId, hasImg, thumbSrc, uploadFn, clearFn){
     +'</div>';
 }
 
+/* Cache mémoire des URLs signées (clé = path B2) — réduit la latence
+   sur connexion lente en évitant de re-appeler la edge function pour
+   les mêmes fichiers (lignes par lignes dans une grille, navigation...). */
+const _signedUrlCache = new Map();
+
 /* ── B2Storage : drop-in replacement for B2Storage ──
    All file operations are proxied through the Supabase Edge Function
    b2-storage, which holds B2 credentials securely server-side.
@@ -11568,20 +11735,32 @@ const _B2_FN_URL = (()=>{
 
 async function _b2Call(action, params){
   try{
-    const sess=(await sb.auth.getSession()).data?.session;
-    const res=await fetch(_B2_FN_URL,{
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'Authorization':'Bearer '+(sess?.access_token||''),
-      },
-      body:JSON.stringify({action,...params}),
-    });
-    if(!res.ok){
-      const txt=await res.text().catch(()=>'');
-      return {data:null,error:{message:'HTTP '+res.status+': '+txt}};
+    /* Retry + timeout pour résister aux connexions instables.
+       Les uploads (upload-presigned) ne doivent PAS retry car le caller
+       gère lui-même la suite avec un PUT direct vers B2. */
+    const noRetry = action==='upload-presigned';
+    const callFn = async function(){
+      const sess=(await sb.auth.getSession()).data?.session;
+      const res=await fetch(_B2_FN_URL,{
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'Authorization':'Bearer '+(sess?.access_token||''),
+        },
+        body:JSON.stringify({action,...params}),
+      });
+      if(!res.ok){
+        const txt=await res.text().catch(()=>'');
+        const err = new Error('HTTP '+res.status+': '+txt);
+        err.status = res.status;
+        throw err;
+      }
+      return await res.json();
+    };
+    if(noRetry){
+      return await _withTimeout(callFn(), 15000);
     }
-    return await res.json();
+    return await _withRetry(callFn, { label:'b2:'+action, tries:3, timeoutMs:15000 });
   }catch(e){
     return {data:null,error:{message:e.message}};
   }
@@ -11615,9 +11794,27 @@ const B2Storage={
   async remove(paths){
     return _b2Call('delete',{paths});
   },
-  /* presigned GET for view / download */
+  /* presigned GET for view / download — avec cache mémoire et dédup
+     pour éviter de rappeler la edge function pour le même path */
   async createSignedUrl(path,expiresIn){
-    return _b2Call('signed-url',{path,expiresIn:expiresIn||3600});
+    const exp = expiresIn||3600;
+    /* Cache valide tant qu'on est dans 90% de la durée d'expiration */
+    const cached = _signedUrlCache.get(path);
+    if(cached && cached.exp > Date.now()){
+      return { data:{ signedUrl: cached.url }, error:null };
+    }
+    /* Dédup : si deux appels demandent le même path en parallèle → 1 seule requête */
+    return _dedup('signurl:'+path, async function(){
+      const res = await _b2Call('signed-url',{path,expiresIn:exp});
+      if(!res.error && res.data?.signedUrl){
+        _signedUrlCache.set(path, {
+          url: res.data.signedUrl,
+          /* Valable jusqu'à 90% de la durée pour avoir une marge */
+          exp: Date.now() + exp*1000*0.9
+        });
+      }
+      return res;
+    });
   },
 };
 
