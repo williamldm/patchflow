@@ -50,6 +50,37 @@ async function getUser(req: Request) {
   return error ? null : user;
 }
 
+/* Vérifie que l'utilisateur a accès à ce show (propriétaire OU membre).
+   Cache le résultat dans une Map pour éviter de re-requêter à chaque appel. */
+async function userCanAccessShow(userId: string, showId: string, _cache: Map<string, boolean>): Promise<boolean> {
+  if (!showId || typeof showId !== 'string') return false;
+  // Validation UUID basique (évite injection SQL via showId malformé)
+  if (!/^[0-9a-f-]{36}$/i.test(showId)) return false;
+  const key = userId + ':' + showId;
+  if (_cache.has(key)) return _cache.get(key)!;
+  const sbAdmin = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  );
+  // Propriétaire ?
+  const { data: ownerRow } = await sbAdmin
+    .from('shows').select('id').eq('id', showId).eq('owner_id', userId).maybeSingle();
+  if (ownerRow) { _cache.set(key, true); return true; }
+  // Membre ?
+  const { data: memberRow } = await sbAdmin
+    .from('show_members').select('show_id').eq('show_id', showId).eq('user_id', userId).maybeSingle();
+  const ok = !!memberRow;
+  _cache.set(key, ok);
+  return ok;
+}
+
+/* Extrait le showId du début d'une clé B2 (format: "showId/...") */
+function extractShowId(path: string): string | null {
+  if (!path || typeof path !== 'string') return null;
+  const m = path.match(/^([0-9a-f-]{36})\//i);
+  return m ? m[1] : null;
+}
+
 // ── Response helpers ──
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -67,9 +98,19 @@ serve(async (req) => {
     const user = await getUser(req);
     if (!user) return json({ error: 'Unauthorized — session token invalid or missing' }, 401);
 
+    // Cache de validation d'accès pour réduire les requêtes DB sur les actions multi-paths
+    const accessCache = new Map<string, boolean>();
+    const deny = () => json({ error: 'Forbidden — access denied to this show' }, 403);
+    const checkPath = async (p: string): Promise<boolean> => {
+      const sid = extractShowId(p);
+      if (!sid) return false;
+      return userCanAccessShow(user.id, sid, accessCache);
+    };
+
     // ── list ──
     if (action === 'list') {
       const { prefix } = body as { prefix: string };
+      if (!prefix || !(await checkPath(prefix))) return deny();
       const cmd = new ListObjectsV2Command({
         Bucket: B2_BUCKET,
         Prefix: prefix,
@@ -104,6 +145,7 @@ serve(async (req) => {
     // ── upload-presigned : return a presigned PUT URL ──
     if (action === 'upload-presigned') {
       const { path, contentType } = body as { path: string; contentType: string };
+      if (!path || !(await checkPath(path))) return deny();
       const cmd = new PutObjectCommand({
         Bucket: B2_BUCKET,
         Key: path,
@@ -116,14 +158,23 @@ serve(async (req) => {
     // ── signed-url : presigned GET for download / view ──
     if (action === 'signed-url') {
       const { path, expiresIn } = body as { path: string; expiresIn?: number };
+      if (!path || !(await checkPath(path))) return deny();
       const cmd = new GetObjectCommand({ Bucket: B2_BUCKET, Key: path });
-      const url = await getSignedUrl(s3, cmd, { expiresIn: expiresIn ?? 3600 });
+      // Limiter la durée maximale d'un lien signé à 7 jours
+      const exp = Math.min(Math.max(60, expiresIn ?? 3600), 604800);
+      const url = await getSignedUrl(s3, cmd, { expiresIn: exp });
       return json({ data: { signedUrl: url }, error: null });
     }
 
     // ── move (copy + delete) ──
     if (action === 'move') {
       const { fromPath, toPath } = body as { fromPath: string; toPath: string };
+      if (!fromPath || !toPath) return deny();
+      // Le from ET le to doivent appartenir au même show et au user
+      const fromSid = extractShowId(fromPath);
+      const toSid = extractShowId(toPath);
+      if (!fromSid || fromSid !== toSid) return deny();
+      if (!(await userCanAccessShow(user.id, fromSid, accessCache))) return deny();
       await s3.send(new CopyObjectCommand({
         Bucket: B2_BUCKET,
         CopySource: encodeURIComponent(B2_BUCKET + '/' + fromPath),
@@ -137,6 +188,10 @@ serve(async (req) => {
     if (action === 'delete') {
       const { paths } = body as { paths: string[] };
       if (!paths?.length) return json({ data: {}, error: null });
+      // Vérifier que chaque path appartient à un show auquel l'user a accès
+      for (const p of paths) {
+        if (!(await checkPath(p))) return deny();
+      }
       if (paths.length === 1) {
         await s3.send(new DeleteObjectCommand({ Bucket: B2_BUCKET, Key: paths[0] }));
       } else {
@@ -151,6 +206,7 @@ serve(async (req) => {
     // ── storage-used : total bytes for a show (for storage bar) ──
     if (action === 'storage-used') {
       const { showId } = body as { showId: string };
+      if (!showId || !(await userCanAccessShow(user.id, showId, accessCache))) return deny();
       let total = 0;
       let continuationToken: string | undefined;
       do {
@@ -169,7 +225,16 @@ serve(async (req) => {
 
     // ── user-storage : total B2 + DB storage for the authenticated user ──
     if (action === 'user-storage') {
-      const { showIds } = body as { showIds: string[] };
+      // SÉCURITÉ : ignorer les showIds fournis par le client et requêter
+      // uniquement les shows que l'utilisateur POSSÈDE (pas seulement membre).
+      const sbAdmin = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      );
+      const { data: ownedShows } = await sbAdmin
+        .from('shows').select('id').eq('owner_id', user.id);
+      const showIds = (ownedShows ?? []).map((s: { id: string }) => s.id);
+      if (!showIds.length) return json({ data: { b2_bytes: 0, db_bytes: 0, total_bytes: 0 }, error: null });
 
       // 1. B2 — scan all shows in parallel (max 10 concurrent)
       let b2Bytes = 0;
@@ -193,11 +258,7 @@ serve(async (req) => {
         counts.forEach((n) => { b2Bytes += n; });
       }
 
-      // 2. DB — use service role Supabase client to run size queries
-      const sbAdmin = createClient(
-        Deno.env.get('SUPABASE_URL')!,
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      );
+      // 2. DB — réutiliser le sbAdmin déjà créé pour la liste des shows
 
       // shows.synoptique_data + shows.stage_data
       const { data: showsData } = await sbAdmin

@@ -2551,6 +2551,21 @@ async function doLogout(){
   ['mob-syno-ov','mob-stage-ov'].forEach(function(id){
     var el=document.getElementById(id);if(el)el.classList.remove('mob-plan-show');
   });
+  /* Nettoyer les caches mémoire pour éviter les fuites de données entre comptes */
+  try{
+    SHOWS=[]; CUR_SHOW=null; CHS=[]; OUT_CHS=[]; PROFILE=null;
+    SHOW_SCENES={syno:[],stage:[],site:[]}; CUR_SCENES={syno:null,stage:null,site:null};
+    SHARED_LINKS=new Set(); SHOW_STORAGE_MAP={}; SHOW_MEMBERS_MAP={};
+    _storageCache=null;
+    /* Nettoyer les clés localStorage spécifiques user (les autres comptes sur la même
+       machine ne doivent pas voir les données du précédent utilisateur) */
+    for(var i=localStorage.length-1;i>=0;i--){
+      var k=localStorage.key(i);
+      if(k&&(k.startsWith('pf_cur_scenes_')||k.startsWith('out_data_')||k.startsWith('siteplan_')||k.startsWith('pf_synpro_'))){
+        try{localStorage.removeItem(k);}catch(e){}
+      }
+    }
+  }catch(e){console.warn('[logout cleanup]',e);}
   document.getElementById('auth-wrap').className='auth-wrap show';
   document.getElementById('app').className='';
 }
@@ -2895,15 +2910,21 @@ function _loadSceneSite(scene){
 
 /* Calcule la taille de stockage de chaque show en arrière-plan */
 async function loadShowStorage(){
+  /* PERF : un seul appel batché au lieu d'1 appel par show.
+     Pour l'affichage par carte show, on agrège plus tard si besoin.
+     Ici on calcule juste le total — les badges par show sont optionnels. */
   SHOW_STORAGE_MAP={};
   if(!SHOWS.length || !canDo('storage')) return;
-  await Promise.all(SHOWS.map(async function(s){
+  /* On garde le détail par show via /storage-used uniquement pour le show
+     actuellement visible (lazy) — sinon trop d'appels au chargement.
+     Le total global est dans Mon abonnement (user-storage). */
+  const cur=CUR_SHOW?.id;
+  if(cur){
     try{
-      /* Use the b2-storage edge function storage-used action (recursive count) */
-      const {data}=await _b2Call('storage-used',{showId:s.id});
-      if(data?.bytes!=null) SHOW_STORAGE_MAP[s.id]=data.bytes;
+      const {data}=await _b2Call('storage-used',{showId:cur});
+      if(data?.bytes!=null) SHOW_STORAGE_MAP[cur]=data.bytes;
     }catch(e){}
-  }));
+  }
   renderSessions();
 }
 
@@ -5036,7 +5057,14 @@ function prevFile(t){
 }
 function closePrevModal(){document.getElementById('prev-modal').className='modal-ov';}
 function dlFromPrev(){dlFile(prevType);}
-function renderPills(){_SF_KEYS.forEach(id=>{const el=document.getElementById('pills-'+id);if(!el)return;el.innerHTML=CHS.slice(0,10).map(r=>`<span class="ch-pill">${r.ch}·${(r.short_name||r.long_name||'CH'+r.ch).trim()}</span>`).join('');});}
+function renderPills(){
+  const _e=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  _SF_KEYS.forEach(id=>{
+    const el=document.getElementById('pills-'+id);
+    if(!el)return;
+    el.innerHTML=CHS.slice(0,10).map(r=>`<span class="ch-pill">${_e(r.ch)}·${_e((r.short_name||r.long_name||'CH'+r.ch).trim())}</span>`).join('');
+  });
+}
 function updateStats(){const n=CHS.length,ph=CHS.filter(r=>r.phantom).length;_SF_KEYS.forEach(id=>{const el=document.getElementById('st-'+id);if(el)el.textContent=`${n} canaux`+(ph?` · ${ph} ×+48V`:'');});}
 
 // ══════════════════════════════════════
@@ -5119,14 +5147,33 @@ function syncPdfBrandHex(val){
     savePdfBranding();
   }
 }
+/* Whitelist des formats d'image autorisés en logo (refuse SVG = vecteur XSS) */
+function _safeLogoUrl(url){
+  if(!url || typeof url !== 'string') return null;
+  // Refuse SVG (script possible) et tout ce qui n'est pas data:image raster
+  if(/^data:image\/svg/i.test(url)) return null;
+  if(/^data:image\/(png|jpeg|jpg|webp|gif);base64,/i.test(url)) return url;
+  // Refuse aussi http://, javascript:, etc. — uniquement data:image raster
+  return null;
+}
+/* Sanitise les couleurs/chaînes de branding pour éviter les injections CSS/HTML */
+function _safeBrandStr(s){
+  if(!s) return '';
+  return String(s).replace(/[<>"'`\\]/g,'').slice(0,80);
+}
+function _safeColor(c){
+  if(!c) return '';
+  return /^#[0-9a-fA-F]{3,8}$/.test(c) ? c : '';
+}
+
 function _pdfBrand(){
   const isStudio=canDo('custom_exports');
   return {
-    co:   isStudio&&_pdfBranding.co   ? _pdfBranding.co   : 'PATCHFLOW',
-    site: isStudio&&_pdfBranding.site ? _pdfBranding.site : 'patchflow.fr',
-    color:_pdfBranding.color||'#ff6b1a',
-    tagline:isStudio?(_pdfBranding.tagline||''):'',
-    logo: isStudio&&_pdfLogoDataUrl   ? _pdfLogoDataUrl   : null,
+    co:   isStudio&&_pdfBranding.co   ? _safeBrandStr(_pdfBranding.co)   : 'PATCHFLOW',
+    site: isStudio&&_pdfBranding.site ? _safeBrandStr(_pdfBranding.site) : 'patchflow.fr',
+    color:_safeColor(_pdfBranding.color)||'#ff6b1a',
+    tagline:isStudio?_safeBrandStr(_pdfBranding.tagline||''):'',
+    logo: isStudio&&_pdfLogoDataUrl   ? _safeLogoUrl(_pdfLogoDataUrl)    : null,
     isStudio:isStudio,
     watermark: (PLAN_PERMS[userPlan()]||PLAN_PERMS.free).pdf_watermark === true /* true pour les comptes gratuits */
   };
@@ -6070,18 +6117,19 @@ function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand, opts){
   opts = opts || {};
   const bigPlan = !!opts.bigPlan; /* maximise le diagramme (synoptique) */
   const now = new Date().toLocaleString('fr-FR');
-  const accentColor = brand.color||'#ff6b1a';
-  const showTitle = meta.title || CUR_SHOW?.name || docType;
-  const subLine   = meta.sub || '';
-  const engLine   = [meta.eng, meta.role].filter(Boolean).join(' — ');
+  const E = _fEsc; /* escape HTML pour tout texte interpolé dans le PDF (anti-XSS) */
+  const accentColor = _safeColor(brand.color)||'#ff6b1a';
+  const showTitle = E(meta.title || CUR_SHOW?.name || docType);
+  const subLine   = E(meta.sub || '');
+  const engLine   = E([meta.eng, meta.role].filter(Boolean).join(' — '));
   const metaBar   = (meta.venue||meta.date||engLine)
     ? '<div class="mb">'
-      +(meta.venue ? '<div class="mc"><div class="ml">Venue</div><div class="mv">'+meta.venue+'</div></div>' : '')
-      +(meta.date  ? '<div class="mc"><div class="ml">Date</div><div class="mv">'+meta.date+'</div></div>'  : '')
+      +(meta.venue ? '<div class="mc"><div class="ml">Venue</div><div class="mv">'+E(meta.venue)+'</div></div>' : '')
+      +(meta.date  ? '<div class="mc"><div class="ml">Date</div><div class="mv">'+E(meta.date)+'</div></div>'  : '')
       +(engLine    ? '<div class="mc"><div class="ml">Créateur</div><div class="mvo">'+engLine+'</div></div>' : '')
-      +(meta.co    ? '<div class="mc"><div class="ml">Société</div><div class="mv">'+meta.co+'</div></div>'  : '')
+      +(meta.co    ? '<div class="mc"><div class="ml">Société</div><div class="mv">'+E(meta.co)+'</div></div>'  : '')
       +'</div>' : '';
-  const notesBlock = meta.notes ? '<div class="ns"><div class="nl">Notes</div><div class="nt">'+meta.notes+'</div></div>' : '';
+  const notesBlock = meta.notes ? '<div class="ns"><div class="nl">Notes</div><div class="nt">'+E(meta.notes)+'</div></div>' : '';
   const qrBlock = _pdfQrFooterHtml(shareUrl);
   const html = '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/>'
     +'<title>'+showTitle+' — '+docType+'</title>'
@@ -6111,10 +6159,10 @@ function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand, opts){
     +_pdfWatermarkHtml(brand)
     +'<div class="hd">'
       +'<div class="hl"><div class="logo">'+_PF_LOGO_MM+'</div><div><div class="ht">'+showTitle+'</div>'+(subLine?'<div class="hs">'+subLine+'</div>':'')+'</div></div>'
-      +'<div class="hr"><div class="hdt">'+docType+'</div><div class="hdm">'+(meta.rev?'Rev. '+meta.rev+' &middot; ':'')+now+'</div></div>'
+      +'<div class="hr"><div class="hdt">'+E(docType)+'</div><div class="hdm">'+(meta.rev?'Rev. '+E(meta.rev)+' &middot; ':'')+now+'</div></div>'
     +'</div>'
     +metaBar
-    +'<div class="plan"><img src="'+dataUrl+'" alt="'+docType+'"/></div>'
+    +'<div class="plan"><img src="'+dataUrl+'" alt="'+E(docType)+'"/></div>'
     +notesBlock
     +qrBlock
     +'<script>window.onload=()=>window.print();<\/script></body></html>';
