@@ -5,6 +5,7 @@
 !.gitignore
 !app.html
 !index.html
+!favicon.svg
 !serve.py
 !Downloads/patchflow_icon_v2.svg
 !supabase/
