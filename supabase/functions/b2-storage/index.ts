@@ -128,8 +128,7 @@ serve(async (req) => {
       const cloudShared = (showRow?.stage_data?.rider?.sections || []).includes('cloud');
       const fileAllowed = cloudShared || allowedFiles.includes(path);
       if (!fileAllowed) return json({ error: 'Fichier non autorisé' }, 403);
-      const { GetObjectCommand } = await import('npm:@aws-sdk/client-s3');
-      const { getSignedUrl } = await import('npm:@aws-sdk/s3-request-presigner');
+      // GetObjectCommand et getSignedUrl déjà importés statiquement en haut du fichier
       const cmd = new GetObjectCommand({ Bucket: B2_BUCKET, Key: path });
       const url = await getSignedUrl(s3, cmd, { expiresIn: 3600 });
       return json({ data: { signedUrl: url }, error: null });
@@ -148,7 +147,7 @@ serve(async (req) => {
         .from('shows').select('stage_data').eq('id', showId).maybeSingle();
       const sections: string[] = showRow?.stage_data?.rider?.sections || [];
       if (!sections.includes('cloud')) return json({ error: 'Accès cloud non autorisé pour ce show' }, 403);
-      const { ListObjectsV2Command } = await import('npm:@aws-sdk/client-s3');
+      // ListObjectsV2Command déjà importé statiquement en haut du fichier
       const cmd = new ListObjectsV2Command({ Bucket: B2_BUCKET, Prefix: prefix, Delimiter: '/' });
       const resp = await s3.send(cmd);
       const SKIP = new Set(['.emptyFolderPlaceholder', '.keep']);
