@@ -9,25 +9,61 @@ const CORS = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
-/* Retourne les données publiques d'un show partagé (rider actif requis).
-   Utilise le service role pour bypasser les RLS — mais ne retourne
-   que les champs nécessaires à la vue de lecture seule. */
+const UUID_RE = /^[0-9a-f-]{36}$/i;
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
   try {
-    const { showId } = await req.json() as { showId?: string };
-
-    if (!showId || !/^[0-9a-f-]{36}$/i.test(showId)) {
-      return json({ error: 'showId invalide' }, 400);
-    }
-
+    const body = await req.json() as { showId?: string; linkId?: string };
     const sbAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
 
-    // Vérifier que le show existe ET qu'il a un rider actif
+    /* ── Mode Pro : lien nommé depuis show_riders (?link=uuid) ── */
+    if (body.linkId) {
+      const { linkId } = body;
+      if (!UUID_RE.test(linkId)) return json({ error: 'linkId invalide' }, 400);
+
+      const { data: rider } = await sbAdmin
+        .from('show_riders')
+        .select('id, show_id, name, sections, config')
+        .eq('id', linkId)
+        .maybeSingle();
+
+      if (!rider) return json({ error: 'Lien introuvable ou expiré' }, 404);
+
+      const { data: show } = await sbAdmin
+        .from('shows')
+        .select('id, name, venue, show_date, stage_data, synoptique_data')
+        .eq('id', rider.show_id)
+        .maybeSingle();
+
+      if (!show) return json({ error: 'Show introuvable' }, 404);
+
+      const { data: channels } = await sbAdmin
+        .from('channels').select('*').eq('show_id', rider.show_id).order('ch');
+
+      return json({
+        data: {
+          show,
+          channels: channels || [],
+          riderName: rider.name,
+          /* Le config du lien nommé prime sur stage_data.rider */
+          overrideRider: {
+            sections: rider.sections,
+            ...(rider.config || {}),
+          },
+        },
+        error: null,
+      });
+    }
+
+    /* ── Mode legacy : lien unique (?rider=showId) ── */
+    const { showId } = body;
+    if (!showId || !UUID_RE.test(showId)) return json({ error: 'showId invalide' }, 400);
+
     const { data: show } = await sbAdmin
       .from('shows')
       .select('id, name, venue, show_date, stage_data, synoptique_data')
@@ -36,16 +72,11 @@ serve(async (req) => {
 
     if (!show) return json({ error: 'Show introuvable' }, 404);
 
-    // Un rider doit exister pour que le show soit partageable
     const rider = show.stage_data?.rider;
-    if (!rider) return json({ error: 'Ce show n\'a pas de lien de partage actif' }, 403);
+    if (!rider) return json({ error: "Ce show n'a pas de lien de partage actif" }, 403);
 
-    // Récupérer les canaux
     const { data: channels } = await sbAdmin
-      .from('channels')
-      .select('*')
-      .eq('show_id', showId)
-      .order('ch');
+      .from('channels').select('*').eq('show_id', showId).order('ch');
 
     return json({ data: { show, channels: channels || [] }, error: null });
 

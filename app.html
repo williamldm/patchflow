@@ -892,6 +892,26 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .rfi-size{font-family:var(--m);font-size:9px;color:var(--muted);flex-shrink:0}
 .rider-studio-gate{display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(192,132,252,.06);border:1px dashed rgba(192,132,252,.3);border-radius:9px;font-size:11px;color:var(--muted)}
 .rider-studio-gate i{color:#c084fc;font-size:15px;flex-shrink:0}
+/* ── Gestionnaire de liens Pro ── */
+.links-mgr{display:flex;flex-direction:column;gap:8px}
+.link-card{background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;overflow:hidden;transition:border-color .15s}
+.link-card:hover{border-color:var(--bdr3)}
+.link-card-head{display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer}
+.link-card-name{font-size:12px;font-weight:700;color:var(--txt);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.link-card-secs{display:flex;flex-wrap:wrap;gap:3px;padding:0 12px 10px}
+.link-sec-badge{font-size:9px;font-family:var(--m);padding:2px 7px;border-radius:5px;background:var(--surf3);color:var(--muted);border:1px solid var(--bdr)}
+.link-card-url{display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--bg);border-top:1px solid var(--bdr)}
+.link-card-url-text{font-size:10px;font-family:var(--m);color:var(--ora);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.link-card-btn{flex-shrink:0;background:none;border:1px solid var(--bdr2);color:var(--muted);font-size:10px;padding:3px 8px;border-radius:5px;cursor:pointer;font-family:var(--f);display:flex;align-items:center;gap:4px;transition:all .1s}
+.link-card-btn:hover{border-color:var(--bdr3);color:var(--txt2)}
+.link-card-btn.del:hover{border-color:var(--err);color:var(--err)}
+.link-new-btn{display:flex;align-items:center;justify-content:center;gap:7px;padding:10px;background:none;border:1px dashed var(--bdr2);border-radius:10px;color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;width:100%;transition:all .15s;font-family:var(--f)}
+.link-new-btn:hover{border-color:var(--ora);color:var(--ora);background:var(--ora-d)}
+/* Formulaire nouveau lien */
+.link-form{background:var(--surf2);border:1px solid var(--ora-g);border-radius:10px;padding:12px;margin-top:4px}
+.link-form-title{font-size:11px;font-weight:700;color:var(--ora);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.link-form input{width:100%;background:var(--surf3);border:1px solid var(--bdr2);border-radius:7px;color:var(--txt);font-size:12px;padding:7px 10px;font-family:var(--f);margin-bottom:8px}
+.link-form input:focus{outline:none;border-color:var(--ora)}
 
 /* ── SIDE PANEL ── */
 .sp-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:150;backdrop-filter:blur(2px)}
@@ -1859,14 +1879,41 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
             </div>
             <div id="rider-file-list" style="display:none;max-height:180px;overflow-y:auto"></div>
           </div>
-          <button class="btn" id="rider-gen-btn" onclick="generateRiderLink()" style="width:100%;margin-top:14px"><i class="ti ti-link"></i>Générer le lien</button>
-          <div id="rider-quota" style="display:none;font-size:10px;font-family:var(--m);color:var(--muted);text-align:center;margin-top:6px"></div>
-          <div id="rider-link-row" style="display:none;margin-top:10px">
-            <div class="slink-row">
-              <div class="slink-url" id="slink-url"></div>
-              <button class="btn blu sm" onclick="copyRiderLink()"><i class="ti ti-copy"></i>Copier</button>
+          <!-- Free : bouton unique + lien -->
+          <div id="rider-free-link-block">
+            <button class="btn" id="rider-gen-btn" onclick="generateRiderLink()" style="width:100%;margin-top:14px"><i class="ti ti-link"></i>Générer le lien</button>
+            <div id="rider-quota" style="display:none;font-size:10px;font-family:var(--m);color:var(--muted);text-align:center;margin-top:6px"></div>
+            <div id="rider-link-row" style="display:none;margin-top:10px">
+              <div class="slink-row">
+                <div class="slink-url" id="slink-url"></div>
+                <button class="btn blu sm" onclick="copyRiderLink()"><i class="ti ti-copy"></i>Copier</button>
+              </div>
+              <div style="font-size:10px;color:var(--grn);font-family:var(--m);margin-top:6px;display:none" id="rider-saved-ok"><i class="ti ti-check"></i> Lien sauvegardé</div>
             </div>
-            <div style="font-size:10px;color:var(--grn);font-family:var(--m);margin-top:6px;display:none" id="rider-saved-ok"><i class="ti ti-check"></i> Lien sauvegardé</div>
+          </div>
+          <!-- Pro : gestionnaire de liens multiples -->
+          <div id="rider-pro-links-block" style="display:none;margin-top:14px">
+            <div class="slink-sep" style="margin-top:0"><i class="ti ti-link" style="font-size:10px"></i>Liens de partage</div>
+            <div class="links-mgr" id="links-mgr-list"></div>
+            <button class="link-new-btn" onclick="_openNewLinkForm()" id="link-new-btn" style="margin-top:6px">
+              <i class="ti ti-plus"></i>Nouveau lien
+            </button>
+            <div id="link-new-form" class="link-form" style="display:none">
+              <div class="link-form-title"><i class="ti ti-link"></i>Nouveau lien de partage</div>
+              <input id="link-form-name" placeholder="Nom du lien (ex: Lien FOH, Lien Backline…)" maxlength="60"/>
+              <div class="slink-sections" id="link-form-sections" style="margin-bottom:10px">
+                <button class="slink-check checked" data-sec="il"><i class="ti ti-list-numbers"></i>Input List</button>
+                <button class="slink-check" data-sec="out"><i class="ti ti-list-letters"></i>Output</button>
+                <button class="slink-check" data-sec="syno"><i class="ti ti-topology-star"></i>Synoptique</button>
+                <button class="slink-check" data-sec="stage"><i class="ti ti-map-2"></i>Plan scène</button>
+                <button class="slink-check" data-sec="site"><i class="ti ti-building-stadium"></i>Plan site</button>
+                <button class="slink-check" data-sec="cloud"><i class="ti ti-cloud"></i>Fichiers</button>
+              </div>
+              <div style="display:flex;gap:8px">
+                <button class="btn sm" onclick="_createLink()" style="flex:1;background:var(--ora);color:#000;border-color:var(--ora)"><i class="ti ti-check"></i>Créer</button>
+                <button class="btn ghost sm" onclick="_closeNewLinkForm()" style="flex:1">Annuler</button>
+              </div>
+            </div>
           </div>
           <!-- Export PDF rider complet -->
           <div style="margin-top:8px;padding-top:10px;border-top:1px solid var(--bdr2)">
@@ -4851,6 +4898,7 @@ function _loadRiderConfig(){
 
 function _initRiderBuilder(){
   var isPro=canDo('share_link');
+  var isProMulti=canDo('multi_scenes'); // Pro plan = multi links
   var isStudio=canDo('multi_scenes');
   var gate=document.getElementById('rider-gate-msg');
   var inner=document.getElementById('rider-builder-inner');
@@ -4868,26 +4916,157 @@ function _initRiderBuilder(){
     if(studioGate)studioGate.style.display='flex';
     if(fileList)fileList.style.display='none';
   }
-  // If a rider config already exists in DB, show the link
-  if(CUR_SHOW&&CUR_SHOW.stage_data&&CUR_SHOW.stage_data.rider){
-    var url=window.location.origin+window.location.pathname+'?rider='+CUR_SHOW.id;
-    var urlEl=document.getElementById('slink-url');
-    if(urlEl)urlEl.textContent=url;
-    var row=document.getElementById('rider-link-row');
-    if(row)row.style.display='block';
-  }
-  // Compteur de liens de partage (plan Gratuit)
-  var quota=document.getElementById('rider-quota');
-  if(quota){
-    var lim=planLimit('max_share_links');
-    if(lim===Infinity){ quota.style.display='none'; }
-    else{
-      var used=_countShareLinks();
-      var remaining=Math.max(0,lim-used);
-      quota.style.display='block';
-      quota.innerHTML='<i class="ti ti-link" style="font-size:10px"></i> '+used+' / '+lim+' liens utilisés'
-        +(remaining===0?' — <span style="color:var(--ora);cursor:pointer;text-decoration:underline" onclick="showUpgradeModal(\'max_share_links\')">Passez Pro pour des liens illimités</span>':'');
+  // Afficher le bon bloc selon le plan
+  var freeBlock=document.getElementById('rider-free-link-block');
+  var proBlock =document.getElementById('rider-pro-links-block');
+  if(isProMulti){
+    if(freeBlock) freeBlock.style.display='none';
+    if(proBlock)  proBlock.style.display='block';
+    _loadLinksManager();
+  } else {
+    if(freeBlock) freeBlock.style.display='block';
+    if(proBlock)  proBlock.style.display='none';
+    // Free : afficher le lien existant
+    if(CUR_SHOW&&CUR_SHOW.stage_data&&CUR_SHOW.stage_data.rider){
+      var url=window.location.origin+window.location.pathname+'?rider='+CUR_SHOW.id;
+      var urlEl=document.getElementById('slink-url');
+      if(urlEl)urlEl.textContent=url;
+      var row=document.getElementById('rider-link-row');
+      if(row)row.style.display='block';
     }
+    // Compteur de liens (plan Gratuit)
+    var quota=document.getElementById('rider-quota');
+    if(quota){
+      var lim=planLimit('max_share_links');
+      if(lim===Infinity){ quota.style.display='none'; }
+      else{
+        var used=_countShareLinks();
+        var remaining=Math.max(0,lim-used);
+        quota.style.display='block';
+        quota.innerHTML='<i class="ti ti-link" style="font-size:10px"></i> '+used+' / '+lim+' liens utilisés'
+          +(remaining===0?' — <span style="color:var(--ora);cursor:pointer;text-decoration:underline" onclick="showUpgradeModal(\'max_share_links\')">Passez Pro pour des liens illimités</span>':'');
+      }
+    }
+  }
+}
+
+/* ══ Gestionnaire de liens Pro ══════════════════════════════════ */
+var _proLinks=[]; // cache des liens du show courant
+
+async function _loadLinksManager(){
+  if(!CUR_SHOW)return;
+  var list=document.getElementById('links-mgr-list');
+  if(list) list.innerHTML='<div style="font-size:11px;color:var(--muted);padding:8px 0">Chargement…</div>';
+  var {data,error}=await sb.from('show_riders').select('*').eq('show_id',CUR_SHOW.id).order('created_at');
+  _proLinks=data||[];
+  _renderLinksManager();
+}
+
+function _renderLinksManager(){
+  var list=document.getElementById('links-mgr-list');
+  if(!list)return;
+  if(!_proLinks.length){
+    list.innerHTML='<div style="font-size:11px;color:var(--muted);padding:6px 0 2px">Aucun lien créé. Créez votre premier lien de partage.</div>';
+    return;
+  }
+  var SEC_LABELS={il:'Input List',out:'Output',syno:'Synoptique',stage:'Scène',site:'Site',cloud:'Fichiers',files:'PJ'};
+  var base=window.location.origin+window.location.pathname;
+  list.innerHTML=_proLinks.map(function(lnk){
+    var url=base+'?link='+lnk.id;
+    var secs=(lnk.sections||[]).map(function(s){
+      return '<span class="link-sec-badge">'+_fEsc(SEC_LABELS[s]||s)+'</span>';
+    }).join('');
+    return '<div class="link-card">'
+      +'<div class="link-card-head">'
+        +'<i class="ti ti-link" style="font-size:13px;color:var(--muted);flex-shrink:0"></i>'
+        +'<span class="link-card-name">'+_fEsc(lnk.name)+'</span>'
+        +'<button class="link-card-btn del" onclick="_deleteLink(\''+lnk.id+'\')" title="Supprimer"><i class="ti ti-trash" style="font-size:11px"></i></button>'
+      +'</div>'
+      +(secs?'<div class="link-card-secs">'+secs+'</div>':'')
+      +'<div class="link-card-url">'
+        +'<span class="link-card-url-text">'+_fEsc(url)+'</span>'
+        +'<button class="link-card-btn" onclick="_copyProLink(\''+_fEsc(url)+'\')"><i class="ti ti-copy" style="font-size:10px"></i>Copier</button>'
+      +'</div>'
+    +'</div>';
+  }).join('');
+}
+
+function _openNewLinkForm(){
+  var f=document.getElementById('link-new-form');
+  var b=document.getElementById('link-new-btn');
+  if(f) f.style.display='block';
+  if(b) b.style.display='none';
+  // Bind section toggles
+  document.querySelectorAll('#link-form-sections .slink-check').forEach(function(btn){
+    btn.onclick=function(){btn.classList.toggle('checked');};
+  });
+}
+function _closeNewLinkForm(){
+  var f=document.getElementById('link-new-form');
+  var b=document.getElementById('link-new-btn');
+  if(f) f.style.display='none';
+  if(b) b.style.display='flex';
+  var ni=document.getElementById('link-form-name'); if(ni)ni.value='';
+  document.querySelectorAll('#link-form-sections .slink-check').forEach(function(btn){
+    btn.classList.toggle('checked', btn.getAttribute('data-sec')==='il');
+  });
+}
+
+async function _createLink(){
+  if(!CUR_SHOW)return;
+  var name=(document.getElementById('link-form-name')?.value||'').trim()||'Lien partagé';
+  var sections=[];
+  document.querySelectorAll('#link-form-sections .slink-check.checked').forEach(function(btn){
+    var s=btn.getAttribute('data-sec'); if(s)sections.push(s);
+  });
+  if(!sections.length){toast('Sélectionnez au moins une section.');return;}
+
+  var btn=document.querySelector('#link-new-form .btn:first-of-type');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .8s linear infinite"></i>';}
+
+  /* Pré-calculer les snapshots nécessaires */
+  var config={};
+  if(sections.includes('site')){
+    if(!SitePlan.hasContent()&&CUR_SHOW?.stage_data?.site) SitePlan.load(CUR_SHOW.stage_data.site);
+    try{
+      config.site_snapshot=await new Promise(function(resolve){
+        var t=setTimeout(function(){resolve(null);},6000);
+        SitePlan.exportCanvasSafe(function(cv){clearTimeout(t);resolve(cv?cv.toDataURL('image/png'):null);});
+      });
+    }catch(e){}
+  }
+  if(sections.includes('syno')){ config.syn_snapshot=CUR_SHOW.synoptique_data||null; }
+  if(sections.includes('out')){ config.out_snapshot=CUR_SHOW.out_data||OUT_DATA||{}; }
+
+  var {data,error}=await sb.from('show_riders').insert({
+    show_id:CUR_SHOW.id,
+    name:name,
+    sections:sections,
+    config:config
+  }).select().maybeSingle();
+
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-check"></i>Créer';}
+  if(error){toast('Erreur : '+error.message);return;}
+
+  _proLinks.push(data);
+  _renderLinksManager();
+  _closeNewLinkForm();
+  toast('Lien "'+name+'" créé ✓');
+}
+
+async function _deleteLink(id){
+  if(!confirm('Supprimer ce lien ? Les personnes qui l\'ont reçu ne pourront plus y accéder.'))return;
+  var {error}=await sb.from('show_riders').delete().eq('id',id);
+  if(error){toast('Erreur : '+error.message);return;}
+  _proLinks=_proLinks.filter(function(l){return l.id!==id;});
+  _renderLinksManager();
+  toast('Lien supprimé');
+}
+
+function _copyProLink(url){
+  try{navigator.clipboard.writeText(url).then(function(){toast('Lien copié !');});}
+  catch(e){
+    var ta=document.createElement('textarea');ta.value=url;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('Lien copié !');
   }
 }
 
@@ -13835,16 +14014,19 @@ async function openRecapMatos(){
   const p=new URLSearchParams(window.location.search);
   var isMobile=window.innerWidth<640;
 
-  // Detect entry point
-  const riderId=p.get('rider');
+  // Detect entry point: ?link=uuid (Pro), ?rider=showId (legacy), ?view=showId
+  const linkId =p.get('link');   // nouveau lien Pro nommé
+  const riderId=p.get('rider');  // lien legacy (showId)
   const sid=riderId||p.get('view');
-  if(!sid)return;
+  if(!linkId&&!sid)return;
 
-  // Variables — resolved either from DB (rider) or from URL params (legacy)
+  // Variables — resolved from DB
   var sections,rTitle='',rNote='',rInfo='',rFiles=[];
+  /* showId utilisé pour les actions B2 publiques */
+  var _shareShowId=sid||'';
 
-  if(riderId){
-    // Short link: load config from DB
+  if(linkId||riderId){
+    // Charger config depuis la edge function publique
     document.getElementById('auth-wrap').style.display='none';
     document.getElementById('app').style.display='none';
     const tmp=document.createElement('div');
@@ -13853,24 +14035,39 @@ async function openRecapMatos(){
     document.body.prepend(tmp);
     let preShow;
     try{
-      /* Edge function publique — bypass RLS pour les visiteurs non connectés */
+      var _reqBody=linkId?{linkId:linkId}:{showId:riderId};
       var _pr=await fetch('https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/get-shared-show',{
         method:'POST',
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},
-        body:JSON.stringify({showId:riderId})
+        body:JSON.stringify(_reqBody)
       });
       var _prj=await _pr.json();
-      if(!_prj.error&&_prj.data) preShow=_prj.data.show;
+      if(!_prj.error&&_prj.data){
+        preShow=_prj.data.show;
+        /* Pour un ?link=, les sections/config viennent de overrideRider */
+        if(linkId&&_prj.data.overrideRider){
+          var or=_prj.data.overrideRider;
+          sections=or.sections&&or.sections.length?or.sections:['il'];
+          rTitle=or.title||'';rNote=or.note||'';rInfo=or.info||'';
+          rFiles=or.files||[];
+          /* Injecter les snapshots dans le preShow.stage_data.rider pour que
+             le rendu des sections (syno, site, out) les trouve */
+          if(!preShow.stage_data) preShow.stage_data={};
+          if(!preShow.stage_data.rider) preShow.stage_data.rider={};
+          Object.assign(preShow.stage_data.rider, or);
+        }
+        /* showId pour les actions B2 */
+        if(preShow) _shareShowId=preShow.id;
+      }
     }catch(e){}
     tmp.remove();
     document.getElementById('auth-wrap').style.display='';
     document.getElementById('app').style.display='';
-    var cfg=(preShow&&preShow.stage_data&&preShow.stage_data.rider)||{};
-    sections=cfg.sections&&cfg.sections.length?cfg.sections:['il'];
-    rTitle=cfg.title||'';
-    rNote=cfg.note||'';
-    rInfo=cfg.info||'';
-    rFiles=cfg.files||[];
+    if(!sections){
+      var cfg=(preShow&&preShow.stage_data&&preShow.stage_data.rider)||{};
+      sections=cfg.sections&&cfg.sections.length?cfg.sections:['il'];
+      rTitle=cfg.title||'';rNote=cfg.note||'';rInfo=cfg.info||'';rFiles=cfg.files||[];
+    }
   }else{
     // Legacy ?view= URL params
     const _VALID_SECS=new Set(['il','out','syno','stage','site','files']);
@@ -14602,7 +14799,7 @@ async function openRecapMatos(){
     return (b/1048576).toFixed(1)+' Mo';
   }
 
-  var _cloudCurrentShowId=sid; // showId de la vue partagée
+  var _cloudCurrentShowId=_shareShowId||sid; // showId de la vue partagée
 
   function _cloudNavTo(path){
     var body=document.getElementById('sv-body');
