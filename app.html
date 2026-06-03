@@ -12090,16 +12090,25 @@ function openMoveFichier(event, relPath) {
     items.push({ label: 'Aucun dossier disponible', path: null, icon: 'ti-info-circle' });
   }
 
+  /* Utiliser data-dest plutôt que onclick inline pour éviter que les guillemets
+     dans les noms de dossiers cassent l'attribut HTML. */
   lst.innerHTML = items.map(function(it) {
     const color = it.icon === 'ti-folder-filled' ? 'color:#f5c542' : 'color:var(--muted)';
-    const click = it.path !== null
-      ? 'moveFichierToFolder(' + JSON.stringify(it.path) + ')'
-      : '';
-    return '<div class="fich-move-item" ' + (click ? 'onclick="' + click + '"' : 'style="opacity:.5;cursor:default"') + '>'
+    const disabled = it.path === null;
+    return '<div class="fich-move-item"'
+      + (disabled ? ' style="opacity:.5;cursor:default"' : ' data-dest="' + _fEsc(it.path) + '"')
+      + '>'
       + '<i class="ti ' + it.icon + '" style="' + color + '"></i>'
       + '<span style="overflow:hidden;text-overflow:ellipsis">' + _fEsc(it.label) + '</span>'
       + '</div>';
   }).join('');
+
+  // Délégation d'événements sur la liste (évite les closures par item)
+  lst.onclick = function(e) {
+    var item = e.target.closest('.fich-move-item[data-dest]');
+    if (!item) return;
+    moveFichierToFolder(item.getAttribute('data-dest'));
+  };
 
   // Positionner le popover — au-dessus du bouton si pas assez de place en dessous
   const btn = event.currentTarget || event.target;
