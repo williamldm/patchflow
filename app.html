@@ -14183,13 +14183,16 @@ async function openRecapMatos(){
      On utilise la clé anon (publique par design, déjà dans le HTML). */
   var _pubHeaders={'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY};
 
-  if(rFiles.length){
-    /* Pièces jointes : action publique vérifiée côté serveur */
+  /* _fetchSignedUrls() est appelé APRÈS la résolution de _shareShowId
+     (après le chargement du show) pour que showId soit toujours valide,
+     notamment pour les liens ?link=uuid où sid=null au départ. */
+  function _fetchSignedUrls(){
+    if(!rFiles.length||!_shareShowId) return;
     Promise.all(rFiles.map(function(path){
       return fetch('https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/b2-storage',{
         method:'POST',
         headers:_pubHeaders,
-        body:JSON.stringify({action:'public-rider-file',path:path,showId:sid})
+        body:JSON.stringify({action:'public-rider-file',path:path,showId:_shareShowId})
       }).then(function(r){return r.json();}).then(function(res){
         if(!res.error&&res.data?.signedUrl) _signedUrls[path]=res.data.signedUrl;
       }).catch(function(){});
@@ -14214,7 +14217,7 @@ async function openRecapMatos(){
     }
     show=_sfJson.data.show;
     /* Résoudre _shareShowId depuis la réponse (pour les liens ?link= où sid=null) */
-    if(show&&show.id) _shareShowId=show.id;
+    if(show&&show.id){ _shareShowId=show.id; _fetchSignedUrls(); }
     /* Injecter overrideRider si présent (lien Pro nommé) */
     if(_sfJson.data.overrideRider&&show){
       if(!show.stage_data) show.stage_data={};
