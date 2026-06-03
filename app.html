@@ -1448,6 +1448,30 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
           <button class="btn sm ghost" onclick="colPreset('full')">Tout</button>
           <button class="btn sm" style="margin-left:auto" onclick="toggleColPanel()"><i class="ti ti-check"></i>OK</button>
         </div>
+
+        <!-- Colonnes personnalisées (Pro) -->
+        <div style="border-top:1px solid var(--bdr2);margin-top:13px;padding-top:12px">
+          <div style="display:flex;align-items:center;gap:7px;margin-bottom:9px">
+            <span style="font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted)"><i class="ti ti-plus-equal" style="color:var(--ora)"></i> Colonnes personnalisées</span>
+            <span style="font-size:9px;font-family:var(--m);color:var(--ora);background:var(--ora-d);border:1px solid var(--ora-g);padding:1px 6px;border-radius:4px">Pro</span>
+            <button class="btn sm ghost" style="margin-left:auto;padding:3px 9px;font-size:10px" onclick="_openAddCustomCol()"><i class="ti ti-plus"></i>Ajouter</button>
+          </div>
+          <div id="custom-col-list" style="margin-bottom:8px"></div>
+          <!-- Formulaire d'ajout (caché par défaut) -->
+          <div id="custom-col-form" style="display:none;background:var(--bg);border:1px solid var(--bdr2);border-radius:8px;padding:10px;margin-top:8px">
+            <div style="font-size:10px;font-weight:700;color:var(--ora);margin-bottom:8px"><i class="ti ti-plus"></i> Nouvelle colonne</div>
+            <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+              <input id="cc-label-inp" class="ilinp" style="flex:1;min-width:110px;padding:5px 9px;font-size:11px" placeholder="Nom de la colonne…" maxlength="30" onkeydown="if(event.key==='Enter')_submitAddCustomCol()"/>
+              <select id="cc-type-sel" class="ilinp" style="padding:5px 7px;font-size:11px;width:auto">
+                <option value="text">Texte</option>
+                <option value="number">Nombre</option>
+                <option value="bool">Case à cocher</option>
+              </select>
+              <button class="btn sm" onclick="_submitAddCustomCol()"><i class="ti ti-check"></i>Créer</button>
+              <button class="btn sm ghost" onclick="document.getElementById('custom-col-form').style.display='none'">Annuler</button>
+            </div>
+          </div>
+        </div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
         <div class="il-patch-tabs" id="il-patch-tabs" style="margin-bottom:0;flex:1"></div>
@@ -3773,7 +3797,7 @@ async function performDrop(srcId,dstId){
   setSaving(false);
 }
 
-const _CH_FIELDS=new Set(['short_name','long_name','source','mic','gain','phantom','iem_group','foh','mon','bc','note']);
+const _CH_FIELDS=new Set(['short_name','long_name','source','mic','gain','phantom','iem_group','foh','mon','bc','note','custom_data']);
 function scheduleSave(id,field,val){
   if(!_CH_FIELDS.has(field)){console.warn('[sec] champ non autorisé:',field);return;}
   clearTimeout(saveT);
@@ -4237,6 +4261,7 @@ function renderTable(){
       <td data-col="mon" style="text-align:center"><input type="checkbox" class="cb warn" ${r.mon?'checked':''} onchange="scheduleSave('${r.id}','mon',this.checked)"/></td>
       <td data-col="bc" style="text-align:center"><input type="checkbox" class="cb grn" ${r.bc?'checked':''} onchange="scheduleSave('${r.id}','bc',this.checked)"/></td>
       <td data-col="note"><select class="ilinp" style="color:var(--txt2);font-size:11px;padding:3px 5px;cursor:pointer" onchange="scheduleSave('${r.id}','note',this.value)"><option value="">—</option><option value="Grand pied" ${r.note==='Grand pied'?'selected':''}>Grand pied</option><option value="Petit pied" ${r.note==='Petit pied'?'selected':''}>Petit pied</option><option value="Embase ronde" ${r.note==='Embase ronde'?'selected':''}>Embase ronde</option><option value="Autre" ${r.note==='Autre'?'selected':''}>Autre</option></select></td>
+      ${_getCustomCols().map(col=>{const v=(r.custom_data&&r.custom_data[col.id])||'';return `<td data-col="${col.id}" style="text-align:${col.type==='bool'?'center':'left'}">${_customCellHTML(col,r.id,v)}</td>`;}).join('')}
       <td style="white-space:nowrap">
         <i class="ti ti-grip-vertical drag-handle"></i>
         <button class="move-btn" onclick="moveRow('${r.id}',-1)" ${r.ch===1?'disabled':''}><i class="ti ti-chevron-up"></i></button>
@@ -4247,6 +4272,7 @@ function renderTable(){
   }
   applyColVis();renderPills();updateStats();
   _saveChsSnapshot();
+  _loadCustomColsIntoTable();
 }
 
 // ══════════════════════════════════════
@@ -5209,7 +5235,138 @@ function applyColVis(){
 }
 function updateColBtn(){const b=document.getElementById('col-btn');if(b)b.innerHTML=`<i class="ti ti-columns"></i>Colonnes <span style="font-family:var(--m);font-size:9px;background:var(--ora);color:#000;border-radius:9px;padding:1px 5px;margin-left:2px">${visCol.size}</span>`;}
 function colPreset(n){visCol=new Set(COL_PRESETS[n]||COLS.map(c=>c.id));applyColVis();loadColChips();toast(`✓ Vue "${n}" appliquée`);}
-function toggleColPanel(){const p=document.getElementById('col-panel');p.style.display=p.style.display==='none'||!p.style.display?'block':'none';if(p.style.display==='block')loadColChips();}
+function toggleColPanel(){const p=document.getElementById('col-panel');p.style.display=p.style.display==='none'||!p.style.display?'block':'none';if(p.style.display==='block'){loadColChips();_renderCustomColList();}}
+
+// ══════════════════════════════════════
+// CUSTOM COLUMNS (Pro)
+// ══════════════════════════════════════
+/* Récupère les colonnes custom du show courant (stockées dans stage_data.il_custom_cols) */
+function _getCustomCols(){
+  return (CUR_SHOW&&CUR_SHOW.stage_data&&CUR_SHOW.stage_data.il_custom_cols)||[];
+}
+async function _saveCustomCols(cols){
+  if(!CUR_SHOW)return;
+  const sd=Object.assign({},CUR_SHOW.stage_data||{v:2},{il_custom_cols:cols});
+  CUR_SHOW.stage_data=sd;
+  await sb.from('shows').update({stage_data:sd}).eq('id',CUR_SHOW.id);
+}
+
+/* Sauvegarde la valeur d'une colonne custom dans channels.custom_data */
+var _customSaveTimers={};
+function saveCustomCell(channelId,colId,val){
+  const r=CHS.find(x=>x.id===channelId);
+  if(r){ if(!r.custom_data)r.custom_data={}; r.custom_data[colId]=val; }
+  clearTimeout(_customSaveTimers[channelId]);
+  setSaving(true);
+  _customSaveTimers[channelId]=setTimeout(async()=>{
+    const ch=CHS.find(x=>x.id===channelId);
+    const data=ch?ch.custom_data:{};
+    await sb.from('channels').update({custom_data:data,updated_by:ME.id}).eq('id',channelId);
+    setSaving(false);
+  },700);
+}
+
+/* Ouvre le mini-formulaire de création de colonne */
+function _openAddCustomCol(){
+  if(!canDo('multi_scenes')){showUpgradeModal('custom_cols');return;}
+  const f=document.getElementById('custom-col-form');
+  if(f)f.style.display=f.style.display==='none'?'block':'none';
+}
+
+function _submitAddCustomCol(){
+  const lbl=(document.getElementById('cc-label-inp').value||'').trim();
+  if(!lbl){toast('Donnez un nom à la colonne');return;}
+  const type=document.getElementById('cc-type-sel').value||'text';
+  const id='cc_'+Date.now().toString(36);
+  const cols=_getCustomCols();
+  cols.push({id,label:lbl,type});
+  _saveCustomCols(cols).then(()=>{
+    document.getElementById('cc-label-inp').value='';
+    document.getElementById('custom-col-form').style.display='none';
+    _renderCustomColList();
+    /* Ajouter la colonne à la table visible */
+    _addCustomColToTable({id,label:lbl,type});
+    visCol.add(id);
+    updateColBtn();
+    toast(`Colonne "${lbl}" créée`);
+  });
+}
+
+async function _deleteCustomCol(colId){
+  if(!confirm('Supprimer cette colonne ? Les données de tous les canaux seront perdues.'))return;
+  const cols=_getCustomCols().filter(c=>c.id!==colId);
+  await _saveCustomCols(cols);
+  /* Supprimer la colonne de la table */
+  document.querySelectorAll(`th[data-col="${colId}"],td[data-col="${colId}"]`).forEach(e=>e.remove());
+  visCol.delete(colId);
+  updateColBtn();
+  _renderCustomColList();
+  toast('Colonne supprimée');
+}
+
+function _renderCustomColList(){
+  const wrap=document.getElementById('custom-col-list');
+  if(!wrap)return;
+  const cols=_getCustomCols();
+  const isPro=canDo('multi_scenes');
+  if(!cols.length){
+    wrap.innerHTML='<div style="font-size:10px;color:var(--muted);font-style:italic">Aucune colonne personnalisée.</div>';
+    return;
+  }
+  wrap.innerHTML=cols.map(c=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--bdr)">
+      <span class="col-chip on" style="cursor:default;flex:1;margin:0">${c.label}
+        <span style="font-size:9px;font-family:var(--m);color:var(--muted);margin-left:4px">${c.type==='number'?'#':c.type==='bool'?'☑':'A'}</span>
+      </span>
+      ${isPro?`<button class="btn ghost sm" style="padding:2px 7px;font-size:10px" onclick="_deleteCustomCol('${c.id}')"><i class="ti ti-trash"></i></button>`:''}
+    </div>`).join('');
+}
+
+/* Injecte une colonne custom dans le thead et toutes les lignes tbody existantes */
+function _addCustomColToTable(col){
+  const thead=document.getElementById('il-head');
+  if(!thead)return;
+  /* Insérer avant la dernière th (boutons d'actions) */
+  const lastTh=thead.querySelector('th:last-child');
+  const th=document.createElement('th');
+  th.setAttribute('data-col',col.id);
+  th.textContent=col.label;
+  thead.insertBefore(th,lastTh);
+  /* Insérer une td dans chaque ligne existante */
+  document.querySelectorAll('#il-body tr[data-id]').forEach(tr=>{
+    const chId=tr.dataset.id;
+    const ch=CHS.find(x=>x.id===chId);
+    const val=(ch&&ch.custom_data&&ch.custom_data[col.id])||'';
+    const td=document.createElement('td');
+    td.setAttribute('data-col',col.id);
+    td.innerHTML=_customCellHTML(col,chId,val);
+    const lastTd=tr.querySelector('td:last-child');
+    tr.insertBefore(td,lastTd);
+  });
+}
+
+function _customCellHTML(col,chId,val){
+  const eId=_fEsc(chId); const eVal=_fEsc(String(val));
+  if(col.type==='bool'){
+    return `<input type="checkbox" class="cb" ${val?'checked':''} onchange="saveCustomCell('${eId}','${col.id}',this.checked)"/>`;
+  }
+  if(col.type==='number'){
+    return `<input class="ilinp m" type="number" style="width:54px" value="${eVal}" onchange="saveCustomCell('${eId}','${col.id}',parseFloat(this.value)||0)"/>`;
+  }
+  return `<input class="ilinp" value="${eVal}" onchange="saveCustomCell('${eId}','${col.id}',this.value)"/>`;
+}
+
+/* Charge les colonnes custom au démarrage (après loadIL) */
+function _loadCustomColsIntoTable(){
+  const cols=_getCustomCols();
+  cols.forEach(c=>{
+    if(!document.querySelector(`th[data-col="${c.id}"]`)){
+      _addCustomColToTable(c);
+    }
+    visCol.add(c.id);
+  });
+  if(cols.length)updateColBtn();
+}
 
 // ══════════════════════════════════════
 // SHOW FILES GENERATORS — exports console (Pro)
