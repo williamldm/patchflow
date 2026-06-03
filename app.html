@@ -2625,6 +2625,16 @@ const SB_URL='https://ofiiutcueoogmtdvaupg.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9maWl1dGN1ZW9vZ210ZHZhdXBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4NTA2NjcsImV4cCI6MjA5NDQyNjY2N30.PSZMkuq7GBJiQMhh5shH_tOZ6DAmA310K4c7au9e4mE';
 const sb=supabase.createClient(SB_URL,SB_KEY);
 
+/* Détection précoce du flux de réinitialisation de mot de passe.
+   Supabase inclut #type=recovery dans le hash OU ?reset=1 dans l'URL.
+   On détecte cela AVANT le premier onAuthStateChange pour ne pas
+   laisser SIGNED_IN ouvrir l'app. */
+var _inPasswordRecovery = (function(){
+  var h=window.location.hash||'';
+  var q=window.location.search||'';
+  return h.includes('type=recovery') || q.includes('reset=1');
+}());
+
 // ══════════════════════════════════════
 // STATE
 // ══════════════════════════════════════
@@ -2765,31 +2775,57 @@ async function doLogout(){
 // ══════════════════════════════════════
 // SESSION INIT
 // ══════════════════════════════════════
-sb.auth.onAuthStateChange(async(event,session)=>{
-  /* Lien de réinitialisation cliqué : afficher le formulaire de nouveau mdp */
-  if(event==='PASSWORD_RECOVERY'){
-    document.getElementById('auth-wrap').className='auth-wrap show';
+/* Afficher le formulaire de reset immédiatement si l'URL l'indique,
+   sans attendre onAuthStateChange (qui peut arriver trop tard). */
+(function(){
+  if(!_inPasswordRecovery) return;
+  // Dès que le DOM est prêt, basculer sur le formulaire de reset
+  function _showResetForm(){
+    var aw=document.getElementById('auth-wrap');
+    if(!aw) return;
+    aw.className='auth-wrap show';
     document.getElementById('app').className='';
-    // Masquer tous les formulaires, afficher uniquement le reset
     ['form-login','form-signup','form-forgot'].forEach(function(id){
       var el=document.getElementById(id); if(el) el.style.display='none';
     });
     var tabBar=document.getElementById('auth-tabs');
     if(tabBar) tabBar.style.display='none';
-    var titleEl=document.getElementById('auth-title-text');
-    if(titleEl) titleEl.textContent='Réinitialisation';
     var resetForm=document.getElementById('form-reset');
     if(resetForm) resetForm.style.display='block';
-    // Conserver la session temporaire pour pouvoir appeler updateUser
+  }
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',_showResetForm);
+  } else {
+    _showResetForm();
+  }
+}());
+
+sb.auth.onAuthStateChange(async(event,session)=>{
+  /* Lien de réinitialisation : Supabase fire PASSWORD_RECOVERY puis SIGNED_IN.
+     On intercepte les deux pour rester sur le formulaire. */
+  if(event==='PASSWORD_RECOVERY'){
+    _inPasswordRecovery=true;
     ME=session?.user||null;
+    // S'assurer que le formulaire est visible (cas où la détection URL a raté)
+    var resetForm=document.getElementById('form-reset');
+    if(resetForm&&resetForm.style.display==='none'){
+      document.getElementById('auth-wrap').className='auth-wrap show';
+      document.getElementById('app').className='';
+      ['form-login','form-signup','form-forgot'].forEach(function(id){
+        var el=document.getElementById(id); if(el) el.style.display='none';
+      });
+      var tabBar=document.getElementById('auth-tabs');
+      if(tabBar) tabBar.style.display='none';
+      resetForm.style.display='block';
+    }
     return;
   }
+  /* Bloquer SIGNED_IN et TOKEN_REFRESHED pendant le reset */
+  if(_inPasswordRecovery && (event==='SIGNED_IN'||event==='TOKEN_REFRESHED')) return;
   if(!session?.user) return;
   ME=session.user;
-  // Show app immediately
   document.getElementById('auth-wrap').className='auth-wrap';
   document.getElementById('app').className='show';
-  // Init in background — non-blocking
   initApp();
 });
 
