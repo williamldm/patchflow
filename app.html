@@ -5137,10 +5137,21 @@ async function _loadRiderFiles(){
   var fl=document.getElementById('rider-file-list');
   if(!fl)return;
   fl.innerHTML='<div style="font-size:11px;color:var(--muted);padding:8px 0">Chargement…</div>';
-  // Lecture depuis Supabase — tous les fichiers (pas dossiers) du show, toutes profondeurs
+  // 1. Supabase (rapide)
   var {data,error}=await _sfListShowFiles();
+  // 2. Fallback B2 si show_files vide (fichiers pre-migration)
+  if(!error && (!data||!data.length)){
+    var prefix=CUR_SHOW.id+'/';
+    var {data:b2d}=await B2Storage.list(prefix,{sortBy:{column:'name',order:'asc'}});
+    var SKIP2=new Set(['.emptyFolderPlaceholder','.keep']);
+    data=(b2d||[]).filter(function(f){return !SKIP2.has(f.name)&&f.name&&f.id!==null;})
+      .map(function(f){return {path:prefix+f.name,name:f.name,folder:'',size:f.metadata?.size||0,content_type:'',is_folder:false,created_at:f.created_at};});
+    // Backfill silencieux
+    if(data.length&&ME){
+      sb.from('show_files').upsert(data.map(function(f){return Object.assign({show_id:CUR_SHOW.id,created_by:ME.id},f);}),{onConflict:'show_id,path'}).then(function(){});
+    }
+  }
   if(error||!data||!data.length){fl.innerHTML='<div style="font-size:11px;color:var(--muted);padding:8px 0">Aucun fichier dans le cloud pour ce show.</div>';return;}
-  if(!data.length){fl.innerHTML='<div style="font-size:11px;color:var(--muted);padding:8px 0">Aucun fichier disponible.</div>';return;}
   fl.innerHTML=data.map(function(f){
     var path=f.path; // chemin complet déjà dans show_files
     var disp=_fichDisplayName?_fichDisplayName(f.name):f.name;
@@ -12511,27 +12522,80 @@ function _fichFullPath(filename) {
 async function loadFichiers() {
   if (!CUR_SHOW) return;
   const folderRel = _fichPathStr().replace(/\/$/, ''); // '' | 'Logos' | 'Logos/Sub'
-  const { data, error } = await _sfListFolder(folderRel);
   const list = document.getElementById('fichiers-list');
   const dz   = document.getElementById('fichiers-drop-zone');
-  if (error) {
-    const errMsg = error?.message || 'Erreur inconnue';
-    if (list) list.innerHTML = '<div class="fich-empty"><i class="ti ti-alert-triangle"></i><p style="font-size:12px">Erreur chargement fichiers :<br><code style="font-size:10px;word-break:break-all;color:var(--err)">' + errMsg + '</code></p></div>';
+
+  // 1. Essayer Supabase (rapide)
+  const { data: sfData, error: sfErr } = await _sfListFolder(folderRel);
+  if (sfErr) {
+    if (list) list.innerHTML = '<div class="fich-empty"><i class="ti ti-alert-triangle"></i><p style="font-size:12px">Erreur chargement : ' + (sfErr.message||'') + '</p></div>';
     if (dz) dz.style.display = 'none';
     return;
   }
-  // Normaliser au format attendu par _renderFichiersGrid
-  SHOW_FILES = (data || []).map(f => ({
-    name:       f.name,
-    id:         f.is_folder ? null : f.id,
-    metadata:   { size: f.size },
-    created_at: f.created_at,
-    content_type: f.content_type,
-    _path:      f.path,   // chemin complet B2 (pour signed URLs / delete)
-    _isFolder:  f.is_folder,
-  }));
+
+  // 2. Si Supabase retourne des résultats → on les utilise directement
+  if (sfData && sfData.length > 0) {
+    SHOW_FILES = sfData.map(f => ({
+      name:         f.name,
+      id:           f.is_folder ? null : f.id,
+      metadata:     { size: f.size },
+      created_at:   f.created_at,
+      content_type: f.content_type,
+      _path:        f.path,
+      _isFolder:    f.is_folder,
+    }));
+    _renderFichBreadcrumb();
+    _renderFichiersGrid();
+    return;
+  }
+
+  // 3. Fallback B2 : show_files vide → fichiers existants avant la migration
+  //    On lit B2, on affiche, et on backfille show_files en arrière-plan.
+  const prefix = CUR_SHOW.id + '/' + (folderRel ? folderRel + '/' : '');
+  const { data: b2Data, error: b2Err } = await B2Storage.list(prefix, { sortBy: { column: 'name', order: 'asc' } });
+  if (b2Err) {
+    if (list) list.innerHTML = '<div class="fich-empty"><i class="ti ti-alert-triangle"></i><p style="font-size:12px">Erreur stockage : ' + (b2Err.message||'') + '</p></div>';
+    if (dz) dz.style.display = 'none';
+    return;
+  }
+  const SKIP = new Set(['.emptyFolderPlaceholder', '.keep']);
+  const b2Files = (b2Data || []).filter(f => !SKIP.has(f.name) && f.name);
+  SHOW_FILES = b2Files.map(f => {
+    const isDir = f.id === null;
+    const fullPath = prefix + f.name;
+    return {
+      name:         f.name,
+      id:           isDir ? null : f.id,
+      metadata:     { size: f.metadata?.size || 0 },
+      created_at:   f.created_at,
+      content_type: '',
+      _path:        fullPath,
+      _isFolder:    isDir,
+    };
+  });
   _renderFichBreadcrumb();
   _renderFichiersGrid();
+
+  // Backfill show_files en arrière-plan (fire-and-forget)
+  if (b2Files.length && ME) {
+    (async () => {
+      const rows = b2Files.map(f => {
+        const isDir = f.id === null;
+        const fullPath = prefix + f.name;
+        return {
+          show_id:      CUR_SHOW.id,
+          path:         fullPath,
+          name:         f.name,
+          folder:       folderRel,
+          size:         isDir ? 0 : (f.metadata?.size || 0),
+          content_type: '',
+          is_folder:    isDir,
+          created_by:   ME.id,
+        };
+      });
+      await sb.from('show_files').upsert(rows, { onConflict: 'show_id,path' });
+    })();
+  }
 }
 
 function _renderFichBreadcrumb() {
