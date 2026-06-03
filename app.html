@@ -13853,8 +13853,14 @@ async function openRecapMatos(){
     document.body.prepend(tmp);
     let preShow;
     try{
-      const {data:s}=await sb.from('shows').select('stage_data').eq('id',riderId).maybeSingle();
-      preShow=s;
+      /* Edge function publique — bypass RLS pour les visiteurs non connectés */
+      var _pr=await fetch('https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/get-shared-show',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','apikey':SB_KEY},
+        body:JSON.stringify({showId:riderId})
+      });
+      var _prj=await _pr.json();
+      if(!_prj.error&&_prj.data) preShow=_prj.data.show;
     }catch(e){}
     tmp.remove();
     document.getElementById('auth-wrap').style.display='';
@@ -13949,17 +13955,26 @@ async function openRecapMatos(){
     }));
   }
 
-  // ── Load show once ──
+  // ── Load show via edge function publique (bypass RLS pour les liens partagés) ──
   var show,rows=[];
   try{
-    const {data:s}=await sb.from('shows').select('*').eq('id',sid).maybeSingle();
-    if(!s){document.getElementById('sv-body').innerHTML='<div style="text-align:center;color:#f87171;margin-top:60px;font-size:14px">Show introuvable ou acces refuse.</div>';return;}
-    show=s;
-    const {data:chs}=await sb.from('channels').select('*').eq('show_id',sid).order('ch');
-    rows=(chs&&chs.length)?chs:((show.stage_data&&show.stage_data.chs)||[]).slice().sort(function(a,b){return (a.ch||0)-(b.ch||0);});
+    var _sfRes=await fetch('https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/get-shared-show',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SB_KEY},
+      body:JSON.stringify({showId:sid})
+    });
+    var _sfJson=await _sfRes.json();
+    if(_sfJson.error||!_sfJson.data){
+      document.getElementById('sv-body').innerHTML='<div style="text-align:center;color:#f87171;margin-top:60px;font-size:14px">'
+        +esc(_sfJson.error||'Show introuvable')+'</div>';
+      return;
+    }
+    show=_sfJson.data.show;
+    var _chs=_sfJson.data.channels||[];
+    rows=_chs.length?_chs:((show.stage_data&&show.stage_data.chs)||[]).slice().sort(function(a,b){return (a.ch||0)-(b.ch||0);});
     // Inject CHS snapshot for canvas renderers
-    if(show.stage_data&&show.stage_data.chs&&show.stage_data.chs.length){CHS.splice(0,CHS.length,...show.stage_data.chs);}
-  }catch(err){document.getElementById('sv-body').innerHTML='<div style="text-align:center;color:#f87171;margin-top:60px">Erreur: '+err.message+'</div>';return;}
+    if(rows.length){CHS.splice(0,CHS.length,...rows);}
+  }catch(err){document.getElementById('sv-body').innerHTML='<div style="text-align:center;color:#f87171;margin-top:60px">Erreur: '+esc(err.message)+'</div>';return;}
 
   // ── Section renderers ──
   var now=new Date().toLocaleString('fr-FR');
