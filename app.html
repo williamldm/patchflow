@@ -5142,7 +5142,7 @@ async function _loadRiderFiles(){
   // 2. Fallback B2 si show_files vide (fichiers pre-migration)
   if(!error && (!data||!data.length)){
     var prefix=CUR_SHOW.id+'/';
-    var {data:b2d}=await B2Storage.list(prefix,{sortBy:{column:'name',order:'asc'}});
+    var {data:b2d}=await B2Storage.listB2Raw(prefix);
     var SKIP2=new Set(['.emptyFolderPlaceholder','.keep']);
     data=(b2d||[]).filter(function(f){return !SKIP2.has(f.name)&&f.name&&f.id!==null;})
       .map(function(f){return {path:prefix+f.name,name:f.name,folder:'',size:f.metadata?.size||0,content_type:'',is_folder:false,created_at:f.created_at};});
@@ -12310,9 +12310,13 @@ async function _b2Call(action, params){
 }
 
 const B2Storage={
-  /* list files and folders at a prefix */
+  /* list files and folders at a prefix (depuis Supabase show_files) */
   async list(prefix,_opts){
     return _b2Call('list',{prefix});
+  },
+  /* vrai listing B2 S3 (fallback/backfill des fichiers pré-migration) */
+  async listB2Raw(prefix){
+    return _b2Call('list-b2-raw',{prefix});
   },
   /* upload: get presigned PUT URL, then PUT directly to B2 */
   async upload(path,file,_opts){
@@ -12550,9 +12554,9 @@ async function loadFichiers() {
   }
 
   // 3. Fallback B2 : show_files vide → fichiers existants avant la migration
-  //    On lit B2, on affiche, et on backfille show_files en arrière-plan.
+  //    On lit le VRAI B2 (list-b2-raw), on affiche, et on backfille en arrière-plan.
   const prefix = CUR_SHOW.id + '/' + (folderRel ? folderRel + '/' : '');
-  const { data: b2Data, error: b2Err } = await B2Storage.list(prefix, { sortBy: { column: 'name', order: 'asc' } });
+  const { data: b2Data, error: b2Err } = await B2Storage.listB2Raw(prefix);
   if (b2Err) {
     if (list) list.innerHTML = '<div class="fich-empty"><i class="ti ti-alert-triangle"></i><p style="font-size:12px">Erreur stockage : ' + (b2Err.message||'') + '</p></div>';
     if (dz) dz.style.display = 'none';

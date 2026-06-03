@@ -213,6 +213,36 @@ serve(async (req) => {
       return json({ data, error: null });
     }
 
+    // ── list-b2-raw : vrai listing S3 (fallback/backfill des fichiers pré-migration) ──
+    if (action === 'list-b2-raw') {
+      const { prefix } = body as { prefix: string };
+      if (!prefix || !(await checkPath(prefix))) return deny();
+      const cmd = new ListObjectsV2Command({
+        Bucket: B2_BUCKET,
+        Prefix: prefix,
+        Delimiter: '/',
+      });
+      const resp = await s3.send(cmd);
+      const folders = (resp.CommonPrefixes ?? []).map((p) => ({
+        name: p.Prefix!.slice(prefix.length).replace(/\/$/, ''),
+        id: null,
+        metadata: null,
+        created_at: null,
+      }));
+      const files = (resp.Contents ?? [])
+        .filter((o) => {
+          const name = o.Key!.slice(prefix.length);
+          return name && !SKIP.has(name);
+        })
+        .map((o) => ({
+          name: o.Key!.slice(prefix.length),
+          id: o.ETag ?? o.Key,
+          metadata: { size: o.Size ?? 0 },
+          created_at: o.LastModified?.toISOString() ?? null,
+        }));
+      return json({ data: [...folders, ...files], error: null });
+    }
+
     // ── upload-presigned : return a presigned PUT URL ──
     if (action === 'upload-presigned') {
       const { path, contentType } = body as { path: string; contentType: string };
