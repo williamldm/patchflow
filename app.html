@@ -1307,6 +1307,16 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
         <button class="auth-btn" id="f-btn" onclick="doForgot()">Envoyer le lien</button>
         <button class="auth-back" onclick="authTab('login')">← Retour à la connexion</button>
       </div>
+
+      <!-- Formulaire affiché quand on clique le lien de réinitialisation -->
+      <div id="form-reset" style="display:none">
+        <div style="font-size:13px;font-weight:700;color:var(--txt);margin-bottom:6px">Nouveau mot de passe</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6">Choisis un nouveau mot de passe pour ton compte.</p>
+        <div class="auth-field"><label class="auth-lbl">Nouveau mot de passe</label><input class="auth-inp" id="r-pwd1" type="password" placeholder="8 caractères minimum" autocomplete="new-password"/></div>
+        <div class="auth-field"><label class="auth-lbl">Confirmer</label><input class="auth-inp" id="r-pwd2" type="password" placeholder="Répète le mot de passe" autocomplete="new-password"/></div>
+        <div class="auth-msg" id="r-msg" style="display:none"></div>
+        <button class="auth-btn" id="r-btn" onclick="doResetPassword()">Mettre à jour le mot de passe</button>
+      </div>
     </div>
     <div class="auth-footer">PatchFlow · v3.0 · <a href="https://patchflow.fr" style="color:var(--ora);text-decoration:none">patchflow.fr</a></div>
   </div>
@@ -2756,6 +2766,24 @@ async function doLogout(){
 // SESSION INIT
 // ══════════════════════════════════════
 sb.auth.onAuthStateChange(async(event,session)=>{
+  /* Lien de réinitialisation cliqué : afficher le formulaire de nouveau mdp */
+  if(event==='PASSWORD_RECOVERY'){
+    document.getElementById('auth-wrap').className='auth-wrap show';
+    document.getElementById('app').className='';
+    // Masquer tous les formulaires, afficher uniquement le reset
+    ['form-login','form-signup','form-forgot'].forEach(function(id){
+      var el=document.getElementById(id); if(el) el.style.display='none';
+    });
+    var tabBar=document.getElementById('auth-tabs');
+    if(tabBar) tabBar.style.display='none';
+    var titleEl=document.getElementById('auth-title-text');
+    if(titleEl) titleEl.textContent='Réinitialisation';
+    var resetForm=document.getElementById('form-reset');
+    if(resetForm) resetForm.style.display='block';
+    // Conserver la session temporaire pour pouvoir appeler updateUser
+    ME=session?.user||null;
+    return;
+  }
   if(!session?.user) return;
   ME=session.user;
   // Show app immediately
@@ -2764,6 +2792,38 @@ sb.auth.onAuthStateChange(async(event,session)=>{
   // Init in background — non-blocking
   initApp();
 });
+
+async function doResetPassword(){
+  var p1=(document.getElementById('r-pwd1')?.value||'').trim();
+  var p2=(document.getElementById('r-pwd2')?.value||'').trim();
+  var msg=document.getElementById('r-msg');
+  var btn=document.getElementById('r-btn');
+  function showMsg(text,isErr){
+    if(!msg)return;
+    msg.style.display='block';
+    msg.className='auth-msg '+(isErr?'err':'ok');
+    msg.textContent=text;
+  }
+  if(!p1||p1.length<8){showMsg('Le mot de passe doit faire au moins 8 caractères.',true);return;}
+  if(p1!==p2){showMsg('Les mots de passe ne correspondent pas.',true);return;}
+  if(btn){btn.disabled=true;btn.textContent='Mise à jour...';}
+  var {error}=await sb.auth.updateUser({password:p1});
+  if(btn){btn.disabled=false;btn.textContent='Mettre à jour le mot de passe';}
+  if(error){showMsg('Erreur : '+error.message,true);return;}
+  showMsg('Mot de passe mis à jour ! Redirection…',false);
+  setTimeout(function(){
+    // Nettoyer et aller sur l'app
+    var resetForm=document.getElementById('form-reset');
+    if(resetForm) resetForm.style.display='none';
+    if(ME){
+      document.getElementById('auth-wrap').className='auth-wrap';
+      document.getElementById('app').className='show';
+      initApp();
+    }else{
+      authTab('login');
+    }
+  },1500);
+}
 
 function _withTimeout(promise,ms){
   return Promise.race([
