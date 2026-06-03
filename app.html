@@ -1159,6 +1159,9 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 .sub-plan-card:hover:not(.current){border-color:var(--bdr3);background:var(--surf2)}
 .sub-plan-card.current{border-color:var(--ora-g);background:var(--ora-d)}
 .sub-plan-card.popular:not(.current){border-color:var(--ora)}
+.sub-storage-opt{border:1px solid var(--bdr2);border-radius:9px;padding:12px;cursor:pointer;transition:all .15s;text-align:center}
+.sub-storage-opt:hover{border-color:#a78bfa;background:rgba(167,139,250,.07)}
+.sub-storage-opt.popular{border-color:#a78bfa;background:rgba(167,139,250,.06)}
 .sub-plan-name{font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-bottom:6px}
 .sub-plan-price{font-size:22px;font-weight:800;letter-spacing:-1px;line-height:1;margin-bottom:2px}
 .sub-plan-period{font-size:9px;color:var(--muted);font-family:var(--m);margin-bottom:12px}
@@ -2320,6 +2323,71 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
           <div class="plan-cur-desc" id="sub-current-desc">Passez au Pro pour debloquer les exports.</div>
         </div>
         <div class="plan-billing-chip" id="plan-billing-chip">Gratuit</div>
+      </div>
+      <!-- Bloc abonnement actif (affiché uniquement pour les Pro) -->
+      <div id="sub-active-block" style="display:none;margin-bottom:16px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;overflow:hidden">
+        <div style="padding:12px 16px;border-bottom:1px solid var(--bdr)">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <i class="ti ti-bolt" style="color:var(--ora);font-size:15px"></i>
+              <span style="font-size:12px;font-weight:700">Abonnement Pro actif</span>
+              <span id="sub-status-badge" style="font-size:9px;font-family:var(--m);padding:2px 8px;border-radius:10px;background:rgba(34,214,160,.12);color:var(--grn);border:1px solid rgba(34,214,160,.25)">Actif</span>
+            </div>
+            <button onclick="openPortal()" style="background:var(--surf3);border:1px solid var(--bdr2);color:var(--txt2);font-size:10px;font-weight:600;padding:5px 12px;border-radius:7px;cursor:pointer;font-family:var(--f);display:flex;align-items:center;gap:5px"><i class="ti ti-settings" style="font-size:11px"></i>Gérer</button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
+          <div style="padding:10px 16px;border-right:1px solid var(--bdr);border-bottom:1px solid var(--bdr)">
+            <div style="font-size:9px;font-family:var(--m);color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:3px">Renouvellement</div>
+            <div id="sub-renew-date" style="font-size:12px;font-weight:600;color:var(--txt)">—</div>
+          </div>
+          <div style="padding:10px 16px;border-bottom:1px solid var(--bdr)">
+            <div style="font-size:9px;font-family:var(--m);color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:3px">Moyen de paiement</div>
+            <div id="sub-card-info" style="font-size:12px;font-weight:600;color:var(--txt)">—</div>
+          </div>
+          <div style="padding:10px 16px">
+            <div style="font-size:9px;font-family:var(--m);color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:3px">Période</div>
+            <div id="sub-period-info" style="font-size:12px;font-weight:600;color:var(--txt)">—</div>
+          </div>
+          <div style="padding:10px 16px">
+            <div style="font-size:9px;font-family:var(--m);color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:3px">Prochaine facture</div>
+            <div id="sub-next-invoice" style="font-size:12px;font-weight:600;color:var(--txt)">—</div>
+          </div>
+        </div>
+        <div id="sub-cancel-warn" style="display:none;padding:10px 16px;background:rgba(251,191,36,.07);border-top:1px solid rgba(251,191,36,.2)">
+          <i class="ti ti-alert-triangle" style="color:#f59e0b;font-size:12px;margin-right:5px"></i>
+          <span id="sub-cancel-msg" style="font-size:11px;color:#f59e0b"></span>
+        </div>
+      </div>
+      <!-- Option stockage supplémentaire (Pro uniquement) -->
+      <div id="sub-extra-storage-block" style="display:none;margin-bottom:16px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;padding:14px 16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="display:flex;align-items:center;gap:7px">
+            <i class="ti ti-database-plus" style="color:#a78bfa;font-size:15px"></i>
+            <span style="font-size:12px;font-weight:600">Stockage supplémentaire</span>
+          </div>
+          <span style="font-size:10px;font-family:var(--m);color:var(--muted)">En option · à partir de 1€/mois</span>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.5">Les 50 Go Pro sont presque pleins ? Ajoutez du stockage directement sur votre abonnement.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+          <div class="sub-storage-opt" onclick="buyExtraStorage(50,'1')" data-gb="50">
+            <div style="font-size:16px;font-weight:800;color:var(--txt)">+50 Go</div>
+            <div style="font-size:10px;color:var(--muted);font-family:var(--m);margin:2px 0 8px">~50 000 photos</div>
+            <div style="font-size:13px;font-weight:700;color:#a78bfa">1€<span style="font-size:9px;color:var(--muted);font-weight:400">/mois</span></div>
+          </div>
+          <div class="sub-storage-opt popular" onclick="buyExtraStorage(200,'3')" data-gb="200">
+            <div style="font-size:9px;font-family:var(--m);color:#a78bfa;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Populaire</div>
+            <div style="font-size:16px;font-weight:800;color:var(--txt)">+200 Go</div>
+            <div style="font-size:10px;color:var(--muted);font-family:var(--m);margin:2px 0 8px">~200 000 photos</div>
+            <div style="font-size:13px;font-weight:700;color:#a78bfa">3€<span style="font-size:9px;color:var(--muted);font-weight:400">/mois</span></div>
+          </div>
+          <div class="sub-storage-opt" onclick="buyExtraStorage(1000,'8')" data-gb="1000">
+            <div style="font-size:16px;font-weight:800;color:var(--txt)">+1 To</div>
+            <div style="font-size:10px;color:var(--muted);font-family:var(--m);margin:2px 0 8px">~1 000 000 photos</div>
+            <div style="font-size:13px;font-weight:700;color:#a78bfa">8€<span style="font-size:9px;color:var(--muted);font-weight:400">/mois</span></div>
+          </div>
+        </div>
+        <div style="font-size:10px;color:var(--muted2);margin-top:8px;text-align:center">Facturé sur votre abonnement existant · Annulable à tout moment</div>
       </div>
       <!-- Stockage -->
       <div id="sub-storage-section" style="margin-bottom:16px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;padding:14px 16px">
@@ -13009,6 +13077,80 @@ async function submitSupport() {
   }
 }
 
+/* Charge les détails de l'abonnement LS et remplit le bloc "Abonnement actif" */
+async function _loadSubDetails() {
+  const set = function(id, val) { var el=document.getElementById(id); if(el) el.textContent = val||'—'; };
+  try {
+    const { data } = await _lsCall('portal', {});
+    if (!data) return;
+
+    // Statut badge
+    var badge = document.getElementById('sub-status-badge');
+    if (badge) {
+      var statusMap = {
+        active:     { label:'Actif',     color:'rgba(34,214,160,.12)',  text:'var(--grn)',  border:'rgba(34,214,160,.25)' },
+        on_trial:   { label:'Essai',     color:'rgba(99,179,237,.12)',  text:'var(--blu)',  border:'rgba(99,179,237,.25)' },
+        cancelled:  { label:'Annulé',    color:'rgba(251,191,36,.12)',  text:'#f59e0b',     border:'rgba(251,191,36,.25)' },
+        paused:     { label:'En pause',  color:'rgba(160,160,160,.12)', text:'var(--muted)',border:'var(--bdr2)' },
+        unpaid:     { label:'Impayé',    color:'rgba(239,68,68,.12)',   text:'var(--err)',  border:'rgba(239,68,68,.25)' },
+      };
+      var st = statusMap[data.status] || statusMap.active;
+      badge.textContent = st.label;
+      badge.style.background = st.color;
+      badge.style.color = st.text;
+      badge.style.borderColor = st.border;
+    }
+
+    // Date renouvellement
+    if (data.status === 'cancelled' && data.ends_at) {
+      set('sub-renew-date', 'Fin le ' + new Date(data.ends_at).toLocaleDateString('fr-FR', {day:'numeric',month:'long',year:'numeric'}));
+      var warn = document.getElementById('sub-cancel-warn');
+      var msg  = document.getElementById('sub-cancel-msg');
+      if (warn) warn.style.display = 'block';
+      if (msg)  msg.textContent = 'Votre abonnement se termine le ' + new Date(data.ends_at).toLocaleDateString('fr-FR', {day:'numeric',month:'long',year:'numeric'}) + '. Vos données restent accessibles jusqu\'à cette date.';
+    } else if (data.renews_at) {
+      set('sub-renew-date', new Date(data.renews_at).toLocaleDateString('fr-FR', {day:'numeric',month:'long',year:'numeric'}));
+    }
+
+    // Carte bancaire
+    if (data.card_brand && data.card_last_four) {
+      var cardIcons = { visa:'💳', mastercard:'💳', amex:'💳' };
+      set('sub-card-info', (data.card_brand.charAt(0).toUpperCase()+data.card_brand.slice(1)) + ' •••• ' + data.card_last_four);
+    }
+
+    // Période (mensuel / annuel)
+    var portalUrl = data.customer_portal_url || data.update_payment_url;
+    set('sub-period-info', data.renews_at ? 'Mensuel' : 'Annuel');
+
+    // Prochaine facture (estimation)
+    if (data.renews_at) {
+      set('sub-next-invoice', 'Le ' + new Date(data.renews_at).toLocaleDateString('fr-FR', {day:'numeric',month:'long'}));
+    }
+
+    // Bouton Gérer → portail LS
+    var manageBtn = document.querySelector('#sub-active-block button[onclick="openPortal()"]');
+    if (manageBtn && portalUrl) {
+      manageBtn.setAttribute('onclick', 'window.open("' + portalUrl + '","_blank")');
+    }
+
+  } catch(e) { console.warn('[_loadSubDetails]', e); }
+}
+
+/* Achat de stockage supplémentaire — ouvre une session checkout LS avec le bon produit */
+async function buyExtraStorage(gb, priceEur) {
+  toast('Redirection vers le paiement…');
+  try {
+    var { data, error } = await _lsCall('checkout', { variant: 'storage_' + gb });
+    if (error || !data?.url) {
+      toast('Option de stockage extra bientôt disponible — contactez le support.');
+      return;
+    }
+    window.open(data.url, '_blank');
+  } catch(e) {
+    toast('Option de stockage extra bientôt disponible — contactez le support.');
+  }
+}
+
 function openPlanModal() {
   const cur = userPlan();
   const descs = {
@@ -13055,12 +13197,19 @@ function openPlanModal() {
   // Masquer le sélecteur de période pour les abonnés Pro (déjà abonnés)
   var bpToggle = document.getElementById('sub-billing-toggle');
   if(bpToggle) bpToggle.style.display = (cur==='pro') ? 'none' : 'flex';
+  // Bloc abonnement actif + stockage extra (Pro uniquement)
+  var activeBlock = document.getElementById('sub-active-block');
+  var extraBlock  = document.getElementById('sub-extra-storage-block');
+  if(activeBlock) activeBlock.style.display = (cur==='pro') ? 'block' : 'none';
+  if(extraBlock)  extraBlock.style.display  = (cur==='pro') ? 'block' : 'none';
   setBillingPeriod(_billingPeriod); // applique les prix selon la période
   document.getElementById('plan-modal').className = 'modal-ov show';
   // Load storage stats async
   _loadSubStorageStats();
   // Compteur de liens de partage
   _updateShareQuotaUI();
+  // Charger détails abonnement Lemon Squeezy pour les Pro
+  if(cur==='pro') _loadSubDetails();
   var slHint=document.getElementById('sub-sl-hint');
   if(slHint){
     var slLim=planLimit('max_share_links');
