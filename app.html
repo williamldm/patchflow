@@ -14074,24 +14074,84 @@ async function openRecapMatos(){
   function _renderSite(cb){
     const raw=show.stage_data;
     const rider=raw&&raw.rider;
-    /* Priorité 1 : snapshot PNG pré-calculé au moment de la génération du lien */
+    /* Priorité 1 : snapshot PNG pré-calculé (toujours dispo, marche partout) */
     const siteSnap=rider&&rider.site_snapshot||null;
-    if(siteSnap){
-      var dataUrl=siteSnap;
-      _renderSiteImage(dataUrl,cb);
+    if(siteSnap){ _renderSiteImage(siteSnap,cb); return; }
+    /* Priorité 2 : renderer canvas autonome (ne dépend pas du singleton SitePlan)
+       Cherche les données site dans stage_data.site OU dans le snapshot rider */
+    var siteData=(raw&&raw.v>=2)?raw.site||null:null;
+    if(!siteData){
+      cb(_showMeta+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:12px">Aucun plan de site disponible.<br><span style="font-size:10px;opacity:.6">Re-générez le lien depuis l\'onglet Équipe pour inclure le plan de site.</span></div>');
       return;
     }
-    /* Priorité 2 : tenter le rendu live (fonctionne seulement dans l'app principale) */
-    const siteData=(raw&&raw.v>=2)?raw.site||null:null;
-    if(!siteData){cb(_showMeta+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:12px">Aucun plan de site enregistré.<br><span style="font-size:10px;opacity:.6">Re-générez le lien de partage depuis l\'onglet Équipe pour inclure le plan de site.</span></div>');return;}
-    SitePlan.load(siteData);
-    setTimeout(function(){
-      SitePlan.exportCanvas(function(cv){
-        var dataUrl=cv?cv.toDataURL('image/png'):null;
-        if(!dataUrl){cb(_showMeta+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:12px">Impossible de rendre le plan de site.</div>');return;}
-        _renderSiteImage(dataUrl,cb);
-      });
-    },200);
+    /* Renderer canvas pur — identique à SitePlan._makeCanvas mais sans dépendances DOM */
+    _renderSiteFromData(siteData, function(dataUrl){
+      if(!dataUrl){
+        cb(_showMeta+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:12px">Impossible de rendre le plan de site.</div>');
+        return;
+      }
+      _renderSiteImage(dataUrl, cb);
+    });
+  }
+
+  /* Renderer site plan autonome (canvas 2D, pas de dépendance DOM/SitePlan singleton) */
+  function _renderSiteFromData(siteData, cb){
+    var els = siteData.elements||[];
+    var cables = siteData.cables||[];
+    /* Définir les types de câbles par défaut (couleurs) */
+    var CABLE_COLORS = {'audio':'#3b82f6','video':'#a855f7','power':'#f59e0b','network':'#22c55e','other':'#6b7280'};
+    /* Bounding box */
+    var minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+    if(!els.length){ cb(null); return; }
+    els.forEach(function(e){
+      minX=Math.min(minX,e.x-40); minY=Math.min(minY,e.y-40);
+      maxX=Math.max(maxX,e.x+112); maxY=Math.max(maxY,e.y+130);
+    });
+    if(!isFinite(minX)){ minX=0;minY=0;maxX=1200;maxY=800; }
+    var W=maxX-minX, H=maxY-minY;
+    var SCALE=Math.min(2, 3840/Math.max(W,H));
+    var cw=Math.round(W*SCALE), ch=Math.round(H*SCALE);
+    var canvas=document.createElement('canvas');
+    canvas.width=cw; canvas.height=ch;
+    var ctx=canvas.getContext('2d');
+    ctx.fillStyle='#0a0f1c'; ctx.fillRect(0,0,cw,ch);
+    var wx=function(x){ return (x-minX)*SCALE; };
+    var wy=function(y){ return (y-minY)*SCALE; };
+    /* Câbles */
+    cables.forEach(function(c){
+      var fromEl=els.find(function(e){ return e.id===c.fromId; });
+      var toEl  =els.find(function(e){ return e.id===c.toId; });
+      if(!fromEl||!toEl) return;
+      var ct2 = (siteData.customCableTypes||[]).find(function(t){ return t.id===c.type; });
+      var col = ct2?ct2.color:(CABLE_COLORS[c.type]||'#4a90d9');
+      ctx.beginPath();
+      ctx.moveTo(wx(fromEl.x+50), wy(fromEl.y+50));
+      ctx.lineTo(wx(toEl.x+50),   wy(toEl.y+50));
+      ctx.strokeStyle=col; ctx.lineWidth=2.5*SCALE; ctx.globalAlpha=0.9;
+      if(ct2&&ct2.dash) ctx.setLineDash([6*SCALE,4*SCALE]);
+      ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha=1;
+    });
+    /* Éléments */
+    var drawn=0, total=els.length;
+    els.forEach(function(e){
+      var ex=wx(e.x), ey=wy(e.y), ew=72*SCALE, eh=72*SCALE;
+      var sz2=e.elSize?e.elSize*SCALE:72*SCALE; ew=sz2; eh=sz2;
+      /* Fond */
+      ctx.beginPath();
+      ctx.roundRect?ctx.roundRect(ex,ey,ew,eh,8*SCALE):ctx.rect(ex,ey,ew,eh);
+      ctx.fillStyle='rgba(30,42,64,0.9)'; ctx.fill();
+      ctx.strokeStyle='rgba(99,130,180,0.4)'; ctx.lineWidth=1.5*SCALE; ctx.stroke();
+      /* Label */
+      if(e.label){
+        ctx.fillStyle='#c8d8f0'; ctx.textAlign='center';
+        var fs=Math.max(10,Math.min(14,sz2*0.18));
+        ctx.font='600 '+fs+'px sans-serif';
+        ctx.fillText((e.label||'').slice(0,16), ex+ew/2, ey+ew*0.72);
+      }
+      drawn++;
+      if(drawn===total) cb(canvas.toDataURL('image/png'));
+    });
+    if(!total) cb(canvas.toDataURL('image/png'));
   }
   function _renderSiteImage(dataUrl,cb){
     if(isMobile){
@@ -14250,7 +14310,9 @@ async function openRecapMatos(){
       var dir=c.dir||'none';var cid='sarr-'+col.replace('#','');
       var mEnd=(dir==='forward'||dir==='both')?' marker-end="url(#'+cid+'-fwd)"':'';
       var mStart=(dir==='backward'||dir==='both')?' marker-start="url(#'+cid+'-bwd)"':'';
-      edgeSvg+='<line x1="'+sx0+'" y1="'+sy0+'" x2="'+sx1+'" y2="'+sy1+'" stroke="'+col+'" stroke-width="2.5" stroke-linecap="butt"'+mEnd+mStart+'/>';
+      /* vector-effect="non-scaling-stroke" : garde le trait visible (2.5px)
+         même quand le SVG est réduit à 100% sur mobile (évite sub-pixel invisible) */
+      edgeSvg+='<line x1="'+sx0+'" y1="'+sy0+'" x2="'+sx1+'" y2="'+sy1+'" stroke="'+col+'" stroke-width="2.5" stroke-linecap="butt" vector-effect="non-scaling-stroke"'+mEnd+mStart+'/>';
       if(c.label){
         var lines=c.label.split('\n');var lh=12,maxLen=0;
         lines.forEach(function(l){maxLen=Math.max(maxLen,l.length);});
