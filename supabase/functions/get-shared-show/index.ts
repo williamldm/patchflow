@@ -30,7 +30,7 @@ serve(async (req) => {
     // Vérifier que le show existe ET qu'il a un rider actif
     const { data: show } = await sbAdmin
       .from('shows')
-      .select('id, name, venue, show_date, stage_data, synoptique_data, out_data')
+      .select('id, name, venue, show_date, stage_data, synoptique_data')
       .eq('id', showId)
       .maybeSingle();
 
