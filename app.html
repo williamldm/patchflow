@@ -14256,14 +14256,14 @@ async function openRecapMatos(){
     +'<span>&#x1f504; '+now+'</span>'
     +'</div></div>';
 
-  /* Switch entre patches (Input List) */
-  function _svSelectPatch(patchId){
+  /* Switch entre patches (Input List) — window pour accès global depuis onclick */
+  window._svSelectPatch=function(patchId){
     CUR_PATCH_ID=patchId;
     rows=_allRows.filter(function(r){return (r.patch_id||'main')===CUR_PATCH_ID;});
     if(rows.length){CHS.splice(0,CHS.length,...rows);}
     _paneCache.il=_renderIL();
     document.getElementById('sv-body').innerHTML=_paneCache.il;
-  }
+  };
   /* Helper: HTML du sélecteur de scènes */
   function _svSceneSelector(sceneType){
     var scenes=SHOW_SCENES[sceneType]||[];
@@ -14290,8 +14290,8 @@ async function openRecapMatos(){
     return scene&&scene.data?scene.data[sceneType]:null;
   }
 
-  /* Switch entre scènes et recharger le rendu */
-  function _svSelectScene(sceneType, sceneId){
+  /* Switch entre scènes — window pour accès global depuis onclick */
+  window._svSelectScene=function(sceneType, sceneId){
     CUR_SCENES[sceneType]=sceneId;
     _paneCache[sceneType]=null;
     if(sceneType==='stage'){
@@ -14301,7 +14301,7 @@ async function openRecapMatos(){
     }else if(sceneType==='syno'){
       _paneCache.syno=_renderSyno();document.getElementById('sv-body').innerHTML=_paneCache.syno;
     }
-  }
+  };
 
   function _renderIL(){
     var h=_showMeta;
