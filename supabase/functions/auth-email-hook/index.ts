@@ -93,9 +93,15 @@ serve(async (req) => {
         break;
       case 'invite': {
         const meta = user.user_metadata || {};
-        const inviter   = meta.inviter   || 'Un technicien';
-        const showName  = meta.show_name || 'un show';
-        subject = `${inviter} vous invite sur PatchFlow — "${showName}"`;
+        // Valeurs venant de user_metadata (posées par le propriétaire) → échapper le HTML
+        const esc = (s: string) => String(s ?? '')
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        const inviterRaw  = meta.inviter   || 'Un technicien';
+        const showNameRaw = meta.show_name || 'un show';
+        const inviter   = esc(inviterRaw);
+        const showName  = esc(showNameRaw);
+        subject = `${inviterRaw} vous invite sur PatchFlow — "${showNameRaw}"`;
         html = shell(`${inviter} vous invite sur PatchFlow 🎧`,
           `<strong>${inviter}</strong> vous invite à rejoindre le show <strong>${showName}</strong> sur PatchFlow.<br/><br/>Créez votre compte en cliquant ci-dessous pour accéder au show directement.`,
           'Créer mon compte', verifyUrl, 'Ce lien expire dans 24 heures. Si vous ne connaissez pas cet utilisateur, ignorez cet email.');

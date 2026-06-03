@@ -204,7 +204,15 @@ serve(async (req) => {
       // Non bloquant : on continue l'envoi même si la DB échoue
     }
 
-    const displayName = userName || user.user_metadata?.full_name || user.email || 'Utilisateur';
+    // Échappement HTML pour empêcher l'injection de markup/liens (phishing) dans les emails
+    const esc = (s: string) => String(s ?? '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+    const displayNameRaw = userName || user.user_metadata?.full_name || user.email || 'Utilisateur';
+    const displayName  = esc(displayNameRaw);
+    const subjectHtml  = esc(subjectSafe);
+    const messageHtml  = esc(messageSafe);
     const now = new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' });
 
     /* Auto-reply to user */
@@ -218,12 +226,12 @@ serve(async (req) => {
   <div style="padding:28px">
     <p style="font-size:15px;font-weight:600;color:#1d3a5f;margin:0 0 10px">Bonjour ${displayName},</p>
     <p style="font-size:13px;color:#475569;line-height:1.6;margin:0 0 18px">
-      Nous avons bien reçu votre message concernant <strong>&quot;${subjectSafe}&quot;</strong>.<br/>
+      Nous avons bien reçu votre message concernant <strong>&quot;${subjectHtml}&quot;</strong>.<br/>
       Notre équipe vous répondra dans les plus brefs délais (24 à 48h).
     </p>
     <div style="background:#f8fafc;border-left:3px solid #ff6b1a;border-radius:0 8px 8px 0;padding:14px 16px;margin-bottom:20px">
       <p style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin:0 0 6px">Votre message</p>
-      <p style="font-size:13px;color:#334155;line-height:1.5;margin:0;white-space:pre-wrap">${messageSafe}</p>
+      <p style="font-size:13px;color:#334155;line-height:1.5;margin:0;white-space:pre-wrap">${messageHtml}</p>
     </div>
     <p style="font-size:12px;color:#94a3b8;margin:0">Envoyé le ${now}</p>
   </div>
@@ -245,22 +253,22 @@ serve(async (req) => {
       <tr><td style="padding:6px 0;font-size:11px;color:#64748b;width:100px">Utilisateur</td>
           <td style="padding:6px 0;font-size:13px;color:#e2e8f0;font-weight:600">${displayName}</td></tr>
       <tr><td style="padding:6px 0;font-size:11px;color:#64748b">Email</td>
-          <td style="padding:6px 0;font-size:13px;color:#ff6b1a">${user.email}</td></tr>
+          <td style="padding:6px 0;font-size:13px;color:#ff6b1a">${esc(user.email ?? '')}</td></tr>
       <tr><td style="padding:6px 0;font-size:11px;color:#64748b">Sujet</td>
-          <td style="padding:6px 0;font-size:13px;color:#e2e8f0;font-weight:600">${subjectSafe}</td></tr>
+          <td style="padding:6px 0;font-size:13px;color:#e2e8f0;font-weight:600">${subjectHtml}</td></tr>
     </table>
     <div style="background:#0f1525;border-radius:8px;padding:16px;border:1px solid #2c3f5f">
       <p style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin:0 0 8px">Message</p>
-      <p style="font-size:13px;color:#cbd5e1;line-height:1.6;margin:0;white-space:pre-wrap">${messageSafe}</p>
+      <p style="font-size:13px;color:#cbd5e1;line-height:1.6;margin:0;white-space:pre-wrap">${messageHtml}</p>
     </div>
     <div style="margin-top:16px;padding:12px;background:rgba(255,107,26,.08);border-radius:8px;border:1px solid rgba(255,107,26,.2)">
-      <p style="font-size:12px;color:#94a3b8;margin:0">Répondre à : <a href="mailto:${user.email}" style="color:#ff6b1a">${user.email}</a></p>
+      <p style="font-size:12px;color:#94a3b8;margin:0">Répondre à : <a href="mailto:${esc(user.email ?? '')}" style="color:#ff6b1a">${esc(user.email ?? '')}</a></p>
     </div>
   </div>
 </div></body></html>`;
 
     // Email support (vers patchflow.fr — marche via SMTP)
-    await sendEmail(SUPPORT_EMAIL, `[Support] ${subjectSafe} — ${displayName} (${user.email})`, teamHtml);
+    await sendEmail(SUPPORT_EMAIL, `[Support] ${subjectSafe} — ${displayNameRaw} (${user.email})`, teamHtml);
 
     // Email confirmation client (vers domaine externe potentiel — gmail, yahoo, etc.)
     // Utilise Resend si configuré, sinon SMTP avec best-effort (peut échouer sur relay externe)

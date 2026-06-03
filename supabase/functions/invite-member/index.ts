@@ -87,8 +87,14 @@ serve(async (req) => {
     /* ── 4. Cannot invite yourself ── */
     if (normalEmail === caller.email?.toLowerCase()) return json(400, { error: 'Vous ne pouvez pas vous inviter vous-même' });
 
-    const inviterName = caller.user_metadata?.full_name || caller.email || 'Un technicien';
-    const showName    = show.name || 'Show sans nom';
+    // Échappement HTML pour les valeurs injectées dans les emails (anti-phishing/XSS)
+    const esc = (s: string) => String(s ?? '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    const inviterNameRaw = caller.user_metadata?.full_name || caller.email || 'Un technicien';
+    const showNameRaw    = show.name || 'Show sans nom';
+    const inviterName    = esc(inviterNameRaw);  // utilisé dans les corps HTML
+    const showName       = esc(showNameRaw);     // utilisé dans les corps HTML
 
     /* ── 5. Check if user already exists in auth.users ── */
     const { data: { users: existingUsers } } = await sbAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
@@ -124,7 +130,7 @@ serve(async (req) => {
       await transporter.sendMail({
         from: `PatchFlow <${SMTP_USER}>`,
         to: normalEmail,
-        subject: `Vous avez été ajouté au show "${showName}" — PatchFlow`,
+        subject: `Vous avez été ajouté au show "${showNameRaw}" — PatchFlow`,
         html,
       });
 
@@ -139,15 +145,16 @@ serve(async (req) => {
         invited_email: normalEmail,
         role,
         invited_by: caller.id,
-        show_name: showName,
-        inviter_name: inviterName,
+        show_name: showNameRaw,
+        inviter_name: inviterNameRaw,
       }, { onConflict: 'show_id,invited_email' });
       if (invErr) throw invErr;
 
-      /* Invite via GoTrue — our auth-email-hook will send the branded email */
+      /* Invite via GoTrue — our auth-email-hook will send the branded email
+         (les valeurs brutes : le hook ré-échappe au rendu HTML) */
       const { error: inviteErr } = await sbAdmin.auth.admin.inviteUserByEmail(normalEmail, {
         redirectTo: `${SITE_URL}/app.html`,
-        data: { invited_to_show: showId, invited_role: role, inviter: inviterName, show_name: showName },
+        data: { invited_to_show: showId, invited_role: role, inviter: inviterNameRaw, show_name: showNameRaw },
       });
 
       /* If invite API fails (e.g. user already invited), send our own email as fallback */
@@ -163,7 +170,7 @@ serve(async (req) => {
         await transporter.sendMail({
           from: `PatchFlow <${SMTP_USER}>`,
           to: normalEmail,
-          subject: `${inviterName} vous invite sur PatchFlow — "${showName}"`,
+          subject: `${inviterNameRaw} vous invite sur PatchFlow — "${showNameRaw}"`,
           html,
         });
       }

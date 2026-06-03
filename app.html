@@ -10603,18 +10603,20 @@ const SitePlan = (() => {
     const el = $('site-cable-picker');
     if(!el) return;
     const c = ct(state.activeCableType);
+    const _hc = _safeColor(c.color)||'#888';
     const hdDot = c.dash
-      ? `background:repeating-linear-gradient(90deg,${c.color} 0,${c.color} 7px,transparent 7px,transparent 10px);`
-      : `background:${c.color};`;
+      ? `background:repeating-linear-gradient(90deg,${_hc} 0,${_hc} 7px,transparent 7px,transparent 10px);`
+      : `background:${_hc};`;
     const items = CABLE_TYPES.map(ct2 => {
+      const _c2 = _safeColor(ct2.color)||'#888';
       const ds = ct2.dash
-        ? `background:repeating-linear-gradient(90deg,${ct2.color} 0,${ct2.color} 7px,transparent 7px,transparent 10px);`
-        : `background:${ct2.color};`;
+        ? `background:repeating-linear-gradient(90deg,${_c2} 0,${_c2} 7px,transparent 7px,transparent 10px);`
+        : `background:${_c2};`;
       const isCur = ct2.id === state.activeCableType;
       const delBtn = ct2.builtin ? '' :
         `<button class="spl-cable-del" data-del="${ct2.id}" title="Supprimer" onclick="event.stopPropagation();SitePlan.deleteCustomCableType('${ct2.id}')">✕</button>`;
       return `<div style="display:flex;align-items:center;gap:2px">` +
-        `<button class="spl-cable-btn${isCur?' active':''}" style="--c:${ct2.color};flex:1" onclick="SitePlan.setActiveCableType('${ct2.id}')">` +
+        `<button class="spl-cable-btn${isCur?' active':''}" style="--c:${_c2};flex:1" onclick="SitePlan.setActiveCableType('${ct2.id}')">` +
         `<div class="spl-cable-dot-sm" style="${ds}"></div>${esc(ct2.label)}</button>${delBtn}</div>`;
     }).join('');
     const addBtn =
@@ -10652,11 +10654,12 @@ const SitePlan = (() => {
     leg.style.display='';
     const rows = usedIds.map(id=>{
       const c = CABLE_TYPES.find(t=>t.id===id)||CABLE_TYPES[0];
+      const _col = _safeColor(c.color) || '#888';
       const bg = c.dash
-        ? `repeating-linear-gradient(90deg,${c.color} 0,${c.color} 7px,transparent 7px,transparent 10px)`
-        : c.color;
-      const bgStyle = c.dash ? `background:${bg};` : `background:${c.color};`;
-      return `<div class="scl-row"><div class="scl-line" style="${bgStyle}"></div><span>${c.label}</span></div>`;
+        ? `repeating-linear-gradient(90deg,${_col} 0,${_col} 7px,transparent 7px,transparent 10px)`
+        : _col;
+      const bgStyle = c.dash ? `background:${bg};` : `background:${_col};`;
+      return `<div class="scl-row"><div class="scl-line" style="${bgStyle}"></div><span>${esc(c.label)}</span></div>`;
     }).join('');
     const ls = state.legendScale || 1;
     leg.style.setProperty('--leg-ts', ls);
@@ -10900,11 +10903,11 @@ const SitePlan = (() => {
         {v:'none',    lbl:'—', title:'Sans fleche'},
       ].map(d=>`<button class="spl-dir-btn${dir===d.v?' on':''}" data-dir="${d.v}" title="${d.title}">${d.lbl}</button>`).join('');
       insp.innerHTML =
-        `<div class="syn-insp-title" style="color:${c.color}">Liaison</div>`+
+        `<div class="syn-insp-title" style="color:${_safeColor(c.color)||'#888'}">Liaison</div>`+
         `<div style="display:flex;gap:5px;align-items:center;margin-bottom:10px;font-size:11px;color:var(--txt2);flex-wrap:wrap">`+
-        `<span style="color:var(--muted);font-size:10px">${fromLbl}</span><span style="color:${c.color};font-size:13px">──</span><span style="color:var(--muted);font-size:10px">${toLbl}</span></div>`+
+        `<span style="color:var(--muted);font-size:10px">${fromLbl}</span><span style="color:${_safeColor(c.color)||'#888'};font-size:13px">──</span><span style="color:var(--muted);font-size:10px">${toLbl}</span></div>`+
         `<label class="syn-insp-lbl">Type</label>`+
-        `<select class="syn-insp-inp" id="si-ct">${CABLE_TYPES.map(ct2=>`<option value="${ct2.id}"${cable.type===ct2.id?' selected':''}>${ct2.label}</option>`).join('')}</select>`+
+        `<select class="syn-insp-inp" id="si-ct">${CABLE_TYPES.map(ct2=>`<option value="${esc(ct2.id)}"${cable.type===ct2.id?' selected':''}>${esc(ct2.label)}</option>`).join('')}</select>`+
         `<label class="syn-insp-lbl">Sens</label>`+
         `<div class="spl-dir-bar" id="si-dirbar">${dirBtns}</div>`+
         `<label class="syn-insp-lbl">Epaisseur</label>`+
@@ -11063,14 +11066,15 @@ const SitePlan = (() => {
     const b=$('site-link-banner'), wrap=$('site-canvas-wrap');
     if(!b) return;
     const c=CABLE_TYPES.find(t=>t.id===state.activeCableType)||CABLE_TYPES[0];
+    const _cCol=_safeColor(c.color)||'#888', _cLbl=esc(c.label);
     if(state.cableMode && state.freePt1){
-      b.innerHTML=`<i class="ti ti-plug-connected"></i> <span style="color:${c.color};font-weight:600">${c.label}</span> &nbsp;— cliquez le <b>point d'arrivee</b> ou un element &nbsp;<span style="opacity:.5">Echap = annuler</span>`;
+      b.innerHTML=`<i class="ti ti-plug-connected"></i> <span style="color:${_cCol};font-weight:600">${_cLbl}</span> &nbsp;— cliquez le <b>point d'arrivee</b> ou un element &nbsp;<span style="opacity:.5">Echap = annuler</span>`;
       b.classList.add('show');
     } else if(state.cableMode && !state.linkFrom){
-      b.innerHTML=`<i class="ti ti-plug-connected"></i> <span style="color:${c.color};font-weight:600">${c.label}</span> &nbsp;— cliquez un element ou un <b>point sur le plan</b> &nbsp;<span style="opacity:.5">Echap = quitter</span>`;
+      b.innerHTML=`<i class="ti ti-plug-connected"></i> <span style="color:${_cCol};font-weight:600">${_cLbl}</span> &nbsp;— cliquez un element ou un <b>point sur le plan</b> &nbsp;<span style="opacity:.5">Echap = quitter</span>`;
       b.classList.add('show');
     } else if(state.linkFrom){
-      b.innerHTML=`<i class="ti ti-plug-connected"></i> <span style="color:${c.color};font-weight:600">${c.label}</span> &nbsp;— cliquez la <b>destination</b> &nbsp;<span style="opacity:.5">Echap = annuler</span>`;
+      b.innerHTML=`<i class="ti ti-plug-connected"></i> <span style="color:${_cCol};font-weight:600">${_cLbl}</span> &nbsp;— cliquez la <b>destination</b> &nbsp;<span style="opacity:.5">Echap = annuler</span>`;
       b.classList.add('show');
     } else {
       b.classList.remove('show');

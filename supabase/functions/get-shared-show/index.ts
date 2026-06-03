@@ -9,7 +9,8 @@ const CORS = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
-const UUID_RE = /^[0-9a-f-]{36}$/i;
+// UUID v4 strict (évite d'accepter "36 tirets" ou des formats arbitraires)
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /* Récupère le show, ses canaux, ses patches et ses scènes */
 async function fetchShowData(sbAdmin: ReturnType<typeof createClient>, showId: string) {

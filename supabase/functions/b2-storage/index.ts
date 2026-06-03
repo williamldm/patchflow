@@ -34,6 +34,9 @@ const s3 = new S3Client({
 
 const SKIP = new Set(['.keep', '.emptyFolderPlaceholder']);
 
+// UUID strict (les showId sont des UUID v4)
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // ── Auth helper ──
 async function getUser(req: Request) {
   const auth = req.headers.get('Authorization');
@@ -55,7 +58,7 @@ async function getUser(req: Request) {
 async function userCanAccessShow(userId: string, showId: string, _cache: Map<string, boolean>): Promise<boolean> {
   if (!showId || typeof showId !== 'string') return false;
   // Validation UUID basique (évite injection SQL via showId malformé)
-  if (!/^[0-9a-f-]{36}$/i.test(showId)) return false;
+  if (!UUID_RE.test(showId)) return false;
   const key = userId + ':' + showId;
   if (_cache.has(key)) return _cache.get(key)!;
   const sbAdmin = createClient(
@@ -77,7 +80,7 @@ async function userCanAccessShow(userId: string, showId: string, _cache: Map<str
 /* Extrait le showId du début d'une clé B2 (format: "showId/...") */
 function extractShowId(path: string): string | null {
   if (!path || typeof path !== 'string') return null;
-  const m = path.match(/^([0-9a-f-]{36})\//i);
+  const m = path.match(/^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\//i);
   return m ? m[1] : null;
 }
 
@@ -103,7 +106,7 @@ serve(async (req) => {
        les pièces jointes sans avoir de compte. */
     if (action === 'public-rider-file') {
       const { path, showId } = body as { path: string; showId: string };
-      if (!path || !showId || !/^[0-9a-f-]{36}$/i.test(showId)) {
+      if (!path || !showId || !UUID_RE.test(showId)) {
         return json({ error: 'Paramètres invalides' }, 400);
       }
       // Vérifier que le path commence bien par showId/
@@ -138,7 +141,7 @@ serve(async (req) => {
     /* ── public-cloud-list : lecture depuis Supabase (vue partagée, sans auth) ── */
     if (action === 'public-cloud-list') {
       const { prefix, showId } = body as { prefix: string; showId: string };
-      if (!showId || !/^[0-9a-f-]{36}$/i.test(showId)) return json({ error: 'showId invalide' }, 400);
+      if (!showId || !UUID_RE.test(showId)) return json({ error: 'showId invalide' }, 400);
       if (!prefix.startsWith(showId + '/')) return json({ error: 'Préfixe non autorisé' }, 403);
       const sbAdmin = createClient(
         Deno.env.get('SUPABASE_URL')!,
