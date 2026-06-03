@@ -1899,18 +1899,11 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
               <i class="ti ti-plus"></i>Nouveau lien
             </button>
             <div id="link-new-form" class="link-form" style="display:none">
-              <div class="link-form-title"><i class="ti ti-link"></i>Nouveau lien de partage</div>
-              <input id="link-form-name" placeholder="Nom du lien (ex: Lien FOH, Lien Backline…)" maxlength="60"/>
-              <div class="slink-sections" id="link-form-sections" style="margin-bottom:10px">
-                <button class="slink-check checked" data-sec="il"><i class="ti ti-list-numbers"></i>Input List</button>
-                <button class="slink-check" data-sec="out"><i class="ti ti-list-letters"></i>Output</button>
-                <button class="slink-check" data-sec="syno"><i class="ti ti-topology-star"></i>Synoptique</button>
-                <button class="slink-check" data-sec="stage"><i class="ti ti-map-2"></i>Plan scène</button>
-                <button class="slink-check" data-sec="site"><i class="ti ti-building-stadium"></i>Plan site</button>
-                <button class="slink-check" data-sec="cloud"><i class="ti ti-cloud"></i>Fichiers</button>
-              </div>
+              <div class="link-form-title"><i class="ti ti-link"></i>Nommer ce lien</div>
+              <div style="font-size:10px;color:var(--muted);margin-bottom:8px">Les sections et infos configurées ci-dessus seront incluses dans ce lien.</div>
+              <input id="link-form-name" placeholder="ex: Lien FOH, Lien Backline, Lien Client…" maxlength="60"/>
               <div style="display:flex;gap:8px">
-                <button class="btn sm" onclick="_createLink()" style="flex:1;background:var(--ora);color:#000;border-color:var(--ora)"><i class="ti ti-check"></i>Créer</button>
+                <button class="btn sm" onclick="_createLink()" style="flex:1;background:var(--ora);color:#000;border-color:var(--ora)"><i class="ti ti-check"></i>Créer le lien</button>
                 <button class="btn ghost sm" onclick="_closeNewLinkForm()" style="flex:1">Annuler</button>
               </div>
             </div>
@@ -4996,10 +4989,7 @@ function _openNewLinkForm(){
   var b=document.getElementById('link-new-btn');
   if(f) f.style.display='block';
   if(b) b.style.display='none';
-  // Bind section toggles
-  document.querySelectorAll('#link-form-sections .slink-check').forEach(function(btn){
-    btn.onclick=function(){btn.classList.toggle('checked');};
-  });
+  setTimeout(function(){ document.getElementById('link-form-name')?.focus(); },50);
 }
 function _closeNewLinkForm(){
   var f=document.getElementById('link-new-form');
@@ -5007,25 +4997,28 @@ function _closeNewLinkForm(){
   if(f) f.style.display='none';
   if(b) b.style.display='flex';
   var ni=document.getElementById('link-form-name'); if(ni)ni.value='';
-  document.querySelectorAll('#link-form-sections .slink-check').forEach(function(btn){
-    btn.classList.toggle('checked', btn.getAttribute('data-sec')==='il');
-  });
 }
 
 async function _createLink(){
   if(!CUR_SHOW)return;
   var name=(document.getElementById('link-form-name')?.value||'').trim()||'Lien partagé';
-  var sections=[];
-  document.querySelectorAll('#link-form-sections .slink-check.checked').forEach(function(btn){
-    var s=btn.getAttribute('data-sec'); if(s)sections.push(s);
-  });
-  if(!sections.length){toast('Sélectionnez au moins une section.');return;}
+  /* Utiliser les sections cochées en haut du builder (pas de doublon) */
+  var sections=Object.keys(_riderSections).filter(function(k){return _riderSections[k];});
+  if(!sections.length){toast('Sélectionnez au moins une section en haut du builder.');return;}
 
   var btn=document.querySelector('#link-new-form .btn:first-of-type');
   if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .8s linear infinite"></i>';}
 
-  /* Pré-calculer les snapshots nécessaires */
-  var config={};
+  /* Récupérer les infos depuis les champs existants du builder */
+  var config={
+    title:(document.getElementById('rider-title')?.value||'').trim(),
+    note: (document.getElementById('rider-note')?.value||'').trim(),
+    info: (document.getElementById('rider-info')?.value||'').trim(),
+    files: Array.from(_riderPickedFiles),
+    out_snapshot: CUR_SHOW.out_data||OUT_DATA||{}
+  };
+
+  /* Pré-calculer les snapshots visuels */
   if(sections.includes('site')){
     if(!SitePlan.hasContent()&&CUR_SHOW?.stage_data?.site) SitePlan.load(CUR_SHOW.stage_data.site);
     try{
