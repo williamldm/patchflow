@@ -11,9 +11,10 @@
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
   --bg:#080b12;--bg2:#0a0f1c;--surf:#0f1629;--surf2:#141c2e;--surf3:#1a2438;
-  --bdr:#1e2a3a;--bdr2:#243040;
+  --bdr:#1e2a3a;--bdr2:#243040;--bdr3:#2d3a4d;
   --txt:#e8edf8;--txt2:#b0bcd4;--muted:#6a7a94;
-  --ora:#ff6b1a;--ora2:#ff8c42;--ora-d:rgba(255,107,26,.12);
+  --ora:#ff6b1a;--ora2:#ff8c42;--ora-d:rgba(255,107,26,.12);--ora-g:rgba(255,107,26,.28);
+  --err:#f87171;
   --blu:#1a8fff;--grn:#22d6a0;--pur:#9b6aff;
   --f:'Outfit',sans-serif;--m:'DM Mono',monospace;
 }
@@ -131,7 +132,9 @@ h2 em{font-style:normal;color:var(--ora)}
 .feat-shell{display:grid;grid-template-columns:300px 1fr;gap:0;margin-top:64px;border:1px solid var(--bdr2);border-radius:18px;overflow:hidden;min-height:520px;background:var(--surf)}
 .feat-sidebar{border-right:1px solid var(--bdr);display:flex;flex-direction:column;overflow-y:auto}
 .feat-sidebar-head{padding:16px 18px 10px;font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);border-bottom:1px solid var(--bdr)}
-.feat-item{display:flex;align-items:center;gap:12px;padding:13px 18px;cursor:pointer;border-left:3px solid transparent;transition:all .16s;position:relative}
+.feat-group-label{padding:14px 18px 6px;font-family:var(--m);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--ora);opacity:.85}
+.feat-group-label:first-child{padding-top:18px}
+.feat-item{display:flex;align-items:center;gap:11px;padding:10px 18px;cursor:pointer;border-left:3px solid transparent;transition:all .16s;position:relative}
 .feat-item:hover{background:var(--surf2)}
 .feat-item.active{background:var(--surf2);border-left-color:var(--ora)}
 .feat-item-ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;transition:all .16s}
@@ -142,6 +145,7 @@ h2 em{font-style:normal;color:var(--ora)}
 .feat-item-sub{font-size:10px;color:var(--muted);font-family:var(--m);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .feat-item-arr{font-size:10px;color:var(--muted);transition:color .15s}
 .feat-item.active .feat-item-arr{color:var(--ora)}
+.feat-pro-pill{display:inline-flex;align-items:center;padding:1px 6px;border-radius:4px;font-size:8px;font-family:var(--m);font-weight:700;background:var(--ora-d);color:var(--ora);border:1px solid var(--ora-g);vertical-align:middle;margin-left:4px;letter-spacing:.5px}
 .feat-preview{flex:1;position:relative;overflow:hidden;background:var(--bg2)}
 .feat-pane{display:none;flex-direction:column;height:100%}
 .feat-pane.active{display:flex}
@@ -191,6 +195,20 @@ h2 em{font-style:normal;color:var(--ora)}
 .mk-tpl-ic{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
 .mk-share-box{background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;padding:16px;margin-bottom:14px}
 .mk-url{background:var(--bg);border:1px solid var(--bdr2);border-radius:7px;padding:8px 12px;font-family:var(--m);font-size:10px;color:var(--blu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Gestionnaire de liens (mockup) */
+.mk-linkcard{background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;overflow:hidden;margin-bottom:8px;transition:border-color .15s}
+.mk-linkcard:hover{border-color:var(--bdr3)}
+.mk-linkcard-head{display:flex;align-items:center;gap:8px;padding:10px 12px}
+.mk-linkcard-name{font-size:12px;font-weight:700;color:var(--txt);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mk-linkcard-del{font-size:13px;color:var(--muted);cursor:pointer;transition:color .15s}
+.mk-linkcard-del:hover{color:var(--err)}
+.mk-linkcard-secs{display:flex;flex-wrap:wrap;gap:4px;padding:0 12px 10px}
+.mk-secbadge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-family:var(--m);padding:2px 7px;border-radius:5px;background:var(--surf3);color:var(--txt2);border:1px solid var(--bdr2)}
+.mk-linkcard-url{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg);border-top:1px solid var(--bdr)}
+.mk-linkcard-url span:first-child{flex:1;font-size:10px;font-family:var(--m);color:var(--ora);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mk-linkcard-copy{flex-shrink:0;font-size:10px;font-family:var(--m);color:var(--muted);border:1px solid var(--bdr2);border-radius:5px;padding:3px 9px;cursor:pointer}
+.mk-linknew{display:flex;align-items:center;justify-content:center;gap:7px;padding:11px;border:1px dashed var(--bdr2);border-radius:10px;color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;transition:all .15s}
+.mk-linknew:hover{border-color:var(--ora);color:var(--ora);background:var(--ora-d)}
 .mk-team-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surf2);border-radius:9px;margin-bottom:8px}
 .mk-av{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
 .mk-online{width:8px;height:8px;border-radius:50%;background:var(--grn);flex-shrink:0}
@@ -204,7 +222,7 @@ h2 em{font-style:normal;color:var(--ora)}
 .mk-ila-val{font-size:22px;font-weight:800;color:var(--ora);font-family:var(--m);line-height:1}
 .mk-spin-row{display:flex;align-items:center;gap:6px}
 .mk-spin-btn{width:22px;height:22px;border-radius:5px;border:1px solid var(--bdr2);background:var(--surf3);color:var(--txt2);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center}
-@media(max-width:900px){.feat-shell{grid-template-columns:1fr;min-height:auto}.feat-sidebar{flex-direction:row;overflow-x:auto;border-right:none;border-bottom:1px solid var(--bdr)}.feat-item{flex-direction:column;align-items:center;text-align:center;border-left:none;border-bottom:3px solid transparent;padding:10px 14px;min-width:80px}.feat-item.active{border-left-color:transparent;border-bottom-color:var(--ora)}.feat-item-sub,.feat-item-arr{display:none}}
+@media(max-width:900px){.feat-shell{grid-template-columns:1fr;min-height:auto}.feat-sidebar{flex-direction:row;overflow-x:auto;border-right:none;border-bottom:1px solid var(--bdr)}.feat-item{flex-direction:column;align-items:center;text-align:center;border-left:none;border-bottom:3px solid transparent;padding:10px 14px;min-width:80px}.feat-item.active{border-left-color:transparent;border-bottom-color:var(--ora)}.feat-item-sub,.feat-item-arr,.feat-group-label{display:none}}
 
 /* ── HOW ── */
 .how-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:32px;margin-top:64px;counter-reset:steps}
@@ -583,8 +601,9 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
 
     <!-- SIDEBAR -->
     <div class="feat-sidebar">
-      <div class="feat-sidebar-head">13 fonctionnalites</div>
 
+      <!-- GROUPE 1 : LE PATCH -->
+      <div class="feat-group-label">Construire le patch</div>
       <div class="feat-item active" onclick="showFeat('inputlist',this)">
         <div class="feat-item-ic" style="background:rgba(255,107,26,.12);color:var(--ora)"><i class="ti ti-list-numbers"></i></div>
         <div class="feat-item-text"><div class="feat-item-name">Input List</div><div class="feat-item-sub">Patch complet, colonnes, tri</div></div>
@@ -595,62 +614,71 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
         <div class="feat-item-text"><div class="feat-item-name">Output List</div><div class="feat-item-sub">Sorties HP, retours, IEM</div></div>
         <i class="ti ti-chevron-right feat-item-arr"></i>
       </div>
-      <div class="feat-item" onclick="showFeat('multipatches',this)">
-        <div class="feat-item-ic" style="background:rgba(245,197,66,.12);color:#f5c542"><i class="ti ti-layout-grid"></i></div>
-        <div class="feat-item-text"><div class="feat-item-name">Multi-patches &amp; Multi-scènes <span style="display:inline-flex;align-items:center;padding:1px 6px;border-radius:4px;font-size:9px;font-family:var(--m);font-weight:700;background:var(--ora-d);color:var(--ora);border:1px solid var(--ora-g);vertical-align:middle;margin-left:3px">Pro</span></div><div class="feat-item-sub">Patches A/B, scènes multiples</div></div>
-        <i class="ti ti-chevron-right feat-item-arr"></i>
-      </div>
       <div class="feat-item" onclick="showFeat('assistant',this)">
         <div class="feat-item-ic" style="background:rgba(155,106,255,.12);color:var(--pur)"><i class="ti ti-wand"></i></div>
-        <div class="feat-item-text"><div class="feat-item-name">Assistant ILA</div><div class="feat-item-sub">Generation automatique</div></div>
+        <div class="feat-item-text"><div class="feat-item-name">Assistant ILA</div><div class="feat-item-sub">Patch généré automatiquement</div></div>
         <i class="ti ti-chevron-right feat-item-arr"></i>
       </div>
       <div class="feat-item" onclick="showFeat('templates',this)">
         <div class="feat-item-ic" style="background:rgba(245,197,66,.12);color:#f5c542"><i class="ti ti-template"></i></div>
-        <div class="feat-item-text"><div class="feat-item-name">Templates</div><div class="feat-item-sub">Configurations sauvegardees</div></div>
+        <div class="feat-item-text"><div class="feat-item-name">Templates</div><div class="feat-item-sub">Configurations réutilisables</div></div>
         <i class="ti ti-chevron-right feat-item-arr"></i>
       </div>
+      <div class="feat-item" onclick="showFeat('multipatches',this)">
+        <div class="feat-item-ic" style="background:rgba(245,197,66,.12);color:#f5c542"><i class="ti ti-layout-grid"></i></div>
+        <div class="feat-item-text"><div class="feat-item-name">Multi-patches &amp; scènes <span class="feat-pro-pill">Pro</span></div><div class="feat-item-sub">Plusieurs configs par show</div></div>
+        <i class="ti ti-chevron-right feat-item-arr"></i>
+      </div>
+
+      <!-- GROUPE 2 : PLANS VISUELS -->
+      <div class="feat-group-label">Plans &amp; schémas</div>
       <div class="feat-item" onclick="showFeat('bandplan',this)">
         <div class="feat-item-ic" style="background:rgba(155,106,255,.12);color:var(--pur)"><i class="ti ti-layout-board"></i></div>
-        <div class="feat-item-text"><div class="feat-item-name">Plan de scène</div><div class="feat-item-sub">Instruments · vue mobile zoom</div></div>
+        <div class="feat-item-text"><div class="feat-item-name">Plan de scène</div><div class="feat-item-sub">Instruments · logos pro</div></div>
         <i class="ti ti-chevron-right feat-item-arr"></i>
       </div>
       <div class="feat-item" onclick="showFeat('synoptique',this)">
         <div class="feat-item-ic" style="background:rgba(26,143,255,.12);color:var(--blu)"><i class="ti ti-topology-star"></i></div>
-        <div class="feat-item-text"><div class="feat-item-name">Synoptique de signal</div><div class="feat-item-sub">115+ équipements · vue mobile</div></div>
+        <div class="feat-item-text"><div class="feat-item-name">Synoptique de signal</div><div class="feat-item-sub">115+ équipements</div></div>
         <i class="ti ti-chevron-right feat-item-arr"></i>
       </div>
       <div class="feat-item" onclick="showFeat('siteplan',this)">
         <div class="feat-item-ic" style="background:rgba(34,214,160,.12);color:var(--grn)"><i class="ti ti-map-2"></i></div>
-        <div class="feat-item-text"><div class="feat-item-name">Plan de site</div><div class="feat-item-sub">Implantation · vue mobile zoom</div></div>
+        <div class="feat-item-text"><div class="feat-item-name">Plan de site</div><div class="feat-item-sub">Implantation · câblage</div></div>
+        <i class="ti ti-chevron-right feat-item-arr"></i>
+      </div>
+
+      <!-- GROUPE 3 : PARTAGE & ÉQUIPE -->
+      <div class="feat-group-label">Partager &amp; collaborer</div>
+      <div class="feat-item" onclick="showFeat('share',this)">
+        <div class="feat-item-ic" style="background:rgba(255,107,26,.12);color:var(--ora)"><i class="ti ti-link"></i></div>
+        <div class="feat-item-text"><div class="feat-item-name">Liens de partage</div><div class="feat-item-sub">Lecture seule, sans compte</div></div>
         <i class="ti ti-chevron-right feat-item-arr"></i>
       </div>
       <div class="feat-item" onclick="showFeat('collab',this)">
         <div class="feat-item-ic" style="background:rgba(34,214,160,.12);color:var(--grn)"><i class="ti ti-users"></i></div>
-        <div class="feat-item-text"><div class="feat-item-name">Collaboration &amp; Équipe</div><div class="feat-item-sub">Rôles, photos, invitations email</div></div>
-        <i class="ti ti-chevron-right feat-item-arr"></i>
-      </div>
-      <div class="feat-item" onclick="showFeat('share',this)">
-        <div class="feat-item-ic" style="background:rgba(255,107,26,.12);color:var(--ora)"><i class="ti ti-link"></i></div>
-        <div class="feat-item-text"><div class="feat-item-name">Lien partage</div><div class="feat-item-sub">Lecture seule sans compte</div></div>
+        <div class="feat-item-text"><div class="feat-item-name">Équipe &amp; rôles</div><div class="feat-item-sub">Invitations email, permissions</div></div>
         <i class="ti ti-chevron-right feat-item-arr"></i>
       </div>
       <div class="feat-item" onclick="showFeat('export',this)">
         <div class="feat-item-ic" style="background:rgba(26,143,255,.12);color:var(--blu)"><i class="ti ti-file-type-pdf"></i></div>
-        <div class="feat-item-text"><div class="feat-item-name">Export multi-format</div><div class="feat-item-sub">PDF · PNG · SVG · Impression</div></div>
+        <div class="feat-item-text"><div class="feat-item-name">Export pro</div><div class="feat-item-sub">PDF · PNG · SVG · Impression</div></div>
+        <i class="ti ti-chevron-right feat-item-arr"></i>
+      </div>
+
+      <!-- GROUPE 4 : CLOUD & OUTILS -->
+      <div class="feat-group-label">Cloud &amp; outils</div>
+      <div class="feat-item" onclick="showFeat('fichiers',this)">
+        <div class="feat-item-ic" style="background:rgba(26,143,255,.12);color:var(--blu)"><i class="ti ti-cloud"></i></div>
+        <div class="feat-item-text"><div class="feat-item-name">Cloud métier</div><div class="feat-item-sub">Word/Excel éditables · remplace Dropbox</div></div>
         <i class="ti ti-chevron-right feat-item-arr"></i>
       </div>
       <div class="feat-item" onclick="showFeat('recap',this)">
         <div class="feat-item-ic" style="background:rgba(255,107,26,.12);color:var(--ora)"><i class="ti ti-clipboard-list"></i></div>
         <div class="feat-item-text">
-          <div class="feat-item-name">Recap materiels <span style="display:inline-flex;align-items:center;padding:1px 6px;border-radius:4px;font-size:9px;font-family:var(--m);font-weight:700;background:var(--ora-d);color:var(--ora);border:1px solid rgba(255,107,26,.25);vertical-align:middle;margin-left:3px">Pro</span></div>
-          <div class="feat-item-sub">Micros et pieds, au total</div>
+          <div class="feat-item-name">Recap matériels <span class="feat-pro-pill">Pro</span></div>
+          <div class="feat-item-sub">Micros &amp; pieds, au total</div>
         </div>
-        <i class="ti ti-chevron-right feat-item-arr"></i>
-      </div>
-      <div class="feat-item" onclick="showFeat('fichiers',this)">
-        <div class="feat-item-ic" style="background:rgba(26,143,255,.12);color:var(--blu)"><i class="ti ti-cloud"></i></div>
-        <div class="feat-item-text"><div class="feat-item-name">Cloud métier</div><div class="feat-item-sub">500 Mo gratuit · remplace Dropbox</div></div>
         <i class="ti ti-chevron-right feat-item-arr"></i>
       </div>
     </div>
@@ -1009,49 +1037,59 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
         <div class="feat-pane-head">
           <div class="feat-pane-icon" style="background:rgba(255,107,26,.12);color:var(--ora)"><i class="ti ti-link"></i></div>
           <div>
-            <div class="feat-pane-title">Lien partage — lecture seule</div>
-            <div class="feat-pane-desc">Generez un lien public que vous partagez au groupe, au backline ou a la production. Ils voient le patch constamment mis a jour, sans avoir de compte. Vue adaptee au telephone.</div>
-            <div class="feat-tag"><i class="ti ti-device-mobile" style="font-size:10px"></i>Interface mobile adaptative</div>
+            <div class="feat-pane-title">Liens de partage — un par destinataire</div>
+            <div class="feat-pane-desc">Partagez en lecture seule, sans compte, mis à jour en temps réel. En <strong style="color:var(--txt)">Pro</strong>, créez autant de liens nommés que vous voulez, chacun avec son propre contenu : un lien complet pour le groupe, un lien Input List seul pour le backline, un lien avec accès aux fichiers cloud pour la production.</div>
+            <div class="feat-tag"><i class="ti ti-device-mobile" style="font-size:10px"></i>Vue mobile adaptative · révocable à tout moment</div>
           </div>
         </div>
         <div class="feat-pane-body">
-          <div class="mk-share-box">
-            <div style="font-size:10px;font-family:var(--m);color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Lien partage — Hellfest 2025</div>
-            <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
-              <div class="mk-url" style="flex:1">https://patchflow.fr/app?view=a1b2c3d4-e5f6...</div>
-              <div style="background:var(--ora);color:#000;font-size:10px;font-weight:700;padding:6px 12px;border-radius:6px;cursor:pointer;white-space:nowrap"><i class="ti ti-copy"></i> Copier</div>
-            </div>
-            <div style="font-size:10px;color:var(--muted)"><i class="ti ti-info-circle" style="margin-right:4px"></i>Le patch est mis a jour en temps reel. Valable tant que le show existe.</div>
+          <div style="font-size:10px;font-family:var(--m);text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:6px">
+            <i class="ti ti-link"></i>Liens du show — Hellfest 2025
+            <span class="feat-pro-pill" style="margin-left:auto">Pro · liens illimités</span>
           </div>
-          <div style="background:var(--bg);border:1px solid var(--bdr2);border-radius:10px;overflow:hidden">
-            <div style="background:#080b12;padding:8px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--bdr)">
-              <svg width="16" height="16" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
-                <path d="M70 60 C100 60 100 140 130 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round"/>
-                <path d="M130 60 C100 60 100 140 70 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round" opacity="0.45"/>
-                <circle cx="60" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/>
-                <circle cx="60" cy="60" r="5" fill="#FF6B2B"/>
-                <circle cx="140" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/>
-                <circle cx="140" cy="60" r="5" fill="#FF6B2B"/>
-                <circle cx="60" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/>
-                <circle cx="60" cy="140" r="5" fill="#FF6B2B"/>
-                <circle cx="140" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/>
-                <circle cx="140" cy="140" r="5" fill="#FF6B2B"/>
-              </svg>
-              <div style="font-size:12px;font-weight:700">Patch<span style="color:var(--ora)">Flow</span></div>
-              <div style="font-size:9px;font-family:var(--m);color:var(--muted)">Live Patch</div>
-              <div style="margin-left:auto;font-size:9px;font-family:var(--m);background:rgba(34,214,160,.1);color:var(--grn);border:1px solid rgba(34,214,160,.2);border-radius:5px;padding:2px 8px">● Lecture seule</div>
+
+          <!-- Lien 1 : complet pour le groupe -->
+          <div class="mk-linkcard">
+            <div class="mk-linkcard-head">
+              <i class="ti ti-link" style="color:var(--muted);font-size:13px"></i>
+              <span class="mk-linkcard-name">Lien Groupe — complet</span>
+              <i class="ti ti-trash mk-linkcard-del"></i>
             </div>
-            <div style="padding:12px">
-              <div style="font-size:13px;font-weight:700;margin-bottom:10px">Hellfest 2025 — Main Stage</div>
-              <table class="mk-table" style="font-size:10px">
-                <thead><tr><th>CH</th><th>Court</th><th>Nom</th><th>Micro</th><th>FOH</th></tr></thead>
-                <tbody>
-                  <tr><td class="mk-ch">1</td><td><strong>KICK</strong></td><td>Grosse caisse</td><td style="font-family:var(--m);font-size:9px;color:var(--muted)">Beta 91A</td><td><span style="color:var(--grn)">✓</span></td></tr>
-                  <tr><td class="mk-ch">2</td><td><strong>SNARE</strong></td><td>Caisse claire</td><td style="font-family:var(--m);font-size:9px;color:var(--muted)">SM57</td><td><span style="color:var(--grn)">✓</span></td></tr>
-                </tbody>
-              </table>
+            <div class="mk-linkcard-secs">
+              <span class="mk-secbadge">Input List</span><span class="mk-secbadge">Output</span><span class="mk-secbadge">Synoptique</span><span class="mk-secbadge">Plan scène</span><span class="mk-secbadge">Plan site</span>
             </div>
+            <div class="mk-linkcard-url"><span>patchflow.fr/app?link=8f2a…</span><span class="mk-linkcard-copy"><i class="ti ti-copy"></i> Copier</span></div>
           </div>
+
+          <!-- Lien 2 : backline -->
+          <div class="mk-linkcard">
+            <div class="mk-linkcard-head">
+              <i class="ti ti-link" style="color:var(--muted);font-size:13px"></i>
+              <span class="mk-linkcard-name">Lien Backline</span>
+              <i class="ti ti-trash mk-linkcard-del"></i>
+            </div>
+            <div class="mk-linkcard-secs">
+              <span class="mk-secbadge">Input List</span><span class="mk-secbadge">Plan scène</span>
+            </div>
+            <div class="mk-linkcard-url"><span>patchflow.fr/app?link=c41d…</span><span class="mk-linkcard-copy"><i class="ti ti-copy"></i> Copier</span></div>
+          </div>
+
+          <!-- Lien 3 : production + fichiers -->
+          <div class="mk-linkcard" style="border-color:var(--ora-g)">
+            <div class="mk-linkcard-head">
+              <i class="ti ti-link" style="color:var(--ora);font-size:13px"></i>
+              <span class="mk-linkcard-name">Lien Production</span>
+              <i class="ti ti-trash mk-linkcard-del"></i>
+            </div>
+            <div class="mk-linkcard-secs">
+              <span class="mk-secbadge">Input List</span><span class="mk-secbadge">Output</span><span class="mk-secbadge" style="background:rgba(26,143,255,.12);color:var(--blu);border-color:rgba(26,143,255,.25)"><i class="ti ti-cloud" style="font-size:9px"></i> Fichiers cloud</span>
+            </div>
+            <div class="mk-linkcard-url"><span>patchflow.fr/app?link=a1b9…</span><span class="mk-linkcard-copy"><i class="ti ti-copy"></i> Copier</span></div>
+          </div>
+
+          <div class="mk-linknew"><i class="ti ti-plus"></i>Nouveau lien</div>
+
+          <div style="margin-top:12px;font-size:10px;color:var(--muted)"><i class="ti ti-info-circle" style="margin-right:4px"></i>Plan Gratuit : 1 lien par show. Plan Pro : liens nommés illimités, chacun avec son contenu et l'accès aux fichiers cloud en lecture seule.</div>
         </div>
       </div>
 
@@ -1113,38 +1151,46 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
           <div class="feat-pane-icon" style="background:rgba(26,143,255,.12);color:var(--blu)"><i class="ti ti-cloud"></i></div>
           <div>
             <div class="feat-pane-title">Votre cloud, pensé pour le son</div>
-            <div class="feat-pane-desc">Oubliez Dropbox et les dossiers partagés qui partent dans tous les sens. Riders, show files console, plans, logos, fichiers son — rangés <strong>directement dans le bon show</strong>, à côté du patch concerné. Plus de fichier perdu, plus de mauvaise version.</div>
-            <div class="feat-tag"><i class="ti ti-cloud-check" style="font-size:10px"></i>Remplace Dropbox &middot; classé par show</div>
+            <div class="feat-pane-desc">Oubliez Dropbox et les dossiers en vrac. Riders, show files console, plans, logos, fichiers son — rangés <strong>dans le bon show</strong>, à côté du patch. Ouvrez et <strong style="color:var(--txt)">éditez vos Word et Excel directement dans le navigateur</strong>, prévisualisez vos PDF, sans rien télécharger.</div>
+            <div class="feat-tag"><i class="ti ti-edit" style="font-size:10px"></i>Word &amp; Excel éditables &middot; aperçu PDF intégré</div>
           </div>
         </div>
         <div class="feat-pane-body">
           <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
             <div style="background:var(--ora);color:#000;font-size:10px;font-weight:700;padding:6px 14px;border-radius:7px;cursor:pointer"><i class="ti ti-upload" style="margin-right:4px"></i>Envoyer</div>
             <div style="background:var(--surf2);border:1px solid var(--bdr2);color:var(--muted);font-size:10px;padding:6px 14px;border-radius:7px;cursor:pointer">Tous</div>
-            <div style="background:var(--surf2);border:1px solid var(--bdr2);color:var(--muted);font-size:10px;padding:6px 14px;border-radius:7px;cursor:pointer">PDF</div>
+            <div style="background:var(--surf2);border:1px solid var(--bdr2);color:var(--muted);font-size:10px;padding:6px 14px;border-radius:7px;cursor:pointer">Documents</div>
             <div style="background:var(--surf2);border:1px solid var(--bdr2);color:var(--muted);font-size:10px;padding:6px 14px;border-radius:7px;cursor:pointer">Show Files</div>
           </div>
           <div class="mk-file-row">
             <div style="font-size:20px">📄</div>
-            <div style="flex:1"><div style="font-size:12px;font-weight:600">Rider_Technique_2025.pdf</div><div style="font-size:10px;color:var(--muted);font-family:var(--m)">2.4 Mo · Ajoute 20/05/2025</div></div>
-            <div style="font-size:11px;color:var(--ora)"><i class="ti ti-download"></i></div>
+            <div style="flex:1"><div style="font-size:12px;font-weight:600">Rider_Technique_2025.pdf</div><div style="font-size:10px;color:var(--muted);font-family:var(--m)">2.4 Mo · Aperçu intégré</div></div>
+            <div style="font-size:10px;color:var(--blu);font-family:var(--m)"><i class="ti ti-eye"></i> Ouvrir</div>
+          </div>
+          <div class="mk-file-row">
+            <div style="font-size:20px">📝</div>
+            <div style="flex:1"><div style="font-size:12px;font-weight:600">Fiche_Technique.docx</div><div style="font-size:10px;color:var(--muted);font-family:var(--m)">340 Ko · Word éditable</div></div>
+            <div style="font-size:10px;color:var(--grn);font-family:var(--m)"><i class="ti ti-edit"></i> Éditer</div>
+          </div>
+          <div class="mk-file-row">
+            <div style="font-size:20px">📊</div>
+            <div style="flex:1"><div style="font-size:12px;font-weight:600">Budget_Tournée.xlsx</div><div style="font-size:10px;color:var(--muted);font-family:var(--m)">128 Ko · Excel éditable</div></div>
+            <div style="font-size:10px;color:var(--grn);font-family:var(--m)"><i class="ti ti-edit"></i> Éditer</div>
           </div>
           <div class="mk-file-row">
             <div style="font-size:20px">🎛</div>
-            <div style="flex:1"><div style="font-size:12px;font-weight:600">FOH_ShowFile_SD12.zip</div><div style="font-size:10px;color:var(--muted);font-family:var(--m)">18.7 Mo · Ajoute 19/05/2025</div></div>
+            <div style="flex:1"><div style="font-size:12px;font-weight:600">FOH_ShowFile_SD12.zip</div><div style="font-size:10px;color:var(--muted);font-family:var(--m)">18.7 Mo · Show file console</div></div>
             <div style="font-size:11px;color:var(--ora)"><i class="ti ti-download"></i></div>
           </div>
           <div class="mk-file-row">
             <div style="font-size:20px">🖼</div>
-            <div style="flex:1"><div style="font-size:12px;font-weight:600">Logo_Production_HD.png</div><div style="font-size:10px;color:var(--muted);font-family:var(--m)">1.1 Mo · Ajoute 18/05/2025</div></div>
+            <div style="flex:1"><div style="font-size:12px;font-weight:600">Logo_Production_HD.png</div><div style="font-size:10px;color:var(--muted);font-family:var(--m)">1.1 Mo · Image</div></div>
             <div style="font-size:11px;color:var(--ora)"><i class="ti ti-download"></i></div>
           </div>
-          <div class="mk-file-row">
-            <div style="font-size:20px">📊</div>
-            <div style="flex:1"><div style="font-size:12px;font-weight:600">Plan_Implantation.pdf</div><div style="font-size:10px;color:var(--muted);font-family:var(--m)">3.8 Mo · Ajoute 17/05/2025</div></div>
-            <div style="font-size:11px;color:var(--ora)"><i class="ti ti-download"></i></div>
+          <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;font-size:10px;color:var(--muted);font-family:var(--m)">
+            <span>500 Mo offerts · extensible jusqu'à 1 To</span>
+            <span>22.6 Mo / 500 Mo</span>
           </div>
-          <div style="margin-top:10px;font-size:10px;color:var(--muted);font-family:var(--m);text-align:right">26.0 Mo utilises / 10 Go</div>
         </div>
       </div>
 
