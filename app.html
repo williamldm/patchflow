@@ -14163,10 +14163,12 @@ async function openRecapMatos(){
   // ── Load show via edge function publique (bypass RLS pour les liens partagés) ──
   var show,rows=[];
   try{
+    /* Pour ?link=uuid, envoyer linkId ; pour ?rider=showId, envoyer showId */
+    var _sfBody=linkId?{linkId:linkId}:{showId:sid};
     var _sfRes=await fetch('https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/get-shared-show',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},
-      body:JSON.stringify({showId:sid})
+      body:JSON.stringify(_sfBody)
     });
     var _sfJson=await _sfRes.json();
     if(_sfJson.error||!_sfJson.data){
@@ -14175,6 +14177,14 @@ async function openRecapMatos(){
       return;
     }
     show=_sfJson.data.show;
+    /* Résoudre _shareShowId depuis la réponse (pour les liens ?link= où sid=null) */
+    if(show&&show.id) _shareShowId=show.id;
+    /* Injecter overrideRider si présent (lien Pro nommé) */
+    if(_sfJson.data.overrideRider&&show){
+      if(!show.stage_data) show.stage_data={};
+      if(!show.stage_data.rider) show.stage_data.rider={};
+      Object.assign(show.stage_data.rider, _sfJson.data.overrideRider);
+    }
     var _chs=_sfJson.data.channels||[];
     rows=_chs.length?_chs:((show.stage_data&&show.stage_data.chs)||[]).slice().sort(function(a,b){return (a.ch||0)-(b.ch||0);});
     // Inject CHS snapshot for canvas renderers
