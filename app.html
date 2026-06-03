@@ -14121,11 +14121,20 @@ async function openRecapMatos(){
   var secLabels={il:'Input List',out:'Output List',syno:'Synoptique',stage:'Plan de scene',site:'Plan de site',cloud:'Fichiers',files:'Pieces jointes'};
   var secIcons={il:'&#9776;',out:'&#9654;',syno:'&#9762;',stage:'&#9646;',site:'&#127963;',cloud:'&#9729;',files:'&#128206;'};
 
-  // Add files tab automatically if files were attached
-  var allSections=sections.slice();
-  if(rFiles.length&&allSections.indexOf('files')<0) allSections.push('files');
-
   var _VALID_SEC_SET=new Set(['il','out','syno','stage','site','cloud','files']);
+
+  /* Nettoyer les sections et rFiles :
+     - Filtrer uniquement les sections valides
+     - 'cloud' : n'afficher que si explicitement coché (pas déduit)
+     - 'files' (pièces jointes) : afficher seulement si la section est activée
+       ET que des fichiers ont été explicitement sélectionnés.
+       rider.files peut contenir des données résiduelles d'un ancien lien —
+       ne pas les afficher si 'files' n'est pas dans les sections actives. */
+  var allSections=sections.filter(function(s){return _VALID_SEC_SET.has(s);});
+  if(allSections.indexOf('files')>=0 && !rFiles.length){
+    allSections=allSections.filter(function(s){return s!=='files';});
+  }
+  if(allSections.indexOf('files')<0) rFiles=[];
   var tabsHtml='';
   if(allSections.length>1){
     tabsHtml='<div id="sv-tabs" style="display:flex;border-bottom:1px solid #1e2a3a;margin-bottom:0;overflow-x:auto">';
