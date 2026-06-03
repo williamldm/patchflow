@@ -12101,12 +12101,23 @@ function openMoveFichier(event, relPath) {
       + '</div>';
   }).join('');
 
-  // Positionner le popover près du bouton
+  // Positionner le popover — au-dessus du bouton si pas assez de place en dessous
   const btn = event.currentTarget || event.target;
   const r   = btn.getBoundingClientRect();
-  pop.style.top  = (r.bottom + 4) + 'px';
-  pop.style.left = Math.max(4, r.right - 190) + 'px';
+  pop.style.top  = '-9999px'; // positionner hors écran pour mesurer la hauteur
+  pop.style.left = '-9999px';
   pop.classList.add('show');
+  const popH = pop.offsetHeight || 200;
+  const spaceBelow = window.innerHeight - r.bottom - 8;
+  const spaceAbove = r.top - 8;
+  if (spaceBelow >= popH || spaceBelow >= spaceAbove) {
+    // Afficher en dessous
+    pop.style.top  = (r.bottom + 4) + 'px';
+  } else {
+    // Afficher au-dessus
+    pop.style.top  = (r.top - popH - 4) + 'px';
+  }
+  pop.style.left = Math.min(window.innerWidth - 200, Math.max(4, r.right - 190)) + 'px';
 
   // Fermer si clic ailleurs
   setTimeout(function() {
@@ -12237,7 +12248,7 @@ function _renderFichiersGrid() {
             '<div class="fich-file-info"><div class="fich-file-name">' + _fEsc(name) + '</div><div class="fich-file-meta">' + _fEsc(meta) + '</div></div>' +
             '<div class="fich-file-actions">' +
               '<button class="fich-file-btn" onclick="event.stopPropagation();renameFichier(' + fpJ + ')" title="Renommer"><i class="ti ti-pencil"></i></button>' +
-              '<button class="fich-file-btn mv" onclick="event.stopPropagation();openMoveFichier(event,' + fpJ + ')" title="Déplacer dans un dossier"><i class="ti ti-folder-arrow-right"></i></button>' +
+              '<button class="fich-file-btn mv" onclick="event.stopPropagation();openMoveFichier(event,' + fpJ + ')" title="Déplacer dans un dossier"><i class="ti ti-folder-share"></i></button>' +
               '<button class="fich-file-btn dl" onclick="event.stopPropagation();_fichDownload(' + fpJ + ')" title="Telecharger"><i class="ti ti-download"></i></button>' +
               '<button class="fich-file-btn del" onclick="event.stopPropagation();deleteFichier(' + fpJ + ')" title="Supprimer"><i class="ti ti-trash"></i></button>' +
             '</div>' +
