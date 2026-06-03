@@ -11,6 +11,33 @@ const json = (body: unknown, status = 200) =>
 
 const UUID_RE = /^[0-9a-f-]{36}$/i;
 
+/* Récupère le show, ses canaux, ses patches et ses scènes */
+async function fetchShowData(sbAdmin: ReturnType<typeof createClient>, showId: string) {
+  const [showRes, channelsRes, scenesRes] = await Promise.all([
+    sbAdmin
+      .from('shows')
+      .select('id, name, venue, show_date, stage_data, synoptique_data, il_patches')
+      .eq('id', showId)
+      .maybeSingle(),
+    sbAdmin
+      .from('channels')
+      .select('*')
+      .eq('show_id', showId)
+      .order('ch'),
+    sbAdmin
+      .from('show_scenes')
+      .select('id, type, name, pos, data')
+      .eq('show_id', showId)
+      .order('pos'),
+  ]);
+
+  return {
+    show: showRes.data,
+    channels: channelsRes.data || [],
+    scenes: scenesRes.data || [],
+  };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
@@ -34,23 +61,15 @@ serve(async (req) => {
 
       if (!rider) return json({ error: 'Lien introuvable ou expiré' }, 404);
 
-      const { data: show } = await sbAdmin
-        .from('shows')
-        .select('id, name, venue, show_date, stage_data, synoptique_data')
-        .eq('id', rider.show_id)
-        .maybeSingle();
-
+      const { show, channels, scenes } = await fetchShowData(sbAdmin, rider.show_id);
       if (!show) return json({ error: 'Show introuvable' }, 404);
-
-      const { data: channels } = await sbAdmin
-        .from('channels').select('*').eq('show_id', rider.show_id).order('ch');
 
       return json({
         data: {
           show,
-          channels: channels || [],
+          channels,
+          scenes,
           riderName: rider.name,
-          /* Le config du lien nommé prime sur stage_data.rider */
           overrideRider: {
             sections: rider.sections,
             ...(rider.config || {}),
@@ -64,21 +83,13 @@ serve(async (req) => {
     const { showId } = body;
     if (!showId || !UUID_RE.test(showId)) return json({ error: 'showId invalide' }, 400);
 
-    const { data: show } = await sbAdmin
-      .from('shows')
-      .select('id, name, venue, show_date, stage_data, synoptique_data')
-      .eq('id', showId)
-      .maybeSingle();
-
+    const { show, channels, scenes } = await fetchShowData(sbAdmin, showId);
     if (!show) return json({ error: 'Show introuvable' }, 404);
 
     const rider = show.stage_data?.rider;
     if (!rider) return json({ error: "Ce show n'a pas de lien de partage actif" }, 403);
 
-    const { data: channels } = await sbAdmin
-      .from('channels').select('*').eq('show_id', showId).order('ch');
-
-    return json({ data: { show, channels: channels || [] }, error: null });
+    return json({ data: { show, channels, scenes }, error: null });
 
   } catch (e) {
     console.error('[get-shared-show]', e);

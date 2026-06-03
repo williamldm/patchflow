@@ -14227,10 +14227,11 @@ async function openRecapMatos(){
     /* Charger les patches depuis le show */
     IL_PATCHES=show.il_patches||[{id:'main',name:'Patch 1',pos:0}];
     CUR_PATCH_ID=IL_PATCHES[0]?.id||'main';
-    /* Charger les scènes depuis le show */
-    if(show.stage_data?.show_scenes){
+    /* Charger les scènes depuis la réponse de get-shared-show */
+    var _svScenes=_sfJson.data.scenes||[];
+    if(_svScenes.length){
       SHOW_SCENES={syno:[],stage:[],site:[]};
-      show.stage_data.show_scenes.forEach(function(s){
+      _svScenes.forEach(function(s){
         if(!SHOW_SCENES[s.type]) SHOW_SCENES[s.type]=[];
         SHOW_SCENES[s.type].push(s);
       });
@@ -14239,13 +14240,6 @@ async function openRecapMatos(){
         CUR_SCENES[t]=SHOW_SCENES[t][0]?.id||null;
       });
     }
-    /* Fonction pour obtenir les données d'une scène (vue partagée) */
-    window._svGetSceneData=function(sceneType){
-      var curSceneId=CUR_SCENES[sceneType];
-      if(!curSceneId||!SHOW_SCENES[sceneType]) return null;
-      var scene=SHOW_SCENES[sceneType].find(function(s){return s.id===curSceneId;});
-      return scene&&scene.data?scene.data[sceneType]:null;
-    };
     /* Filtrer les canaux par patch courant */
     rows=_allRows.filter(function(r){return (r.patch_id||'main')===CUR_PATCH_ID;});
     // Inject CHS snapshot for canvas renderers
@@ -14270,6 +14264,32 @@ async function openRecapMatos(){
     _paneCache.il=_renderIL();
     document.getElementById('sv-body').innerHTML=_paneCache.il;
   }
+  /* Helper: HTML du sélecteur de scènes */
+  function _svSceneSelector(sceneType){
+    var scenes=SHOW_SCENES[sceneType]||[];
+    if(scenes.length<=1) return '';
+    var cur=CUR_SCENES[sceneType];
+    var html='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">';
+    scenes.forEach(function(s){
+      var active=s.id===cur;
+      html+='<button onclick="_svSelectScene(\''+esc(sceneType)+'\',\''+esc(s.id)+'\')" '
+        +'style="padding:6px 12px;border:1px solid '+(active?'#ff6b1a':'#1e2a3a')+';'
+        +'background:'+(active?'rgba(255,107,26,.12)':'transparent')+';'
+        +'color:'+(active?'#ff6b1a':'#5a6a80')+';border-radius:6px;font-size:11px;'
+        +'font-weight:'+(active?'700':'500')+';cursor:pointer;font-family:var(--f)">'+esc(s.name)+'</button>';
+    });
+    html+='</div>';
+    return html;
+  }
+
+  /* Helper: données de la scène courante */
+  function _svCurrentSceneData(sceneType){
+    var curId=CUR_SCENES[sceneType];
+    if(!curId) return null;
+    var scene=(SHOW_SCENES[sceneType]||[]).find(function(s){return s.id===curId;});
+    return scene&&scene.data?scene.data[sceneType]:null;
+  }
+
   /* Switch entre scènes et recharger le rendu */
   function _svSelectScene(sceneType, sceneId){
     CUR_SCENES[sceneType]=sceneId;
@@ -14354,14 +14374,16 @@ async function openRecapMatos(){
 
   function _renderStage(cb){
     const raw=show.stage_data;
-    const bandData=(raw&&raw.v>=2)?raw.band||null:null;
+    /* Utiliser les données de la scène active si disponible, sinon fallback stage_data.band */
+    var sceneData=_svCurrentSceneData('stage');
+    const bandData=sceneData||((raw&&raw.v>=2)?raw.band||null:null);
     BandPlan.load(bandData);
     _makeBpCanvas(function(cv){
       var dataUrl=cv.toDataURL('image/png');
       var imgW=cv.width, imgH=cv.height;
       if(isMobile){
         // Mobile : scroll horizontal + overlay plein ecran avec pinch-zoom
-        var h=_showMeta;
+        var h=_showMeta+_svSceneSelector('stage');
         // Barre d'action
         h+='<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px">'
           +'<div style="font-size:10px;color:#5a6a80;font-family:DM Mono,monospace;display:flex;align-items:center;gap:5px">'
@@ -14395,7 +14417,7 @@ async function openRecapMatos(){
         h+='<div style="margin-top:14px;text-align:center;font-size:10px;color:#3a4a5a;font-family:DM Mono,monospace">PatchFlow · Plan de scene · '+now+'</div>';
         cb(h);
       } else {
-        cb(_showMeta
+        cb(_showMeta+_svSceneSelector('stage')
           +'<div style="overflow:auto;border-radius:10px;border:1px solid #1e2a3a;background:#0a0f1c">'
           +'<img src="'+dataUrl+'" style="max-width:100%;display:block;border-radius:10px"/>'
           +'</div>'
@@ -14409,10 +14431,11 @@ async function openRecapMatos(){
     const rider=raw&&raw.rider;
     /* Priorité 1 : snapshot PNG pré-calculé (toujours dispo, marche partout) */
     const siteSnap=rider&&rider.site_snapshot||null;
-    if(siteSnap){ _renderSiteImage(siteSnap,cb); return; }
-    /* Priorité 2 : renderer canvas autonome (ne dépend pas du singleton SitePlan)
-       Cherche les données site dans stage_data.site OU dans le snapshot rider */
-    var siteData=(raw&&raw.v>=2)?raw.site||null:null;
+    if(siteSnap){ cb(_showMeta+_svSceneSelector('site')+_renderSiteImageHtml(siteSnap)); return; }
+    /* Priorité 2 : scène active si disponible */
+    var sceneData=_svCurrentSceneData('site');
+    /* Priorité 3 : données site dans stage_data.site */
+    var siteData=sceneData||((raw&&raw.v>=2)?raw.site||null:null);
     if(!siteData){
       cb(_showMeta+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:12px">Aucun plan de site disponible.<br><span style="font-size:10px;opacity:.6">Re-générez le lien depuis l\'onglet Équipe pour inclure le plan de site.</span></div>');
       return;
@@ -14426,7 +14449,7 @@ async function openRecapMatos(){
           +'</div>');
         return;
       }
-      _renderSiteImage(dataUrl, cb);
+      cb(_showMeta+_svSceneSelector('site')+_renderSiteImageHtml(dataUrl));
     });
   }
 
@@ -14493,11 +14516,11 @@ async function openRecapMatos(){
     if(!total) cb(canvas.toDataURL('image/png'));
     }catch(e){ console.warn('[renderSiteFromData]',e); cb(null); }
   }
-  function _renderSiteImage(dataUrl,cb){
+  /* Retourne le HTML de l'image du plan de site (sans le _showMeta ni le sélecteur) */
+  function _renderSiteImageHtml(dataUrl){
     if(isMobile){
       var minW=Math.max(680,Math.round(window.screen.width*1.8));
-      var h=_showMeta;
-      h+='<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px">'
+      return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px">'
         +'<div style="font-size:10px;color:#5a6a80;font-family:DM Mono,monospace">&#8596; Glissez pour parcourir le plan</div>'
         +'<button onclick="document.getElementById(\'_svfsov2\').style.display=\'flex\'" '
           +'style="flex-shrink:0;background:#1e2a3a;border:1px solid #2d3d50;color:#c0d0e0;font-size:11px;font-weight:600;padding:7px 13px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit">'
@@ -14519,15 +14542,18 @@ async function openRecapMatos(){
         +'<div style="text-align:center;padding:10px;font-size:9px;color:rgba(255,255,255,.25);font-family:DM Mono,monospace">Pincez pour zoomer · Glissez pour naviguer</div>'
       +'</div>'
       +'<div style="margin-top:14px;text-align:center;font-size:10px;color:#3a4a5a;font-family:DM Mono,monospace">PatchFlow · Plan de site · '+now+'</div>';
-      cb(h);
     } else {
-      cb(_showMeta
-        +'<div style="overflow:auto;border-radius:10px;border:1px solid #1e2a3a;background:#0a0f1c">'
+      return '<div style="overflow:auto;border-radius:10px;border:1px solid #1e2a3a;background:#0a0f1c">'
         +'<img src="'+dataUrl+'" style="max-width:100%;display:block;border-radius:10px"/>'
         +'</div>'
-        +'<div style="margin-top:14px;text-align:center;font-size:10px;color:#3a4a5a;font-family:DM Mono,monospace">PatchFlow · Plan de site · '+now+'</div>');
+        +'<div style="margin-top:14px;text-align:center;font-size:10px;color:#3a4a5a;font-family:DM Mono,monospace">PatchFlow · Plan de site · '+now+'</div>';
     }
   }
+
+  function _renderSiteImage(dataUrl,cb){
+    cb(_showMeta+_svSceneSelector('site')+_renderSiteImageHtml(dataUrl));
+  }
+
 
   function _renderOUT(){
     // Try direct column first (only if non-empty), then rider snapshot
@@ -14593,11 +14619,13 @@ async function openRecapMatos(){
 
   function _renderSyno(){
     var rider=show.stage_data&&show.stage_data.rider;
-    var synData=show.synoptique_data||(rider&&rider.syn_snapshot)||null;
+    /* Scène active en priorité, puis synoptique_data global, puis snapshot rider */
+    var sceneData=_svCurrentSceneData('syno');
+    var synData=sceneData||show.synoptique_data||(rider&&rider.syn_snapshot)||null;
     /* New SynPro schema : { v:1, title, brand, brandColor, footer, nodes, cables, networks } */
     if(!synData||synData.v!==1) return _showMeta+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:13px">Synoptique non disponible &mdash; ouvrez le synoptique dans l\'application et generez le lien.</div>';
     var nodes=synData.nodes||[];var cables=synData.cables||[];var nets=synData.networks||[];
-    if(!nodes.length) return _showMeta+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:13px">Synoptique vide.</div>';
+    if(!nodes.length) return _showMeta+_svSceneSelector('syno')+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:13px">Synoptique vide.</div>';
     var netMap={};nets.forEach(function(n){netMap[n.id]=n;});
     /* Bounding box from node positions + default sizes (we don\'t have the LIB in share view) */
     var DEF={'console':{w:200,h:130},'rack':{w:170,h:140},'io':{w:160,h:90},'amp':{w:170,h:100},'spk':{w:130,h:110},'net':{w:140,h:80},'src':{w:120,h:90},'note':{w:200,h:80},'text_label':{w:160,h:30}};
@@ -14725,7 +14753,7 @@ async function openRecapMatos(){
     var bgSvg='<rect x="0" y="'+headH+'" width="'+vw+'" height="'+vh+'" fill="#f7f9fc"/>';
     var fullH=vh+headH+footH;
     var svgStr='<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100%" viewBox="0 0 '+vw+' '+fullH+'" style="max-width:100%;border-radius:10px;border:1px solid #1e2a3a;background:#fff;display:block">'+headSvg+bgSvg+edgeSvg+nodeSvg+footSvg+'</svg>';
-    return _showMeta+svgStr
+    return _showMeta+_svSceneSelector('syno')+svgStr
       +'<div style="margin-top:14px;text-align:center;font-size:10px;color:#3a4a5a;font-family:DM Mono,monospace">PatchFlow &middot; Synoptique &middot; '+now+'</div>';
   }
 
