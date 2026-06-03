@@ -13856,7 +13856,7 @@ async function openRecapMatos(){
       /* Edge function publique — bypass RLS pour les visiteurs non connectés */
       var _pr=await fetch('https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/get-shared-show',{
         method:'POST',
-        headers:{'Content-Type':'application/json','apikey':SB_KEY},
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},
         body:JSON.stringify({showId:riderId})
       });
       var _prj=await _pr.json();
@@ -13941,13 +13941,17 @@ async function openRecapMatos(){
 
   // Pre-generate signed URLs for all attached files
   var _signedUrls={};
+  /* Header pour les appels publics aux edge functions Supabase —
+     la gateway exige Authorization même pour les actions sans auth utilisateur.
+     On utilise la clé anon (publique par design, déjà dans le HTML). */
+  var _pubHeaders={'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY};
+
   if(rFiles.length){
-    /* Pièces jointes : action publique (pas d'auth requise) — le serveur vérifie
-       que le fichier fait partie du rider de ce show. */
+    /* Pièces jointes : action publique vérifiée côté serveur */
     Promise.all(rFiles.map(function(path){
       return fetch('https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/b2-storage',{
         method:'POST',
-        headers:{'Content-Type':'application/json'},
+        headers:_pubHeaders,
         body:JSON.stringify({action:'public-rider-file',path:path,showId:sid})
       }).then(function(r){return r.json();}).then(function(res){
         if(!res.error&&res.data?.signedUrl) _signedUrls[path]=res.data.signedUrl;
@@ -13960,7 +13964,7 @@ async function openRecapMatos(){
   try{
     var _sfRes=await fetch('https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/get-shared-show',{
       method:'POST',
-      headers:{'Content-Type':'application/json','apikey':SB_KEY},
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},
       body:JSON.stringify({showId:sid})
     });
     var _sfJson=await _sfRes.json();
@@ -14627,10 +14631,9 @@ async function openRecapMatos(){
   async function _cloudLoadDir(path, cb){
     var prefix=_cloudPrefix(path);
     try{
-      /* Action publique — pas besoin d'auth, le serveur vérifie que cloud:true */
       var res=await fetch('https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/b2-storage',{
         method:'POST',
-        headers:{'Content-Type':'application/json'},
+        headers:_pubHeaders,
         body:JSON.stringify({action:'public-cloud-list',prefix:prefix,showId:_cloudCurrentShowId})
       });
       var json=await res.json();
@@ -14646,10 +14649,9 @@ async function openRecapMatos(){
 
   async function _cloudDownload(filePath, name){
     try{
-      /* Action publique avec vérification whitelist côté serveur */
       var res=await fetch('https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/b2-storage',{
         method:'POST',
-        headers:{'Content-Type':'application/json'},
+        headers:_pubHeaders,
         body:JSON.stringify({action:'public-rider-file',path:filePath,showId:_cloudCurrentShowId})
       });
       var json=await res.json();
