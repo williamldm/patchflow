@@ -1828,6 +1828,9 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
             <button class="slink-check" id="sc-site" onclick="selectRiderSection('site')">
               <i class="ti ti-building-stadium"></i>Plan de site
             </button>
+            <button class="slink-check" id="sc-cloud" onclick="selectRiderSection('cloud')" style="display:none">
+              <i class="ti ti-cloud"></i>Fichiers cloud <span style="font-size:9px;font-family:var(--m);color:var(--ora);margin-left:2px">Pro</span>
+            </button>
           </div>
           <!-- Pro : titre / note / infos -->
           <div id="rider-meta-block">
@@ -4436,7 +4439,7 @@ async function processShowInvites() {
 }
 
 /* ── Rider link builder ── */
-var _riderSections={il:true,out:true,syno:true,stage:true,site:true};
+var _riderSections={il:true,out:true,syno:true,stage:true,site:true,cloud:false};
 var _riderPickedFiles=new Set();
 
 /* ══════════════════════════════════════
@@ -4952,10 +4955,13 @@ function selectRiderSection(key){
   _syncRiderBtns();
 }
 function _syncRiderBtns(){
-  ['il','out','syno','stage','site'].forEach(function(k){
+  ['il','out','syno','stage','site','cloud'].forEach(function(k){
     var btn=document.getElementById('sc-'+k);
     if(btn)btn.className='slink-check'+(_riderSections[k]?' checked':'');
   });
+  /* Bouton "Fichiers cloud" visible uniquement pour les Pro */
+  var cloudBtn=document.getElementById('sc-cloud');
+  if(cloudBtn) cloudBtn.style.display=canDo('storage')?'':'none';
 }
 function _updateRiderUrl(){
   if(!CUR_SHOW)return;
@@ -13884,14 +13890,14 @@ async function openRecapMatos(){
   var SV_TABCSS='display:inline-flex;align-items:center;gap:'+(isMobile?'4':'5')+'px;padding:'+(isMobile?'8px 12px':'9px 18px')+';background:none;border:none;border-bottom:2px solid transparent;color:#5a6a80;font-family:DM Mono,monospace;font-size:'+(isMobile?'10':'11')+'px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;transition:all .15s;margin-bottom:-1px;white-space:nowrap';
   var SV_TABCSS_ON='display:inline-flex;align-items:center;gap:'+(isMobile?'4':'5')+'px;padding:'+(isMobile?'8px 12px':'9px 18px')+';background:none;border:none;border-bottom:2px solid #ff6b1a;color:#ff6b1a;font-family:DM Mono,monospace;font-size:'+(isMobile?'10':'11')+'px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;margin-bottom:-1px;white-space:nowrap';
 
-  var secLabels={il:'Input List',out:'Output List',syno:'Synoptique',stage:'Plan de scene',site:'Plan de site',files:'Pieces jointes'};
-  var secIcons={il:'&#9776;',out:'&#9654;',syno:'&#9762;',stage:'&#9646;',site:'&#127963;',files:'&#128206;'};
+  var secLabels={il:'Input List',out:'Output List',syno:'Synoptique',stage:'Plan de scene',site:'Plan de site',cloud:'Fichiers',files:'Pieces jointes'};
+  var secIcons={il:'&#9776;',out:'&#9654;',syno:'&#9762;',stage:'&#9646;',site:'&#127963;',cloud:'&#9729;',files:'&#128206;'};
 
   // Add files tab automatically if files were attached
   var allSections=sections.slice();
   if(rFiles.length&&allSections.indexOf('files')<0) allSections.push('files');
 
-  var _VALID_SEC_SET=new Set(['il','out','syno','stage','site','files']);
+  var _VALID_SEC_SET=new Set(['il','out','syno','stage','site','cloud','files']);
   var tabsHtml='';
   if(allSections.length>1){
     tabsHtml='<div id="sv-tabs" style="display:flex;border-bottom:1px solid #1e2a3a;margin-bottom:0;overflow-x:auto">';
@@ -14461,6 +14467,141 @@ async function openRecapMatos(){
       +'</div>';
   }
 
+  /* ── Fichiers cloud — lecture seule de l'espace B2 du show ──
+     Charge la liste des fichiers/dossiers du show via la edge function b2-storage,
+     génère des signed URLs et affiche un explorateur en lecture seule. */
+  var _cloudFiles=null; // cache pour éviter re-fetch
+  var _cloudPath=[]; // navigation dossiers
+  var _cloudSignedUrls={};
+
+  function _renderCloudPane(cb){
+    var body=document.getElementById('sv-body');
+    if(body) body.innerHTML='<div style="text-align:center;color:#5a6a80;font-family:DM Mono,monospace;padding:60px 20px;font-size:12px"><div class="spinner" style="margin:0 auto 14px"></div>Chargement des fichiers…</div>';
+    _cloudLoadDir([], cb);
+  }
+
+  function _cloudPathStr(path){ return path.length?path.join('/')+'/'  :''; }
+  function _cloudPrefix(path){ return show.id+'/'+_cloudPathStr(path); }
+
+  async function _cloudLoadDir(path, cb){
+    var prefix=_cloudPrefix(path);
+    try{
+      /* Appel B2 avec le token de l'utilisateur courant — la vue partagée
+         utilise la session de lecture de Supabase (anon, RLS appliquée) */
+      var sess=(await sb.auth.getSession()).data?.session;
+      var res=await fetch('https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/b2-storage',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+(sess?.access_token||SB_KEY)},
+        body:JSON.stringify({action:'list',prefix:prefix})
+      });
+      var json=await res.json();
+      if(json.error) throw new Error(json.error.message||json.error);
+      var files=json.data||[];
+      _cloudFiles=files;
+      _cloudPath=path;
+      cb(_buildCloudHTML(files, path));
+    }catch(e){
+      cb(_showMeta+'<div style="text-align:center;color:#f87171;padding:40px;font-size:12px">Erreur chargement fichiers : '+esc(e.message)+'</div>');
+    }
+  }
+
+  function _buildCloudHTML(files, path){
+    var FTYPE=function(name){
+      var ext=(name.split('.').pop()||'').toLowerCase();
+      var map={pdf:'📄',mp3:'🎵',wav:'🎵',aiff:'🎵',flac:'🎵',aac:'🎵',ogg:'🎵',
+               mp4:'🎬',mov:'🎬',avi:'🎬',jpg:'🖼',jpeg:'🖼',png:'🖼',gif:'🖼',webp:'🖼',
+               xlsx:'📊',xls:'📊',csv:'📊',docx:'📝',doc:'📝',pdf:'📄',zip:'🗜',rar:'🗜',
+               ptx:'🎛',als:'🎛',rpp:'🎛',logicx:'🎛'};
+      return map[ext]||'📁';
+    };
+    var folders=files.filter(function(f){return f.id===null;});
+    var fileItems=files.filter(function(f){return f.id!==null;});
+
+    var h=_showMeta;
+    /* Breadcrumb */
+    if(path.length){
+      h+='<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:12px;font-size:11px;font-family:DM Mono,monospace">';
+      h+='<span onclick="_cloudNavTo([])" style="color:#1a8fff;cursor:pointer">Fichiers</span>';
+      path.forEach(function(seg,i){
+        h+=' <span style="color:#3a4a5a">/</span> ';
+        if(i<path.length-1){
+          var sub=path.slice(0,i+1);
+          h+='<span onclick="_cloudNavTo('+JSON.stringify(sub)+')" style="color:#1a8fff;cursor:pointer">'+esc(seg)+'</span>';
+        } else {
+          h+='<span style="color:var(--txt2)">'+esc(seg)+'</span>';
+        }
+      });
+      h+='</div>';
+    }
+
+    if(!folders.length&&!fileItems.length){
+      return h+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:12px">Dossier vide.</div>';
+    }
+
+    h+='<div style="display:flex;flex-direction:column;gap:6px">';
+    /* Dossiers */
+    folders.forEach(function(f){
+      var newPath=path.concat([f.name]);
+      h+='<div onclick="_cloudNavTo('+JSON.stringify(newPath)+')" '
+        +'style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:#0d1220;border:1px solid #1e2a3a;border-radius:10px;cursor:pointer">'
+        +'<span style="font-size:20px">📁</span>'
+        +'<span style="font-size:13px;font-weight:600;color:#e2e8f0">'+esc(f.name)+'</span>'
+        +'<span style="margin-left:auto;font-size:10px;color:#3a4a5a;font-family:DM Mono,monospace">Ouvrir →</span>'
+        +'</div>';
+    });
+    /* Fichiers */
+    fileItems.forEach(function(f){
+      var name=f.name.replace(/^\d+_/,'');
+      var size=f.metadata&&f.metadata.size?_cloudFmtSize(f.metadata.size):'';
+      var fp=_cloudPrefix(path)+f.name;
+      var ico=FTYPE(name);
+      h+='<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:#0d1220;border:1px solid #1e2a3a;border-radius:10px">'
+        +'<span style="font-size:18px;flex-shrink:0">'+ico+'</span>'
+        +'<div style="min-width:0;flex:1">'
+          +'<div style="font-size:12px;font-weight:600;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(name)+'</div>'
+          +(size?'<div style="font-size:10px;color:#5a6a80;font-family:DM Mono,monospace">'+esc(size)+'</div>':'')
+        +'</div>'
+        +'<button id="cvdl-'+f.id.replace(/[^a-z0-9]/gi,'_')+'" '
+          +'onclick="_cloudDownload(\''+esc(fp)+'\',\''+esc(name)+'\')" '
+          +'style="flex-shrink:0;background:#1e2a3a;border:1px solid #2d3d50;color:#c0d0e0;font-size:11px;padding:6px 12px;border-radius:7px;cursor:pointer;white-space:nowrap">'
+          +'⬇ Télécharger</button>'
+        +'</div>';
+    });
+    h+='</div>';
+    return h;
+  }
+
+  function _cloudFmtSize(b){
+    if(!b)return '';
+    if(b<1024)return b+' o';
+    if(b<1048576)return (b/1024).toFixed(1)+' Ko';
+    return (b/1048576).toFixed(1)+' Mo';
+  }
+
+  function _cloudNavTo(path){
+    var body=document.getElementById('sv-body');
+    if(body) body.innerHTML='<div style="text-align:center;color:#5a6a80;padding:60px;font-size:12px"><div class="spinner" style="margin:0 auto 14px"></div>Chargement…</div>';
+    _cloudLoadDir(path, function(h){ if(body) body.innerHTML=h; });
+  }
+
+  async function _cloudDownload(filePath, name){
+    try{
+      var sess=(await sb.auth.getSession()).data?.session;
+      var res=await fetch('https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/b2-storage',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+(sess?.access_token||SB_KEY)},
+        body:JSON.stringify({action:'signed-url',path:filePath,expiresIn:3600})
+      });
+      var json=await res.json();
+      if(json.error) throw new Error(json.error.message||json.error);
+      var url=json.data?.signedUrl;
+      if(!url) throw new Error('URL invalide');
+      var a=document.createElement('a'); a.href=url; a.download=name; a.target='_blank'; a.click();
+    }catch(e){
+      alert('Erreur téléchargement : '+e.message);
+    }
+  }
+
   function _renderFilesPane(){
     if(!rFiles.length) return '<div style="text-align:center;color:#5a6a80;padding:60px">Aucun fichier joint.</div>';
     var sidebar='<div style="display:flex;flex-direction:column">';
@@ -14517,6 +14658,9 @@ async function openRecapMatos(){
     else if(sec==='stage'){_renderStage(function(h){_paneCache.stage=h;document.getElementById('sv-body').innerHTML=h;});}
     else if(sec==='site'){_renderSite(function(h){_paneCache.site=h;document.getElementById('sv-body').innerHTML=h;});}
     else if(sec==='syno'){_paneCache.syno=_renderSyno();document.getElementById('sv-body').innerHTML=_paneCache.syno;}
+    else if(sec==='cloud'){
+      _renderCloudPane(function(h){ _paneCache.cloud=h; document.getElementById('sv-body').innerHTML=h; });
+    }
     else if(sec==='files'){
       // Wait for signed URLs if not yet ready, then render
       var tryRender=function(){
