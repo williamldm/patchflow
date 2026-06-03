@@ -4597,12 +4597,15 @@ async function generateRiderLink(){
     });
   }catch(e){siteSnap=null;}
 
+  var _activeSecs=Object.keys(_riderSections).filter(function(k){return _riderSections[k];});
   var cfg={
-    sections:Object.keys(_riderSections).filter(function(k){return _riderSections[k];}),
+    sections:_activeSecs,
     title:(t&&t.value.trim())||'',
     note:(n&&n.value.trim())||'',
     info:(inf&&inf.value.trim())||'',
-    files:Array.from(_riderPickedFiles),
+    /* Sauvegarder les fichiers UNIQUEMENT si des fichiers ont été explicitement
+       cochés — évite d'envoyer des résidus d'une ancienne génération */
+    files:_riderPickedFiles.size>0?Array.from(_riderPickedFiles):[],
     out_snapshot:outSnap,
     syn_snapshot:synSnap,
     site_snapshot:siteSnap
@@ -4894,7 +4897,9 @@ function _loadRiderConfig(){
   if(t)t.value=cfg.title||'';
   if(n)n.value=cfg.note||'';
   if(inf)inf.value=cfg.info||'';
-  _riderPickedFiles=new Set(cfg.files||[]);
+  /* Ne pas pré-remplir les pièces jointes : l'utilisateur doit les
+     sélectionner explicitement à chaque génération de lien. */
+  _riderPickedFiles=new Set();
 }
 
 function _initRiderBuilder(){
@@ -5022,7 +5027,7 @@ async function _createLink(){
     title:(document.getElementById('rider-title')?.value||'').trim(),
     note: (document.getElementById('rider-note')?.value||'').trim(),
     info: (document.getElementById('rider-info')?.value||'').trim(),
-    files: Array.from(_riderPickedFiles),
+    files: _riderPickedFiles.size>0?Array.from(_riderPickedFiles):[],
     out_snapshot: CUR_SHOW.out_data||OUT_DATA||{}
   };
 
