@@ -5137,16 +5137,14 @@ async function _loadRiderFiles(){
   var fl=document.getElementById('rider-file-list');
   if(!fl)return;
   fl.innerHTML='<div style="font-size:11px;color:var(--muted);padding:8px 0">Chargement…</div>';
-  var prefix=CUR_SHOW.id+'/';
-  var {data,error}=await B2Storage.list(prefix,{sortBy:{column:'name',order:'asc'}});
+  // Lecture depuis Supabase — tous les fichiers (pas dossiers) du show, toutes profondeurs
+  var {data,error}=await _sfListShowFiles();
   if(error||!data||!data.length){fl.innerHTML='<div style="font-size:11px;color:var(--muted);padding:8px 0">Aucun fichier dans le cloud pour ce show.</div>';return;}
-  var SKIP=new Set(['.emptyFolderPlaceholder','.keep']);
-  var files=data.filter(function(f){return !SKIP.has(f.name)&&f.name;});
-  if(!files.length){fl.innerHTML='<div style="font-size:11px;color:var(--muted);padding:8px 0">Aucun fichier disponible.</div>';return;}
-  fl.innerHTML=files.map(function(f){
-    var path=prefix+f.name;
+  if(!data.length){fl.innerHTML='<div style="font-size:11px;color:var(--muted);padding:8px 0">Aucun fichier disponible.</div>';return;}
+  fl.innerHTML=data.map(function(f){
+    var path=f.path; // chemin complet déjà dans show_files
     var disp=_fichDisplayName?_fichDisplayName(f.name):f.name;
-    var sz=_fmtSize?_fmtSize(f.metadata&&f.metadata.size):'';
+    var sz=_fmtSize?_fmtSize(f.size):'';
     var info=_fichInfoOf?_fichInfoOf(f.name):{icon:'<i class="ti ti-file" style="color:var(--muted);font-size:15px"></i>'};
     var picked=_riderPickedFiles.has(path);
     var isPdf = f.name.toLowerCase().endsWith('.pdf');
@@ -12401,6 +12399,107 @@ function _fichDisplayName(storedName) {
   return idx > -1 ? storedName.slice(idx + 1) : storedName;
 }
 
+// ══════════════════════════════════════
+// SHOW_FILES — Supabase comme source de vérité pour les listings
+// Toutes les opérations B2 sont mirrorées ici pour éviter
+// les appels B2Storage.list() lents et coûteux.
+// ══════════════════════════════════════
+
+/* Extrait le dossier parent d'un chemin complet.
+   'showId/Logos/abc_img.png' → 'Logos'
+   'showId/abc_rider.pdf'     → ''          */
+function _sfFolder(fullPath) {
+  // Retire le showId/ initial puis le nom de fichier final
+  const rel = fullPath.startsWith(CUR_SHOW.id + '/') ? fullPath.slice(CUR_SHOW.id.length + 1) : fullPath;
+  const parts = rel.split('/');
+  return parts.length > 1 ? parts.slice(0, -1).join('/') : '';
+}
+
+/* Upsert un fichier dans show_files après upload B2 réussi */
+async function _sfUpsertFile(fullPath, file) {
+  if (!CUR_SHOW || !ME) return;
+  const name = fullPath.split('/').pop();
+  const folder = _sfFolder(fullPath);
+  await sb.from('show_files').upsert({
+    show_id:      CUR_SHOW.id,
+    path:         fullPath,
+    name:         name,
+    folder:       folder,
+    size:         file.size || 0,
+    content_type: file.type || '',
+    is_folder:    false,
+    created_by:   ME.id,
+  }, { onConflict: 'show_id,path' });
+}
+
+/* Upsert un dossier dans show_files (entrée virtuelle) */
+async function _sfUpsertFolder(fullPath, folderName) {
+  if (!CUR_SHOW || !ME) return;
+  // fullPath est le chemin du .keep, on remonte d'un niveau pour le dossier
+  const folderPath = fullPath.replace(/\/\.keep$/, '');
+  const parentFolder = _sfFolder(folderPath + '/dummy'); // dossier parent
+  await sb.from('show_files').upsert({
+    show_id:      CUR_SHOW.id,
+    path:         folderPath,
+    name:         folderName,
+    folder:       parentFolder,
+    size:         0,
+    content_type: '',
+    is_folder:    true,
+    created_by:   ME.id,
+  }, { onConflict: 'show_id,path' });
+}
+
+/* Supprime un fichier de show_files */
+async function _sfDeleteFile(fullPath) {
+  if (!CUR_SHOW) return;
+  await sb.from('show_files').delete().eq('show_id', CUR_SHOW.id).eq('path', fullPath);
+}
+
+/* Supprime un dossier et son contenu de show_files */
+async function _sfDeleteFolder(folderRelPath) {
+  if (!CUR_SHOW) return;
+  const basePath = CUR_SHOW.id + '/' + folderRelPath;
+  // Supprime le dossier lui-même + tous les fichiers dont le path commence par basePath/
+  await sb.from('show_files').delete()
+    .eq('show_id', CUR_SHOW.id)
+    .or(`path.eq.${basePath},path.like.${basePath}/%`);
+}
+
+/* Met à jour le path/folder d'un fichier après un move B2 */
+async function _sfMoveFile(oldPath, newPath) {
+  if (!CUR_SHOW) return;
+  const newName   = newPath.split('/').pop();
+  const newFolder = _sfFolder(newPath);
+  await sb.from('show_files')
+    .update({ path: newPath, name: newName, folder: newFolder })
+    .eq('show_id', CUR_SHOW.id).eq('path', oldPath);
+}
+
+/* Lit les fichiers/dossiers d'un dossier depuis Supabase (remplace B2Storage.list) */
+async function _sfListFolder(folderRelPath) {
+  if (!CUR_SHOW) return { data: [], error: null };
+  const folderKey = folderRelPath.replace(/\/$/, ''); // sans slash final
+  const { data, error } = await sb.from('show_files')
+    .select('id, path, name, folder, size, content_type, is_folder, created_at')
+    .eq('show_id', CUR_SHOW.id)
+    .eq('folder', folderKey)
+    .order('is_folder', { ascending: false }) // dossiers en premier
+    .order('name', { ascending: true });
+  return { data, error };
+}
+
+/* Lit les fichiers (pas dossiers) d'un show depuis Supabase pour le rider picker */
+async function _sfListShowFiles() {
+  if (!CUR_SHOW) return { data: [], error: null };
+  const { data, error } = await sb.from('show_files')
+    .select('id, path, name, folder, size, content_type, is_folder, created_at')
+    .eq('show_id', CUR_SHOW.id)
+    .eq('is_folder', false)
+    .order('name', { ascending: true });
+  return { data, error };
+}
+
 function _fichPathStr() {
   return _fichPath.length ? _fichPath.join('/') + '/' : '';
 }
@@ -12411,20 +12510,26 @@ function _fichFullPath(filename) {
 
 async function loadFichiers() {
   if (!CUR_SHOW) return;
-  const prefix = CUR_SHOW.id + '/' + _fichPathStr();
-  const { data, error } = await B2Storage.list(prefix, {
-    sortBy: { column: 'name', order: 'asc' },
-  });
+  const folderRel = _fichPathStr().replace(/\/$/, ''); // '' | 'Logos' | 'Logos/Sub'
+  const { data, error } = await _sfListFolder(folderRel);
   const list = document.getElementById('fichiers-list');
-  const dz = document.getElementById('fichiers-drop-zone');
+  const dz   = document.getElementById('fichiers-drop-zone');
   if (error) {
     const errMsg = error?.message || 'Erreur inconnue';
-    if (list) list.innerHTML = '<div class="fich-empty"><i class="ti ti-alert-triangle"></i><p style="font-size:12px">Erreur stockage B2 :<br><code style="font-size:10px;word-break:break-all;color:var(--err)">' + errMsg + '</code></p></div>';
+    if (list) list.innerHTML = '<div class="fich-empty"><i class="ti ti-alert-triangle"></i><p style="font-size:12px">Erreur chargement fichiers :<br><code style="font-size:10px;word-break:break-all;color:var(--err)">' + errMsg + '</code></p></div>';
     if (dz) dz.style.display = 'none';
     return;
   }
-  const SKIP = new Set(['.emptyFolderPlaceholder', '.keep']);
-  SHOW_FILES = (data || []).filter(f => !SKIP.has(f.name));
+  // Normaliser au format attendu par _renderFichiersGrid
+  SHOW_FILES = (data || []).map(f => ({
+    name:       f.name,
+    id:         f.is_folder ? null : f.id,
+    metadata:   { size: f.size },
+    created_at: f.created_at,
+    content_type: f.content_type,
+    _path:      f.path,   // chemin complet B2 (pour signed URLs / delete)
+    _isFolder:  f.is_folder,
+  }));
   _renderFichBreadcrumb();
   _renderFichiersGrid();
 }
@@ -12531,6 +12636,8 @@ async function renameFichier(relPath) {
   const newPath = CUR_SHOW.id + '/' + dir + prefix + clean + ext;
   const { error } = await B2Storage.move(oldPath, newPath);
   if (error) { toast('Erreur renommage : ' + error.message); return; }
+  // Sync Supabase
+  await _sfMoveFile(oldPath, newPath).catch(() => {});
   toast('Fichier renomme');
   await loadFichiers();
 }
@@ -12644,6 +12751,8 @@ async function moveFichierToFolder(destDir) {
   try {
     const { error } = await B2Storage.move(oldFullPath, newFullPath);
     if (error) { toast('Erreur déplacement : ' + error.message); return; }
+    // Sync Supabase
+    await _sfMoveFile(oldFullPath, newFullPath).catch(() => {});
     const destLabel = destDir === '' ? 'la racine' : destDir.replace(/\/$/, '').split('/').pop();
     toast('Déplacé vers ' + destLabel + ' ✓');
     await loadFichiers();
@@ -12833,7 +12942,12 @@ async function _uploadFichiers(files) {
     const path = _fichFullPath(prefix + '_' + file.name);
     const { error } = await B2Storage.upload(path, file, { upsert: false });
     if (error) { toast('Erreur upload : ' + error.message); }
-    else { ok++; _storageCache = null; } // invalider le cache après chaque upload réussi
+    else {
+      ok++;
+      _storageCache = null;
+      // Sync Supabase (fire-and-forget, non bloquant)
+      _sfUpsertFile(path, file).catch(() => {});
+    }
   }
   if (status) status.style.display = 'none';
   if (ok) toast(ok === 1 ? '✓ Fichier importé' : '✓ ' + ok + ' fichiers importés');
@@ -12847,6 +12961,8 @@ async function createFichierFolder() {
   const keepPath = _fichFullPath(clean + '/.keep');
   const { error } = await B2Storage.upload(keepPath, new Blob(['']), { upsert: true });
   if (error) { toast('Erreur : ' + error.message); return; }
+  // Sync Supabase : entrée dossier virtuelle
+  await _sfUpsertFolder(keepPath, clean);
   toast('✓ Dossier « ' + clean + ' » créé');
   await loadFichiers();
 }
@@ -12854,10 +12970,19 @@ async function createFichierFolder() {
 async function deleteFichierFolder(folderName) {
   if (!CUR_SHOW) return;
   if (!await _confirmModal('Supprimer « ' + folderName + ' » ?', 'Tout le contenu du dossier sera supprimé.')) return;
-  const prefix = _fichFullPath(folderName + '/');
-  const { data } = await B2Storage.list(prefix);
-  const paths = (data || []).map(f => prefix + f.name);
-  if (paths.length) await B2Storage.remove(paths);
+  const folderRelPath = _fichPathStr() + folderName;
+  // 1. Récupérer les paths depuis Supabase (plus rapide que B2 list)
+  const { data: sfFiles } = await sb.from('show_files')
+    .select('path')
+    .eq('show_id', CUR_SHOW.id)
+    .or(`folder.eq.${folderRelPath},folder.like.${folderRelPath}/%,path.eq.${CUR_SHOW.id}/${folderRelPath}`);
+  // 2. Supprimer de B2 (fichiers réels + .keep)
+  const b2Paths = (sfFiles || []).map(f => f.path);
+  // Ajouter le .keep du dossier lui-même
+  b2Paths.push(_fichFullPath(folderName + '/.keep'));
+  if (b2Paths.length) await B2Storage.remove(b2Paths).catch(() => {});
+  // 3. Sync Supabase
+  await _sfDeleteFolder(folderRelPath);
   toast('✓ Dossier supprimé');
   await loadFichiers();
 }
@@ -12866,8 +12991,11 @@ async function deleteFichier(relPath) {
   if (!CUR_SHOW) return;
   const displayName = _fichDisplayName(relPath.split('/').pop());
   if (!await _confirmModal('Supprimer « ' + displayName + ' » ?', 'Cette action est irréversible.')) return;
-  const { error } = await B2Storage.remove([CUR_SHOW.id + '/' + relPath]);
+  const fullPath = CUR_SHOW.id + '/' + relPath;
+  const { error } = await B2Storage.remove([fullPath]);
   if (error) { toast('Erreur : ' + error.message); return; }
+  // Sync Supabase
+  await _sfDeleteFile(fullPath);
   toast('Fichier supprimé');
   await loadFichiers();
 }

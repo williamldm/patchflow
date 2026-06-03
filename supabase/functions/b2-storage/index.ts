@@ -135,6 +135,7 @@ serve(async (req) => {
     }
 
     /* ── Action publique : lister les fichiers d'un show partagé avec cloud:true ── */
+    /* ── public-cloud-list : lecture depuis Supabase (vue partagée, sans auth) ── */
     if (action === 'public-cloud-list') {
       const { prefix, showId } = body as { prefix: string; showId: string };
       if (!showId || !/^[0-9a-f-]{36}$/i.test(showId)) return json({ error: 'showId invalide' }, 400);
@@ -143,21 +144,30 @@ serve(async (req) => {
         Deno.env.get('SUPABASE_URL')!,
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
       );
+      // Vérifier que le show partage bien son cloud
       const { data: showRow } = await sbAdmin
         .from('shows').select('stage_data').eq('id', showId).maybeSingle();
       const sections: string[] = showRow?.stage_data?.rider?.sections || [];
       if (!sections.includes('cloud')) return json({ error: 'Accès cloud non autorisé pour ce show' }, 403);
-      // ListObjectsV2Command déjà importé statiquement en haut du fichier
-      const cmd = new ListObjectsV2Command({ Bucket: B2_BUCKET, Prefix: prefix, Delimiter: '/' });
-      const resp = await s3.send(cmd);
-      const SKIP = new Set(['.emptyFolderPlaceholder', '.keep']);
-      const folders = (resp.CommonPrefixes ?? []).map((p) => ({
-        name: p.Prefix!.slice(prefix.length).replace(/\/$/, ''), id: null, metadata: null, created_at: null,
+      // Lire depuis show_files — même dossier courant
+      const folder = prefix.slice(showId.length + 1).replace(/\/$/, '');
+      const { data: rows, error: sfErr } = await sbAdmin
+        .from('show_files')
+        .select('id, name, folder, size, is_folder, created_at, path')
+        .eq('show_id', showId)
+        .eq('folder', folder)
+        .order('is_folder', { ascending: false })
+        .order('name', { ascending: true });
+      if (sfErr) return json({ error: sfErr.message }, 500);
+      const data = (rows ?? []).map((r) => ({
+        name:       r.name,
+        id:         r.is_folder ? null : r.id,
+        metadata:   { size: r.size ?? 0 },
+        created_at: r.created_at,
+        _path:      r.path,
+        _isFolder:  r.is_folder,
       }));
-      const files = (resp.Contents ?? [])
-        .filter((o) => { const n = o.Key!.slice(prefix.length); return n && !SKIP.has(n); })
-        .map((o) => ({ name: o.Key!.slice(prefix.length), id: o.ETag ?? o.Key, metadata: { size: o.Size ?? 0 }, created_at: o.LastModified?.toISOString() ?? null }));
-      return json({ data: [...folders, ...files], error: null });
+      return json({ data, error: null });
     }
 
     const user = await getUser(req);
@@ -172,39 +182,35 @@ serve(async (req) => {
       return userCanAccessShow(user.id, sid, accessCache);
     };
 
-    // ── list ──
+    // ── list : lecture depuis Supabase show_files (plus rapide que B2) ──
     if (action === 'list') {
       const { prefix } = body as { prefix: string };
       if (!prefix || !(await checkPath(prefix))) return deny();
-      const cmd = new ListObjectsV2Command({
-        Bucket: B2_BUCKET,
-        Prefix: prefix,
-        Delimiter: '/',
-      });
-      const resp = await s3.send(cmd);
-
-      // Folders (common prefixes)
-      const folders = (resp.CommonPrefixes ?? []).map((p) => ({
-        name: p.Prefix!.slice(prefix.length).replace(/\/$/, ''),
-        id: null,
-        metadata: null,
-        created_at: null,
+      const showId = extractShowId(prefix);
+      if (!showId) return deny();
+      // Dossier courant = partie après showId/ sans slash final
+      const folder = prefix.slice(showId.length + 1).replace(/\/$/, '');
+      const sbAdmin = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      );
+      const { data: rows, error: sfErr } = await sbAdmin
+        .from('show_files')
+        .select('id, path, name, folder, size, content_type, is_folder, created_at')
+        .eq('show_id', showId)
+        .eq('folder', folder)
+        .order('is_folder', { ascending: false })
+        .order('name', { ascending: true });
+      if (sfErr) return json({ error: sfErr.message }, 500);
+      const data = (rows ?? []).map((r) => ({
+        name:       r.name,
+        id:         r.is_folder ? null : r.id,
+        metadata:   { size: r.size ?? 0 },
+        created_at: r.created_at,
+        _path:      r.path,
+        _isFolder:  r.is_folder,
       }));
-
-      // Files (filter .keep / placeholders)
-      const files = (resp.Contents ?? [])
-        .filter((o) => {
-          const name = o.Key!.slice(prefix.length);
-          return name && !SKIP.has(name);
-        })
-        .map((o) => ({
-          name: o.Key!.slice(prefix.length),
-          id: o.ETag ?? o.Key,
-          metadata: { size: o.Size ?? 0 },
-          created_at: o.LastModified?.toISOString() ?? null,
-        }));
-
-      return json({ data: [...folders, ...files], error: null });
+      return json({ data, error: null });
     }
 
     // ── upload-presigned : return a presigned PUT URL ──
