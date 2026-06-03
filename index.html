@@ -114,18 +114,17 @@ h2 em{font-style:normal;color:var(--ora)}
 .cmp-yes{color:var(--grn)}.cmp-no{color:#ff4d6a;opacity:.7}
 .cmp-pf-badge{display:inline-flex;align-items:center;gap:6px;color:var(--ora)}
 @media(max-width:620px){
-  /* Comparison table → card layout */
-  .cmp-wrap{border-radius:14px;background:transparent;border:none;display:flex;flex-direction:column;gap:14px}
-  .cmp-row.head{display:none}
-  .cmp-row{display:flex;flex-direction:column;background:var(--surf);border:1px solid var(--bdr2);border-radius:14px;overflow:hidden}
-  .cmp-cell{padding:11px 16px;border-bottom:1px solid var(--bdr);font-size:13px;display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center}
-  .cmp-row:last-child .cmp-cell{border-bottom:1px solid var(--bdr)}
-  .cmp-row .cmp-cell:last-child{border-bottom:none}
-  .cmp-cell-lbl{display:inline-block;font-family:var(--m);font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:700;min-width:74px;padding-right:8px;border-right:1px solid var(--bdr)}
-  .cmp-cell.cmp-feat{background:rgba(255,107,26,.05);font-weight:600;color:var(--txt);font-size:13.5px;padding:14px 16px;grid-template-columns:1fr}
-  .cmp-cell.cmp-feat .cmp-cell-lbl{display:none}
-  .cmp-cell.cmp-pf{background:rgba(255,107,26,.04)}
-  .cmp-cell.cmp-old{color:var(--txt2)}
+  /* Comparison table — tableau 3 colonnes conservé, juste rendu plus compact */
+  .cmp-wrap{border-radius:12px;margin:32px 0 0;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .cmp-row{grid-template-columns:1.1fr .85fr .85fr}
+  .cmp-row.head .cmp-cell{padding:12px 10px;font-size:10px}
+  .cmp-cell{padding:10px 10px;font-size:11.5px;gap:5px;line-height:1.4}
+  .cmp-cell-lbl{display:none}
+  .cmp-feat{font-size:11px}
+  .cmp-old{font-size:11px}
+  .cmp-pf{font-size:11px}
+  .cmp-pf-badge{font-size:11px;gap:4px}
+  .cmp-pf-badge svg{width:13px;height:13px}
 }
 
 /* ── FEATURES INTERACTIVE ── */
