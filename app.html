@@ -4577,8 +4577,14 @@ async function generateRiderLink(){
   /* Snapshot du plan de site en PNG base64 (SitePlan ne peut pas se re-rendre
      dans la vue lecture seule car le DOM #site-viewport n'y est pas).
      Charger les données si SitePlan est vide (onglet jamais ouvert dans cette session). */
-  if(!SitePlan.hasContent() && CUR_SHOW?.stage_data?.site){
-    SitePlan.load(CUR_SHOW.stage_data.site);
+  if(!SitePlan.hasContent()){
+    var _sSD=CUR_SHOW?.stage_data?.site||null;
+    var _sSC=null;
+    if(!_sSD&&SHOW_SCENES.site&&SHOW_SCENES.site.length){
+      var _cSS=SHOW_SCENES.site.find(function(s){return s.id===CUR_SCENES.site;});
+      _sSC=_cSS&&_cSS.data&&_cSS.data.site||null;
+    }
+    var _sL=_sSD||_sSC; if(_sL) SitePlan.load(_sL);
   }
   var siteSnap=null;
   try{
@@ -4784,9 +4790,11 @@ td{padding:4px 7px;border-bottom:1px solid #f0eee8;vertical-align:middle}
     }
 
     else if(s==='site'){
-      /* Charger SitePlan si pas encore initialisé dans cette session */
-      if(!SitePlan.hasContent() && CUR_SHOW?.stage_data?.site){
-        SitePlan.load(CUR_SHOW.stage_data.site);
+      /* Charger SitePlan si pas encore initialisé (stage_data.site ou scène active) */
+      if(!SitePlan.hasContent()){
+        var _s1=CUR_SHOW?.stage_data?.site||null;
+        if(!_s1&&SHOW_SCENES.site&&SHOW_SCENES.site.length){var _sc1=SHOW_SCENES.site.find(function(s){return s.id===CUR_SCENES.site;});_s1=_sc1&&_sc1.data&&_sc1.data.site||null;}
+        if(_s1) SitePlan.load(_s1);
       }
       var siteDataUrl=await _canvasPromise(function(resolve){
         SitePlan.exportCanvasSafe(function(cv){ resolve(cv?cv.toDataURL('image/png'):null); });
@@ -5020,7 +5028,18 @@ async function _createLink(){
 
   /* Pré-calculer les snapshots visuels */
   if(sections.includes('site')){
-    if(!SitePlan.hasContent()&&CUR_SHOW?.stage_data?.site) SitePlan.load(CUR_SHOW.stage_data.site);
+    if(!SitePlan.hasContent()){
+      /* Chercher les données site dans stage_data.site (non-Studio)
+         OU dans la scène active (Pro multi-scènes) */
+      var _siteFromSD=CUR_SHOW?.stage_data?.site||null;
+      var _siteFromScene=null;
+      if(!_siteFromSD&&SHOW_SCENES.site&&SHOW_SCENES.site.length){
+        var _curSS=SHOW_SCENES.site.find(function(s){return s.id===CUR_SCENES.site;});
+        _siteFromScene=_curSS&&_curSS.data&&_curSS.data.site||null;
+      }
+      var _siteToLoad=_siteFromSD||_siteFromScene;
+      if(_siteToLoad) SitePlan.load(_siteToLoad);
+    }
     try{
       config.site_snapshot=await new Promise(function(resolve){
         var t=setTimeout(function(){resolve(null);},6000);
@@ -6573,9 +6592,11 @@ function doPDF(){
     return;
   }
   if(type === 'site'){
-    /* S'assurer que SitePlan est chargé (l'onglet peut ne jamais avoir été ouvert) */
-    if(!SitePlan.hasContent() && CUR_SHOW?.stage_data?.site){
-      SitePlan.load(CUR_SHOW.stage_data.site);
+    /* S'assurer que SitePlan est chargé (stage_data.site ou scène active) */
+    if(!SitePlan.hasContent()){
+      var _s2=CUR_SHOW?.stage_data?.site||null;
+      if(!_s2&&SHOW_SCENES.site&&SHOW_SCENES.site.length){var _sc2=SHOW_SCENES.site.find(function(s){return s.id===CUR_SCENES.site;});_s2=_sc2&&_sc2.data&&_sc2.data.site||null;}
+      if(_s2) SitePlan.load(_s2);
     }
     SitePlan.exportCanvas(function(cv){
       if(!cv){toast('Plan de site vide — rien à exporter.');return;}
@@ -14329,7 +14350,10 @@ async function openRecapMatos(){
     /* Renderer canvas pur — identique à SitePlan._makeCanvas mais sans dépendances DOM */
     _renderSiteFromData(siteData, function(dataUrl){
       if(!dataUrl){
-        cb(_showMeta+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:12px">Impossible de rendre le plan de site.</div>');
+        cb(_showMeta+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:12px">'
+          +'Le plan de site n\'a pas pu être rendu.<br>'
+          +'<span style="font-size:10px;opacity:.6">Re-générez le lien depuis l\'onglet Équipe pour inclure un aperçu du plan de site.</span>'
+          +'</div>');
         return;
       }
       _renderSiteImage(dataUrl, cb);
@@ -14338,13 +14362,16 @@ async function openRecapMatos(){
 
   /* Renderer site plan autonome (canvas 2D, pas de dépendance DOM/SitePlan singleton) */
   function _renderSiteFromData(siteData, cb){
+    try{
     var els = siteData.elements||[];
     var cables = siteData.cables||[];
     /* Définir les types de câbles par défaut (couleurs) */
     var CABLE_COLORS = {'audio':'#3b82f6','video':'#a855f7','power':'#f59e0b','network':'#22c55e','other':'#6b7280'};
     /* Bounding box */
     var minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
-    if(!els.length){ cb(null); return; }
+    if(!els.length && !siteData.bgImage){ cb(null); return; }
+    /* S'il n'y a qu'une image de fond sans éléments, simuler des bornes */
+    if(!els.length){ minX=0;minY=0;maxX=1200;maxY=800; }
     els.forEach(function(e){
       minX=Math.min(minX,e.x-40); minY=Math.min(minY,e.y-40);
       maxX=Math.max(maxX,e.x+112); maxY=Math.max(maxY,e.y+130);
@@ -14394,6 +14421,7 @@ async function openRecapMatos(){
       if(drawn===total) cb(canvas.toDataURL('image/png'));
     });
     if(!total) cb(canvas.toDataURL('image/png'));
+    }catch(e){ console.warn('[renderSiteFromData]',e); cb(null); }
   }
   function _renderSiteImage(dataUrl,cb){
     if(isMobile){
