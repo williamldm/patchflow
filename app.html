@@ -436,6 +436,30 @@ body{display:flex;flex-direction:column;min-height:100vh}
 #fich-viewer-content video{width:100%;height:100%;display:block;object-fit:contain;background:#000}
 .fich-audio-wrap{display:flex;align-items:center;justify-content:center;height:100%;padding:40px;background:var(--surf)}
 .fich-audio-wrap audio{width:100%;max-width:500px}
+/* Word viewer */
+.fich-docx-wrap{flex:1;overflow:auto;padding:32px;background:#f8fafc;min-height:0}
+.fich-docx-body{max-width:780px;margin:0 auto;background:#fff;border-radius:8px;padding:40px 52px;box-shadow:0 2px 12px rgba(0,0,0,.08);font-family:Georgia,serif;font-size:14px;line-height:1.7;color:#1a1a2e}
+.fich-docx-body h1,.fich-docx-body h2,.fich-docx-body h3{font-family:'Outfit',sans-serif;color:#1a1a2e;margin:1.2em 0 .4em}
+.fich-docx-body h1{font-size:22px}.fich-docx-body h2{font-size:18px}.fich-docx-body h3{font-size:15px}
+.fich-docx-body p{margin:0 0 .8em}
+.fich-docx-body table{border-collapse:collapse;width:100%;margin:.8em 0}
+.fich-docx-body td,.fich-docx-body th{border:1px solid #d1d5db;padding:6px 10px;font-size:12px}
+.fich-docx-body th{background:#f1f5f9;font-weight:700}
+.fich-docx-bar{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--surf2);border-bottom:1px solid var(--bdr);flex-shrink:0}
+.fich-docx-status{font-size:10px;font-family:var(--m);color:var(--muted);flex:1}
+/* Excel viewer */
+.fich-xlsx-wrap{flex:1;overflow:auto;min-height:0;background:var(--bg)}
+.fich-xlsx-bar{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--surf2);border-bottom:1px solid var(--bdr);flex-shrink:0;flex-wrap:wrap}
+.fich-xlsx-tabs{display:flex;gap:2px;overflow-x:auto;flex:1}
+.fich-xlsx-tab{font-size:11px;padding:4px 12px;border-radius:5px 5px 0 0;border:1px solid var(--bdr2);border-bottom:none;background:var(--surf3);color:var(--muted);cursor:pointer;white-space:nowrap;font-family:var(--m)}
+.fich-xlsx-tab.on{background:var(--surf);color:var(--txt);border-color:var(--bdr3)}
+.fich-xlsx-table-wrap{overflow:auto;padding:0}
+.fich-xlsx-table{border-collapse:collapse;font-size:12px;font-family:var(--m);white-space:nowrap}
+.fich-xlsx-table th{background:#1d3a5f;color:#e2e8f0;padding:5px 10px;position:sticky;top:0;z-index:2;font-weight:600;border:1px solid #2c4a6f;min-width:80px}
+.fich-xlsx-table td{padding:4px 8px;border:1px solid var(--bdr);color:var(--txt2);min-width:80px;max-width:200px;overflow:hidden;text-overflow:ellipsis}
+.fich-xlsx-table td[contenteditable=true]:focus{background:rgba(255,107,26,.08);outline:2px solid var(--ora);outline-offset:-2px;color:var(--txt)}
+.fich-xlsx-table tr:nth-child(even) td{background:var(--surf2)}
+.fich-xlsx-table tr:hover td{background:var(--surf3)}
 .fich-breadcrumb{display:flex;align-items:center;gap:4px;padding:7px 14px;border-bottom:1px solid var(--bdr);font-size:11px;background:var(--surf2);flex-wrap:wrap}
 .fich-bc-seg{color:var(--muted);cursor:pointer;padding:2px 5px;border-radius:4px;transition:all .12s}
 .fich-bc-seg:hover{color:var(--txt);background:var(--surf3)}
@@ -11916,6 +11940,10 @@ const B2Storage={
     if(!put.ok) return {data:null,error:{message:'Upload B2 failed: '+put.statusText}};
     return {data:{path},error:null};
   },
+  /* Retourne uniquement l'URL présignée (pour upload custom de blob) */
+  async uploadPresigned(path, _size, contentType){
+    return _b2Call('upload-presigned',{path,contentType:contentType||'application/octet-stream'});
+  },
   /* move / rename */
   async move(fromPath,toPath){
     return _b2Call('move',{fromPath,toPath});
@@ -11956,8 +11984,10 @@ const _fEsc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').re
 
 const FICH_TYPES = {
   pdf:    { ext:['pdf'],                               icon:'<i class="ti ti-file-type-pdf" style="color:#ef4444;font-size:20px"></i>',    cls:'ico-pdf',     label:'PDF',        preview:'pdf' },
-  word:   { ext:['docx','doc','odt','rtf','txt'],      icon:'<i class="ti ti-file-type-doc" style="color:#3b82f6;font-size:20px"></i>',    cls:'ico-word',    label:'Document',   preview:'none' },
-  excel:  { ext:['xlsx','xls','csv','ods'],            icon:'<i class="ti ti-file-type-xls" style="color:#22c55e;font-size:20px"></i>',    cls:'ico-excel',   label:'Tableur',    preview:'none' },
+  word:   { ext:['docx','doc','odt','rtf'],            icon:'<i class="ti ti-file-type-doc" style="color:#3b82f6;font-size:20px"></i>',    cls:'ico-word',    label:'Document',   preview:'docx' },
+  txt:    { ext:['txt'],                              icon:'<i class="ti ti-file-text" style="color:#94a3b8;font-size:20px"></i>',          cls:'ico-txt',     label:'Texte',      preview:'text' },
+  excel:  { ext:['xlsx','xls','ods'],                 icon:'<i class="ti ti-file-type-xls" style="color:#22c55e;font-size:20px"></i>',    cls:'ico-excel',   label:'Tableur',    preview:'xlsx' },
+  csv:    { ext:['csv'],                              icon:'<i class="ti ti-table" style="color:#22c55e;font-size:20px"></i>',              cls:'ico-excel',   label:'Tableur',    preview:'xlsx' },
   ppt:    { ext:['pptx','ppt','odp','key'],            icon:'<i class="ti ti-file-type-ppt" style="color:#f97316;font-size:20px"></i>',    cls:'ico-ppt',     label:'Presentation', preview:'none' },
   image:  { ext:['png','jpg','jpeg','gif','webp','svg','heic','bmp','tif','tiff'], icon:'<i class="ti ti-photo" style="color:#ec4899;font-size:20px"></i>', cls:'ico-image', label:'Image',      preview:'image' },
   video:  { ext:['mp4','mov','avi','webm','mkv'],       icon:'<i class="ti ti-device-tv" style="color:#a855f7;font-size:20px"></i>',       cls:'ico-video',   label:'Video',      preview:'video' },
@@ -12488,6 +12518,22 @@ async function viewFichier(relPath) {
     content.innerHTML = '<div class="fich-audio-wrap"><audio controls autoplay src="' + url + '"></audio></div>';
   } else if (info.preview === 'image') {
     content.innerHTML = '<img src="' + url + '" alt="' + _fEsc(displayName) + '" style="max-width:100%;max-height:80vh;object-fit:contain;border-radius:8px;display:block;margin:0 auto"/>';
+  } else if (info.preview === 'docx') {
+    modal.style.display = 'flex';
+    _openDocxViewer(url, displayName, path, content);
+    return;
+  } else if (info.preview === 'xlsx') {
+    modal.style.display = 'flex';
+    _openXlsxViewer(url, displayName, path, content);
+    return;
+  } else if (info.preview === 'text') {
+    modal.style.display = 'flex';
+    content.innerHTML = '<div style="flex:1;overflow:auto;padding:0"><textarea id="fich-txt-editor" style="width:100%;height:100%;background:#1a1a2e;color:#e2e8f0;font-family:\'DM Mono\',monospace;font-size:13px;padding:24px;border:none;outline:none;resize:none;line-height:1.6"></textarea></div>';
+    fetch(url).then(function(r){ return r.text(); }).then(function(t){
+      var ta = document.getElementById('fich-txt-editor');
+      if(ta){ ta.value = t; ta.dataset.orig = t; }
+    });
+    return;
   }
 
   modal.style.display = 'flex';
@@ -12611,6 +12657,220 @@ function closeFichierViewer() {
   if (modal) modal.style.display = 'none';
   if (content) content.innerHTML = '';
   window._pdfState = null;
+  window._xlsxState = null;
+}
+
+/* ════════════════════════════════════════════════════════
+   WORD (.docx) VIEWER — mammoth.js (lazy-loaded)
+   Rendu HTML + édition basique via contenteditable,
+   sauvegarde en re-uploadant le fichier modifié vers B2.
+   ════════════════════════════════════════════════════════ */
+function _loadMammoth(){
+  if(window.mammoth) return Promise.resolve(window.mammoth);
+  return new Promise(function(resolve,reject){
+    var s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js';
+    s.onload=function(){ resolve(window.mammoth); };
+    s.onerror=reject;
+    document.head.appendChild(s);
+  });
+}
+
+async function _openDocxViewer(url, displayName, b2Path, container){
+  container.innerHTML='<div class="fich-pdf-loading"><div class="spinner"></div><span>Chargement du document…</span></div>';
+  try{
+    const mammoth = await _loadMammoth();
+    const resp = await fetch(url);
+    const arrayBuf = await resp.arrayBuffer();
+    const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuf });
+
+    container.innerHTML=
+      '<div class="fich-docx-bar">'
+        +'<span class="fich-docx-status" id="docx-status">Lecture seule — cliquez dans le document pour modifier</span>'
+        +'<button class="btn sm" id="docx-save-btn" onclick="_saveDocxEdits(\''+_fEsc(b2Path)+'\',\''+_fEsc(displayName)+'\')" style="display:none"><i class="ti ti-device-floppy"></i>Enregistrer</button>'
+        +'<a class="btn ghost sm" href="'+url+'" download="'+_fEsc(displayName)+'" target="_blank"><i class="ti ti-download"></i>Télécharger</a>'
+      +'</div>'
+      +'<div class="fich-docx-wrap">'
+        +'<div class="fich-docx-body" id="docx-body" contenteditable="true" '
+          +'oninput="document.getElementById(\'docx-status\').textContent=\'Modifié — pensez à enregistrer\';document.getElementById(\'docx-save-btn\').style.display=\'\';">'
+          +result.value
+        +'</div>'
+      +'</div>';
+
+    if(result.messages.length){
+      console.warn('[docx] warnings:', result.messages.map(function(m){ return m.message; }));
+    }
+  }catch(e){
+    container.innerHTML='<div class="fich-pdf-loading" style="flex-direction:column;gap:10px"><i class="ti ti-file-broken" style="font-size:36px;opacity:.4"></i><span style="font-size:12px">Impossible d\'ouvrir ce document<br><span style="opacity:.6">'+_fEsc(e.message)+'</span></span></div>';
+  }
+}
+
+async function _saveDocxEdits(b2Path, displayName){
+  const body = document.getElementById('docx-body');
+  const btn  = document.getElementById('docx-save-btn');
+  const status = document.getElementById('docx-status');
+  if(!body||!btn) return;
+  btn.disabled=true; btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .8s linear infinite"></i>';
+
+  try{
+    /* Exporter le HTML édité en blob texte (fallback simple) puis upload */
+    const htmlContent='<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+_fEsc(displayName)+'</title></head><body>'+body.innerHTML+'</body></html>';
+    const blob = new Blob([htmlContent],{type:'text/html'});
+
+    /* Upload en remplaçant le fichier — renommer en .html si le nom était .docx */
+    var savePath = b2Path;
+    if(savePath.match(/\.(doc|docx|odt|rtf)$/i)){
+      savePath = savePath.replace(/\.(doc|docx|odt|rtf)$/i,'.html');
+    }
+    const {data:upData,error:upErr} = await B2Storage.uploadPresigned(savePath, blob.size, 'text/html');
+    if(upErr||!upData?.uploadUrl){ throw new Error(upErr?.message||'Upload impossible'); }
+    const putRes = await fetch(upData.uploadUrl,{method:'PUT',body:blob,headers:{'Content-Type':'text/html'}});
+    if(!putRes.ok) throw new Error('PUT failed '+putRes.status);
+
+    status.textContent='Enregistré ✓';
+    btn.style.display='none';
+    if(savePath!==b2Path) toast('Sauvegardé en HTML (format .docx non modifiable en natif)');
+    else toast('Document enregistré ✓');
+    btn.disabled=false; btn.innerHTML='<i class="ti ti-device-floppy"></i>Enregistrer';
+    loadFichiers();
+  }catch(e){
+    toast('Erreur enregistrement : '+e.message);
+    btn.disabled=false; btn.innerHTML='<i class="ti ti-device-floppy"></i>Enregistrer';
+  }
+}
+
+/* ════════════════════════════════════════════════════════
+   EXCEL (.xlsx / .csv) VIEWER/EDITEUR — SheetJS (lazy-loaded)
+   Rendu en tableau HTML éditable cellule par cellule,
+   export et upload vers B2 au format .xlsx.
+   ════════════════════════════════════════════════════════ */
+function _loadSheetJS(){
+  if(window.XLSX) return Promise.resolve(window.XLSX);
+  return new Promise(function(resolve,reject){
+    var s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    s.onload=function(){ resolve(window.XLSX); };
+    s.onerror=reject;
+    document.head.appendChild(s);
+  });
+}
+
+async function _openXlsxViewer(url, displayName, b2Path, container){
+  container.innerHTML='<div class="fich-pdf-loading"><div class="spinner"></div><span>Chargement du tableur…</span></div>';
+  try{
+    const XLSX = await _loadSheetJS();
+    const resp = await fetch(url);
+    const arrayBuf = await resp.arrayBuffer();
+    const wb = XLSX.read(arrayBuf,{type:'array',cellStyles:true});
+    window._xlsxState = { wb, b2Path, displayName, activeSheet:0 };
+
+    _renderXlsxSheet(container, wb, 0);
+  }catch(e){
+    container.innerHTML='<div class="fich-pdf-loading" style="flex-direction:column;gap:10px"><i class="ti ti-table-off" style="font-size:36px;opacity:.4"></i><span style="font-size:12px">Impossible d\'ouvrir ce tableur<br><span style="opacity:.6">'+_fEsc(e.message)+'</span></span></div>';
+  }
+}
+
+function _renderXlsxSheet(container, wb, sheetIdx){
+  const XLSX = window.XLSX;
+  const sheetName = wb.SheetNames[sheetIdx];
+  const ws = wb.Sheets[sheetName];
+  const range = XLSX.utils.decode_range(ws['!ref']||'A1:A1');
+  const maxRow = Math.min(range.e.r, 999);
+  const maxCol = Math.min(range.e.c, 50);
+
+  /* Barre d'onglets + actions */
+  var tabs = wb.SheetNames.map(function(n,i){
+    return '<div class="fich-xlsx-tab'+(i===sheetIdx?' on':'')+'" onclick="_xlsxSwitchSheet('+i+')">'+_fEsc(n)+'</div>';
+  }).join('');
+
+  /* Construction du tableau HTML */
+  var tableHtml='<div class="fich-xlsx-table-wrap"><table class="fich-xlsx-table"><thead><tr><th style="width:36px;background:#111827">#</th>';
+  for(var c=0;c<=maxCol;c++){
+    tableHtml+='<th>'+XLSX.utils.encode_col(c)+'</th>';
+  }
+  tableHtml+='</tr></thead><tbody>';
+
+  for(var r=0;r<=maxRow;r++){
+    tableHtml+='<tr><td style="background:#1a2740;color:#64748b;text-align:center;font-weight:700;position:sticky;left:0;z-index:1">'+(r+1)+'</td>';
+    for(var c2=0;c2<=maxCol;c2++){
+      var addr=XLSX.utils.encode_cell({r:r,c:c2});
+      var cell=ws[addr];
+      var val=cell?XLSX.utils.format_cell(cell):'';
+      var isNum=cell&&(cell.t==='n');
+      var align=isNum?'text-align:right':'';
+      tableHtml+='<td contenteditable="true" data-r="'+r+'" data-c="'+c2+'" style="'+align+'" '
+        +'oninput="_xlsxCellEdit(this,\''+sheetName+'\')" '
+        +'onfocus="this.dataset.before=this.textContent">'+_fEsc(val)+'</td>';
+    }
+    tableHtml+='</tr>';
+  }
+  tableHtml+='</tbody></table></div>';
+
+  container.innerHTML=
+    '<div class="fich-xlsx-bar">'
+      +'<div class="fich-xlsx-tabs">'+tabs+'</div>'
+      +'<span id="xlsx-status" style="font-size:10px;font-family:var(--m);color:var(--muted)">Cliquez une cellule pour modifier</span>'
+      +'<button class="btn sm" id="xlsx-save-btn" onclick="_saveXlsxEdits()" style="display:none"><i class="ti ti-device-floppy"></i>Enregistrer</button>'
+      +'<a class="btn ghost sm" href="'+window._xlsxState?.signedUrl+'" download="'+_fEsc(displayName||'tableur.xlsx')+'" id="xlsx-dl-btn"><i class="ti ti-download"></i>Télécharger</a>'
+    +'</div>'
+    +tableHtml;
+
+  if(window._xlsxState) window._xlsxState.activeSheet=sheetIdx;
+}
+
+function _xlsxSwitchSheet(idx){
+  const s=window._xlsxState; if(!s) return;
+  const container=document.getElementById('fich-viewer-content');
+  if(!container) return;
+  _renderXlsxSheet(container, s.wb, idx);
+}
+
+function _xlsxCellEdit(td, sheetName){
+  const s=window._xlsxState; if(!s) return;
+  const XLSX=window.XLSX;
+  const r=parseInt(td.dataset.r), c=parseInt(td.dataset.c);
+  const addr=XLSX.utils.encode_cell({r,c});
+  const ws=s.wb.Sheets[sheetName];
+  const val=td.textContent;
+  /* Déterminer le type : nombre, date, texte */
+  const num=parseFloat(val);
+  if(val===''){ delete ws[addr]; }
+  else if(!isNaN(num)&&val.trim()!==''){ ws[addr]={t:'n',v:num,w:val}; }
+  else{ ws[addr]={t:'s',v:val,w:val}; }
+  /* Indiquer modification */
+  const st=document.getElementById('xlsx-status');
+  const sv=document.getElementById('xlsx-save-btn');
+  if(st) st.textContent='Modifié — pensez à enregistrer';
+  if(sv) sv.style.display='';
+}
+
+async function _saveXlsxEdits(){
+  const s=window._xlsxState; if(!s) return;
+  const XLSX=window.XLSX;
+  const btn=document.getElementById('xlsx-save-btn');
+  const st=document.getElementById('xlsx-status');
+  if(btn){ btn.disabled=true; btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .8s linear infinite"></i>'; }
+  try{
+    const wbOut=XLSX.write(s.wb,{bookType:'xlsx',type:'array'});
+    const blob=new Blob([wbOut],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+
+    /* Sauvegarder en .xlsx (renommer si besoin) */
+    var savePath=s.b2Path;
+    if(!savePath.match(/\.xlsx$/i)) savePath=savePath.replace(/\.[^.]+$/,'.xlsx');
+
+    const {data:upData,error:upErr}=await B2Storage.uploadPresigned(savePath,blob.size,'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    if(upErr||!upData?.uploadUrl) throw new Error(upErr?.message||'Upload impossible');
+    const putRes=await fetch(upData.uploadUrl,{method:'PUT',body:blob,headers:{'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}});
+    if(!putRes.ok) throw new Error('PUT failed '+putRes.status);
+
+    if(st) st.textContent='Enregistré ✓';
+    if(btn){ btn.style.display='none'; btn.disabled=false; btn.innerHTML='<i class="ti ti-device-floppy"></i>Enregistrer'; }
+    toast('Tableur enregistré ✓');
+    loadFichiers();
+  }catch(e){
+    toast('Erreur : '+e.message);
+    if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-device-floppy"></i>Enregistrer'; }
+  }
 }
 
 function renderFichiers() {
