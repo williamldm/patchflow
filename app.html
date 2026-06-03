@@ -12247,6 +12247,17 @@ function _fichNavTo(idx) {
   loadFichiers();
 }
 
+/* Navigation dans un sous-dossier — fonction atomique avec garde anti-double-clic.
+   L'ancien pattern onclick="navTo(idx);_fichPath.push(name);loadFichiers()" était
+   exécuté deux fois sur un double-clic → dossier dupliqué dans le chemin. */
+let _fichNavLock = false;
+function _fichEnterFolder(name) {
+  if(_fichNavLock) return;
+  _fichNavLock = true;
+  _fichPath.push(name);
+  loadFichiers().finally(function(){ _fichNavLock = false; });
+}
+
 let _fichFilter = 'all';
 let _fichSearch = '';
 let _fichSort = 'name-asc';
@@ -12494,7 +12505,7 @@ function _renderFichiersGrid() {
     html += '<div class="fich-section-lbl"><i class="ti ti-folder" style="color:#f5c542;font-size:10px"></i>Dossiers</div>';
     _fichSortFiles(foldersShown).forEach(function(f) {
       const fnJ = _fEsc(JSON.stringify(f.name)); // HTML-escape so quotes survive inside onclick="..."
-      html += '<div class="fich-file-card" onclick="_fichNavTo(' + (_fichPath.length) + ');_fichPath.push(' + fnJ + ');loadFichiers()">' +
+      html += '<div class="fich-file-card" onclick="_fichEnterFolder(' + fnJ + ')">' +
         '<div class="fich-file-ico ico-folder"><i class="ti ti-folder-filled fich-folder-ico"></i></div>' +
         '<div class="fich-file-info"><div class="fich-file-name">' + _fEsc(f.name) + '</div><div class="fich-file-meta">Dossier</div></div>' +
         '<div class="fich-file-actions">' +
