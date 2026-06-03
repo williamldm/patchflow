@@ -2623,17 +2623,64 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 // ══════════════════════════════════════
 const SB_URL='https://ofiiutcueoogmtdvaupg.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9maWl1dGN1ZW9vZ210ZHZhdXBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4NTA2NjcsImV4cCI6MjA5NDQyNjY2N30.PSZMkuq7GBJiQMhh5shH_tOZ6DAmA310K4c7au9e4mE';
-const sb=supabase.createClient(SB_URL,SB_KEY);
 
 /* Détection précoce du flux de réinitialisation de mot de passe.
-   Supabase inclut #type=recovery dans le hash OU ?reset=1 dans l'URL.
-   On détecte cela AVANT le premier onAuthStateChange pour ne pas
-   laisser SIGNED_IN ouvrir l'app. */
+   Le lien envoyé par Supabase contient soit:
+   - #access_token=...&type=recovery (flux legacy, hash)
+   - ?code=... avec query reset=1 (flux PKCE, query string)
+   On lit cela AVANT de créer le client Supabase pour pouvoir désactiver
+   detectSessionInUrl et empêcher l'auto-connection. */
+var _recoveryTokens = null; // {accessToken, refreshToken} si flux legacy
+var _recoveryCode   = null; // string si flux PKCE
 var _inPasswordRecovery = (function(){
-  var h=window.location.hash||'';
-  var q=window.location.search||'';
-  return h.includes('type=recovery') || q.includes('reset=1');
+  var h = window.location.hash || '';
+  var q = window.location.search || '';
+  // Flux legacy: tokens dans le hash
+  if (h.includes('type=recovery')) {
+    var p = new URLSearchParams(h.substring(1));
+    _recoveryTokens = {
+      accessToken:  p.get('access_token'),
+      refreshToken: p.get('refresh_token')
+    };
+    return true;
+  }
+  // Flux PKCE: code dans le query string + flag ?reset=1
+  if (q.includes('reset=1')) {
+    var qp = new URLSearchParams(q);
+    _recoveryCode = qp.get('code');
+    return true;
+  }
+  return false;
 }());
+
+/* Si on est en mode reset, créer le client avec persistSession:false et
+   detectSessionInUrl:false pour empêcher Supabase de créer la session
+   automatiquement (ce qui ouvrirait l'app au lieu du formulaire). */
+const sb = _inPasswordRecovery
+  ? supabase.createClient(SB_URL, SB_KEY, {
+      auth: {
+        persistSession: false,
+        detectSessionInUrl: false,
+        autoRefreshToken: false,
+      }
+    })
+  : supabase.createClient(SB_URL, SB_KEY);
+
+/* En mode reset, nettoyer toute ancienne session pour éviter la connexion auto */
+if (_inPasswordRecovery) {
+  // Nettoyer le hash de l'URL (sécurité: ne pas laisser le token visible)
+  try {
+    if (window.location.hash.includes('type=recovery')) {
+      history.replaceState(null, '', window.location.pathname + '?reset=1');
+    }
+  } catch(_){}
+  // Effacer le localStorage Supabase de toutes les anciennes sessions
+  try {
+    Object.keys(localStorage).forEach(function(k){
+      if (k.startsWith('sb-') || k.startsWith('supabase.')) localStorage.removeItem(k);
+    });
+  } catch(_){}
+}
 
 // ══════════════════════════════════════
 // STATE
@@ -2843,22 +2890,38 @@ async function doResetPassword(){
   if(!p1||p1.length<8){showMsg('Le mot de passe doit faire au moins 8 caractères.',true);return;}
   if(p1!==p2){showMsg('Les mots de passe ne correspondent pas.',true);return;}
   if(btn){btn.disabled=true;btn.textContent='Mise à jour...';}
+
+  /* Avant updateUser, on doit avoir une session valide avec le token recovery.
+     Comme on a créé le client avec detectSessionInUrl:false, il faut établir
+     la session manuellement à partir du token reçu dans le lien. */
+  var setSessionErr = null;
+  if (_recoveryTokens && _recoveryTokens.accessToken) {
+    var sr = await sb.auth.setSession({
+      access_token:  _recoveryTokens.accessToken,
+      refresh_token: _recoveryTokens.refreshToken || '',
+    });
+    setSessionErr = sr.error;
+  } else if (_recoveryCode) {
+    var er = await sb.auth.exchangeCodeForSession(_recoveryCode);
+    setSessionErr = er.error;
+  }
+  if (setSessionErr) {
+    if(btn){btn.disabled=false;btn.textContent='Mettre à jour le mot de passe';}
+    showMsg('Lien expiré ou invalide. Demande un nouveau lien depuis "Mot de passe oublié".', true);
+    return;
+  }
+
   var {error}=await sb.auth.updateUser({password:p1});
   if(btn){btn.disabled=false;btn.textContent='Mettre à jour le mot de passe';}
   if(error){showMsg('Erreur : '+error.message,true);return;}
-  showMsg('Mot de passe mis à jour ! Redirection…',false);
+  showMsg('Mot de passe mis à jour ! Redirection vers la connexion…',false);
+  /* Le client de reset est en mode persistSession:false → on déconnecte
+     proprement et on redirige vers /app.html sans paramètres pour que
+     l'utilisateur se reconnecte avec le nouveau mdp. */
+  try { await sb.auth.signOut(); } catch(_){}
   setTimeout(function(){
-    // Nettoyer et aller sur l'app
-    var resetForm=document.getElementById('form-reset');
-    if(resetForm) resetForm.style.display='none';
-    if(ME){
-      document.getElementById('auth-wrap').className='auth-wrap';
-      document.getElementById('app').className='show';
-      initApp();
-    }else{
-      authTab('login');
-    }
-  },1500);
+    window.location.href = window.location.pathname; // sans ?reset=1 ni #
+  }, 1500);
 }
 
 function _withTimeout(promise,ms){
