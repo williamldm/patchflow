@@ -12491,17 +12491,48 @@ async function _sfMoveFile(oldPath, newPath) {
     .eq('show_id', CUR_SHOW.id).eq('path', oldPath);
 }
 
-/* Lit les fichiers/dossiers d'un dossier depuis Supabase (remplace B2Storage.list) */
+/* Lit les fichiers/dossiers d'un dossier depuis Supabase (remplace B2Storage.list)
+   Les sous-dossiers sont DÉRIVÉS des chemins des fichiers (robuste : pas besoin
+   de lignes de dossiers séparées), + les lignes is_folder explicites (dossiers vides). */
 async function _sfListFolder(folderRelPath) {
   if (!CUR_SHOW) return { data: [], error: null };
-  const folderKey = folderRelPath.replace(/\/$/, ''); // sans slash final
-  const { data, error } = await sb.from('show_files')
+  const folderKey = folderRelPath.replace(/\/$/, ''); // '' | 'Logos' | 'Logos/Sub'
+
+  // 1. Fichiers directs de ce dossier
+  const { data: directRows, error: e1 } = await sb.from('show_files')
     .select('id, path, name, folder, size, content_type, is_folder, created_at')
     .eq('show_id', CUR_SHOW.id)
     .eq('folder', folderKey)
-    .order('is_folder', { ascending: false }) // dossiers en premier
     .order('name', { ascending: true });
-  return { data, error };
+  if (e1) return { data: null, error: e1 };
+
+  const directFiles   = (directRows || []).filter(r => !r.is_folder);
+  const explicitFolders = (directRows || []).filter(r => r.is_folder).map(r => r.name);
+
+  // 2. Tous les fichiers descendants → dériver les noms de sous-dossiers immédiats
+  const childPrefix = folderKey ? folderKey + '/' : '';
+  let q = sb.from('show_files')
+    .select('folder')
+    .eq('show_id', CUR_SHOW.id)
+    .eq('is_folder', false);
+  q = childPrefix ? q.like('folder', childPrefix + '%') : q.neq('folder', '');
+  const { data: descRows, error: e2 } = await q;
+  if (e2) return { data: null, error: e2 };
+
+  const subSet = new Set(explicitFolders);
+  (descRows || []).forEach(r => {
+    if (!r.folder) return;
+    const rel = r.folder.slice(childPrefix.length); // segment relatif
+    const seg = rel.split('/')[0];
+    if (seg) subSet.add(seg);
+  });
+
+  // 3. Construire la liste : dossiers (dérivés) d'abord, puis fichiers
+  const folders = [...subSet].sort().map(name => ({
+    id: null, path: CUR_SHOW.id + '/' + childPrefix + name, name,
+    folder: folderKey, size: 0, content_type: '', is_folder: true, created_at: null,
+  }));
+  return { data: [...folders, ...directFiles], error: null };
 }
 
 /* Lit les fichiers (pas dossiers) d'un show depuis Supabase pour le rider picker */
@@ -12537,7 +12568,9 @@ async function loadFichiers() {
     return;
   }
 
-  // 2. Si Supabase retourne des résultats → on les utilise directement
+  const prefix = CUR_SHOW.id + '/' + (folderRel ? folderRel + '/' : '');
+
+  // 2. Si Supabase retourne des résultats → on les affiche tout de suite
   if (sfData && sfData.length > 0) {
     SHOW_FILES = sfData.map(f => ({
       name:         f.name,
@@ -12550,12 +12583,12 @@ async function loadFichiers() {
     }));
     _renderFichBreadcrumb();
     _renderFichiersGrid();
+    // Réconciliation B2 en arrière-plan : capture dossiers/fichiers manquants
+    _reconcileFolderWithB2(prefix, folderRel);
     return;
   }
 
-  // 3. Fallback B2 : show_files vide → fichiers existants avant la migration
-  //    On lit le VRAI B2 (list-b2-raw), on affiche, et on backfille en arrière-plan.
-  const prefix = CUR_SHOW.id + '/' + (folderRel ? folderRel + '/' : '');
+  // 3. show_files vide pour ce dossier → lecture B2 directe + backfill
   const { data: b2Data, error: b2Err } = await B2Storage.listB2Raw(prefix);
   if (b2Err) {
     if (list) list.innerHTML = '<div class="fich-empty"><i class="ti ti-alert-triangle"></i><p style="font-size:12px">Erreur stockage : ' + (b2Err.message||'') + '</p></div>';
@@ -12566,40 +12599,63 @@ async function loadFichiers() {
   const b2Files = (b2Data || []).filter(f => !SKIP.has(f.name) && f.name);
   SHOW_FILES = b2Files.map(f => {
     const isDir = f.id === null;
-    const fullPath = prefix + f.name;
     return {
       name:         f.name,
       id:           isDir ? null : f.id,
       metadata:     { size: f.metadata?.size || 0 },
       created_at:   f.created_at,
       content_type: '',
-      _path:        fullPath,
+      _path:        prefix + f.name,
       _isFolder:    isDir,
     };
   });
   _renderFichBreadcrumb();
   _renderFichiersGrid();
+  _backfillRows(b2Files, prefix, folderRel);
+}
 
-  // Backfill show_files en arrière-plan (fire-and-forget)
-  if (b2Files.length && ME) {
-    (async () => {
-      const rows = b2Files.map(f => {
-        const isDir = f.id === null;
-        const fullPath = prefix + f.name;
-        return {
-          show_id:      CUR_SHOW.id,
-          path:         fullPath,
-          name:         f.name,
-          folder:       folderRel,
-          size:         isDir ? 0 : (f.metadata?.size || 0),
-          content_type: '',
-          is_folder:    isDir,
-          created_by:   ME.id,
-        };
-      });
-      await sb.from('show_files').upsert(rows, { onConflict: 'show_id,path' });
-    })();
-  }
+/* Upsert une liste d'entrées B2 brutes dans show_files */
+async function _backfillRows(b2Files, prefix, folderRel) {
+  if (!b2Files.length || !ME) return;
+  const rows = b2Files.map(f => {
+    const isDir = f.id === null;
+    return {
+      show_id: CUR_SHOW.id, path: prefix + f.name, name: f.name, folder: folderRel,
+      size: isDir ? 0 : (f.metadata?.size || 0), content_type: '', is_folder: isDir, created_by: ME.id,
+    };
+  });
+  await sb.from('show_files').upsert(rows, { onConflict: 'show_id,path' }).then(()=>{});
+}
+
+/* Réconcilie le dossier courant avec B2 : ajoute dans show_files les
+   dossiers/fichiers présents en B2 mais absents de Supabase, et re-render
+   si du nouveau contenu apparaît. Tourne en arrière-plan (non bloquant). */
+async function _reconcileFolderWithB2(prefix, folderRel) {
+  try {
+    const { data: b2Data } = await B2Storage.listB2Raw(prefix);
+    if (!b2Data) return;
+    const SKIP = new Set(['.emptyFolderPlaceholder', '.keep']);
+    const b2Files = b2Data.filter(f => !SKIP.has(f.name) && f.name);
+    if (!b2Files.length) return;
+    // Noms déjà affichés
+    const known = new Set(SHOW_FILES.map(f => f.name));
+    const missing = b2Files.filter(f => !known.has(f.name));
+    if (!missing.length) return;
+    // Backfill puis recharger l'affichage depuis Supabase
+    await _backfillRows(b2Files, prefix, folderRel);
+    // Vérifier qu'on est toujours sur le même dossier avant de re-render
+    const stillHere = (CUR_SHOW.id + '/' + (_fichPathStr())) === prefix;
+    if (stillHere) {
+      const { data: fresh } = await _sfListFolder(folderRel);
+      if (fresh && fresh.length) {
+        SHOW_FILES = fresh.map(f => ({
+          name: f.name, id: f.is_folder ? null : f.id, metadata: { size: f.size },
+          created_at: f.created_at, content_type: f.content_type, _path: f.path, _isFolder: f.is_folder,
+        }));
+        _renderFichiersGrid();
+      }
+    }
+  } catch (e) { /* silencieux */ }
 }
 
 function _renderFichBreadcrumb() {

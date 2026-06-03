@@ -149,25 +149,38 @@ serve(async (req) => {
         .from('shows').select('stage_data').eq('id', showId).maybeSingle();
       const sections: string[] = showRow?.stage_data?.rider?.sections || [];
       if (!sections.includes('cloud')) return json({ error: 'Accès cloud non autorisé pour ce show' }, 403);
-      // Lire depuis show_files — même dossier courant
+      // Lire depuis show_files — dossier courant + sous-dossiers dérivés
       const folder = prefix.slice(showId.length + 1).replace(/\/$/, '');
-      const { data: rows, error: sfErr } = await sbAdmin
+      // 1. Fichiers directs + lignes de dossiers explicites
+      const { data: directRows, error: e1 } = await sbAdmin
         .from('show_files')
         .select('id, name, folder, size, is_folder, created_at, path')
         .eq('show_id', showId)
         .eq('folder', folder)
-        .order('is_folder', { ascending: false })
         .order('name', { ascending: true });
-      if (sfErr) return json({ error: sfErr.message }, 500);
-      const data = (rows ?? []).map((r) => ({
-        name:       r.name,
-        id:         r.is_folder ? null : r.id,
-        metadata:   { size: r.size ?? 0 },
-        created_at: r.created_at,
-        _path:      r.path,
-        _isFolder:  r.is_folder,
+      if (e1) return json({ error: e1.message }, 500);
+      const directFiles = (directRows ?? []).filter((r) => !r.is_folder);
+      const explicitFolders: string[] = (directRows ?? []).filter((r) => r.is_folder).map((r) => r.name);
+      // 2. Descendants → dériver sous-dossiers immédiats
+      const childPrefix = folder ? folder + '/' : '';
+      let q = sbAdmin.from('show_files').select('folder').eq('show_id', showId).eq('is_folder', false);
+      q = childPrefix ? q.like('folder', childPrefix + '%') : q.neq('folder', '');
+      const { data: descRows } = await q;
+      const subSet = new Set<string>(explicitFolders);
+      (descRows ?? []).forEach((r) => {
+        if (!r.folder) return;
+        const seg = r.folder.slice(childPrefix.length).split('/')[0];
+        if (seg) subSet.add(seg);
+      });
+      const folders = [...subSet].sort().map((name) => ({
+        name, id: null, metadata: { size: 0 }, created_at: null,
+        _path: showId + '/' + childPrefix + name, _isFolder: true,
       }));
-      return json({ data, error: null });
+      const files = directFiles.map((r) => ({
+        name: r.name, id: r.id, metadata: { size: r.size ?? 0 },
+        created_at: r.created_at, _path: r.path, _isFolder: false,
+      }));
+      return json({ data: [...folders, ...files], error: null });
     }
 
     const user = await getUser(req);
