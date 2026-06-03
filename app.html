@@ -405,6 +405,14 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .fich-file-btn:hover{color:var(--txt2);background:var(--surf3)}
 .fich-file-btn.dl:hover{color:var(--ora);background:var(--ora-d)}
 .fich-file-btn.del:hover{color:var(--err);background:rgba(255,70,70,.12)}
+.fich-file-btn.mv:hover{color:#a78bfa;background:rgba(167,139,250,.12)}
+/* Popover déplacer fichier */
+#fich-move-pop{display:none;position:fixed;z-index:600;background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.5);padding:6px;min-width:180px;max-width:240px}
+#fich-move-pop.show{display:block}
+.fich-move-head{font-size:10px;font-family:var(--m);color:var(--muted);text-transform:uppercase;letter-spacing:.7px;padding:4px 8px 6px}
+.fich-move-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;cursor:pointer;font-size:12px;color:var(--txt2);transition:background .1s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fich-move-item:hover{background:var(--surf3);color:var(--txt)}
+.fich-move-item i{font-size:14px;flex-shrink:0}
 .fich-storage-row{display:flex;align-items:center;gap:10px;padding:9px 14px;border-top:1px solid var(--bdr);flex-shrink:0}
 .fich-storage-track{flex:1;height:3px;background:var(--surf3);border-radius:2px;overflow:hidden}
 .fich-storage-fill{height:100%;background:var(--ora);border-radius:2px;transition:width .6s}
@@ -12038,6 +12046,103 @@ async function renameFichier(relPath) {
   await loadFichiers();
 }
 
+/* ── Déplacer un fichier dans un dossier ── */
+let _fichMoveRelPath = null; // chemin relatif du fichier en cours de déplacement
+
+function openMoveFichier(event, relPath) {
+  _fichMoveRelPath = relPath;
+  const pop = document.getElementById('fich-move-pop');
+  const lst = document.getElementById('fich-move-list');
+  if (!pop || !lst) return;
+
+  /* Construire la liste des destinations disponibles :
+     - Racine du show (si on n'y est pas déjà)
+     - Tous les dossiers du niveau courant (sauf le dossier actuel du fichier)
+     - Dossier parent (si on est dans un sous-dossier) */
+  const currentDir = _fichPathStr(); // chemin du dossier affiché actuellement
+  const fileDir    = relPath.includes('/') ? relPath.slice(0, relPath.lastIndexOf('/') + 1) : '';
+  const allFolders = SHOW_FILES.filter(f => f.id === null);
+  let items = [];
+
+  // Racine (si le fichier n'est pas déjà à la racine)
+  if (fileDir !== '') {
+    items.push({ label: 'Racine', path: '', icon: 'ti-home' });
+  }
+
+  // Dossier parent (si on est dans un sous-dossier et que le fichier n'y est pas déjà)
+  if (_fichPath.length > 0) {
+    const parentPath = _fichPath.slice(0, -1).join('/') + (_fichPath.length > 1 ? '/' : '');
+    if (parentPath !== fileDir) {
+      const parentName = _fichPath.length > 1 ? _fichPath[_fichPath.length - 2] : 'Racine';
+      items.push({ label: '↑ ' + parentName, path: parentPath, icon: 'ti-corner-left-up' });
+    }
+  }
+
+  // Dossiers du niveau courant (excluant le dossier actuel du fichier)
+  allFolders.forEach(function(f) {
+    const destPath = currentDir + f.name + '/';
+    if (destPath !== fileDir) {
+      items.push({ label: f.name, path: destPath, icon: 'ti-folder-filled' });
+    }
+  });
+
+  if (items.length === 0) {
+    items.push({ label: 'Aucun dossier disponible', path: null, icon: 'ti-info-circle' });
+  }
+
+  lst.innerHTML = items.map(function(it) {
+    const color = it.icon === 'ti-folder-filled' ? 'color:#f5c542' : 'color:var(--muted)';
+    const click = it.path !== null
+      ? 'moveFichierToFolder(' + JSON.stringify(it.path) + ')'
+      : '';
+    return '<div class="fich-move-item" ' + (click ? 'onclick="' + click + '"' : 'style="opacity:.5;cursor:default"') + '>'
+      + '<i class="ti ' + it.icon + '" style="' + color + '"></i>'
+      + '<span style="overflow:hidden;text-overflow:ellipsis">' + _fEsc(it.label) + '</span>'
+      + '</div>';
+  }).join('');
+
+  // Positionner le popover près du bouton
+  const btn = event.currentTarget || event.target;
+  const r   = btn.getBoundingClientRect();
+  pop.style.top  = (r.bottom + 4) + 'px';
+  pop.style.left = Math.max(4, r.right - 190) + 'px';
+  pop.classList.add('show');
+
+  // Fermer si clic ailleurs
+  setTimeout(function() {
+    document.addEventListener('click', _closeMovePopover, { once: true });
+  }, 0);
+}
+
+function _closeMovePopover() {
+  const pop = document.getElementById('fich-move-pop');
+  if (pop) pop.classList.remove('show');
+}
+
+async function moveFichierToFolder(destDir) {
+  _closeMovePopover();
+  if (!_fichMoveRelPath || !CUR_SHOW) return;
+  const relPath = _fichMoveRelPath;
+  _fichMoveRelPath = null;
+
+  const filename = relPath.split('/').pop();
+  const oldFullPath = CUR_SHOW.id + '/' + relPath;
+  const newFullPath = CUR_SHOW.id + '/' + destDir + filename;
+
+  if (oldFullPath === newFullPath) return;
+
+  const btn = document.querySelector('.fich-file-btn.mv');
+  try {
+    const { error } = await B2Storage.move(oldFullPath, newFullPath);
+    if (error) { toast('Erreur déplacement : ' + error.message); return; }
+    const destLabel = destDir === '' ? 'la racine' : destDir.replace(/\/$/, '').split('/').pop();
+    toast('Déplacé vers ' + destLabel + ' ✓');
+    await loadFichiers();
+  } catch(e) {
+    toast('Erreur : ' + e.message);
+  }
+}
+
 function _renderFichiersGrid() {
   const list = document.getElementById('fichiers-list');
   const dz   = document.getElementById('fichiers-drop-zone');
@@ -12132,6 +12237,7 @@ function _renderFichiersGrid() {
             '<div class="fich-file-info"><div class="fich-file-name">' + _fEsc(name) + '</div><div class="fich-file-meta">' + _fEsc(meta) + '</div></div>' +
             '<div class="fich-file-actions">' +
               '<button class="fich-file-btn" onclick="event.stopPropagation();renameFichier(' + fpJ + ')" title="Renommer"><i class="ti ti-pencil"></i></button>' +
+              '<button class="fich-file-btn mv" onclick="event.stopPropagation();openMoveFichier(event,' + fpJ + ')" title="Déplacer dans un dossier"><i class="ti ti-folder-arrow-right"></i></button>' +
               '<button class="fich-file-btn dl" onclick="event.stopPropagation();_fichDownload(' + fpJ + ')" title="Telecharger"><i class="ti ti-download"></i></button>' +
               '<button class="fich-file-btn del" onclick="event.stopPropagation();deleteFichier(' + fpJ + ')" title="Supprimer"><i class="ti ti-trash"></i></button>' +
             '</div>' +
@@ -13975,5 +14081,11 @@ async function openRecapMatos(){
     <button class="mob-zoom-btn" ontouchend="_mobZoom('mob-stage-scroll',0.74);event.preventDefault()" onclick="_mobZoom('mob-stage-scroll',0.74)"><i class="ti ti-minus"></i></button>
   </div>
   <div class="mob-plan-foot">Glissez · Pincez pour zoomer · Double-tap pour ajuster</div>
+</div>
+
+<!-- Popover déplacer fichier -->
+<div id="fich-move-pop">
+  <div class="fich-move-head">Déplacer vers</div>
+  <div id="fich-move-list"></div>
 </div>
 </body>
