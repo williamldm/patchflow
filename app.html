@@ -13936,10 +13936,16 @@ async function openRecapMatos(){
   // Pre-generate signed URLs for all attached files
   var _signedUrls={};
   if(rFiles.length){
+    /* Pièces jointes : action publique (pas d'auth requise) — le serveur vérifie
+       que le fichier fait partie du rider de ce show. */
     Promise.all(rFiles.map(function(path){
-      return B2Storage.createSignedUrl(path,604800).then(function(res){
-        if(!res.error&&res.data) _signedUrls[path]=res.data.signedUrl;
-      });
+      return fetch('https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/b2-storage',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'public-rider-file',path:path,showId:sid})
+      }).then(function(r){return r.json();}).then(function(res){
+        if(!res.error&&res.data?.signedUrl) _signedUrls[path]=res.data.signedUrl;
+      }).catch(function(){});
     }));
   }
 
@@ -14508,27 +14514,27 @@ async function openRecapMatos(){
   function _buildCloudHTML(files, path){
     var FTYPE=function(name){
       var ext=(name.split('.').pop()||'').toLowerCase();
-      var map={pdf:'📄',mp3:'🎵',wav:'🎵',aiff:'🎵',flac:'🎵',aac:'🎵',ogg:'🎵',
+      var map={mp3:'🎵',wav:'🎵',aiff:'🎵',flac:'🎵',aac:'🎵',ogg:'🎵',
                mp4:'🎬',mov:'🎬',avi:'🎬',jpg:'🖼',jpeg:'🖼',png:'🖼',gif:'🖼',webp:'🖼',
                xlsx:'📊',xls:'📊',csv:'📊',docx:'📝',doc:'📝',pdf:'📄',zip:'🗜',rar:'🗜',
                ptx:'🎛',als:'🎛',rpp:'🎛',logicx:'🎛'};
-      return map[ext]||'📁';
+      return map[ext]||'📄';
     };
     var folders=files.filter(function(f){return f.id===null;});
     var fileItems=files.filter(function(f){return f.id!==null;});
 
     var h=_showMeta;
-    /* Breadcrumb */
+    /* Breadcrumb — data-path évite les guillemets dans onclick */
     if(path.length){
-      h+='<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:12px;font-size:11px;font-family:DM Mono,monospace">';
-      h+='<span onclick="_cloudNavTo([])" style="color:#1a8fff;cursor:pointer">Fichiers</span>';
+      h+='<div id="_cloud_bc" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:12px;font-size:11px;font-family:DM Mono,monospace">';
+      h+='<span class="_cloud_nav" data-path="[]" style="color:#1a8fff;cursor:pointer">Fichiers</span>';
       path.forEach(function(seg,i){
         h+=' <span style="color:#3a4a5a">/</span> ';
         if(i<path.length-1){
           var sub=path.slice(0,i+1);
-          h+='<span onclick="_cloudNavTo('+JSON.stringify(sub)+')" style="color:#1a8fff;cursor:pointer">'+esc(seg)+'</span>';
+          h+='<span class="_cloud_nav" data-path="'+_fEsc(JSON.stringify(sub))+'" style="color:#1a8fff;cursor:pointer">'+esc(seg)+'</span>';
         } else {
-          h+='<span style="color:var(--txt2)">'+esc(seg)+'</span>';
+          h+='<span style="color:#c8d8f0">'+esc(seg)+'</span>';
         }
       });
       h+='</div>';
@@ -14538,18 +14544,18 @@ async function openRecapMatos(){
       return h+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:12px">Dossier vide.</div>';
     }
 
-    h+='<div style="display:flex;flex-direction:column;gap:6px">';
-    /* Dossiers */
+    h+='<div id="_cloud_list" style="display:flex;flex-direction:column;gap:6px">';
+    /* Dossiers — data-path pour navigation */
     folders.forEach(function(f){
-      var newPath=path.concat([f.name]);
-      h+='<div onclick="_cloudNavTo('+JSON.stringify(newPath)+')" '
+      var newPath=JSON.stringify(path.concat([f.name]));
+      h+='<div class="_cloud_nav" data-path="'+_fEsc(newPath)+'" '
         +'style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:#0d1220;border:1px solid #1e2a3a;border-radius:10px;cursor:pointer">'
         +'<span style="font-size:20px">📁</span>'
         +'<span style="font-size:13px;font-weight:600;color:#e2e8f0">'+esc(f.name)+'</span>'
         +'<span style="margin-left:auto;font-size:10px;color:#3a4a5a;font-family:DM Mono,monospace">Ouvrir →</span>'
         +'</div>';
     });
-    /* Fichiers */
+    /* Fichiers — data-fp pour téléchargement */
     fileItems.forEach(function(f){
       var name=f.name.replace(/^\d+_/,'');
       var size=f.metadata&&f.metadata.size?_cloudFmtSize(f.metadata.size):'';
@@ -14561,8 +14567,7 @@ async function openRecapMatos(){
           +'<div style="font-size:12px;font-weight:600;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(name)+'</div>'
           +(size?'<div style="font-size:10px;color:#5a6a80;font-family:DM Mono,monospace">'+esc(size)+'</div>':'')
         +'</div>'
-        +'<button id="cvdl-'+f.id.replace(/[^a-z0-9]/gi,'_')+'" '
-          +'onclick="_cloudDownload(\''+esc(fp)+'\',\''+esc(name)+'\')" '
+        +'<button class="_cloud_dl" data-fp="'+_fEsc(fp)+'" data-name="'+_fEsc(name)+'" '
           +'style="flex-shrink:0;background:#1e2a3a;border:1px solid #2d3d50;color:#c0d0e0;font-size:11px;padding:6px 12px;border-radius:7px;cursor:pointer;white-space:nowrap">'
           +'⬇ Télécharger</button>'
         +'</div>';
@@ -14578,19 +14583,59 @@ async function openRecapMatos(){
     return (b/1048576).toFixed(1)+' Mo';
   }
 
+  var _cloudCurrentShowId=sid; // showId de la vue partagée
+
   function _cloudNavTo(path){
     var body=document.getElementById('sv-body');
     if(body) body.innerHTML='<div style="text-align:center;color:#5a6a80;padding:60px;font-size:12px"><div class="spinner" style="margin:0 auto 14px"></div>Chargement…</div>';
-    _cloudLoadDir(path, function(h){ if(body) body.innerHTML=h; });
+    _cloudLoadDir(path, function(h){
+      if(body){ body.innerHTML=h; _cloudBindEvents(body); }
+    });
+  }
+
+  /* Délégation d'événements — attachée après chaque injection HTML */
+  function _cloudBindEvents(container){
+    /* Navigation dossiers */
+    container.querySelectorAll('._cloud_nav').forEach(function(el){
+      el.addEventListener('click',function(){
+        try{ _cloudNavTo(JSON.parse(el.getAttribute('data-path')||'[]')); }catch(e){}
+      });
+    });
+    /* Téléchargements */
+    container.querySelectorAll('._cloud_dl').forEach(function(el){
+      el.addEventListener('click',function(){
+        _cloudDownload(el.getAttribute('data-fp'),el.getAttribute('data-name'));
+      });
+    });
+  }
+
+  async function _cloudLoadDir(path, cb){
+    var prefix=_cloudPrefix(path);
+    try{
+      /* Action publique — pas besoin d'auth, le serveur vérifie que cloud:true */
+      var res=await fetch('https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/b2-storage',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'public-cloud-list',prefix:prefix,showId:_cloudCurrentShowId})
+      });
+      var json=await res.json();
+      if(json.error) throw new Error(json.error.message||json.error);
+      var files=json.data||[];
+      _cloudFiles=files;
+      _cloudPath=path;
+      cb(_buildCloudHTML(files, path));
+    }catch(e){
+      cb(_showMeta+'<div style="text-align:center;color:#f87171;padding:40px;font-size:12px">Erreur chargement fichiers : '+esc(e.message)+'</div>');
+    }
   }
 
   async function _cloudDownload(filePath, name){
     try{
-      var sess=(await sb.auth.getSession()).data?.session;
+      /* Action publique avec vérification whitelist côté serveur */
       var res=await fetch('https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/b2-storage',{
         method:'POST',
-        headers:{'Content-Type':'application/json','Authorization':'Bearer '+(sess?.access_token||SB_KEY)},
-        body:JSON.stringify({action:'signed-url',path:filePath,expiresIn:3600})
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'public-rider-file',path:filePath,showId:_cloudCurrentShowId})
       });
       var json=await res.json();
       if(json.error) throw new Error(json.error.message||json.error);
@@ -14598,7 +14643,7 @@ async function openRecapMatos(){
       if(!url) throw new Error('URL invalide');
       var a=document.createElement('a'); a.href=url; a.download=name; a.target='_blank'; a.click();
     }catch(e){
-      alert('Erreur téléchargement : '+e.message);
+      alert('Erreur : '+e.message);
     }
   }
 
@@ -14659,7 +14704,12 @@ async function openRecapMatos(){
     else if(sec==='site'){_renderSite(function(h){_paneCache.site=h;document.getElementById('sv-body').innerHTML=h;});}
     else if(sec==='syno'){_paneCache.syno=_renderSyno();document.getElementById('sv-body').innerHTML=_paneCache.syno;}
     else if(sec==='cloud'){
-      _renderCloudPane(function(h){ _paneCache.cloud=h; document.getElementById('sv-body').innerHTML=h; });
+      _renderCloudPane(function(h){
+        _paneCache.cloud=h;
+        var body=document.getElementById('sv-body');
+        body.innerHTML=h;
+        _cloudBindEvents(body);
+      });
     }
     else if(sec==='files'){
       // Wait for signed URLs if not yet ready, then render

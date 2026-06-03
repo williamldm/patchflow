@@ -95,6 +95,72 @@ serve(async (req) => {
     const body = await req.json();
     const { action } = body;
 
+    /* ── Action publique : signed URL pour les fichiers d'un rider partagé ──
+       Pas d'authentification requise, mais on vérifie que :
+       1. Le showId fourni a bien un rider actif (stage_data.rider existe)
+       2. Le path demandé fait partie des fichiers autorisés du rider
+       Cela permet aux destinataires d'un lien partagé de télécharger
+       les pièces jointes sans avoir de compte. */
+    if (action === 'public-rider-file') {
+      const { path, showId } = body as { path: string; showId: string };
+      if (!path || !showId || !/^[0-9a-f-]{36}$/i.test(showId)) {
+        return json({ error: 'Paramètres invalides' }, 400);
+      }
+      // Vérifier que le path commence bien par showId/
+      if (!path.startsWith(showId + '/')) {
+        return json({ error: 'Chemin non autorisé' }, 403);
+      }
+      const sbAdmin = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      );
+      // Vérifier que le show a un rider avec ce fichier dans sa liste
+      const { data: showRow } = await sbAdmin
+        .from('shows')
+        .select('stage_data')
+        .eq('id', showId)
+        .maybeSingle();
+      const rider = showRow?.stage_data?.rider;
+      if (!rider) return json({ error: 'Aucun rider pour ce show' }, 403);
+      const allowedFiles: string[] = rider.files || [];
+      // Vérifier que le path est dans la liste des fichiers autorisés
+      // (ou que le cloud entier est partagé via cloud:true)
+      const cloudShared = (showRow?.stage_data?.rider?.sections || []).includes('cloud');
+      const fileAllowed = cloudShared || allowedFiles.includes(path);
+      if (!fileAllowed) return json({ error: 'Fichier non autorisé' }, 403);
+      const { GetObjectCommand } = await import('npm:@aws-sdk/client-s3');
+      const { getSignedUrl } = await import('npm:@aws-sdk/s3-request-presigner');
+      const cmd = new GetObjectCommand({ Bucket: B2_BUCKET, Key: path });
+      const url = await getSignedUrl(s3, cmd, { expiresIn: 3600 });
+      return json({ data: { signedUrl: url }, error: null });
+    }
+
+    /* ── Action publique : lister les fichiers d'un show partagé avec cloud:true ── */
+    if (action === 'public-cloud-list') {
+      const { prefix, showId } = body as { prefix: string; showId: string };
+      if (!showId || !/^[0-9a-f-]{36}$/i.test(showId)) return json({ error: 'showId invalide' }, 400);
+      if (!prefix.startsWith(showId + '/')) return json({ error: 'Préfixe non autorisé' }, 403);
+      const sbAdmin = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      );
+      const { data: showRow } = await sbAdmin
+        .from('shows').select('stage_data').eq('id', showId).maybeSingle();
+      const sections: string[] = showRow?.stage_data?.rider?.sections || [];
+      if (!sections.includes('cloud')) return json({ error: 'Accès cloud non autorisé pour ce show' }, 403);
+      const { ListObjectsV2Command } = await import('npm:@aws-sdk/client-s3');
+      const cmd = new ListObjectsV2Command({ Bucket: B2_BUCKET, Prefix: prefix, Delimiter: '/' });
+      const resp = await s3.send(cmd);
+      const SKIP = new Set(['.emptyFolderPlaceholder', '.keep']);
+      const folders = (resp.CommonPrefixes ?? []).map((p) => ({
+        name: p.Prefix!.slice(prefix.length).replace(/\/$/, ''), id: null, metadata: null, created_at: null,
+      }));
+      const files = (resp.Contents ?? [])
+        .filter((o) => { const n = o.Key!.slice(prefix.length); return n && !SKIP.has(n); })
+        .map((o) => ({ name: o.Key!.slice(prefix.length), id: o.ETag ?? o.Key, metadata: { size: o.Size ?? 0 }, created_at: o.LastModified?.toISOString() ?? null }));
+      return json({ data: [...folders, ...files], error: null });
+    }
+
     const user = await getUser(req);
     if (!user) return json({ error: 'Unauthorized — session token invalid or missing' }, 401);
 
