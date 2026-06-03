@@ -4622,6 +4622,25 @@ async function generateRiderLink(){
       });
     });
   }catch(e){siteSnap=null;}
+  /* Fallback : si SitePlan n'a rien rendu, essayer directement depuis les données */
+  if(!siteSnap){
+    var _fbSiteData=CUR_SHOW?.stage_data?.site||null;
+    if(!_fbSiteData&&SHOW_SCENES.site&&SHOW_SCENES.site.length){
+      var _fbSS=SHOW_SCENES.site.find(function(s){return s.id===CUR_SCENES.site;});
+      _fbSiteData=_fbSS&&_fbSS.data&&_fbSS.data.site||null;
+    }
+    if(_fbSiteData&&_fbSiteData.elements&&_fbSiteData.elements.length){
+      siteSnap = await new Promise(function(resolve){
+        /* Utiliser le renderer SitePlan._makeCanvas directement si disponible */
+        SitePlan.load(_fbSiteData);
+        var timer=setTimeout(function(){resolve(null);},8000);
+        SitePlan.exportCanvasSafe(function(cv){
+          clearTimeout(timer);
+          resolve(cv?cv.toDataURL('image/png'):null);
+        });
+      });
+    }
+  }
 
   var _activeSecs=Object.keys(_riderSections).filter(function(k){return _riderSections[k];});
   var cfg={
@@ -14599,10 +14618,20 @@ async function openRecapMatos(){
       cb(_showMeta+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:12px">Aucun plan de site disponible.<br><span style="font-size:10px;opacity:.6">Re-générez le lien depuis l\'onglet Équipe pour inclure le plan de site.</span></div>');
       return;
     }
+    /* Vérification préalable : si les données sont vides, message clair */
+    if(!(siteData.elements&&siteData.elements.length)&&!siteData.bgImage){
+      cb(_showMeta+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:12px">'
+        +'<i class="ti ti-map-2" style="font-size:32px;display:block;margin-bottom:12px;opacity:.4"></i>'
+        +'Plan de site vide ou non sauvegardé.<br>'
+        +'<span style="font-size:10px;opacity:.6">Ouvrez l\'onglet Plan de site dans l\'application, ajoutez des éléments, puis re-générez le lien.</span>'
+        +'</div>');
+      return;
+    }
     /* Renderer canvas pur — identique à SitePlan._makeCanvas mais sans dépendances DOM */
     _renderSiteFromData(siteData, function(dataUrl){
       if(!dataUrl){
         cb(_showMeta+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:12px">'
+          +'<i class="ti ti-map-2" style="font-size:32px;display:block;margin-bottom:12px;opacity:.4"></i>'
           +'Le plan de site n\'a pas pu être rendu.<br>'
           +'<span style="font-size:10px;opacity:.6">Re-générez le lien depuis l\'onglet Équipe pour inclure un aperçu du plan de site.</span>'
           +'</div>');
@@ -14671,6 +14700,7 @@ async function openRecapMatos(){
 
     function _draw(){
       try{
+        if(!els.length&&!_bgImg){cb(null);return;}
         /* Bounding box : taille réelle des éléments + place pour labels en-dessous */
         var minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
         if(_bgImg){ minX=0;minY=0;maxX=_bgImg.naturalWidth;maxY=_bgImg.naturalHeight; }
