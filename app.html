@@ -5296,32 +5296,21 @@ async function _loadRiderFiles(){
   var fl=document.getElementById('rider-file-list');
   if(!fl)return;
   fl.innerHTML='<div style="font-size:11px;color:var(--muted);padding:8px 0">Chargement…</div>';
-  // Le picker doit voir TOUS les fichiers du show (toutes profondeurs).
-  // Listing B2 récursif = source fiable (show_files peut être incomplet
-  // car backfillé seulement dossier par dossier dans l'onglet Fichiers).
-  var prefix=CUR_SHOW.id+'/';
-  var data=[];
-  try{
-    var {data:b2d}=await B2Storage.listB2Recursive(prefix);
-    data=(b2d||[]).map(function(f){
-      // folder = chemin relatif sans le nom de fichier
-      var rel=f.path.slice(prefix.length);
-      var folder=rel.indexOf('/')>=0?rel.slice(0,rel.lastIndexOf('/')):'';
-      return {path:f.path,name:f.name,folder:folder,size:f.size||0,content_type:'',is_folder:false,created_at:f.created_at};
-    });
-    // Backfill show_files (fire-and-forget)
+  // 1. Supabase (rapide)
+  var {data,error}=await _sfListShowFiles();
+  // 2. Fallback B2 si show_files vide (fichiers pre-migration)
+  if(!error && (!data||!data.length)){
+    var prefix=CUR_SHOW.id+'/';
+    var {data:b2d}=await B2Storage.listB2Raw(prefix);
+    var SKIP2=new Set(['.emptyFolderPlaceholder','.keep']);
+    data=(b2d||[]).filter(function(f){return !SKIP2.has(f.name)&&f.name&&f.id!==null;})
+      .map(function(f){return {path:prefix+f.name,name:f.name,folder:'',size:f.metadata?.size||0,content_type:'',is_folder:false,created_at:f.created_at};});
+    // Backfill silencieux
     if(data.length&&ME){
-      sb.from('show_files').upsert(
-        data.map(function(f){return {show_id:CUR_SHOW.id,created_by:ME.id,path:f.path,name:f.name,folder:f.folder,size:f.size,content_type:'',is_folder:false};}),
-        {onConflict:'show_id,path'}
-      ).then(function(){});
+      sb.from('show_files').upsert(data.map(function(f){return Object.assign({show_id:CUR_SHOW.id,created_by:ME.id},f);}),{onConflict:'show_id,path'}).then(function(){});
     }
-  }catch(e){
-    // Fallback Supabase si B2 indisponible
-    var sres=await _sfListShowFiles();
-    data=sres.data||[];
   }
-  if(!data||!data.length){fl.innerHTML='<div style="font-size:11px;color:var(--muted);padding:8px 0">Aucun fichier dans le cloud pour ce show.</div>';return;}
+  if(error||!data||!data.length){fl.innerHTML='<div style="font-size:11px;color:var(--muted);padding:8px 0">Aucun fichier dans le cloud pour ce show.</div>';return;}
   fl.innerHTML=data.map(function(f){
     var path=f.path; // chemin complet déjà dans show_files
     var disp=_fichDisplayName?_fichDisplayName(f.name):f.name;
@@ -12491,10 +12480,6 @@ const B2Storage={
   /* vrai listing B2 S3 (fallback/backfill des fichiers pré-migration) */
   async listB2Raw(prefix){
     return _b2Call('list-b2-raw',{prefix});
-  },
-  /* listing B2 récursif (tous les fichiers sous le préfixe, toutes profondeurs) */
-  async listB2Recursive(prefix){
-    return _b2Call('list-b2-recursive',{prefix});
   },
   /* upload: get presigned PUT URL, then PUT directly to B2 */
   async upload(path,file,_opts){
