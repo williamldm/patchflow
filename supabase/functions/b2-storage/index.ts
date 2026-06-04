@@ -215,6 +215,7 @@ serve(async (req) => {
         .select('id, path, name, folder, size, content_type, is_folder, created_at')
         .eq('show_id', showId)
         .eq('folder', folder)
+        .not('path', 'like', '%/node-icons/%')   // exclure les assets internes
         .order('is_folder', { ascending: false })
         .order('name', { ascending: true });
       if (sfErr) return json({ error: sfErr.message }, 500);
