@@ -259,6 +259,37 @@ serve(async (req) => {
       return json({ data: [...folders, ...files], error: null });
     }
 
+    // ── list-b2-recursive : TOUS les fichiers sous un préfixe (toutes profondeurs) ──
+    // Sert au picker de pièces jointes (rider) qui doit voir tous les fichiers
+    // du show, et au backfill complet de show_files.
+    if (action === 'list-b2-recursive') {
+      const { prefix } = body as { prefix: string };
+      if (!prefix || !(await checkPath(prefix))) return deny();
+      const all: Array<{ name: string; path: string; size: number; created_at: string | null }> = [];
+      let token: string | undefined;
+      do {
+        const cmd = new ListObjectsV2Command({
+          Bucket: B2_BUCKET,
+          Prefix: prefix,
+          ContinuationToken: token,
+        }); // pas de Delimiter → récursif
+        const resp = await s3.send(cmd);
+        for (const o of resp.Contents ?? []) {
+          const rel = o.Key!.slice(prefix.length);          // chemin relatif sous le show
+          const base = rel.split('/').pop() ?? '';           // nom de fichier final
+          if (!rel || SKIP.has(base)) continue;              // ignorer .keep etc.
+          all.push({
+            name: base,
+            path: o.Key!,                                    // chemin complet B2
+            size: o.Size ?? 0,
+            created_at: o.LastModified?.toISOString() ?? null,
+          });
+        }
+        token = resp.IsTruncated ? resp.NextContinuationToken : undefined;
+      } while (token);
+      return json({ data: all, error: null });
+    }
+
     // ── upload-presigned : return a presigned PUT URL ──
     if (action === 'upload-presigned') {
       const { path, contentType } = body as { path: string; contentType: string };
