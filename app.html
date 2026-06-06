@@ -3096,7 +3096,11 @@ async function initApp(){
     ]);
     _handleCheckoutReturn(); // retour de paiement Lemon Squeezy
     _initSharedLinks(); // suivi des liens de partage (limite Gratuit)
-    processShowInvites(); // async, non-blocking — process pending show invites
+    processShowInvites(); // charge les invitations en attente (notifications)
+    /* Rafraîchir les notifications périodiquement (badge en quasi temps réel) */
+    if(!window._notifPoll){
+      window._notifPoll=setInterval(function(){ if(ME) refreshNotifications(); },60000);
+    }
     loadColChips();
     initStage();
   }catch(e){
@@ -3186,6 +3190,11 @@ async function loadShows(){
   SHOWS=allShows.filter(s=>{if(seen.has(s.id))return false;seen.add(s.id);return true;})
     .sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
 
+  /* Rendu IMMÉDIAT de tous les shows (owned + partagés) — garantit que la liste
+     complète s'affiche même si une étape ultérieure (membres, stockage) échoue. */
+  try{ renderSPShows(); }catch(e){}
+  try{ renderSessions(); }catch(e){}
+
   /* Étape 2 : persister une version compacte du cache pour le prochain chargement */
   try{
     /* On ne stocke pas stage_data (peut être très lourd à cause des base64 images) */
@@ -3195,7 +3204,7 @@ async function loadShows(){
     }));
     localStorage.setItem(_showsCacheKey(), JSON.stringify({ts:Date.now(),shows:lite}));
   }catch(e){/* Quota atteint — ignorer */}
-  await loadAllShowMembers();
+  try{ await loadAllShowMembers(); }catch(e){ console.warn('loadAllShowMembers:',e); }
   renderSPShows();
   renderSessions();
   loadShowStorage(); // async, non-bloquant

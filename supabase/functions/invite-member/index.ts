@@ -101,9 +101,10 @@ serve(async (req) => {
     const existingUser = existingUsers?.find((u: { email?: string }) => u.email?.toLowerCase() === normalEmail);
 
     if (existingUser) {
-      /* User already has an account → add directly to show_members */
+      /* User already has an account → créer une INVITATION (notification)
+         qu'il accepte depuis l'interface (au lieu de l'ajouter en silence). */
 
-      /* Check not already a member */
+      /* Déjà membre ? */
       const { data: existing } = await sbAdmin
         .from('show_members')
         .select('id')
@@ -112,29 +113,33 @@ serve(async (req) => {
         .maybeSingle();
       if (existing) return json(409, { error: 'Cet utilisateur est déjà membre du show' });
 
-      const { error: insertErr } = await sbAdmin.from('show_members').insert({
+      /* Créer/mettre à jour l'invitation en attente → apparaît en notification */
+      const { error: invErr } = await sbAdmin.from('show_invites').upsert({
         show_id: showId,
-        user_id: existingUser.id,
+        invited_email: normalEmail,
         role,
-      });
-      if (insertErr) throw insertErr;
+        invited_by: caller.id,
+        show_name: showNameRaw,
+        inviter_name: inviterNameRaw,
+      }, { onConflict: 'show_id,invited_email' });
+      if (invErr) throw invErr;
 
-      /* Send notification email */
+      /* Email de notification (invitation à accepter) */
       const html = emailShell(
-        `Vous avez été ajouté au show "${showName}" 🎧`,
-        `<strong>${inviterName}</strong> vous a ajouté au show <strong>${showName}</strong> sur PatchFlow en tant que <strong>${roleLabel(role)}</strong>.<br/><br/>Vous pouvez désormais accéder à ce show depuis votre compte.`,
-        'Ouvrir PatchFlow',
+        `${inviterName} vous invite sur "${showName}" 🎧`,
+        `<strong>${inviterName}</strong> vous invite à rejoindre le show <strong>${showName}</strong> sur PatchFlow en tant que <strong>${roleLabel(role)}</strong>.<br/><br/>Ouvrez PatchFlow et acceptez l'invitation depuis vos notifications (icône en haut à droite).`,
+        'Voir l\'invitation',
         `${SITE_URL}/app.html`,
         'Si vous ne connaissez pas cet utilisateur, ignorez cet email.',
       );
       await transporter.sendMail({
         from: `PatchFlow <${SMTP_USER}>`,
         to: normalEmail,
-        subject: `Vous avez été ajouté au show "${showNameRaw}" — PatchFlow`,
+        subject: `${inviterNameRaw} vous invite sur "${showNameRaw}" — PatchFlow`,
         html,
-      });
+      }).catch(() => {});
 
-      return json(200, { ok: true, action: 'added_directly' });
+      return json(200, { ok: true, action: 'invite_sent' });
 
     } else {
       /* User has no account → send invite via Supabase auth admin */
