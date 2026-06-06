@@ -866,6 +866,20 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .sess-icon-btn.danger{background:rgba(255,77,106,.07);border-color:rgba(255,77,106,.18);color:var(--err)}
 .sess-icon-btn.danger:hover{background:rgba(255,77,106,.18);border-color:var(--err)}
 .sess-member-name{font-size:8px;color:var(--muted2);font-family:var(--m);max-width:38px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
+/* Monogramme pro (remplace les emojis) */
+.sess-mono{font-family:var(--m);font-weight:700;font-size:15px;letter-spacing:.5px}
+/* Barre d'organisation des sessions */
+.sess-toolbar{display:flex;align-items:center;gap:9px;margin-left:auto;flex-wrap:wrap}
+.sess-search{display:flex;align-items:center;gap:7px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;padding:0 10px;height:34px;transition:border-color .15s}
+.sess-search:focus-within{border-color:var(--ora-g)}
+.sess-search i{font-size:14px;color:var(--muted)}
+.sess-search input{background:none;border:none;outline:none;color:var(--txt);font-size:12px;font-family:var(--f);width:150px}
+.sess-search input::placeholder{color:var(--muted2)}
+.sess-sort{height:34px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt2);font-size:11px;font-family:var(--f);padding:0 28px 0 11px;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236a7a94' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;transition:border-color .15s}
+.sess-sort:hover{border-color:var(--bdr3)}
+.sess-sort:focus{outline:none;border-color:var(--ora-g)}
+.sess-empty-search{grid-column:1/-1;padding:34px 20px;text-align:center;color:var(--muted);font-size:12px}
+@media(max-width:560px){.sess-search input{width:100px}.sess-toolbar{width:100%;margin-left:0}}
 .slink-box{background:var(--surf);border:1px solid var(--bdr2);border-radius:12px;padding:16px;margin-top:12px}
 .slink-title{font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:5px}
 .slink-row{display:flex;gap:7px;align-items:center;margin-top:12px}
@@ -1393,8 +1407,19 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
     <!-- SESSIONS -->
     <div class="panel on" id="panel-sessions">
       <div class="pbar">
-        <span class="ptitle"><i class="ti ti-calendar-event" style="color:var(--ora)"></i>Sessions</span>
-        <button class="btn" onclick="newShow()"><i class="ti ti-plus"></i>Nouveau show</button>
+        <span class="ptitle"><i class="ti ti-folders" style="color:var(--ora)"></i>Sessions</span>
+        <div class="sess-toolbar">
+          <div class="sess-search">
+            <i class="ti ti-search"></i>
+            <input id="sess-search-inp" placeholder="Rechercher un show…" oninput="renderSessions()" autocomplete="off"/>
+          </div>
+          <select id="sess-sort" onchange="renderSessions()" title="Trier">
+            <option value="recent">Récents</option>
+            <option value="az">A → Z</option>
+            <option value="date">Date du show</option>
+          </select>
+          <button class="btn" onclick="newShow()"><i class="ti ti-plus"></i>Nouveau show</button>
+        </div>
       </div>
       <div id="sessions-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px;padding:2px 0 4px">
         <div class="loading" style="grid-column:1/-1"><div class="spinner"></div>Chargement…</div>
@@ -11571,7 +11596,28 @@ function renderSessions(){
     {bg:'rgba(155,106,255,.13)',fg:'#c084fc'},
     {bg:'rgba(34,214,160,.13)',fg:'var(--grn)'},
   ];
-  const ICONS=['🎤','🎸','🎹','🥁','🎺','🎻','🎧','📡','🎭','🏢'];
+  /* Monogramme déterministe (couleur + initiales) à partir du nom du show */
+  const _MONO_PAL=[
+    {bg:'rgba(255,107,26,.14)',fg:'#ff8c42',bd:'rgba(255,107,26,.32)'},
+    {bg:'rgba(26,143,255,.14)',fg:'#4ca5ff',bd:'rgba(26,143,255,.32)'},
+    {bg:'rgba(34,214,160,.13)',fg:'#22d6a0',bd:'rgba(34,214,160,.30)'},
+    {bg:'rgba(155,106,255,.14)',fg:'#b48bff',bd:'rgba(155,106,255,.32)'},
+    {bg:'rgba(245,197,66,.14)',fg:'#f5c542',bd:'rgba(245,197,66,.32)'},
+    {bg:'rgba(255,77,106,.12)',fg:'#ff6b85',bd:'rgba(255,77,106,.30)'},
+    {bg:'rgba(0,200,180,.12)',fg:'#2ad6c0',bd:'rgba(0,200,180,.30)'},
+  ];
+  function showMono(name){
+    var s=String(name||'?').trim();
+    var fa=function(w){var m=w.match(/[a-zA-ZÀ-ÿ]/);return m?m[0]:'';};
+    var words=s.split(/\s+/).filter(function(w){return /[a-zA-ZÀ-ÿ]/.test(w);});
+    var ini;
+    if(words.length>=2) ini=fa(words[0])+fa(words[1]);
+    else if(words.length===1) ini=(words[0].replace(/[^a-zA-ZÀ-ÿ]/g,'').slice(0,2))||words[0].slice(0,2);
+    else ini=s.slice(0,2);
+    ini=(ini||'?').toUpperCase();
+    var h=0; for(var i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0;
+    return {ini:ini, c:_MONO_PAL[h%_MONO_PAL.length]};
+  }
 
   function planChip(plan){
     var p=plan||'free';
@@ -11621,11 +11667,12 @@ function renderSessions(){
     /* Total = owner + all members (owner is never in show_members table) */
     var totalMembers=members.length+1;
     var chCount=isActive?CHS.length:'—';
+    var mono=showMono(s.name);
     return '<div class="sess-card'+(isActive?' active':'')+'" onclick="sessionSwitch(\''+s.id+'\')">'+
       (isActive?'<div class="sess-stripe"></div>':'')+
       '<div class="sess-body">'+
         '<div class="sess-top">'+
-          '<div class="sess-icon-wrap">'+ICONS[idx%ICONS.length]+'</div>'+
+          '<div class="sess-icon-wrap sess-mono" style="background:'+mono.c.bg+';border-color:'+mono.c.bd+';color:'+mono.c.fg+'">'+_e(mono.ini)+'</div>'+
           '<div class="sess-title-wrap">'+
             '<div class="sess-name">'+_e(s.name)+'</div>'+
             '<div class="sess-venue">'+(s.venue?_e(s.venue):'<span style="color:var(--muted2);font-style:italic">Venue non renseignée</span>')+'</div>'+
@@ -11650,29 +11697,51 @@ function renderSessions(){
     '</div>';
   }
 
-  var myShows=SHOWS.filter(function(s){return s.owner_id===ME?.id;});
-  var sharedShows=SHOWS.filter(function(s){return s.owner_id!==ME?.id;});
-
   if(SHOWS.length===0){
-    grid.innerHTML='<div style="grid-column:1/-1;padding:48px 20px;text-align:center;color:var(--muted)"><i class="ti ti-inbox" style="font-size:36px;display:block;margin-bottom:12px;opacity:.4"></i><div style="font-size:13px;margin-bottom:14px">Aucune session — commencez ici</div><button class="btn" onclick="newShow()"><i class="ti ti-plus"></i>Créer un show</button></div>';
+    grid.innerHTML='<div style="grid-column:1/-1;padding:48px 20px;text-align:center;color:var(--muted)"><i class="ti ti-folder-plus" style="font-size:36px;display:block;margin-bottom:12px;opacity:.4"></i><div style="font-size:13px;margin-bottom:14px">Aucune session — commencez ici</div><button class="btn" onclick="newShow()"><i class="ti ti-plus"></i>Créer un show</button></div>';
     return;
+  }
+
+  /* ── Recherche + tri ── */
+  var q=(document.getElementById('sess-search-inp')?.value||'').trim().toLowerCase();
+  var sortBy=document.getElementById('sess-sort')?.value||'recent';
+  function matches(s){
+    if(!q) return true;
+    return String(s.name||'').toLowerCase().indexOf(q)>=0
+        || String(s.venue||'').toLowerCase().indexOf(q)>=0;
+  }
+  function sortFn(a,b){
+    if(sortBy==='az') return String(a.name||'').localeCompare(String(b.name||''),'fr');
+    if(sortBy==='date') return String(b.show_date||'').localeCompare(String(a.show_date||''));
+    return String(b.created_at||b.id||'').localeCompare(String(a.created_at||a.id||'')); // récents
+  }
+
+  var myShows=SHOWS.filter(function(s){return s.owner_id===ME?.id;}).filter(matches).sort(sortFn);
+  var sharedShows=SHOWS.filter(function(s){return s.owner_id!==ME?.id;}).filter(matches).sort(sortFn);
+
+  /* Aucun résultat de recherche */
+  if(q && myShows.length===0 && sharedShows.length===0){
+    grid.innerHTML='<div class="sess-empty-search"><i class="ti ti-search-off" style="font-size:30px;display:block;margin-bottom:10px;opacity:.4"></i>Aucun show ne correspond à « '+_e(q)+' »</div>';
+    return;
+  }
+
+  function sectionCount(n){
+    return '<span style="background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;padding:0 7px;font-size:9px;color:var(--muted);font-weight:400">'+n+'</span>';
   }
 
   var html='';
 
   // ── Mes sessions
-  html+='<div class="sess-section-title"><i class="ti ti-user" style="color:var(--ora);font-size:11px"></i>Mes sessions'+
-    '<span style="background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;padding:0 7px;font-size:9px;color:var(--muted);font-weight:400">'+myShows.length+'</span></div>';
+  html+='<div class="sess-section-title"><i class="ti ti-folder" style="color:var(--ora);font-size:11px"></i>Mes sessions'+sectionCount(myShows.length)+'</div>';
   if(myShows.length===0){
-    html+='<div style="grid-column:1/-1;color:var(--muted2);font-size:11px;font-family:var(--m);padding:6px 2px">Aucun show. <button class="btn sm" onclick="newShow()" style="margin-left:6px"><i class="ti ti-plus"></i>Créer</button></div>';
+    html+='<div style="grid-column:1/-1;color:var(--muted2);font-size:11px;font-family:var(--m);padding:6px 2px">'+(q?'Aucun résultat ici.':'Aucun show. <button class="btn sm" onclick="newShow()" style="margin-left:6px"><i class="ti ti-plus"></i>Créer</button>')+'</div>';
   } else {
     myShows.forEach(function(s,i){ html+=renderCard(s,i); });
   }
 
   // ── Partagées avec moi
   if(sharedShows.length>0){
-    html+='<div class="sess-section-title" style="margin-top:8px"><i class="ti ti-share" style="color:var(--blu2);font-size:11px"></i>Partagées avec moi'+
-      '<span style="background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;padding:0 7px;font-size:9px;color:var(--muted);font-weight:400">'+sharedShows.length+'</span></div>';
+    html+='<div class="sess-section-title" style="margin-top:8px"><i class="ti ti-users" style="color:var(--blu2);font-size:11px"></i>Partagées avec moi'+sectionCount(sharedShows.length)+'</div>';
     sharedShows.forEach(function(s,i){ html+=renderCard(s,myShows.length+i); });
   }
 
@@ -11887,14 +11956,16 @@ function _fmtShowDate(d){
 function renderSPShows(){
   const el=document.getElementById('sp-shows');if(!el)return;
   if(SHOWS.length===0){el.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px 0">Aucun show.</div>';return;}
-  const ICONS=['🎤','🎸','🎹','🥁','🎺','🎻','🎧','📡'];
   const _e2=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const _MP=[['rgba(255,107,26,.14)','#ff8c42','rgba(255,107,26,.32)'],['rgba(26,143,255,.14)','#4ca5ff','rgba(26,143,255,.32)'],['rgba(34,214,160,.13)','#22d6a0','rgba(34,214,160,.30)'],['rgba(155,106,255,.14)','#b48bff','rgba(155,106,255,.32)'],['rgba(245,197,66,.14)','#f5c542','rgba(245,197,66,.32)'],['rgba(255,77,106,.12)','#ff6b85','rgba(255,77,106,.30)'],['rgba(0,200,180,.12)','#2ad6c0','rgba(0,200,180,.30)']];
+  const _mono=n=>{var s=String(n||'?').trim();var fa=w=>{var m=w.match(/[a-zA-ZÀ-ÿ]/);return m?m[0]:'';};var w=s.split(/\s+/).filter(x=>/[a-zA-ZÀ-ÿ]/.test(x));var ini=w.length>=2?(fa(w[0])+fa(w[1])):(w.length===1?(w[0].replace(/[^a-zA-ZÀ-ÿ]/g,'').slice(0,2)||w[0].slice(0,2)):s.slice(0,2));ini=(ini||'?').toUpperCase();var h=0;for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return {ini:ini,c:_MP[h%_MP.length]};};
   el.innerHTML=SHOWS.map((s,i)=>{
     var isCur=s.id===CUR_SHOW?.id;
     var meta=[s.venue,_fmtShowDate(s.show_date)].filter(Boolean).join(' · ')||'Pas de lieu';
     var chCount=isCur&&CHS.length?`<span style="font-size:9px;font-family:var(--m);background:var(--ora-d);color:var(--ora);border:1px solid rgba(255,107,26,.2);border-radius:4px;padding:0 5px;margin-left:4px">${CHS.length} CH</span>`:'';
+    var mo=_mono(s.name);
     return `<div class="sp-show ${isCur?'active':''}" onclick="spSwitch('${_e2(s.id)}')" style="${isCur?'border-left:2px solid var(--ora);padding-left:10px':''}">
-      <div class="sp-show-ico">${ICONS[i%ICONS.length]}</div>
+      <div class="sp-show-ico" style="background:${mo.c[0]};border-color:${mo.c[2]};color:${mo.c[1]};font-family:var(--m);font-weight:700;font-size:11px;letter-spacing:.3px">${_e2(mo.ini)}</div>
       <div style="flex:1;min-width:0">
         <div class="sp-show-name" style="display:flex;align-items:center;gap:3px">${_e2(s.name)}${chCount}</div>
         <div class="sp-show-meta">${_e2(meta)}</div>
