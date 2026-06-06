@@ -11982,7 +11982,15 @@ async function applyTemplate(tplId){
 
 
 function toggleSP(){const p=document.getElementById('side-panel');p.classList.contains('show')?closeSP():openSP();}
-function openSP(){document.getElementById('side-panel').classList.add('show');document.getElementById('sp-ov').classList.add('show');renderSPShows();loadNotifications();refreshNotifications().then(loadNotifications);}
+function openSP(){
+  document.getElementById('side-panel').classList.add('show');
+  document.getElementById('sp-ov').classList.add('show');
+  renderSPShows();
+  /* État loading pendant le refresh, puis rendu unique avec data fraîche */
+  var el=document.getElementById('sp-notif');
+  if(el) el.innerHTML='<div style="font-size:10px;color:var(--muted);padding:8px 2px;display:flex;align-items:center;gap:7px"><i class="ti ti-loader-2" style="animation:spin .7s linear infinite;font-size:13px"></i>Chargement…</div>';
+  refreshNotifications().then(loadNotifications);
+}
 function closeSP(){document.getElementById('side-panel').classList.remove('show');document.getElementById('sp-ov').classList.remove('show');closePrev();}
 function _fmtShowDate(d){
   if(!d)return '';
