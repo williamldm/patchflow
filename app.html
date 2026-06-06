@@ -940,6 +940,21 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .sp-sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
 .sp-sec-title{font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);display:flex;align-items:center;gap:5px}
 .sp-div{height:1px;background:var(--bdr);margin:0 13px}
+/* Notifications */
+.tb-notif-dot{position:absolute;top:-6px;right:-6px;min-width:16px;height:16px;border-radius:8px;background:var(--err);color:#fff;font-size:9px;font-weight:700;font-family:var(--m);display:flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid #0a0f1c;z-index:2}
+.sp-notif-count{font-size:9px;font-family:var(--m);font-weight:700;background:var(--err);color:#fff;min-width:16px;height:16px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;padding:0 5px}
+.sp-notif-card{background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;padding:11px 12px;margin-bottom:8px;position:relative;overflow:hidden}
+.sp-notif-card.invite{border-color:rgba(255,107,26,.25)}
+.sp-notif-card.invite::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--ora)}
+.sp-notif-top{display:flex;align-items:flex-start;gap:9px;margin-bottom:9px}
+.sp-notif-ic{width:30px;height:30px;border-radius:8px;background:var(--ora-d);border:1px solid var(--ora-g);color:var(--ora);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.sp-notif-txt{flex:1;min-width:0}
+.sp-notif-title{font-size:12px;font-weight:600;color:var(--txt);line-height:1.3}
+.sp-notif-sub{font-size:10px;color:var(--muted);font-family:var(--m);margin-top:2px}
+.sp-notif-acts{display:flex;gap:6px}
+.sp-notif-acts .btn,.sp-notif-acts .btn-decline{flex:1;justify-content:center}
+.btn-decline{background:var(--surf3);border:1px solid var(--bdr2);color:var(--muted);font-size:11px;font-weight:600;padding:7px;border-radius:7px;cursor:pointer;font-family:var(--f);display:flex;align-items:center;justify-content:center;gap:5px;transition:all .15s}
+.btn-decline:hover{border-color:rgba(255,77,106,.3);color:var(--err)}
 /* show cards */
 .sp-show{display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:8px;cursor:pointer;border:1px solid var(--bdr);background:var(--surf2);margin-bottom:5px;transition:all .13s;position:relative}
 .sp-show:hover{border-color:var(--bdr3);background:var(--surf3)}
@@ -1376,10 +1391,11 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
     </div>
     <div class="tb-right">
       <div class="rt-pip"><div class="rt-dot" id="rt-dot"></div><span id="rt-lbl" style="font-size:9px;font-family:var(--m)">—</span></div>
-      <button class="sp-trigger" onclick="toggleSP()">
+      <button class="sp-trigger" onclick="toggleSP()" style="position:relative">
         <i class="ti ti-layout-sidebar-right" style="font-size:14px;flex-shrink:0"></i>
         <span id="cur-show-name">—</span>
         <i class="ti ti-chevron-down" style="font-size:11px;color:var(--muted);flex-shrink:0"></i>
+        <span id="tb-notif-dot" class="tb-notif-dot" style="display:none"></span>
       </button>
       <div class="user-wrap">
         <div class="user-btn" onclick="toggleUD()">
@@ -2017,24 +2033,25 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 <div class="sp-overlay" id="sp-ov" onclick="closeSP()"></div>
 <div class="side-panel" id="side-panel">
   <div class="sp-head">
-    <div class="sp-head-title"><i class="ti ti-layout-board" style="color:var(--ora);font-size:15px"></i>Mes Shows</div>
+    <div class="sp-head-title"><i class="ti ti-layout-board" style="color:var(--ora);font-size:15px"></i>Mon espace</div>
     <button class="btn ghost sm" onclick="closeSP()"><i class="ti ti-x"></i></button>
   </div>
   <div class="sp-body">
+    <!-- Notifications (invitations à des shows) -->
+    <div class="sp-sec" id="sp-notif-sec">
+      <div class="sp-sec-head">
+        <span class="sp-sec-title"><i class="ti ti-bell"></i>Notifications</span>
+        <span id="sp-notif-count" class="sp-notif-count" style="display:none">0</span>
+      </div>
+      <div id="sp-notif"><div style="font-size:10px;color:var(--muted);padding:4px 0">—</div></div>
+    </div>
+    <div class="sp-div"></div>
     <div class="sp-sec">
       <div class="sp-sec-head">
-        <span class="sp-sec-title"><i class="ti ti-calendar-event"></i>Shows</span>
+        <span class="sp-sec-title"><i class="ti ti-folders"></i>Mes shows</span>
         <button class="btn sm" onclick="newShow()"><i class="ti ti-plus"></i>Nouveau</button>
       </div>
       <div id="sp-shows"><div class="loading"><div class="spinner"></div></div></div>
-    </div>
-    <div class="sp-div"></div>
-    <div class="sp-sec" id="sp-activity-sec">
-      <div class="sp-sec-head">
-        <span class="sp-sec-title"><i class="ti ti-history"></i>Activite recente</span>
-        <span id="sp-activity-badge" style="display:none;font-size:9px;font-family:var(--m);background:var(--ora-d);color:var(--ora);border:1px solid rgba(255,107,26,.25);padding:1px 7px;border-radius:10px">Pro</span>
-      </div>
-      <div id="sp-activity"><div style="font-size:10px;color:var(--muted);padding:4px 0">—</div></div>
     </div>
   </div>
   <!-- Template preview slide (keep for tpl-dd-menu usage) -->
@@ -4665,28 +4682,14 @@ async function removeMember(memberId) {
 }
 
 /* Process pending show invites after login */
+/* Charge les invitations en attente sous forme de NOTIFICATIONS
+   (l'utilisateur les accepte manuellement depuis le panneau). */
 async function processShowInvites() {
-  if (!ME?.email) return;
-  try {
-    const { data: invites } = await sb.from('show_invites')
-      .select('*')
-      .eq('invited_email', ME.email.toLowerCase());
-    if (!invites?.length) return;
-    for (const inv of invites) {
-      /* Add to show_members */
-      await sb.from('show_members').upsert({
-        show_id: inv.show_id,
-        user_id: ME.id,
-        role: inv.role,
-      }, { onConflict: 'show_id,user_id' });
-      /* Remove consumed invite */
-      await sb.from('show_invites').delete().eq('id', inv.id);
-      toast(`✓ Vous avez rejoint le show "${inv.show_name || inv.show_id}" en tant que ${ROLE_LABELS[inv.role] || inv.role}.`);
-    }
-    /* Reload shows so new ones appear */
-    await loadShows();
-  } catch (e) {
-    console.error('processShowInvites:', e);
+  await refreshNotifications();
+  /* Petit toast d'info si des invitations sont en attente */
+  if (_PENDING_INVITES.length) {
+    var n = _PENDING_INVITES.length;
+    toast('🔔 ' + n + ' invitation' + (n>1?'s':'') + ' en attente — ouvrez votre espace pour ' + (n>1?'les':'l\'') + ' accepter');
   }
 }
 
@@ -11944,7 +11947,7 @@ async function applyTemplate(tplId){
 
 
 function toggleSP(){const p=document.getElementById('side-panel');p.classList.contains('show')?closeSP():openSP();}
-function openSP(){document.getElementById('side-panel').classList.add('show');document.getElementById('sp-ov').classList.add('show');renderSPShows();loadSPActivity();}
+function openSP(){document.getElementById('side-panel').classList.add('show');document.getElementById('sp-ov').classList.add('show');renderSPShows();loadNotifications();refreshNotifications().then(loadNotifications);}
 function closeSP(){document.getElementById('side-panel').classList.remove('show');document.getElementById('sp-ov').classList.remove('show');closePrev();}
 function _fmtShowDate(d){
   if(!d)return '';
@@ -12164,37 +12167,92 @@ function _timeAgo(iso){
   var d=Math.floor(diff/86400);
   return 'il y a '+d+(d===1?' jour':' jours');
 }
-async function loadSPActivity(){
-  var el=document.getElementById('sp-activity');
-  var badge=document.getElementById('sp-activity-badge');
+/* ── Notifications : invitations à des shows ── */
+var _PENDING_INVITES=[];
+
+/* Récupère les invitations en attente (depuis show_invites) et met à jour le badge.
+   Appelé à l'init et à l'ouverture du panneau. */
+async function refreshNotifications(){
+  if(!ME?.email){ _PENDING_INVITES=[]; _updateNotifBadge(); return; }
+  try{
+    var {data}=await sb.from('show_invites').select('*').eq('invited_email',ME.email.toLowerCase());
+    _PENDING_INVITES=data||[];
+  }catch(e){ _PENDING_INVITES=[]; }
+  _updateNotifBadge();
+}
+
+function _updateNotifBadge(){
+  var n=_PENDING_INVITES.length;
+  var dot=document.getElementById('tb-notif-dot');
+  var cnt=document.getElementById('sp-notif-count');
+  if(dot){ dot.style.display=n>0?'flex':'none'; dot.textContent=n>9?'9+':String(n); }
+  if(cnt){ cnt.style.display=n>0?'inline-flex':'none'; cnt.textContent=String(n); }
+}
+
+/* Affiche les notifications dans le panneau latéral */
+function loadNotifications(){
+  var el=document.getElementById('sp-notif');
   if(!el)return;
-  if(!canDo('recent_activity')){
-    badge&&(badge.style.display='');
-    el.innerHTML='<div onclick="showUpgradeModal(\'recent_activity\')" style="cursor:pointer;font-size:10px;color:var(--muted);padding:6px 8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:7px;display:flex;align-items:center;gap:7px"><i class="ti ti-lock" style="color:var(--ora);font-size:12px"></i>Disponible a partir du plan <strong style="color:var(--ora);margin-left:2px">Pro</strong></div>';
+  var _es=function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
+  if(!_PENDING_INVITES.length){
+    el.innerHTML='<div style="font-size:10px;color:var(--muted);padding:8px 2px;display:flex;align-items:center;gap:7px"><i class="ti ti-check" style="color:var(--grn);font-size:13px"></i>Aucune notification.</div>';
     return;
   }
-  badge&&(badge.style.display='none');
-  if(!CUR_SHOW){el.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px 0">Aucun show actif.</div>';return;}
-  el.innerHTML='<div class="loading"><div class="spinner"></div></div>';
-  var {data,error}=await sb.from('channels').select('ch,short_name,long_name,source,updated_at').eq('show_id',CUR_SHOW.id).order('updated_at',{ascending:false}).limit(8);
-  if(error||!data||data.length===0){
-    el.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px 0">Aucune modification recente.</div>';
-    return;
-  }
-  var _es=function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
-  el.innerHTML=data.map(function(r){
-    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--bdr)">'
-      +'<div style="width:26px;height:26px;border-radius:7px;background:var(--ora-d);border:1px solid rgba(255,107,26,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0">'
-        +'<span style="font-size:10px;font-weight:700;color:var(--ora);font-family:var(--m)">'+_es(r.ch)+'</span>'
+  el.innerHTML=_PENDING_INVITES.map(function(inv){
+    var showName=inv.show_name||'un show';
+    var inviter=inv.inviter_name||'Un technicien';
+    var role=(window.ROLE_LABELS&&ROLE_LABELS[inv.role])||inv.role||'Membre';
+    return '<div class="sp-notif-card invite">'
+      +'<div class="sp-notif-top">'
+        +'<div class="sp-notif-ic"><i class="ti ti-user-plus"></i></div>'
+        +'<div class="sp-notif-txt">'
+          +'<div class="sp-notif-title">Invitation à rejoindre <strong>'+_es(showName)+'</strong></div>'
+          +'<div class="sp-notif-sub">'+_es(inviter)+' · rôle '+_es(role)+'</div>'
+        +'</div>'
       +'</div>'
-      +'<div style="flex:1;min-width:0">'
-        +'<div style="font-size:11px;font-weight:600;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+_es((r.short_name||'').trim()||r.long_name||'—')+'</div>'
-        +'<div style="font-size:9px;color:var(--muted);font-family:var(--m)">'+_es(r.source||'')+'</div>'
+      +'<div class="sp-notif-acts">'
+        +'<button class="btn sm" onclick="acceptShowInvite(\''+inv.id+'\')"><i class="ti ti-check"></i>Accepter</button>'
+        +'<button class="btn-decline" onclick="declineShowInvite(\''+inv.id+'\')"><i class="ti ti-x"></i>Refuser</button>'
       +'</div>'
-      +'<div style="font-size:9px;color:var(--muted);font-family:var(--m);white-space:nowrap;flex-shrink:0">'+_timeAgo(r.updated_at)+'</div>'
     +'</div>';
-  }).join('')
-  +'<div style="font-size:9px;color:var(--muted);font-family:var(--m);padding-top:6px;text-align:right">'+data.length+' canaux les plus recents</div>';
+  }).join('');
+}
+
+/* Accepter une invitation : rejoindre le show (via RPC sécurisée) */
+async function acceptShowInvite(inviteId){
+  var inv=_PENDING_INVITES.find(function(x){return x.id===inviteId;});
+  if(!inv)return;
+  try{
+    var {data,error}=await sb.rpc('accept_show_invite',{p_invite_id:inviteId});
+    if(error){toast('Erreur : '+error.message);return;}
+    if(data&&data.ok===false){
+      var msgs={not_your_invite:'Cette invitation ne vous est pas adressée.',invite_not_found:'Invitation introuvable ou déjà traitée.',not_authenticated:'Session expirée, reconnectez-vous.'};
+      toast(msgs[data.error]||'Impossible d\'accepter l\'invitation.');
+      /* Rafraîchir au cas où l'invitation a disparu */
+      await refreshNotifications(); loadNotifications();
+      return;
+    }
+    _PENDING_INVITES=_PENDING_INVITES.filter(function(x){return x.id!==inviteId;});
+    _updateNotifBadge();
+    loadNotifications();
+    await loadShows();
+    renderSPShows();
+    try{ renderSessions(); }catch(e){}
+    toast('✓ Vous avez rejoint « '+(inv.show_name||'le show')+' »');
+  }catch(e){toast('Erreur : '+e.message);}
+}
+
+/* Refuser une invitation */
+async function declineShowInvite(inviteId){
+  var inv=_PENDING_INVITES.find(function(x){return x.id===inviteId;});
+  if(!inv)return;
+  try{
+    await sb.from('show_invites').delete().eq('id',inviteId);
+    _PENDING_INVITES=_PENDING_INVITES.filter(function(x){return x.id!==inviteId;});
+    _updateNotifBadge();
+    loadNotifications();
+    toast('Invitation refusée');
+  }catch(e){toast('Erreur : '+e.message);}
 }
 
 function setIM(m){
