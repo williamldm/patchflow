@@ -113,23 +113,26 @@ serve(async (req) => {
         .maybeSingle();
       if (existing) return json(409, { error: 'Cet utilisateur est déjà membre du show' });
 
-      /* Créer/mettre à jour l'invitation en attente → apparaît en notification */
-      const { error: invErr } = await sbAdmin.from('show_invites').upsert({
+      /* Créer/mettre à jour l'invitation en attente → apparaît en notification.
+         On récupère l'id pour le mettre dans l'URL d'acceptation. */
+      const { data: invRow, error: invErr } = await sbAdmin.from('show_invites').upsert({
         show_id: showId,
         invited_email: normalEmail,
         role,
         invited_by: caller.id,
         show_name: showNameRaw,
         inviter_name: inviterNameRaw,
-      }, { onConflict: 'show_id,invited_email' });
+      }, { onConflict: 'show_id,invited_email' }).select('id').maybeSingle();
       if (invErr) throw invErr;
+      const inviteId = invRow?.id || '';
 
-      /* Email de notification (invitation à accepter) */
+      /* Email de notification (lien direct → auto-accept côté app) */
+      const acceptUrl = `${SITE_URL}/app.html?invite=${inviteId}`;
       const html = emailShell(
         `${inviterName} vous invite sur "${showName}" 🎧`,
-        `<strong>${inviterName}</strong> vous invite à rejoindre le show <strong>${showName}</strong> sur PatchFlow en tant que <strong>${roleLabel(role)}</strong>.<br/><br/>Ouvrez PatchFlow et acceptez l'invitation depuis vos notifications (icône en haut à droite).`,
-        'Voir l\'invitation',
-        `${SITE_URL}/app.html`,
+        `<strong>${inviterName}</strong> vous invite à rejoindre le show <strong>${showName}</strong> sur PatchFlow en tant que <strong>${roleLabel(role)}</strong>.<br/><br/>Cliquez sur le bouton ci-dessous : vous serez automatiquement ajouté au show après connexion.`,
+        'Rejoindre le show',
+        acceptUrl,
         'Si vous ne connaissez pas cet utilisateur, ignorez cet email.',
       );
       await transporter.sendMail({
@@ -142,43 +145,37 @@ serve(async (req) => {
       return json(200, { ok: true, action: 'invite_sent' });
 
     } else {
-      /* User has no account → send invite via Supabase auth admin */
+      /* Utilisateur sans compte → invitation en attente + email nodemailer.
+         On n'utilise PAS inviteUserByEmail (GoTrue) pour éviter le double email
+         (GoTrue envoie son propre email, et si GoTrue échoue le fallback envoie
+         un second email → doublon systématique). On envoie un unique email
+         via nodemailer avec un lien vers l'inscription. */
 
-      /* Store pending invite (upsert = re-invite with updated role) */
-      const { error: invErr } = await sbAdmin.from('show_invites').upsert({
+      const { data: invRow, error: invErr } = await sbAdmin.from('show_invites').upsert({
         show_id: showId,
         invited_email: normalEmail,
         role,
         invited_by: caller.id,
         show_name: showNameRaw,
         inviter_name: inviterNameRaw,
-      }, { onConflict: 'show_id,invited_email' });
+      }, { onConflict: 'show_id,invited_email' }).select('id').maybeSingle();
       if (invErr) throw invErr;
+      const inviteId = invRow?.id || '';
 
-      /* Invite via GoTrue — our auth-email-hook will send the branded email
-         (les valeurs brutes : le hook ré-échappe au rendu HTML) */
-      const { error: inviteErr } = await sbAdmin.auth.admin.inviteUserByEmail(normalEmail, {
-        redirectTo: `${SITE_URL}/app.html`,
-        data: { invited_to_show: showId, invited_role: role, inviter: inviterNameRaw, show_name: showNameRaw },
+      const acceptUrl = `${SITE_URL}/app.html?invite=${inviteId}`;
+      const html = emailShell(
+        `${inviterName} vous invite sur PatchFlow 🎧`,
+        `<strong>${inviterName}</strong> vous invite à rejoindre le show <strong>${showName}</strong> sur PatchFlow en tant que <strong>${roleLabel(role)}</strong>.<br/><br/>PatchFlow est l'outil de gestion de patch son professionnel — créé par des techniciens, pour des techniciens.<br/><br/>Créez votre compte avec cette adresse email (<strong>${normalEmail}</strong>) — vous serez automatiquement ajouté au show après inscription.`,
+        'Créer mon compte',
+        acceptUrl,
+        'Si vous ne connaissez pas cet utilisateur, ignorez cet email.',
+      );
+      await transporter.sendMail({
+        from: `PatchFlow <${SMTP_USER}>`,
+        to: normalEmail,
+        subject: `${inviterNameRaw} vous invite sur PatchFlow — "${showNameRaw}"`,
+        html,
       });
-
-      /* If invite API fails (e.g. user already invited), send our own email as fallback */
-      if (inviteErr) {
-        console.warn('GoTrue invite failed, sending custom email:', inviteErr.message);
-        const html = emailShell(
-          `${inviterName} vous invite sur PatchFlow 🎧`,
-          `<strong>${inviterName}</strong> vous invite à rejoindre le show <strong>${showName}</strong> sur PatchFlow en tant que <strong>${roleLabel(role)}</strong>.<br/><br/>PatchFlow est l'outil de gestion de patch son professionnel — créé par des techniciens, pour des techniciens.`,
-          'Créer mon compte',
-          `${SITE_URL}/app.html`,
-          'Ce lien vous permettra de créer votre compte et d\'accéder directement au show.',
-        );
-        await transporter.sendMail({
-          from: `PatchFlow <${SMTP_USER}>`,
-          to: normalEmail,
-          subject: `${inviterNameRaw} vous invite sur PatchFlow — "${showNameRaw}"`,
-          html,
-        });
-      }
 
       return json(200, { ok: true, action: 'invite_sent' });
     }

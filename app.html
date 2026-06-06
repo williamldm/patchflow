@@ -1891,7 +1891,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
       <div id="team-grid" class="team-grid"><div class="loading"><div class="spinner"></div>Chargement…</div></div>
       <div class="invite-box">
         <i class="ti ti-mail" style="color:var(--muted);font-size:15px;flex-shrink:0"></i>
-        <input class="inv-inp" id="inv-email" type="email" placeholder="Inviter par e-mail…" onkeydown="if(event.key==='Enter')inviteMember()"/>
+        <input class="inv-inp" id="inv-email" type="email" placeholder="Inviter par e-mail…" onkeydown="if(event.key==='Enter'&&!window._inviting)inviteMember()"/>
         <select class="pdf-inp" id="inv-role" style="width:148px;padding:4px 7px;flex-shrink:0">
           <option value="admin">Administrateur</option>
           <option value="editor" selected>Éditeur</option>
@@ -4628,6 +4628,7 @@ function _invMsg(msg, ok) {
 }
 
 async function inviteMember() {
+  if (window._inviting) return; /* guard anti-double-envoi */
   const emailEl = document.getElementById('inv-email');
   const roleEl  = document.getElementById('inv-role');
   const btn     = document.getElementById('inv-btn');
@@ -4642,7 +4643,9 @@ async function inviteMember() {
   const currentCount = (SHOW_MEMBERS_MAP[CUR_SHOW.id] || []).length;
   if (limit !== Infinity && currentCount >= limit) { showUpgradeModal('max_members'); return; }
 
+  window._inviting = true;
   btn.disabled = true;
+  emailEl.disabled = true;
   btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin .7s linear infinite"></i>Envoi…';
   _invMsg('', false);
 
@@ -4677,7 +4680,9 @@ async function inviteMember() {
   } catch (e) {
     _invMsg('Erreur réseau : ' + e.message, false);
   } finally {
+    window._inviting = false;
     btn.disabled = false;
+    emailEl.disabled = false;
     btn.innerHTML = '<i class="ti ti-send"></i>Inviter';
   }
 }
@@ -4694,8 +4699,29 @@ async function removeMember(memberId) {
 /* Charge les invitations en attente sous forme de NOTIFICATIONS
    (l'utilisateur les accepte manuellement depuis le panneau). */
 async function processShowInvites() {
+  /* 1. Auto-accept si ?invite=<id> dans l'URL (lien depuis email) */
+  try{
+    var params=new URLSearchParams(location.search);
+    var inviteIdFromUrl=params.get('invite');
+    if(inviteIdFromUrl){
+      var {data,error}=await sb.rpc('accept_show_invite',{p_invite_id:inviteIdFromUrl});
+      if(!error && data && data.ok){
+        toast('✓ Vous avez rejoint le show !');
+        try{ await loadShows(); renderSPShows(); renderSessions(); }catch(e){}
+      } else if(data && data.error==='not_your_invite'){
+        toast('⚠ Cette invitation est destinée à une autre adresse email.');
+      } else if(data && data.error==='invite_not_found'){
+        /* déjà acceptée — silent */
+      } else if(error){
+        console.warn('[autoAccept] err:',error.message);
+      }
+      /* Nettoyer l'URL pour éviter re-acceptation au refresh */
+      try{ history.replaceState({},'',location.pathname); }catch(e){}
+    }
+  }catch(e){ console.warn('[autoAccept] catch:',e); }
+
+  /* 2. Charger les notifications restantes */
   await refreshNotifications();
-  /* Petit toast d'info si des invitations sont en attente */
   if (_PENDING_INVITES.length) {
     var n = _PENDING_INVITES.length;
     toast('🔔 ' + n + ' invitation' + (n>1?'s':'') + ' en attente — ouvrez votre espace pour ' + (n>1?'les':'l\'') + ' accepter');
@@ -12184,9 +12210,14 @@ var _PENDING_INVITES=[];
 async function refreshNotifications(){
   if(!ME?.email){ _PENDING_INVITES=[]; _updateNotifBadge(); return; }
   try{
-    var {data}=await sb.from('show_invites').select('*').eq('invited_email',ME.email.toLowerCase());
-    _PENDING_INVITES=data||[];
-  }catch(e){ _PENDING_INVITES=[]; }
+    /* Pas de .eq() : la RLS filtre déjà côté serveur (case-insensitive).
+       Si on filtre côté client avec .eq() exact, on rate les emails en casse
+       différente (l'email stocké est lowercase mais ME.email peut varier). */
+    var {data,error}=await sb.from('show_invites').select('*');
+    if(error){ console.warn('[refreshNotif] err:',error.message); _PENDING_INVITES=[]; }
+    else { _PENDING_INVITES=data||[]; }
+    console.log('[refreshNotif]',_PENDING_INVITES.length,'invites pour',ME.email);
+  }catch(e){ console.warn('[refreshNotif] catch:',e); _PENDING_INVITES=[]; }
   _updateNotifBadge();
 }
 
