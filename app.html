@@ -320,6 +320,7 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .lg-g{background:rgba(0,200,180,.12);border:1px solid rgba(0,200,180,.35);color:#2ad6c0}
 .lg-a{background:rgba(120,120,130,.18);border:1px solid rgba(160,160,170,.4);color:#c0c4cc}
 .lg-r{background:rgba(0,100,220,.12);border:1px solid rgba(0,100,220,.3);color:#5aa0ff}
+.lg-dm7{background:rgba(0,140,210,.16);border:1px solid rgba(0,140,210,.4);color:#4fc3f7}
 .lg-sc{background:rgba(230,80,40,.14);border:1px solid rgba(230,80,40,.35);color:#ff8866}
 .sf-name{font-size:13px;font-weight:600}.sf-sub{font-size:10px;color:var(--muted);font-family:var(--m)}
 .sf-body{padding:13px}
@@ -1552,6 +1553,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
       <div class="sf-grid">
         <div class="sf-card"><div class="sf-head"><div class="sf-logo lg-x">X32<br>M32</div><div><div class="sf-name">Behringer X32 / Midas M32</div><div class="sf-sub">X32 · M32 · X32 Rack · M32R</div></div></div><div class="sf-body"><div class="fmt-tag real">Scène native .scn — noms, couleurs, gain, +48V</div><div class="ch-pills" id="pills-x32"></div><div class="sf-steps"><div class="sf-step"><div class="sf-snum">1</div>Télécharger <span class="cb2">patchflow.scn</span></div><div class="sf-step"><div class="sf-snum">2</div>USB → console → Scenes → Import</div></div><button class="gen-btn y" onclick="prevFile('x32')"><i class="ti ti-eye"></i>Prévisualiser</button><button class="gen-btn y" onclick="dlFile('x32')"><i class="ti ti-file-download"></i>patchflow.scn</button><div class="sf-stat"><span class="dp dg"></span><span id="st-x32">—</span></div></div></div>
         <div class="sf-card"><div class="sf-head"><div class="sf-logo lg-y">CL<br>QL</div><div><div class="sf-name">Yamaha CL / QL</div><div class="sf-sub">CL5 · CL3 · QL5 · QL1</div></div></div><div class="sf-body"><div class="fmt-tag real">CSV — CL/QL Editor v4.1+</div><div class="ch-pills" id="pills-y"></div><div class="sf-steps"><div class="sf-step"><div class="sf-snum">1</div>Télécharger <span class="cb2">CH_NAME.csv</span></div><div class="sf-step"><div class="sf-snum">2</div>CL/QL Editor → File → CSV File Import</div></div><button class="gen-btn y" onclick="prevFile('y')"><i class="ti ti-eye"></i>Prévisualiser</button><button class="gen-btn y" onclick="dlFile('y')"><i class="ti ti-file-download"></i>CH_NAME.csv</button><div class="sf-stat"><span class="dp dg"></span><span id="st-y">—</span></div></div></div>
+        <div class="sf-card"><div class="sf-head"><div class="sf-logo lg-dm7">DM7</div><div><div class="sf-name">Yamaha DM7</div><div class="sf-sub">DM7 · DM7 Compact</div></div></div><div class="sf-body"><div class="fmt-tag real">CSV Channel List — DM7 Editor</div><div class="ch-pills" id="pills-dm7"></div><div class="sf-steps"><div class="sf-step"><div class="sf-snum">1</div>Télécharger <span class="cb2">DM7_channels.csv</span></div><div class="sf-step"><div class="sf-snum">2</div>DM7 Editor → File → Channel List → Import</div></div><button class="gen-btn y" onclick="prevFile('dm7')"><i class="ti ti-eye"></i>Prévisualiser</button><button class="gen-btn y" onclick="dlFile('dm7')"><i class="ti ti-file-download"></i>DM7_channels.csv</button><div class="sf-stat"><span class="dp dg"></span><span id="st-dm7">—</span></div></div></div>
         <div class="sf-card"><div class="sf-head"><div class="sf-logo lg-r">RIVAGE</div><div><div class="sf-name">Yamaha Rivage PM</div><div class="sf-sub">PM10 · PM7 · PM5 · PM3</div></div></div><div class="sf-body"><div class="fmt-tag real">CSV nommage de voies</div><div class="ch-pills" id="pills-riv"></div><div class="sf-steps"><div class="sf-step"><div class="sf-snum">1</div>Télécharger <span class="cb2">Rivage_channels.csv</span></div><div class="sf-step"><div class="sf-snum">2</div>RIVAGE Editor → Import noms</div></div><button class="gen-btn y" onclick="prevFile('riv')"><i class="ti ti-eye"></i>Prévisualiser</button><button class="gen-btn y" onclick="dlFile('riv')"><i class="ti ti-file-download"></i>Rivage_channels.csv</button><div class="sf-stat"><span class="dp dg"></span><span id="st-riv">—</span></div></div></div>
         <div class="sf-card"><div class="sf-head"><div class="sf-logo lg-w">WING</div><div><div class="sf-name">Behringer Wing</div><div class="sf-sub">Wing · Compact · Rack</div></div></div><div class="sf-body"><div class="fmt-tag real">Snapshot JSON natif (.snap)</div><div class="ch-pills" id="pills-w"></div><div class="sf-steps"><div class="sf-step"><div class="sf-snum">1</div>Télécharger <span class="cb2">snapshot.snap</span></div><div class="sf-step"><div class="sf-snum">2</div>USB → <span class="cb2">/Snaps/</span> → Library → Load</div></div><button class="gen-btn w" onclick="prevFile('w')"><i class="ti ti-eye"></i>Prévisualiser JSON</button><button class="gen-btn w" onclick="dlFile('w')"><i class="ti ti-file-download"></i>snapshot.snap</button><div class="sf-stat"><span class="dp dg"></span><span id="st-w">—</span></div></div></div>
         <div class="sf-card"><div class="sf-head"><div class="sf-logo lg-d">dLive</div><div><div class="sf-name">Allen &amp; Heath dLive</div><div class="sf-sub">C/S/CDM — via Director</div></div></div><div class="sf-body"><div class="fmt-tag real">CSV Director — format officiel [Version]/[Channels]</div><div class="ch-pills" id="pills-d"></div><div class="sf-steps"><div class="sf-step"><div class="sf-snum">1</div>Télécharger <span class="cb2">patchflow-director.csv</span></div><div class="sf-step"><div class="sf-snum">2</div>dLive Director → File → Import → CSV</div></div><button class="gen-btn d" onclick="prevFile('d')"><i class="ti ti-eye"></i>Prévisualiser</button><button class="gen-btn d" onclick="dlFile('d')"><i class="ti ti-file-download"></i>patchflow-director.csv</button><div class="sf-stat"><span class="dp dg"></span><span id="st-d">—</span></div></div></div>
@@ -5614,6 +5616,21 @@ function genY(){
   return o;
 }
 
+/* ── Yamaha DM7 / DM7 Compact — Channel List CSV ──
+   Le DM7 Editor (File → Channel List) importe un CSV de nommage des voies.
+   Colonnes : Channel, Name, Color, Icon, +48V (convention Channel List Yamaha).
+   Couleurs Yamaha en majuscules ; nom de voie limité à 8 caractères (afficheur). */
+function genDM7(){
+  const q=s=>'"'+String(s||'').replace(/"/g,'""')+'"';
+  let o='Channel,Name,Color,Icon,+48V\r\n';
+  CHS.forEach((r,i)=>{
+    const col=_COL_YAMAHA[_instrGroup(r)]||'WHITE';
+    const name=(r.long_name||r.short_name||('CH'+r.ch)).trim().slice(0,16);
+    o+=`${i+1},${q(name)},${q(col)},,${r.phantom?'ON':'OFF'}\r\n`;
+  });
+  return o;
+}
+
 /* ── Yamaha Rivage PM — CSV nommage ── */
 function genRiv(){
   const q=s=>'"'+String(s||'').replace(/"/g,'""')+'"';
@@ -5760,6 +5777,7 @@ function genUniv(){
 
 const FMETA={
   y:   {title:'Yamaha CL/QL — CH_NAME.csv',          fn:'CH_NAME.csv',         type:'text/csv',          gen:genY},
+  dm7: {title:'Yamaha DM7 — Channel List CSV',       fn:'DM7_channels.csv',    type:'text/csv',          gen:genDM7},
   riv: {title:'Yamaha Rivage PM — channels.csv',     fn:'Rivage_channels.csv', type:'text/csv',          gen:genRiv},
   x32: {title:'Behringer X32 / Midas M32 — scène .scn', fn:'patchflow.scn',     type:'text/plain',        gen:genX32},
   w:   {title:'Behringer Wing — snapshot.snap',      fn:'snapshot.snap',       type:'application/json',  gen:genW},
@@ -5969,7 +5987,7 @@ async function doCSVImport(){
 }
 // ────────────────────────────────────────────────────────────────
 function exportCSV(){let c='CH,Court,Nom Long,Source,Micro/DI,Gain,Phantom,IEM,FOH,MON,BC,Note\n';CHS.forEach(r=>{c+=`${r.ch},"${(r.short_name||'').trim()}","${r.long_name||''}","${r.source||''}","${r.mic||''}",${r.gain||0},${r.phantom?'On':'Off'},"${r.iem_group||''}",${r.foh?1:0},${r.mon?1:0},${r.bc?1:0},"${r.note||''}"\n`;});dl(c,'text/csv',(CUR_SHOW?.slug||'show')+'_inputlist.csv');}
-const _SF_KEYS=['y','riv','x32','w','digi','avid','sc','d','s'];
+const _SF_KEYS=['y','dm7','riv','x32','w','digi','avid','sc','d','s'];
 function prevFile(t){
   const m=FMETA[t];if(!m)return;
   if(!canDo('console_export')){ showUpgradeModal('console_export'); return; }
