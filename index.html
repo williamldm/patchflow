@@ -224,6 +224,28 @@ h2 em{font-style:normal;color:var(--ora)}
 .mk-spin-btn{width:22px;height:22px;border-radius:5px;border:1px solid var(--bdr2);background:var(--surf3);color:var(--txt2);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center}
 @media(max-width:900px){.feat-shell{grid-template-columns:1fr;min-height:auto}.feat-sidebar{flex-direction:row;overflow-x:auto;border-right:none;border-bottom:1px solid var(--bdr)}.feat-item{flex-direction:column;align-items:center;text-align:center;border-left:none;border-bottom:3px solid transparent;padding:10px 14px;min-width:80px}.feat-item.active{border-left-color:transparent;border-bottom-color:var(--ora)}.feat-item-sub,.feat-item-arr,.feat-group-label{display:none}}
 
+/* Utilitaires d'affichage responsive */
+.only-mobile{display:none}
+@media(max-width:900px){.hide-mobile{display:none}.only-mobile{display:inline}p.only-mobile{display:block}}
+
+/* ── Grille fonctionnalités mobile (remplace l'explorateur interactif) ── */
+.feat-mobile{display:none}
+.fm-group-label{font-family:var(--m);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--ora);margin:26px 0 12px;opacity:.9}
+.fm-group-label:first-child{margin-top:0}
+.fm-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fm-card{background:var(--surf);border:1px solid var(--bdr2);border-radius:14px;padding:15px 13px;display:flex;flex-direction:column;gap:9px;position:relative}
+.fm-ic{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px}
+.fm-name{font-size:13.5px;font-weight:700;color:var(--txt);line-height:1.2;letter-spacing:-.2px}
+.fm-desc{font-size:11.5px;color:var(--muted);line-height:1.45}
+.fm-pro{position:absolute;top:11px;right:11px;font-size:8px;font-family:var(--m);font-weight:700;letter-spacing:.5px;background:var(--ora-d);color:var(--ora);border:1px solid var(--ora-g);border-radius:4px;padding:2px 5px}
+.fm-card.full{grid-column:1/-1;flex-direction:row;align-items:center}
+.fm-card.full .fm-ic{flex-shrink:0}
+@media(max-width:900px){
+  #features .feat-shell{display:none}
+  #features .feat-mobile{display:block}
+}
+@media(max-width:380px){.fm-grid{grid-template-columns:1fr}.fm-name{font-size:14px}.fm-desc{font-size:12px}}
+
 /* ── HOW ── */
 .how-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:32px;margin-top:64px;counter-reset:steps}
 .how-step{position:relative;padding:32px;background:var(--surf);border:1px solid var(--bdr);border-radius:16px}
@@ -487,7 +509,8 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
   <div class="hero-glow2"></div>
   <div class="hero-badge"><i class="ti ti-bolt" style="font-size:11px"></i>Par des techniciens, pour des techniciens</div>
   <h1>Tout votre patch son,<br/><span>prêt en 3 minutes.</span></h1>
-  <p class="hero-sub">Input List, plan de scène, synoptique, plan de site et cloud de production — créés, exportés et partagés en un lien, synchronisés en temps réel avec toute l'équipe. PatchFlow remplace vos fichiers Excel et votre Dropbox par <strong style="color:var(--txt)">un seul outil pensé pour le son</strong>.</p>
+  <p class="hero-sub hide-mobile">Input List, plan de scène, synoptique, plan de site et cloud de production — créés, exportés et partagés en un lien, synchronisés en temps réel avec toute l'équipe. PatchFlow remplace vos fichiers Excel et votre Dropbox par <strong style="color:var(--txt)">un seul outil pensé pour le son</strong>.</p>
+  <p class="hero-sub only-mobile">Input List, plans, synoptique et cloud — partagés en un lien, synchronisés avec toute l'équipe. <strong style="color:var(--txt)">Un seul outil, pensé pour le son.</strong></p>
   <div class="hero-ctas">
     <a class="btn btn-ora btn-xl" href="app.html"><i class="ti ti-rocket"></i>Créer mon patch gratuitement</a>
     <a class="btn btn-ghost btn-lg" href="#features"><i class="ti ti-play"></i>Voir une démo</a>
@@ -595,7 +618,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
 <section id="features">
   <div class="section-label center">Fonctionnalites</div>
   <h2 class="center">Une seule app pour <em>tout</em> votre patch.</h2>
-  <p class="section-sub center">Cliquez sur une fonctionnalite pour voir un apercu en direct.</p>
+  <p class="section-sub center"><span class="hide-mobile">Cliquez sur une fonctionnalité pour voir un aperçu en direct.</span><span class="only-mobile">Tout ce qu'il faut pour préparer un concert, au même endroit.</span></p>
 
   <div class="feat-shell fade-up">
 
@@ -1322,6 +1345,90 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
 
     </div><!-- end feat-preview -->
   </div><!-- end feat-shell -->
+
+  <!-- VERSION MOBILE — grille de cartes scannables (toutes les fonctionnalités d'un coup) -->
+  <div class="feat-mobile fade-up">
+
+    <div class="fm-group-label">Construire le patch</div>
+    <div class="fm-grid">
+      <div class="fm-card">
+        <div class="fm-ic" style="background:rgba(255,107,26,.12);color:var(--ora)"><i class="ti ti-list-numbers"></i></div>
+        <div class="fm-name">Input List</div>
+        <div class="fm-desc">Votre patch complet, colonnes perso, tri, sauvegarde auto.</div>
+      </div>
+      <div class="fm-card">
+        <div class="fm-ic" style="background:rgba(34,214,160,.12);color:var(--grn)"><i class="ti ti-list-check"></i></div>
+        <div class="fm-name">Output List</div>
+        <div class="fm-desc">Sorties HP, retours, IEM, sub — typées et colorées.</div>
+      </div>
+      <div class="fm-card">
+        <div class="fm-ic" style="background:rgba(155,106,255,.12);color:var(--pur)"><i class="ti ti-wand"></i></div>
+        <div class="fm-name">Assistant ILA</div>
+        <div class="fm-desc">Choisissez vos instruments, le patch se génère seul.</div>
+      </div>
+      <div class="fm-card">
+        <div class="fm-ic" style="background:rgba(245,197,66,.12);color:#f5c542"><i class="ti ti-template"></i></div>
+        <div class="fm-name">Templates</div>
+        <div class="fm-desc">Vos configs types, rechargées en un clic.</div>
+      </div>
+      <div class="fm-card full">
+        <div class="fm-ic" style="background:rgba(245,197,66,.12);color:#f5c542"><i class="ti ti-layout-grid"></i></div>
+        <div><div class="fm-name">Multi-patches &amp; scènes</div><div class="fm-desc">Plusieurs configurations dans un même show.</div></div>
+        <span class="fm-pro">PRO</span>
+      </div>
+    </div>
+
+    <div class="fm-group-label">Plans &amp; schémas</div>
+    <div class="fm-grid">
+      <div class="fm-card">
+        <div class="fm-ic" style="background:rgba(155,106,255,.12);color:var(--pur)"><i class="ti ti-layout-board"></i></div>
+        <div class="fm-name">Plan de scène</div>
+        <div class="fm-desc">Instruments en drag &amp; drop avec vrais logos.</div>
+      </div>
+      <div class="fm-card">
+        <div class="fm-ic" style="background:rgba(26,143,255,.12);color:var(--blu)"><i class="ti ti-topology-star"></i></div>
+        <div class="fm-name">Synoptique</div>
+        <div class="fm-desc">Schéma de signal, 115+ équipements pro.</div>
+      </div>
+      <div class="fm-card full">
+        <div class="fm-ic" style="background:rgba(34,214,160,.12);color:var(--grn)"><i class="ti ti-map-2"></i></div>
+        <div><div class="fm-name">Plan de site</div><div class="fm-desc">Implantation et câblage du site, sur fond de plan.</div></div>
+      </div>
+    </div>
+
+    <div class="fm-group-label">Partager &amp; collaborer</div>
+    <div class="fm-grid">
+      <div class="fm-card">
+        <div class="fm-ic" style="background:rgba(255,107,26,.12);color:var(--ora)"><i class="ti ti-link"></i></div>
+        <div class="fm-name">Liens de partage</div>
+        <div class="fm-desc">Lecture seule, sans compte, à jour en temps réel.</div>
+      </div>
+      <div class="fm-card">
+        <div class="fm-ic" style="background:rgba(34,214,160,.12);color:var(--grn)"><i class="ti ti-users"></i></div>
+        <div class="fm-name">Équipe &amp; rôles</div>
+        <div class="fm-desc">Invitez par email, gérez les permissions.</div>
+      </div>
+      <div class="fm-card full">
+        <div class="fm-ic" style="background:rgba(26,143,255,.12);color:var(--blu)"><i class="ti ti-file-type-pdf"></i></div>
+        <div><div class="fm-name">Export pro</div><div class="fm-desc">PDF, PNG, SVG ou impression — prêt à envoyer.</div></div>
+      </div>
+    </div>
+
+    <div class="fm-group-label">Cloud &amp; outils</div>
+    <div class="fm-grid">
+      <div class="fm-card">
+        <div class="fm-ic" style="background:rgba(26,143,255,.12);color:var(--blu)"><i class="ti ti-cloud"></i></div>
+        <div class="fm-name">Cloud métier</div>
+        <div class="fm-desc">Riders, show files, Word/Excel éditables. Remplace Dropbox.</div>
+      </div>
+      <div class="fm-card">
+        <div class="fm-ic" style="background:rgba(255,107,26,.12);color:var(--ora)"><i class="ti ti-clipboard-list"></i></div>
+        <div class="fm-name">Recap matériels <span class="fm-pro" style="position:static;margin-left:2px">PRO</span></div>
+        <div class="fm-desc">Décompte auto des micros &amp; pieds du show.</div>
+      </div>
+    </div>
+
+  </div>
 </section>
 
 <!-- HOW IT WORKS -->
