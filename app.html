@@ -2866,6 +2866,17 @@ async function doLogout(){
 // ══════════════════════════════════════
 // SESSION INIT
 // ══════════════════════════════════════
+/* Sauvegarder ?invite=<id> IMMÉDIATEMENT (avant toute redirection / login) :
+   si l'utilisateur clique le lien email sans être connecté, l'URL peut être
+   perdue après le login → on persiste en sessionStorage pour réessayer. */
+(function(){
+  try{
+    var p=new URLSearchParams(location.search);
+    var inv=p.get('invite');
+    if(inv) sessionStorage.setItem('pf_pending_invite', inv);
+  }catch(e){}
+}());
+
 /* Afficher le formulaire de reset immédiatement si l'URL l'indique,
    sans attendre onAuthStateChange (qui peut arriver trop tard). */
 (function(){
@@ -4699,21 +4710,30 @@ async function removeMember(memberId) {
 /* Charge les invitations en attente sous forme de NOTIFICATIONS
    (l'utilisateur les accepte manuellement depuis le panneau). */
 async function processShowInvites() {
-  /* 1. Auto-accept si ?invite=<id> dans l'URL (lien depuis email) */
+  /* 1. Auto-accept si ?invite=<id> dans l'URL OU sessionStorage
+        (sessionStorage = backup au cas où l'URL serait perdue après login) */
   try{
     var params=new URLSearchParams(location.search);
-    var inviteIdFromUrl=params.get('invite');
+    var inviteIdFromUrl=params.get('invite') || sessionStorage.getItem('pf_pending_invite');
     if(inviteIdFromUrl){
+      console.log('[autoAccept] tentative pour invite', inviteIdFromUrl);
       var {data,error}=await sb.rpc('accept_show_invite',{p_invite_id:inviteIdFromUrl});
-      if(!error && data && data.ok){
+      console.log('[autoAccept] rpc resp:', {data, error});
+      if(error){
+        toast('Erreur acceptation : '+error.message);
+      } else if(data && data.ok){
         toast('✓ Vous avez rejoint le show !');
+        sessionStorage.removeItem('pf_pending_invite');
         try{ await loadShows(); renderSPShows(); renderSessions(); }catch(e){}
       } else if(data && data.error==='not_your_invite'){
-        toast('⚠ Cette invitation est destinée à une autre adresse email.');
+        toast('⚠ Cette invitation est destinée à une autre adresse email. Connectez-vous avec le bon compte.');
+        sessionStorage.removeItem('pf_pending_invite');
       } else if(data && data.error==='invite_not_found'){
-        /* déjà acceptée — silent */
-      } else if(error){
-        console.warn('[autoAccept] err:',error.message);
+        toast('⚠ Cette invitation a déjà été utilisée ou a expiré.');
+        sessionStorage.removeItem('pf_pending_invite');
+      } else if(data && data.error==='not_authenticated'){
+        /* Pas encore connecté : stocker pour réessayer après login */
+        sessionStorage.setItem('pf_pending_invite', inviteIdFromUrl);
       }
       /* Nettoyer l'URL pour éviter re-acceptation au refresh */
       try{ history.replaceState({},'',location.pathname); }catch(e){}
