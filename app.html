@@ -3097,6 +3097,11 @@ function _showInitError(msg){
   var el=document.getElementById('cur-show-name');if(el)el.textContent='Erreur';
 }
 async function initApp(){
+  /* GUARD anti-concurrence : onAuthStateChange peut fire plusieurs fois
+     (INITIAL_SESSION, SIGNED_IN, TOKEN_REFRESHED) → évite les initApp parallèles
+     qui rechargeaient tout en double et provoquaient des races (auto-accept, etc). */
+  if(window._initAppRunning) return;
+  window._initAppRunning=true;
   setILBody('<div class="loading"><div class="spinner"></div>Connexion a Supabase…</div>',true);
   try{
     /* PARALLÉLISATION : profile et shows en // — sur connexion lente, on gagne
@@ -3125,6 +3130,8 @@ async function initApp(){
         :'Erreur : '+e.message;
     _showInitError(msg);
     if(isOffline)_showOfflineBanner();
+  }finally{
+    window._initAppRunning=false;
   }
 }
 
@@ -4710,35 +4717,43 @@ async function removeMember(memberId) {
 /* Charge les invitations en attente sous forme de NOTIFICATIONS
    (l'utilisateur les accepte manuellement depuis le panneau). */
 async function processShowInvites() {
-  /* 1. Auto-accept si ?invite=<id> dans l'URL OU sessionStorage
-        (sessionStorage = backup au cas où l'URL serait perdue après login) */
-  try{
-    var params=new URLSearchParams(location.search);
-    var inviteIdFromUrl=params.get('invite') || sessionStorage.getItem('pf_pending_invite');
-    if(inviteIdFromUrl){
-      console.log('[autoAccept] tentative pour invite', inviteIdFromUrl);
-      var {data,error}=await sb.rpc('accept_show_invite',{p_invite_id:inviteIdFromUrl});
-      console.log('[autoAccept] rpc resp:', {data, error});
-      if(error){
-        toast('Erreur acceptation : '+error.message);
-      } else if(data && data.ok){
-        toast('✓ Vous avez rejoint le show !');
-        sessionStorage.removeItem('pf_pending_invite');
-        try{ await loadShows(); renderSPShows(); renderSessions(); }catch(e){}
-      } else if(data && data.error==='not_your_invite'){
-        toast('⚠ Cette invitation est destinée à une autre adresse email. Connectez-vous avec le bon compte.');
-        sessionStorage.removeItem('pf_pending_invite');
-      } else if(data && data.error==='invite_not_found'){
-        toast('⚠ Cette invitation a déjà été utilisée ou a expiré.');
-        sessionStorage.removeItem('pf_pending_invite');
-      } else if(data && data.error==='not_authenticated'){
-        /* Pas encore connecté : stocker pour réessayer après login */
-        sessionStorage.setItem('pf_pending_invite', inviteIdFromUrl);
+  /* 1. Auto-accept si ?invite=<id> dans l'URL OU sessionStorage.
+        GUARD : onAuthStateChange déclenche initApp() plusieurs fois
+        (INITIAL_SESSION, SIGNED_IN, TOKEN_REFRESHED). Sans garde, l'auto-accept
+        se lançait 2× et le 2e appel échouait → faux message d'erreur.
+        Le flag est posé AVANT le await pour bloquer les appels concurrents. */
+  if(!window._autoAcceptTried){
+    try{
+      var params=new URLSearchParams(location.search);
+      var inviteId=params.get('invite') || sessionStorage.getItem('pf_pending_invite');
+      if(inviteId){
+        window._autoAcceptTried=true;
+        console.log('[autoAccept] tentative pour invite', inviteId);
+        var {data,error}=await sb.rpc('accept_show_invite',{p_invite_id:inviteId});
+        console.log('[autoAccept] rpc resp:', {data, error});
+        if(error){
+          /* Erreur réseau / JWT pas prêt → réessayer plus tard */
+          window._autoAcceptTried=false;
+          sessionStorage.setItem('pf_pending_invite', inviteId);
+          console.warn('[autoAccept] err, retry plus tard:', error.message);
+        } else if(data && data.ok){
+          /* Succès (joined) ou idempotent (already) : dans les deux cas on a rejoint */
+          sessionStorage.removeItem('pf_pending_invite');
+          if(data.joined){ toast('✓ Vous avez rejoint le show !'); }
+          try{ await loadShows(); renderSPShows(); renderSessions(); }catch(e){}
+        } else if(data && data.error==='not_your_invite'){
+          sessionStorage.removeItem('pf_pending_invite');
+          toast('⚠ Cette invitation est destinée à une autre adresse email. Connectez-vous avec le bon compte.');
+        } else if(data && data.error==='not_authenticated'){
+          /* Session pas encore établie : réessayer au prochain initApp */
+          window._autoAcceptTried=false;
+          sessionStorage.setItem('pf_pending_invite', inviteId);
+        }
+        /* Nettoyer l'URL pour éviter re-acceptation au refresh */
+        try{ history.replaceState({},'',location.pathname); }catch(e){}
       }
-      /* Nettoyer l'URL pour éviter re-acceptation au refresh */
-      try{ history.replaceState({},'',location.pathname); }catch(e){}
-    }
-  }catch(e){ console.warn('[autoAccept] catch:',e); }
+    }catch(e){ window._autoAcceptTried=false; console.warn('[autoAccept] catch:',e); }
+  }
 
   /* 2. Charger les notifications restantes */
   await refreshNotifications();
@@ -12273,7 +12288,7 @@ function loadNotifications(){
     var showName=inv.show_name||'un show';
     var inviter=inv.inviter_name||'Un technicien';
     var role=(window.ROLE_LABELS&&ROLE_LABELS[inv.role])||inv.role||'Membre';
-    return '<div class="sp-notif-card invite">'
+    return '<div class="sp-notif-card invite" data-inv="'+inv.id+'">'
       +'<div class="sp-notif-top">'
         +'<div class="sp-notif-ic"><i class="ti ti-user-plus"></i></div>'
         +'<div class="sp-notif-txt">'
@@ -12293,37 +12308,56 @@ function loadNotifications(){
 async function acceptShowInvite(inviteId){
   var inv=_PENDING_INVITES.find(function(x){return x.id===inviteId;});
   if(!inv)return;
+  if(window._acceptingInvite)return; /* anti double-clic */
+  window._acceptingInvite=true;
+  /* Feedback immédiat sur le bouton cliqué */
+  var card=document.querySelector('.sp-notif-card[data-inv="'+inviteId+'"]');
+  if(card){ var acts=card.querySelector('.sp-notif-acts'); if(acts) acts.innerHTML='<span style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px"><i class="ti ti-loader-2" style="animation:spin .7s linear infinite"></i>Acceptation…</span>'; }
+  var showName=inv.show_name||'le show';
   try{
     var {data,error}=await sb.rpc('accept_show_invite',{p_invite_id:inviteId});
-    if(error){toast('Erreur : '+error.message);return;}
+    if(error){toast('Erreur : '+error.message); window._acceptingInvite=false; return;}
     if(data&&data.ok===false){
-      var msgs={not_your_invite:'Cette invitation ne vous est pas adressée.',invite_not_found:'Invitation introuvable ou déjà traitée.',not_authenticated:'Session expirée, reconnectez-vous.'};
+      var msgs={not_your_invite:'Cette invitation ne vous est pas adressée.',not_authenticated:'Session expirée, reconnectez-vous.'};
       toast(msgs[data.error]||'Impossible d\'accepter l\'invitation.');
-      /* Rafraîchir au cas où l'invitation a disparu */
       await refreshNotifications(); loadNotifications();
+      window._acceptingInvite=false;
       return;
     }
+    /* ok (joined ou already) → on a rejoint */
     _PENDING_INVITES=_PENDING_INVITES.filter(function(x){return x.id!==inviteId;});
     _updateNotifBadge();
-    loadNotifications();
     await loadShows();
     renderSPShows();
     try{ renderSessions(); }catch(e){}
-    toast('✓ Vous avez rejoint « '+(inv.show_name||'le show')+' »');
+    /* Confirmation VISIBLE et persistante dans le panneau (au lieu de blanc) */
+    var el=document.getElementById('sp-notif');
+    if(el && !_PENDING_INVITES.length){
+      var _es2=function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+      el.innerHTML='<div style="font-size:11px;color:var(--grn);padding:9px 10px;display:flex;align-items:center;gap:8px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);border-radius:8px;line-height:1.4"><i class="ti ti-circle-check" style="font-size:15px;flex-shrink:0"></i><span>Vous avez rejoint <strong>'+_es2(showName)+'</strong>. Il apparaît dans « Mes shows ».</span></div>';
+    }else{
+      loadNotifications();
+    }
+    toast('✓ Vous avez rejoint « '+showName+' »');
   }catch(e){toast('Erreur : '+e.message);}
+  finally{ window._acceptingInvite=false; }
 }
 
 /* Refuser une invitation */
 async function declineShowInvite(inviteId){
   var inv=_PENDING_INVITES.find(function(x){return x.id===inviteId;});
   if(!inv)return;
+  if(window._acceptingInvite)return; /* anti double-action */
+  window._acceptingInvite=true;
   try{
-    await sb.from('show_invites').delete().eq('id',inviteId);
+    var {error}=await sb.from('show_invites').delete().eq('id',inviteId);
+    if(error){toast('Erreur : '+error.message); window._acceptingInvite=false; return;}
     _PENDING_INVITES=_PENDING_INVITES.filter(function(x){return x.id!==inviteId;});
     _updateNotifBadge();
     loadNotifications();
     toast('Invitation refusée');
   }catch(e){toast('Erreur : '+e.message);}
+  finally{ window._acceptingInvite=false; }
 }
 
 function setIM(m){
