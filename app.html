@@ -12238,13 +12238,16 @@ var _PENDING_INVITES=[];
 async function refreshNotifications(){
   if(!ME?.email){ _PENDING_INVITES=[]; _updateNotifBadge(); return; }
   try{
-    /* Pas de .eq() : la RLS filtre déjà côté serveur (case-insensitive).
-       Si on filtre côté client avec .eq() exact, on rate les emails en casse
-       différente (l'email stocké est lowercase mais ME.email peut varier). */
+    /* RLS owner_all permet à l'owner de voir les invites qu'il a ENVOYÉES.
+       Côté notifs on ne veut QUE les invitations adressées à NOUS.
+       Filtrage client-side case-insensitive. */
+    var myEmail=(ME.email||'').toLowerCase();
     var {data,error}=await sb.from('show_invites').select('*');
     if(error){ console.warn('[refreshNotif] err:',error.message); _PENDING_INVITES=[]; }
-    else { _PENDING_INVITES=data||[]; }
-    console.log('[refreshNotif]',_PENDING_INVITES.length,'invites pour',ME.email);
+    else { _PENDING_INVITES=(data||[]).filter(function(inv){
+      return String(inv.invited_email||'').toLowerCase()===myEmail;
+    }); }
+    console.log('[refreshNotif]',_PENDING_INVITES.length,'invite(s) pour',myEmail,'sur',(data||[]).length,'visibles');
   }catch(e){ console.warn('[refreshNotif] catch:',e); _PENDING_INVITES=[]; }
   _updateNotifBadge();
 }
