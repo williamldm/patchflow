@@ -935,7 +935,10 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .side-panel.show{transform:translateX(0)}
 .sp-head{display:flex;align-items:center;gap:9px;padding:14px;border-bottom:1px solid var(--bdr2);flex-shrink:0;background:linear-gradient(135deg,var(--surf2),var(--surf))}
 .sp-head-title{font-size:13px;font-weight:600;flex:1;display:flex;align-items:center;gap:7px}
-.sp-body{flex:1;overflow-y:auto}
+/* display:block + grid-template-columns:none neutralisent la règle .sp-body
+   héritée plus haut (ancien layout 3 colonnes 200/1fr/240 qui débordait du
+   drawer de 360px et coupait « Mes shows »). */
+.sp-body{flex:1;overflow-y:auto;overflow-x:hidden;display:block;grid-template-columns:none;gap:0}
 .sp-sec{padding:12px 13px}
 .sp-sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
 .sp-sec-title{font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);display:flex;align-items:center;gap:5px}
@@ -962,8 +965,8 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .sp-show.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--ora);border-radius:2px 0 0 2px}
 .sp-show-ico{width:30px;height:30px;border-radius:6px;background:var(--surf3);border:1px solid var(--bdr2);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
 .sp-show.active .sp-show-ico{background:var(--ora-d);border-color:var(--ora-g)}
-.sp-show-name{font-size:12px;font-weight:600;color:var(--txt)}
-.sp-show-meta{font-size:9px;color:var(--muted);font-family:var(--m)}
+.sp-show-name{font-size:12px;font-weight:600;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sp-show-meta{font-size:9px;color:var(--muted);font-family:var(--m);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sp-show-del{position:absolute;right:7px;top:50%;transform:translateY(-50%);background:transparent;border:none;color:var(--muted2);cursor:pointer;padding:3px;border-radius:3px;font-size:12px;display:none;align-items:center;transition:all .12s}
 .sp-show:hover .sp-show-del{display:flex}
 .sp-show-del:hover{color:var(--err);background:rgba(255,77,106,.1)}
