@@ -935,10 +935,12 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .side-panel.show{transform:translateX(0)}
 .sp-head{display:flex;align-items:center;gap:9px;padding:14px;border-bottom:1px solid var(--bdr2);flex-shrink:0;background:linear-gradient(135deg,var(--surf2),var(--surf))}
 .sp-head-title{font-size:13px;font-weight:600;flex:1;display:flex;align-items:center;gap:7px}
-/* display:block + grid-template-columns:none neutralisent la règle .sp-body
-   héritée plus haut (ancien layout 3 colonnes 200/1fr/240 qui débordait du
-   drawer de 360px et coupait « Mes shows »). */
-.sp-body{flex:1;overflow-y:auto;overflow-x:hidden;display:block;grid-template-columns:none;gap:0}
+.sp-body{flex:1;overflow-y:auto}
+/* IMPORTANT : .sp-body est partagée par le SYNOPTIQUE (grille 3 colonnes,
+   règle plus haut) ET le drawer « Mon espace ». On ne touche donc PAS la
+   règle globale : on neutralise la grille UNIQUEMENT dans le drawer via un
+   sélecteur plus spécifique, sinon le synoptique casse. */
+.side-panel .sp-body{display:block;grid-template-columns:none;gap:0;overflow-x:hidden}
 .sp-sec{padding:12px 13px}
 .sp-sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
 .sp-sec-title{font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);display:flex;align-items:center;gap:5px}
