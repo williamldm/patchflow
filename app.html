@@ -15320,42 +15320,51 @@ async function openRecapMatos(){
   function _renderSite(cb){
     const raw=show.stage_data;
     const rider=raw&&raw.rider;
-    /* Priorité 1 : snapshot PNG pré-calculé (toujours dispo, marche partout) */
     const siteSnap=rider&&rider.site_snapshot||null;
-    if(siteSnap){ cb(_showMeta+_svSceneSelector('site')+_renderSiteImageHtml(siteSnap)); return; }
-    /* Priorité 2 : scène active si disponible */
+    /* Données de la scène SÉLECTIONNÉE (multi-scènes) sinon données directes */
     var sceneData=_svCurrentSceneData('site');
-    /* Priorité 3 : données site dans stage_data.site */
     var siteData=sceneData||((raw&&raw.v>=2)?raw.site||null:null);
-    if(!siteData){
-      cb(_showMeta+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:12px">Aucun plan de site disponible.<br><span style="font-size:10px;opacity:.6">Re-générez le lien depuis l\'onglet Équipe pour inclure le plan de site.</span></div>');
-      return;
-    }
-    /* Vérification préalable : si les données sont vides, message clair */
-    if(!(siteData.elements&&siteData.elements.length)&&!siteData.bgImage){
-      cb(_showMeta+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:12px">'
-        +'<i class="ti ti-map-2" style="font-size:32px;display:block;margin-bottom:12px;opacity:.4"></i>'
-        +'Plan de site vide ou non sauvegardé.<br>'
-        +'<span style="font-size:10px;opacity:.6">Ouvrez l\'onglet Plan de site dans l\'application, ajoutez des éléments, puis re-générez le lien.</span>'
-        +'</div>');
-      return;
-    }
-    /* Renderer canvas pur — identique à SitePlan._makeCanvas mais sans dépendances DOM */
-    _renderSiteFromData(siteData, function(dataUrl){
-      if(!dataUrl){
-        cb(_showMeta+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:12px">'
+    var hasData=siteData&&((siteData.elements&&siteData.elements.length)||siteData.bgImage);
+    /* On rend la scène sélectionnée FIDÈLEMENT via le vrai SitePlan. Le snapshot
+       n'est qu'un SECOURS : sinon, en multi-scènes, toutes les scènes
+       afficheraient le même snapshot (celui figé à la création du lien). */
+    if(hasData){
+      _renderSiteFromData(siteData, function(dataUrl){
+        if(dataUrl){ cb(_showMeta+_svSceneSelector('site')+_renderSiteImageHtml(dataUrl)); return; }
+        if(siteSnap){ cb(_showMeta+_svSceneSelector('site')+_renderSiteImageHtml(siteSnap)); return; }
+        cb(_showMeta+_svSceneSelector('site')+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:12px">'
           +'<i class="ti ti-map-2" style="font-size:32px;display:block;margin-bottom:12px;opacity:.4"></i>'
-          +'Le plan de site n\'a pas pu être rendu.<br>'
-          +'<span style="font-size:10px;opacity:.6">Re-générez le lien depuis l\'onglet Équipe pour inclure un aperçu du plan de site.</span>'
-          +'</div>');
-        return;
-      }
-      cb(_showMeta+_svSceneSelector('site')+_renderSiteImageHtml(dataUrl));
-    });
+          +'Le plan de site n\'a pas pu être rendu.</div>');
+      });
+      return;
+    }
+    /* Pas de données pour cette scène : snapshot en secours si dispo */
+    if(siteSnap){ cb(_showMeta+_svSceneSelector('site')+_renderSiteImageHtml(siteSnap)); return; }
+    /* Rien du tout */
+    cb(_showMeta+_svSceneSelector('site')+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:12px">'
+      +'<i class="ti ti-map-2" style="font-size:32px;display:block;margin-bottom:12px;opacity:.4"></i>'
+      +'Plan de site vide ou non sauvegardé.<br>'
+      +'<span style="font-size:10px;opacity:.6">Ouvrez l\'onglet Plan de site, ajoutez des éléments, puis re-générez le lien.</span>'
+      +'</div>');
   }
 
-  /* Renderer site plan autonome — fidèle à SitePlan._makeCanvas */
+  /* Renderer site plan : on délègue au VRAI moteur SitePlan (icônes intégrées
+     via _siteIconImgs + couleurs fidèles via findItem). L'ancienne copie locale
+     ci-dessous divergeait : les types non listés dans son ITEM_COLORS étaient
+     rendus en gris pâle (#5a6a80) avec une simple abréviation au lieu de l'icône
+     -> « les éléments ne s'affichent pas correctement » sur le lien partagé.
+     La copie autonome reste en FALLBACK si SitePlan est indisponible. */
   function _renderSiteFromData(siteData, cb){
+    try{
+      var _els0=siteData.elements||[];
+      if(!_els0.length && !siteData.bgImage){ cb(null); return; }
+      if(typeof SitePlan!=='undefined' && SitePlan.load && SitePlan.exportCanvasSafe){
+        SitePlan.load(siteData);
+        SitePlan.exportCanvasSafe(function(cv){ cb(cv?cv.toDataURL('image/png'):null); });
+        return;
+      }
+    }catch(err){ console.warn('[renderSiteFromData->SitePlan] fallback:',err); }
+    /* ── Fallback autonome (si SitePlan indisponible) ── */
     var els    = siteData.elements||[];
     var cables = siteData.cables||[];
     if(!els.length && !siteData.bgImage){ cb(null); return; }
