@@ -15334,8 +15334,8 @@ async function openRecapMatos(){
        n'est qu'un SECOURS : sinon, en multi-scènes, toutes les scènes
        afficheraient le même snapshot (celui figé à la création du lien). */
     if(hasData){
-      _renderSiteFromData(siteData, function(dataUrl){
-        if(dataUrl){ cb(_showMeta+_svSceneSelector('site')+_renderSiteImageHtml(dataUrl)); return; }
+      _renderSiteFromData(siteData, function(dataUrl, dispW){
+        if(dataUrl){ cb(_showMeta+_svSceneSelector('site')+_renderSiteImageHtml(dataUrl, dispW)); return; }
         if(siteSnap){ cb(_showMeta+_svSceneSelector('site')+_renderSiteImageHtml(siteSnap)); return; }
         cb(_showMeta+_svSceneSelector('site')+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:12px">'
           +'<i class="ti ti-map-2" style="font-size:32px;display:block;margin-bottom:12px;opacity:.4"></i>'
@@ -15353,23 +15353,12 @@ async function openRecapMatos(){
       +'</div>');
   }
 
-  /* Renderer site plan : on délègue au VRAI moteur SitePlan (icônes intégrées
-     via _siteIconImgs + couleurs fidèles via findItem). L'ancienne copie locale
-     ci-dessous divergeait : les types non listés dans son ITEM_COLORS étaient
-     rendus en gris pâle (#5a6a80) avec une simple abréviation au lieu de l'icône
-     -> « les éléments ne s'affichent pas correctement » sur le lien partagé.
-     La copie autonome reste en FALLBACK si SitePlan est indisponible. */
+  /* Renderer site plan pour le lien partagé — autonome et FIDÈLE à l'app :
+     fond BLANC (comme le canvas de l'app), couleurs réelles via SitePlan.itemMeta,
+     icônes intégrées de la palette (recolorées via xmlns), taille réelle.
+     NB : on n'utilise PAS SitePlan.exportCanvasSafe ici car _makeCanvas rend sur
+     fond SOMBRE (#0a0f1c) — l'utilisateur veut le rendu blanc de l'app. */
   function _renderSiteFromData(siteData, cb){
-    try{
-      var _els0=siteData.elements||[];
-      if(!_els0.length && !siteData.bgImage){ cb(null); return; }
-      if(typeof SitePlan!=='undefined' && SitePlan.load && SitePlan.exportCanvasSafe){
-        SitePlan.load(siteData);
-        SitePlan.exportCanvasSafe(function(cv){ cb(cv?cv.toDataURL('image/png'):null); });
-        return;
-      }
-    }catch(err){ console.warn('[renderSiteFromData->SitePlan] fallback:',err); }
-    /* ── Fallback autonome (si SitePlan indisponible) ── */
     var els    = siteData.elements||[];
     var cables = siteData.cables||[];
     if(!els.length && !siteData.bgImage){ cb(null); return; }
@@ -15420,8 +15409,12 @@ async function openRecapMatos(){
             _iconImgs[e.type]='loading';
             pending++;
             var svg=String(meta.icon);
+            /* xmlns OBLIGATOIRE pour charger un SVG comme <img> (les icônes de
+               la palette n'en ont pas -> sinon l'image échoue et on retombe sur
+               l'abréviation). Pas de recolor : navy #1d3a5f visible sur blanc,
+               identique à l'app. */
+            if(!/xmlns=/.test(svg)) svg=svg.replace(/^<svg /,'<svg xmlns="http://www.w3.org/2000/svg" ');
             if(!/\bwidth=/.test(svg)) svg=svg.replace(/^<svg /,'<svg width="64" height="64" ');
-            svg=svg.replace(/#1d3a5f/gi, meta.color||'#1a8fff'); /* navy -> couleur élément */
             var url=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'}));
             var im=new Image();
             im.onload =function(){ _iconImgs[e.type]=im; URL.revokeObjectURL(url); _tick(); };
@@ -15482,8 +15475,8 @@ async function openRecapMatos(){
         var wx=function(x){return (x-minX)*SCALE;};
         var wy=function(y){return (y-minY)*SCALE;};
 
-        /* Fond */
-        ctx.fillStyle='#0a0f1c'; ctx.fillRect(0,0,cw,ch);
+        /* Fond BLANC (identique au canvas de l'app, pas de fond sombre) */
+        ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,cw,ch);
         if(_bgImg){
           ctx.save(); ctx.globalAlpha=(siteData.bgOpacity??100)/100;
           ctx.drawImage(_bgImg, wx(0), wy(0), _bgImg.naturalWidth*SCALE, _bgImg.naturalHeight*SCALE);
@@ -15563,12 +15556,16 @@ async function openRecapMatos(){
           }
         });
 
-        cb(canvas.toDataURL('image/png'));
+        /* 2e arg = largeur d'affichage en px RÉELS (coords monde) : le canvas est
+           rendu en haute résolution (x SCALE) mais affiché à la taille réelle ->
+           éléments à leur vraie taille (≈88px), plus de zoom excessif. */
+        cb(canvas.toDataURL('image/png'), Math.round(W));
       }catch(err){ console.warn('[renderSiteFromData]',err); cb(null); }
     }
   }
-  /* Retourne le HTML de l'image du plan de site (sans le _showMeta ni le sélecteur) */
-  function _renderSiteImageHtml(dataUrl){
+  /* Retourne le HTML de l'image du plan de site (sans le _showMeta ni le sélecteur).
+     dispW = largeur d'affichage souhaitée en px (optionnel). */
+  function _renderSiteImageHtml(dataUrl, dispW){
     if(isMobile){
       var minW=Math.max(680,Math.round(window.screen.width*1.8));
       return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px">'
@@ -15594,8 +15591,13 @@ async function openRecapMatos(){
       +'</div>'
       +'<div style="margin-top:14px;text-align:center;font-size:10px;color:#3a4a5a;font-family:DM Mono,monospace">PatchFlow · Plan de site · '+now+'</div>';
     } else {
-      return '<div style="overflow:auto;border-radius:10px;border:1px solid #1e2a3a;background:#0a0f1c">'
-        +'<img src="'+dataUrl+'" style="max-width:100%;display:block;border-radius:10px"/>'
+      /* Affichage à la taille réelle (dispW) si fournie -> évite le sur-zoom,
+         tout en gardant la haute résolution du canvas. Fond blanc. */
+      var imgStyle = dispW
+        ? 'width:'+dispW+'px;max-width:100%;height:auto;display:block;margin:0 auto;border-radius:8px'
+        : 'max-width:100%;display:block;border-radius:8px';
+      return '<div style="overflow:auto;border-radius:10px;border:1px solid #1e2a3a;background:#ffffff;padding:18px">'
+        +'<img src="'+dataUrl+'" style="'+imgStyle+'"/>'
         +'</div>'
         +'<div style="margin-top:14px;text-align:center;font-size:10px;color:#3a4a5a;font-family:DM Mono,monospace">PatchFlow · Plan de site · '+now+'</div>';
     }
