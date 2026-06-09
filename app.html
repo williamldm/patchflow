@@ -11656,7 +11656,12 @@ const SitePlan = (() => {
     saveSite(); render(); renderInspector();
     setTimeout(function(){ uploadElementIcon(id); },80);
   }
-  return {init,load,getData,loadBg,setBgOpacity,clearBg,clear,zoom,setZoomPct,fitView,resetView,selectCable,exportPng,exportCanvas,exportCanvasSafe,hasContent,setActiveCableType,toggleCableMode,setTextScale,setLegendScale,deleteCustomCableType,uploadElementIcon,clearElementIcon,adjImgPx,addCustomCableType:function(t){if(!CABLE_TYPES.find(function(x){return x.id===t.id;})){CABLE_TYPES.push(t);_saveCustomCableTypes();renderCablePicker();}}};
+  return {init,load,getData,loadBg,setBgOpacity,clearBg,clear,zoom,setZoomPct,fitView,resetView,selectCable,exportPng,exportCanvas,exportCanvasSafe,hasContent,setActiveCableType,toggleCableMode,setTextScale,setLegendScale,deleteCustomCableType,uploadElementIcon,clearElementIcon,adjImgPx,
+    /* Exposés pour le rendu fidèle côté lien partagé (couleur + icône réelles
+       de la palette, identiques à _makeCanvas). */
+    itemMeta:function(t){var it=findItem(t); return {color:(it&&it.color)||'#5a6a80', icon:(it&&it.icon)||null, label:(it&&it.label)||t};},
+    cableMeta:function(id){var c=CABLE_TYPES.find(function(x){return x.id===id;})||CABLE_TYPES[0]; return c?{color:c.color,dash:c.dash||null,label:c.label||''}:{color:'#4a90d9',dash:null,label:''};},
+    addCustomCableType:function(t){if(!CABLE_TYPES.find(function(x){return x.id===t.id;})){CABLE_TYPES.push(t);_saveCustomCableTypes();renderCablePicker();}}};
 })();
 
 // ══════════════════════════════════════
@@ -15369,9 +15374,19 @@ async function openRecapMatos(){
     var cables = siteData.cables||[];
     if(!els.length && !siteData.bgImage){ cb(null); return; }
 
-    /* Couleurs types de câbles (custom ou par défaut) */
+    /* Couleur réelle d'un élément (palette SitePlan) avec repli minimal. */
+    var _ITEM_COLORS_FB={'console':'#3b82f6','rack':'#8b5cf6','io':'#06b6d4','amp':'#f59e0b',
+      'spk':'#10b981','net':'#6366f1','src':'#f43f5e','note':'#fbbf24','stagebox':'#14b8a6',
+      'monitor':'#84cc16','sub':'#f97316','power':'#ef4444','di':'#a78bfa','main_array':'#1a8fff','default':'#5a6a80'};
+    function _elColorOf(type){
+      try{ if(typeof SitePlan!=='undefined' && SitePlan.itemMeta){ var m=SitePlan.itemMeta(type); if(m&&m.color) return m.color; } }catch(e){}
+      return _ITEM_COLORS_FB[type]||_ITEM_COLORS_FB[(type||'').split('.')[0]]||_ITEM_COLORS_FB.default;
+    }
+
+    /* Couleurs types de câbles (palette SitePlan, sinon custom/défaut) */
     var _customCT = siteData.customCableTypes||[];
     function _cableColor(type){
+      try{ if(typeof SitePlan!=='undefined' && SitePlan.cableMeta){ var cm=SitePlan.cableMeta(type); if(cm&&cm.color) return {color:cm.color,dash:cm.dash||null}; } }catch(e){}
       var ct=_customCT.find(function(t){return t.id===type;});
       if(ct) return {color:ct.color, dash:ct.dash||null};
       var defaults={'audio':{color:'#3b82f6'},'video':{color:'#a855f7'},
@@ -15381,17 +15396,40 @@ async function openRecapMatos(){
 
     var TS = siteData.textScale||1;
 
-    /* Pré-charger les images custom des éléments (iconImg = base64 dataURL) */
-    var _imgs={};  // id → HTMLImageElement
+    /* Pré-charger : images custom (iconImg) + icônes INTÉGRÉES de la palette,
+       recolorées vers la couleur de l'élément pour rester visibles sur le fond
+       sombre (les SVG de palette sont en navy #1d3a5f, invisibles sinon). */
+    var _imgs={};       // id   -> image custom
+    var _iconImgs={};   // type -> image icône intégrée (recolorée)
     var pending=0, done=0;
+    function _tick(){ done++; if(done===pending) _draw(); }
     els.forEach(function(e){
       if(e.iconImg){
         pending++;
         var img=new Image();
-        img.onload =function(){ _imgs[e.id]=img; done++; if(done===pending)_draw(); };
-        img.onerror=function(){ done++; if(done===pending)_draw(); };
+        img.onload =function(){ _imgs[e.id]=img; _tick(); };
+        img.onerror=_tick;
         img.src=e.iconImg;
+        return;
       }
+      /* Icône intégrée (une seule fois par type) */
+      try{
+        if(typeof SitePlan!=='undefined' && SitePlan.itemMeta && !_iconImgs[e.type]){
+          var meta=SitePlan.itemMeta(e.type);
+          if(meta && meta.icon){
+            _iconImgs[e.type]='loading';
+            pending++;
+            var svg=String(meta.icon);
+            if(!/\bwidth=/.test(svg)) svg=svg.replace(/^<svg /,'<svg width="64" height="64" ');
+            svg=svg.replace(/#1d3a5f/gi, meta.color||'#1a8fff'); /* navy -> couleur élément */
+            var url=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'}));
+            var im=new Image();
+            im.onload =function(){ _iconImgs[e.type]=im; URL.revokeObjectURL(url); _tick(); };
+            im.onerror=function(){ _iconImgs[e.type]=null; URL.revokeObjectURL(url); _tick(); };
+            im.src=url;
+          }
+        }
+      }catch(err){ /* repli abréviation */ }
     });
 
     /* Pré-charger l'image de fond */
@@ -15399,8 +15437,8 @@ async function openRecapMatos(){
     if(siteData.bgImage){
       pending++;
       var bgI=new Image();
-      bgI.onload =function(){ _bgImg=bgI; done++; if(done===pending)_draw(); };
-      bgI.onerror=function(){ done++; if(done===pending)_draw(); };
+      bgI.onload =function(){ _bgImg=bgI; _tick(); };
+      bgI.onerror=_tick;
       bgI.src=siteData.bgImage;
     }
 
@@ -15477,16 +15515,12 @@ async function openRecapMatos(){
         });
 
         /* Éléments */
-        var ITEM_COLORS={'console':'#3b82f6','rack':'#8b5cf6','io':'#06b6d4','amp':'#f59e0b',
-          'spk':'#10b981','net':'#6366f1','src':'#f43f5e','note':'#fbbf24','stagebox':'#14b8a6',
-          'monitor':'#84cc16','sub':'#f97316','power':'#ef4444','di':'#a78bfa','default':'#5a6a80'};
-
         els.forEach(function(e){
           var esz=(e.elSize||72)*SCALE;
           var ex=wx(e.x), ey=wy(e.y);
           var lblH=Math.round(12*TS*SCALE);
           var noteH=Math.round(10*TS*SCALE);
-          var ic=ITEM_COLORS[e.type]||ITEM_COLORS[(e.type||'').split('.')[0]]||ITEM_COLORS.default;
+          var ic=_elColorOf(e.type);
 
           if(e.type==='text_lbl'){
             var fs=(e.elSize||18)*SCALE*(TS)*(e.elTextScale||1);
@@ -15501,13 +15535,17 @@ async function openRecapMatos(){
           ctx.fillStyle=ic+'28'; ctx.fill();
           ctx.strokeStyle=ic; ctx.lineWidth=2*SCALE; ctx.stroke();
 
-          /* Image custom ou abbreviation */
+          /* Image custom > icône intégrée recolorée > abréviation */
           var customImg=_imgs[e.id];
+          var builtinIcon=_iconImgs[e.type];
           if(customImg){
             var pad=esz*0.1;
             ctx.drawImage(customImg, ex+pad, ey+pad, esz-pad*2, esz-pad*2);
+          } else if(builtinIcon && builtinIcon!=='loading'){
+            var pad2=esz*0.14;
+            ctx.drawImage(builtinIcon, ex+pad2, ey+pad2, esz-pad2*2, esz-pad2*2);
           } else {
-            /* Abréviation type */
+            /* Abréviation type (couleur réelle, visible) */
             ctx.font='bold '+(esz*0.32)+'px sans-serif';
             ctx.textAlign='center'; ctx.textBaseline='middle';
             ctx.fillStyle=ic; ctx.fillText((e.type||'').slice(0,4).toUpperCase(), ex+esz/2, ey+esz/2);
