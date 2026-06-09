@@ -1,150 +1,52 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import nodemailer from 'npm:nodemailer@6.9.9';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const SMTP_HOST     = Deno.env.get('SMTP_HOST')     ?? '';
-const SMTP_PORT     = parseInt(Deno.env.get('SMTP_PORT') ?? '465');
-const SMTP_USER     = Deno.env.get('SMTP_USER')     ?? '';
-const SMTP_PASS     = Deno.env.get('SMTP_PASS')     ?? '';
-const SUPPORT_EMAIL = Deno.env.get('SUPPORT_EMAIL') ?? 'support@patchflow.fr';
+const SMTP_HOST      = Deno.env.get('SMTP_HOST')      ?? '';
+const SMTP_PORT      = parseInt(Deno.env.get('SMTP_PORT') ?? '465');
+const SMTP_USER      = Deno.env.get('SMTP_USER')      ?? '';
+const SMTP_PASS      = Deno.env.get('SMTP_PASS')      ?? '';
+const SUPPORT_EMAIL  = Deno.env.get('SUPPORT_EMAIL')  ?? 'support@patchflow.fr';
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? '';
 
 const MAX_PER_DAY = 3;
 
-/* ── Email via Resend API (HTTP, fiable sur Deno) ── */
-async function sendEmailResend(to: string, subject: string, html: string, fromEmail: string) {
+/* Transport SMTP via nodemailer — MÊME méthode que invite-member, qui délivre
+   de façon fiable vers des domaines externes (gmail, yahoo, etc.). L'ancien
+   SMTP fait-main échouait silencieusement sur le relay externe → le client
+   ne recevait jamais sa confirmation. */
+const transporter = nodemailer.createTransport({
+  host: SMTP_HOST,
+  port: SMTP_PORT,
+  secure: SMTP_PORT === 465,
+  auth: { user: SMTP_USER, pass: SMTP_PASS },
+  tls: { rejectUnauthorized: false },
+});
+
+/* Email via Resend API (optionnel) — utilisé seulement si RESEND_API_KEY est
+   défini ; sinon on passe par nodemailer/SMTP (chemin par défaut, éprouvé). */
+async function sendEmailResend(to: string, subject: string, html: string): Promise<void> {
+  const fromEmail = SMTP_USER || 'noreply@patchflow.fr';
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: `PatchFlow <${fromEmail}>`,
-      to: [to],
-      subject,
-      html,
-    }),
+    headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from: `PatchFlow <${fromEmail}>`, to: [to], subject, html }),
   });
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Resend error ${res.status}: ${body}`);
-  }
-  return res.json();
+  if (!res.ok) throw new Error(`Resend error ${res.status}: ${await res.text()}`);
 }
 
-/* ── Email via SMTP natif Deno (sans nodemailer) ── */
-async function sendEmailSmtp(to: string, subject: string, html: string): Promise<void> {
-  const secure = SMTP_PORT === 465; // SSL sur 465, STARTTLS sur 587
-
-  // Connexion TCP (avec TLS si port 465)
-  let conn: Deno.TlsConn | Deno.TcpConn;
-  if (secure) {
-    conn = await Deno.connectTls({ hostname: SMTP_HOST, port: SMTP_PORT });
-  } else {
-    conn = await Deno.connect({ hostname: SMTP_HOST, port: SMTP_PORT });
-  }
-
-  const enc = new TextEncoder();
-  const dec = new TextDecoder();
-  const buf = new Uint8Array(4096);
-
-  async function read(): Promise<string> {
-    const n = await conn.read(buf);
-    return dec.decode(buf.slice(0, n ?? 0));
-  }
-  async function write(s: string): Promise<void> {
-    await conn.write(enc.encode(s + '\r\n'));
-  }
-
-  // Helper : base64
-  function b64(s: string): string {
-    return btoa(unescape(encodeURIComponent(s)));
-  }
-
-  await read(); // 220 greeting
-  await write(`EHLO patchflow.fr`);
-  const ehloResp = await read();
-
-  // STARTTLS si port 587
-  if (!secure && ehloResp.includes('STARTTLS')) {
-    await write('STARTTLS');
-    await read();
-    conn = await Deno.startTls(conn as Deno.TcpConn, { hostname: SMTP_HOST });
-    await write(`EHLO patchflow.fr`);
-    await read();
-  }
-
-  await write('AUTH LOGIN');
-  await read();
-  await write(b64(SMTP_USER));
-  await read();
-  await write(b64(SMTP_PASS));
-  const authResp = await read();
-  if (!authResp.startsWith('235')) {
-    conn.close();
-    throw new Error(`SMTP AUTH failed: ${authResp.trim()}`);
-  }
-
-  await write(`MAIL FROM:<${SMTP_USER}>`);
-  await read();
-  await write(`RCPT TO:<${to}>`);
-  await read();
-  await write('DATA');
-  await read();
-
-  // Construire le message MIME
-  const headers = [
-    `From: "PatchFlow" <${SMTP_USER}>`,
-    `To: ${to}`,
-    `Subject: ${subject}`,
-    `MIME-Version: 1.0`,
-    `Content-Type: text/html; charset=UTF-8`,
-    `Content-Transfer-Encoding: base64`,
-    ``,
-    b64(html),
-  ].join('\r\n');
-
-  await write(headers + '\r\n.');
-  const dataResp = await read();
-  if (!dataResp.startsWith('250')) {
-    conn.close();
-    throw new Error(`SMTP DATA failed: ${dataResp.trim()}`);
-  }
-
-  await write('QUIT');
-  await read();
-  conn.close();
-}
-
-/* ── Dispatcher : Resend si dispo (recommandé), sinon SMTP natif ──
-   Resend est conseillé pour les emails vers des domaines externes (gmail, etc.)
-   car les SMTP mutualisés bloquent souvent le relay externe.
-   Pour configurer Resend : https://resend.com → API Key → secret RESEND_API_KEY */
 async function sendEmail(to: string, subject: string, html: string): Promise<void> {
   if (RESEND_API_KEY) {
-    const fromEmail = SMTP_USER || `noreply@patchflow.fr`;
-    await sendEmailResend(to, subject, html, fromEmail);
+    await sendEmailResend(to, subject, html);
   } else if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
-    await sendEmailSmtp(to, subject, html);
+    await transporter.sendMail({ from: `PatchFlow <${SMTP_USER}>`, to, subject, html });
   } else {
     throw new Error('Aucun service email configuré (RESEND_API_KEY ou SMTP_* requis)');
-  }
-}
-
-/* Forcer Resend pour un destinataire externe même si SMTP disponible.
-   Les SMTP mutualisés refusent souvent le relay vers gmail.com, yahoo.fr etc. */
-async function sendEmailExternal(to: string, subject: string, html: string): Promise<void> {
-  if (RESEND_API_KEY) {
-    const fromEmail = SMTP_USER || `noreply@patchflow.fr`;
-    await sendEmailResend(to, subject, html, fromEmail);
-  } else {
-    // Tentative SMTP — peut échouer si le serveur interdit le relay externe
-    await sendEmailSmtp(to, subject, html);
   }
 }
 
@@ -267,19 +169,25 @@ serve(async (req) => {
   </div>
 </div></body></html>`;
 
-    // Email support (vers patchflow.fr — marche via SMTP)
-    await sendEmail(SUPPORT_EMAIL, `[Support] ${subjectSafe} — ${displayNameRaw} (${user.email})`, teamHtml);
-
-    // Email confirmation client (vers domaine externe potentiel — gmail, yahoo, etc.)
-    // Utilise Resend si configuré, sinon SMTP avec best-effort (peut échouer sur relay externe)
+    /* 1. Notification équipe support (domaine interne) */
+    let teamOk = false;
     try {
-      await sendEmailExternal(user.email!, `[PatchFlow] Votre message a bien été reçu — ${subjectSafe}`, userHtml);
-    } catch (emailErr) {
-      console.warn('[send-support-email] Confirmation client non envoyée (relay externe refusé?):', emailErr instanceof Error ? emailErr.message : emailErr);
-      // Non bloquant — le ticket est sauvé et le support est notifié
+      await sendEmail(SUPPORT_EMAIL, `[Support] ${subjectSafe} — ${displayNameRaw} (${user.email})`, teamHtml);
+      teamOk = true;
+    } catch (teamErr) {
+      console.error('[send-support-email] Notification support échouée:', teamErr instanceof Error ? teamErr.message : teamErr);
     }
 
-    return json({ ok: true });
+    /* 2. Confirmation au client (même transport nodemailer/SMTP éprouvé) */
+    let clientOk = false;
+    try {
+      await sendEmail(user.email!, `[PatchFlow] Votre message a bien été reçu — ${subjectSafe}`, userHtml);
+      clientOk = true;
+    } catch (emailErr) {
+      console.error('[send-support-email] Confirmation client échouée:', emailErr instanceof Error ? emailErr.message : emailErr);
+    }
+
+    return json({ ok: true, teamOk, clientOk });
 
   } catch (e) {
     console.error('[send-support-email]', e);
