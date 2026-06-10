@@ -43,6 +43,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(8,11,18,.85)
 .hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:120px 5vw 80px;position:relative;overflow:hidden}
 .hero-glow{position:absolute;top:0;left:50%;transform:translateX(-50%);width:900px;height:600px;background:radial-gradient(ellipse at 50% 0%,rgba(255,107,26,.13) 0%,transparent 65%);pointer-events:none}
 .hero-glow2{position:absolute;bottom:0;left:10%;width:600px;height:400px;background:radial-gradient(ellipse at 0% 100%,rgba(26,143,255,.07) 0%,transparent 60%);pointer-events:none}
+/* Grille discrète derrière le hero — texture "papier millimétré régie" */
+.hero::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(232,237,248,.028) 1px,transparent 1px),linear-gradient(90deg,rgba(232,237,248,.028) 1px,transparent 1px);background-size:54px 54px;-webkit-mask-image:radial-gradient(ellipse 75% 55% at 50% 32%,#000,transparent 72%);mask-image:radial-gradient(ellipse 75% 55% at 50% 32%,#000,transparent 72%);pointer-events:none}
 .hero-badge{display:inline-flex;align-items:center;gap:7px;background:var(--ora-d);border:1px solid rgba(255,107,26,.3);color:var(--ora);font-size:11px;font-weight:700;font-family:var(--m);padding:5px 14px;border-radius:20px;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:28px}
 .hero-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--ora);animation:pulse 2s infinite}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.4)}}
@@ -83,19 +85,20 @@ h1 span{background:linear-gradient(135deg,var(--ora),#ff9040);-webkit-background
 .badge-mon{background:rgba(26,143,255,.12);color:var(--blu)}
 
 /* ── SECTIONS ── */
-section{padding:100px 5vw}
-.section-label{font-family:var(--m);font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--ora);margin-bottom:14px}
-h2{font-size:clamp(28px,4vw,48px);font-weight:800;letter-spacing:-1px;margin-bottom:18px;line-height:1.12}
+section{padding:110px 5vw}
+.section-label{font-family:var(--m);font-size:11px;text-transform:uppercase;letter-spacing:2.5px;color:var(--ora);margin-bottom:16px;font-weight:500}
+h2{font-size:clamp(28px,4vw,48px);font-weight:800;letter-spacing:-1px;margin-bottom:20px;line-height:1.12}
 h2 em{font-style:normal;color:var(--ora)}
-.section-sub{font-size:16px;color:var(--muted);max-width:540px;line-height:1.7}
+.section-sub{font-size:16px;color:var(--txt2);opacity:.82;max-width:560px;line-height:1.75}
 .center{text-align:center}
 .center .section-sub{margin:0 auto}
 
 /* ── PAIN GRID ── */
 .pain-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;max-width:1100px;margin:0 auto}
-.pain-card{background:var(--surf);border:1px solid var(--bdr);border-radius:16px;padding:26px 22px;transition:transform .2s,border-color .2s}
-.pain-card:hover{transform:translateY(-4px);border-color:var(--bdr2)}
-.pain-ico{width:48px;height:48px;border-radius:12px;background:rgba(255,77,106,.1);color:#ff4d6a;display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:16px}
+.pain-card{background:var(--surf);border:1px solid var(--bdr);border-radius:18px;padding:28px 24px;transition:transform .22s,border-color .22s,box-shadow .22s}
+.pain-card:hover{transform:translateY(-5px);border-color:rgba(255,107,26,.3);box-shadow:0 18px 44px rgba(0,0,0,.35)}
+.pain-ico{width:48px;height:48px;border-radius:12px;background:rgba(255,77,106,.1);color:#ff4d6a;display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:16px;transition:transform .22s}
+.pain-card:hover .pain-ico{transform:scale(1.08) rotate(-4deg)}
 .pain-title{font-size:15px;font-weight:700;color:var(--txt);margin-bottom:8px;line-height:1.3}
 .pain-txt{font-size:13px;color:var(--muted);line-height:1.6}
 @media(max-width:900px){.pain-grid{grid-template-columns:1fr 1fr}}
@@ -154,7 +157,7 @@ h2 em{font-style:normal;color:var(--ora)}
 .feat-pane-head{padding:20px 28px 16px;border-bottom:1px solid var(--bdr);display:flex;align-items:flex-start;gap:16px;flex-shrink:0}
 .feat-pane-icon{width:44px;height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
 .feat-pane-title{font-size:16px;font-weight:700;margin-bottom:4px;letter-spacing:-.3px}
-.feat-pane-desc{font-size:12px;color:var(--muted);line-height:1.6;max-width:480px}
+.feat-pane-desc{font-size:12.5px;color:var(--txt2);opacity:.85;line-height:1.65;max-width:500px}
 .feat-pane-body{flex:1;padding:20px 28px;overflow:auto}
 .feat-tag{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-family:var(--m);color:var(--ora);background:var(--ora-d);border:1px solid rgba(255,107,26,.2);padding:3px 9px;border-radius:5px;margin-top:8px}
 /* mockup styles */
@@ -250,8 +253,9 @@ h2 em{font-style:normal;color:var(--ora)}
 
 /* ── HOW ── */
 .how-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:32px;margin-top:64px;counter-reset:steps}
-.how-step{position:relative;padding:32px;background:var(--surf);border:1px solid var(--bdr);border-radius:16px}
-.how-step::before{counter-increment:steps;content:counter(steps,'0');position:absolute;top:-16px;left:28px;font-size:40px;font-weight:900;font-family:var(--m);color:var(--bdr2);line-height:1}
+.how-step{position:relative;padding:32px;background:var(--surf);border:1px solid var(--bdr);border-radius:16px;transition:transform .2s,border-color .2s}
+.how-step:hover{transform:translateY(-3px);border-color:var(--bdr3)}
+.how-step::before{counter-increment:steps;content:counter(steps,'0');position:absolute;top:-16px;left:28px;font-size:40px;font-weight:900;font-family:var(--m);color:rgba(255,107,26,.22);line-height:1}
 .how-step h3{font-size:16px;font-weight:700;margin-bottom:10px;margin-top:8px}
 .how-step p{font-size:13px;color:var(--muted);line-height:1.7}
 .how-arrow{display:none}
@@ -481,8 +485,8 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
     <div class="nav-logo-text">Patch<span>Flow</span></div>
   </a>
   <div class="nav-links">
-    <a href="#features">Fonctionnalites</a>
-    <a href="#how">Comment ca marche</a>
+    <a href="#features">Fonctionnalités</a>
+    <a href="#how">Comment ça marche</a>
     <a href="#pricing">Tarifs</a>
     <a href="#faq">FAQ</a>
   </div>
@@ -510,9 +514,9 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
   <div class="hero-glow"></div>
   <div class="hero-glow2"></div>
   <div class="hero-badge"><i class="ti ti-bolt" style="font-size:11px"></i>Par des techniciens, pour des techniciens</div>
-  <h1>Tout votre patch son,<br/><span>prêt en 3 minutes.</span></h1>
-  <p class="hero-sub hide-mobile">Input List, plan de scène, synoptique, plan de site et cloud de production — créés, exportés et partagés en un lien, synchronisés en temps réel avec toute l'équipe. PatchFlow remplace vos fichiers Excel et votre Dropbox par <strong style="color:var(--txt)">un seul outil pensé pour le son</strong>.</p>
-  <p class="hero-sub only-mobile">Input List, plans, synoptique et cloud — partagés en un lien, synchronisés avec toute l'équipe. <strong style="color:var(--txt)">Un seul outil, pensé pour le son.</strong></p>
+  <h1>Tout le patch du show,<br/><span>plié en 3 minutes.</span></h1>
+  <p class="hero-sub hide-mobile">Input List, plans, synoptique et fichiers de prod au même endroit, <strong style="color:var(--txt)">à jour pour toute l'équipe</strong>. Fini les Excel en huit versions et les PDF qui meurent dans une boîte mail.</p>
+  <p class="hero-sub only-mobile">Patch, plans et fichiers de prod au même endroit, à jour pour toute l'équipe. <strong style="color:var(--txt)">Un lien, tout le monde est synchro.</strong></p>
   <div class="hero-ctas">
     <a class="btn btn-ora btn-xl" href="app.html"><i class="ti ti-rocket"></i>Créer mon patch gratuitement</a>
     <a class="btn btn-ghost btn-lg" href="#features"><i class="ti ti-play"></i>Voir une démo</a>
@@ -585,42 +589,42 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
   <div class="center" style="margin-bottom:56px">
     <div class="section-label center">Le quotidien d'un techos</div>
     <h2 class="center">La prépa son, c'est <em>trop de fichiers</em><br/>et pas assez de temps.</h2>
-    <p class="section-sub center">Vous connaissez la chanson. PatchFlow met fin à tout ça.</p>
+    <p class="section-sub center">Si vous avez déjà fait une date, vous connaissez la suite par cœur.</p>
   </div>
   <div class="pain-grid">
     <div class="pain-card fade-up">
       <div class="pain-ico"><i class="ti ti-file-x"></i></div>
       <div class="pain-title">Le fichier Excel v7_FINAL_vraiment.xlsx</div>
-      <div class="pain-txt">Personne ne sait quelle version fait foi. Le régisseur a la v4, le backline la v6, et le patch change encore la veille.</div>
+      <div class="pain-txt">Le régisseur a la v4, le backline la v6, et le patch a encore bougé hier soir. Personne ne sait quelle version fait foi.</div>
     </div>
     <div class="pain-card fade-up stagger-1">
       <div class="pain-ico"><i class="ti ti-mail-off"></i></div>
       <div class="pain-title">Les allers-retours par mail</div>
-      <div class="pain-txt">Input list par mail, plan de scène en PDF, retours sur WhatsApp. Trois sources, zéro synchro, des erreurs garanties.</div>
+      <div class="pain-txt">L'input list par mail, le plan en PDF, les retours sur WhatsApp. Trois canaux, zéro synchro — et ça se paie à la balance.</div>
     </div>
     <div class="pain-card fade-up stagger-2">
       <div class="pain-ico"><i class="ti ti-clock-exclamation"></i></div>
       <div class="pain-title">Tout refaire à chaque date</div>
-      <div class="pain-txt">Repartir d'une feuille blanche, recopier le même patch, redessiner le même plan de scène. Encore et encore.</div>
+      <div class="pain-txt">Même groupe, même patch, et on repart quand même d'une feuille blanche. Recopier, redessiner, revérifier. À chaque date.</div>
     </div>
     <div class="pain-card fade-up stagger-3">
       <div class="pain-ico"><i class="ti ti-alert-triangle"></i></div>
       <div class="pain-title">Le stress de la balance</div>
-      <div class="pain-txt">Un canal oublié, un +48V manquant, un retour mal routé. Et c'est la course juste avant l'ouverture des portes.</div>
+      <div class="pain-txt">Un canal oublié, un +48V manquant, un retour mal routé. Et les portes ouvrent dans vingt minutes.</div>
     </div>
   </div>
   <div style="text-align:center;margin-top:48px">
     <div style="display:inline-flex;align-items:center;gap:10px;font-size:17px;font-weight:600;color:var(--txt)">
-      <i class="ti ti-arrow-down" style="color:var(--ora);font-size:20px"></i>Il existe une bien meilleure façon de travailler.
+      <i class="ti ti-arrow-down" style="color:var(--ora);font-size:20px"></i>On s'est fait l'outil qu'on cherchait. Le voilà.
     </div>
   </div>
 </section>
 
 <!-- FEATURES -->
 <section id="features">
-  <div class="section-label center">Fonctionnalites</div>
+  <div class="section-label center">Fonctionnalités</div>
   <h2 class="center">Une seule app pour <em>tout</em> votre patch.</h2>
-  <p class="section-sub center"><span class="hide-mobile">Cliquez sur une fonctionnalité pour voir un aperçu en direct.</span><span class="only-mobile">Tout ce qu'il faut pour préparer un concert, au même endroit.</span></p>
+  <p class="section-sub center"><span class="hide-mobile">Cliquez à gauche, l'aperçu est en face. Tout ce qui suit est dans l'app, pas sur une roadmap.</span><span class="only-mobile">Tout ce qu'il faut pour préparer une date, au même endroit.</span></p>
 
   <div class="feat-shell fade-up">
 
@@ -716,8 +720,8 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
         <div class="feat-pane-head">
           <div class="feat-pane-icon" style="background:rgba(255,107,26,.12);color:var(--ora)"><i class="ti ti-list-numbers"></i></div>
           <div>
-            <div class="feat-pane-title">Input List intelligente</div>
-            <div class="feat-pane-desc">Creez et gerez votre patch complet. Drag &amp; drop pour reordonner, colonnes personnalisables, codes couleur, sauvegarde automatique.</div>
+            <div class="feat-pane-title">L'Input List, sans les prises de tête</div>
+            <div class="feat-pane-desc">Votre patch complet : drag &amp; drop pour réordonner, colonnes à la carte, codes couleur. Tout se sauvegarde à la seconde — fermez l'onglet, rien ne se perd.</div>
             <div class="feat-tag"><i class="ti ti-sparkles" style="font-size:10px"></i>Sauvegarde automatique</div>
           </div>
         </div>
@@ -747,8 +751,8 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
           <div class="feat-pane-icon" style="background:rgba(245,197,66,.12);color:#f5c542"><i class="ti ti-layout-grid"></i></div>
           <div>
             <div class="feat-pane-title">Multi-patches par show</div>
-            <div class="feat-pane-desc">Gerez plusieurs configurations de patch au sein d'un meme show. Un par artiste, un FOH, un retours — tout reste dans le meme projet.</div>
-            <div class="feat-tag"><i class="ti ti-plus" style="font-size:10px"></i>Nombre illimite de patches</div>
+            <div class="feat-pane-desc">Plusieurs configs dans le même show : un patch par artiste, un autre pour le plateau B, une variante acoustique. Tout reste rangé au même endroit, rien ne se balade.</div>
+            <div class="feat-tag"><i class="ti ti-plus" style="font-size:10px"></i>Patches illimités par show</div>
           </div>
         </div>
         <div class="feat-pane-body">
@@ -779,8 +783,8 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
           <div class="feat-pane-icon" style="background:rgba(155,106,255,.12);color:var(--pur)"><i class="ti ti-wand"></i></div>
           <div>
             <div class="feat-pane-title">Assistant Input List (ILA)</div>
-            <div class="feat-pane-desc">Choisissez vos instruments, ajustez les quantites, l'assistant genere automatiquement tous les canaux avec noms, sources et micros recommandes.</div>
-            <div class="feat-tag"><i class="ti ti-bolt" style="font-size:10px"></i>Patch genere en 30 secondes</div>
+            <div class="feat-pane-desc">Choisissez les instruments, ajustez les quantités : l'assistant sort tous les canaux avec noms, sources et micros qui vont bien. Reste plus qu'à affiner.</div>
+            <div class="feat-tag"><i class="ti ti-bolt" style="font-size:10px"></i>Un patch propre en 30 secondes</div>
           </div>
         </div>
         <div class="feat-pane-body">
@@ -859,9 +863,9 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
         <div class="feat-pane-head">
           <div class="feat-pane-icon" style="background:rgba(245,197,66,.12);color:#f5c542"><i class="ti ti-template"></i></div>
           <div>
-            <div class="feat-pane-title">Librairie de templates</div>
-            <div class="feat-pane-desc">Sauvegardez vos configurations typiques et rechargez-les en un clic. Vos propres templates + la librairie communautaire.</div>
-            <div class="feat-tag"><i class="ti ti-cloud" style="font-size:10px"></i>Partages entre tous vos shows</div>
+            <div class="feat-pane-title">Vos templates, prêts à resservir</div>
+            <div class="feat-pane-desc">Les configs qui reviennent tout le temps, sauvegardées une bonne fois pour toutes. Trio jazz, plateau festival, DJ set : un clic, c'est chargé.</div>
+            <div class="feat-tag"><i class="ti ti-cloud" style="font-size:10px"></i>Partagés entre tous vos shows</div>
           </div>
         </div>
         <div class="feat-pane-body">
@@ -895,8 +899,8 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
         <div class="feat-pane-head">
           <div class="feat-pane-icon" style="background:rgba(155,106,255,.12);color:var(--pur)"><i class="ti ti-layout-board"></i></div>
           <div>
-            <div class="feat-pane-title">Plan de scene interactif</div>
-            <div class="feat-pane-desc">Placez vos instruments en drag &amp; drop avec de vrais logos dessines (batterie, guitares, claviers, cuivres...). Praticables a dimensions reelles, kit complet avec ses canaux, image de fond importable, lien direct vers l'Input List.</div>
+            <div class="feat-pane-title">Plan de scène interactif</div>
+            <div class="feat-pane-desc">Placez les instruments en drag &amp; drop, avec de vrais logos dessinés. Praticables aux dimensions réelles, kit complet relié à ses canaux, fond de plan importable — et tout pointe vers l'Input List.</div>
             <div class="feat-tag"><i class="ti ti-photo" style="font-size:10px"></i>Logos pro + image de fond</div>
           </div>
         </div>
@@ -949,8 +953,8 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
           <div class="feat-pane-icon" style="background:rgba(26,143,255,.12);color:var(--blu)"><i class="ti ti-topology-star"></i></div>
           <div>
             <div class="feat-pane-title">Synoptique de signal</div>
-            <div class="feat-pane-desc">Dessinez votre routage avec une bibliotheque de 115+ equipements (consoles, stageboxes, amplis) triee par type puis par marque. Cables typees et colores, fleches directionnelles, liaisons multiples entre deux appareils, export PNG / PDF / SVG.</div>
-            <div class="feat-tag"><i class="ti ti-arrow-ramp-right-2" style="font-size:10px"></i>115+ equipements &middot; cables directionnels</div>
+            <div class="feat-pane-desc">Le routage complet, du plateau à la régie : 115+ équipements triés par type puis par marque, câbles typés et colorés, flèches directionnelles, liaisons multiples entre deux appareils. Export PNG, PDF ou SVG.</div>
+            <div class="feat-tag"><i class="ti ti-arrow-ramp-right-2" style="font-size:10px"></i>115+ équipements &middot; câbles directionnels</div>
           </div>
         </div>
         <div class="feat-pane-body" style="padding:0;position:relative;min-height:270px">
@@ -986,7 +990,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
           <div class="feat-pane-icon" style="background:rgba(34,214,160,.12);color:var(--grn)"><i class="ti ti-map-2"></i></div>
           <div>
             <div class="feat-pane-title">Plan de site technique</div>
-            <div class="feat-pane-desc">Importez le plan du lieu en image de fond et implantez votre sonorisation par-dessus. 28 logos d'equipements professionnels, liaisons typees (XLR, AES, Dante, fibre, secteur...), export PNG / PDF avec lien et contact.</div>
+            <div class="feat-pane-desc">Importez le plan du lieu en fond, implantez la diff par-dessus. 28 logos d'équipements, liaisons typées (XLR, AES, Dante, fibre, secteur…), export prêt à joindre au dossier technique.</div>
             <div class="feat-tag"><i class="ti ti-photo" style="font-size:10px"></i>Image de fond &middot; 28 logos pro</div>
           </div>
         </div>
@@ -1015,9 +1019,9 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
         <div class="feat-pane-head">
           <div class="feat-pane-icon" style="background:rgba(34,214,160,.12);color:var(--grn)"><i class="ti ti-users"></i></div>
           <div>
-            <div class="feat-pane-title">Collaboration en temps reel</div>
-            <div class="feat-pane-desc">Invitez votre equipe avec des roles specifiques. Chaque modification est visible instantanement pour tous les membres connectes.</div>
-            <div class="feat-tag"><i class="ti ti-circle-dot" style="font-size:10px;color:var(--grn)"></i>Mis a jour en direct</div>
+            <div class="feat-pane-title">L'équipe, en direct</div>
+            <div class="feat-pane-desc">Invitez l'équipe par email avec le bon rôle. Chaque modif est visible immédiatement par tout le monde — pas de fichier à renvoyer, pas de version en retard.</div>
+            <div class="feat-tag"><i class="ti ti-circle-dot" style="font-size:10px;color:var(--grn)"></i>Mis à jour en direct</div>
           </div>
         </div>
         <div class="feat-pane-body">
@@ -1063,7 +1067,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
           <div class="feat-pane-icon" style="background:rgba(255,107,26,.12);color:var(--ora)"><i class="ti ti-link"></i></div>
           <div>
             <div class="feat-pane-title">Liens de partage — un par destinataire</div>
-            <div class="feat-pane-desc">Partagez en lecture seule, sans compte, mis à jour en temps réel. En <strong style="color:var(--txt)">Pro</strong>, créez autant de liens nommés que vous voulez, chacun avec son propre contenu : un lien complet pour le groupe, un lien Input List seul pour le backline, un lien avec accès aux fichiers cloud pour la production.</div>
+            <div class="feat-pane-desc">Un lien en lecture seule, sans compte, toujours à jour. En <strong style="color:var(--txt)">Pro</strong>, un lien par destinataire : complet pour le groupe, Input List seule pour le backline, fichiers cloud en plus pour la prod.</div>
             <div class="feat-tag"><i class="ti ti-device-mobile" style="font-size:10px"></i>Vue mobile adaptative · révocable à tout moment</div>
           </div>
         </div>
@@ -1123,8 +1127,8 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
         <div class="feat-pane-head">
           <div class="feat-pane-icon" style="background:rgba(26,143,255,.12);color:var(--blu)"><i class="ti ti-file-type-pdf"></i></div>
           <div>
-            <div class="feat-pane-title">Export multi-format professionnel</div>
-            <div class="feat-pane-desc">Exportez en PDF (A4), PNG haute resolution, SVG vectoriel ou impression directe. Entete personnalise, lien live integre, contact, infos de production — et optionnellement le recap des micros et pieds de micro.</div>
+            <div class="feat-pane-title">Des exports qui font sérieux</div>
+            <div class="feat-pane-desc">PDF A4, PNG haute résolution, SVG ou impression directe. En-tête à votre nom, lien live intégré, infos de prod — et le récap micros/pieds si vous voulez. Prêt à partir en pièce jointe.</div>
             <div class="feat-tag"><i class="ti ti-file-export" style="font-size:10px"></i>PDF &middot; PNG &middot; SVG &middot; Impression</div>
           </div>
         </div>
@@ -1176,7 +1180,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
           <div class="feat-pane-icon" style="background:rgba(26,143,255,.12);color:var(--blu)"><i class="ti ti-cloud"></i></div>
           <div>
             <div class="feat-pane-title">Votre cloud, pensé pour le son</div>
-            <div class="feat-pane-desc">Oubliez Dropbox et les dossiers en vrac. Riders, show files console, plans, logos, fichiers son — rangés <strong>dans le bon show</strong>, à côté du patch. Ouvrez et <strong style="color:var(--txt)">éditez vos Word et Excel directement dans le navigateur</strong>, prévisualisez vos PDF, sans rien télécharger.</div>
+            <div class="feat-pane-desc">Oubliez Dropbox et les dossiers en vrac. Riders, show files console, plans, fichiers son — rangés <strong>dans le bon show</strong>, à côté du patch. Word et Excel <strong style="color:var(--txt)">s'ouvrent et s'éditent direct dans le navigateur</strong>, les PDF se lisent sur place. Rien à télécharger.</div>
             <div class="feat-tag"><i class="ti ti-edit" style="font-size:10px"></i>Word &amp; Excel éditables &middot; aperçu PDF intégré</div>
           </div>
         </div>
@@ -1225,8 +1229,8 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
           <div class="feat-pane-icon" style="background:rgba(34,214,160,.12);color:var(--grn)"><i class="ti ti-list-check"></i></div>
           <div>
             <div class="feat-pane-title">Output List</div>
-            <div class="feat-pane-desc">Documentez toutes vos sorties : HP principaux, retours de scene, IEM, sub, fill. Chaque sortie est typee, coloree et exportable en PDF.</div>
-            <div class="feat-tag"><i class="ti ti-link" style="font-size:10px"></i>Lien partage dedie Output List</div>
+            <div class="feat-pane-desc">Toutes les sorties noir sur blanc : façade, retours, IEM, subs, fills. Chaque sortie est typée, colorée, et part en PDF comme le reste.</div>
+            <div class="feat-tag"><i class="ti ti-link" style="font-size:10px"></i>Lien de partage dédié Output List</div>
           </div>
         </div>
         <div class="feat-pane-body">
@@ -1283,8 +1287,8 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
         <div class="feat-pane-head">
           <div class="feat-pane-icon" style="background:rgba(255,107,26,.12);color:var(--ora)"><i class="ti ti-clipboard-list"></i></div>
           <div>
-            <div class="feat-pane-title">Recapitulatif materiels</div>
-            <div class="feat-pane-desc">Obtenez le decompte exact de chaque micro et pied de micro necessaires pour votre show. Inclus dans le plan Pro, consolidé sur tous les patches du show.</div>
+            <div class="feat-pane-title">Récap matériels</div>
+            <div class="feat-pane-desc">Le décompte exact des micros et pieds nécessaires pour le show, consolidé sur tous les patches. La liste de parc se fait toute seule.</div>
             <div class="feat-tag"><i class="ti ti-crown" style="font-size:10px"></i>Pro — consolidé sur tous les patches</div>
           </div>
         </div>
@@ -1433,33 +1437,8 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
   </div>
 </section>
 
-<!-- HOW IT WORKS -->
-<section id="how" style="background:var(--bg2)">
-  <div class="section-label center">Comment ca marche</div>
-  <h2 class="center">Operationnel en <em>3 minutes.</em></h2>
-  <p class="section-sub center">Pas de configuration complexe. Creez votre show et commencez a travailler immediatement.</p>
-
-  <div class="how-steps">
-    <div class="how-step fade-up">
-      <div style="font-size:28px;margin-bottom:8px">🎤</div>
-      <h3>Creer votre show</h3>
-      <p>Donnez un nom a votre production, ajoutez le lieu, la date. Invitez votre equipe en quelques secondes avec leur role specifique.</p>
-    </div>
-    <div class="how-step fade-up stagger-1">
-      <div style="font-size:28px;margin-bottom:8px">📋</div>
-      <h3>Construire votre patch</h3>
-      <p>Utilisez l'assistant intelligent pour generer votre Input List en quelques clics. Ou importez depuis un template existant.</p>
-    </div>
-    <div class="how-step fade-up stagger-2">
-      <div style="font-size:28px;margin-bottom:8px">📡</div>
-      <h3>Partager et exporter</h3>
-      <p>Exportez en PDF professionnel, generez un lien partage pour le groupe, imprimez le plan de scene pour le backline.</p>
-    </div>
-  </div>
-</section>
-
 <!-- COMPARISON -->
-<section id="comparaison">
+<section id="comparaison" style="background:var(--bg2)">
   <div class="section-label center">Pourquoi PatchFlow</div>
   <h2 class="center">Excel et Word n'ont <em>jamais été faits</em><br/>pour le live.</h2>
   <p class="section-sub center">Comparez ce que vous faites aujourd'hui avec ce que PatchFlow vous apporte.</p>
@@ -1516,41 +1495,27 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
   </div>
 </section>
 
-<!-- TESTIMONIALS -->
-<section style="padding-top:60px">
-  <div class="section-label center">Ils nous font confiance</div>
-  <h2 class="center">Ce que disent les <em>professionnels</em></h2>
+<!-- HOW IT WORKS -->
+<section id="how">
+  <div class="section-label center">Comment ça marche</div>
+  <h2 class="center">Opérationnel en <em>3 minutes.</em></h2>
+  <p class="section-sub center">Pas de manuel, pas de paramétrage. Vous créez le show, le reste suit.</p>
 
-  <div class="testimonials">
-    <div class="testi fade-up">
-      <p class="testi-text">Fini les fichiers Excel qui circulent par email. Tout le monde est synchronise en permanence, c'est un gain de temps enorme en preprod.</p>
-      <div class="testi-author">
-        <div class="testi-av" style="background:rgba(255,107,26,.15);color:var(--ora)">ML</div>
-        <div>
-          <div class="testi-name">Marc Leblanc</div>
-          <div class="testi-role">FOH Engineer — Festivals</div>
-        </div>
-      </div>
+  <div class="how-steps">
+    <div class="how-step fade-up">
+      <div style="font-size:28px;margin-bottom:8px">🎤</div>
+      <h3>Créez le show</h3>
+      <p>Un nom, un lieu, une date. Invitez l'équipe avec le bon rôle — c'est l'affaire d'une minute, et tout le monde bosse sur la même base.</p>
     </div>
-    <div class="testi fade-up stagger-1">
-      <p class="testi-text">Le plan de scene interactif change tout. Je montre visuellement aux musiciens leur placement avec les canaux associes. Parfait pour le brief backline.</p>
-      <div class="testi-author">
-        <div class="testi-av" style="background:rgba(34,214,160,.15);color:var(--grn)">SD</div>
-        <div>
-          <div class="testi-name">Sophie Durand</div>
-          <div class="testi-role">Monitor Engineer — Tournees</div>
-        </div>
-      </div>
+    <div class="how-step fade-up stagger-1">
+      <div style="font-size:28px;margin-bottom:8px">📋</div>
+      <h3>Montez le patch</h3>
+      <p>L'assistant ILA sort l'Input List en quelques clics, ou repartez d'un de vos templates. Vous ajustez les micros, c'est prêt.</p>
     </div>
-    <div class="testi fade-up stagger-2">
-      <p class="testi-text">Le lien partage est une revolution. Je l'envoie au groupe, ils voient leur patch en temps reel. Plus aucune confusion sur les canaux IEM.</p>
-      <div class="testi-author">
-        <div class="testi-av" style="background:rgba(155,106,255,.15);color:var(--pur)">AR</div>
-        <div>
-          <div class="testi-name">Antoine Roussel</div>
-          <div class="testi-role">Technicien son — Spectacles</div>
-        </div>
-      </div>
+    <div class="how-step fade-up stagger-2">
+      <div style="font-size:28px;margin-bottom:8px">📡</div>
+      <h3>Balancez le lien</h3>
+      <p>Un lien pour le groupe, un PDF pour la prod, le plan imprimé pour le backline. Tout le monde a la même version — la bonne.</p>
     </div>
   </div>
 </section>
@@ -1683,6 +1648,45 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
   </div>
 </section>
 
+<!-- TESTIMONIALS -->
+<section style="padding-top:60px">
+  <div class="section-label center">Ils nous font confiance</div>
+  <h2 class="center">Ce que disent les <em>professionnels</em></h2>
+
+  <div class="testimonials">
+    <div class="testi fade-up">
+      <p class="testi-text">Fini les fichiers Excel qui circulent par email. Tout le monde est synchronise en permanence, c'est un gain de temps enorme en preprod.</p>
+      <div class="testi-author">
+        <div class="testi-av" style="background:rgba(255,107,26,.15);color:var(--ora)">ML</div>
+        <div>
+          <div class="testi-name">Marc Leblanc</div>
+          <div class="testi-role">FOH Engineer — Festivals</div>
+        </div>
+      </div>
+    </div>
+    <div class="testi fade-up stagger-1">
+      <p class="testi-text">Le plan de scene interactif change tout. Je montre visuellement aux musiciens leur placement avec les canaux associes. Parfait pour le brief backline.</p>
+      <div class="testi-author">
+        <div class="testi-av" style="background:rgba(34,214,160,.15);color:var(--grn)">SD</div>
+        <div>
+          <div class="testi-name">Sophie Durand</div>
+          <div class="testi-role">Monitor Engineer — Tournees</div>
+        </div>
+      </div>
+    </div>
+    <div class="testi fade-up stagger-2">
+      <p class="testi-text">Le lien partage est une revolution. Je l'envoie au groupe, ils voient leur patch en temps reel. Plus aucune confusion sur les canaux IEM.</p>
+      <div class="testi-author">
+        <div class="testi-av" style="background:rgba(155,106,255,.15);color:var(--pur)">AR</div>
+        <div>
+          <div class="testi-name">Antoine Roussel</div>
+          <div class="testi-role">Technicien son — Spectacles</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- FAQ -->
 <section id="faq">
   <div class="section-label center">FAQ</div>
@@ -1791,8 +1795,8 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
     Patch<span>Flow</span> — Par des techniciens, pour des techniciens
   </div>
   <div class="footer-links">
-    <a href="#">Mentions legales</a>
-    <a href="#">Confidentialite</a>
+    <a href="#">Mentions légales</a>
+    <a href="#">Confidentialité</a>
     <a href="mailto:contact@patchflow.fr">Contact</a>
     <a href="app.html">App</a>
   </div>
