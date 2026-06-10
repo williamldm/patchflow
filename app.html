@@ -2929,10 +2929,21 @@ sb.auth.onAuthStateChange(async(event,session)=>{
   }
   /* Bloquer SIGNED_IN et TOKEN_REFRESHED pendant le reset */
   if(_inPasswordRecovery && (event==='SIGNED_IN'||event==='TOKEN_REFRESHED')) return;
-  if(!session?.user) return;
+  if(!session?.user){
+    /* Déconnexion : réarmer le guard pour autoriser une ré-init au prochain login */
+    window._appInitDone=false; window._appInitUser=null;
+    return;
+  }
   ME=session.user;
   document.getElementById('auth-wrap').className='auth-wrap';
   document.getElementById('app').className='show';
+  /* N'initialiser qu'UNE fois par utilisateur. onAuthStateChange refire
+     périodiquement (TOKEN_REFRESHED ~1×/h, USER_UPDATED, refocus d'onglet) ;
+     relancer initApp à chaque fois rechargeait toute l'app et re-basculait le
+     show actif → l'utilisateur se retrouvait parfois sur un autre show « sans
+     raison ». On ne ré-init que pour un nouvel utilisateur (vrai login). */
+  if(window._appInitDone && window._appInitUser===ME.id) return;
+  window._appInitDone=true; window._appInitUser=ME.id;
   initApp();
 });
 
@@ -3232,13 +3243,25 @@ async function loadShows(){
   renderSessions();
   loadShowStorage(); // async, non-bloquant
   if(SHOWS.length>0){
-    /* Restore last active show — fallback to first if not found / no longer accessible */
-    let targetId=SHOWS[0].id;
-    try{
-      const lastShowId=localStorage.getItem(SHOW_PERSIST_KEY);
-      if(lastShowId && SHOWS.some(s=>s.id===lastShowId)) targetId=lastShowId;
-    }catch(e){}
-    await switchShow(targetId);
+    /* Si un show est déjà actif ET toujours présent dans la liste, on le
+       CONSERVE. loadShows() peut être rappelé (acceptation d'invitation,
+       refresh de liste) ; sans cette garde, il re-basculait sur un autre show. */
+    if(CUR_SHOW && SHOWS.some(s=>s.id===CUR_SHOW.id)){
+      CUR_SHOW=SHOWS.find(s=>s.id===CUR_SHOW.id)||CUR_SHOW; // rafraîchir l'objet
+      renderSPShows();
+    } else {
+      /* Restore last active show — fallback to first if not found / no longer accessible */
+      let lastShowId=null;
+      try{ lastShowId=localStorage.getItem(SHOW_PERSIST_KEY); }catch(e){}
+      if(lastShowId && SHOWS.some(s=>s.id===lastShowId)){
+        await switchShow(lastShowId);                  // restauration explicite
+      } else {
+        /* Repli : 1er show de la liste. On NE persiste PAS ce choix — si la
+           liste était transitoirement incomplète (réseau/RLS), le vrai dernier
+           show reste mémorisé pour le prochain chargement. */
+        await switchShow(SHOWS[0].id, {persist:false});
+      }
+    }
   }
   else await newShowDefault();
   /* Restore last active tab after everything is loaded */
@@ -3530,12 +3553,17 @@ async function newShowDefault(){
   SHOWS=[data];renderSPShows();await switchShow(data.id);
 }
 
-async function switchShow(id){
+async function switchShow(id, opts){
   _stageReady=false;
   CUR_SHOW=SHOWS.find(s=>s.id===id);
   if(!CUR_SHOW)return;
-  /* Persist the active show so reload restores it */
-  try{ localStorage.setItem(SHOW_PERSIST_KEY, id); }catch(e){}
+  /* Persist the active show so reload restores it — SAUF bascule automatique
+     de repli (opts.persist===false) : on ne veut pas écraser le dernier show
+     réellement choisi par l'utilisateur si la liste était transitoirement
+     incomplète (un repli sur SHOWS[0] mémorisé devenait "collant"). */
+  if(!opts || opts.persist!==false){
+    try{ localStorage.setItem(SHOW_PERSIST_KEY, id); }catch(e){}
+  }
   const n=CUR_SHOW.name;
   document.getElementById('cur-show-name').textContent=n;
   const tbn=document.getElementById('tb-show-name');if(tbn)tbn.textContent=n;
