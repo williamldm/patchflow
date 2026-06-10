@@ -15016,8 +15016,8 @@ async function openRecapMatos(){
 
   // ── Build shell ──
   var SV_LOGO='<svg width="28" height="28" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M70 60 C100 60 100 140 130 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round"/><path d="M130 60 C100 60 100 140 70 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round" opacity="0.45"/><circle cx="60" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="60" r="5" fill="#FF6B2B"/><circle cx="140" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="60" r="5" fill="#FF6B2B"/><circle cx="60" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="140" r="5" fill="#FF6B2B"/><circle cx="140" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="140" r="5" fill="#FF6B2B"/></svg>';
-  var SV_TABCSS='display:inline-flex;align-items:center;gap:'+(isMobile?'4':'5')+'px;padding:'+(isMobile?'8px 12px':'9px 18px')+';background:none;border:none;border-bottom:2px solid transparent;color:#5a6a80;font-family:DM Mono,monospace;font-size:'+(isMobile?'10':'11')+'px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;transition:all .15s;margin-bottom:-1px;white-space:nowrap';
-  var SV_TABCSS_ON='display:inline-flex;align-items:center;gap:'+(isMobile?'4':'5')+'px;padding:'+(isMobile?'8px 12px':'9px 18px')+';background:none;border:none;border-bottom:2px solid #ff6b1a;color:#ff6b1a;font-family:DM Mono,monospace;font-size:'+(isMobile?'10':'11')+'px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;margin-bottom:-1px;white-space:nowrap';
+  var SV_TABCSS='display:inline-flex;align-items:center;gap:'+(isMobile?'4':'6')+'px;padding:'+(isMobile?'10px 12px':'12px 18px')+';background:none;border:none;border-bottom:2px solid transparent;color:#5a6a80;font-family:DM Mono,monospace;font-size:'+(isMobile?'10':'11')+'px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;transition:all .15s;margin-bottom:-1px;white-space:nowrap;border-radius:8px 8px 0 0';
+  var SV_TABCSS_ON='display:inline-flex;align-items:center;gap:'+(isMobile?'4':'6')+'px;padding:'+(isMobile?'10px 12px':'12px 18px')+';background:linear-gradient(180deg,rgba(255,107,26,.1),transparent);border:none;border-bottom:2px solid #ff6b1a;color:#ff6b1a;font-family:DM Mono,monospace;font-size:'+(isMobile?'10':'11')+'px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;margin-bottom:-1px;white-space:nowrap;border-radius:8px 8px 0 0';
 
   var secLabels={il:'Input List',out:'Output List',syno:'Synoptique',stage:'Plan de scene',site:'Plan de site',cloud:'Fichiers',files:'Pieces jointes'};
   var secIcons={il:'&#9776;',out:'&#9654;',syno:'&#9762;',stage:'&#9646;',site:'&#127963;',cloud:'&#9729;',files:'&#128206;'};
@@ -15037,7 +15037,7 @@ async function openRecapMatos(){
   if(!rFiles.length) allSections=allSections.filter(function(s){return s!=='files';});
   var tabsHtml='';
   if(allSections.length>1){
-    tabsHtml='<div id="sv-tabs" style="display:flex;border-bottom:1px solid #1e2a3a;margin-bottom:0;overflow-x:auto">';
+    tabsHtml='<div id="sv-tabs" style="position:relative;display:flex;border-bottom:1px solid #1e2a3a;margin-bottom:0;overflow-x:auto;background:#080e1a;padding:0 '+(isMobile?'4px':'14px')+'">';
     allSections.filter(function(s){return _VALID_SEC_SET.has(s);}).forEach(function(s,i){
       var active=i===0;
       tabsHtml+='<button id="svt-'+s+'" style="'+(active?SV_TABCSS_ON:SV_TABCSS)+'" onclick="_svSwitch(\''+esc(s)+'\')">'
@@ -15048,25 +15048,44 @@ async function openRecapMatos(){
 
   var wrap=document.createElement('div');
   wrap.id='share-view';
-  wrap.style.cssText='min-height:100vh;background:#0a0f1c;color:#e8edf8;font-family:Outfit,sans-serif';
+  wrap.style.cssText='min-height:100vh;background:#0a0f1c;color:#e8edf8;font-family:Outfit,sans-serif;position:relative;display:flex;flex-direction:column';
+  /* Petit logo réutilisé (header mobile + bandeau bas de page) */
+  var SV_LOGO_SM='<svg width="22" height="22" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M70 60 C100 60 100 140 130 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round"/><path d="M130 60 C100 60 100 140 70 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round" opacity=".45"/><circle cx="60" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="60" r="5" fill="#FF6B2B"/><circle cx="140" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="60" r="5" fill="#FF6B2B"/><circle cx="60" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="140" r="5" fill="#FF6B2B"/><circle cx="140" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="140" r="5" fill="#FF6B2B"/></svg>';
   wrap.innerHTML=
-    '<div style="display:flex;align-items:center;min-height:'+(isMobile?'52':'60')+'px;background:#080b12;border-bottom:1px solid #1e2a3a;padding:0 '+(isMobile?'12':'24')+'px;gap:'+(isMobile?'8':'10')+'px">'
-    +(isMobile?'<svg width="22" height="22" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M70 60 C100 60 100 140 130 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round"/><path d="M130 60 C100 60 100 140 70 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round" opacity=".45"/><circle cx="60" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="60" r="5" fill="#FF6B2B"/><circle cx="140" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="60" r="5" fill="#FF6B2B"/><circle cx="60" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="140" r="5" fill="#FF6B2B"/><circle cx="140" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="140" r="5" fill="#FF6B2B"/></svg>':SV_LOGO)
+    '<style>@keyframes svPulse{0%,100%{opacity:1}50%{opacity:.3}}@keyframes svSpin{to{transform:rotate(360deg)}}</style>'
+    /* Halo orange discret en haut de page (même signature visuelle que la landing) */
+    +'<div style="position:absolute;top:0;left:50%;transform:translateX(-50%);width:920px;max-width:100vw;height:280px;background:radial-gradient(ellipse at 50% 0%,rgba(255,107,26,.08),transparent 65%);pointer-events:none"></div>'
+    /* ── Barre du haut ── */
+    +'<div style="position:relative;display:flex;align-items:center;min-height:'+(isMobile?'54':'62')+'px;background:rgba(8,11,18,.92);border-bottom:1px solid #1e2a3a;padding:0 '+(isMobile?'12':'24')+'px;gap:'+(isMobile?'8':'12')+'px">'
+    +(isMobile?SV_LOGO_SM:SV_LOGO)
     +'<div style="font-size:'+(isMobile?'13':'15')+'px;font-weight:700">Patch<span style="color:#ff6b1a">Flow</span></div>'
-    +(isMobile?'':'<div style="margin-left:2px;font-size:10px;font-family:DM Mono,monospace;color:#5a6a80;letter-spacing:2px;text-transform:uppercase">Rider</div>')
+    +'<div style="font-size:9px;font-family:DM Mono,monospace;color:#ff8c42;background:rgba(255,107,26,.1);border:1px solid rgba(255,107,26,.25);border-radius:5px;padding:2px 8px;letter-spacing:1.5px;text-transform:uppercase">Rider</div>'
     +'<div style="flex:1"></div>'
-    +'<div style="font-size:'+(isMobile?'9':'10')+'px;font-family:DM Mono,monospace;background:rgba(34,214,160,.12);color:#22d6a0;border:1px solid rgba(34,214,160,.25);border-radius:6px;padding:'+(isMobile?'3px 8px':'3px 10px')+'">&#9679; Lecture seule</div>'
+    +'<div style="display:inline-flex;align-items:center;gap:6px;font-size:'+(isMobile?'9':'10')+'px;font-family:DM Mono,monospace;background:rgba(34,214,160,.1);color:#22d6a0;border:1px solid rgba(34,214,160,.25);border-radius:20px;padding:'+(isMobile?'3px 9px':'4px 12px')+'"><span style="width:6px;height:6px;border-radius:50%;background:#22d6a0;animation:svPulse 2s infinite;flex-shrink:0"></span>'+(isMobile?'Live':'À jour en temps réel')+'</div>'
+    +(isMobile?'':'<a href="/" style="display:inline-flex;align-items:center;gap:6px;background:#ff6b1a;color:#000;font-size:11.5px;font-weight:700;padding:7px 16px;border-radius:8px;text-decoration:none;font-family:Outfit,sans-serif;transition:background .15s" onmouseover="this.style.background=\'#ff8c42\'" onmouseout="this.style.background=\'#ff6b1a\'">Créer mon rider</a>')
     +'</div>'
     +(rTitle||rNote||rInfo?
-      '<div style="background:#080e1a;border-bottom:1px solid #1e2a3a;padding:'+(isMobile?'12px 14px':'16px 28px')+'">'
-      +(rTitle?'<div style="font-size:'+(isMobile?'17':'20')+'px;font-weight:800;color:#f0f4ff;margin-bottom:6px">'+esc(rTitle)+'</div>':'')
+      '<div style="position:relative;background:linear-gradient(180deg,#0a1322,#080e1a);border-bottom:1px solid #1e2a3a;padding:'+(isMobile?'14px 14px':'18px 28px')+'">'
+      +(rTitle?'<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><span style="width:4px;height:'+(isMobile?'16':'20')+'px;background:linear-gradient(180deg,#ff6b1a,#ff3d00);border-radius:2px;flex-shrink:0"></span><span style="font-size:'+(isMobile?'17':'20')+'px;font-weight:800;color:#f0f4ff;letter-spacing:-.3px">'+esc(rTitle)+'</span></div>':'')
       +(rNote?'<div style="font-size:'+(isMobile?'11':'12')+'px;color:#8899aa;line-height:1.6;white-space:pre-wrap;margin-bottom:'+(rInfo?'6px':'0')+'">'+esc(rNote)+'</div>':'')
       +(rInfo?'<div style="font-size:10px;font-family:DM Mono,monospace;color:#5a7a9a;margin-top:4px">'+esc(rInfo)+'</div>':'')
       +'</div>'
     :'')
     +tabsHtml
-    +'<div id="sv-body" style="max-width:1100px;margin:0 auto;padding:'+(isMobile?'14px 10px':'28px 20px')+'">'
-    +'<div style="text-align:center;color:#5a6a80;font-family:DM Mono,monospace;margin-top:60px">Chargement...</div>'
+    +'<div id="sv-body" style="position:relative;flex:1;width:100%;max-width:1100px;margin:0 auto;padding:'+(isMobile?'14px 10px':'28px 20px')+'">'
+    +'<div style="display:flex;flex-direction:column;align-items:center;gap:14px;margin-top:70px"><div style="width:26px;height:26px;border:2.5px solid #1e2a3a;border-top-color:#ff6b1a;border-radius:50%;animation:svSpin .8s linear infinite"></div><div style="color:#5a6a80;font-family:DM Mono,monospace;font-size:11px">Chargement du rider…</div></div>'
+    +'</div>'
+    /* ── Bandeau conversion : les destinataires du lien sont de futurs clients ── */
+    +'<div style="position:relative;width:100%;max-width:1100px;margin:8px auto 0;padding:'+(isMobile?'0 10px 30px':'0 20px 48px')+'">'
+      +'<div style="background:linear-gradient(135deg,rgba(255,107,26,.1),rgba(255,107,26,.02) 45%,#0d1424 100%);border:1px solid rgba(255,107,26,.22);border-radius:16px;padding:'+(isMobile?'20px 18px':'26px 30px')+';display:flex;align-items:center;gap:'+(isMobile?'14':'22')+'px;flex-wrap:wrap">'
+        +'<div style="width:46px;height:46px;border-radius:12px;background:rgba(255,107,26,.1);border:1px solid rgba(255,107,26,.25);display:flex;align-items:center;justify-content:center;flex-shrink:0">'+SV_LOGO_SM+'</div>'
+        +'<div style="flex:1;min-width:200px">'
+          +'<div style="font-size:'+(isMobile?'14':'16')+'px;font-weight:800;color:#f0f4ff;margin-bottom:5px">Ce rider est fait avec PatchFlow</div>'
+          +'<div style="font-size:'+(isMobile?'11.5':'12.5')+'px;color:#8899aa;line-height:1.65">Input List, plans, synoptique et fichiers de prod — créés et partagés en un lien, à jour en temps réel pour toute l\'équipe. Gratuit pour commencer.</div>'
+        +'</div>'
+        +'<a href="/" style="display:inline-flex;align-items:center;gap:8px;background:#ff6b1a;color:#000;font-size:13px;font-weight:700;padding:'+(isMobile?'11px 18px':'12px 22px')+';border-radius:10px;text-decoration:none;white-space:nowrap;font-family:Outfit,sans-serif;box-shadow:0 6px 24px rgba(255,107,26,.25);transition:background .15s" onmouseover="this.style.background=\'#ff8c42\'" onmouseout="this.style.background=\'#ff6b1a\'">Créer le mien — gratuit</a>'
+      +'</div>'
+      +'<div style="text-align:center;margin-top:16px;font-size:10px;font-family:DM Mono,monospace;color:#3a4a5a;letter-spacing:.5px">PatchFlow — Par des techniciens, pour des techniciens</div>'
     +'</div>';
   document.body.prepend(wrap);
 
@@ -15144,12 +15163,17 @@ async function openRecapMatos(){
 
   // ── Section renderers ──
   var now=new Date().toLocaleString('fr-FR');
-  var _showMeta='<div style="margin-bottom:'+(isMobile?'16':'24')+'px">'
-    +'<div style="font-size:'+(isMobile?'18':'24')+'px;font-weight:700;margin-bottom:4px">'+esc(show.name||'')+'</div>'
-    +'<div style="display:flex;gap:'+(isMobile?'10':'16')+'px;flex-wrap:wrap;font-size:'+(isMobile?'10':'11')+'px;font-family:DM Mono,monospace;color:#5a6a80">'
-    +(show.venue?'<span>&#x1f4cd; '+esc(show.venue)+'</span>':'')
-    +(show.show_date?'<span>&#x1f4c5; '+show.show_date+'</span>':'')
-    +'<span>&#x1f504; '+now+'</span>'
+  /* Chips méta : style carte (cohérent avec la landing), icônes Tabler */
+  var _chipCss='display:inline-flex;align-items:center;gap:6px;font-size:'+(isMobile?'10':'11')+'px;font-family:DM Mono,monospace;color:#8899aa;background:#0d1424;border:1px solid #1e2a3a;border-radius:8px;padding:'+(isMobile?'4px 9px':'5px 12px')+'';
+  var _showMeta='<div style="margin-bottom:'+(isMobile?'18':'28')+'px">'
+    +'<div style="display:flex;align-items:center;gap:'+(isMobile?'9':'12')+'px;margin-bottom:'+(isMobile?'9':'12')+'px">'
+      +'<span style="width:4px;height:'+(isMobile?'20':'26')+'px;background:linear-gradient(180deg,#ff6b1a,#ff3d00);border-radius:2px;flex-shrink:0"></span>'
+      +'<span style="font-size:'+(isMobile?'19':'26')+'px;font-weight:800;letter-spacing:-.5px;line-height:1.15">'+esc(show.name||'')+'</span>'
+    +'</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    +(show.venue?'<span style="'+_chipCss+'"><i class="ti ti-map-pin" style="color:#ff8c42;font-size:13px"></i>'+esc(show.venue)+'</span>':'')
+    +(show.show_date?'<span style="'+_chipCss+'"><i class="ti ti-calendar" style="color:#1a8fff;font-size:13px"></i>'+show.show_date+'</span>':'')
+    +'<span style="'+_chipCss+';color:#22d6a0;background:rgba(34,214,160,.07);border-color:rgba(34,214,160,.2)"><i class="ti ti-refresh" style="font-size:13px"></i>'+now+'</span>'
     +'</div></div>';
 
   /* Switch entre patches (Input List) — window pour accès global depuis onclick */
