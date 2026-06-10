@@ -830,6 +830,14 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .invite-box{background:var(--surf2);border:1px solid var(--bdr2);border-radius:9px;padding:12px;display:flex;gap:8px;align-items:center;margin-top:14px}
 .inv-inp{background:transparent;border:none;color:var(--txt);font-size:12px;flex:1;outline:none;font-family:var(--f)}
 .inv-inp::placeholder{color:var(--muted)}
+.contacts-bar{display:flex;flex-wrap:wrap;gap:5px;padding:8px 0 2px}
+.contacts-bar:empty{display:none}
+.contacts-bar-label{font-size:10px;color:var(--muted);font-family:var(--m);width:100%;display:flex;align-items:center;gap:4px;margin-bottom:1px}
+.contact-pill{display:inline-flex;align-items:center;gap:4px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:20px;padding:3px 6px 3px 10px;cursor:pointer;font-size:11px;color:var(--txt2);font-family:var(--m);transition:border-color .15s,background .15s;max-width:220px}
+.contact-pill:hover{border-color:var(--ora);background:rgba(255,107,26,.07);color:var(--ora)}
+.contact-pill>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.contact-pill-del{background:none;border:none;padding:2px 3px;cursor:pointer;color:var(--muted);font-size:10px;line-height:1;display:flex;flex-shrink:0;transition:color .15s;border-radius:3px}
+.contact-pill-del:hover{color:var(--err)}
 /* ── SESSIONS REDESIGN ── */
 .sess-section-title{font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);padding:4px 2px 8px;display:flex;align-items:center;gap:7px;grid-column:1/-1}
 .sess-card{background:var(--surf);border:1px solid var(--bdr2);border-radius:12px;cursor:pointer;transition:border-color .18s,transform .18s,box-shadow .18s;position:relative;overflow:hidden;display:flex;flex-direction:column}
@@ -1897,7 +1905,8 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
       <div id="team-grid" class="team-grid"><div class="loading"><div class="spinner"></div>Chargement…</div></div>
       <div class="invite-box">
         <i class="ti ti-mail" style="color:var(--muted);font-size:15px;flex-shrink:0"></i>
-        <input class="inv-inp" id="inv-email" type="email" placeholder="Inviter par e-mail…" onkeydown="if(event.key==='Enter'&&!window._inviting)inviteMember()"/>
+        <input class="inv-inp" id="inv-email" type="email" placeholder="Inviter par e-mail…" list="inv-email-list" autocomplete="off" onkeydown="if(event.key==='Enter'&&!window._inviting)inviteMember()"/>
+        <datalist id="inv-email-list"></datalist>
         <select class="pdf-inp" id="inv-role" style="width:148px;padding:4px 7px;flex-shrink:0">
           <option value="admin">Administrateur</option>
           <option value="editor" selected>Éditeur</option>
@@ -1906,6 +1915,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
         <button class="btn" id="inv-btn" onclick="inviteMember()"><i class="ti ti-send"></i>Inviter</button>
       </div>
       <div id="inv-msg" style="display:none;font-size:11px;padding:7px 12px;border-radius:7px;margin-top:8px;line-height:1.5"></div>
+      <div id="contacts-bar" class="contacts-bar"></div>
       <div class="slink-box" id="rider-builder">
         <div class="slink-title"><i class="ti ti-link"></i>Lien rider — partage en lecture seule</div>
         <div id="rider-gate-msg" class="slink-pro-gate" style="display:none">
@@ -4668,6 +4678,7 @@ async function loadMembers(){
   });
 
   grid.innerHTML=html;grid.className='team-grid';
+  _renderContactsBar();
 }
 /* ── Role labels ── */
 const ROLE_LABELS = { admin:'Administrateur', editor:'Éditeur', viewer:'Lecture seule' };
@@ -4730,6 +4741,7 @@ async function inviteMember() {
         ? `✓ ${email} a été ajouté au show (compte existant).`
         : `✓ Invitation envoyée à ${email} — il recevra un lien pour rejoindre PatchFlow.`;
       _invMsg(msg, true);
+      _saveContactEmail(email);
       emailEl.value = '';
       loadMembers(); // refresh member list
     }
@@ -4749,6 +4761,37 @@ async function removeMember(memberId) {
   if (error) { toast('Erreur : ' + error.message); return; }
   toast('Membre retiré.');
   loadMembers();
+}
+
+/* ── Saved contacts (localStorage) ── */
+const _CONTACTS_KEY='pf_saved_emails';
+function _jsq(s){return String(s??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")}
+function _getSavedEmails(){try{return JSON.parse(localStorage.getItem(_CONTACTS_KEY)||'[]');}catch(e){return[];}}
+function _saveContactEmail(email){
+  if(!email)return;
+  const list=_getSavedEmails().filter(e=>e!==email);
+  list.unshift(email);
+  localStorage.setItem(_CONTACTS_KEY,JSON.stringify(list.slice(0,30)));
+  _renderContactsBar();
+}
+function _removeContactEmail(email){
+  const list=_getSavedEmails().filter(e=>e!==email);
+  localStorage.setItem(_CONTACTS_KEY,JSON.stringify(list));
+  _renderContactsBar();
+}
+function _renderContactsBar(){
+  const bar=document.getElementById('contacts-bar');
+  if(!bar)return;
+  const list=_getSavedEmails();
+  const dl=document.getElementById('inv-email-list');
+  const _es=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  if(dl)dl.innerHTML=list.map(e=>`<option value="${_es(e)}">`).join('');
+  if(!list.length){bar.innerHTML='';return;}
+  let html=`<div class="contacts-bar-label"><i class="ti ti-bookmark" style="font-size:9px"></i>Contacts enregistrés</div>`;
+  list.forEach(e=>{
+    html+=`<span class="contact-pill" onclick="document.getElementById('inv-email').value='${_jsq(e)}';document.getElementById('inv-email').focus()" title="${_es(e)}"><span>${_es(e)}</span><button class="contact-pill-del" onclick="event.stopPropagation();_removeContactEmail('${_jsq(e)}')" title="Retirer"><i class="ti ti-x"></i></button></span>`;
+  });
+  bar.innerHTML=html;
 }
 
 /* Process pending show invites after login */
