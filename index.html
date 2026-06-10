@@ -272,7 +272,7 @@ h2 em{font-style:normal;color:var(--ora)}
 
 /* ── PRICING ── */
 #pricing{background:var(--bg2)}
-.pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:56px;align-items:start}
+.pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:56px;align-items:stretch}
 .pricing-grid-2{grid-template-columns:repeat(2,1fr);max-width:780px;margin-left:auto;margin-right:auto}
 /* Storage add-on card */
 .storage-addon{max-width:780px;margin:20px auto 0;display:flex;align-items:center;gap:20px;background:linear-gradient(135deg,var(--surf2),var(--surf));border:1px solid var(--bdr2);border-radius:16px;padding:22px 26px;transition:box-shadow .2s}
@@ -298,12 +298,21 @@ h2 em{font-style:normal;color:var(--ora)}
 .plan-ent-feats li{display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:var(--txt2)}
 .plan-ent-feats li i{color:var(--grn);font-size:14px;flex-shrink:0;margin-top:1px}
 .plan-ent-right{text-align:center;flex-shrink:0;min-width:180px}
-.plan-card{background:var(--surf);border:1px solid var(--bdr);border-radius:18px;padding:36px 32px;position:relative;transition:transform .2s,box-shadow .2s}
-.plan-card:hover{transform:translateY(-4px);box-shadow:0 24px 60px rgba(0,0,0,.4)}
-.plan-card.popular{border-color:var(--ora);border-width:2px;background:linear-gradient(150deg,rgba(255,107,26,.18) 0%,rgba(255,80,0,.08) 50%,var(--surf) 100%);box-shadow:0 0 0 1px rgba(255,107,26,.3),0 20px 60px rgba(255,107,26,.15)}
-.plan-badge{position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:linear-gradient(90deg,#ff6b1a,#ff3d00);color:#fff;font-size:10px;font-weight:800;font-family:var(--m);padding:5px 18px;border-radius:20px;letter-spacing:1.5px;text-transform:uppercase;white-space:nowrap;box-shadow:0 4px 16px rgba(255,80,0,.45)}
+.plan-card{background:var(--surf);border:1px solid var(--bdr);border-radius:20px;padding:36px 32px;position:relative;transition:transform .2s,box-shadow .2s,border-color .2s;display:flex;flex-direction:column}
+.plan-card:hover{transform:translateY(-4px);box-shadow:0 24px 60px rgba(0,0,0,.4);border-color:var(--bdr3)}
+.plan-card.popular{border-color:var(--ora);border-width:2px;background:linear-gradient(160deg,rgba(255,107,26,.2) 0%,rgba(255,80,0,.07) 42%,var(--surf) 100%);box-shadow:0 0 0 1px rgba(255,107,26,.35),0 24px 70px rgba(255,107,26,.2)}
+/* La carte Pro prend le dessus sur desktop : légèrement plus grande, halo orange */
+@media(min-width:721px){
+  .plan-card.popular{transform:scale(1.03)}
+  .plan-card.popular:hover{transform:scale(1.03) translateY(-4px);box-shadow:0 0 0 1px rgba(255,107,26,.45),0 30px 80px rgba(255,107,26,.28)}
+}
+.plan-badge{position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:linear-gradient(90deg,#ff6b1a,#ff3d00);color:#fff;font-size:10px;font-weight:800;font-family:var(--m);padding:5px 18px;border-radius:20px;letter-spacing:1.5px;text-transform:uppercase;white-space:nowrap;box-shadow:0 4px 16px rgba(255,80,0,.45);overflow:hidden}
+.plan-badge::after{content:'';position:absolute;top:0;left:-60%;width:45%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.5),transparent);animation:badgeShine 3.2s ease-in-out infinite}
+@keyframes badgeShine{0%{left:-60%}55%,100%{left:130%}}
+.plan-feat-head{font-family:var(--m);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--ora);padding-top:2px}
+.plan-card.popular .plan-features li i.ti-check{color:var(--ora)}
 /* Promo : -50% / -70% first 2 months */
-.plan-promo{display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,rgba(34,214,160,.14),rgba(34,214,160,.06));border:1px solid rgba(34,214,160,.35);border-radius:10px;padding:9px 12px;margin-bottom:16px}
+.plan-promo{display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,rgba(34,214,160,.18),rgba(34,214,160,.05));border:1px solid rgba(34,214,160,.45);border-radius:12px;padding:11px 14px;margin-bottom:16px;box-shadow:0 4px 18px rgba(34,214,160,.1)}
 .plan-promo-tag{flex-shrink:0;background:var(--grn);color:#04150f;font-size:11px;font-weight:800;font-family:var(--m);padding:3px 8px;border-radius:6px;letter-spacing:.5px}
 .plan-promo-txt{font-size:11.5px;line-height:1.4;color:var(--txt2)}
 .plan-promo-txt strong{color:var(--grn)}
@@ -318,7 +327,7 @@ h2 em{font-style:normal;color:var(--ora)}
 .plan-price .period{font-size:13px;color:var(--muted);font-family:var(--m)}
 .plan-desc{font-size:13px;color:var(--muted);margin-bottom:28px;min-height:38px;line-height:1.6}
 .plan-divider{height:1px;background:var(--bdr);margin-bottom:24px}
-.plan-features{list-style:none;display:flex;flex-direction:column;gap:10px;margin-bottom:32px}
+.plan-features{list-style:none;display:flex;flex-direction:column;gap:11px;margin-bottom:32px;flex:1}
 .plan-features li{display:flex;align-items:flex-start;gap:9px;font-size:13px;color:var(--txt2)}
 .plan-features li i{font-size:15px;color:var(--grn);flex-shrink:0;margin-top:1px}
 .plan-features li.off{color:var(--muted)}
@@ -1524,7 +1533,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
 <section id="pricing">
   <div class="section-label center">Tarifs</div>
   <h2 class="center">Simple, <em>transparent.</em></h2>
-  <p class="section-sub center" style="max-width:560px;margin-left:auto;margin-right:auto">Commencez gratuitement. Passez au Pro quand vous en avez besoin. Annulez a tout moment.</p>
+  <p class="section-sub center" style="max-width:560px;margin-left:auto;margin-right:auto">Gratuit pour commencer. Pro quand ça tourne. Annulable quand vous voulez.</p>
 
   <div class="promo-banner fade-up">
     <i class="ti ti-gift"></i>
@@ -1537,8 +1546,8 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
     <div class="plan-card fade-up">
       <div class="plan-name">Gratuit</div>
       <div class="plan-price">
-        <span class="currency">€</span>
         <span class="amount">0</span>
+        <span class="currency">€</span>
         <span class="period">/ mois</span>
       </div>
       <div class="plan-annual">Pour toujours &mdash; sans carte bancaire</div>
@@ -1566,19 +1575,20 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
       <div class="plan-badge">Tout inclus</div>
       <div class="plan-name" style="color:var(--ora)">Pro</div>
       <div class="plan-price">
-        <span class="currency" style="color:var(--ora)">€</span>
         <span class="amount" style="color:#ff5a00;text-shadow:0 0 30px rgba(255,80,0,.3)">11,99</span>
+        <span class="currency" style="color:var(--ora)">€</span>
         <span class="period">/ mois</span>
       </div>
       <div class="plan-annual"><i class="ti ti-tag" style="font-size:10px"></i> ou <strong>119 € / an</strong> — 2 mois offerts (~9,92 €/mois)</div>
       <div class="plan-tax">Soit <strong>~8,99 €/mois</strong> apres deduction IS 25 %<br/><span style="font-size:10px;opacity:.75">(charge 100 % deductible — art. 39 CGI)</span></div>
       <div class="plan-promo">
         <span class="plan-promo-tag">&minus;50 %</span>
-        <span class="plan-promo-txt">Saison d'été : <strong>5,99 €/mois</strong> les 2 premiers mois</span>
+        <span class="plan-promo-txt">Saison d'été : <s style="opacity:.55">11,99 €</s> <strong>5,99 €/mois</strong> les 2 premiers mois</span>
       </div>
       <p class="plan-desc">Toutes les fonctionnalités de PatchFlow, sans aucune limite. Pour les techniciens qui veulent travailler au plus haut niveau, sur tous leurs shows.</p>
       <div class="plan-divider" style="background:rgba(255,80,0,.35)"></div>
       <ul class="plan-features">
+        <li class="plan-feat-head">Tout du Gratuit, plus :</li>
         <li><i class="ti ti-check"></i><span><strong>Shows &amp; canaux illimités</strong></span></li>
         <li><i class="ti ti-check"></i><span><strong>PDF sans filigrane</strong> + champs complets</span></li>
         <li><i class="ti ti-check"></i><span><strong>Multi-scènes</strong> — plusieurs synoptiques &amp; plans par show</span></li>
@@ -1591,6 +1601,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
         <li><i class="ti ti-check"></i><span>Support prioritaire</span></li>
       </ul>
       <a class="btn btn-ora" href="app.html" style="width:100%;justify-content:center"><i class="ti ti-rocket"></i>Profiter du &minus;50 %</a>
+      <div style="margin-top:12px;text-align:center;font-size:11px;color:var(--muted);font-family:var(--m)">Sans engagement · annulable en 2 clics</div>
     </div>
 
   </div>
@@ -1614,8 +1625,8 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
       <div class="plan-ent-meta">
         <div class="plan-name" style="margin-bottom:10px">Entreprise</div>
         <div class="plan-price" style="margin-bottom:4px">
-          <span class="currency">€</span>
           <span class="amount" style="font-size:40px">50</span>
+          <span class="currency">€</span>
           <span class="period">+ / mois</span>
         </div>
         <div class="plan-tax" style="margin-bottom:12px">Soit <strong>~37,50 €/mois</strong> apres deduction IS 25 %<br/><span style="font-size:10px;opacity:.75">(charge deductible — art. 39 CGI)</span></div>
