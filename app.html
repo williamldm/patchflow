@@ -5196,7 +5196,7 @@ td{padding:4px 7px;border-bottom:1px solid #f0eee8;vertical-align:middle}
 function _loadRiderConfig(){
   var cfg=CUR_SHOW&&CUR_SHOW.stage_data&&CUR_SHOW.stage_data.rider;
   if(!cfg)return;
-  if(cfg.sections&&cfg.sections.length){
+  if(cfg.sections&&cfg.sections.length>1){
     Object.keys(_riderSections).forEach(function(k){_riderSections[k]=cfg.sections.indexOf(k)>=0;});
     _syncRiderBtns();
   }
@@ -14973,7 +14973,7 @@ async function openRecapMatos(){
         /* Pour un ?link=, les sections/config viennent de overrideRider */
         if(linkId&&_prj.data.overrideRider){
           var or=_prj.data.overrideRider;
-          sections=or.sections&&or.sections.length?or.sections:['il'];
+          sections=or.sections&&or.sections.length>1?or.sections:or.sections&&or.sections.length===1&&or.sections[0]!=='il'?or.sections:['il','out','syno','stage','site'];
           rTitle=or.title||'';rNote=or.note||'';rInfo=or.info||'';
           rFiles=or.files||[];
           /* Injecter les snapshots dans le preShow.stage_data.rider pour que
@@ -14991,7 +14991,7 @@ async function openRecapMatos(){
     document.getElementById('app').style.display='';
     if(!sections){
       var cfg=(preShow&&preShow.stage_data&&preShow.stage_data.rider)||{};
-      sections=cfg.sections&&cfg.sections.length?cfg.sections:['il'];
+      sections=cfg.sections&&cfg.sections.length>1?cfg.sections:['il','out','syno','stage','site'];
       rTitle=cfg.title||'';rNote=cfg.note||'';rInfo=cfg.info||'';rFiles=cfg.files||[];
     }
   }else{
