@@ -14956,13 +14956,26 @@ async function openRecapMatos(){
     }
     body.innerHTML=html;
   }catch(err){
-    body.innerHTML='<div style="color:var(--err);padding:20px;text-align:center;font-size:12px">Erreur : '+err.message+'</div>';
+    body.innerHTML='<div style="color:var(--err);padding:20px;text-align:center;font-size:12px">Erreur : '+_fEsc(err.message)+'</div>';
   }
 }
 
 // Share-view mode
 (async function checkShareMode(){
   const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  /* Échappement pour valeur injectée dans une chaîne JS d'un handler inline
+     (onclick="fn('...')") : esc() ne neutralise pas l'apostrophe, qui permet
+     de sortir de la chaîne JS → XSS stocké. Backslash d'abord, puis quote,
+     puis les caractères HTML (l'attribut est décodé avant l'exécution JS). */
+  const jsq=s=>String(s??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  /* Source d'image sûre : les snapshots (site/stage/synoptique) viennent de la
+     config stockée en base — contrôlée par le créateur du lien. On n'accepte
+     que des data-URL image base64 ou du https, sinon chaîne vide. */
+  const safeSrc=u=>{
+    u=String(u||'');
+    return (/^data:image\/(png|jpe?g|webp|gif);base64,[a-z0-9+/=\s]+$/i.test(u)||/^https:\/\//i.test(u))?esc(u):'';
+  };
   const p=new URLSearchParams(window.location.search);
   var isMobile=window.innerWidth<640;
 
@@ -15237,7 +15250,7 @@ async function openRecapMatos(){
     var html='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">';
     scenes.forEach(function(s){
       var active=s.id===cur;
-      html+='<button onclick="_svSelectScene(\''+esc(sceneType)+'\',\''+esc(s.id)+'\')" '
+      html+='<button onclick="_svSelectScene(\''+jsq(sceneType)+'\',\''+jsq(s.id)+'\')" '
         +'style="padding:6px 12px;border:1px solid '+(active?'#ff6b1a':'#1e2a3a')+';'
         +'background:'+(active?'rgba(255,107,26,.12)':'transparent')+';'
         +'color:'+(active?'#ff6b1a':'#5a6a80')+';border-radius:6px;font-size:11px;'
@@ -15275,7 +15288,7 @@ async function openRecapMatos(){
       h+='<div style="margin-bottom:12px;display:flex;gap:6px;flex-wrap:wrap">';
       IL_PATCHES.forEach(function(p){
         var active=p.id===CUR_PATCH_ID;
-        h+='<button onclick="_svSelectPatch(\''+esc(p.id)+'\')" style="padding:6px 12px;border:1px solid '+(active?'#ff6b1a':'#1e2a3a')+';background:'+(active?'var(--ora-d)':'transparent')+';color:'+(active?'#ff6b1a':'#5a6a80')+';border-radius:6px;font-size:11px;font-weight:'+(active?'700':'500')+';cursor:pointer;font-family:var(--f);transition:all .1s">'+esc(p.name)+'</button>';
+        h+='<button onclick="_svSelectPatch(\''+jsq(p.id)+'\')" style="padding:6px 12px;border:1px solid '+(active?'#ff6b1a':'#1e2a3a')+';background:'+(active?'var(--ora-d)':'transparent')+';color:'+(active?'#ff6b1a':'#5a6a80')+';border-radius:6px;font-size:11px;font-weight:'+(active?'700':'500')+';cursor:pointer;font-family:var(--f);transition:all .1s">'+esc(p.name)+'</button>';
       });
       h+='</div>';
     }
@@ -15363,7 +15376,7 @@ async function openRecapMatos(){
         // Image scrollable horizontale — min 680px pour lisibilite
         var minW=Math.max(680, Math.round(window.screen.width*1.8));
         h+='<div style="overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;border-radius:10px;border:1px solid #1e2a3a;background:#080b12">'
-          +'<img src="'+dataUrl+'" width="'+minW+'" style="height:auto;display:block;border-radius:10px;min-width:'+minW+'px;max-width:none"/>'
+          +'<img src="'+safeSrc(dataUrl)+'" width="'+minW+'" style="height:auto;display:block;border-radius:10px;min-width:'+minW+'px;max-width:none"/>'
         +'</div>';
         // Overlay plein ecran
         h+='<div id="_svfsov" style="display:none;position:fixed;inset:0;background:#000;z-index:9999;flex-direction:column;touch-action:pan-x pan-y pinch-zoom">'
@@ -15375,7 +15388,7 @@ async function openRecapMatos(){
           +'</div>'
           // Zone image avec scroll + pinch
           +'<div style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y pinch-zoom;display:flex;align-items:center;justify-content:center;padding:60px 0 20px">'
-            +'<img src="'+dataUrl+'" style="max-width:none;width:'+Math.round(imgW/1.5)+'px;height:auto;display:block;border-radius:6px"/>'
+            +'<img src="'+safeSrc(dataUrl)+'" style="max-width:none;width:'+Math.round(imgW/1.5)+'px;height:auto;display:block;border-radius:6px"/>'
           +'</div>'
           +'<div style="text-align:center;padding:10px;font-size:9px;color:rgba(255,255,255,.25);font-family:DM Mono,monospace">Pincez pour zoomer · Glissez pour naviguer</div>'
         +'</div>';
@@ -15384,7 +15397,7 @@ async function openRecapMatos(){
       } else {
         cb(_showMeta+_svSceneSelector('stage')
           +'<div style="overflow:auto;border-radius:10px;border:1px solid #1e2a3a;background:#0a0f1c">'
-          +'<img src="'+dataUrl+'" style="max-width:100%;display:block;border-radius:10px"/>'
+          +'<img src="'+safeSrc(dataUrl)+'" style="max-width:100%;display:block;border-radius:10px"/>'
           +'</div>'
           +'<div style="margin-top:14px;text-align:center;font-size:10px;color:#3a4a5a;font-family:DM Mono,monospace">PatchFlow · Plan de scene · '+now+'</div>');
       }
@@ -15646,7 +15659,7 @@ async function openRecapMatos(){
         +'</button>'
       +'</div>'
       +'<div style="overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;border-radius:10px;border:1px solid #1e2a3a;background:#080b12">'
-        +'<img src="'+dataUrl+'" width="'+minW+'" style="height:auto;display:block;border-radius:10px;min-width:'+minW+'px;max-width:none"/>'
+        +'<img src="'+safeSrc(dataUrl)+'" width="'+minW+'" style="height:auto;display:block;border-radius:10px;min-width:'+minW+'px;max-width:none"/>'
       +'</div>'
       +'<div id="_svfsov2" style="display:none;position:fixed;inset:0;background:#000;z-index:9999;flex-direction:column;touch-action:pan-x pan-y pinch-zoom">'
         +'<div style="position:absolute;top:0;left:0;right:0;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:linear-gradient(#000a 0%,transparent 100%)">'
@@ -15654,7 +15667,7 @@ async function openRecapMatos(){
           +'<button onclick="document.getElementById(\'_svfsov2\').style.display=\'none\'" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;font-size:16px;width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center">&#10005;</button>'
         +'</div>'
         +'<div style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y pinch-zoom;display:flex;align-items:center;justify-content:center;padding:60px 0 20px">'
-          +'<img src="'+dataUrl+'" style="max-width:none;width:80vw;height:auto;display:block;border-radius:6px"/>'
+          +'<img src="'+safeSrc(dataUrl)+'" style="max-width:none;width:80vw;height:auto;display:block;border-radius:6px"/>'
         +'</div>'
         +'<div style="text-align:center;padding:10px;font-size:9px;color:rgba(255,255,255,.25);font-family:DM Mono,monospace">Pincez pour zoomer · Glissez pour naviguer</div>'
       +'</div>'
@@ -15666,7 +15679,7 @@ async function openRecapMatos(){
         ? 'width:'+dispW+'px;max-width:100%;height:auto;display:block;margin:0 auto;border-radius:8px'
         : 'max-width:100%;display:block;border-radius:8px';
       return '<div style="overflow:auto;border-radius:10px;border:1px solid #1e2a3a;background:#ffffff;padding:18px">'
-        +'<img src="'+dataUrl+'" style="'+imgStyle+'"/>'
+        +'<img src="'+safeSrc(dataUrl)+'" style="'+imgStyle+'"/>'
         +'</div>'
         +'<div style="margin-top:14px;text-align:center;font-size:10px;color:#3a4a5a;font-family:DM Mono,monospace">PatchFlow · Plan de site · '+now+'</div>';
     }
@@ -15827,7 +15840,7 @@ async function openRecapMatos(){
         tls.forEach(function(tl,i){nodeSvg+='<text x="'+x+'" y="'+(y+16+i*18)+'" font-family="Outfit,sans-serif" font-size="14" font-weight="700" fill="#1d3a5f">'+esc(tl)+'</text>';});
       } else if(n.type==='image_frame'){
         if(n.iconImg){
-          nodeSvg+='<image x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" href="'+n.iconImg+'" xlink:href="'+n.iconImg+'" preserveAspectRatio="xMidYMid meet"/>';
+          nodeSvg+='<image x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" href="'+safeSrc(n.iconImg)+'" xlink:href="'+safeSrc(n.iconImg)+'" preserveAspectRatio="xMidYMid meet"/>';
           if(n.label)nodeSvg+='<text x="'+(x+w/2)+'" y="'+(y+h+14)+'" text-anchor="middle" font-family="Outfit,sans-serif" font-size="11" fill="#1d3a5f">'+esc(n.label)+'</text>';
         }
       } else {
@@ -15838,7 +15851,7 @@ async function openRecapMatos(){
         if(n.iconImg){
           var iw2=Math.min(iconAreaH,w-20),ih2=iconAreaH;
           var ix2=(x+(w-iw2)/2),iy2=iconAreaY;
-          nodeSvg+='<image x="'+ix2+'" y="'+iy2+'" width="'+iw2+'" height="'+ih2+'" href="'+n.iconImg+'" xlink:href="'+n.iconImg+'" preserveAspectRatio="xMidYMid meet"/>';
+          nodeSvg+='<image x="'+ix2+'" y="'+iy2+'" width="'+iw2+'" height="'+ih2+'" href="'+safeSrc(n.iconImg)+'" xlink:href="'+safeSrc(n.iconImg)+'" preserveAspectRatio="xMidYMid meet"/>';
         }
         /* Use stored iconSvg; fall back to live LIB lookup for older nodes */
         var _icSvg=n.iconImg?null:(n.iconSvg||(window.SynPro&&typeof window.SynPro.getIconByType==='function'?window.SynPro.getIconByType(n.type):''));
