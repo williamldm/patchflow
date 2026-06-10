@@ -3509,8 +3509,12 @@ async function leaveShow(showId,e){
   if(e) e.stopPropagation();
   const s=SHOWS.find(x=>x.id===showId);
   if(!confirm('Quitter le show "'+( s?.name||'ce show')+'" ?\nVous perdrez l\'accès à ce show.')) return;
-  const {error}=await sb.from('show_members').delete().eq('show_id',showId).eq('user_id',ME.id);
+  /* .select() pour vérifier qu'une ligne a VRAIMENT été supprimée : un DELETE
+     bloqué par RLS renvoie 0 ligne SANS erreur → ne plus afficher un faux
+     « quitté » qui laissait le show réapparaître au rechargement. */
+  const {data:del,error}=await sb.from('show_members').delete().eq('show_id',showId).eq('user_id',ME.id).select('id');
   if(error){toast('Erreur : '+error.message);return;}
+  if(!del||!del.length){toast('Impossible de quitter ce show (droits insuffisants).');return;}
   // Retirer le show de la liste locale
   SHOWS=SHOWS.filter(x=>x.id!==showId);
   if(CUR_SHOW?.id===showId){
