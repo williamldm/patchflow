@@ -14946,6 +14946,9 @@ async function openRecapMatos(){
 
   // Variables — resolved from DB
   var sections,rTitle='',rNote='',rInfo='',rFiles=[];
+  /* Nom du show (résolu au pré-chargement) — sert à éviter le doublon
+     titre-du-rider / nom-du-show dans le bandeau du haut. */
+  var _preShowName='';
   /* showId utilisé pour les actions B2 publiques */
   var _shareShowId=sid||'';
   /* Variables pour le switching multi-patches/scènes */
@@ -14984,6 +14987,7 @@ async function openRecapMatos(){
         }
         /* showId pour les actions B2 */
         if(preShow) _shareShowId=preShow.id;
+        if(preShow) _preShowName=preShow.name||'';
       }
     }catch(e){}
     tmp.remove();
@@ -15037,7 +15041,7 @@ async function openRecapMatos(){
   if(!rFiles.length) allSections=allSections.filter(function(s){return s!=='files';});
   var tabsHtml='';
   if(allSections.length>1){
-    tabsHtml='<div id="sv-tabs" style="position:relative;display:flex;border-bottom:1px solid #1e2a3a;margin-bottom:0;overflow-x:auto;background:#080e1a;padding:0 '+(isMobile?'4px':'14px')+'">';
+    tabsHtml='<div id="sv-tabs" style="position:relative;flex-shrink:0;display:flex;border-bottom:1px solid #1e2a3a;margin-bottom:0;overflow-x:auto;background:#080e1a;padding:0 '+(isMobile?'4px':'14px')+'">';
     allSections.filter(function(s){return _VALID_SEC_SET.has(s);}).forEach(function(s,i){
       var active=i===0;
       tabsHtml+='<button id="svt-'+s+'" style="'+(active?SV_TABCSS_ON:SV_TABCSS)+'" onclick="_svSwitch(\''+esc(s)+'\')">'
@@ -15051,6 +15055,10 @@ async function openRecapMatos(){
   wrap.style.cssText='min-height:100vh;background:#0a0f1c;color:#e8edf8;font-family:Outfit,sans-serif;position:relative;display:flex;flex-direction:column';
   /* Petit logo réutilisé (header mobile + bandeau bas de page) */
   var SV_LOGO_SM='<svg width="22" height="22" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M70 60 C100 60 100 140 130 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round"/><path d="M130 60 C100 60 100 140 70 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round" opacity=".45"/><circle cx="60" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="60" r="5" fill="#FF6B2B"/><circle cx="140" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="60" r="5" fill="#FF6B2B"/><circle cx="60" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="140" r="5" fill="#FF6B2B"/><circle cx="140" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="140" r="5" fill="#FF6B2B"/></svg>';
+  /* Anti-doublon : si le titre du rider est identique au nom du show (déjà
+     affiché en gros dans le bandeau méta plus bas), on ne le répète pas
+     dans le bandeau du haut — on garde seulement note/infos s'il y en a. */
+  var _bannerTitle=(rTitle&&_preShowName&&rTitle.trim().toLowerCase()===_preShowName.trim().toLowerCase())?'':rTitle;
   wrap.innerHTML=
     '<style>@keyframes svPulse{0%,100%{opacity:1}50%{opacity:.3}}@keyframes svSpin{to{transform:rotate(360deg)}}</style>'
     /* Halo orange discret en haut de page (même signature visuelle que la landing) */
@@ -15064,9 +15072,9 @@ async function openRecapMatos(){
     +'<div style="display:inline-flex;align-items:center;gap:6px;font-size:'+(isMobile?'9':'10')+'px;font-family:DM Mono,monospace;background:rgba(34,214,160,.1);color:#22d6a0;border:1px solid rgba(34,214,160,.25);border-radius:20px;padding:'+(isMobile?'3px 9px':'4px 12px')+'"><span style="width:6px;height:6px;border-radius:50%;background:#22d6a0;animation:svPulse 2s infinite;flex-shrink:0"></span>'+(isMobile?'Live':'À jour en temps réel')+'</div>'
     +(isMobile?'':'<a href="/" style="display:inline-flex;align-items:center;gap:6px;background:#ff6b1a;color:#000;font-size:11.5px;font-weight:700;padding:7px 16px;border-radius:8px;text-decoration:none;font-family:Outfit,sans-serif;transition:background .15s" onmouseover="this.style.background=\'#ff8c42\'" onmouseout="this.style.background=\'#ff6b1a\'">Créer mon rider</a>')
     +'</div>'
-    +(rTitle||rNote||rInfo?
+    +(_bannerTitle||rNote||rInfo?
       '<div style="position:relative;background:linear-gradient(180deg,#0a1322,#080e1a);border-bottom:1px solid #1e2a3a;padding:'+(isMobile?'14px 14px':'18px 28px')+'">'
-      +(rTitle?'<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><span style="width:4px;height:'+(isMobile?'16':'20')+'px;background:linear-gradient(180deg,#ff6b1a,#ff3d00);border-radius:2px;flex-shrink:0"></span><span style="font-size:'+(isMobile?'17':'20')+'px;font-weight:800;color:#f0f4ff;letter-spacing:-.3px">'+esc(rTitle)+'</span></div>':'')
+      +(_bannerTitle?'<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><span style="width:4px;height:'+(isMobile?'16':'20')+'px;background:linear-gradient(180deg,#ff6b1a,#ff3d00);border-radius:2px;flex-shrink:0"></span><span style="font-size:'+(isMobile?'17':'20')+'px;font-weight:800;color:#f0f4ff;letter-spacing:-.3px">'+esc(_bannerTitle)+'</span></div>':'')
       +(rNote?'<div style="font-size:'+(isMobile?'11':'12')+'px;color:#8899aa;line-height:1.6;white-space:pre-wrap;margin-bottom:'+(rInfo?'6px':'0')+'">'+esc(rNote)+'</div>':'')
       +(rInfo?'<div style="font-size:10px;font-family:DM Mono,monospace;color:#5a7a9a;margin-top:4px">'+esc(rInfo)+'</div>':'')
       +'</div>'
