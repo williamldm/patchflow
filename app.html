@@ -15024,7 +15024,16 @@ async function openRecapMatos(){
   var SV_TABCSS_ON='display:inline-flex;align-items:center;gap:'+(isMobile?'4':'6')+'px;padding:'+(isMobile?'10px 12px':'12px 18px')+';background:linear-gradient(180deg,rgba(255,107,26,.1),transparent);border:none;border-bottom:2px solid #ff6b1a;color:#ff6b1a;font-family:DM Mono,monospace;font-size:'+(isMobile?'10':'11')+'px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;margin-bottom:-1px;white-space:nowrap;border-radius:8px 8px 0 0';
 
   var secLabels={il:'Input List',out:'Output List',syno:'Synoptique',stage:'Plan de scene',site:'Plan de site',cloud:'Fichiers',files:'Pieces jointes'};
-  var secIcons={il:'&#9776;',out:'&#9654;',syno:'&#9762;',stage:'&#9646;',site:'&#127963;',cloud:'&#9729;',files:'&#128206;'};
+  /* Icônes Tabler (même jeu que le builder) — plus pro que les symboles Unicode */
+  var secIcons={
+    il:'<i class="ti ti-list-numbers" style="font-size:15px"></i>',
+    out:'<i class="ti ti-list-letters" style="font-size:15px"></i>',
+    syno:'<i class="ti ti-topology-star-3" style="font-size:15px"></i>',
+    stage:'<i class="ti ti-map-2" style="font-size:15px"></i>',
+    site:'<i class="ti ti-building-stadium" style="font-size:15px"></i>',
+    cloud:'<i class="ti ti-folders" style="font-size:15px"></i>',
+    files:'<i class="ti ti-paperclip" style="font-size:15px"></i>'
+  };
 
   var _VALID_SEC_SET=new Set(['il','out','syno','stage','site','cloud','files']);
 
@@ -15045,7 +15054,7 @@ async function openRecapMatos(){
     allSections.filter(function(s){return _VALID_SEC_SET.has(s);}).forEach(function(s,i){
       var active=i===0;
       tabsHtml+='<button id="svt-'+s+'" style="'+(active?SV_TABCSS_ON:SV_TABCSS)+'" onclick="_svSwitch(\''+esc(s)+'\')">'
-        +(secIcons[s]||'')+' '+(secLabels[s]||'')+'</button>';
+        +(secIcons[s]||'')+'<span>'+(secLabels[s]||'')+'</span></button>';
     });
     tabsHtml+='</div>';
   }
@@ -15953,13 +15962,26 @@ async function openRecapMatos(){
   }
 
   function _buildCloudHTML(files, path){
+    /* Icône Tabler + couleur par type de fichier (rendu pro, cohérent app) */
     var FTYPE=function(name){
       var ext=(name.split('.').pop()||'').toLowerCase();
-      var map={mp3:'🎵',wav:'🎵',aiff:'🎵',flac:'🎵',aac:'🎵',ogg:'🎵',
-               mp4:'🎬',mov:'🎬',avi:'🎬',jpg:'🖼',jpeg:'🖼',png:'🖼',gif:'🖼',webp:'🖼',
-               xlsx:'📊',xls:'📊',csv:'📊',docx:'📝',doc:'📝',pdf:'📄',zip:'🗜',rar:'🗜',
-               ptx:'🎛',als:'🎛',rpp:'🎛',logicx:'🎛'};
-      return map[ext]||'📄';
+      var au=['ti-music','#a78bfa'],vi=['ti-movie','#f472b6'],im=['ti-photo','#34d399'],
+          xl=['ti-file-spreadsheet','#22c55e'],dc=['ti-file-text','#60a5fa'],
+          zp=['ti-file-zip','#eab308'],se=['ti-adjustments-bolt','#fb923c'];
+      var map={mp3:au,wav:au,aiff:au,flac:au,aac:au,ogg:au,
+               mp4:vi,mov:vi,avi:vi,
+               jpg:im,jpeg:im,png:im,gif:im,webp:im,svg:im,
+               xlsx:xl,xls:xl,csv:xl,
+               docx:dc,doc:dc,txt:dc,
+               pdf:['ti-file-type-pdf','#f87171'],
+               zip:zp,rar:zp,'7z':zp,
+               ptx:se,als:se,rpp:se,logicx:se};
+      return map[ext]||['ti-file','#8899aa'];
+    };
+    /* Pastille d'icône carrée (dossier/fichier) */
+    var _icoBox=function(cls,color,bg){
+      return '<span style="display:inline-flex;width:36px;height:36px;border-radius:9px;background:'+bg+';align-items:center;justify-content:center;flex-shrink:0">'
+        +'<i class="ti '+cls+'" style="color:'+color+';font-size:18px"></i></span>';
     };
     var folders=files.filter(function(f){return f.id===null;});
     var fileItems=files.filter(function(f){return f.id!==null;});
@@ -15990,10 +16012,11 @@ async function openRecapMatos(){
     folders.forEach(function(f){
       var newPath=JSON.stringify(path.concat([f.name]));
       h+='<div class="_cloud_nav" data-path="'+_fEsc(newPath)+'" '
-        +'style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:#0d1220;border:1px solid #1e2a3a;border-radius:10px;cursor:pointer">'
-        +'<span style="font-size:20px">📁</span>'
+        +'style="display:flex;align-items:center;gap:12px;padding:9px 14px;background:#0d1220;border:1px solid #1e2a3a;border-radius:11px;cursor:pointer;transition:border-color .12s,background .12s" '
+        +'onmouseover="this.style.borderColor=\'#ff6b1a\';this.style.background=\'#111a2c\'" onmouseout="this.style.borderColor=\'#1e2a3a\';this.style.background=\'#0d1220\'">'
+        +_icoBox('ti-folder','#f5c542','rgba(245,197,66,.12)')
         +'<span style="font-size:13px;font-weight:600;color:#e2e8f0">'+esc(f.name)+'</span>'
-        +'<span style="margin-left:auto;font-size:10px;color:#3a4a5a;font-family:DM Mono,monospace">Ouvrir →</span>'
+        +'<span style="margin-left:auto;display:inline-flex;align-items:center;gap:4px;font-size:10px;color:#5a6a80;font-family:DM Mono,monospace">Ouvrir<i class="ti ti-arrow-right" style="font-size:13px"></i></span>'
         +'</div>';
     });
     /* Fichiers — data-fp pour téléchargement */
@@ -16001,16 +16024,17 @@ async function openRecapMatos(){
       var name=f.name.replace(/^\d+_/,'');
       var size=f.metadata&&f.metadata.size?_cloudFmtSize(f.metadata.size):'';
       var fp=_cloudPrefix(path)+f.name;
-      var ico=FTYPE(name);
-      h+='<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:#0d1220;border:1px solid #1e2a3a;border-radius:10px">'
-        +'<span style="font-size:18px;flex-shrink:0">'+ico+'</span>'
+      var ft=FTYPE(name);
+      h+='<div style="display:flex;align-items:center;gap:12px;padding:9px 14px;background:#0d1220;border:1px solid #1e2a3a;border-radius:11px">'
+        +_icoBox(ft[0],ft[1],'rgba(255,255,255,.04)')
         +'<div style="min-width:0;flex:1">'
           +'<div style="font-size:12px;font-weight:600;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(name)+'</div>'
-          +(size?'<div style="font-size:10px;color:#5a6a80;font-family:DM Mono,monospace">'+esc(size)+'</div>':'')
+          +(size?'<div style="font-size:10px;color:#5a6a80;font-family:DM Mono,monospace;margin-top:1px">'+esc(size)+'</div>':'')
         +'</div>'
         +'<button class="_cloud_dl" data-fp="'+_fEsc(fp)+'" data-name="'+_fEsc(name)+'" '
-          +'style="flex-shrink:0;background:#1e2a3a;border:1px solid #2d3d50;color:#c0d0e0;font-size:11px;padding:6px 12px;border-radius:7px;cursor:pointer;white-space:nowrap">'
-          +'⬇ Télécharger</button>'
+          +'style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px;background:#1e2a3a;border:1px solid #2d3d50;color:#c0d0e0;font-size:11px;font-weight:600;padding:6px 12px;border-radius:8px;cursor:pointer;white-space:nowrap;transition:all .12s" '
+          +'onmouseover="this.style.background=\'#ff6b1a\';this.style.color=\'#000\';this.style.borderColor=\'#ff6b1a\'" onmouseout="this.style.background=\'#1e2a3a\';this.style.color=\'#c0d0e0\';this.style.borderColor=\'#2d3d50\'">'
+          +'<i class="ti ti-download" style="font-size:14px"></i>Télécharger</button>'
         +'</div>';
     });
     h+='</div>';
@@ -16133,7 +16157,12 @@ async function openRecapMatos(){
       if(t) t.style.cssText=s===sec?SV_TABCSS_ON:SV_TABCSS;
     });
     if(_paneCache[sec]!==undefined){
-      document.getElementById('sv-body').innerHTML=_paneCache[sec];
+      var _cb=document.getElementById('sv-body');
+      _cb.innerHTML=_paneCache[sec];
+      /* Le cloud pane utilise la délégation d'événements (addEventListener) ;
+         restaurer le HTML depuis le cache perd les handlers → réattacher,
+         sinon on ne peut plus ouvrir de dossier après un changement d'onglet. */
+      if(sec==='cloud') _cloudBindEvents(_cb);
       return;
     }
     document.getElementById('sv-body').innerHTML='<div style="text-align:center;color:#5a6a80;font-family:DM Mono,monospace;margin-top:60px">Chargement...</div>';
