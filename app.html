@@ -7204,7 +7204,18 @@ function doPDF(){
   const _inclLink  = document.getElementById('pdf-incl-link')?.checked !== false;
   const _inclRecap = document.getElementById('pdf-incl-recap')?.checked === true;
   if(_inclRecap && !canDo('recap_matos')){showUpgradeModal('recap_matos');return;}
-  const _shareUrl = _inclLink ? (document.getElementById('slink-url')?.textContent || '') : '';
+  /* Le lien/QR intégré au PDF doit pointer vers la vue correspondant AU document
+     exporté. Avant : on lisait toujours slink-url, figé sur ?tab=il → le QR d'une
+     Output List ouvrait l'Input List (« on ne voit que l'input »). On construit
+     donc l'URL selon le type :
+       - out  → onglets Output + Input, Output actif
+       - both → onglets Input + Output, Input actif
+       - in   → Input seul (comportement d'origine) */
+  var _slBase = window.location.origin+window.location.pathname+'?view='+(CUR_SHOW?.id||'');
+  const _shareUrl = !_inclLink ? ''
+    : type==='out'  ? _slBase+'&sections=out,il'
+    : type==='both' ? _slBase+'&sections=il,out'
+    :                 _slBase+'&tab=il';
   const _accentColor = brand.color||'#ff6b1a';
   const recapHtml = _inclRecap ? _buildPdfRecapBlock(CHS, _accentColor) : '';
   meta.shareLink = _shareUrl;
