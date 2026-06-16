@@ -37,6 +37,73 @@ const SKIP = new Set(['.keep', '.emptyFolderPlaceholder']);
 // UUID strict (les showId sont des UUID v4)
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/* ════════════════════════════════════════════════════════════════════
+   SÉCURITÉ UPLOAD — large mais sûr.
+   - On accepte un très large éventail de formats (images, audio, vidéo,
+     docs bureautiques, archives, sessions DAW/console…).
+   - On REFUSE les exécutables / scripts (jamais hébergés sur le bucket).
+   - On ne fait JAMAIS confiance au Content-Type fourni par le client :
+     on impose un type sûr déterminé par l'extension.
+   - Les formats prévisualisables (image/pdf/audio/vidéo/texte) sont servis
+     "inline" ; TOUT le reste est forcé en téléchargement (Content-Disposition
+     attachment) et neutralisé en application/octet-stream → un HTML/SVG/script
+     uploadé ne peut jamais s'exécuter depuis le bucket (anti-XSS / anti-abus).
+   ════════════════════════════════════════════════════════════════════ */
+const INLINE_SAFE_EXT = new Set([
+  'png','jpg','jpeg','gif','webp','bmp','pdf',
+  'mp4','webm','mov','m4v','mp3','wav','ogg','m4a','aac','flac',
+  'txt','csv',
+]);
+const INLINE_MIME: Record<string, string> = {
+  png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', gif:'image/gif', webp:'image/webp', bmp:'image/bmp',
+  pdf:'application/pdf',
+  mp4:'video/mp4', webm:'video/webm', mov:'video/quicktime', m4v:'video/mp4',
+  mp3:'audio/mpeg', wav:'audio/wav', ogg:'audio/ogg', m4a:'audio/mp4', aac:'audio/aac', flac:'audio/flac',
+  txt:'text/plain; charset=utf-8', csv:'text/csv; charset=utf-8',
+};
+const BLOCKED_EXT = new Set([
+  'exe','dll','com','bat','cmd','msi','scr','cpl','jar','app','apk','deb','rpm','dmg','pkg','bin',
+  'sh','bash','zsh','ps1','psm1','vbs','vbe','wsf','wsh','js','mjs','cjs','jse',
+  'php','phtml','phar','asp','aspx','jsp','jspx','cgi','pl','py','rb','lnk','reg','hta','gadget','htaccess',
+]);
+const MAX_UPLOAD_BYTES = 1024 * 1024 * 1024; // 1 Go / fichier (garde-fou serveur)
+
+function extOf(name: string): string {
+  const i = name.lastIndexOf('.');
+  return i >= 0 ? name.slice(i + 1).toLowerCase() : '';
+}
+function baseName(path: string): string {
+  return path.split('/').pop() || '';
+}
+/* Nom de fichier sûr : longueur, pas de caractères de contrôle, pas de séparateur */
+function safeFilename(name: string): boolean {
+  if (!name || name.length > 255) return false;
+  if (/[\x00-\x1f\x7f]/.test(name)) return false; // caractères de contrôle
+  if (name.includes('/') || name.includes('\\')) return false;
+  if (name === '.' || name === '..') return false;
+  return true;
+}
+/* Paramètres GET sécurisés : inline pour les formats prévisualisables, sinon
+   téléchargement forcé + Content-Type neutralisé → un fichier actif (html/svg/…)
+   ne peut jamais s'exécuter en s'ouvrant depuis le bucket. */
+function buildGetParams(path: string) {
+  const fname = baseName(path);
+  const ext = extOf(fname);
+  if (INLINE_SAFE_EXT.has(ext)) {
+    return {
+      Bucket: B2_BUCKET, Key: path,
+      ResponseContentType: INLINE_MIME[ext] || 'application/octet-stream',
+      ResponseContentDisposition: 'inline',
+    };
+  }
+  const safeName = fname.replace(/[\r\n"\\]/g, '_');
+  return {
+    Bucket: B2_BUCKET, Key: path,
+    ResponseContentType: 'application/octet-stream',
+    ResponseContentDisposition: 'attachment; filename="' + safeName + '"',
+  };
+}
+
 // ── Auth helper ──
 async function getUser(req: Request) {
   const auth = req.headers.get('Authorization');
@@ -131,8 +198,10 @@ serve(async (req) => {
       const cloudShared = (showRow?.stage_data?.rider?.sections || []).includes('cloud');
       const fileAllowed = cloudShared || allowedFiles.includes(path);
       if (!fileAllowed) return json({ error: 'Fichier non autorisé' }, 403);
-      // GetObjectCommand et getSignedUrl déjà importés statiquement en haut du fichier
-      const cmd = new GetObjectCommand({ Bucket: B2_BUCKET, Key: path });
+      // GET sécurisé (inline pour images/pdf/av, téléchargement forcé sinon).
+      // Important côté public : un destinataire non authentifié ne doit jamais
+      // pouvoir exécuter un html/svg piégé hébergé sur le bucket.
+      const cmd = new GetObjectCommand(buildGetParams(path));
       const url = await getSignedUrl(s3, cmd, { expiresIn: 3600 });
       return json({ data: { signedUrl: url }, error: null });
     }
@@ -262,22 +331,41 @@ serve(async (req) => {
 
     // ── upload-presigned : return a presigned PUT URL ──
     if (action === 'upload-presigned') {
-      const { path, contentType } = body as { path: string; contentType: string };
+      const { path, size } = body as { path: string; contentType?: string; size?: number };
       if (!path || !(await checkPath(path))) return deny();
+      // Validation chemin / nom de fichier (anti-traversal, anti caractères de contrôle)
+      if (path.includes('..') || path.includes('\\') || path.includes('//')) {
+        return json({ error: 'Chemin invalide' }, 400);
+      }
+      const fname = baseName(path);
+      if (!safeFilename(fname)) return json({ error: 'Nom de fichier invalide' }, 400);
+      const ext = extOf(fname);
+      // Bloquer les exécutables / scripts (jamais hébergés)
+      if (BLOCKED_EXT.has(ext)) {
+        return json({ error: 'Type de fichier non autorisé pour des raisons de sécurité (exécutable ou script).' }, 415);
+      }
+      // Garde-fou taille
+      if (typeof size === 'number' && size > MAX_UPLOAD_BYTES) {
+        return json({ error: 'Fichier trop volumineux (max 1 Go par fichier).' }, 413);
+      }
+      // On IGNORE le content-type client : type sûr imposé par l'extension.
+      // (inline pour les formats prévisualisables, octet-stream sinon)
+      const safeType = INLINE_MIME[ext] || 'application/octet-stream';
       const cmd = new PutObjectCommand({
         Bucket: B2_BUCKET,
         Key: path,
-        ContentType: contentType || 'application/octet-stream',
+        ContentType: safeType,
       });
       const url = await getSignedUrl(s3, cmd, { expiresIn: 3600 });
-      return json({ data: { uploadUrl: url, key: path }, error: null });
+      // contentType renvoyé : le client DOIT l'utiliser pour le PUT (sinon mismatch de signature)
+      return json({ data: { uploadUrl: url, key: path, contentType: safeType }, error: null });
     }
 
     // ── signed-url : presigned GET for download / view ──
     if (action === 'signed-url') {
       const { path, expiresIn } = body as { path: string; expiresIn?: number };
       if (!path || !(await checkPath(path))) return deny();
-      const cmd = new GetObjectCommand({ Bucket: B2_BUCKET, Key: path });
+      const cmd = new GetObjectCommand(buildGetParams(path));
       // Limiter la durée maximale d'un lien signé à 7 jours
       const exp = Math.min(Math.max(60, expiresIn ?? 3600), 604800);
       const url = await getSignedUrl(s3, cmd, { expiresIn: exp });

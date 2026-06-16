@@ -1488,6 +1488,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
               <button class="exp-item" onclick="openPDFModal('out');closeExpMenu('il-exp-menu')"><i class="ti ti-file-type-pdf"></i>Output List PDF</button>
               <div class="exp-sep"></div>
               <button class="exp-item" onclick="openRecapMatos();closeExpMenu('il-exp-menu')"><i class="ti ti-clipboard-list"></i>Recap matériels</button>
+              <button class="exp-item" onclick="openPrep();closeExpMenu('il-exp-menu')"><i class="ti ti-checklist"></i>Bon de préparation</button>
               <button class="exp-item" onclick="copyILShareLink();closeExpMenu('il-exp-menu')"><i class="ti ti-link"></i>Lien de partage</button>
               <div class="exp-sep"></div>
               <button class="exp-item" onclick="window.print();closeExpMenu('il-exp-menu')"><i class="ti ti-printer"></i>Imprimer</button>
@@ -2438,6 +2439,28 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
     <div class="modal-foot" style="justify-content:flex-end;gap:8px">
       <span id="recap-scope-lbl" style="font-size:10px;color:var(--muted);font-family:var(--m);margin-right:auto"></span>
       <button class="btn ghost sm" onclick="closeRecapModal()">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- BON DE PRÉPARATION — checklist matériel : vérifier que tout le matériel
+     de la fiche technique sera disponible et préparé -->
+<div class="modal-ov" id="prep-modal" onclick="if(event.target===this)closePrepModal()">
+  <div class="modal-box" style="width:700px;max-width:97vw;max-height:92vh;display:flex;flex-direction:column">
+    <div class="modal-head">
+      <i class="ti ti-checklist" style="font-size:15px;color:var(--ora)"></i>
+      <div class="modal-title">Bon de préparation</div>
+      <button class="btn ghost sm" onclick="closePrepModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div id="prep-head" style="padding:14px 20px 10px;border-bottom:1px solid var(--bdr);flex-shrink:0"></div>
+    <div id="prep-body" style="flex:1;overflow-y:auto;padding:14px 20px;min-height:120px">
+      <div class="loading"><div class="spinner"></div>Calcul en cours…</div>
+    </div>
+    <div class="modal-foot" style="gap:8px;flex-wrap:wrap">
+      <span id="prep-scope-lbl" style="font-size:10px;color:var(--muted);font-family:var(--m);margin-right:auto"></span>
+      <button class="btn ghost sm" onclick="resetPrep()" title="Tout décocher"><i class="ti ti-rotate-2"></i>Réinitialiser</button>
+      <button class="btn ghost sm" onclick="printPrep()"><i class="ti ti-printer"></i>Imprimer / PDF</button>
+      <button class="btn sm" id="prep-verify-btn" onclick="toggleVerifyAllPrep()"><i class="ti ti-circle-check"></i>Tout vérifié</button>
     </div>
   </div>
 </div>
@@ -12900,11 +12923,16 @@ const B2Storage={
     const {data,error}=await _b2Call('upload-presigned',{
       path,
       contentType:file.type||'application/octet-stream',
+      size:file.size,
     });
     if(error||!data?.uploadUrl) return {data:null,error:error||{message:'Presigned URL error'}};
+    /* Le serveur impose un Content-Type sûr et signe l'URL avec : on DOIT
+       PUT avec exactement ce type, sinon la signature B2 est rejetée.
+       (fallback file.type pour compat avec une ancienne version du serveur) */
+    const putType=data.contentType||file.type||'application/octet-stream';
     const put=await fetch(data.uploadUrl,{
       method:'PUT',
-      headers:{'Content-Type':file.type||'application/octet-stream'},
+      headers:{'Content-Type':putType},
       body:file,
     });
     if(!put.ok) return {data:null,error:{message:'Upload B2 failed: '+put.statusText}};
@@ -15045,6 +15073,199 @@ async function openRecapMatos(){
   }catch(err){
     body.innerHTML='<div style="color:var(--err);padding:20px;text-align:center;font-size:12px">Erreur : '+_fEsc(err.message)+'</div>';
   }
+}
+
+// ══════════════════════════════════════
+// BON DE PRÉPARATION — checklist matériel
+// Vérifie que tout le matériel de la fiche technique sera disponible/préparé.
+// Agrège micros/DI, pieds, +48V (input list) + sorties/retours (output list).
+// État persistant en localStorage par show (offline-friendly).
+// ══════════════════════════════════════
+let _prepState = null;   // {checked:{key:true}, verifiedAt, verifiedBy}
+let _prepRows  = [];     // [{key,cat,label,qty}]
+
+function closePrepModal(){ document.getElementById('prep-modal').className='modal-ov'; }
+function _prepKey(){ return 'pf_prep_' + (CUR_SHOW ? CUR_SHOW.id : 'none'); }
+function _loadPrepState(){
+  try{ var s=JSON.parse(localStorage.getItem(_prepKey())||'null'); if(s&&s.checked) return s; }catch(e){}
+  return {checked:{}, verifiedAt:null, verifiedBy:null};
+}
+function _savePrepState(){ try{ localStorage.setItem(_prepKey(), JSON.stringify(_prepState)); }catch(e){} }
+
+/* Agrège le matériel depuis les canaux (micros/DI, pieds, +48V) et l'output list */
+function _buildPrepRows(rows, outData){
+  var out=[], mics={}, stands={}, phantom=0;
+  (rows||[]).forEach(function(r){
+    var m=(r.mic||'').trim();  if(m) mics[m]=(mics[m]||0)+1;
+    var s=(r.note||'').trim(); if(s) stands[s]=(stands[s]||0)+1;
+    if(r.phantom) phantom++;
+  });
+  Object.keys(mics).sort(function(a,b){return mics[b]-mics[a];}).forEach(function(k){
+    out.push({key:'mic:'+k, cat:'Micros & DI', label:k, qty:mics[k]});
+  });
+  Object.keys(stands).sort(function(a,b){return stands[b]-stands[a];}).forEach(function(k){
+    out.push({key:'pied:'+k, cat:'Pieds de micro', label:k, qty:stands[k]});
+  });
+  if(phantom) out.push({key:'phantom', cat:'Alimentation', label:'Voies en +48V (alim. fantôme)', qty:phantom});
+  if(outData){
+    var outs=[]; Object.keys(outData).forEach(function(pid){ (outData[pid]||[]).forEach(function(o){ outs.push(o); }); });
+    var TL={main:'Façade (Main)',sub:'Subs',mon:'Retours (wedges)',iem:'Ears / IEM',fx:'Effets (FX)',matrix:'Matrix',other:'Autres sorties'};
+    var byType={}; outs.forEach(function(o){ var t=o.type||'other'; byType[t]=(byType[t]||0)+1; });
+    Object.keys(byType).forEach(function(t){
+      out.push({key:'out:'+t, cat:'Sorties / Retours', label:(TL[t]||t), qty:byType[t]});
+    });
+  }
+  return out;
+}
+
+function _prepProgress(){
+  var total=_prepRows.length;
+  var done=_prepRows.filter(function(r){return _prepState.checked[r.key];}).length;
+  return {done:done,total:total,pct: total?Math.round(done/total*100):0};
+}
+
+function togglePrepItem(key){
+  if(_prepState.checked[key]) delete _prepState.checked[key];
+  else _prepState.checked[key]=true;
+  /* Décocher invalide le tampon "tout vérifié" (le bon n'est plus complet) */
+  var p=_prepProgress();
+  if(p.done<p.total){ _prepState.verifiedAt=null; _prepState.verifiedBy=null; }
+  _savePrepState(); _renderPrep();
+}
+
+function toggleVerifyAllPrep(){
+  var p=_prepProgress();
+  if(p.total>0 && p.done===p.total && _prepState.verifiedAt){
+    _prepState.verifiedAt=null; _prepState.verifiedBy=null;          // retirer le tampon
+  }else{
+    _prepRows.forEach(function(r){ _prepState.checked[r.key]=true; }); // tout cocher + tamponner
+    _prepState.verifiedAt=new Date().toISOString();
+    _prepState.verifiedBy=(PROFILE&&PROFILE.full_name)||(ME&&ME.email)||'—';
+  }
+  _savePrepState(); _renderPrep();
+}
+
+function resetPrep(){
+  if(!confirm('Réinitialiser le bon de préparation (tout décocher) ?')) return;
+  _prepState={checked:{}, verifiedAt:null, verifiedBy:null};
+  _savePrepState(); _renderPrep();
+}
+
+function _renderPrep(){
+  var head=document.getElementById('prep-head');
+  var body=document.getElementById('prep-body');
+  if(!head||!body) return;
+  var p=_prepProgress();
+  var allDone = p.total>0 && p.done===p.total;
+  head.innerHTML =
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">'
+      +'<div style="flex:1;background:var(--surf3);border-radius:6px;height:10px;overflow:hidden">'
+        +'<div style="width:'+p.pct+'%;height:100%;background:'+(allDone?'var(--grn)':'var(--ora)')+';border-radius:6px;transition:width .25s"></div>'
+      +'</div>'
+      +'<div style="font-family:var(--m);font-size:12px;font-weight:800;color:'+(allDone?'var(--grn)':'var(--ora)')+'">'+p.done+'/'+p.total+'</div>'
+    +'</div>'
+    + (_prepState.verifiedAt
+        ? '<div style="display:flex;align-items:center;gap:7px;font-size:11px;color:var(--grn);background:rgba(34,214,160,.08);border:1px solid rgba(34,214,160,.25);border-radius:8px;padding:7px 11px">'
+            +'<i class="ti ti-rosette-discount-check" style="font-size:15px;flex-shrink:0"></i>'
+            +'<span>Matériel vérifié disponible le <strong>'+_fEsc(new Date(_prepState.verifiedAt).toLocaleDateString('fr-FR'))+'</strong> par <strong>'+_fEsc(_prepState.verifiedBy||'—')+'</strong></span>'
+          +'</div>'
+        : (allDone
+            ? '<div style="font-size:11px;color:var(--muted)">Tous les articles sont cochés — cliquez « Tout vérifié » pour valider le bon.</div>'
+            : '<div style="font-size:11px;color:var(--muted)">Cochez chaque article à mesure que vous le préparez.</div>'));
+  if(!_prepRows.length){
+    body.innerHTML='<div style="text-align:center;color:var(--muted2);padding:30px;font-size:12px"><i class="ti ti-clipboard-off" style="font-size:26px;display:block;margin-bottom:8px;color:var(--muted)"></i>Aucun matériel renseigné.<br><span style="font-size:11px">Renseignez les micros / pieds dans l\'input list pour générer le bon.</span></div>';
+    return;
+  }
+  var CAT_ICON={'Micros & DI':'ti-microphone','Pieds de micro':'ti-line-height','Alimentation':'ti-bolt','Sorties / Retours':'ti-speakerphone'};
+  var byCat={}; _prepRows.forEach(function(r){ (byCat[r.cat]=byCat[r.cat]||[]).push(r); });
+  var html='';
+  Object.keys(byCat).forEach(function(cat){
+    var items=byCat[cat];
+    var cdone=items.filter(function(r){return _prepState.checked[r.key];}).length;
+    html+='<div style="margin-bottom:16px">'
+      +'<div style="font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-bottom:7px;display:flex;align-items:center;gap:6px">'
+        +'<i class="ti '+(CAT_ICON[cat]||'ti-box')+'" style="color:var(--ora)"></i>'+_fEsc(cat)
+        +'<span style="margin-left:auto;color:'+(cdone===items.length?'var(--grn)':'var(--muted2)')+'">'+cdone+'/'+items.length+'</span>'
+      +'</div>';
+    items.forEach(function(r){
+      var on=!!_prepState.checked[r.key];
+      html+='<div onclick="togglePrepItem('+_fEsc(JSON.stringify(r.key))+')" style="display:flex;align-items:center;gap:11px;padding:9px 11px;margin-bottom:5px;border:1px solid '+(on?'rgba(34,214,160,.3)':'var(--bdr2)')+';border-radius:9px;cursor:pointer;background:'+(on?'rgba(34,214,160,.06)':'var(--surf2)')+';transition:background .12s,border-color .12s">'
+        +'<div style="width:22px;height:22px;border-radius:6px;border:2px solid '+(on?'var(--grn)':'var(--bdr3)')+';background:'+(on?'var(--grn)':'transparent')+';display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#04231a">'
+          +(on?'<i class="ti ti-check" style="font-size:14px;font-weight:800"></i>':'')
+        +'</div>'
+        +'<div style="flex:1;min-width:0;font-size:13px;color:var(--txt)">'+_fEsc(r.label)+'</div>'
+        +'<div style="font-family:var(--m);font-size:13px;font-weight:800;color:var(--ora);background:var(--ora-d);border:1px solid var(--ora-g);border-radius:8px;padding:2px 9px;flex-shrink:0">×'+r.qty+'</div>'
+      +'</div>';
+    });
+    html+='</div>';
+  });
+  body.innerHTML=html;
+  var vb=document.getElementById('prep-verify-btn');
+  if(vb){
+    if(_prepState.verifiedAt){ vb.innerHTML='<i class="ti ti-circle-check-filled"></i>Vérifié ✓'; vb.style.background='var(--grn)'; vb.style.borderColor='var(--grn)'; }
+    else { vb.innerHTML='<i class="ti ti-circle-check"></i>Tout vérifié'; vb.style.background=''; vb.style.borderColor=''; }
+  }
+}
+
+function openPrep(){
+  if(!CUR_SHOW){ toast('Aucun show sélectionné.'); return; }
+  closeExpMenu&&closeExpMenu('il-exp-menu');
+  var modal=document.getElementById('prep-modal');
+  modal.className='modal-ov show';
+  document.getElementById('prep-body').innerHTML='<div class="loading"><div class="spinner"></div>Calcul en cours…</div>';
+  document.getElementById('prep-head').innerHTML='';
+  _prepState=_loadPrepState();
+  /* out_data n'est pas une colonne → fallback sur OUT_DATA en mémoire (cf _renderOUT) */
+  var outData = (CUR_SHOW.out_data && Object.keys(CUR_SHOW.out_data).length) ? CUR_SHOW.out_data
+              : (typeof OUT_DATA!=='undefined' ? OUT_DATA : null);
+  _prepRows=_buildPrepRows(typeof CHS!=='undefined'?CHS:[], outData);
+  /* purger les clés cochées qui n'existent plus dans le matériel courant */
+  var valid={}; _prepRows.forEach(function(r){ valid[r.key]=true; });
+  Object.keys(_prepState.checked).forEach(function(k){ if(!valid[k]) delete _prepState.checked[k]; });
+  var pname=(typeof IL_PATCHES!=='undefined'&&IL_PATCHES.find)?((IL_PATCHES.find(function(p){return p.id===CUR_PATCH_ID;})||{}).name||''):'';
+  var totQty=_prepRows.reduce(function(s,r){return s+r.qty;},0);
+  document.getElementById('prep-scope-lbl').textContent=(pname?'Patch « '+pname+' » — ':'')+_prepRows.length+' références · '+totQty+' unités';
+  _renderPrep();
+}
+
+function printPrep(){
+  if(!_prepRows.length){ toast('Rien à imprimer.'); return; }
+  var esc=_fEsc, p=_prepProgress();
+  var byCat={}; _prepRows.forEach(function(r){ (byCat[r.cat]=byCat[r.cat]||[]).push(r); });
+  var showName=esc((CUR_SHOW&&CUR_SHOW.name)||'Show');
+  var venue=esc((CUR_SHOW&&CUR_SHOW.venue)||'');
+  var date=esc((CUR_SHOW&&CUR_SHOW.show_date)||'');
+  var now=esc(new Date().toLocaleString('fr-FR'));
+  var rowsHtml='';
+  Object.keys(byCat).forEach(function(cat){
+    rowsHtml+='<tr><td colspan="3" class="cat">'+esc(cat)+'</td></tr>';
+    byCat[cat].forEach(function(r){
+      var on=!!_prepState.checked[r.key];
+      rowsHtml+='<tr><td class="bx">'+(on?'&#9745;':'&#9744;')+'</td><td>'+esc(r.label)+'</td><td class="q">&times;'+r.qty+'</td></tr>';
+    });
+  });
+  var stamp=_prepState.verifiedAt
+    ? '<div class="stamp">&#10003; Matériel vérifié disponible le '+esc(new Date(_prepState.verifiedAt).toLocaleDateString('fr-FR'))+' par '+esc(_prepState.verifiedBy||'—')+'</div>'
+    : '<div class="stamp todo">Préparation en cours — '+p.done+'/'+p.total+' références prêtes</div>';
+  var html='<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>Bon de préparation — '+showName+'</title>'
+    +'<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,Helvetica,sans-serif;color:#1a1a2e;padding:28px 32px}'
+    +'h1{font-size:20px;color:#0a0f1c}.sub{font-size:12px;color:#666;margin:3px 0 14px;font-family:monospace}'
+    +'.stamp{font-size:12px;font-weight:700;color:#0a7d54;background:#e8f9f1;border:1px solid #9be3c5;border-radius:8px;padding:8px 12px;margin-bottom:16px}'
+    +'.stamp.todo{color:#b06a00;background:#fff6e8;border-color:#f0c894}'
+    +'table{width:100%;border-collapse:collapse;font-size:13px}td{padding:7px 8px;border-bottom:1px solid #eee}'
+    +'.cat{font-family:monospace;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#ff6b1a;font-weight:700;padding-top:16px;border-bottom:2px solid #ffd9c2}'
+    +'.bx{font-size:18px;width:30px;text-align:center}.q{text-align:right;font-weight:800;color:#ff6b1a;font-family:monospace;width:60px}'
+    +'.ft{margin-top:22px;font-size:10px;color:#999;font-family:monospace;border-top:1px solid #eee;padding-top:10px}'
+    +'@media print{body{padding:0}}</style></head><body>'
+    +'<h1>Bon de préparation</h1>'
+    +'<div class="sub">'+showName+(venue?' · '+venue:'')+(date?' · '+date:'')+'</div>'
+    +stamp
+    +'<table><tbody>'+rowsHtml+'</tbody></table>'
+    +'<div class="ft">PatchFlow — généré le '+now+' — '+p.total+' références</div>'
+    +'<script>window.onload=function(){window.print();}<\/script></body></html>';
+  var w=window.open('','_blank','width=800,height=900');
+  if(!w){ toast('Autorisez les popups pour imprimer.'); return; }
+  w.document.write(html); w.document.close();
 }
 
 // Share-view mode
