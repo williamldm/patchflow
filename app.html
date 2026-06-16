@@ -407,6 +407,10 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .fich-file-btn.dl:hover{color:var(--ora);background:var(--ora-d)}
 .fich-file-btn.del:hover{color:var(--err);background:rgba(255,70,70,.12)}
 .fich-file-btn.mv:hover{color:#a78bfa;background:rgba(167,139,250,.12)}
+.fich-file-card.verified{border-color:rgba(34,214,160,.32);background:rgba(34,214,160,.045)}
+.fich-file-btn.vf:hover{color:var(--grn);background:rgba(34,214,160,.14)}
+.fich-file-btn.vf.on{color:var(--grn)}
+.fich-file-verified-tag{display:flex;align-items:center;gap:4px;font-size:9.5px;color:var(--grn);margin-top:2px;font-family:var(--m)}
 /* Popover déplacer fichier */
 #fich-move-pop{display:none;position:fixed;z-index:600;background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.5);padding:6px;min-width:180px;max-width:240px}
 #fich-move-pop.show{display:block}
@@ -13105,7 +13109,7 @@ async function _sfListFolder(folderRelPath) {
 
   // 1. Fichiers directs de ce dossier
   const { data: directRows, error: e1 } = await sb.from('show_files')
-    .select('id, path, name, folder, size, content_type, is_folder, created_at')
+    .select('id, path, name, folder, size, content_type, is_folder, created_at, verified_at, verified_by_name')
     .eq('show_id', CUR_SHOW.id)
     .eq('folder', folderKey)
     .order('name', { ascending: true });
@@ -13187,6 +13191,8 @@ async function loadFichiers() {
       metadata:     { size: f.size },
       created_at:   f.created_at,
       content_type: f.content_type,
+      verified_at:      f.verified_at || null,
+      verified_by_name: f.verified_by_name || null,
       _path:        f.path,
       _isFolder:    f.is_folder,
     }));
@@ -13214,6 +13220,8 @@ async function loadFichiers() {
       metadata:     { size: f.metadata?.size || 0 },
       created_at:   f.created_at,
       content_type: '',
+      verified_at:      null, // pas encore synchronisé dans show_files
+      verified_by_name: null,
       _path:        prefix + f.name,
       _isFolder:    isDir,
     };
@@ -13259,7 +13267,9 @@ async function _reconcileFolderWithB2(prefix, folderRel) {
       if (fresh && fresh.length) {
         SHOW_FILES = fresh.map(f => ({
           name: f.name, id: f.is_folder ? null : f.id, metadata: { size: f.size },
-          created_at: f.created_at, content_type: f.content_type, _path: f.path, _isFolder: f.is_folder,
+          created_at: f.created_at, content_type: f.content_type,
+          verified_at: f.verified_at || null, verified_by_name: f.verified_by_name || null,
+          _path: f.path, _isFolder: f.is_folder,
         }));
         _renderFichiersGrid();
       }
@@ -13583,10 +13593,20 @@ function _renderFichiersGrid() {
           const date = f.created_at ? new Date(f.created_at).toLocaleDateString('fr-FR') : '';
           const meta = [size, date ? 'Ajoute ' + date : ''].filter(Boolean).join(' · ');
           const fpJ  = _fEsc(JSON.stringify(_fichPathStr() + f.name)); // HTML-escape so quotes survive inside onclick="..."
-          html += '<div class="fich-file-card" onclick="viewFichier(' + fpJ + ')">' +
+          const isVerified = !!f.verified_at;
+          const vDate = isVerified ? new Date(f.verified_at).toLocaleDateString('fr-FR') : '';
+          const vTag = isVerified
+            ? '<div class="fich-file-verified-tag"><i class="ti ti-rosette-discount-check"></i>Vérifié par ' + _fEsc(f.verified_by_name||'—') + ' · ' + _fEsc(vDate) + '</div>'
+            : '';
+          const fidJ = _fEsc(JSON.stringify(f.id||''));
+          const vTitle = isVerified
+            ? 'Vérifié par ' + (f.verified_by_name||'—') + ' le ' + vDate + ' — cliquer pour annuler'
+            : 'Marquer comme vérifié (matériel demandé confirmé disponible)';
+          html += '<div class="fich-file-card' + (isVerified?' verified':'') + '" onclick="viewFichier(' + fpJ + ')">' +
             '<div class="fich-file-ico ' + (info.cls || 'ico-other') + '">' + info.icon + '</div>' +
-            '<div class="fich-file-info"><div class="fich-file-name">' + _fEsc(name) + '</div><div class="fich-file-meta">' + _fEsc(meta) + '</div></div>' +
+            '<div class="fich-file-info"><div class="fich-file-name">' + _fEsc(name) + '</div><div class="fich-file-meta">' + _fEsc(meta) + '</div>' + vTag + '</div>' +
             '<div class="fich-file-actions">' +
+              '<button class="fich-file-btn vf' + (isVerified?' on':'') + '" onclick="event.stopPropagation();toggleFileVerified(' + fidJ + ',' + fpJ + ')" title="' + _fEsc(vTitle) + '"><i class="ti ' + (isVerified?'ti-rosette-discount-check-filled':'ti-rosette-discount-check') + '"></i></button>' +
               '<button class="fich-file-btn" onclick="event.stopPropagation();renameFichier(' + fpJ + ')" title="Renommer"><i class="ti ti-pencil"></i></button>' +
               '<button class="fich-file-btn mv" onclick="event.stopPropagation();openMoveFichier(event,' + fpJ + ')" title="Déplacer dans un dossier"><i class="ti ti-folder-share"></i></button>' +
               '<button class="fich-file-btn dl" onclick="event.stopPropagation();_fichDownload(' + fpJ + ')" title="Telecharger"><i class="ti ti-download"></i></button>' +
@@ -13718,6 +13738,35 @@ async function deleteFichierFolder(folderName) {
   await _sfDeleteFolder(folderRelPath);
   toast('✓ Dossier supprimé');
   await loadFichiers();
+}
+
+/* Marque/démarque un fichier comme "vérifié" — confirmation qu'on a bien
+   consulté le document (ex: fiche technique) et que le matériel demandé sera
+   disponible. Ouvert à tout membre du show (pas réservé au propriétaire),
+   via la RPC restreinte set_file_verified (cf. migration 20260616). */
+async function toggleFileVerified(fileId, relPath) {
+  if (!CUR_SHOW) return;
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(fileId || '')) {
+    // Fichier pas encore synchronisé dans show_files (upload tout juste fait,
+    // backfill en cours) → rafraîchir pour récupérer le vrai id puis réessayer.
+    toast('Synchronisation en cours… réessayez dans un instant.');
+    loadFichiers();
+    return;
+  }
+  const entry = SHOW_FILES.find(f => f.id === fileId);
+  const nextVerified = !(entry && entry.verified_at);
+  const { data, error } = await sb.rpc('set_file_verified', { p_file_id: fileId, p_verified: nextVerified });
+  if (error) { toast('Erreur : ' + error.message); return; }
+  if (data && data.ok === false) {
+    toast(data.error === 'forbidden' ? 'Action non autorisée.' : 'Fichier introuvable.');
+    return;
+  }
+  if (entry) {
+    entry.verified_at      = nextVerified ? (data?.verified_at || new Date().toISOString()) : null;
+    entry.verified_by_name = nextVerified ? (data?.verified_by_name || null) : null;
+  }
+  _renderFichiersGrid();
+  toast(nextVerified ? '✓ Fichier marqué vérifié' : 'Vérification retirée');
 }
 
 async function deleteFichier(relPath) {
