@@ -1777,7 +1777,9 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
           <div class="bp-pal-hd"><i class="ti ti-box"></i>Bibliotheque</div>
           <div style="padding:7px 8px 6px;border-bottom:1px solid var(--bdr2);flex-shrink:0;background:var(--surf2);display:flex;flex-direction:column;gap:5px">
             <input type="file" id="bp-bg-file" accept="image/*" style="display:none" onchange="BandPlan.loadBg(this)"/>
-            <button class="btn ghost sm" style="width:100%;justify-content:center;font-size:10.5px" onclick="document.getElementById('bp-bg-file').click()"><i class="ti ti-photo"></i> Image de fond</button>
+            <input type="file" id="bp-ai-file" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none" onchange="bpAiHandleFile(this)"/>
+            <button class="btn sm" id="bp-ai-btn" style="width:100%;justify-content:center;font-size:10.5px;background:linear-gradient(135deg,var(--ora),#ff3d00);border-color:var(--ora);color:#fff" onclick="bpAiImport()"><i class="ti ti-sparkles"></i> Adapter un plan (IA)</button>
+            <button class="btn ghost sm" style="width:100%;justify-content:center;font-size:10.5px;margin-top:5px" onclick="document.getElementById('bp-bg-file').click()"><i class="ti ti-photo"></i> Image de fond</button>
             <button class="btn ghost sm" id="bp-stage-toggle-btn" style="width:100%;justify-content:center;font-size:10.5px;margin-top:5px" onclick="BandPlan.toggleStageBg()"><i class="ti ti-eye-off"></i> Masquer la scène</button>
             <div id="bp-bg-controls" style="display:none">
               <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)" title="Opacité">
@@ -6674,6 +6676,71 @@ function _vtChBadge(ctx,chNum,nodeW,nodeTop,SC){
   ctx.fillText(badge,bx+bw/2,by+bh/2);
   ctx.textBaseline='alphabetic';
 }
+/* ══════════════════════════════════════
+   MODE IA — adapter un plan de scène depuis une image (réservé Pro)
+   ══════════════════════════════════════ */
+function bpAiImport(){
+  if(!CUR_SHOW){ toast('Aucun show sélectionné.'); return; }
+  if(!canDo('ai_stage')){ showUpgradeModal('ai_stage'); return; }
+  document.getElementById('bp-ai-file').click();
+}
+function _bpAiSetLoading(on){
+  const btn=document.getElementById('bp-ai-btn'); if(!btn) return;
+  if(on){ btn.disabled=true; btn.dataset.html=btn.innerHTML; btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .8s linear infinite"></i> Analyse du plan…'; }
+  else { btn.disabled=false; if(btn.dataset.html) btn.innerHTML=btn.dataset.html; }
+}
+/* Lit + redimensionne l'image (max 1600 px) → JPEG base64 : limite le coût IA
+   et la taille réseau. */
+function _bpAiPrepareImage(file){
+  return new Promise(function(resolve,reject){
+    const reader=new FileReader();
+    reader.onload=function(e){
+      const img=new Image();
+      img.onload=function(){
+        const MAX=1600; let w=img.width,h=img.height;
+        if(Math.max(w,h)>MAX){ if(w>=h){h=Math.round(h*MAX/w);w=MAX;} else {w=Math.round(w*MAX/h);h=MAX;} }
+        const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+        cv.getContext('2d').drawImage(img,0,0,w,h);
+        resolve({dataUrl:cv.toDataURL('image/jpeg',0.85), mediaType:'image/jpeg'});
+      };
+      img.onerror=reject; img.src=e.target.result;
+    };
+    reader.onerror=reject; reader.readAsDataURL(file);
+  });
+}
+async function bpAiHandleFile(input){
+  const file=input.files&&input.files[0];
+  input.value='';
+  if(!file) return;
+  if(!/^image\/(png|jpe?g|webp|gif)$/i.test(file.type)){ toast('Image PNG, JPEG, WEBP ou GIF requise.'); return; }
+  if(file.size>6*1024*1024){ toast('Image trop lourde (max 6 Mo).'); return; }
+  let prepared;
+  try{ prepared=await _bpAiPrepareImage(file); }
+  catch(e){ toast('Impossible de lire l\'image.'); return; }
+  const base64=(prepared.dataUrl.split(',')[1])||'';
+
+  _bpAiSetLoading(true);
+  try{
+    const sess=(await sb.auth.getSession()).data?.session;
+    const res=await fetch('https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/stage-ai',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(sess?.access_token||''),'apikey':SB_KEY},
+      body:JSON.stringify({imageBase64:base64, mediaType:prepared.mediaType})
+    });
+    const data=await res.json().catch(function(){return {};});
+    if(!res.ok){
+      if(data&&data.code==='pro_only') showUpgradeModal('ai_stage');
+      else toast('IA : '+((data&&data.error)||('erreur '+res.status)));
+      return;
+    }
+    const els=(data&&data.elements)||[];
+    if(!els.length){ toast('Aucun élément reconnu sur ce plan — réessayez avec une image plus nette.'); return; }
+    const n=BandPlan.aiPlace(els);
+    toast('✨ '+n+' élément'+(n>1?'s':'')+' placé'+(n>1?'s':'')+' depuis le plan');
+  }catch(e){ toast('Erreur réseau : '+e.message); }
+  finally{ _bpAiSetLoading(false); }
+}
+
 function _makeBpCanvas(cb){
   const data=BandPlan.getData();
   const els=data.els||[];
@@ -9757,6 +9824,30 @@ const BandPlan=(()=>{
     renderNode(el);selectNode(id);saveStage();
   }
 
+  /* Placement en lot depuis le « Mode IA » : crée des nœuds à partir d'une
+     liste {type,x,y,label} renvoyée par la edge function stage-ai. Ne touche
+     pas aux éléments existants ; coordonnées clampées au plateau 2400×1600. */
+  function aiPlace(list){
+    if(!Array.isArray(list)) return 0;
+    const valid=new Set(); CATS.forEach(c=>c.items.forEach(i=>valid.add(i.t))); _customItems.forEach(i=>valid.add(i.t));
+    let added=0;
+    list.forEach(function(o){
+      if(!o||!valid.has(o.type)) return;
+      const it=_itemOf(o.type)||{n:o.type};
+      const id=st.nid++;
+      const el={id,type:o.type,
+        label:(o.label?String(o.label).slice(0,40):it.n),
+        x:Math.round(Math.max(40,Math.min(2360,+o.x||1200))),
+        y:Math.round(Math.max(40,Math.min(1560,+o.y||800))),
+        scl:1,rot:0,z:id,ch:null};
+      if(o.type==='riser'){el.riserW=2;el.riserH=1;el.riserAlt=0.4;}
+      if(o.type==='kit'){el.chs=[];}
+      st.els.push(el); renderNode(el); added++;
+    });
+    if(added){ _sel=null; renderInspector(); saveStage(); setTimeout(fitView,60); }
+    return added;
+  }
+
   // ---- LIGHT-THEME SVG instrument logos (72x72 viewBox) ----
   // Color palette: deep navy #1d3a5f (outlines), blue #1d9bf0 + orange #ff6b1a accents,
   // soft white/grey body fills — matches SynPro/SitePlan light theme.
@@ -10676,7 +10767,7 @@ const BandPlan=(()=>{
     renderNode(el); renderInspector(); saveStage();
   }
 
-  return {init,load,getData,clear,zoom,setZoomPct,resetZoom,fitView,search,toggleCat,_pdrag,_pdblclick,renderInspector,updateAlias,updPos,adjScale,adjZ,setRot,linkCh,unlinkCh,createCh,toggleStereo,linkChR,unlinkChR,createChR,linkOutCh,unlinkOutCh,createOutCh,toggleOutStereo,linkOutChR,unlinkOutChR,createOutChR,deleteNode,setTextScale,setNodeScale,setStageScale,setRiserDims,setRiserAlt,addCustomItem,removeCustomItem,linkKitCh,unlinkKitCh,createKitCh,setViewMode,getCatInfo,getVintageSVG,getViewMode,loadBg,setBgOpacity,setBgScale,toggleBgEdit,toggleStageBg,clearBg,uploadElementIcon,clearElementIcon};
+  return {init,load,getData,clear,zoom,setZoomPct,resetZoom,fitView,search,toggleCat,_pdrag,_pdblclick,renderInspector,updateAlias,updPos,adjScale,adjZ,setRot,linkCh,unlinkCh,createCh,toggleStereo,linkChR,unlinkChR,createChR,linkOutCh,unlinkOutCh,createOutCh,toggleOutStereo,linkOutChR,unlinkOutChR,createOutChR,deleteNode,setTextScale,setNodeScale,setStageScale,setRiserDims,setRiserAlt,addCustomItem,removeCustomItem,linkKitCh,unlinkKitCh,createKitCh,setViewMode,getCatInfo,getVintageSVG,getViewMode,loadBg,setBgOpacity,setBgScale,toggleBgEdit,toggleStageBg,clearBg,aiPlace,uploadElementIcon,clearElementIcon};
 })();
 
 // ══════════════════════════════════════
@@ -14755,10 +14846,10 @@ function closeUD(){document.getElementById('user-dd').classList.remove('show');}
 const PLAN_PERMS = {
   free:   { max_shows:3,        max_channels:26,       max_members:1,        max_templates:5,        max_share_links:5,
             export_pdf:true,    share_link:true,       site_plan:true,       pdf_watermark:true,
-            storage:true,       multi_scenes:false,    multi_patches:false,  custom_exports:false,  vintage_view:false, recap_matos:false, recent_activity:false, console_export:false },
+            storage:true,       multi_scenes:false,    multi_patches:false,  custom_exports:false,  vintage_view:false, recap_matos:false, recent_activity:false, console_export:false, ai_stage:false },
   pro:    { max_shows:Infinity, max_channels:Infinity, max_members:Infinity, max_templates:Infinity, max_share_links:Infinity,
             export_pdf:true,    share_link:true,       site_plan:true,       pdf_watermark:false,
-            storage:true,       multi_scenes:true,     multi_patches:true,   custom_exports:true,   vintage_view:true,  recap_matos:true,  recent_activity:true, console_export:true },
+            storage:true,       multi_scenes:true,     multi_patches:true,   custom_exports:true,   vintage_view:true,  recap_matos:true,  recent_activity:true, console_export:true, ai_stage:true },
 };
 
 const PLAN_META = {
@@ -14781,6 +14872,7 @@ const GATE_META = {
   recent_activity:{ icon:'ti-history',          title:'Activite recente',             desc:'Visualisez les derniers canaux modifies par votre equipe en temps reel — utile pour savoir qui a touche a quoi.', plan:'pro', feats:['5 derniers canaux modifies','Horodatage relatif (il y a X min)','Inclus dans le plan Pro'] },
   export_pdf_pro: { icon:'ti-file-type-pdf',    title:'Export PDF complet',           desc:'Retirez le filigrane et ajoutez societe, contact, venue, date, revision et notes techniques.', plan:'pro', feats:['PDF sans filigrane','Coordonnees completes en en-tete','Notes techniques sur chaque export'] },
   console_export: { icon:'ti-device-floppy',    title:'Exports console (Show Files)',  desc:'Generez les fichiers natifs pour charger vos noms de voies, couleurs, gains et +48V directement dans votre console.', plan:'pro', feats:['Yamaha, Behringer, Midas, DiGiCo, Avid, A&H...','Scene X32/M32 native, CSV officiels','Couleurs et icones intelligentes par instrument'] },
+  ai_stage:       { icon:'ti-sparkles',         title:'Plan de scène par IA',          desc:'Envoyez la photo ou le croquis d\'un plan de scène : l\'IA le numérise et place automatiquement les instruments et le matériel dans l\'éditeur.', plan:'pro', feats:['Reconnaissance d\'un plan à partir d\'une image','Placement automatique des éléments','Vous ajustez ensuite librement'] },
   max_share_links:{ icon:'ti-link',             title:'Limite de liens de partage',   desc:'Le plan Gratuit est limite a 5 liens de partage au total. Passez au Pro pour des liens illimites.', plan:'pro', feats:['Liens de partage illimites sur Pro','Partagez chaque show en lecture seule','Mise a jour en temps reel'] },
 };
 
