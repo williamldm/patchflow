@@ -1785,8 +1785,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
           <div id="bp-pal-list" class="bp-pal-list"></div>
         </div>
         <div class="bp-canvas-wrap" id="bp-canvas-wrap">
-          <img id="bp-bg-img" style="position:absolute;top:0;left:0;transform-origin:0 0;display:none;pointer-events:none;max-width:none;z-index:0"/>
-          <div id="bp-canvas" style="position:relative;z-index:1"></div>
+          <div id="bp-canvas" style="position:relative;z-index:1"><img id="bp-bg-img" style="position:absolute;top:0;left:0;transform-origin:0 0;display:none;pointer-events:none;max-width:none"/></div>
           <!-- Zoom HUD — same style as SynPro -->
           <div class="bp-zoom-bar">
             <button class="bp-zb" onclick="BandPlan.zoom(0.8)" title="Zoom -"><i class="ti ti-minus"></i></button>
@@ -6701,7 +6700,19 @@ function _makeBpCanvas(cb){
         img.src=dataUrl;
       });
     });
-    Promise.all(svgJobs).then(function(results){
+    /* Image de fond : chargée puis dessinée AU-DESSUS de la grille/scène mais
+       SOUS les nœuds (même empilement que l'éditeur). */
+    var bgJob = data.bgImage ? new Promise(function(resolve){
+      var bi=new Image(); bi.onload=function(){resolve(bi);}; bi.onerror=function(){resolve(null);}; bi.src=data.bgImage;
+    }) : Promise.resolve(null);
+    Promise.all([bgJob].concat(svgJobs)).then(function(_all){
+      var _bgImg=_all[0]; var results=_all.slice(1);
+      if(_bgImg){
+        ctx.save();
+        ctx.globalAlpha=(data.bgOpacity==null?100:data.bgOpacity)/100;
+        ctx.drawImage(_bgImg, wx(0), wy(0), _bgImg.naturalWidth*SC, _bgImg.naturalHeight*SC);
+        ctx.restore();
+      }
       results.forEach(function(item){
         var el=item.el,img=item.img,ci=item.ci;
         ctx.save();
@@ -9575,8 +9586,10 @@ const BandPlan=(()=>{
     const c=_cv();if(!c)return;
     const t='matrix('+st.view.z+',0,0,'+st.view.z+','+st.view.px+','+st.view.py+')';
     c.style.transform=t;
-    /* Sync background image to same transform */
-    const bg=document.getElementById('bp-bg-img');if(bg)bg.style.transform=t;
+    /* L'image de fond est désormais un enfant de #bp-canvas → elle hérite du
+       transform du canvas (pan/zoom). Pas de synchro manuelle (sinon double
+       transformation). Elle est empilée au-dessus de la grille (#bp-stage-svg)
+       mais sous les nœuds. */
     const lbl=document.getElementById('bp-zoom-lbl');
     if(lbl)lbl.textContent=Math.round(st.view.z*100)+'%';
     const slider=document.getElementById('bp-zoom-slider');
