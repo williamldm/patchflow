@@ -1779,11 +1779,17 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
             <input type="file" id="bp-bg-file" accept="image/*" style="display:none" onchange="BandPlan.loadBg(this)"/>
             <button class="btn ghost sm" style="width:100%;justify-content:center;font-size:10.5px" onclick="document.getElementById('bp-bg-file').click()"><i class="ti ti-photo"></i> Image de fond</button>
             <div id="bp-bg-controls" style="display:none">
-              <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)">
-                <i class="ti ti-sun" style="font-size:11px"></i>
+              <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)" title="Opacité">
+                <i class="ti ti-sun" style="font-size:11px;flex-shrink:0"></i>
                 <input type="range" id="bp-bg-opacity" min="5" max="100" value="100" style="flex:1;accent-color:var(--ora)" oninput="BandPlan.setBgOpacity(this.value)"/>
-                <button onclick="BandPlan.clearBg()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0">&#x2715;</button>
+                <button onclick="BandPlan.clearBg()" title="Retirer l'image" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0;flex-shrink:0">&#x2715;</button>
               </div>
+              <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);margin-top:5px" title="Taille">
+                <i class="ti ti-arrows-diagonal" style="font-size:11px;flex-shrink:0"></i>
+                <input type="range" id="bp-bg-size" min="20" max="400" value="100" style="flex:1;accent-color:var(--ora)" oninput="BandPlan.setBgScale(this.value)"/>
+              </div>
+              <button class="btn ghost sm" id="bp-bg-edit-btn" style="width:100%;justify-content:center;font-size:10px;margin-top:6px" onclick="BandPlan.toggleBgEdit()"><i class="ti ti-arrows-move"></i> Déplacer / redimensionner</button>
+              <div id="bp-bg-edit-hint" style="display:none;font-size:9px;color:var(--ora);margin-top:4px;text-align:center;line-height:1.4">Glissez l'image pour la déplacer · poignée orange pour la taille</div>
             </div>
           </div>
           <div class="bp-pal-head">
@@ -6737,9 +6743,10 @@ function _makeBpCanvas(cb){
     Promise.all([bgJob].concat(svgJobs)).then(function(_all){
       var _bgImg=_all[0]; var results=_all.slice(1);
       if(_bgImg){
+        var _bgx=data.bgX||0, _bgy=data.bgY||0, _bgs=data.bgScale==null?1:data.bgScale;
         ctx.save();
         ctx.globalAlpha=(data.bgOpacity==null?100:data.bgOpacity)/100;
-        ctx.drawImage(_bgImg, wx(0), wy(0), _bgImg.naturalWidth*SC, _bgImg.naturalHeight*SC);
+        ctx.drawImage(_bgImg, wx(_bgx), wy(_bgy), _bgImg.naturalWidth*_bgs*SC, _bgImg.naturalHeight*_bgs*SC);
         ctx.restore();
       }
       results.forEach(function(item){
@@ -9511,8 +9518,8 @@ const BandPlan=(()=>{
   ];
   const RISER_ALTS=[0.2,0.4,0.6,0.8,1.0,1.2];
 
-  let st={els:[],nid:1,view:{z:1,px:80,py:60},cats:{},textScale:1.4,nodeScale:1.4,stageScale:1,viewMode:'vintage',bgImage:null,bgOpacity:100};
-  let _sel=null,_dn=null,_dnox=0,_dnoy=0,_pan=false,_pox=0,_poy=0,_inited=false,_saveT=0;
+  let st={els:[],nid:1,view:{z:1,px:80,py:60},cats:{},textScale:1.4,nodeScale:1.4,stageScale:1,viewMode:'vintage',bgImage:null,bgOpacity:100,bgX:0,bgY:0,bgScale:1};
+  let _sel=null,_dn=null,_dnox=0,_dnoy=0,_pan=false,_pox=0,_poy=0,_inited=false,_saveT=0,_bgEdit=false;
 
   function _wrap(){return document.getElementById('bp-canvas-wrap');}
   function _cv(){return document.getElementById('bp-canvas');}
@@ -9531,6 +9538,8 @@ const BandPlan=(()=>{
         const cv=document.createElement('canvas');cv.width=w;cv.height=h;
         cv.getContext('2d').drawImage(img2,0,0,w,h);
         st.bgImage=cv.toDataURL('image/jpeg',0.75);
+        /* Nouvelle image → repartir d'un placement neutre (origine, taille 100%) */
+        st.bgX=0;st.bgY=0;st.bgScale=1;
         _applyBg();saveStage();
       };
       img2.src=e.target.result;
@@ -9538,15 +9547,107 @@ const BandPlan=(()=>{
     reader.readAsDataURL(file);
     input.value='';
   }
+  /* Transform CSS de l'image (en coordonnées "monde" : l'image est enfant de
+     #bp-canvas qui porte déjà le pan/zoom, donc translate/scale ici = placement
+     dans le plan). */
+  function _bgTransform(){ return 'translate('+(st.bgX||0)+'px,'+(st.bgY||0)+'px) scale('+(st.bgScale||1)+')'; }
   function _applyBg(){
     const img=document.getElementById('bp-bg-img');
     const ctrl=document.getElementById('bp-bg-controls');
-    if(img){if(st.bgImage){img.src=st.bgImage;img.style.display='block';img.style.opacity=st.bgOpacity/100;}else{img.src='';img.style.display='none';}}
+    if(img){
+      if(st.bgImage){
+        img.src=st.bgImage;img.style.display='block';img.style.opacity=st.bgOpacity/100;
+        img.style.transform=_bgTransform();
+      }else{ img.src='';img.style.display='none'; }
+    }
     if(ctrl)ctrl.style.display=st.bgImage?'block':'none';
     const sl=document.getElementById('bp-bg-opacity');if(sl)sl.value=st.bgOpacity;
+    const ss=document.getElementById('bp-bg-size');if(ss)ss.value=Math.round((st.bgScale||1)*100);
+    if(!st.bgImage)_bgEdit=false;
+    _updateBgEditUI();
   }
   function setBgOpacity(val){st.bgOpacity=+val;const img=document.getElementById('bp-bg-img');if(img)img.style.opacity=val/100;saveStage();}
-  function clearBg(){st.bgImage=null;st.bgOpacity=100;_applyBg();saveStage();}
+  function setBgScale(val){
+    st.bgScale=Math.max(0.1,Math.min(6,(+val)/100));
+    const img=document.getElementById('bp-bg-img');if(img)img.style.transform=_bgTransform();
+    _positionBgHandle();saveStage();
+  }
+  function clearBg(){st.bgImage=null;st.bgOpacity=100;st.bgX=0;st.bgY=0;st.bgScale=1;_bgEdit=false;_applyBg();saveStage();}
+
+  /* ── Déplacement / redimensionnement de l'image de fond ── */
+  function toggleBgEdit(){ if(!st.bgImage)return; _bgEdit=!_bgEdit; _updateBgEditUI(); }
+  function _updateBgEditUI(){
+    const img=document.getElementById('bp-bg-img');
+    const btn=document.getElementById('bp-bg-edit-btn');
+    const hint=document.getElementById('bp-bg-edit-hint');
+    const on=_bgEdit && !!st.bgImage;
+    if(img){
+      img.style.pointerEvents=on?'auto':'none';
+      img.style.outline=on?'2px dashed #ff6b1a':'';
+      img.style.outlineOffset=on?'0':'';
+      img.style.cursor=on?'move':'';
+      img.style.zIndex=on?'9000':'';   /* passe au-dessus des nœuds pendant l'édition */
+    }
+    if(btn){ btn.style.background=on?'var(--ora)':''; btn.style.color=on?'#04231a':''; btn.style.borderColor=on?'var(--ora)':''; }
+    if(hint) hint.style.display=on?'block':'none';
+    _positionBgHandle();
+  }
+  function _ensureBgHandle(){
+    let h=document.getElementById('bp-bg-handle');
+    if(h) return h;
+    const wrap=_wrap(); if(!wrap) return null;
+    h=document.createElement('div'); h.id='bp-bg-handle';
+    h.style.cssText='position:absolute;width:18px;height:18px;background:#ff6b1a;border:2px solid #fff;border-radius:4px;box-shadow:0 1px 4px rgba(0,0,0,.45);cursor:nwse-resize;display:none;z-index:9001;touch-action:none';
+    wrap.appendChild(h);
+    h.addEventListener('pointerdown',_bgHandleDown);
+    return h;
+  }
+  function _positionBgHandle(){
+    const h=document.getElementById('bp-bg-handle'); if(!h) return;
+    const img=document.getElementById('bp-bg-img'); const wrap=_wrap();
+    if(!(_bgEdit && st.bgImage && img && wrap && img.style.display!=='none')){ h.style.display='none'; return; }
+    const ir=img.getBoundingClientRect(), wr=wrap.getBoundingClientRect();
+    h.style.display='block';
+    h.style.left=(ir.right-wr.left-9)+'px';
+    h.style.top =(ir.bottom-wr.top-9)+'px';
+  }
+  function _bgImgDown(e){
+    if(!_bgEdit||!st.bgImage) return;
+    e.stopPropagation();
+    const img=e.currentTarget;
+    const sx=e.clientX, sy=e.clientY, ox=st.bgX||0, oy=st.bgY||0;
+    try{ img.setPointerCapture(e.pointerId); }catch(_){}
+    const mv=ev=>{
+      st.bgX=ox+(ev.clientX-sx)/st.view.z;
+      st.bgY=oy+(ev.clientY-sy)/st.view.z;
+      img.style.transform=_bgTransform();
+      _positionBgHandle();
+    };
+    const up=()=>{ img.removeEventListener('pointermove',mv); img.removeEventListener('pointerup',up); saveStage(); };
+    img.addEventListener('pointermove',mv); img.addEventListener('pointerup',up);
+  }
+  function _bgHandleDown(e){
+    if(!_bgEdit||!st.bgImage) return;
+    e.stopPropagation(); e.preventDefault();
+    const h=e.currentTarget;
+    const img=document.getElementById('bp-bg-img'); const wrap=_wrap();
+    if(!img||!wrap) return;
+    const nW=img.naturalWidth||1;
+    const wr=wrap.getBoundingClientRect();
+    try{ h.setPointerCapture(e.pointerId); }catch(_){}
+    const mv=ev=>{
+      /* coin bas-droit suit le pointeur ; scale uniforme calé sur l'axe X (garde le ratio) */
+      const pwx=(ev.clientX-wr.left-st.view.px)/st.view.z;
+      let sc=(pwx-(st.bgX||0))/nW;
+      sc=Math.max(0.1,Math.min(6,sc));
+      st.bgScale=sc;
+      img.style.transform=_bgTransform();
+      const ss=document.getElementById('bp-bg-size'); if(ss)ss.value=Math.round(sc*100);
+      _positionBgHandle();
+    };
+    const up=()=>{ h.removeEventListener('pointermove',mv); h.removeEventListener('pointerup',up); saveStage(); };
+    h.addEventListener('pointermove',mv); h.addEventListener('pointerup',up);
+  }
   function _catOf(t){return CATS.find(c=>c.items.some(i=>i.t===t))||CATS.find(c=>c.id===(_customItems.find(i=>i.t===t)?.catId))||null;}
   function _itemOf(t){for(const c of CATS){const it=c.items.find(i=>i.t===t);if(it)return it;}return _customItems.find(i=>i.t===t)||null;}
   function _elColor(t){const it=_itemOf(t);const cat=_catOf(t);return(it&&it.c)||(cat&&cat.color)||'#5a6580';}
@@ -9623,6 +9724,7 @@ const BandPlan=(()=>{
     if(lbl)lbl.textContent=Math.round(st.view.z*100)+'%';
     const slider=document.getElementById('bp-zoom-slider');
     if(slider)slider.value=Math.min(300,Math.max(20,Math.round(st.view.z*100)));
+    _positionBgHandle(); /* la poignée de redim. suit le pan/zoom */
   }
 
   function addNode(type,x,y){
@@ -10397,6 +10499,10 @@ const BandPlan=(()=>{
     bg.id='bp-stage-svg';bg.style.cssText='position:absolute;top:0;left:0;width:2400px;height:1600px;pointer-events:none';
     bg.innerHTML=_buildStageSVG_vintage();
     cv.insertBefore(bg,cv.firstChild);
+    /* Déplacement de l'image de fond (actif uniquement en mode "Ajuster") + poignée de redim. */
+    const bgImgEl=document.getElementById('bp-bg-img');
+    if(bgImgEl){ bgImgEl.style.touchAction='none'; bgImgEl.addEventListener('pointerdown',_bgImgDown); }
+    _ensureBgHandle();
     _initCanvas();
     applyTransform();
     _applyGlobalScales();
@@ -10404,11 +10510,11 @@ const BandPlan=(()=>{
   }
 
   // ---- save/load ----
-  function getData(){return {els:st.els.map(e=>({...e})),nid:st.nid,view:{...st.view},textScale:st.textScale,nodeScale:st.nodeScale,stageScale:st.stageScale,viewMode:st.viewMode,bgImage:st.bgImage||null,bgOpacity:st.bgOpacity??100};}
+  function getData(){return {els:st.els.map(e=>({...e})),nid:st.nid,view:{...st.view},textScale:st.textScale,nodeScale:st.nodeScale,stageScale:st.stageScale,viewMode:st.viewMode,bgImage:st.bgImage||null,bgOpacity:st.bgOpacity??100,bgX:st.bgX||0,bgY:st.bgY||0,bgScale:st.bgScale??1};}
   function load(data){
     st.els=[];st.nid=1;
     _cv()?.querySelectorAll('.bp-node').forEach(n=>n.remove());
-    st.bgImage=null;st.bgOpacity=100;
+    st.bgImage=null;st.bgOpacity=100;st.bgX=0;st.bgY=0;st.bgScale=1;_bgEdit=false;
     if(!data||!data.els){_applyBg();return;}
     st.els=data.els;
     st.nid=data.nid||(st.els.length?Math.max(...st.els.map(e=>e.id))+1:1);
@@ -10418,12 +10524,15 @@ const BandPlan=(()=>{
     if(data.stageScale)st.stageScale=data.stageScale;
     if(data.bgImage)st.bgImage=data.bgImage;
     if(data.bgOpacity!=null)st.bgOpacity=data.bgOpacity;
+    if(data.bgX!=null)st.bgX=data.bgX;
+    if(data.bgY!=null)st.bgY=data.bgY;
+    if(data.bgScale!=null)st.bgScale=data.bgScale;
     st.viewMode='vintage';  /* Always vintage now — toggle removed */
     st.els.forEach(el=>renderNode(el));
     applyTransform();_applyGlobalScales();_applyBg();_sel=null;renderInspector();
   }
   function clear(){
-    st.els=[];st.nid=1;st.bgImage=null;st.bgOpacity=100;
+    st.els=[];st.nid=1;st.bgImage=null;st.bgOpacity=100;st.bgX=0;st.bgY=0;st.bgScale=1;_bgEdit=false;
     _cv()?.querySelectorAll('.bp-node').forEach(n=>n.remove());
     _applyBg();_sel=null;renderInspector();saveStage();
   }
@@ -10545,7 +10654,7 @@ const BandPlan=(()=>{
     renderNode(el); renderInspector(); saveStage();
   }
 
-  return {init,load,getData,clear,zoom,setZoomPct,resetZoom,fitView,search,toggleCat,_pdrag,_pdblclick,renderInspector,updateAlias,updPos,adjScale,adjZ,setRot,linkCh,unlinkCh,createCh,toggleStereo,linkChR,unlinkChR,createChR,linkOutCh,unlinkOutCh,createOutCh,toggleOutStereo,linkOutChR,unlinkOutChR,createOutChR,deleteNode,setTextScale,setNodeScale,setStageScale,setRiserDims,setRiserAlt,addCustomItem,removeCustomItem,linkKitCh,unlinkKitCh,createKitCh,setViewMode,getCatInfo,getVintageSVG,getViewMode,loadBg,setBgOpacity,clearBg,uploadElementIcon,clearElementIcon};
+  return {init,load,getData,clear,zoom,setZoomPct,resetZoom,fitView,search,toggleCat,_pdrag,_pdblclick,renderInspector,updateAlias,updPos,adjScale,adjZ,setRot,linkCh,unlinkCh,createCh,toggleStereo,linkChR,unlinkChR,createChR,linkOutCh,unlinkOutCh,createOutCh,toggleOutStereo,linkOutChR,unlinkOutChR,createOutChR,deleteNode,setTextScale,setNodeScale,setStageScale,setRiserDims,setRiserAlt,addCustomItem,removeCustomItem,linkKitCh,unlinkKitCh,createKitCh,setViewMode,getCatInfo,getVintageSVG,getViewMode,loadBg,setBgOpacity,setBgScale,toggleBgEdit,clearBg,uploadElementIcon,clearElementIcon};
 })();
 
 // ══════════════════════════════════════
