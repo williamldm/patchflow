@@ -447,6 +447,8 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .fich-docx-body h1,.fich-docx-body h2,.fich-docx-body h3{font-family:'Outfit',sans-serif;color:#1a1a2e;margin:1.2em 0 .4em}
 .fich-docx-body h1{font-size:22px}.fich-docx-body h2{font-size:18px}.fich-docx-body h3{font-size:15px}
 .fich-docx-body p{margin:0 0 .8em}
+.fich-docx-body ul,.fich-docx-body ol{margin:0 0 .8em 1.4em;padding:0}
+.fich-docx-body li{margin-bottom:.3em}
 .fich-docx-body table{border-collapse:collapse;width:100%;margin:.8em 0}
 .fich-docx-body td,.fich-docx-body th{border:1px solid #d1d5db;padding:6px 10px;font-size:12px}
 .fich-docx-body th{background:#f1f5f9;font-weight:700}
@@ -12986,7 +12988,8 @@ const _fEsc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').re
 
 const FICH_TYPES = {
   pdf:    { ext:['pdf'],                               icon:'<i class="ti ti-file-type-pdf" style="color:#ef4444;font-size:20px"></i>',    cls:'ico-pdf',     label:'PDF',        preview:'pdf' },
-  word:   { ext:['docx','doc','odt','rtf'],            icon:'<i class="ti ti-file-type-doc" style="color:#3b82f6;font-size:20px"></i>',    cls:'ico-word',    label:'Document',   preview:'docx' },
+  word:   { ext:['docx','doc','rtf'],                  icon:'<i class="ti ti-file-type-doc" style="color:#3b82f6;font-size:20px"></i>',    cls:'ico-word',    label:'Document',   preview:'docx' },
+  odt:    { ext:['odt'],                               icon:'<i class="ti ti-file-type-doc" style="color:#3b82f6;font-size:20px"></i>',    cls:'ico-word',    label:'Document',   preview:'odt' },
   txt:    { ext:['txt'],                              icon:'<i class="ti ti-file-text" style="color:#94a3b8;font-size:20px"></i>',          cls:'ico-txt',     label:'Texte',      preview:'text' },
   excel:  { ext:['xlsx','xls','ods'],                 icon:'<i class="ti ti-file-type-xls" style="color:#22c55e;font-size:20px"></i>',    cls:'ico-excel',   label:'Tableur',    preview:'xlsx' },
   csv:    { ext:['csv'],                              icon:'<i class="ti ti-table" style="color:#22c55e;font-size:20px"></i>',              cls:'ico-excel',   label:'Tableur',    preview:'xlsx' },
@@ -13823,6 +13826,10 @@ async function viewFichier(relPath) {
     modal.style.display = 'flex';
     _openDocxViewer(url, displayName, path, content);
     return;
+  } else if (info.preview === 'odt') {
+    modal.style.display = 'flex';
+    _openOdtViewer(url, displayName, path, content);
+    return;
   } else if (info.preview === 'xlsx') {
     modal.style.display = 'flex';
     _openXlsxViewer(url, displayName, path, content);
@@ -14041,6 +14048,144 @@ async function _saveDocxEdits(b2Path, displayName){
 }
 
 /* ════════════════════════════════════════════════════════
+   OPENDOCUMENT TEXTE (.odt) VIEWER — parseur maison (JSZip + DOMParser)
+   mammoth.js ne lit QUE l'OOXML (.docx) et échoue sur l'OpenDocument
+   (.odt) : structure XML totalement différente (« Could not find main
+   document part »). On lit nous-mêmes content.xml/styles.xml et on les
+   convertit en HTML (paragraphes, titres, gras/italique/souligné,
+   listes à puces/numérotées, tableaux, liens). Lecture seule (pas
+   d'écriture ODF en v1 — pas de bouton Enregistrer pour ce format).
+   ════════════════════════════════════════════════════════ */
+function _loadJSZip(){
+  if(window.JSZip) return Promise.resolve(window.JSZip);
+  return new Promise(function(resolve,reject){
+    var s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
+    s.onload=function(){ resolve(window.JSZip); };
+    s.onerror=reject;
+    document.head.appendChild(s);
+  });
+}
+
+async function _openOdtViewer(url, displayName, b2Path, container){
+  container.innerHTML='<div class="fich-pdf-loading"><div class="spinner"></div><span>Chargement du document…</span></div>';
+  try{
+    const JSZip = await _loadJSZip();
+    const resp = await fetch(url);
+    const arrayBuf = await resp.arrayBuffer();
+    const zip = await JSZip.loadAsync(arrayBuf);
+
+    const contentFile = zip.file('content.xml');
+    if(!contentFile) throw new Error('Fichier ODT invalide (content.xml manquant)');
+    const contentXml = await contentFile.async('string');
+    const stylesFile = zip.file('styles.xml');
+    const stylesXml = stylesFile ? await stylesFile.async('string') : '';
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(contentXml, 'application/xml');
+    const stylesDoc = stylesXml ? parser.parseFromString(stylesXml, 'application/xml') : null;
+    if(doc.querySelector('parsererror')) throw new Error('Document XML invalide');
+
+    /* ── Styles caractère (gras/italique/souligné) + listes ordonnées,
+       fusionnés depuis content.xml (styles automatiques) et styles.xml
+       (styles nommés). Pas de résolution d'héritage parent — suffisant
+       pour la plupart des exports LibreOffice/Word réels. ── */
+    const byLocalName = (d, n) => d ? Array.prototype.slice.call(d.getElementsByTagNameNS('*', n)) : [];
+    const charStyles = {};
+    byLocalName(doc,'style').concat(byLocalName(stylesDoc,'style')).forEach(function(st){
+      const name = st.getAttribute('style:name');
+      if(!name) return;
+      let tp=null;
+      for(let i=0;i<st.children.length;i++){ if(st.children[i].localName==='text-properties'){ tp=st.children[i]; break; } }
+      if(!tp) return;
+      charStyles[name] = {
+        bold: /bold|^[789]00$/.test(tp.getAttribute('fo:font-weight')||''),
+        italic: (tp.getAttribute('fo:font-style')||'')==='italic',
+        underline: (tp.getAttribute('style:text-underline-style')||'none')!=='none',
+      };
+    });
+    const orderedListStyles = {};
+    byLocalName(doc,'list-style').concat(byLocalName(stylesDoc,'list-style')).forEach(function(ls){
+      const name = ls.getAttribute('style:name');
+      if(!name) return;
+      let ordered=false;
+      for(let i=0;i<ls.children.length;i++){ if(ls.children[i].localName==='list-level-style-number'){ ordered=true; break; } }
+      orderedListStyles[name]=ordered;
+    });
+
+    const SKIP_TAGS = new Set(['annotation','annotation-end','tracked-changes','change','change-start','change-end','sequence-decls']);
+
+    function convertChildren(node){
+      let html='';
+      for(let i=0;i<node.childNodes.length;i++) html += convertNode(node.childNodes[i]);
+      return html;
+    }
+    function convertNode(node){
+      if(node.nodeType===3) return _fEsc(node.nodeValue);
+      if(node.nodeType!==1) return '';
+      const tag = node.localName;
+      if(SKIP_TAGS.has(tag)) return '';
+      switch(tag){
+        case 'p': return '<p>'+convertChildren(node)+'</p>';
+        case 'h': {
+          let lvl=parseInt(node.getAttribute('text:outline-level')||'1',10);
+          lvl=Math.min(6,Math.max(1,lvl||1));
+          return '<h'+lvl+'>'+convertChildren(node)+'</h'+lvl+'>';
+        }
+        case 'span': {
+          const sname = node.getAttribute('text:style-name');
+          const st = sname && charStyles[sname];
+          let css='';
+          if(st){ if(st.bold)css+='font-weight:700;'; if(st.italic)css+='font-style:italic;'; if(st.underline)css+='text-decoration:underline;'; }
+          return css ? '<span style="'+css+'">'+convertChildren(node)+'</span>' : convertChildren(node);
+        }
+        case 'a': {
+          const href = node.getAttribute('xlink:href')||'#';
+          return '<a href="'+_fEsc(href)+'" target="_blank" rel="noopener">'+convertChildren(node)+'</a>';
+        }
+        case 'line-break': return '<br>';
+        case 'tab': return '&emsp;';
+        case 's': {
+          const c=Math.min(40,Math.max(1,parseInt(node.getAttribute('text:c')||'1',10)));
+          return '&nbsp;'.repeat(c);
+        }
+        case 'list': {
+          const sname = node.getAttribute('text:style-name');
+          const tagName = (sname && orderedListStyles[sname]) ? 'ol' : 'ul';
+          return '<'+tagName+'>'+convertChildren(node)+'</'+tagName+'>';
+        }
+        case 'list-item': return '<li>'+convertChildren(node)+'</li>';
+        case 'table': return '<table>'+convertChildren(node)+'</table>';
+        case 'table-row': return '<tr>'+convertChildren(node)+'</tr>';
+        case 'table-cell': {
+          const repeat=Math.min(20,Math.max(1,parseInt(node.getAttribute('table:number-columns-repeated')||'1',10)));
+          return ('<td>'+convertChildren(node)+'</td>').repeat(repeat);
+        }
+        case 'table-column': return '';
+        default: return convertChildren(node); // élément inconnu : on garde le texte interne
+      }
+    }
+
+    const officeBody = doc.getElementsByTagNameNS('*','body')[0];
+    const officeText = officeBody && Array.prototype.slice.call(officeBody.children).find(c=>c.localName==='text');
+    if(!officeText) throw new Error('Contenu du document introuvable');
+
+    const html = convertChildren(officeText);
+
+    container.innerHTML =
+      '<div class="fich-docx-bar">'
+        +'<span class="fich-docx-status">Lecture seule — format ODT (édition non disponible)</span>'
+        +'<a class="btn ghost sm" href="'+url+'" download="'+_fEsc(displayName)+'" target="_blank"><i class="ti ti-download"></i>Télécharger</a>'
+      +'</div>'
+      +'<div class="fich-docx-wrap">'
+        +'<div class="fich-docx-body">'+(html||'<p style="color:#94a3b8;font-style:italic">Document vide.</p>')+'</div>'
+      +'</div>';
+  }catch(e){
+    container.innerHTML='<div class="fich-pdf-loading" style="flex-direction:column;gap:10px"><i class="ti ti-file-broken" style="font-size:36px;opacity:.4"></i><span style="font-size:12px">Impossible d\'ouvrir ce document<br><span style="opacity:.6">'+_fEsc(e.message)+'</span></span></div>';
+  }
+}
+
+/* ════════════════════════════════════════════════════════
    EXCEL (.xlsx / .csv) VIEWER/EDITEUR — SheetJS (lazy-loaded)
    Rendu en tableau HTML éditable cellule par cellule,
    export et upload vers B2 au format .xlsx.
@@ -14063,7 +14208,7 @@ async function _openXlsxViewer(url, displayName, b2Path, container){
     const resp = await fetch(url);
     const arrayBuf = await resp.arrayBuffer();
     const wb = XLSX.read(arrayBuf,{type:'array',cellStyles:true});
-    window._xlsxState = { wb, b2Path, displayName, activeSheet:0 };
+    window._xlsxState = { wb, b2Path, displayName, signedUrl:url, activeSheet:0 };
 
     _renderXlsxSheet(container, wb, 0);
   }catch(e){
@@ -14112,7 +14257,7 @@ function _renderXlsxSheet(container, wb, sheetIdx){
       +'<div class="fich-xlsx-tabs">'+tabs+'</div>'
       +'<span id="xlsx-status" style="font-size:10px;font-family:var(--m);color:var(--muted)">Cliquez une cellule pour modifier</span>'
       +'<button class="btn sm" id="xlsx-save-btn" onclick="_saveXlsxEdits()" style="display:none"><i class="ti ti-device-floppy"></i>Enregistrer</button>'
-      +'<a class="btn ghost sm" href="'+window._xlsxState?.signedUrl+'" download="'+_fEsc(displayName||'tableur.xlsx')+'" id="xlsx-dl-btn"><i class="ti ti-download"></i>Télécharger</a>'
+      +'<a class="btn ghost sm" href="'+(window._xlsxState?.signedUrl||'#')+'" download="'+_fEsc(window._xlsxState?.displayName||'tableur.xlsx')+'" id="xlsx-dl-btn"><i class="ti ti-download"></i>Télécharger</a>'
     +'</div>'
     +tableHtml;
 
