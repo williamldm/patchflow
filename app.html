@@ -3889,11 +3889,21 @@ function setILMode(mode) {
 function loadOutData() {
   if(!CUR_SHOW) return;
   var raw = CUR_SHOW.out_data;
-  if(!raw) {
-    try { var s=localStorage.getItem('out_data_'+CUR_SHOW.id); if(s) raw=JSON.parse(s); } catch(e){}
+  var fromLocal = false;
+  if(!raw || (typeof raw==='object' && !Object.keys(raw).length)) {
+    try { var s=localStorage.getItem('out_data_'+CUR_SHOW.id); if(s){ raw=JSON.parse(s); fromLocal=true; } } catch(e){}
   }
   OUT_DATA = raw || {};
   OUT_CHS  = (OUT_DATA[CUR_PATCH_ID] || []).slice();
+  /* Auto-réparation : si les sorties ne venaient que du cache local (la base
+     n'avait rien — ex. colonne out_data récemment ajoutée), on les remonte en
+     base pour qu'elles persistent et soient visibles partout (autres appareils,
+     plan de scène, rider). */
+  if(fromLocal && Object.keys(OUT_DATA).length){
+    CUR_SHOW.out_data = JSON.parse(JSON.stringify(OUT_DATA));
+    sb.from('shows').update({out_data: OUT_DATA}).eq('id', CUR_SHOW.id)
+      .then(function(r){ if(r&&r.error) console.warn('[out_data] migration vers DB échouée:', r.error.message); });
+  }
 }
 
 function saveOutData() {
@@ -3903,7 +3913,8 @@ function saveOutData() {
   CUR_SHOW.out_data = JSON.parse(JSON.stringify(OUT_DATA));
   clearTimeout(_saveOutTimer);
   _saveOutTimer = setTimeout(function(){
-    sb.from('shows').update({out_data: OUT_DATA}).eq('id', CUR_SHOW.id);
+    sb.from('shows').update({out_data: OUT_DATA}).eq('id', CUR_SHOW.id)
+      .then(function(r){ if(r&&r.error) console.warn('[out_data] sauvegarde échouée:', r.error.message); });
   }, 900);
 }
 
