@@ -9626,8 +9626,11 @@ const BandPlan=(()=>{
         _bctx.imageSmoothingEnabled=true;_bctx.imageSmoothingQuality='high';
         _bctx.drawImage(img2,0,0,w,h);
         st.bgImage=cv.toDataURL('image/jpeg',0.9);
-        /* Nouvelle image → repartir d'un placement neutre (origine, taille 100%) */
-        st.bgX=0;st.bgY=0;st.bgScale=1;
+        /* Nouvelle image → repartir d'un placement ET d'une opacité neutres
+           (origine, taille 100%, opacité 100%) pour qu'elle soit toujours
+           pleinement visible — évite qu'une opacité basse résiduelle la laisse
+           « délavée » et laisse transparaître le décor de scène. */
+        st.bgX=0;st.bgY=0;st.bgScale=1;st.bgOpacity=100;
         _applyBg();saveStage();
       };
       img2.src=e.target.result;
