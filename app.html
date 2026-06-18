@@ -7112,6 +7112,7 @@ function doBpPDF(){
   const meta={title:($b('bppdf-title').value.trim()||'Plan de Scene'),sub:$b('bppdf-sub').value.trim(),venue:$b('bppdf-venue').value.trim(),date:$b('bppdf-date').value.trim(),eng:$b('bppdf-eng').value.trim(),rev:$b('bppdf-rev').value.trim(),notes:$b('bppdf-notes').value.trim(),link:($b('bppdf-link')?.value||'').trim(),contact:($b('bppdf-contact')?.value||'').trim()};
   /* If user specified a custom link, use it; otherwise default to live share */
   const shareUrl=meta.link||(window.location.origin+window.location.pathname+'?view='+(CUR_SHOW?.id||'')+'&tab=stage');
+  if(!meta.link) _ensureShareActive(); /* activer le partage pour que le lien/QR fonctionne */
   closeBpPDF();
   if(!BandPlan.getData().els.length){toast('Plan vide — rien a exporter.');return;}
   _makeBpCanvas(cv=>{
@@ -7180,8 +7181,26 @@ function doBpPDF(){
   });
 }
 
-function openBpShare(){
-  const url=window.location.origin+window.location.pathname+'?view='+(CUR_SHOW?.id||'')+'&tab=stage';
+/* Active le partage du show si ce n'est pas déjà fait : l'edge function
+   get-shared-show exige une config stage_data.rider pour autoriser l'accès
+   public via ?view= / ?rider=. Sans elle, le lien renvoie « Ce show n'a pas
+   de lien de partage actif ». On crée une config par défaut (toutes les
+   sections, comme le rider builder) sans écraser une config existante. */
+async function _ensureShareActive(){
+  if(!CUR_SHOW) return false;
+  if(CUR_SHOW.stage_data && CUR_SHOW.stage_data.rider) return true;
+  var cfg={ sections:['il','out','syno','stage','site'], title:CUR_SHOW.name||'', note:'', info:'', files:[] };
+  var sd=Object.assign({}, CUR_SHOW.stage_data||{v:2}, {rider:cfg});
+  var {error}=await sb.from('shows').update({stage_data:sd}).eq('id',CUR_SHOW.id);
+  if(error){ toast('Erreur activation du partage : '+error.message); return false; }
+  CUR_SHOW.stage_data=sd;
+  return true;
+}
+async function openBpShare(){
+  if(!CUR_SHOW){ toast('Aucun show sélectionné.'); return; }
+  const ok=await _ensureShareActive();
+  if(!ok) return;
+  const url=window.location.origin+window.location.pathname+'?view='+(CUR_SHOW.id||'')+'&tab=stage';
   document.getElementById('bp-share-url').value=url;
   document.getElementById('bp-share-copy-ok').style.display='none';
   document.getElementById('bp-share-modal').className='modal-ov show';
@@ -7343,6 +7362,7 @@ function doPDF(){
   /* ── Visual plans — image-based exports ── */
   if(type === 'stage'){
     if(!BandPlan.getData().els.length){toast('Plan de scène vide — rien à exporter.');return;}
+    _ensureShareActive(); /* activer le partage pour que le lien/QR du PDF fonctionne */
     _makeBpCanvas(function(cv){
       const dataUrl = cv.toDataURL('image/png');
       const shareUrl = window.location.origin+window.location.pathname+'?view='+(CUR_SHOW?.id||'')+'&tab=stage';
