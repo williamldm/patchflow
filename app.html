@@ -1790,9 +1790,10 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
             <button class="btn ghost sm" style="width:100%;justify-content:center;font-size:10.5px;margin-top:5px" onclick="document.getElementById('bp-bg-file').click()"><i class="ti ti-photo"></i> Image de fond</button>
             <button class="btn ghost sm" id="bp-stage-toggle-btn" style="width:100%;justify-content:center;font-size:10.5px;margin-top:5px" onclick="BandPlan.toggleStageBg()"><i class="ti ti-eye-off"></i> Masquer la scène</button>
             <div id="bp-bg-controls" style="display:none">
-              <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)" title="Opacité">
+              <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)" title="Opacité de l'image de fond">
                 <i class="ti ti-sun" style="font-size:11px;flex-shrink:0"></i>
-                <input type="range" id="bp-bg-opacity" min="5" max="100" value="100" style="flex:1;accent-color:var(--ora)" oninput="BandPlan.setBgOpacity(this.value)"/>
+                <input type="range" id="bp-bg-opacity" min="20" max="100" value="100" style="flex:1;accent-color:var(--ora)" oninput="BandPlan.setBgOpacity(this.value)"/>
+                <span id="bp-bg-opacity-val" style="font-family:var(--m);font-size:9px;color:var(--txt2);min-width:30px;text-align:right;flex-shrink:0">100%</span>
                 <button onclick="BandPlan.clearBg()" title="Retirer l'image" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0;flex-shrink:0">&#x2715;</button>
               </div>
               <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);margin-top:5px" title="Taille">
@@ -9653,11 +9654,12 @@ const BandPlan=(()=>{
     }
     if(ctrl)ctrl.style.display=st.bgImage?'block':'none';
     const sl=document.getElementById('bp-bg-opacity');if(sl)sl.value=st.bgOpacity;
+    const vl=document.getElementById('bp-bg-opacity-val');if(vl)vl.textContent=Math.round(st.bgOpacity)+'%';
     const ss=document.getElementById('bp-bg-size');if(ss)ss.value=Math.round((st.bgScale||1)*100);
     if(!st.bgImage)_bgEdit=false;
     _updateBgEditUI();
   }
-  function setBgOpacity(val){st.bgOpacity=+val;const img=document.getElementById('bp-bg-img');if(img)img.style.opacity=val/100;saveStage();}
+  function setBgOpacity(val){st.bgOpacity=+val;const img=document.getElementById('bp-bg-img');if(img)img.style.opacity=val/100;const vl=document.getElementById('bp-bg-opacity-val');if(vl)vl.textContent=Math.round(+val)+'%';saveStage();}
   function setBgScale(val){
     st.bgScale=Math.max(0.1,Math.min(6,(+val)/100));
     const img=document.getElementById('bp-bg-img');if(img)img.style.transform=_bgTransform();
@@ -10656,6 +10658,9 @@ const BandPlan=(()=>{
     if(data.stageScale)st.stageScale=data.stageScale;
     if(data.bgImage)st.bgImage=data.bgImage;
     if(data.bgOpacity!=null)st.bgOpacity=data.bgOpacity;
+    /* Garde-fou : une image de fond ne doit jamais être quasi invisible
+       (anciennes données sous l'ancien plancher de 5%). */
+    if(st.bgImage&&st.bgOpacity<20)st.bgOpacity=20;
     if(data.bgX!=null)st.bgX=data.bgX;
     if(data.bgY!=null)st.bgY=data.bgY;
     if(data.bgScale!=null)st.bgScale=data.bgScale;
