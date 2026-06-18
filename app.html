@@ -1572,7 +1572,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
               <th data-col="foh">FOH</th>
               <th data-col="mon">MON</th>
               <th data-col="bc">BC</th>
-              <th data-col="note">Pied</th>
+              <th data-col="note">Note</th>
               <th style="width:64px"></th>
             </tr></thead>
             <tbody id="il-body"><tr><td colspan="13"><div class="loading"><div class="spinner"></div>Connexion…</div></td></tr></tbody>
@@ -4575,7 +4575,7 @@ function renderTable(){
       <td data-col="foh" style="text-align:center"><input type="checkbox" class="cb blu" ${r.foh?'checked':''} onchange="scheduleSave('${r.id}','foh',this.checked)"/></td>
       <td data-col="mon" style="text-align:center"><input type="checkbox" class="cb warn" ${r.mon?'checked':''} onchange="scheduleSave('${r.id}','mon',this.checked)"/></td>
       <td data-col="bc" style="text-align:center"><input type="checkbox" class="cb grn" ${r.bc?'checked':''} onchange="scheduleSave('${r.id}','bc',this.checked)"/></td>
-      <td data-col="note"><select class="ilinp" style="color:var(--txt2);font-size:11px;padding:3px 5px;cursor:pointer" onchange="scheduleSave('${r.id}','note',this.value)"><option value="">—</option><option value="Grand pied" ${r.note==='Grand pied'?'selected':''}>Grand pied</option><option value="Petit pied" ${r.note==='Petit pied'?'selected':''}>Petit pied</option><option value="Embase ronde" ${r.note==='Embase ronde'?'selected':''}>Embase ronde</option><option value="Autre" ${r.note==='Autre'?'selected':''}>Autre</option></select></td>
+      <td data-col="note"><input class="ilinp" style="color:var(--txt2)" value="${_oh(r.note||'')}" placeholder="—" onchange="scheduleSave('${r.id}','note',this.value)"/></td>
       ${_getCustomCols().map(col=>{const v=(r.custom_data&&r.custom_data[col.id])||'';return `<td data-col="${col.id}" style="text-align:${col.type==='bool'?'center':'left'}">${_customCellHTML(col,r.id,v)}</td>`;}).join('')}
       <td style="white-space:nowrap">
         <i class="ti ti-grip-vertical drag-handle"></i>
