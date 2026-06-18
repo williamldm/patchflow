@@ -9619,6 +9619,37 @@ const BandPlan=(()=>{
 
   let st={els:[],nid:1,view:{z:1,px:80,py:60},cats:{},textScale:1.4,nodeScale:1.4,stageScale:1,viewMode:'vintage',bgImage:null,bgOpacity:100,bgX:0,bgY:0,bgScale:1,hideStage:false};
   let _sel=null,_dn=null,_dnox=0,_dnoy=0,_pan=false,_pox=0,_poy=0,_inited=false,_saveT=0,_bgEdit=false;
+  /* Input list (patch) choisie pour la liaison de canaux dans le plan de scène,
+     et état du panneau de sélection multiple (kit). */
+  let _bpLinkPatch=null,_bpKitMulti=false;
+  /* Patch effectif depuis lequel lier — celui choisi, sinon le patch actif. */
+  function _linkPatch(){
+    const ps=(typeof IL_PATCHES!=='undefined'&&IL_PATCHES.length)?IL_PATCHES:[{id:'main',name:'Patch 1'}];
+    if(_bpLinkPatch&&ps.some(p=>p.id===_bpLinkPatch))return _bpLinkPatch;
+    return (typeof CUR_PATCH_ID!=='undefined'?CUR_PATCH_ID:'main');
+  }
+  function setLinkPatch(id){ _bpLinkPatch=id||null; _bpKitMulti=false; renderInspector(); }
+  function toggleKitMulti(){
+    if(!canDo('bulk_link')){ showUpgradeModal('bulk_link'); return; }
+    _bpKitMulti=!_bpKitMulti; renderInspector();
+  }
+  function linkKitChMulti(){
+    const el=st.els.find(e=>e.id===_sel);if(!el||el.type!=='kit')return;
+    if(!el.chs)el.chs=[];
+    const boxes=document.querySelectorAll('.bp-kit-msel:checked');
+    let added=0;
+    boxes.forEach(function(b){ if(b.value&&!el.chs.includes(b.value)){el.chs.push(b.value);added++;} });
+    _bpKitMulti=false;
+    renderNode(el);renderInspector();saveStage();
+    if(added) toast(added+' canal'+(added>1?'ux':'')+' lie'+(added>1?'s':'')+' au kit');
+    else toast('Aucun canal coché.');
+  }
+  function kitMultiAll(btn){
+    const boxes=document.querySelectorAll('.bp-kit-msel');
+    const allOn=Array.prototype.every.call(boxes,function(b){return b.checked;});
+    boxes.forEach(function(b){b.checked=!allOn;});
+    if(btn)btn.textContent=allOn?'Tout cocher':'Tout décocher';
+  }
 
   function _wrap(){return document.getElementById('bp-canvas-wrap');}
   function _cv(){return document.getElementById('bp-canvas');}
@@ -10265,23 +10296,23 @@ const BandPlan=(()=>{
     const _allC=(typeof ALL_CHS!=='undefined'&&ALL_CHS.length)?ALL_CHS:(typeof CHS!=='undefined'?CHS:[]);
     const _patches=(typeof IL_PATCHES!=='undefined'&&IL_PATCHES.length)?IL_PATCHES:[{id:'main',name:'Patch 1'}];
     const _escO=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
-    /* Options de canaux groupées par input list (optgroup dès qu'il y a >1 liste)
-       — permet de lier un élément du plan de scène à un canal de N'IMPORTE
-       quelle input list, pas seulement celle active. */
-    const _chGrpOpts=(selId,excludeIds)=>{
+    /* Input list active pour la liaison (choisie via le sélecteur, sinon le
+       patch courant) — on ne montre QUE les canaux de cette liste. */
+    const _lp=_linkPatch();
+    const _chOpts=(selId,excludeIds)=>{
       excludeIds=excludeIds||[];
-      const multi=_patches.length>1;
-      let html='';
-      _patches.forEach(p=>{
-        const pchs=_allC.filter(r=>(r.patch_id||'main')===p.id && excludeIds.indexOf(r.id)<0);
-        if(!pchs.length) return;
-        const opts=pchs.map(r=>'<option value="'+r.id+'"'+(selId===r.id?' selected':'')+'>CH'+r.ch+' — '+_escO(r.long_name||r.short_name||'—')+'</option>').join('');
-        html+=multi?'<optgroup label="'+_escO(p.name||'Liste')+'">'+opts+'</optgroup>':opts;
-      });
-      return html;
+      return _allC.filter(r=>(r.patch_id||'main')===_lp && excludeIds.indexOf(r.id)<0)
+        .map(r=>'<option value="'+r.id+'"'+(selId===r.id?' selected':'')+'>CH'+r.ch+' — '+_escO(r.long_name||r.short_name||'—')+'</option>').join('');
     };
+    /* Sélecteur de liste — affiché uniquement s'il y a plusieurs input lists. */
+    const _listSel=_patches.length>1
+      ? '<div style="font-size:9px;font-family:var(--m);color:var(--muted);margin-bottom:3px"><i class="ti ti-list-numbers" style="font-size:10px"></i> Input list</div>'
+        +'<select class="bp-il-sel" style="margin-bottom:9px" onchange="BandPlan.setLinkPatch(this.value)">'
+        +_patches.map(p=>'<option value="'+p.id+'"'+(p.id===_lp?' selected':'')+'>'+_escO(p.name||'Liste')+'</option>').join('')
+        +'</select>'
+      : '';
     const linkedCh=_chById(sel.ch);
-    const chOpts=_chGrpOpts(sel.ch);
+    const chOpts=_chOpts(sel.ch);
     el.innerHTML=
       // --- Alias
       '<div class="bp-insp-sec">'
@@ -10333,11 +10364,25 @@ const BandPlan=(()=>{
         ?(()=>{
           const kitChs=sel.chs||[];
           const linkedRows=kitChs.map(id=>_chById(id)).filter(Boolean);
-          const remOpts=_chGrpOpts(null,kitChs);
+          const remOpts=_chOpts(null,kitChs);
+          const availMulti=_allC.filter(r=>(r.patch_id||'main')===_lp && kitChs.indexOf(r.id)<0);
+          const isPro=canDo('bulk_link');
+          const multiBlock=_bpKitMulti
+            ? '<div style="border:1px solid var(--bdr2);border-radius:8px;padding:8px;margin-bottom:6px;max-height:190px;overflow:auto;background:var(--surf2)">'
+              +(availMulti.length
+                ? '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px"><span style="font-size:9px;font-family:var(--m);color:var(--muted)">Cochez les canaux</span><button onclick="BandPlan.kitMultiAll(this)" style="background:none;border:none;color:var(--ora);font-size:9px;cursor:pointer;font-family:var(--m)">Tout cocher</button></div>'
+                  +availMulti.map(r=>'<label style="display:flex;align-items:center;gap:7px;font-size:11px;color:var(--txt2);padding:3px 2px;cursor:pointer;user-select:none"><input type="checkbox" class="bp-kit-msel cb" value="'+r.id+'"/> CH'+r.ch+' — '+_escO(r.long_name||r.short_name||'—')+'</label>').join('')
+                  +'<button class="bp-il-create" style="margin-top:7px" onclick="BandPlan.linkKitChMulti()"><i class="ti ti-plug-connected"></i>Ajouter la sélection</button>'
+                : '<div style="font-size:10px;color:var(--muted);padding:4px 0">Aucun canal disponible dans cette liste.</div>')
+              +'</div>'
+              +'<button class="bp-il-create" style="background:var(--surf3);margin-bottom:6px" onclick="BandPlan.toggleKitMulti()"><i class="ti ti-x"></i>Fermer</button>'
+            : (remOpts?'<select class="bp-il-sel" onchange="BandPlan.linkKitCh(this.value)" style="margin-bottom:6px"><option value="">+ Ajouter un canal…</option>'+remOpts+'</select>':'')
+              +'<button class="bp-il-create" style="margin-bottom:6px" onclick="BandPlan.toggleKitMulti()"><i class="ti ti-checkbox"></i>Sélection multiple'+(isPro?'':' <span style="font-size:8px;background:var(--ora);color:#04231a;padding:1px 4px;border-radius:4px;font-weight:700;margin-left:3px">PRO</span>')+'</button>';
           return '<div class="bp-insp-sec">'
             +'<div class="bp-insp-title"><i class="ti ti-list-numbers" style="color:var(--ora)"></i>Input List — Kit</div>'
+            +_listSel
             +linkedRows.map(r=>'<div class="bp-kit-ch-row"><i class="ti ti-plug-connected" style="color:var(--ora);font-size:11px"></i><span>CH '+r.ch+' — '+(r.long_name||r.short_name||'—')+'</span><button class="bp-kit-ch-del" onclick="BandPlan.unlinkKitCh(\''+r.id+'\')" title="Dissocier">\xd7</button></div>').join('')
-            +(remOpts?'<select class="bp-il-sel" onchange="BandPlan.linkKitCh(this.value)" style="margin-bottom:6px"><option value="">+ Ajouter un canal…</option>'+remOpts+'</select>':'')
+            +multiBlock
             +'<button class="bp-il-create" onclick="BandPlan.createKitCh()"><i class="ti ti-plus"></i>Creer un canal</button>'
             +'</div>';
         })()
@@ -10375,9 +10420,10 @@ const BandPlan=(()=>{
           })()
           :(()=>{
             const linkedChR=sel.stereo?_chById(sel.chR):null;
-            const chOptsR=_chGrpOpts(sel.chR);
+            const chOptsR=_chOpts(sel.chR);
             return '<div class="bp-insp-sec">'
               +'<div class="bp-insp-title"><i class="ti ti-list-numbers" style="color:var(--ora)"></i>Input List</div>'
+              +_listSel
               // Stereo toggle
               +'<label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:11px;color:var(--txt2);margin-bottom:9px;user-select:none">'
               +'<input type="checkbox" class="cb"'+(sel.stereo?' checked':'')+' onchange="BandPlan.toggleStereo(this.checked)"/> Stereo (2 canaux L+R)'
@@ -10819,7 +10865,7 @@ const BandPlan=(()=>{
     renderNode(el); renderInspector(); saveStage();
   }
 
-  return {init,load,getData,clear,zoom,setZoomPct,resetZoom,fitView,search,toggleCat,_pdrag,_pdblclick,renderInspector,updateAlias,updPos,adjScale,adjZ,setRot,linkCh,unlinkCh,createCh,toggleStereo,linkChR,unlinkChR,createChR,linkOutCh,unlinkOutCh,createOutCh,toggleOutStereo,linkOutChR,unlinkOutChR,createOutChR,deleteNode,setTextScale,setNodeScale,setStageScale,setRiserDims,setRiserAlt,addCustomItem,removeCustomItem,linkKitCh,unlinkKitCh,createKitCh,setViewMode,getCatInfo,getVintageSVG,getViewMode,loadBg,setBgOpacity,setBgScale,toggleBgEdit,toggleStageBg,clearBg,aiPlace,uploadElementIcon,clearElementIcon};
+  return {init,load,getData,clear,zoom,setZoomPct,resetZoom,fitView,search,toggleCat,_pdrag,_pdblclick,renderInspector,updateAlias,updPos,adjScale,adjZ,setRot,linkCh,unlinkCh,createCh,toggleStereo,linkChR,unlinkChR,createChR,linkOutCh,unlinkOutCh,createOutCh,toggleOutStereo,linkOutChR,unlinkOutChR,createOutChR,deleteNode,setTextScale,setNodeScale,setStageScale,setRiserDims,setRiserAlt,addCustomItem,removeCustomItem,linkKitCh,unlinkKitCh,createKitCh,setViewMode,getCatInfo,getVintageSVG,getViewMode,loadBg,setBgOpacity,setBgScale,toggleBgEdit,toggleStageBg,clearBg,aiPlace,uploadElementIcon,clearElementIcon,setLinkPatch,toggleKitMulti,linkKitChMulti,kitMultiAll};
 })();
 
 // ══════════════════════════════════════
@@ -14898,10 +14944,10 @@ function closeUD(){document.getElementById('user-dd').classList.remove('show');}
 const PLAN_PERMS = {
   free:   { max_shows:3,        max_channels:26,       max_members:1,        max_templates:5,        max_share_links:5,
             export_pdf:true,    share_link:true,       site_plan:true,       pdf_watermark:true,
-            storage:true,       multi_scenes:false,    multi_patches:false,  custom_exports:false,  vintage_view:false, recap_matos:false, recent_activity:false, console_export:false, ai_stage:false },
+            storage:true,       multi_scenes:false,    multi_patches:false,  custom_exports:false,  vintage_view:false, recap_matos:false, recent_activity:false, console_export:false, ai_stage:false, bulk_link:false },
   pro:    { max_shows:Infinity, max_channels:Infinity, max_members:Infinity, max_templates:Infinity, max_share_links:Infinity,
             export_pdf:true,    share_link:true,       site_plan:true,       pdf_watermark:false,
-            storage:true,       multi_scenes:true,     multi_patches:true,   custom_exports:true,   vintage_view:true,  recap_matos:true,  recent_activity:true, console_export:true, ai_stage:true },
+            storage:true,       multi_scenes:true,     multi_patches:true,   custom_exports:true,   vintage_view:true,  recap_matos:true,  recent_activity:true, console_export:true, ai_stage:true, bulk_link:true },
 };
 
 const PLAN_META = {
@@ -14926,6 +14972,7 @@ const GATE_META = {
   console_export: { icon:'ti-device-floppy',    title:'Exports console (Show Files)',  desc:'Generez les fichiers natifs pour charger vos noms de voies, couleurs, gains et +48V directement dans votre console.', plan:'pro', feats:['Yamaha, Behringer, Midas, DiGiCo, Avid, A&H...','Scene X32/M32 native, CSV officiels','Couleurs et icones intelligentes par instrument'] },
   ai_stage:       { icon:'ti-sparkles',         title:'Plan de scène par IA',          desc:'Envoyez la photo ou le croquis d\'un plan de scène : l\'IA le numérise et place automatiquement les instruments et le matériel dans l\'éditeur.', plan:'pro', feats:['Reconnaissance d\'un plan à partir d\'une image','Placement automatique des éléments','Vous ajustez ensuite librement'] },
   max_share_links:{ icon:'ti-link',             title:'Limite de liens de partage',   desc:'Le plan Gratuit est limite a 5 liens de partage au total. Passez au Pro pour des liens illimites.', plan:'pro', feats:['Liens de partage illimites sur Pro','Partagez chaque show en lecture seule','Mise a jour en temps reel'] },
+  bulk_link:      { icon:'ti-checkbox',         title:'Liaison multiple de canaux',   desc:'Liez plusieurs canaux d\'un coup a un kit (batterie, percussions...) en les cochant — au lieu de les ajouter un par un.', plan:'pro', feats:['Cochez 8 canaux et liez-les en un clic','Ideal pour les kits batterie / percussions','Inclus dans le plan Pro'] },
 };
 
 function userPlan() { return PROFILE?.plan || 'free'; }
