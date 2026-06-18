@@ -236,7 +236,7 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .iltable tr:last-child td{border-bottom:none}
 .iltable tbody tr:hover td{background:rgba(255,107,26,.03)}
 .iltable tbody tr.flash td{background:rgba(34,214,160,.07);transition:background .1s}
-.ch-num{font-family:var(--m);color:var(--ora);font-size:12px;font-weight:500;text-align:center;width:36px}
+.ch-num{font-family:var(--m);color:var(--ora);font-size:var(--chnum-size,18px);font-weight:700;text-align:center;min-width:38px;padding:0 6px}
 .ilinp{background:transparent;border:none;color:var(--txt);font-family:var(--f);font-size:11px;width:100%;outline:none;padding:2px 3px;border-radius:3px;transition:background .12s}
 .ilinp:focus{background:rgba(255,107,26,.07)}
 .ilinp.m{font-family:var(--m);font-size:10px}
@@ -1520,6 +1520,12 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
           <button class="btn sm ghost" onclick="colPreset('broadcast')">Broadcast</button>
           <button class="btn sm ghost" onclick="colPreset('full')">Tout</button>
           <button class="btn sm" style="margin-left:auto" onclick="toggleColPanel()"><i class="ti ti-check"></i>OK</button>
+        </div>
+
+        <!-- Taille du numéro de canal -->
+        <div style="display:flex;gap:7px;border-top:1px solid var(--bdr);padding-top:11px;margin-top:11px;flex-wrap:wrap;align-items:center">
+          <span style="font-family:var(--m);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px"><i class="ti ti-number" style="color:var(--ora)"></i> Taille N° de canal :</span>
+          <div id="chnum-size-grp" style="display:flex;gap:5px"></div>
         </div>
 
         <!-- Colonnes personnalisées (Pro) -->
@@ -5667,7 +5673,20 @@ function applyColVis(){
 }
 function updateColBtn(){const b=document.getElementById('col-btn');if(b)b.innerHTML=`<i class="ti ti-columns"></i>Colonnes <span style="font-family:var(--m);font-size:9px;background:var(--ora);color:#000;border-radius:9px;padding:1px 5px;margin-left:2px">${visCol.size}</span>`;}
 function colPreset(n){visCol=new Set(COL_PRESETS[n]||COLS.map(c=>c.id));applyColVis();loadColChips();toast(`✓ Vue "${n}" appliquée`);}
-function toggleColPanel(){const p=document.getElementById('col-panel');p.style.display=p.style.display==='none'||!p.style.display?'block':'none';if(p.style.display==='block'){loadColChips();_renderCustomColList();}}
+function toggleColPanel(){const p=document.getElementById('col-panel');p.style.display=p.style.display==='none'||!p.style.display?'block':'none';if(p.style.display==='block'){loadColChips();_renderCustomColList();renderChNumSizes();}}
+
+/* ── Taille du numéro de canal (préférence d'affichage, persistante) ── */
+const CHNUM_SIZES=[{k:'s',label:'S',px:14},{k:'m',label:'M',px:18},{k:'l',label:'L',px:23},{k:'xl',label:'XL',px:29}];
+function getChNumSize(){const v=parseInt(localStorage.getItem('pf_chnum_size'),10);return isNaN(v)?18:v;}
+function applyChNumSize(px){document.documentElement.style.setProperty('--chnum-size',px+'px');}
+function setChNumSize(px){try{localStorage.setItem('pf_chnum_size',px);}catch(e){}applyChNumSize(px);renderChNumSizes();}
+function renderChNumSizes(){
+  const grp=document.getElementById('chnum-size-grp');if(!grp)return;
+  const cur=getChNumSize();
+  grp.innerHTML=CHNUM_SIZES.map(s=>'<button class="btn sm'+(s.px===cur?'':' ghost')+'" style="padding:3px 11px;min-width:34px" onclick="setChNumSize('+s.px+')">'+s.label+'</button>').join('');
+}
+/* Appliquer la préférence dès le chargement (avant même d'ouvrir le panneau). */
+applyChNumSize(getChNumSize());
 
 // ══════════════════════════════════════
 // CUSTOM COLUMNS (Pro)
