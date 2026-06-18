@@ -6830,6 +6830,7 @@ function _makeBpCanvas(cb){
       if(_bgImg){
         var _bgx=data.bgX||0, _bgy=data.bgY||0, _bgs=data.bgScale==null?1:data.bgScale;
         ctx.save();
+        ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
         ctx.globalAlpha=(data.bgOpacity==null?100:data.bgOpacity)/100;
         ctx.drawImage(_bgImg, wx(_bgx), wy(_bgy), _bgImg.naturalWidth*_bgs*SC, _bgImg.naturalHeight*_bgs*SC);
         ctx.restore();
@@ -9618,11 +9619,13 @@ const BandPlan=(()=>{
     reader.onload=e=>{
       const img2=new Image();
       img2.onload=()=>{
-        const MAX=1600;let w=img2.width,h=img2.height;
+        const MAX=2400;let w=img2.width,h=img2.height;
         if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}
         const cv=document.createElement('canvas');cv.width=w;cv.height=h;
-        cv.getContext('2d').drawImage(img2,0,0,w,h);
-        st.bgImage=cv.toDataURL('image/jpeg',0.75);
+        const _bctx=cv.getContext('2d');
+        _bctx.imageSmoothingEnabled=true;_bctx.imageSmoothingQuality='high';
+        _bctx.drawImage(img2,0,0,w,h);
+        st.bgImage=cv.toDataURL('image/jpeg',0.9);
         /* Nouvelle image → repartir d'un placement neutre (origine, taille 100%) */
         st.bgX=0;st.bgY=0;st.bgScale=1;
         _applyBg();saveStage();
