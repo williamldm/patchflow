@@ -16010,12 +16010,19 @@ function printPrep(){
     return html;
   }
 
-  /* Helper: données de la scène courante */
+  /* Helper: données de la scène courante.
+     ATTENTION : pour le plan de scène, les données sont stockées sous la clé
+     'band' (saveStage enregistre {band:...}), pas 'stage'. Sans ce mapping, le
+     rider lisait scene.data['stage'] (undefined) et retombait toujours sur les
+     données legacy stage_data.band — d'où l'opacité/le masquage de scène qui ne
+     suivaient jamais les modifications faites en mode multi-scènes. */
   function _svCurrentSceneData(sceneType){
     var curId=CUR_SCENES[sceneType];
     if(!curId) return null;
     var scene=(SHOW_SCENES[sceneType]||[]).find(function(s){return s.id===curId;});
-    return scene&&scene.data?scene.data[sceneType]:null;
+    if(!scene||!scene.data) return null;
+    var dataKey=sceneType==='stage'?'band':sceneType;
+    return scene.data[dataKey]||null;
   }
 
   /* Switch entre scènes — window pour accès global depuis onclick */
