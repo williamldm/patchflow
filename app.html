@@ -6195,7 +6195,7 @@ async function doCSVImport(){
         foh:true,
         mon:false,
         bc:false,
-        note:_csvGetVal(row,'note')||''
+        note:(_NOTE_ABBR[(_csvGetVal(row,'note')||'').trim().toLowerCase()]||_csvGetVal(row,'note')||'')
       };
       if(_patchColReady) rec.patch_id=CUR_PATCH_ID;
       var {data,error}=await sb.from('channels').insert(rec).select().single();
