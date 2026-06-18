@@ -6188,8 +6188,8 @@ async function doCSVImport(){
       if(error) throw error;
       inserted.push(data);
     }
-    if(_csvMode==='replace') CHS=inserted;
-    else CHS=CHS.concat(inserted);
+    var {data:freshChs}=await sb.from('channels').select('*').eq('show_id',CUR_SHOW.id).order('ch');
+    if(freshChs) CHS=freshChs;
     renderTable();
     closeCSVImport();
     toast(dataRows.length+' canal'+(dataRows.length!==1?'ux':'')+' importe'+(dataRows.length!==1?'s':'')+' !');

@@ -17,7 +17,7 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY') ?? '';
-const MODEL = 'claude-opus-4-8';
+const MODEL = 'claude-haiku-4-5';
 
 /* Catalogue des éléments disponibles dans l'éditeur (type → libellé FR).
    DOIT rester aligné avec CATS dans app.html. */
@@ -122,10 +122,8 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 12000,
-        thinking: { type: 'adaptive' },
+        max_tokens: 4096,
         output_config: {
-          effort: 'medium',
           format: { type: 'json_schema', schema: SCHEMA },
         },
         system: SYSTEM,
@@ -149,7 +147,6 @@ serve(async (req) => {
     }
 
     const aiJson = await aiResp.json();
-    // Avec adaptive thinking, la réponse peut contenir un bloc thinking puis le bloc text JSON.
     const textBlock = (aiJson.content || []).find((b: { type: string }) => b.type === 'text');
     if (!textBlock?.text) return json({ error: 'Réponse IA vide.' }, 502);
 
