@@ -27,9 +27,9 @@ async function fetchShowData(sbAdmin: ReturnType<typeof createClient>, showId: s
       .order('ch'),
     sbAdmin
       .from('show_scenes')
-      .select('id, type, name, pos, data')
+      .select('id, type, name, position, data')
       .eq('show_id', showId)
-      .order('pos'),
+      .order('position'),
   ]);
 
   return {
