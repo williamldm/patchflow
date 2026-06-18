@@ -1579,6 +1579,14 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
           </table>
         </div>
         <button class="add-row" onclick="addRow()"><i class="ti ti-plus"></i>Nouveau canal</button>
+        <datalist id="il-note-list">
+          <option value="Grand pied"></option>
+          <option value="Petit pied"></option>
+          <option value="Embase ronde"></option>
+          <option value="Pied de table"></option>
+          <option value="Pince"></option>
+          <option value="Perche"></option>
+        </datalist>
       </div>
 
       <!-- Table OUT -->
@@ -4558,6 +4566,12 @@ async function saveILAAsTemplate(){
 // ══════════════════════════════════════
 // RENDER TABLE
 // ══════════════════════════════════════
+const _NOTE_ABBR={'gp':'Grand pied','pp':'Petit pied','er':'Embase ronde','pt':'Pied de table','pc':'Pince','pe':'Perche'};
+function _expandNoteAbbr(inp){
+  var v=inp.value.trim().toLowerCase();
+  if(_NOTE_ABBR[v]){inp.value=_NOTE_ABBR[v];}
+  return inp.value;
+}
 function renderTable(){
   initDragDrop();
   if(CHS.length===0){setILBody('<div class="loading" style="color:var(--muted)"><i class="ti ti-inbox" style="font-size:20px"></i>Aucun canal — clique sur "+ Canal" pour commencer</div>',true);}
@@ -4575,7 +4589,7 @@ function renderTable(){
       <td data-col="foh" style="text-align:center"><input type="checkbox" class="cb blu" ${r.foh?'checked':''} onchange="scheduleSave('${r.id}','foh',this.checked)"/></td>
       <td data-col="mon" style="text-align:center"><input type="checkbox" class="cb warn" ${r.mon?'checked':''} onchange="scheduleSave('${r.id}','mon',this.checked)"/></td>
       <td data-col="bc" style="text-align:center"><input type="checkbox" class="cb grn" ${r.bc?'checked':''} onchange="scheduleSave('${r.id}','bc',this.checked)"/></td>
-      <td data-col="note"><input class="ilinp" style="color:var(--txt2)" value="${_oh(r.note||'')}" placeholder="—" onchange="scheduleSave('${r.id}','note',this.value)"/></td>
+      <td data-col="note"><input class="ilinp" list="il-note-list" style="color:var(--txt2)" value="${_oh(r.note||'')}" placeholder="—" onchange="scheduleSave('${r.id}','note',_expandNoteAbbr(this))" onblur="_expandNoteAbbr(this)"/></td>
       ${_getCustomCols().map(col=>{const v=(r.custom_data&&r.custom_data[col.id])||'';return `<td data-col="${col.id}" style="text-align:${col.type==='bool'?'center':'left'}">${_customCellHTML(col,r.id,v)}</td>`;}).join('')}
       <td style="white-space:nowrap">
         <i class="ti ti-grip-vertical drag-handle"></i>
