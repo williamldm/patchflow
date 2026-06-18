@@ -2796,6 +2796,15 @@ let SHOWS=[], CUR_SHOW=null, SHOW_MEMBERS_MAP={}, SHOW_OWNERS_CACHE={}, SHOW_STO
 let SHOW_SCENES={syno:[],stage:[],site:[]};
 let CUR_SCENES={syno:null,stage:null,site:null};
 let CHS=[];
+let ALL_CHS=[];          // tous les canaux du show, toutes les input lists (patches)
+/* Résout un canal par id à travers TOUTES les input lists (pas seulement le
+   patch actif) — utilisé par le plan de scène pour lier/afficher des canaux
+   provenant de n'importe quelle liste. Repli sur CHS si ALL_CHS vide. */
+function _chById(id){
+  if(!id) return null;
+  if(typeof ALL_CHS!=='undefined' && ALL_CHS.length){ const r=ALL_CHS.find(c=>c.id===id); if(r) return r; }
+  return (typeof CHS!=='undefined'?CHS:[]).find(c=>c.id===id)||null;
+}
 let IL_PATCHES=[{id:'main',name:'Patch 1',pos:0}];
 let CUR_PATCH_ID='main';
 let CUR_IL_MODE='in';   // 'in' | 'out'
@@ -3693,10 +3702,13 @@ async function loadChs(){
   const all=data||[];
   // Detect patch_id column from first row
   if(all.length>0) _patchColReady='patch_id' in all[0];
-  // Filter by current patch (works even if column absent: undefined||'main'===CUR_PATCH_ID when CUR_PATCH_ID==='main')
+  // Renumber ch within EACH patch group (chaque input list est numérotée 1..n)
+  const _byPatch={};
+  all.forEach(r=>{const pid=r.patch_id||'main';(_byPatch[pid]=_byPatch[pid]||[]).push(r);});
+  Object.keys(_byPatch).forEach(pid=>{_byPatch[pid].forEach((r,i)=>{if(r.ch!==i+1)r.ch=i+1;});});
+  // Référentiel complet (toutes les listes) + vue filtrée sur le patch actif
+  ALL_CHS=all;
   CHS=all.filter(r=>(r.patch_id||'main')===CUR_PATCH_ID);
-  // Renumber ch within this patch view
-  CHS.forEach((r,i)=>{if(r.ch!==i+1)r.ch=i+1;});
   renderTable();
 }
 function setILBody(html,wrap){
@@ -6781,7 +6793,7 @@ function _makeBpCanvas(cb){
   const cv=document.createElement('canvas');cv.width=cw;cv.height=ch;
   const ctx=cv.getContext('2d');
   const wx=x=>(x-minX)*SC,wy=y=>(y-minY)*SC;
-  const allChs=typeof CHS!=='undefined'?CHS:[];
+  const allChs=(typeof ALL_CHS!=='undefined'&&ALL_CHS.length)?ALL_CHS:(typeof CHS!=='undefined'?CHS:[]);
   /* ── VINTAGE CANVAS (light theme, white background) ── */
   if(true){  /* Always vintage now — modern mode removed */
     // White background
@@ -9760,7 +9772,7 @@ const BandPlan=(()=>{
   function _catOf(t){return CATS.find(c=>c.items.some(i=>i.t===t))||CATS.find(c=>c.id===(_customItems.find(i=>i.t===t)?.catId))||null;}
   function _itemOf(t){for(const c of CATS){const it=c.items.find(i=>i.t===t);if(it)return it;}return _customItems.find(i=>i.t===t)||null;}
   function _elColor(t){const it=_itemOf(t);const cat=_catOf(t);return(it&&it.c)||(cat&&cat.color)||'#5a6580';}
-  function _chNum(chId){const r=(typeof CHS!=='undefined'?CHS:[]).find(c=>c.id===chId);return r?r.ch:'?';}
+  function _chNum(chId){const r=_chById(chId);return r?r.ch:'?';}
   const _OUTPUT_TYPES=new Set(['spk','sub','wedge','iem_r','iem_p']);
   function _isOutput(type){return _OUTPUT_TYPES.has(type);}
   function _outChNum(outChId){const r=(typeof OUT_CHS!=='undefined'?OUT_CHS:[]).find(c=>c.id===outChId);return r?r.ch:'?';}
@@ -10097,8 +10109,8 @@ const BandPlan=(()=>{
         +'<div class="bp-vnode-lbl">'+el.label.replace(/</g,'&lt;')+'</div>';
     }
     if(el.type==='kit'){
-      var kitChs=el.chs||[],allChs=typeof CHS!=='undefined'?CHS:[];
-      var rows=kitChs.map(function(id){return allChs.find(function(r){return r.id===id;});}).filter(Boolean);
+      var kitChs=el.chs||[];
+      var rows=kitChs.map(function(id){return _chById(id);}).filter(Boolean);
       var rowsHtml=rows.length
         ?rows.map(function(r){return '<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-top:1px solid #e5eaf2">'
           +'<span style="font-family:var(--m);font-size:11px;font-weight:700;color:'+c+';min-width:34px">CH'+r.ch+'</span>'
@@ -10169,8 +10181,7 @@ const BandPlan=(()=>{
         +'<div class="bp-node-lbl">'+el.label.replace(/</g,'&lt;')+'</div>';
     } else if(el.type==='kit'){
       const kitChs=el.chs||[];
-      const allChs=typeof CHS!=='undefined'?CHS:[];
-      const rows=kitChs.map(id=>allChs.find(r=>r.id===id)).filter(Boolean);
+      const rows=kitChs.map(id=>_chById(id)).filter(Boolean);
       const rowsHtml=rows.length
         ?rows.map(r=>'<div style="display:flex;align-items:center;gap:10px;padding:8px 14px;border-top:1px solid rgba(255,107,26,.15)">'
           +'<span style="font-family:var(--m);font-size:28px;font-weight:900;color:#000;background:var(--ora);padding:4px 12px;border-radius:12px;min-width:64px;text-align:center">CH'+r.ch+'</span>'
@@ -10251,9 +10262,26 @@ const BandPlan=(()=>{
       return;
     }
     const c=_elColor(sel.type);
-    const chs=typeof CHS!=='undefined'?CHS:[];
-    const linkedCh=chs.find(r=>r.id===sel.ch);
-    const chOpts=chs.map(r=>'<option value="'+r.id+'"'+(sel.ch===r.id?' selected':'')+'>CH'+r.ch+' — '+(r.long_name||r.short_name||'—')+'</option>').join('');
+    const _allC=(typeof ALL_CHS!=='undefined'&&ALL_CHS.length)?ALL_CHS:(typeof CHS!=='undefined'?CHS:[]);
+    const _patches=(typeof IL_PATCHES!=='undefined'&&IL_PATCHES.length)?IL_PATCHES:[{id:'main',name:'Patch 1'}];
+    const _escO=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+    /* Options de canaux groupées par input list (optgroup dès qu'il y a >1 liste)
+       — permet de lier un élément du plan de scène à un canal de N'IMPORTE
+       quelle input list, pas seulement celle active. */
+    const _chGrpOpts=(selId,excludeIds)=>{
+      excludeIds=excludeIds||[];
+      const multi=_patches.length>1;
+      let html='';
+      _patches.forEach(p=>{
+        const pchs=_allC.filter(r=>(r.patch_id||'main')===p.id && excludeIds.indexOf(r.id)<0);
+        if(!pchs.length) return;
+        const opts=pchs.map(r=>'<option value="'+r.id+'"'+(selId===r.id?' selected':'')+'>CH'+r.ch+' — '+_escO(r.long_name||r.short_name||'—')+'</option>').join('');
+        html+=multi?'<optgroup label="'+_escO(p.name||'Liste')+'">'+opts+'</optgroup>':opts;
+      });
+      return html;
+    };
+    const linkedCh=_chById(sel.ch);
+    const chOpts=_chGrpOpts(sel.ch);
     el.innerHTML=
       // --- Alias
       '<div class="bp-insp-sec">'
@@ -10304,9 +10332,8 @@ const BandPlan=(()=>{
       +(sel.type==='kit'
         ?(()=>{
           const kitChs=sel.chs||[];
-          const linkedRows=kitChs.map(id=>chs.find(r=>r.id===id)).filter(Boolean);
-          const remaining=chs.filter(r=>!kitChs.includes(r.id));
-          const remOpts=remaining.map(r=>'<option value="'+r.id+'">CH'+r.ch+' — '+(r.long_name||r.short_name||'—')+'</option>').join('');
+          const linkedRows=kitChs.map(id=>_chById(id)).filter(Boolean);
+          const remOpts=_chGrpOpts(null,kitChs);
           return '<div class="bp-insp-sec">'
             +'<div class="bp-insp-title"><i class="ti ti-list-numbers" style="color:var(--ora)"></i>Input List — Kit</div>'
             +linkedRows.map(r=>'<div class="bp-kit-ch-row"><i class="ti ti-plug-connected" style="color:var(--ora);font-size:11px"></i><span>CH '+r.ch+' — '+(r.long_name||r.short_name||'—')+'</span><button class="bp-kit-ch-del" onclick="BandPlan.unlinkKitCh(\''+r.id+'\')" title="Dissocier">\xd7</button></div>').join('')
@@ -10347,8 +10374,8 @@ const BandPlan=(()=>{
               +'</div>';
           })()
           :(()=>{
-            const linkedChR=sel.stereo?chs.find(r=>r.id===sel.chR):null;
-            const chOptsR=chs.map(r=>'<option value="'+r.id+'"'+(sel.chR===r.id?' selected':'')+'>CH'+r.ch+' — '+(r.long_name||r.short_name||'—')+'</option>').join('');
+            const linkedChR=sel.stereo?_chById(sel.chR):null;
+            const chOptsR=_chGrpOpts(sel.chR);
             return '<div class="bp-insp-sec">'
               +'<div class="bp-insp-title"><i class="ti ti-list-numbers" style="color:var(--ora)"></i>Input List</div>'
               // Stereo toggle
@@ -15963,6 +15990,9 @@ function printPrep(){
         CUR_SCENES[t]=SHOW_SCENES[t][0]?.id||null;
       });
     }
+    /* Référentiel complet (toutes les input lists) pour résoudre les liens du
+       plan de scène vers des canaux d'autres listes que celle active. */
+    ALL_CHS=_allRows.slice();
     /* Filtrer les canaux par patch courant */
     rows=_allRows.filter(function(r){return (r.patch_id||'main')===CUR_PATCH_ID;});
     // Inject CHS snapshot for canvas renderers
