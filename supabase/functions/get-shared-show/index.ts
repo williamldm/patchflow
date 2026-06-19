@@ -17,7 +17,7 @@ async function fetchShowData(sbAdmin: ReturnType<typeof createClient>, showId: s
   const [showRes, channelsRes, scenesRes] = await Promise.all([
     sbAdmin
       .from('shows')
-      .select('id, name, venue, show_date, stage_data, synoptique_data, il_patches')
+      .select('id, name, venue, show_date, stage_data, synoptique_data, il_patches, out_data')
       .eq('id', showId)
       .maybeSingle(),
     sbAdmin

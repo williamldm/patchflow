@@ -2811,6 +2811,19 @@ function _chById(id){
   if(typeof ALL_CHS!=='undefined' && ALL_CHS.length){ const r=ALL_CHS.find(c=>c.id===id); if(r) return r; }
   return (typeof CHS!=='undefined'?CHS:[]).find(c=>c.id===id)||null;
 }
+let ALL_OUT=[];          // toutes les sorties (Output List) de toutes les listes
+/* Résout une sortie par id à travers toutes les input lists — pour afficher
+   le numéro OUT des retours dans le plan de scène (éditeur, export, rider). */
+function _outById(id){
+  if(!id) return null;
+  if(typeof ALL_OUT!=='undefined' && ALL_OUT.length){ const r=ALL_OUT.find(c=>c.id===id); if(r) return r; }
+  return (typeof OUT_CHS!=='undefined'?OUT_CHS:[]).find(c=>c.id===id)||null;
+}
+/* Reconstruit ALL_OUT à partir d'un objet out_data ({ [patch]: [...] }). */
+function _rebuildAllOut(outData){
+  ALL_OUT=[];
+  if(outData&&typeof outData==='object'){ Object.keys(outData).forEach(function(k){ (outData[k]||[]).forEach(function(o){ ALL_OUT.push(o); }); }); }
+}
 let IL_PATCHES=[{id:'main',name:'Patch 1',pos:0}];
 let CUR_PATCH_ID='main';
 let CUR_IL_MODE='in';   // 'in' | 'out'
@@ -3895,6 +3908,7 @@ function loadOutData() {
   }
   OUT_DATA = raw || {};
   OUT_CHS  = (OUT_DATA[CUR_PATCH_ID] || []).slice();
+  _rebuildAllOut(OUT_DATA);
   /* Auto-réparation : si les sorties ne venaient que du cache local (la base
      n'avait rien — ex. colonne out_data récemment ajoutée), on les remonte en
      base pour qu'elles persistent et soient visibles partout (autres appareils,
@@ -3909,6 +3923,7 @@ function loadOutData() {
 function saveOutData() {
   if(!CUR_SHOW) return;
   OUT_DATA[CUR_PATCH_ID] = OUT_CHS.slice();
+  _rebuildAllOut(OUT_DATA);
   try { localStorage.setItem('out_data_'+CUR_SHOW.id, JSON.stringify(OUT_DATA)); } catch(e){}
   CUR_SHOW.out_data = JSON.parse(JSON.stringify(OUT_DATA));
   clearTimeout(_saveOutTimer);
@@ -6728,19 +6743,29 @@ function _vtLabel(ctx,text,cx,y,SC,TS){
   ctx.fillStyle='#1d3a5f';ctx.fillText(lbl,cx,y+padY);
   ctx.textBaseline='alphabetic';
 }
-function _vtChBadge(ctx,chNum,nodeW,nodeTop,SC){
-  SC=SC||1;
+function _vtChBadge(ctx,chNum,nodeW,nodeTop,SC,opts){
+  SC=SC||1; opts=opts||{};
   var fs=Math.round(22*SC);
-  var badge='CH '+chNum;
+  var badge=(opts.prefix||'CH ')+chNum;
   ctx.font='900 '+fs+'px monospace';
   var pad=20*SC,bh=Math.round(32*SC),bw=ctx.measureText(badge).width+pad*2;
   var bx=nodeW-bw+10*SC,by=nodeTop-bh/2-4*SC;
   _bpRR(ctx,bx,by,bw,bh,bh/2);
-  ctx.fillStyle='#ff6b1a';
+  ctx.fillStyle=opts.color||'#ff6b1a';
   ctx.shadowColor='rgba(0,0,0,.6)';ctx.shadowBlur=8*SC;ctx.fill();ctx.shadowBlur=0;
-  ctx.fillStyle='#000';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillStyle=opts.txtColor||'#000';ctx.textAlign='center';ctx.textBaseline='middle';
   ctx.fillText(badge,bx+bw/2,by+bh/2);
   ctx.textBaseline='alphabetic';
+}
+/* Numéro de sortie pour un élément (retour) — mono ou stéréo L+R. */
+function _bpOutBadgeText(el){
+  if(!el) return '';
+  var l=el.outCh?(_outById(el.outCh)?_outById(el.outCh).ch:'?'):null;
+  var r=el.outChR?(_outById(el.outChR)?_outById(el.outChR).ch:'?'):null;
+  if(l!=null && r!=null) return l+'+'+r;
+  if(l!=null) return ''+l;
+  if(r!=null) return ''+r;
+  return '';
 }
 /* ══════════════════════════════════════
    MODE IA — adapter un plan de scène depuis une image (réservé Pro)
@@ -6818,13 +6843,25 @@ function _makeBpCanvas(cb){
   const _stgX=Math.round(1200-_stgW/2);
   const _stgY=Math.max(20,Math.round(180-(_stgH-900)/2));
   let minX=_stgX,minY=_stgY,maxX=_stgX+_stgW,maxY=_stgY+_stgH;
+  const _ns=data.nodeScale||1, _ts=data.textScale||1;
   els.forEach(el=>{
-    const w=el.type==='riser'?(el.riserW||2)*RSCALE:el.type==='kit'?200:80;
-    const h=el.type==='riser'?(el.riserH||1)*RSCALE:el.type==='kit'?Math.max(70,(el.chs||[]).length*26+44):80;
-    minX=Math.min(minX,el.x-20);minY=Math.min(minY,el.y-20);
-    maxX=Math.max(maxX,el.x+w+20);maxY=Math.max(maxY,el.y+h+30);
+    let w,h;
+    if(el.type==='riser'){ w=(el.riserW||2)*RSCALE; h=(el.riserH||1)*RSCALE; }
+    else if(el.type==='kit'){ w=210; h=Math.max(70,(el.chs||[]).length*40+54); }
+    else if(el.type==='text_lbl'){ w=200; h=40; }
+    else { w=120*_ns; h=120*_ns; }
+    /* Hauteur du label sous l'icône + débord horizontal du label (centré sur
+       l'icône, largeur jusqu'à ~130px*textScale) : indispensable pour ne pas
+       rogner les retours/labels en bordure. */
+    const lblH = (el.type==='kit'||el.type==='text_lbl') ? 0 : 13*_ts+14;
+    const lblHalf = (el.type==='kit'||el.type==='riser'||el.type==='text_lbl') ? w/2 : Math.max(w/2, (130*_ts)/2);
+    const cx = el.x + w/2;
+    minX=Math.min(minX, el.x, cx-lblHalf);
+    maxX=Math.max(maxX, el.x+w, cx+lblHalf);
+    minY=Math.min(minY, el.y-26);            // badge au-dessus
+    maxY=Math.max(maxY, el.y+h+lblH);
   });
-  const PAD=40;
+  const PAD=70;
   minX-=PAD;minY-=PAD;maxX+=PAD;maxY+=PAD;
   const W=maxX-minX,H=maxY-minY;
   const SC=Math.min(2,4096/Math.max(W,H));
@@ -6946,7 +6983,16 @@ function _makeBpCanvas(cb){
             ctx.fillStyle=(ci&&ci.color)||'#5a6580';ctx.fillText((ci&&ci.emoji)||'?',SZ/2,SZ/2);
             ctx.textBaseline='alphabetic';
           }
-          if(el.ch){var rv=allChs.find(function(r){return r.id===el.ch;});if(rv)_vtChBadge(ctx,rv.ch,SZ,0,SC);}
+          /* Badge entrée (CH, orange) ou sortie (OUT, vert) — comme l'éditeur */
+          if(el.ch||el.chR){
+            var _ic=el.ch?(_chById(el.ch)?_chById(el.ch).ch:'?'):null;
+            var _icR=el.chR?(_chById(el.chR)?_chById(el.chR).ch:'?'):null;
+            var _it=(_ic!=null?_ic:'')+(_icR!=null?((_ic!=null?'+':'')+_icR):'');
+            if(_it!=='')_vtChBadge(ctx,_it,SZ,0,SC);
+          } else if(el.outCh||el.outChR){
+            var _ot=_bpOutBadgeText(el);
+            if(_ot)_vtChBadge(ctx,_ot,SZ,0,SC,{prefix:'OUT ',color:'#22d6a0'});
+          }
           _vtLabel(ctx,el.label,SZ/2,SZ+6*SC,SC,data.textScale||1);
         }
         ctx.restore();
@@ -9867,7 +9913,7 @@ const BandPlan=(()=>{
   function _chNum(chId){const r=_chById(chId);return r?r.ch:'?';}
   const _OUTPUT_TYPES=new Set(['spk','sub','wedge','iem_r','iem_p']);
   function _isOutput(type){return _OUTPUT_TYPES.has(type);}
-  function _outChNum(outChId){const r=(typeof OUT_CHS!=='undefined'?OUT_CHS:[]).find(c=>c.id===outChId);return r?r.ch:'?';}
+  function _outChNum(outChId){const r=_outById(outChId);return r?r.ch:'?';}
 
   // ---- palette ----
   function renderPalette(filter){
@@ -16101,6 +16147,9 @@ function printPrep(){
     /* Référentiel complet (toutes les input lists) pour résoudre les liens du
        plan de scène vers des canaux d'autres listes que celle active. */
     ALL_CHS=_allRows.slice();
+    /* Sorties (Output List) — pour afficher le numéro OUT des retours. */
+    if(typeof OUT_DATA!=='undefined') OUT_DATA=show.out_data||{};
+    _rebuildAllOut(show.out_data||{});
     /* Filtrer les canaux par patch courant */
     rows=_allRows.filter(function(r){return (r.patch_id||'main')===CUR_PATCH_ID;});
     // Inject CHS snapshot for canvas renderers
