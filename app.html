@@ -15891,6 +15891,89 @@ function printPrep(){
   w.document.write(html); w.document.close();
 }
 
+/* Visionneuse plein écran mobile (pan + pinch-zoom fluides) pour les plans
+   partagés. L'image s'ajuste à l'écran au départ (on voit tout le plan), puis
+   on peut zoomer au pincement et déplacer au doigt. Lit la source depuis l'img
+   inline (par id) pour éviter de passer une énorme data-URL en attribut. */
+function _svFs(imgId, title){
+  var srcEl=document.getElementById(imgId); if(!srcEl) return;
+  var ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:#0a0f1c;z-index:100000;overflow:hidden;touch-action:none;overscroll-behavior:none;user-select:none';
+  var img=document.createElement('img');
+  img.src=srcEl.src;
+  img.draggable=false;
+  img.style.cssText='position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform;pointer-events:none;-webkit-user-drag:none';
+  ov.appendChild(img);
+  var hdr=document.createElement('div');
+  hdr.style.cssText='position:absolute;top:0;left:0;right:0;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:linear-gradient(#000b,transparent);pointer-events:none';
+  hdr.innerHTML='<div style="font-size:11px;font-weight:600;color:rgba(255,255,255,.75);font-family:DM Mono,monospace">'+(title||'')+'</div>';
+  var close=document.createElement('button');
+  close.innerHTML='&#10005;';
+  close.style.cssText='pointer-events:auto;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);color:#fff;font-size:17px;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;line-height:1;cursor:pointer';
+  close.onclick=function(){ window.removeEventListener('resize',fit); ov.remove(); };
+  hdr.appendChild(close);
+  ov.appendChild(hdr);
+  var hint=document.createElement('div');
+  hint.style.cssText='position:absolute;bottom:0;left:0;right:0;text-align:center;padding:10px;font-size:9px;color:rgba(255,255,255,.35);font-family:DM Mono,monospace;pointer-events:none';
+  hint.textContent='Pincez pour zoomer · Glissez pour déplacer · Double-tap pour ajuster';
+  ov.appendChild(hint);
+  document.body.appendChild(ov);
+
+  var scale=1, tx=0, ty=0, minScale=1, maxScale=8;
+  function apply(){ img.style.transform='translate('+tx+'px,'+ty+'px) scale('+scale+')'; }
+  function clampPan(){
+    var vw=ov.clientWidth, vh=ov.clientHeight, iw=img.naturalWidth*scale, ih=img.naturalHeight*scale;
+    if(iw<=vw){ tx=(vw-iw)/2; } else { tx=Math.min(0,Math.max(vw-iw,tx)); }
+    if(ih<=vh){ ty=(vh-ih)/2; } else { ty=Math.min(0,Math.max(vh-ih,ty)); }
+  }
+  function fit(){
+    var vw=ov.clientWidth||window.innerWidth, vh=ov.clientHeight||window.innerHeight, iw=img.naturalWidth, ih=img.naturalHeight;
+    if(!iw||!ih||!vw||!vh) return;
+    minScale=Math.min(vw/iw, vh/ih); scale=minScale; maxScale=minScale*8;
+    clampPan(); apply();
+  }
+  if(img.complete && img.naturalWidth) fit(); else img.onload=fit;
+  window.addEventListener('resize',fit);
+
+  var pts={}, pinch=null, pan=null, lastTap=0;
+  ov.addEventListener('pointerdown',function(e){
+    pts[e.pointerId]={x:e.clientX,y:e.clientY};
+    var ids=Object.keys(pts);
+    if(ids.length===1){
+      pan={x:e.clientX,y:e.clientY,tx:tx,ty:ty};
+      var nowT=Date.now();
+      if(nowT-lastTap<300){ // double-tap : ajuster / zoom x2
+        if(scale>minScale*1.1){ fit(); } else { var f=Math.min(maxScale,minScale*3); var cx=e.clientX,cy=e.clientY; tx=cx-(cx-tx)*(f/scale); ty=cy-(cy-ty)*(f/scale); scale=f; clampPan(); apply(); }
+      }
+      lastTap=nowT;
+    } else if(ids.length===2){
+      var a=pts[ids[0]], b=pts[ids[1]];
+      pinch={d:Math.hypot(a.x-b.x,a.y-b.y), mx:(a.x+b.x)/2, my:(a.y+b.y)/2, scale:scale, tx:tx, ty:ty};
+      pan=null;
+    }
+  });
+  ov.addEventListener('pointermove',function(e){
+    if(!pts[e.pointerId]) return;
+    pts[e.pointerId]={x:e.clientX,y:e.clientY};
+    var ids=Object.keys(pts);
+    if(ids.length>=2 && pinch){
+      var a=pts[ids[0]], b=pts[ids[1]];
+      var d=Math.hypot(a.x-b.x,a.y-b.y);
+      var ns=Math.min(maxScale,Math.max(minScale, pinch.scale*(d/(pinch.d||1))));
+      // zoom autour du point milieu initial
+      tx=pinch.mx-(pinch.mx-pinch.tx)*(ns/pinch.scale);
+      ty=pinch.my-(pinch.my-pinch.ty)*(ns/pinch.scale);
+      scale=ns; clampPan(); apply();
+    } else if(ids.length===1 && pan){
+      tx=pan.tx+(e.clientX-pan.x); ty=pan.ty+(e.clientY-pan.y);
+      clampPan(); apply();
+    }
+  });
+  function up(e){ delete pts[e.pointerId]; var ids=Object.keys(pts); if(ids.length<2)pinch=null; if(ids.length===1){ pan={x:pts[ids[0]].x,y:pts[ids[0]].y,tx:tx,ty:ty}; } if(ids.length===0)pan=null; }
+  ov.addEventListener('pointerup',up);
+  ov.addEventListener('pointercancel',up);
+}
+
 // Share-view mode
 (async function checkShareMode(){
   const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -16304,37 +16387,21 @@ function printPrep(){
       var dataUrl=cv.toDataURL('image/png');
       var imgW=cv.width, imgH=cv.height;
       if(isMobile){
-        // Mobile : scroll horizontal + overlay plein ecran avec pinch-zoom
+        // Mobile : aperçu ajusté à l'écran (on voit tout le plan) + plein écran
+        // pan/pinch au toucher via _svFs.
         var h=_showMeta+_svSceneSelector('stage');
-        // Barre d'action
         h+='<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px">'
           +'<div style="font-size:10px;color:#5a6a80;font-family:DM Mono,monospace;display:flex;align-items:center;gap:5px">'
-            +'<span style="font-size:12px">&#8596;</span> Glissez pour parcourir le plan'
+            +'<span style="font-size:12px">&#128269;</span> Touchez le plan pour le plein écran'
           +'</div>'
-          +'<button onclick="document.getElementById(\'_svfsov\').style.display=\'flex\'" '
-            +'style="flex-shrink:0;background:#1e2a3a;border:1px solid #2d3d50;color:#c0d0e0;font-size:11px;font-weight:600;padding:7px 13px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit">'
+          +'<button onclick="_svFs(\'_svStageImg\',\'Plan de scène\')" '
+            +'style="flex-shrink:0;background:#ff6b1a;border:none;color:#000;font-size:11px;font-weight:700;padding:8px 14px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit">'
             +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>'
-            +'Plein ecran'
+            +'Plein écran'
           +'</button>'
         +'</div>';
-        // Image scrollable horizontale — min 680px pour lisibilite
-        var minW=Math.max(680, Math.round(window.screen.width*1.8));
-        h+='<div style="overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;border-radius:10px;border:1px solid #1e2a3a;background:#080b12">'
-          +'<img src="'+safeSrc(dataUrl)+'" width="'+minW+'" style="height:auto;display:block;border-radius:10px;min-width:'+minW+'px;max-width:none"/>'
-        +'</div>';
-        // Overlay plein ecran
-        h+='<div id="_svfsov" style="display:none;position:fixed;inset:0;background:#000;z-index:9999;flex-direction:column;touch-action:pan-x pan-y pinch-zoom">'
-          // Header overlay
-          +'<div style="position:absolute;top:0;left:0;right:0;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:linear-gradient(#000a 0%,transparent 100%)">'
-            +'<div style="font-size:11px;font-weight:600;color:rgba(255,255,255,.7);font-family:DM Mono,monospace">Plan de scene · '+now.split(' ')[0]+'</div>'
-            +'<button onclick="document.getElementById(\'_svfsov\').style.display=\'none\'" '
-              +'style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;font-size:16px;width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">&#10005;</button>'
-          +'</div>'
-          // Zone image avec scroll + pinch
-          +'<div style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y pinch-zoom;display:flex;align-items:center;justify-content:center;padding:60px 0 20px">'
-            +'<img src="'+safeSrc(dataUrl)+'" style="max-width:none;width:'+Math.round(imgW/1.5)+'px;height:auto;display:block;border-radius:6px"/>'
-          +'</div>'
-          +'<div style="text-align:center;padding:10px;font-size:9px;color:rgba(255,255,255,.25);font-family:DM Mono,monospace">Pincez pour zoomer · Glissez pour naviguer</div>'
+        h+='<div onclick="_svFs(\'_svStageImg\',\'Plan de scène\')" style="border-radius:10px;border:1px solid #1e2a3a;background:#fff;overflow:hidden;cursor:zoom-in">'
+          +'<img id="_svStageImg" src="'+safeSrc(dataUrl)+'" style="width:100%;height:auto;display:block"/>'
         +'</div>';
         h+='<div style="margin-top:14px;text-align:center;font-size:10px;color:#3a4a5a;font-family:DM Mono,monospace">PatchFlow · Plan de scene · '+now+'</div>';
         cb(h);
@@ -16593,27 +16660,16 @@ function printPrep(){
      dispW = largeur d'affichage souhaitée en px (optionnel). */
   function _renderSiteImageHtml(dataUrl, dispW){
     if(isMobile){
-      var minW=Math.max(680,Math.round(window.screen.width*1.8));
       return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px">'
-        +'<div style="font-size:10px;color:#5a6a80;font-family:DM Mono,monospace">&#8596; Glissez pour parcourir le plan</div>'
-        +'<button onclick="document.getElementById(\'_svfsov2\').style.display=\'flex\'" '
-          +'style="flex-shrink:0;background:#1e2a3a;border:1px solid #2d3d50;color:#c0d0e0;font-size:11px;font-weight:600;padding:7px 13px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit">'
+        +'<div style="font-size:10px;color:#5a6a80;font-family:DM Mono,monospace"><span style="font-size:12px">&#128269;</span> Touchez le plan pour le plein écran</div>'
+        +'<button onclick="_svFs(\'_svSiteImg\',\'Plan de site\')" '
+          +'style="flex-shrink:0;background:#ff6b1a;border:none;color:#000;font-size:11px;font-weight:700;padding:8px 14px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit">'
           +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>'
-          +'Plein ecran'
+          +'Plein écran'
         +'</button>'
       +'</div>'
-      +'<div style="overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;border-radius:10px;border:1px solid #1e2a3a;background:#080b12">'
-        +'<img src="'+safeSrc(dataUrl)+'" width="'+minW+'" style="height:auto;display:block;border-radius:10px;min-width:'+minW+'px;max-width:none"/>'
-      +'</div>'
-      +'<div id="_svfsov2" style="display:none;position:fixed;inset:0;background:#000;z-index:9999;flex-direction:column;touch-action:pan-x pan-y pinch-zoom">'
-        +'<div style="position:absolute;top:0;left:0;right:0;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:linear-gradient(#000a 0%,transparent 100%)">'
-          +'<div style="font-size:11px;font-weight:600;color:rgba(255,255,255,.7);font-family:DM Mono,monospace">Plan de site · '+now.split(' ')[0]+'</div>'
-          +'<button onclick="document.getElementById(\'_svfsov2\').style.display=\'none\'" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;font-size:16px;width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center">&#10005;</button>'
-        +'</div>'
-        +'<div style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y pinch-zoom;display:flex;align-items:center;justify-content:center;padding:60px 0 20px">'
-          +'<img src="'+safeSrc(dataUrl)+'" style="max-width:none;width:80vw;height:auto;display:block;border-radius:6px"/>'
-        +'</div>'
-        +'<div style="text-align:center;padding:10px;font-size:9px;color:rgba(255,255,255,.25);font-family:DM Mono,monospace">Pincez pour zoomer · Glissez pour naviguer</div>'
+      +'<div onclick="_svFs(\'_svSiteImg\',\'Plan de site\')" style="border-radius:10px;border:1px solid #1e2a3a;background:#fff;overflow:hidden;cursor:zoom-in">'
+        +'<img id="_svSiteImg" src="'+safeSrc(dataUrl)+'" style="width:100%;height:auto;display:block"/>'
       +'</div>'
       +'<div style="margin-top:14px;text-align:center;font-size:10px;color:#3a4a5a;font-family:DM Mono,monospace">PatchFlow · Plan de site · '+now+'</div>';
     } else {
