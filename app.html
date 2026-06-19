@@ -431,11 +431,11 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .fich-pdf-pageinfo{font-family:var(--m);font-size:11px;color:var(--txt2);min-width:60px;text-align:center}
 .fich-pdf-wrap{flex:1;overflow-y:auto;overflow-x:auto;padding:16px;display:flex;flex-direction:column;align-items:center;gap:16px;background:#1a1a2e}
 .fich-pdf-page{position:relative;flex-shrink:0}
-.fich-pdf-canvas{border-radius:4px;box-shadow:0 4px 24px rgba(0,0,0,.6);display:block;position:absolute;top:0;left:0}
-.fich-pdf-text{position:absolute;top:0;left:0;overflow:hidden;line-height:1;user-select:text;pointer-events:none}
-.fich-pdf-text>span{color:transparent;position:absolute;white-space:pre;cursor:text;transform-origin:0% 0%;pointer-events:auto}
-.fich-pdf-text>span::selection,.fich-pdf-text>span::-moz-selection{background:rgba(0,120,255,.3);color:transparent}
-.fich-pdf-text .markedContent{display:block}
+.fich-pdf-canvas{border-radius:4px;box-shadow:0 4px 24px rgba(0,0,0,.6);display:block;position:absolute;top:0;left:0;pointer-events:none}
+.fich-pdf-text{position:absolute;top:0;left:0;overflow:hidden;line-height:1;user-select:text;-webkit-user-select:text}
+.fich-pdf-text span{color:transparent;position:absolute;white-space:pre;cursor:text;transform-origin:0% 0%}
+.fich-pdf-text span::selection,.fich-pdf-text span::-moz-selection{background:rgba(0,120,255,.3)}
+.fich-pdf-text .markedContent{position:absolute;top:0;height:0}
 .fich-pdf-text br{display:none}
 #fich-viewer-content{display:flex;flex-direction:column}
 #fich-viewer-modal{display:none;position:fixed;inset:0;z-index:1200}
@@ -14327,7 +14327,7 @@ async function _openPdfJs(url, container){
 
     function _calcFitScale(pg){
       const vp0 = pg.getViewport({ scale: 1 });
-      return Math.min(Math.max(wrap.clientWidth - 32, 300) / vp0.width, 2.5);
+      return Math.min(Math.max(wrap.clientWidth - 32, 300) / vp0.width, 1.5);
     }
 
     async function renderAllPages(scaleOverride){
@@ -14338,31 +14338,39 @@ async function _openPdfJs(url, container){
       const firstPg = await pdf.getPage(1);
       const scale = scaleOverride !== undefined ? scaleOverride : _calcFitScale(firstPg);
       window._pdfState.scale = scale;
+      const dpr = window.devicePixelRatio || 1;
 
       for(var i = 1; i <= pdf.numPages; i++){
         const pg = await pdf.getPage(i);
-        const vp = pg.getViewport({ scale });
+        /* vVp : viewport visuel (taille CSS) — utilisé pour le layout et le calque texte */
+        const vVp = pg.getViewport({ scale });
+        /* cVp : viewport haute résolution pour le canvas (DPR) */
+        const cVp = pg.getViewport({ scale: scale * dpr });
 
         const pageEl = document.createElement('div');
         pageEl.className = 'fich-pdf-page';
         pageEl.dataset.page = i;
-        pageEl.style.width  = vp.width  + 'px';
-        pageEl.style.height = vp.height + 'px';
+        pageEl.style.width  = vVp.width  + 'px';
+        pageEl.style.height = vVp.height + 'px';
 
+        /* Canvas rendu en haute résolution, affiché à taille CSS */
         const canvas = document.createElement('canvas');
         canvas.className = 'fich-pdf-canvas';
-        canvas.width  = vp.width;
-        canvas.height = vp.height;
-        await pg.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+        canvas.width  = cVp.width;
+        canvas.height = cVp.height;
+        canvas.style.width  = vVp.width  + 'px';
+        canvas.style.height = vVp.height + 'px';
+        await pg.render({ canvasContext: canvas.getContext('2d'), viewport: cVp }).promise;
 
+        /* Calque texte transparent (sélectionnable), taille CSS identique à la page */
         const textDiv = document.createElement('div');
         textDiv.className = 'fich-pdf-text';
-        textDiv.style.width  = vp.width  + 'px';
-        textDiv.style.height = vp.height + 'px';
+        textDiv.style.width  = vVp.width  + 'px';
+        textDiv.style.height = vVp.height + 'px';
         try {
           const tc = await pg.getTextContent();
-          const rt = pdfjs.renderTextLayer({ textContent: tc, container: textDiv, viewport: vp, textDivs: [] });
-          await (rt && rt.promise ? rt.promise : (rt || Promise.resolve()));
+          const rt = pdfjs.renderTextLayer({ textContentSource: tc, container: textDiv, viewport: vVp, textDivs: [] });
+          if(rt && rt.promise) await rt.promise;
         } catch(_){}
 
         pageEl.appendChild(canvas);
