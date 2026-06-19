@@ -3534,14 +3534,30 @@ async function deleteScene(type,sceneId){
   if(SHOW_SCENES[type].length<=1){toast('Impossible de supprimer la dernière scène.');return;}
   const scene=SHOW_SCENES[type].find(s=>s.id===sceneId);
   if(!confirm('Supprimer "'+( scene?.name||'cette scène')+'\" ?')) return;
+  const wasCurrent=(CUR_SCENES[type]===sceneId);
   const {error}=await sb.from('show_scenes').delete().eq('id',sceneId);
   if(error){toast('Erreur : '+error.message);return;}
   SHOW_SCENES[type]=SHOW_SCENES[type].filter(s=>s.id!==sceneId);
-  // Aller sur la première scène restante
-  const next=SHOW_SCENES[type][0]?.id||null;
-  CUR_SCENES[type]=next;
+  if(!wasCurrent){
+    // La scène supprimée n'était pas active : rien d'autre à charger, on ne
+    // touche pas à la scène courante ni à son contenu en mémoire.
+    _renderSceneTabs(type);
+    return;
+  }
+  /* La scène active vient d'être supprimée. ATTENTION : le contenu en mémoire
+     (BandPlan/SitePlan/SynPro) appartient encore à la scène effacée. On ne doit
+     SURTOUT PAS appeler switchScene ici car il sauvegarderait d'abord cet état
+     en mémoire — et écraserait la scène restante avec les données supprimées.
+     On charge donc directement les données déjà en cache de la scène suivante. */
+  const next=SHOW_SCENES[type][0]||null;
+  CUR_SCENES[type]=next?next.id:null;
+  _persistCurScenes();
   _renderSceneTabs(type);
-  if(next) await switchScene(type,next);
+  if(next){
+    if(type==='syno'){ SynPro.setSceneId(next.id); SynPro.loadSceneDirect(next.data); }
+    else if(type==='stage'){ _loadSceneStage(next); }
+    else if(type==='site'){ _loadSceneSite(next); }
+  }
 }
 
 async function renameScene(type,sceneId){
