@@ -760,7 +760,7 @@ body{display:flex;flex-direction:column;min-height:100vh}
 /* canvas — always white background (vintage mode only, no toggle) */
 .bp-canvas-wrap{position:relative;overflow:hidden;background:#ffffff;cursor:default;border:1px solid var(--bdr2);border-radius:11px}
 #bp-canvas{position:absolute;width:2400px;height:1600px;transform-origin:0 0}
-.bp-node{position:absolute;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:move;user-select:none;transform-origin:center center}
+.bp-node{position:absolute;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:move;user-select:none;transform-origin:0 0}
 .bp-node-body{width:calc(120px * var(--bp-ns,1));height:calc(120px * var(--bp-ns,1));border-radius:calc(18px * var(--bp-ns,1));display:flex;align-items:center;justify-content:center;font-size:calc(50px * var(--bp-ns,1));border:2px solid;background:#fff;box-shadow:0 1px 8px rgba(0,0,0,.14);transition:box-shadow .12s;position:relative;flex-shrink:0}
 .bp-node.sel .bp-node-body{box-shadow:0 0 0 3px var(--ora),0 2px 14px rgba(255,107,26,.35)}
 .bp-node.sel .bp-riser-body{box-shadow:0 0 0 3px var(--ora),0 2px 14px rgba(255,107,26,.35)}
@@ -6940,9 +6940,10 @@ function _makeBpCanvas(cb){
       }
       results.forEach(function(item){
         var el=item.el,img=item.img,ci=item.ci;
+        var _rad=(el.rot||0)*Math.PI/180,_scl=el.scl||1,_lx,_ly;
         ctx.save();
         ctx.translate(wx(el.x),wy(el.y));
-        if(el.rot)ctx.rotate(el.rot*Math.PI/180);
+        if(el.rot)ctx.rotate(_rad);
         if(el.scl&&el.scl!==1)ctx.scale(el.scl,el.scl);
         var ns=data.nodeScale||1;
         if(el.type==='riser'){
@@ -6956,7 +6957,7 @@ function _makeBpCanvas(cb){
           ctx.font=Math.max(8,9*SC)+'px sans-serif';ctx.fillStyle='#64748b';
           ctx.fillText('⬆ '+alt+'m',rw/2,rh/2+rfs*0.35+12*SC);
           if(el.ch){var rc=allChs.find(function(r){return r.id===el.ch;});if(rc)_vtChBadge(ctx,rc.ch,rw,0,SC);}
-          _vtLabel(ctx,el.label,rw/2,rh+6*SC,SC,data.textScale||1);
+          _lx=rw/2;_ly=rh+6*SC;
         } else if(el.type==='kit'){
           /* Reproduit _vintageInnerHTML : header ≈40px (emoji 22px × line-height
              1.2 + padding 8+7), texte CHn coloré sans pastille, lignes 26px. */
@@ -7022,9 +7023,10 @@ function _makeBpCanvas(cb){
             var _ot=_bpOutBadgeText(el);
             if(_ot)_vtChBadge(ctx,_ot,SZ,0,SC,{prefix:'OUT ',color:'#22d6a0'});
           }
-          _vtLabel(ctx,el.label,SZ/2,SZ+6*SC,SC,data.textScale||1);
+          _lx=SZ/2;_ly=SZ+6*SC;
         }
         ctx.restore();
+        if(_lx!=null){var _wcx=wx(el.x)+(_lx*Math.cos(_rad)-_ly*Math.sin(_rad))*_scl;var _wcy=wy(el.y)+(_lx*Math.sin(_rad)+_ly*Math.cos(_rad))*_scl;_vtLabel(ctx,el.label,_wcx,_wcy,SC,data.textScale||1);}
       });
       cb(cv);
     });
@@ -10369,6 +10371,8 @@ const BandPlan=(()=>{
       div.style.left=el.x+'px';div.style.top=el.y+'px';
       div.style.zIndex=el.z;
       div.style.transform='rotate('+el.rot+'deg) scale('+el.scl+')';
+      var _lbl=div.querySelector('.bp-vnode-lbl');
+      if(_lbl)_lbl.style.transform='rotate('+(-el.rot)+'deg)';
       div.classList.toggle('sel',_sel===el.id);
       if(isNew)_bindNode(div,el.id);
       return;
@@ -10433,6 +10437,8 @@ const BandPlan=(()=>{
     div.style.left=el.x+'px';div.style.top=el.y+'px';
     div.style.zIndex=el.z;
     div.style.transform='rotate('+el.rot+'deg) scale('+el.scl+')';
+    var _lbl2=div.querySelector('.bp-node-lbl');
+    if(_lbl2)_lbl2.style.transform='rotate('+(-el.rot)+'deg)';
     div.classList.toggle('sel',_sel===el.id);
     if(isNew)_bindNode(div,el.id);
   }
@@ -10675,7 +10681,7 @@ const BandPlan=(()=>{
     const el=st.els.find(e=>e.id===_sel);if(!el)return;
     el.rot=deg;
     const div=document.querySelector('[data-bpid="'+_sel+'"]');
-    if(div)div.style.transform='rotate('+deg+'deg) scale('+el.scl+')';
+    if(div){div.style.transform='rotate('+deg+'deg) scale('+el.scl+')';const _lbl=div.querySelector('.bp-vnode-lbl,.bp-node-lbl');if(_lbl)_lbl.style.transform='rotate('+(-deg)+'deg)';}
     renderInspector();saveStage();
   }
   function setRiserDims(val){

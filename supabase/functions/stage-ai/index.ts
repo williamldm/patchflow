@@ -4,9 +4,9 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 /* ════════════════════════════════════════════════════════════════════
    STAGE-AI — "Mode IA" du plan de scène (réservé Pro).
    On reçoit l'image d'un plan de scène (photo, croquis, PDF aplati en
-   image…) et on demande à Claude (vision + sortie structurée) de la
+   image…) et on demande à Gemini (vision + sortie structurée) de la
    convertir en une liste d'éléments plaçables dans l'éditeur BandPlan.
-   La clé API reste côté serveur (secret ANTHROPIC_API_KEY).
+   La clé API reste côté serveur (secret GEMINI_API_KEY).
    ════════════════════════════════════════════════════════════════════ */
 
 const CORS = {
@@ -16,8 +16,8 @@ const CORS = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
-const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY') ?? '';
-const MODEL = 'claude-haiku-4-5';
+const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') ?? '';
+const MODEL = 'gemini-2.0-flash';
 
 /* Catalogue des éléments disponibles dans l'éditeur (type → libellé FR).
    DOIT rester aligné avec CATS dans app.html. */
@@ -50,6 +50,7 @@ RÈGLES :
 TYPES AUTORISÉS (type = libellé) :
 ${TYPES.map((t) => `${t} = ${CATALOG[t]}`).join('\n')}`;
 
+/* Gemini utilise un sous-ensemble d'OpenAPI 3.0 — pas d'additionalProperties */
 const SCHEMA = {
   type: 'object',
   properties: {
@@ -64,12 +65,10 @@ const SCHEMA = {
           label: { type: 'string' },
         },
         required: ['type', 'x', 'y', 'label'],
-        additionalProperties: false,
       },
     },
   },
   required: ['elements'],
-  additionalProperties: false,
 };
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -78,7 +77,7 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
   try {
-    if (!ANTHROPIC_API_KEY) {
+    if (!GEMINI_API_KEY) {
       return json({ error: "Le service IA n'est pas configuré (clé API manquante côté serveur)." }, 503);
     }
 
@@ -107,47 +106,47 @@ serve(async (req) => {
     const mediaType = body.mediaType || '';
     const data = body.imageBase64 || '';
     const ALLOWED = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
-    if (!ALLOWED.has(mediaType)) return json({ error: 'Format d\'image non supporté (PNG, JPEG, WEBP ou GIF).' }, 400);
+    if (!ALLOWED.has(mediaType)) return json({ error: "Format d'image non supporté (PNG, JPEG, WEBP ou GIF)." }, 400);
     if (!data || data.length < 100) return json({ error: 'Image manquante ou vide.' }, 400);
-    // base64 ~ 1.37x les octets : ~7,3 Mo de base64 ≈ 5,3 Mo d'image — garde-fou
     if (data.length > 7_300_000) return json({ error: 'Image trop lourde (max ~5 Mo).' }, 413);
 
-    /* ── Appel Claude : vision + sortie structurée (JSON Schema) ── */
-    const aiResp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 4096,
-        output_config: {
-          format: { type: 'json_schema', schema: SCHEMA },
+    /* ── Appel Gemini : vision + sortie structurée (JSON Schema) ── */
+    const aiResp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': GEMINI_API_KEY,
         },
-        system: SYSTEM,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: mediaType, data } },
-            { type: 'text', text: 'Numérise ce plan de scène : liste tous les éléments présents avec leur type, leur position (repère 2400×1600) et un label court.' },
-          ],
-        }],
-      }),
-    });
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: SYSTEM }] },
+          contents: [{
+            parts: [
+              { inlineData: { mimeType: mediaType, data } },
+              { text: 'Numérise ce plan de scène : liste tous les éléments présents avec leur type, leur position (repère 2400×1600) et un label court.' },
+            ],
+          }],
+          generationConfig: {
+            responseMimeType: 'application/json',
+            responseSchema: SCHEMA,
+            maxOutputTokens: 4096,
+          },
+        }),
+      },
+    );
 
     if (!aiResp.ok) {
       const txt = await aiResp.text().catch(() => '');
-      console.error('[stage-ai] Anthropic error', aiResp.status, txt);
+      console.error('[stage-ai] Gemini error', aiResp.status, txt);
       const friendly = aiResp.status === 429
         ? 'Service IA momentanément surchargé, réessayez dans un instant.'
-        : "Le service IA a renvoyé une erreur. Réessayez ou changez d'image.";
+        : `Gemini ${aiResp.status}: ${txt.slice(0, 200)}`;
       return json({ error: friendly }, 502);
     }
 
     const aiJson = await aiResp.json();
-    const textBlock = (aiJson.content || []).find((b: { type: string }) => b.type === 'text');
+    const textBlock = aiJson.candidates?.[0]?.content?.parts?.[0];
     if (!textBlock?.text) return json({ error: 'Réponse IA vide.' }, 502);
 
     let parsed: { elements?: unknown[] };
