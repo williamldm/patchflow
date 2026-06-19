@@ -17412,7 +17412,7 @@ function _svFs(imgId, title){
       var res=await fetch('https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/b2-storage',{
         method:'POST',
         headers:_pubHeaders,
-        body:JSON.stringify({action:'public-cloud-list',prefix:prefix,showId:_cloudCurrentShowId})
+        body:JSON.stringify({action:'public-cloud-list',prefix:prefix,showId:_cloudCurrentShowId,linkId:linkId||undefined})
       });
       var json=await res.json();
       if(json.error) throw new Error(json.error.message||json.error);
@@ -17430,7 +17430,7 @@ function _svFs(imgId, title){
       var res=await fetch('https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/b2-storage',{
         method:'POST',
         headers:_pubHeaders,
-        body:JSON.stringify({action:'public-rider-file',path:filePath,showId:_cloudCurrentShowId})
+        body:JSON.stringify({action:'public-rider-file',path:filePath,showId:_cloudCurrentShowId,linkId:linkId||undefined})
       });
       var json=await res.json();
       if(json.error) throw new Error(json.error.message||json.error);

@@ -172,7 +172,7 @@ serve(async (req) => {
        Cela permet aux destinataires d'un lien partagé de télécharger
        les pièces jointes sans avoir de compte. */
     if (action === 'public-rider-file') {
-      const { path, showId } = body as { path: string; showId: string };
+      const { path, showId, linkId } = body as { path: string; showId: string; linkId?: string };
       if (!path || !showId || !UUID_RE.test(showId)) {
         return json({ error: 'Paramètres invalides' }, 400);
       }
@@ -184,19 +184,28 @@ serve(async (req) => {
         Deno.env.get('SUPABASE_URL')!,
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
       );
-      // Vérifier que le show a un rider avec ce fichier dans sa liste
-      const { data: showRow } = await sbAdmin
-        .from('shows')
-        .select('stage_data')
-        .eq('id', showId)
-        .maybeSingle();
-      const rider = showRow?.stage_data?.rider;
-      if (!rider) return json({ error: 'Aucun rider pour ce show' }, 403);
-      const allowedFiles: string[] = rider.files || [];
-      // Vérifier que le path est dans la liste des fichiers autorisés
-      // (ou que le cloud entier est partagé via cloud:true)
-      const cloudShared = (showRow?.stage_data?.rider?.sections || []).includes('cloud');
-      const fileAllowed = cloudShared || allowedFiles.includes(path);
+      // Autorisation : soit via un lien Pro nommé (show_riders.id = linkId), soit
+      // via le rider legacy stocké dans shows.stage_data.rider. Dans les deux cas,
+      // le fichier est autorisé si la section "cloud" est partagée OU si le path
+      // figure explicitement dans la liste des fichiers du lien.
+      let fileAllowed = false;
+      if (linkId && UUID_RE.test(linkId)) {
+        const { data: rider } = await sbAdmin
+          .from('show_riders').select('show_id, sections, config').eq('id', linkId).maybeSingle();
+        if (rider && rider.show_id === showId) {
+          const cloudShared = (rider.sections || []).includes('cloud');
+          const allowedFiles: string[] = rider.config?.files || [];
+          fileAllowed = cloudShared || allowedFiles.includes(path);
+        }
+      } else {
+        const { data: showRow } = await sbAdmin
+          .from('shows').select('stage_data').eq('id', showId).maybeSingle();
+        const rider = showRow?.stage_data?.rider;
+        if (rider) {
+          const cloudShared = (rider.sections || []).includes('cloud');
+          fileAllowed = cloudShared || (rider.files || []).includes(path);
+        }
+      }
       if (!fileAllowed) return json({ error: 'Fichier non autorisé' }, 403);
       // GET sécurisé (inline pour images/pdf/av, téléchargement forcé sinon).
       // Important côté public : un destinataire non authentifié ne doit jamais
@@ -209,18 +218,27 @@ serve(async (req) => {
     /* ── Action publique : lister les fichiers d'un show partagé avec cloud:true ── */
     /* ── public-cloud-list : lecture depuis Supabase (vue partagée, sans auth) ── */
     if (action === 'public-cloud-list') {
-      const { prefix, showId } = body as { prefix: string; showId: string };
+      const { prefix, showId, linkId } = body as { prefix: string; showId: string; linkId?: string };
       if (!showId || !UUID_RE.test(showId)) return json({ error: 'showId invalide' }, 400);
       if (!prefix.startsWith(showId + '/')) return json({ error: 'Préfixe non autorisé' }, 403);
       const sbAdmin = createClient(
         Deno.env.get('SUPABASE_URL')!,
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
       );
-      // Vérifier que le show partage bien son cloud
-      const { data: showRow } = await sbAdmin
-        .from('shows').select('stage_data').eq('id', showId).maybeSingle();
-      const sections: string[] = showRow?.stage_data?.rider?.sections || [];
-      if (!sections.includes('cloud')) return json({ error: 'Accès cloud non autorisé pour ce show' }, 403);
+      // Vérifier que le cloud est bien partagé : soit via un lien Pro nommé
+      // (show_riders.id = linkId avec "cloud" dans ses sections), soit via le
+      // rider legacy (shows.stage_data.rider.sections).
+      let cloudOk = false;
+      if (linkId && UUID_RE.test(linkId)) {
+        const { data: rider } = await sbAdmin
+          .from('show_riders').select('show_id, sections').eq('id', linkId).maybeSingle();
+        cloudOk = !!rider && rider.show_id === showId && (rider.sections || []).includes('cloud');
+      } else {
+        const { data: showRow } = await sbAdmin
+          .from('shows').select('stage_data').eq('id', showId).maybeSingle();
+        cloudOk = (showRow?.stage_data?.rider?.sections || []).includes('cloud');
+      }
+      if (!cloudOk) return json({ error: 'Accès cloud non autorisé pour ce show' }, 403);
       // Lire depuis show_files — dossier courant + sous-dossiers dérivés
       const folder = prefix.slice(showId.length + 1).replace(/\/$/, '');
       // 1. Fichiers directs + lignes de dossiers explicites
