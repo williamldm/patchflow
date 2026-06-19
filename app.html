@@ -6708,27 +6708,24 @@ function _bpRR(ctx,x,y,w,h,r){
   ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);
   ctx.closePath();
 }
-/* Label d'un nœud — réplique fidèlement .bp-node-lbl de l'éditeur :
-   police DM Mono à 30px*textScale, largeur max 200px*textScale (border-box),
-   padding 14px horizontal, ellipsis si trop long. Indispensable pour que le
-   rendu partagé/export corresponde au placement vu dans l'éditeur. */
-function _bpLblFont(SC,TS){ return '600 '+Math.max(11,Math.round(30*(TS||1)*SC))+'px "DM Mono", ui-monospace, monospace'; }
-function _bpLblFit(ctx,text,SC,TS){
-  ctx.font=_bpLblFont(SC,TS);
-  var maxTextW=Math.max(20,(200*(TS||1)-28)*SC);
-  var lbl=(text||'');
-  if(ctx.measureText(lbl).width>maxTextW){ while(lbl.length>1 && ctx.measureText(lbl+'…').width>maxTextW) lbl=lbl.slice(0,-1); lbl+='…'; }
-  return {lbl:lbl, w:ctx.measureText(lbl).width};
-}
-function _vtLabelBoxW(ctx,text,SC,TS){ return _bpLblFit(ctx,text,SC,TS).w + 28*SC; }
+/* Label d'un nœud — réplique fidèlement .bp-vnode-lbl de l'éditeur (mode
+   vintage) : DM Mono à 13px*textScale, couleur navy #1d3a5f, fond blanc +
+   bordure fine, largeur max 130px*textScale, ellipsis si trop long.
+   L'icône, elle, reste ancrée au coin (el.x) comme dans l'éditeur vintage. */
 function _vtLabel(ctx,text,cx,y,SC,TS){
-  var f=_bpLblFit(ctx,text,SC,TS);
-  var fs=Math.max(11,Math.round(30*(TS||1)*SC));
-  ctx.font=_bpLblFont(SC,TS);ctx.textAlign='center';ctx.textBaseline='top';
-  var boxW=f.w+28*SC,boxH=fs+10*SC,bx=cx-boxW/2;
-  _bpRR(ctx,bx,y,boxW,boxH,8*SC);
-  ctx.fillStyle='rgba(255,255,255,.92)';ctx.fill();
-  ctx.fillStyle='#111';ctx.fillText(f.lbl,cx,y+5*SC);
+  TS=TS||1;
+  var fs=Math.max(9,Math.round(13*TS*SC));
+  ctx.font='600 '+fs+'px "DM Mono", ui-monospace, monospace';
+  ctx.textAlign='center';ctx.textBaseline='top';
+  var lbl=(text||'');
+  var maxTextW=Math.max(20,(130*TS-20)*SC);
+  if(ctx.measureText(lbl).width>maxTextW){ while(lbl.length>1 && ctx.measureText(lbl+'…').width>maxTextW) lbl=lbl.slice(0,-1); lbl+='…'; }
+  var tw=ctx.measureText(lbl).width,padX=10*SC,padY=3*SC;
+  var boxW=tw+padX*2,boxH=fs+padY*2,bx=cx-boxW/2;
+  _bpRR(ctx,bx,y,boxW,boxH,5*SC);
+  ctx.fillStyle='rgba(255,255,255,.98)';ctx.fill();
+  ctx.strokeStyle='rgba(29,58,95,.18)';ctx.lineWidth=Math.max(1,1*SC);ctx.stroke();
+  ctx.fillStyle='#1d3a5f';ctx.fillText(lbl,cx,y+padY);
   ctx.textBaseline='alphabetic';
 }
 function _vtChBadge(ctx,chNum,nodeW,nodeTop,SC){
@@ -6938,24 +6935,19 @@ function _makeBpCanvas(cb){
           });
         } else {
           var SZ=120*SC*ns;
-          /* Comme dans l'éditeur (.bp-node = colonne centrée ancrée par son coin
-             haut-gauche à el.x,el.y) : l'icône est centrée dans une boîte dont la
-             largeur = max(icône, label). Sans ce centrage, l'icône était dessinée
-             au coin et apparaissait décalée par rapport à l'image de fond. */
-          var _TSl=data.textScale||1;
-          var boxW=Math.max(SZ,_vtLabelBoxW(ctx,el.label,SC,_TSl));
-          var ox=(boxW-SZ)/2;
-          _bpRR(ctx,ox,0,SZ,SZ,16*SC);
+          /* Icône ancrée au coin (el.x,el.y) — identique à l'éditeur vintage
+             (.bp-vnode : la vignette est au coin, le label centré dessous). */
+          _bpRR(ctx,0,0,SZ,SZ,16*SC);
           ctx.fillStyle='#ffffff';ctx.fill();
           ctx.strokeStyle=((ci&&ci.color)||'#c8d4e0')+'66';ctx.lineWidth=1.5*SC;ctx.stroke();
-          if(img){ctx.drawImage(img,ox,0,SZ,SZ);}
+          if(img){ctx.drawImage(img,0,0,SZ,SZ);}
           else{
             ctx.font=Math.round(42*SC*ns)+'px serif';ctx.textAlign='center';ctx.textBaseline='middle';
-            ctx.fillStyle=(ci&&ci.color)||'#5a6580';ctx.fillText((ci&&ci.emoji)||'?',ox+SZ/2,SZ/2);
+            ctx.fillStyle=(ci&&ci.color)||'#5a6580';ctx.fillText((ci&&ci.emoji)||'?',SZ/2,SZ/2);
             ctx.textBaseline='alphabetic';
           }
-          if(el.ch){var rv=allChs.find(function(r){return r.id===el.ch;});if(rv)_vtChBadge(ctx,rv.ch,ox+SZ,0,SC);}
-          _vtLabel(ctx,el.label,boxW/2,SZ+6*SC,SC,_TSl);
+          if(el.ch){var rv=allChs.find(function(r){return r.id===el.ch;});if(rv)_vtChBadge(ctx,rv.ch,SZ,0,SC);}
+          _vtLabel(ctx,el.label,SZ/2,SZ+6*SC,SC,data.textScale||1);
         }
         ctx.restore();
       });
