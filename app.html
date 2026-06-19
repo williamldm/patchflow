@@ -2846,7 +2846,10 @@ let SEL_TPL=null, IM_MODE='replace';
 let CODA_AMPS=[];
 let stageEls=[],stageId=1,drag=null,dox=0,doy=0;
 let PLAN_MODE='scene';
-let visCol=new Set(['short','long','src','mic','gain','phantom','iem','foh','mon','note']);
+const _VISCOL_KEY='pf_viscol';
+function _saveVisCol(){try{localStorage.setItem(_VISCOL_KEY,JSON.stringify([...visCol]));}catch(e){}}
+function _loadVisCol(){try{var s=localStorage.getItem(_VISCOL_KEY);if(s){var a=JSON.parse(s);if(Array.isArray(a)&&a.length)return new Set(a);}}catch(e){}return new Set(['short','long','src','mic','gain','phantom','iem','foh','mon','note']);}
+let visCol=_loadVisCol();
 let pdfMeta={};
 let prevType='';
 
@@ -5697,14 +5700,14 @@ function loadColChips(){
       <span class="pip"></span><i class="ti ${c.icon}" style="font-size:11px"></i>${c.label}
     </div>`).join('');
 }
-function toggleCol(id){visCol.has(id)?visCol.delete(id):visCol.add(id);applyColVis();loadColChips();updateColBtn();}
+function toggleCol(id){visCol.has(id)?visCol.delete(id):visCol.add(id);_saveVisCol();applyColVis();loadColChips();updateColBtn();}
 function applyColVis(){
   document.querySelectorAll('#il-head th[data-col]').forEach(th=>th.style.display=visCol.has(th.dataset.col)?'':'none');
   document.querySelectorAll('#il-body tr').forEach(tr=>tr.querySelectorAll('td[data-col]').forEach(td=>td.style.display=visCol.has(td.dataset.col)?'':'none'));
   updateColBtn();
 }
 function updateColBtn(){const b=document.getElementById('col-btn');if(b)b.innerHTML=`<i class="ti ti-columns"></i>Colonnes <span style="font-family:var(--m);font-size:9px;background:var(--ora);color:#000;border-radius:9px;padding:1px 5px;margin-left:2px">${visCol.size}</span>`;}
-function colPreset(n){visCol=new Set(COL_PRESETS[n]||COLS.map(c=>c.id));applyColVis();loadColChips();toast(`✓ Vue "${n}" appliquée`);}
+function colPreset(n){visCol=new Set(COL_PRESETS[n]||COLS.map(c=>c.id));_saveVisCol();applyColVis();loadColChips();toast(`✓ Vue "${n}" appliquée`);}
 function toggleColPanel(){const p=document.getElementById('col-panel');p.style.display=p.style.display==='none'||!p.style.display?'block':'none';if(p.style.display==='block'){loadColChips();_renderCustomColList();renderChNumSizes();}}
 
 /* ── Taille du numéro de canal (préférence d'affichage, persistante) ── */
@@ -5770,6 +5773,7 @@ function _submitAddCustomCol(){
     /* Ajouter la colonne à la table visible */
     _addCustomColToTable({id,label:lbl,type});
     visCol.add(id);
+    _saveVisCol();
     updateColBtn();
     toast(`Colonne "${lbl}" créée`);
   });
@@ -5782,6 +5786,7 @@ async function _deleteCustomCol(colId){
   /* Supprimer la colonne de la table */
   document.querySelectorAll(`th[data-col="${colId}"],td[data-col="${colId}"]`).forEach(e=>e.remove());
   visCol.delete(colId);
+  _saveVisCol();
   updateColBtn();
   _renderCustomColList();
   toast('Colonne supprimée');
@@ -5842,11 +5847,14 @@ function _customCellHTML(col,chId,val){
 /* Charge les colonnes custom au démarrage (après loadIL) */
 function _loadCustomColsIntoTable(){
   const cols=_getCustomCols();
+  const hasSaved=!!localStorage.getItem(_VISCOL_KEY);
   cols.forEach(c=>{
     if(!document.querySelector(`th[data-col="${c.id}"]`)){
       _addCustomColToTable(c);
     }
-    visCol.add(c.id);
+    /* N'ajoute à visCol que si aucune préférence sauvegardée (1re utilisation)
+       ou si la col était déjà visible — évite d'écraser le choix de l'utilisateur */
+    if(!hasSaved) visCol.add(c.id);
   });
   if(cols.length)updateColBtn();
 }
