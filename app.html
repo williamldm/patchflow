@@ -14362,16 +14362,43 @@ async function _openPdfJs(url, container){
         canvas.style.height = vVp.height + 'px';
         await pg.render({ canvasContext: canvas.getContext('2d'), viewport: cVp }).promise;
 
-        /* Calque texte transparent (sélectionnable), taille CSS identique à la page */
+        /* Calque texte transparent (sélectionnable) */
         const textDiv = document.createElement('div');
         textDiv.className = 'fich-pdf-text';
         textDiv.style.width  = vVp.width  + 'px';
         textDiv.style.height = vVp.height + 'px';
+        textDiv.style.zIndex = '2';
         try {
-          const tc = await pg.getTextContent();
-          const rt = pdfjs.renderTextLayer({ textContentSource: tc, container: textDiv, viewport: vVp, textDivs: [] });
-          if(rt && rt.promise) await rt.promise;
+          /* renderTextLayer attend un ReadableStream via streamTextContent() */
+          if(typeof pdfjs.renderTextLayer === 'function'){
+            const rt = pdfjs.renderTextLayer({
+              textContentSource: pg.streamTextContent({ includeMarkedContent: true }),
+              container: textDiv,
+              viewport: vVp,
+              textDivs: []
+            });
+            const p = rt && (rt.promise || (typeof rt.then === 'function' ? rt : null));
+            if(p) await p;
+          } else {
+            /* Fallback manuel : positionne chaque item de texte à la main */
+            const tc = await pg.getTextContent();
+            const U = pdfjs.Util;
+            tc.items.forEach(function(item){
+              if(!item.str) return;
+              var tx = U.transform(vVp.transform, item.transform);
+              var h = Math.hypot(tx[2], tx[3]);
+              var angle = Math.atan2(tx[1], tx[0]);
+              var sp = document.createElement('span');
+              sp.textContent = item.str;
+              var css = 'position:absolute;color:transparent;white-space:pre;cursor:text;transform-origin:0% 0%;' +
+                'left:' + tx[4] + 'px;top:' + (vVp.height - tx[5]) + 'px;font-size:' + h + 'px;';
+              if(Math.abs(angle) > 0.001) css += 'transform:rotate(' + (-angle) + 'rad);';
+              sp.style.cssText = css;
+              textDiv.appendChild(sp);
+            });
+          }
         } catch(_){}
+        canvas.style.zIndex = '1';
 
         pageEl.appendChild(canvas);
         pageEl.appendChild(textDiv);
