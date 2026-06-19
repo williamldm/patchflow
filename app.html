@@ -6861,7 +6861,7 @@ function _makeBpCanvas(cb){
   els.forEach(el=>{
     let w,h;
     if(el.type==='riser'){ w=(el.riserW||2)*RSCALE; h=(el.riserH||1)*RSCALE; }
-    else if(el.type==='kit'){ w=210; h=Math.max(70,(el.chs||[]).length*40+54); }
+    else if(el.type==='kit'){ w=280; h=Math.max(80,(el.chs||[]).length*50+60); }
     else if(el.type==='text_lbl'){ w=200; h=40; }
     else { w=120*_ns; h=120*_ns; }
     /* Hauteur du label sous l'icône + débord horizontal du label (centré sur
@@ -7047,8 +7047,8 @@ function _makeBpCanvas(cb){
       ctx.fillText('⬆ '+alt+'m',rw/2,rh/2+26*SC);
     } else if(el.type==='kit'){
       const kitChs=el.chs||[];const rows=kitChs.map(id=>allChs.find(r=>r.id===id)).filter(Boolean);
-      const rowH=40*SC,headH=54*SC;
-      const BW=320*SC,BH=Math.max(100*SC,rows.length*rowH+headH);
+      const rowH=50*SC,headH=60*SC;
+      const BW=280*SC,BH=Math.max(80*SC,rows.length*rowH+headH);
       rr(0,0,BW,BH,14*SC);ctx.fillStyle='#fff';ctx.fill();
       ctx.strokeStyle='rgba(255,77,106,.35)';ctx.lineWidth=2*SC;ctx.stroke();
       ctx.fillStyle='rgba(255,77,106,.1)';ctx.fillRect(0,0,BW,headH);
@@ -7178,77 +7178,112 @@ function closeBpPDF(){ closePDF(); }
 const _PF_LOGO_MM='<svg width="10mm" height="10mm" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M70 60 C100 60 100 140 130 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round"/><path d="M130 60 C100 60 100 140 70 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round" opacity="0.45"/><circle cx="60" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="60" r="5" fill="#FF6B2B"/><circle cx="140" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="60" r="5" fill="#FF6B2B"/><circle cx="60" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="140" r="5" fill="#FF6B2B"/><circle cx="140" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="140" r="5" fill="#FF6B2B"/></svg>';
 const _PF_LOGO_PX='<svg width="34" height="34" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M70 60 C100 60 100 140 130 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round"/><path d="M130 60 C100 60 100 140 70 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round" opacity="0.45"/><circle cx="60" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="60" r="5" fill="#FF6B2B"/><circle cx="140" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="60" r="5" fill="#FF6B2B"/><circle cx="60" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="140" r="5" fill="#FF6B2B"/><circle cx="140" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="140" r="5" fill="#FF6B2B"/></svg>';
 
+function _bpLoadJsPDF(){
+  if(window.jspdf&&window.jspdf.jsPDF) return Promise.resolve(window.jspdf.jsPDF);
+  return new Promise(function(resolve,reject){
+    var s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    s.onload=function(){resolve(window.jspdf.jsPDF);};
+    s.onerror=function(){reject(new Error('jsPDF indisponible'));};
+    document.head.appendChild(s);
+  });
+}
+
 function doBpPDF(){
-  const $b=id=>document.getElementById(id);
-  const meta={title:($b('bppdf-title').value.trim()||'Plan de Scene'),sub:$b('bppdf-sub').value.trim(),venue:$b('bppdf-venue').value.trim(),date:$b('bppdf-date').value.trim(),eng:$b('bppdf-eng').value.trim(),rev:$b('bppdf-rev').value.trim(),notes:$b('bppdf-notes').value.trim(),link:($b('bppdf-link')?.value||'').trim(),contact:($b('bppdf-contact')?.value||'').trim()};
-  /* If user specified a custom link, use it; otherwise default to live share */
-  const shareUrl=meta.link||(window.location.origin+window.location.pathname+'?view='+(CUR_SHOW?.id||'')+'&tab=stage');
-  if(!meta.link) _ensureShareActive(); /* activer le partage pour que le lien/QR fonctionne */
+  var $b=function(id){return document.getElementById(id);};
+  var meta={
+    title:($b('bppdf-title')?.value.trim()||'Plan de Scene'),
+    sub:($b('bppdf-sub')?.value.trim()||''),
+    venue:($b('bppdf-venue')?.value.trim()||''),
+    date:($b('bppdf-date')?.value.trim()||''),
+    eng:($b('bppdf-eng')?.value.trim()||''),
+    rev:($b('bppdf-rev')?.value.trim()||''),
+    notes:($b('bppdf-notes')?.value.trim()||''),
+    contact:($b('bppdf-contact')?.value.trim()||'')
+  };
+  var brand=_pdfBrand();
   closeBpPDF();
   if(!BandPlan.getData().els.length){toast('Plan vide — rien a exporter.');return;}
-  _makeBpCanvas(cv=>{
-    const dataUrl=cv.toDataURL('image/png');
-    const now=new Date().toLocaleString('fr-FR');
-    const metaBar=(meta.venue||meta.date||meta.eng||meta.contact)
-      ?'<div class="mb">'
-        +(meta.venue?'<div class="mc"><div class="ml">Venue</div><div class="mv">'+meta.venue+'</div></div>':'')
-        +(meta.date?'<div class="mc"><div class="ml">Date</div><div class="mv">'+meta.date+'</div></div>':'')
-        +(meta.eng?'<div class="mc"><div class="ml">Ingenieur</div><div class="mvo">'+meta.eng+'</div></div>':'')
-        +(meta.contact?'<div class="mc"><div class="ml">Contact</div><div class="mv">'+meta.contact+'</div></div>':'')
-        +'</div>':'' ;
-    const notesBlock=meta.notes?'<div class="ns"><div class="nl">Notes</div><div class="nt">'+meta.notes+'</div></div>':'';
-    const html='<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/>'
-      +'<title>'+meta.title+'</title>'
-      +'<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet"/>'
-      +'<style>*{box-sizing:border-box;margin:0;padding:0}:root{--o:#ff6b1a}html,body{width:100%;height:100%}'
-      +'body{font-family:Outfit,sans-serif;background:#fff;color:#1a1a2e;display:flex;flex-direction:column;height:100%}'
-      +'@page{size:A4 landscape;margin:0}'
-      +'.hd{background:#0a0f1c;color:#fff;padding:8mm 10mm 6mm;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}'
-      +'.hl{display:flex;align-items:center;gap:8mm}.logo{width:10mm;height:10mm;display:flex;align-items:center;justify-content:center;flex-shrink:0}'
-      +'.ht{font-size:5.5mm;font-weight:700;line-height:1.2}.hs{font-size:3mm;color:#8090a8;font-family:"DM Mono",monospace;margin-top:1mm}'
-      +'.hr{text-align:right}.hdt{font-size:3mm;font-weight:700;color:var(--o);font-family:"DM Mono",monospace;letter-spacing:1.5px;text-transform:uppercase}'
-      +'.hdm{font-size:2.8mm;color:#556;font-family:"DM Mono",monospace;margin-top:0.5mm}'
-      +'.mb{display:flex;background:#f4f5f7;border-bottom:1px solid #dde;flex-shrink:0}'
-      +'.mc{padding:2.5mm 4mm;border-right:1px solid #dde;display:flex;flex-direction:column;gap:0.5mm}.mc:last-child{border-right:none}'
-      +'.ml{font-size:2.2mm;color:#aaa;text-transform:uppercase;letter-spacing:.8px;font-family:"DM Mono",monospace}'
-      +'.mv{font-size:3mm;color:#333;font-weight:500;font-family:"DM Mono",monospace}'
-      +'.mvo{font-size:3mm;color:var(--o);font-weight:600;font-family:"DM Mono",monospace}'
-      +'.plan{flex:1;display:flex;align-items:center;justify-content:center;padding:4mm 6mm;overflow:hidden;min-height:0}'
-      +'.plan img{max-width:100%;max-height:100%;object-fit:contain}'
-      +'.ns{padding:2.5mm 10mm;background:#fffbf7;border-top:1px solid #ffe0c8;flex-shrink:0}'
-      +'.nl{font-family:"DM Mono",monospace;font-size:2.5mm;text-transform:uppercase;letter-spacing:1px;color:#ccc;margin-bottom:1mm}'
-      +'.nt{font-size:3mm;color:#555;white-space:pre-wrap}'
-      +'.ft{display:flex;align-items:center;justify-content:space-between;padding:2mm 10mm;border-top:1px solid #eee;font-size:2.5mm;color:#bbb;font-family:"DM Mono",monospace;flex-shrink:0;background:#fafafa}'
-      +'.fl{font-weight:700;color:var(--o);letter-spacing:1px}'
-      +'.lnk{font-size:2.2mm;color:#1a8fff;word-break:break-all}'
-      +'@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body>'
-      +_pdfWatermarkHtml(brand)
-      +'<div class="hd">'
-        +'<div class="hl"><div class="logo">'+_PF_LOGO_MM+'</div><div><div class="ht">'+meta.title+'</div>'+(meta.sub?'<div class="hs">'+meta.sub+'</div>':'')+'</div></div>'
-        +'<div class="hr"><div class="hdt">Plan de Scene</div><div class="hdm">'+(meta.rev?'Rev. '+meta.rev+' &nbsp;&middot;&nbsp; ':'')+now+'</div></div>'
-      +'</div>'
-      +(CUR_SHOW?.id
-        ?'<div style="display:flex;align-items:center;gap:5mm;padding:2.5mm 10mm;background:#fffbf0;border-bottom:1px solid #ffe0a0;flex-shrink:0">'
-          +'<div style="width:6mm;height:6mm;border-radius:50%;background:#ff6b1a;display:flex;align-items:center;justify-content:center;font-size:3.5mm;flex-shrink:0">&#x1F4F1;</div>'
-          +'<div style="flex:1">'
-            +'<div style="font-size:2.2mm;text-transform:uppercase;letter-spacing:1px;color:#999;font-family:\'DM Mono\',monospace;margin-bottom:0.8mm">Patch en direct — constamment mis a jour</div>'
-            +'<a href="'+shareUrl+'" style="font-size:2.8mm;color:#1a6fff;font-family:\'DM Mono\',monospace;word-break:break-all;text-decoration:none">'+shareUrl+'</a>'
-          +'</div>'
-          +'<div style="font-size:2.2mm;color:#bbb;font-family:\'DM Mono\',monospace;text-align:right;white-space:nowrap">Ouvrir pour voir<br/>le patch a jour</div>'
-        +'</div>'
-        :'')
-      +metaBar
-      +'<div class="plan"><img src="'+dataUrl+'" alt="Plan de scene"/></div>'
-      +notesBlock
-      +'<div class="ft">'
-        +'<span class="fl">PATCHFLOW</span>'
-        +'<span>'+meta.title+(meta.sub?' &middot; '+meta.sub:'')+'</span>'
-        +'<span>'+now+'</span>'
-      +'</div>'
-      +'<script>window.onload=()=>window.print();<\/script></body></html>';
-    const w=window.open('','_blank');
-    if(!w){alert('Autorisez les popups pour generer le PDF');return;}
-    w.document.write(html);w.document.close();
+  toast('Generation PDF...');
+  _makeBpCanvas(async function(cv){
+    try {
+      var JsPDF=await _bpLoadJsPDF();
+      var doc=new JsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+      var PW=297,PH=210;
+      var imgData=cv.toDataURL('image/jpeg',0.92);
+      var ratio=cv.width/cv.height;
+      var now=new Date().toLocaleDateString('fr-FR');
+      var AR=255,AG=107,AB=26; /* accent orange */
+
+      /* ── Header ── */
+      var HDR=20;
+      doc.setFillColor(10,15,28);doc.rect(0,0,PW,HDR,'F');
+      doc.setFontSize(6.5);doc.setFont('helvetica','bold');doc.setTextColor(AR,AG,AB);
+      doc.text(brand.co||'PATCHFLOW',8,6.5);
+      doc.setFontSize(12);doc.setFont('helvetica','bold');doc.setTextColor(255,255,255);
+      doc.text(meta.title.slice(0,55),8,13.5);
+      if(meta.sub){doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(128,144,168);doc.text(meta.sub.slice(0,80),8,17.5);}
+      doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(AR,AG,AB);
+      doc.text('PLAN DE SCENE',PW-8,6.5,{align:'right'});
+      doc.setFontSize(6.5);doc.setFont('helvetica','normal');doc.setTextColor(85,90,110);
+      doc.text((meta.rev?'Rev. '+meta.rev+'  ':'')+now,PW-8,12,{align:'right'});
+      if(meta.eng){doc.setFontSize(6.5);doc.setTextColor(AR,AG,AB);doc.text(meta.eng,PW-8,17,{align:'right'});}
+
+      /* ── Meta bar ── */
+      var y=HDR;
+      var mItems=[];
+      if(meta.venue) mItems.push(['Venue',meta.venue]);
+      if(meta.date)  mItems.push(['Date',meta.date]);
+      if(meta.contact) mItems.push(['Contact',meta.contact]);
+      if(mItems.length){
+        var MB=8;
+        doc.setFillColor(244,245,247);doc.rect(0,y,PW,MB,'F');
+        doc.setDrawColor(220,220,235);doc.setLineWidth(0.1);doc.line(0,y+MB,PW,y+MB);
+        var cw=PW/mItems.length;
+        mItems.forEach(function(item,i){
+          var cx=i*cw+5;
+          doc.setFontSize(5.5);doc.setFont('helvetica','normal');doc.setTextColor(170,170,170);
+          doc.text(item[0].toUpperCase(),cx,y+3.5);
+          doc.setFontSize(7);doc.setFont('helvetica','bold');doc.setTextColor(51,51,51);
+          doc.text(item[1].slice(0,35),cx,y+6.5);
+        });
+        y+=MB;
+      }
+
+      /* ── Image ── */
+      var FTR=7,PAD=5,notesH=meta.notes?9:0;
+      var imgH=PH-y-FTR-notesH-PAD*2,imgW=PW-PAD*2;
+      var drawW=imgW,drawH=imgW/ratio;
+      if(drawH>imgH){drawH=imgH;drawW=imgH*ratio;}
+      doc.addImage(imgData,'JPEG',(PW-drawW)/2,y+PAD,drawW,drawH);
+
+      /* ── Notes ── */
+      if(meta.notes){
+        var ny=PH-FTR-notesH;
+        doc.setFillColor(255,251,247);doc.rect(0,ny,PW,notesH,'F');
+        doc.setDrawColor(255,224,200);doc.line(0,ny,PW,ny);
+        doc.setFontSize(6);doc.setFont('helvetica','normal');doc.setTextColor(85,85,85);
+        doc.text(meta.notes.slice(0,200),10,ny+5.5,{maxWidth:PW-20});
+      }
+
+      /* ── Footer ── */
+      var fy=PH-FTR;
+      doc.setFillColor(250,250,250);doc.rect(0,fy,PW,FTR,'F');
+      doc.setDrawColor(238,238,238);doc.line(0,fy,PW,fy);
+      doc.setFontSize(6.5);doc.setFont('helvetica','bold');doc.setTextColor(AR,AG,AB);
+      doc.text('PATCHFLOW',8,fy+4.5);
+      doc.setFont('helvetica','normal');doc.setTextColor(187,187,187);
+      doc.text(meta.title.slice(0,55),PW/2,fy+4.5,{align:'center'});
+      doc.text(now,PW-8,fy+4.5,{align:'right'});
+
+      /* ── Download ── */
+      var fname=((CUR_SHOW?.name||'plan').replace(/[^a-z0-9]/gi,'-').toLowerCase()+'-plan-scene.pdf');
+      doc.save(fname);
+      toast('✓ PDF telecharge');
+    } catch(e){
+      console.error('doBpPDF:',e);
+      toast('Erreur PDF: '+e.message);
+    }
   });
 }
 
