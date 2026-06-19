@@ -429,8 +429,14 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .fich-pdf-loading{display:flex;align-items:center;justify-content:center;gap:10px;padding:60px 20px;color:var(--muted);font-size:13px;flex:1;height:100%}
 .fich-pdf-nav{display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--surf2);border-bottom:1px solid var(--bdr);flex-shrink:0;flex-wrap:wrap}
 .fich-pdf-pageinfo{font-family:var(--m);font-size:11px;color:var(--txt2);min-width:60px;text-align:center}
-.fich-pdf-wrap{flex:1;overflow:auto;padding:16px;display:flex;justify-content:center;align-items:flex-start;background:#1a1a2e}
-.fich-pdf-canvas{border-radius:4px;box-shadow:0 4px 24px rgba(0,0,0,.6);display:block}
+.fich-pdf-wrap{flex:1;overflow-y:auto;overflow-x:auto;padding:16px;display:flex;flex-direction:column;align-items:center;gap:16px;background:#1a1a2e}
+.fich-pdf-page{position:relative;flex-shrink:0}
+.fich-pdf-canvas{border-radius:4px;box-shadow:0 4px 24px rgba(0,0,0,.6);display:block;position:absolute;top:0;left:0}
+.fich-pdf-text{position:absolute;top:0;left:0;overflow:hidden;line-height:1;user-select:text;pointer-events:none}
+.fich-pdf-text>span{color:transparent;position:absolute;white-space:pre;cursor:text;transform-origin:0% 0%;pointer-events:auto}
+.fich-pdf-text>span::selection,.fich-pdf-text>span::-moz-selection{background:rgba(0,120,255,.3);color:transparent}
+.fich-pdf-text .markedContent{display:block}
+.fich-pdf-text br{display:none}
 #fich-viewer-content{display:flex;flex-direction:column}
 #fich-viewer-modal{display:none;position:fixed;inset:0;z-index:1200}
 .fich-viewer-ov{position:absolute;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(4px)}
@@ -14298,100 +14304,122 @@ async function _openPdfJs(url, container){
   container.innerHTML = '<div class="fich-pdf-loading"><div class="spinner"></div><span>Chargement du PDF…</span></div>';
   try {
     const pdfjs = await _loadPdfJs();
-    const task  = pdfjs.getDocument({ url });
-    const pdf   = await task.promise;
+    const pdf   = await pdfjs.getDocument({ url }).promise;
     container.innerHTML = '';
 
     /* Barre de navigation */
     const nav = document.createElement('div');
     nav.className = 'fich-pdf-nav';
-    nav.innerHTML = `
-      <button class="btn ghost sm" id="pdf-prev" onclick="_pdfPage(-1)"><i class="ti ti-chevron-left"></i></button>
-      <span id="pdf-page-info" class="fich-pdf-pageinfo">1 / ${pdf.numPages}</span>
-      <button class="btn ghost sm" id="pdf-next" onclick="_pdfPage(1)"><i class="ti ti-chevron-right"></i></button>
-      <button class="btn ghost sm" onclick="_pdfZoom(-0.2)" title="Zoom -"><i class="ti ti-zoom-out"></i></button>
-      <button class="btn ghost sm" onclick="_pdfZoom(0.2)"  title="Zoom +"><i class="ti ti-zoom-in"></i></button>
-      <button class="btn ghost sm" onclick="_pdfFit()" title="Ajuster"><i class="ti ti-arrows-maximize"></i></button>`;
+    nav.innerHTML =
+      '<button class="btn ghost sm" id="pdf-prev" onclick="_pdfPage(-1)" title="Page précédente"><i class="ti ti-chevron-left"></i></button>' +
+      '<span id="pdf-page-info" class="fich-pdf-pageinfo">1 / ' + pdf.numPages + '</span>' +
+      '<button class="btn ghost sm" id="pdf-next" onclick="_pdfPage(1)" title="Page suivante"><i class="ti ti-chevron-right"></i></button>' +
+      '<button class="btn ghost sm" onclick="_pdfZoom(-0.2)" title="Zoom -"><i class="ti ti-zoom-out"></i></button>' +
+      '<button class="btn ghost sm" onclick="_pdfZoom(0.2)"  title="Zoom +"><i class="ti ti-zoom-in"></i></button>' +
+      '<button class="btn ghost sm" onclick="_pdfFit()" title="Ajuster"><i class="ti ti-arrows-maximize"></i></button>';
     container.appendChild(nav);
 
     const wrap = document.createElement('div');
     wrap.className = 'fich-pdf-wrap';
-    const canvas = document.createElement('canvas');
-    canvas.className = 'fich-pdf-canvas';
-    wrap.appendChild(canvas);
     container.appendChild(wrap);
 
-    /* Calcule le scale pour que la page tienne dans la largeur du wrap */
+    window._pdfState = { pdf, page: 1, scale: null, wrap, pageEls: [], observer: null, renderAll: null };
+
     function _calcFitScale(pg){
       const vp0 = pg.getViewport({ scale: 1 });
-      const availW = Math.max(wrap.clientWidth - 32, 300); // padding 16px * 2
-      return Math.min(availW / vp0.width, 2.5); // max x2.5 pour ne pas trop grossir
+      return Math.min(Math.max(wrap.clientWidth - 32, 300) / vp0.width, 2.5);
     }
 
-    /* State */
-    window._pdfState = { pdf, page: 1, scale: 1, wrap, canvas };
+    async function renderAllPages(scaleOverride){
+      if(window._pdfState.observer){ window._pdfState.observer.disconnect(); window._pdfState.observer = null; }
+      wrap.innerHTML = '';
+      window._pdfState.pageEls = [];
 
-    async function renderPage(n, scaleOverride){
-      const pg = await pdf.getPage(n);
-      const scale = scaleOverride !== undefined ? scaleOverride : _calcFitScale(pg);
+      const firstPg = await pdf.getPage(1);
+      const scale = scaleOverride !== undefined ? scaleOverride : _calcFitScale(firstPg);
       window._pdfState.scale = scale;
-      const vp = pg.getViewport({ scale });
-      canvas.width  = vp.width;
-      canvas.height = vp.height;
-      await pg.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
-      const info = document.getElementById('pdf-page-info');
-      if(info) info.textContent = n + ' / ' + pdf.numPages;
+
+      for(var i = 1; i <= pdf.numPages; i++){
+        const pg = await pdf.getPage(i);
+        const vp = pg.getViewport({ scale });
+
+        const pageEl = document.createElement('div');
+        pageEl.className = 'fich-pdf-page';
+        pageEl.dataset.page = i;
+        pageEl.style.width  = vp.width  + 'px';
+        pageEl.style.height = vp.height + 'px';
+
+        const canvas = document.createElement('canvas');
+        canvas.className = 'fich-pdf-canvas';
+        canvas.width  = vp.width;
+        canvas.height = vp.height;
+        await pg.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+
+        const textDiv = document.createElement('div');
+        textDiv.className = 'fich-pdf-text';
+        textDiv.style.width  = vp.width  + 'px';
+        textDiv.style.height = vp.height + 'px';
+        try {
+          const tc = await pg.getTextContent();
+          const rt = pdfjs.renderTextLayer({ textContent: tc, container: textDiv, viewport: vp, textDivs: [] });
+          await (rt && rt.promise ? rt.promise : (rt || Promise.resolve()));
+        } catch(_){}
+
+        pageEl.appendChild(canvas);
+        pageEl.appendChild(textDiv);
+        wrap.appendChild(pageEl);
+        window._pdfState.pageEls.push(pageEl);
+      }
+
+      /* IntersectionObserver : met a jour le compteur de page en defilant */
+      const obs = new IntersectionObserver(function(entries){
+        var best = null, bestR = 0;
+        entries.forEach(function(e){ if(e.intersectionRatio > bestR){ bestR = e.intersectionRatio; best = e.target; } });
+        if(best){
+          var p = parseInt(best.dataset.page);
+          window._pdfState.page = p;
+          var info = document.getElementById('pdf-page-info');
+          if(info) info.textContent = p + ' / ' + pdf.numPages;
+        }
+      }, { root: wrap, threshold: [0.1, 0.3, 0.5, 0.7, 0.9] });
+      window._pdfState.pageEls.forEach(function(el){ obs.observe(el); });
+      window._pdfState.observer = obs;
     }
-    await renderPage(1);
+
+    window._pdfState.renderAll = renderAllPages;
+    await renderAllPages();
 
   } catch(e) {
     container.innerHTML = '<div class="fich-pdf-loading" style="flex-direction:column;gap:10px"><i class="ti ti-file-broken" style="font-size:36px;opacity:.4"></i><span style="font-size:12px">Impossible d\'ouvrir ce PDF<br/><span style="opacity:.6">' + e.message + '</span></span></div>';
   }
 }
 
-function _pdfRender(n, scale){
-  const s = window._pdfState; if(!s) return;
-  const canvas = s.canvas || document.querySelector('.fich-pdf-canvas');
-  if(!canvas) return;
-  s.pdf.getPage(n).then(function(pg){
-    if(scale === undefined){
-      const vp0 = pg.getViewport({scale:1});
-      const wrap = s.wrap || document.querySelector('.fich-pdf-wrap');
-      scale = wrap ? Math.min((wrap.clientWidth - 32) / vp0.width, 2.5) : 1.3;
-    }
-    s.scale = scale;
-    const vp = pg.getViewport({scale});
-    canvas.width = vp.width; canvas.height = vp.height;
-    pg.render({canvasContext: canvas.getContext('2d'), viewport: vp});
-    const info = document.getElementById('pdf-page-info');
-    if(info) info.textContent = n + ' / ' + s.pdf.numPages;
-  });
-}
-
 function _pdfPage(delta){
-  const s = window._pdfState; if(!s) return;
-  const next = Math.max(1, Math.min(s.pdf.numPages, s.page + delta));
+  var s = window._pdfState; if(!s) return;
+  var next = Math.max(1, Math.min(s.pdf.numPages, s.page + delta));
   if(next === s.page) return;
   s.page = next;
-  _pdfRender(next, s.scale);
+  var el = s.pageEls && s.pageEls[next - 1];
+  if(el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function _pdfZoom(delta){
-  const s = window._pdfState; if(!s) return;
-  _pdfRender(s.page, Math.max(0.4, Math.min(3.5, s.scale + delta)));
+  var s = window._pdfState; if(!s || !s.renderAll) return;
+  s.renderAll(Math.max(0.4, Math.min(3.5, s.scale + delta)));
 }
 
 function _pdfFit(){
-  const s = window._pdfState; if(!s) return;
-  _pdfRender(s.page, undefined); // recalcule le fit automatiquement
+  var s = window._pdfState; if(!s || !s.renderAll) return;
+  s.renderAll(undefined);
 }
 
 function closeFichierViewer() {
-  const modal = document.getElementById('fich-viewer-modal');
-  const content = document.getElementById('fich-viewer-content');
-  if (modal) modal.style.display = 'none';
-  if (content) content.innerHTML = '';
-  window._pdfState = null;
+  var modal   = document.getElementById('fich-viewer-modal');
+  var content = document.getElementById('fich-viewer-content');
+  if(modal)   modal.style.display = 'none';
+  if(content) content.innerHTML   = '';
+  if(window._pdfState && window._pdfState.observer) window._pdfState.observer.disconnect();
+  window._pdfState  = null;
   window._xlsxState = null;
 }
 
