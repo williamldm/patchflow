@@ -1489,6 +1489,8 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
           <button class="btn" style="background:var(--surf2);border-color:var(--bdr2);color:var(--err)" onclick="clearAllRows()"><i class="ti ti-trash"></i>Tout supprimer</button>
           <input type="file" id="csv-import-input" accept=".csv,.txt" style="display:none" onchange="importCSVLoad(this)">
           <button class="btn" style="background:var(--surf2);border-color:var(--bdr2)" onclick="importCSVClick()"><i class="ti ti-upload"></i>Import CSV</button>
+          <input type="file" id="il-ai-file" accept=".pdf,.csv,.txt,.doc,.docx,image/png,image/jpeg,image/webp,image/gif,application/pdf,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="display:none" onchange="ilAiHandleFile(this)">
+          <button class="btn" id="il-ai-btn" style="background:linear-gradient(135deg,var(--ora),#ff3d00);border-color:var(--ora);color:#fff" onclick="ilAiImport()"><i class="ti ti-sparkles"></i>Adapter une liste (IA)</button>
           <button class="btn ghost" onclick="toggleColPanel()" id="col-btn"><i class="ti ti-columns"></i>Colonnes</button>
           <div class="exp-wrap">
             <button class="btn sm" id="il-exp-btn" onclick="toggleExpMenu('il-exp-menu','il-exp-btn')"><i class="ti ti-file-export"></i>Exporter <i class="ti ti-chevron-down" style="font-size:10px;margin-left:2px"></i></button>
@@ -6844,6 +6846,133 @@ async function bpAiHandleFile(input){
     toast('✨ '+n+' élément'+(n>1?'s':'')+' placé'+(n>1?'s':'')+' depuis le plan');
   }catch(e){ toast('Erreur réseau : '+e.message); }
   finally{ _bpAiSetLoading(false); }
+}
+
+/* ══════════════════════════════════════
+   MODE IA — adapter une input list depuis un fichier (réservé Pro).
+   Formats : image (PNG/JPEG/WEBP/GIF), PDF, CSV/TXT, Word (.docx).
+   ══════════════════════════════════════ */
+function ilAiImport(){
+  if(!CUR_SHOW){ toast('Aucun show sélectionné.'); return; }
+  if(!canDo('ai_inputlist')){ showUpgradeModal('ai_inputlist'); return; }
+  document.getElementById('il-ai-file').click();
+}
+function _ilAiSetLoading(on){
+  const btn=document.getElementById('il-ai-btn'); if(!btn) return;
+  if(on){ btn.disabled=true; btn.dataset.html=btn.innerHTML; btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .8s linear infinite"></i> Analyse…'; }
+  else { btn.disabled=false; if(btn.dataset.html) btn.innerHTML=btn.dataset.html; }
+}
+/* Lit + redimensionne une image (max 1600 px) → JPEG base64. */
+function _ilAiPrepareImage(file){
+  return new Promise(function(resolve,reject){
+    const reader=new FileReader();
+    reader.onload=function(e){
+      const img=new Image();
+      img.onload=function(){
+        const MAX=1600; let w=img.width,h=img.height;
+        if(Math.max(w,h)>MAX){ if(w>=h){h=Math.round(h*MAX/w);w=MAX;} else {w=Math.round(w*MAX/h);h=MAX;} }
+        const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+        cv.getContext('2d').drawImage(img,0,0,w,h);
+        resolve(cv.toDataURL('image/jpeg',0.85).split(',')[1]||'');
+      };
+      img.onerror=reject; img.src=e.target.result;
+    };
+    reader.onerror=reject; reader.readAsDataURL(file);
+  });
+}
+function _ilAiReadBase64(file){
+  return new Promise(function(resolve,reject){
+    const reader=new FileReader();
+    reader.onload=function(e){ resolve((e.target.result.split(',')[1])||''); };
+    reader.onerror=reject; reader.readAsDataURL(file);
+  });
+}
+function _ilAiReadText(file){
+  return new Promise(function(resolve,reject){
+    const reader=new FileReader();
+    reader.onload=function(e){ resolve(e.target.result||''); };
+    reader.onerror=reject; reader.readAsText(file);
+  });
+}
+async function ilAiHandleFile(input){
+  const file=input.files&&input.files[0];
+  input.value='';
+  if(!file) return;
+
+  const name=(file.name||'').toLowerCase();
+  const type=file.type||'';
+  let payload;
+  try{
+    if(/^image\//.test(type)){
+      if(!/^image\/(png|jpe?g|webp|gif)$/i.test(type)){ toast('Image PNG, JPEG, WEBP ou GIF requise.'); return; }
+      if(file.size>6*1024*1024){ toast('Image trop lourde (max 6 Mo).'); return; }
+      payload={kind:'image', imageBase64:await _ilAiPrepareImage(file), mediaType:'image/jpeg'};
+    } else if(type==='application/pdf'||name.endsWith('.pdf')){
+      if(file.size>10*1024*1024){ toast('PDF trop lourd (max 10 Mo).'); return; }
+      payload={kind:'pdf', base64:await _ilAiReadBase64(file)};
+    } else if(name.endsWith('.docx')||type==='application/vnd.openxmlformats-officedocument.wordprocessingml.document'){
+      if(file.size>10*1024*1024){ toast('Document trop lourd (max 10 Mo).'); return; }
+      payload={kind:'docx', base64:await _ilAiReadBase64(file)};
+    } else if(name.endsWith('.csv')||name.endsWith('.txt')||type==='text/csv'||type==='text/plain'){
+      payload={kind:'text', text:await _ilAiReadText(file)};
+    } else if(name.endsWith('.doc')){
+      toast('Les anciens fichiers .doc ne sont pas supportés — enregistrez en .docx, PDF ou CSV.'); return;
+    } else {
+      toast('Format non supporté. Utilisez image, PDF, CSV, TXT ou Word (.docx).'); return;
+    }
+  }catch(e){ toast('Impossible de lire le fichier.'); return; }
+
+  _ilAiSetLoading(true);
+  try{
+    const sess=(await sb.auth.getSession()).data?.session;
+    const res=await fetch('https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/inputlist-ai',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(sess?.access_token||''),'apikey':SB_KEY},
+      body:JSON.stringify(payload)
+    });
+    const data=await res.json().catch(function(){return {};});
+    if(!res.ok){
+      if(data&&data.code==='pro_only') showUpgradeModal('ai_inputlist');
+      else toast('IA : '+((data&&data.error)||('erreur '+res.status)));
+      return;
+    }
+    const chs=(data&&data.channels)||[];
+    if(!chs.length){ toast('Aucun canal reconnu dans ce fichier — réessayez avec un document plus net.'); return; }
+    const n=await ilAiPlace(chs);
+    if(n>0) toast('✨ '+n+' canal'+(n>1?'ux':'')+' ajouté'+(n>1?'s':'')+' depuis le fichier');
+  }catch(e){ toast('Erreur réseau : '+e.message); }
+  finally{ _ilAiSetLoading(false); }
+}
+/* Insère les canaux détectés à la suite des canaux existants (même logique
+   que applyILAssist : respect de la limite de plan + insert Supabase). */
+async function ilAiPlace(chs){
+  if(!CUR_SHOW||!chs.length) return 0;
+  const limit=planLimit('max_channels');
+  if(limit!==Infinity){
+    const available=limit-CHS.length;
+    if(available<=0){ showUpgradeModal('max_channels'); return 0; }
+    if(chs.length>available){
+      chs=chs.slice(0,available);
+      toast('⚠️ Limite de '+limit+' canaux atteinte — '+available+' ajouté'+(available>1?'s':'')+' seulement.');
+    }
+  }
+  let startCh=CHS.length+1, added=0;
+  for(let i=0;i<chs.length;i++){
+    const c=chs[i];
+    const row={
+      show_id:CUR_SHOW.id, ch:startCh+i,
+      short_name:(c.short_name||'').slice(0,10),
+      long_name:c.long_name||'', source:c.source||'', mic:c.mic||'',
+      gain:Number(c.gain)||0, phantom:!!c.phantom, iem_group:c.iem_group||'',
+      foh:true, mon:false, bc:false, note:c.note||''
+    };
+    if(_patchColReady) row.patch_id=CUR_PATCH_ID;
+    const {data,error}=await sb.from('channels').insert(row).select().single();
+    if(error){ toast('Erreur canal '+(i+1)+' : '+error.message); break; }
+    CHS.push(data); added++;
+  }
+  renderTable();
+  return added;
 }
 
 function _makeBpCanvas(cb){
@@ -15196,10 +15325,10 @@ function closeUD(){document.getElementById('user-dd').classList.remove('show');}
 const PLAN_PERMS = {
   free:   { max_shows:3,        max_channels:26,       max_members:1,        max_templates:5,        max_share_links:5,
             export_pdf:true,    share_link:true,       site_plan:true,       pdf_watermark:true,
-            storage:true,       multi_scenes:false,    multi_patches:false,  custom_exports:false,  vintage_view:false, recap_matos:false, recent_activity:false, console_export:false, ai_stage:false, bulk_link:false },
+            storage:true,       multi_scenes:false,    multi_patches:false,  custom_exports:false,  vintage_view:false, recap_matos:false, recent_activity:false, console_export:false, ai_stage:false, ai_inputlist:false, bulk_link:false },
   pro:    { max_shows:Infinity, max_channels:Infinity, max_members:Infinity, max_templates:Infinity, max_share_links:Infinity,
             export_pdf:true,    share_link:true,       site_plan:true,       pdf_watermark:false,
-            storage:true,       multi_scenes:true,     multi_patches:true,   custom_exports:true,   vintage_view:true,  recap_matos:true,  recent_activity:true, console_export:true, ai_stage:true, bulk_link:true },
+            storage:true,       multi_scenes:true,     multi_patches:true,   custom_exports:true,   vintage_view:true,  recap_matos:true,  recent_activity:true, console_export:true, ai_stage:true, ai_inputlist:true, bulk_link:true },
 };
 
 const PLAN_META = {
@@ -15223,6 +15352,7 @@ const GATE_META = {
   export_pdf_pro: { icon:'ti-file-type-pdf',    title:'Export PDF complet',           desc:'Retirez le filigrane et ajoutez societe, contact, venue, date, revision et notes techniques.', plan:'pro', feats:['PDF sans filigrane','Coordonnees completes en en-tete','Notes techniques sur chaque export'] },
   console_export: { icon:'ti-device-floppy',    title:'Exports console (Show Files)',  desc:'Generez les fichiers natifs pour charger vos noms de voies, couleurs, gains et +48V directement dans votre console.', plan:'pro', feats:['Yamaha, Behringer, Midas, DiGiCo, Avid, A&H...','Scene X32/M32 native, CSV officiels','Couleurs et icones intelligentes par instrument'] },
   ai_stage:       { icon:'ti-sparkles',         title:'Plan de scène par IA',          desc:'Envoyez la photo ou le croquis d\'un plan de scène : l\'IA le numérise et place automatiquement les instruments et le matériel dans l\'éditeur.', plan:'pro', feats:['Reconnaissance d\'un plan à partir d\'une image','Placement automatique des éléments','Vous ajustez ensuite librement'] },
+  ai_inputlist:   { icon:'ti-sparkles',         title:'Input List par IA',             desc:'Envoyez une input list existante (image, PDF, CSV, Word) : l\'IA la numérise et crée automatiquement les canaux avec micro, +48V, IEM et pied de micro.', plan:'pro', feats:['Formats image, PDF, CSV et Word','Détecte micro/DI, +48V, IEM et pied','Canaux ajoutés prêts à ajuster'] },
   max_share_links:{ icon:'ti-link',             title:'Limite de liens de partage',   desc:'Le plan Gratuit est limite a 5 liens de partage au total. Passez au Pro pour des liens illimites.', plan:'pro', feats:['Liens de partage illimites sur Pro','Partagez chaque show en lecture seule','Mise a jour en temps reel'] },
   bulk_link:      { icon:'ti-checkbox',         title:'Liaison multiple de canaux',   desc:'Liez plusieurs canaux d\'un coup a un kit (batterie, percussions...) en les cochant — au lieu de les ajouter un par un.', plan:'pro', feats:['Cochez 8 canaux et liez-les en un clic','Ideal pour les kits batterie / percussions','Inclus dans le plan Pro'] },
 };
