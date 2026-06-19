@@ -4,9 +4,10 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 /* ════════════════════════════════════════════════════════════════════
    STAGE-AI — "Mode IA" du plan de scène (réservé Pro).
    On reçoit l'image d'un plan de scène (photo, croquis, PDF aplati en
-   image…) et on demande à Gemini (vision + sortie structurée) de la
-   convertir en une liste d'éléments plaçables dans l'éditeur BandPlan.
-   La clé API reste côté serveur (secret GEMINI_API_KEY).
+   image…) et on demande à un modèle vision via OpenRouter (format compatible
+   OpenAI, sortie structurée JSON Schema) de la convertir en une liste
+   d'éléments plaçables dans l'éditeur BandPlan.
+   La clé API reste côté serveur (secret OPENROUTER_API_KEY).
    ════════════════════════════════════════════════════════════════════ */
 
 const CORS = {
@@ -16,8 +17,8 @@ const CORS = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
-const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') ?? '';
-const MODEL = 'gemini-2.0-flash';
+const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY') ?? '';
+const MODEL = 'google/gemini-2.5-flash';
 
 /* Catalogue des éléments disponibles dans l'éditeur (type → libellé FR).
    DOIT rester aligné avec CATS dans app.html. */
@@ -50,7 +51,8 @@ RÈGLES :
 TYPES AUTORISÉS (type = libellé) :
 ${TYPES.map((t) => `${t} = ${CATALOG[t]}`).join('\n')}`;
 
-/* Gemini utilise un sous-ensemble d'OpenAPI 3.0 — pas d'additionalProperties */
+/* Schéma JSON Schema strict (compatible OpenAI/OpenRouter) :
+   additionalProperties:false + toutes les clés requises. */
 const SCHEMA = {
   type: 'object',
   properties: {
@@ -65,10 +67,12 @@ const SCHEMA = {
           label: { type: 'string' },
         },
         required: ['type', 'x', 'y', 'label'],
+        additionalProperties: false,
       },
     },
   },
   required: ['elements'],
+  additionalProperties: false,
 };
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -77,7 +81,7 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
   try {
-    if (!GEMINI_API_KEY) {
+    if (!OPENROUTER_API_KEY) {
       return json({ error: "Le service IA n'est pas configuré (clé API manquante côté serveur)." }, 503);
     }
 
@@ -110,47 +114,50 @@ serve(async (req) => {
     if (!data || data.length < 100) return json({ error: 'Image manquante ou vide.' }, 400);
     if (data.length > 7_300_000) return json({ error: 'Image trop lourde (max ~5 Mo).' }, 413);
 
-    /* ── Appel Gemini : vision + sortie structurée (JSON Schema) ── */
-    const aiResp = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': GEMINI_API_KEY,
-        },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: SYSTEM }] },
-          contents: [{
-            parts: [
-              { inlineData: { mimeType: mediaType, data } },
-              { text: 'Numérise ce plan de scène : liste tous les éléments présents avec leur type, leur position (repère 2400×1600) et un label court.' },
-            ],
-          }],
-          generationConfig: {
-            responseMimeType: 'application/json',
-            responseSchema: SCHEMA,
-            maxOutputTokens: 4096,
-          },
-        }),
+    /* ── Appel OpenRouter : vision + sortie structurée (format OpenAI) ── */
+    const aiResp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+        'HTTP-Referer': 'https://patchflow.app',
+        'X-Title': 'PatchFlow Stage AI',
       },
-    );
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 4096,
+        messages: [
+          { role: 'system', content: SYSTEM },
+          {
+            role: 'user',
+            content: [
+              { type: 'image_url', image_url: { url: `data:${mediaType};base64,${data}` } },
+              { type: 'text', text: 'Numérise ce plan de scène : liste tous les éléments présents avec leur type, leur position (repère 2400×1600) et un label court.' },
+            ],
+          },
+        ],
+        response_format: {
+          type: 'json_schema',
+          json_schema: { name: 'stage_plot', strict: true, schema: SCHEMA },
+        },
+      }),
+    });
 
     if (!aiResp.ok) {
       const txt = await aiResp.text().catch(() => '');
-      console.error('[stage-ai] Gemini error', aiResp.status, txt);
+      console.error('[stage-ai] OpenRouter error', aiResp.status, txt);
       const friendly = aiResp.status === 429
         ? 'Service IA momentanément surchargé, réessayez dans un instant.'
-        : `Gemini ${aiResp.status}: ${txt.slice(0, 200)}`;
+        : `IA ${aiResp.status}: ${txt.slice(0, 200)}`;
       return json({ error: friendly }, 502);
     }
 
     const aiJson = await aiResp.json();
-    const textBlock = aiJson.candidates?.[0]?.content?.parts?.[0];
-    if (!textBlock?.text) return json({ error: 'Réponse IA vide.' }, 502);
+    const content = aiJson.choices?.[0]?.message?.content;
+    if (!content) return json({ error: 'Réponse IA vide.' }, 502);
 
     let parsed: { elements?: unknown[] };
-    try { parsed = JSON.parse(textBlock.text); }
+    try { parsed = JSON.parse(content); }
     catch { return json({ error: 'Réponse IA illisible.' }, 502); }
 
     /* ── Re-validation serveur : ne renvoyer que des éléments propres ── */
