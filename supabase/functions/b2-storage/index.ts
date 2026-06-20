@@ -195,7 +195,8 @@ serve(async (req) => {
         if (rider && rider.show_id === showId) {
           const cloudShared = (rider.sections || []).includes('cloud');
           const allowedFiles: string[] = rider.config?.files || [];
-          fileAllowed = cloudShared || allowedFiles.includes(path);
+          const stageImg: string = rider.config?.stage_image || '';
+          fileAllowed = cloudShared || allowedFiles.includes(path) || stageImg === path;
         }
       } else {
         const { data: showRow } = await sbAdmin
@@ -203,7 +204,7 @@ serve(async (req) => {
         const rider = showRow?.stage_data?.rider;
         if (rider) {
           const cloudShared = (rider.sections || []).includes('cloud');
-          fileAllowed = cloudShared || (rider.files || []).includes(path);
+          fileAllowed = cloudShared || (rider.files || []).includes(path) || rider.stage_image === path;
         }
       }
       if (!fileAllowed) return json({ error: 'Fichier non autorisé' }, 403);

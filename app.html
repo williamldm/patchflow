@@ -2033,6 +2033,8 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
               <div class="link-form-title"><i class="ti ti-link"></i>Nommer ce lien</div>
               <div style="font-size:10px;color:var(--muted);margin-bottom:8px">Les sections et infos configurées ci-dessus seront incluses dans ce lien.</div>
               <input id="link-form-name" placeholder="ex: Lien FOH, Lien Backline, Lien Client…" maxlength="60"/>
+              <div style="font-size:10px;color:var(--muted);margin:8px 0 4px"><i class="ti ti-map-2" style="font-size:11px"></i> Plan de scène (bouton « Voir le plan » dans le lien)</div>
+              <select id="link-stage-image" class="rider-meta-inp" style="width:100%;margin-bottom:8px"><option value="">Plan PatchFlow (éditeur)</option></select>
               <div style="display:flex;gap:8px">
                 <button class="btn sm" onclick="_createLink()" style="flex:1;background:var(--ora);color:#000;border-color:var(--ora)"><i class="ti ti-check"></i>Créer le lien</button>
                 <button class="btn ghost sm" onclick="_closeNewLinkForm()" style="flex:1">Annuler</button>
@@ -5510,7 +5512,23 @@ function _openNewLinkForm(){
   var b=document.getElementById('link-new-btn');
   if(f) f.style.display='block';
   if(b) b.style.display='none';
+  _populateLinkStageImage();
   setTimeout(function(){ document.getElementById('link-form-name')?.focus(); },50);
+}
+/* Remplit le sélecteur d'image de plan (fichiers PNG/JPG uploadés du show). */
+async function _populateLinkStageImage(){
+  var sel=document.getElementById('link-stage-image');
+  if(!sel) return;
+  sel.innerHTML='<option value="">Plan PatchFlow (éditeur)</option>';
+  try{
+    var {data}=await _sfListShowFiles();
+    (data||[]).filter(function(f){return /\.(png|jpe?g|webp|gif)$/i.test(f.name||'');}).forEach(function(f){
+      var disp=(typeof _fichDisplayName==='function')?_fichDisplayName(f.name):f.name;
+      var o=document.createElement('option');
+      o.value=f.path; o.textContent='Image : '+disp;
+      sel.appendChild(o);
+    });
+  }catch(e){}
 }
 function _closeNewLinkForm(){
   var f=document.getElementById('link-new-form');
@@ -5536,6 +5554,7 @@ async function _createLink(){
     note: (document.getElementById('rider-note')?.value||'').trim(),
     info: (document.getElementById('rider-info')?.value||'').trim(),
     files: _riderPickedFiles.size>0?Array.from(_riderPickedFiles):[],
+    stage_image: (document.getElementById('link-stage-image')?.value||''),
     out_snapshot: CUR_SHOW.out_data||OUT_DATA||{}
   };
 
@@ -16563,6 +16582,51 @@ function _svFs(imgId, title){
     _paneCache.out=_renderOUT();
     document.getElementById('sv-body').innerHTML=_paneCache.out;
   };
+  /* ── « Voir le plan de scène » en un clic (depuis l'Input List) ──
+     Source : image liée au lien (rider.stage_image) sinon le plan PatchFlow. */
+  function _svPlanAvailable(){
+    var rider=show.stage_data&&show.stage_data.rider;
+    if(rider&&rider.stage_image) return true;
+    var sc=(typeof SHOW_SCENES!=='undefined'&&SHOW_SCENES.stage)||[];
+    for(var i=0;i<sc.length;i++){var b=sc[i].data&&sc[i].data.band;if(b&&((b.els&&b.els.length)||b.bgImage))return true;}
+    var raw=show.stage_data; var band=raw&&raw.v>=2&&raw.band;
+    if(band&&((band.els&&band.els.length)||band.bgImage))return true;
+    return false;
+  }
+  function _svShowPlanImage(src){
+    var old=document.getElementById('_svPlanImg'); if(old) old.remove();
+    var img=document.createElement('img');
+    img.id='_svPlanImg'; img.src=src;
+    img.style.cssText='position:fixed;left:-99999px;top:-99999px;width:1px;height:1px';
+    document.body.appendChild(img);
+    if(img.complete&&img.naturalWidth){ _svFs('_svPlanImg','Plan de scène'); }
+    else { img.onload=function(){ _svFs('_svPlanImg','Plan de scène'); };
+           img.onerror=function(){ alert('Impossible de charger le plan.'); }; }
+  }
+  window._svViewPlan=async function(){
+    var rider=show.stage_data&&show.stage_data.rider;
+    var stageImg=rider&&rider.stage_image;
+    if(stageImg){
+      try{
+        var res=await fetch('https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/b2-storage',{
+          method:'POST',headers:_pubHeaders,
+          body:JSON.stringify({action:'public-rider-file',path:stageImg,showId:show.id,linkId:linkId||undefined})
+        });
+        var j=await res.json();
+        if(j.error) throw new Error(j.error.message||j.error);
+        var url=j.data&&j.data.signedUrl;
+        if(!url) throw new Error('URL invalide');
+        _svShowPlanImage(url);
+      }catch(e){ alert('Erreur : '+e.message); }
+      return;
+    }
+    /* Plan PatchFlow → rendu canvas puis plein écran. */
+    var sceneData=_svCurrentSceneData('stage');
+    var raw=show.stage_data;
+    var bandData=sceneData||((raw&&raw.v>=2)?raw.band||null:null);
+    BandPlan.load(bandData);
+    _makeBpCanvas(function(cv){ _svShowPlanImage(cv.toDataURL('image/png')); });
+  };
   /* Helper: HTML du sélecteur de scènes */
   function _svSceneSelector(sceneType){
     var scenes=SHOW_SCENES[sceneType]||[];
@@ -16619,6 +16683,12 @@ function _svFs(imgId, title){
         h+='<button onclick="_svSelectPatch(\''+jsq(p.id)+'\')" style="padding:6px 12px;border:1px solid '+(active?'#ff6b1a':'#1e2a3a')+';background:'+(active?'var(--ora-d)':'transparent')+';color:'+(active?'#ff6b1a':'#5a6a80')+';border-radius:6px;font-size:11px;font-weight:'+(active?'700':'500')+';cursor:pointer;font-family:var(--f);transition:all .1s">'+esc(p.name)+'</button>';
       });
       h+='</div>';
+    }
+    /* Bouton « Voir le plan de scène » en un clic (si un plan est disponible). */
+    if(_svPlanAvailable()){
+      h+='<button onclick="_svViewPlan()" style="margin-bottom:14px;display:inline-flex;align-items:center;gap:8px;background:#ff6b1a;border:none;color:#000;font-size:12px;font-weight:700;padding:10px 16px;border-radius:9px;cursor:pointer;font-family:var(--f);box-shadow:0 2px 10px rgba(255,107,26,.25)">'
+        +'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg>'
+        +'Voir le plan de scène</button>';
     }
     if(isMobile){
       // Card layout for phones
