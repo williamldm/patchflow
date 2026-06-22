@@ -7002,7 +7002,9 @@ async function openStagePlanPicker(){
   if(!CUR_SHOW){ toast('Aucun show sélectionné.'); return; }
   var patch=(IL_PATCHES||[]).find(function(p){return p.id===CUR_PATCH_ID;})||IL_PATCHES[0];
   if(!patch){ toast('Aucun patch.'); return; }
-  var cur=patch.stageImage||'';
+  var curImg=patch.stageImage||'';
+  var curScene=patch.stageSceneId||'';
+  var scenes=(SHOW_SCENES&&SHOW_SCENES.stage)||[];
   var imgs=[];
   try{ var r=await _sfListShowFiles(); imgs=(r.data||[]).filter(function(f){return /\.(png|jpe?g|webp|gif)$/i.test(f.name||'');}); }catch(e){}
 
@@ -7010,14 +7012,24 @@ async function openStagePlanPicker(){
   ov.id='stageplan-modal';
   ov.style.cssText='position:fixed;inset:0;background:rgba(5,8,16,.72);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
   var opts='';
-  /* Option plan PatchFlow */
-  opts+=_spOptHtml('', '<i class="ti ti-map-2" style="font-size:17px;color:var(--ora)"></i>', 'Plan PatchFlow (éditeur)', 'Le plan de scène construit sur PatchFlow', cur==='');
+  /* Plans construits sur PatchFlow (chaque scène de l'éditeur, par son nom) */
+  if(scenes.length){
+    opts+='<div style="font-size:9px;letter-spacing:.6px;text-transform:uppercase;color:var(--txt2);font-family:var(--m);padding:4px 4px 2px">Plans PatchFlow</div>';
+    scenes.forEach(function(s){
+      var nb=(s.data&&s.data.band&&s.data.band.els&&s.data.band.els.length)||0;
+      opts+=_spOptHtml('scene', s.id, '<i class="ti ti-map-2" style="font-size:17px;color:var(--ora)"></i>', s.name||'Plan', nb?(nb+' élément'+(nb>1?'s':'')):'Plan de scène', !curImg&&curScene===s.id);
+    });
+  } else {
+    opts+=_spOptHtml('scene', '', '<i class="ti ti-map-2" style="font-size:17px;color:var(--ora)"></i>', 'Plan PatchFlow (éditeur)', 'Le plan de scène construit sur PatchFlow', !curImg&&!curScene);
+  }
+  /* Images uploadées */
+  opts+='<div style="font-size:9px;letter-spacing:.6px;text-transform:uppercase;color:var(--txt2);font-family:var(--m);padding:8px 4px 2px">Images</div>';
   imgs.forEach(function(f){
     var disp=(typeof _fichDisplayName==='function')?_fichDisplayName(f.name):f.name;
-    opts+=_spOptHtml(f.path, '<i class="ti ti-photo" style="font-size:17px;color:#34d399"></i>', disp, 'Image liée', cur===f.path);
+    opts+=_spOptHtml('image', f.path, '<i class="ti ti-photo" style="font-size:17px;color:#34d399"></i>', disp, 'Image liée', curImg===f.path);
   });
   if(!imgs.length){
-    opts+='<div style="font-size:11px;color:var(--muted);padding:10px 4px;font-style:italic">Aucune image dans les fichiers du show. Uploadez un PNG/JPG dans les Fichiers pour pouvoir le lier ici.</div>';
+    opts+='<div style="font-size:11px;color:var(--muted);padding:6px 4px;font-style:italic">Aucune image dans les fichiers du show. Uploadez un PNG/JPG dans les Fichiers pour pouvoir le lier ici.</div>';
   }
   ov.innerHTML=
     '<div style="background:var(--surf);border:1px solid var(--bdr2);border-radius:14px;max-width:440px;width:100%;max-height:80vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)">'
@@ -7032,8 +7044,8 @@ async function openStagePlanPicker(){
   ov.addEventListener('click',function(e){ if(e.target===ov) closeStagePlanPicker(); });
   document.body.appendChild(ov);
 }
-function _spOptHtml(val, icon, title, sub, active){
-  return '<button onclick="_setStagePlan(\''+encodeURIComponent(val)+'\')" '
+function _spOptHtml(kind, val, icon, title, sub, active){
+  return '<button onclick="_setStagePlan(\''+kind+'\',\''+encodeURIComponent(val)+'\')" '
     +'style="display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:11px 13px;border:1px solid '+(active?'var(--ora)':'var(--bdr2)')+';'
     +'background:'+(active?'var(--ora-d)':'var(--surf2)')+';border-radius:10px;cursor:pointer;font-family:var(--f)">'
     +icon
@@ -7042,14 +7054,15 @@ function _spOptHtml(val, icon, title, sub, active){
     +(active?'<i class="ti ti-check" style="font-size:16px;color:var(--ora)"></i>':'')
     +'</button>';
 }
-function _setStagePlan(encVal){
-  var val=decodeURIComponent(encVal);
+function _setStagePlan(kind, encVal){
+  var val=decodeURIComponent(encVal||'');
   var patch=(IL_PATCHES||[]).find(function(p){return p.id===CUR_PATCH_ID;})||IL_PATCHES[0];
   if(!patch){ closeStagePlanPicker(); return; }
-  patch.stageImage=val||'';
+  if(kind==='image'){ patch.stageImage=val; patch.stageSceneId=''; }
+  else { patch.stageImage=''; patch.stageSceneId=val||''; }
   savePatchMeta();
   closeStagePlanPicker();
-  toast(val?'✓ Image liée comme plan de scène':'✓ Plan PatchFlow assigné');
+  toast(kind==='image'?'✓ Image liée comme plan de scène':'✓ Plan PatchFlow assigné');
 }
 function closeStagePlanPicker(){
   var m=document.getElementById('stageplan-modal'); if(m) m.remove();
@@ -16629,12 +16642,17 @@ function _svFs(imgId, title){
   };
   /* ── « Voir le plan de scène » en un clic (depuis l'Input List) ──
      Source : image liée au lien (rider.stage_image) sinon le plan PatchFlow. */
-  function _svPatchStageImage(){
-    var patch=(IL_PATCHES||[]).find(function(p){return p.id===CUR_PATCH_ID;});
-    return (patch&&patch.stageImage)||'';
+  function _svCurPatch(){ return (IL_PATCHES||[]).find(function(p){return p.id===CUR_PATCH_ID;}); }
+  function _svPatchStageImage(){ var p=_svCurPatch(); return (p&&p.stageImage)||''; }
+  function _svPatchSceneId(){ var p=_svCurPatch(); return (p&&p.stageSceneId)||''; }
+  function _svBandById(sceneId){
+    var sc=(typeof SHOW_SCENES!=='undefined'&&SHOW_SCENES.stage)||[];
+    var s=sc.find(function(x){return x.id===sceneId;});
+    return (s&&s.data&&s.data.band)||null;
   }
   function _svPlanAvailable(){
     if(_svPatchStageImage()) return true;
+    if(_svPatchSceneId()&&_svBandById(_svPatchSceneId())) return true;
     var rider=show.stage_data&&show.stage_data.rider;
     if(rider&&rider.stage_image) return true;
     var sc=(typeof SHOW_SCENES!=='undefined'&&SHOW_SCENES.stage)||[];
@@ -16670,10 +16688,12 @@ function _svFs(imgId, title){
       }catch(e){ alert('Erreur : '+e.message); }
       return;
     }
-    /* Plan PatchFlow → rendu canvas puis plein écran. */
-    var sceneData=_svCurrentSceneData('stage');
+    /* Plan PatchFlow → rendu canvas puis plein écran. Si une scène précise est
+       assignée à l'input list, on l'utilise ; sinon la scène courante. */
     var raw=show.stage_data;
-    var bandData=sceneData||((raw&&raw.v>=2)?raw.band||null:null);
+    var bandData=(_svPatchSceneId()&&_svBandById(_svPatchSceneId()))
+      ||_svCurrentSceneData('stage')
+      ||((raw&&raw.v>=2)?raw.band||null:null);
     BandPlan.load(bandData);
     _makeBpCanvas(function(cv){ _svShowPlanImage(cv.toDataURL('image/png')); });
   };
