@@ -207,6 +207,16 @@ serve(async (req) => {
           fileAllowed = cloudShared || (rider.files || []).includes(path) || rider.stage_image === path;
         }
       }
+      // Plan de scène assigné à une input list : l'image liée à un patch
+      // (shows.il_patches[].stageImage) est exposable via les liens partagés.
+      if (!fileAllowed) {
+        const { data: showRow2 } = await sbAdmin
+          .from('shows').select('il_patches').eq('id', showId).maybeSingle();
+        const patches = showRow2?.il_patches;
+        if (Array.isArray(patches)) {
+          fileAllowed = patches.some((p) => p && p.stageImage === path);
+        }
+      }
       if (!fileAllowed) return json({ error: 'Fichier non autorisé' }, 403);
       // GET sécurisé (inline pour images/pdf/av, téléchargement forcé sinon).
       // Important côté public : un destinataire non authentifié ne doit jamais

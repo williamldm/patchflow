@@ -1491,6 +1491,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
           <button class="btn" style="background:var(--surf2);border-color:var(--bdr2)" onclick="importCSVClick()"><i class="ti ti-upload"></i>Import CSV</button>
           <input type="file" id="il-ai-file" accept=".pdf,.csv,.txt,.doc,.docx,image/png,image/jpeg,image/webp,image/gif,application/pdf,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="display:none" onchange="ilAiHandleFile(this)">
           <button class="btn" id="il-ai-btn" style="background:linear-gradient(135deg,var(--ora),#ff3d00);border-color:var(--ora);color:#fff" onclick="ilAiImport()"><i class="ti ti-sparkles"></i>Adapter une liste (IA)</button>
+          <button class="btn" id="il-stageplan-btn" style="background:var(--surf2);border-color:var(--bdr2)" onclick="openStagePlanPicker()"><i class="ti ti-map-2"></i>Plan de scène</button>
           <button class="btn ghost" onclick="toggleColPanel()" id="col-btn"><i class="ti ti-columns"></i>Colonnes</button>
           <div class="exp-wrap">
             <button class="btn sm" id="il-exp-btn" onclick="toggleExpMenu('il-exp-menu','il-exp-btn')"><i class="ti ti-file-export"></i>Exporter <i class="ti ti-chevron-down" style="font-size:10px;margin-left:2px"></i></button>
@@ -2033,8 +2034,6 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
               <div class="link-form-title"><i class="ti ti-link"></i>Nommer ce lien</div>
               <div style="font-size:10px;color:var(--muted);margin-bottom:8px">Les sections et infos configurées ci-dessus seront incluses dans ce lien.</div>
               <input id="link-form-name" placeholder="ex: Lien FOH, Lien Backline, Lien Client…" maxlength="60"/>
-              <div style="font-size:10px;color:var(--muted);margin:8px 0 4px"><i class="ti ti-map-2" style="font-size:11px"></i> Plan de scène (bouton « Voir le plan » dans le lien)</div>
-              <select id="link-stage-image" class="rider-meta-inp" style="width:100%;margin-bottom:8px"><option value="">Plan PatchFlow (éditeur)</option></select>
               <div style="display:flex;gap:8px">
                 <button class="btn sm" onclick="_createLink()" style="flex:1;background:var(--ora);color:#000;border-color:var(--ora)"><i class="ti ti-check"></i>Créer le lien</button>
                 <button class="btn ghost sm" onclick="_closeNewLinkForm()" style="flex:1">Annuler</button>
@@ -5512,23 +5511,7 @@ function _openNewLinkForm(){
   var b=document.getElementById('link-new-btn');
   if(f) f.style.display='block';
   if(b) b.style.display='none';
-  _populateLinkStageImage();
   setTimeout(function(){ document.getElementById('link-form-name')?.focus(); },50);
-}
-/* Remplit le sélecteur d'image de plan (fichiers PNG/JPG uploadés du show). */
-async function _populateLinkStageImage(){
-  var sel=document.getElementById('link-stage-image');
-  if(!sel) return;
-  sel.innerHTML='<option value="">Plan PatchFlow (éditeur)</option>';
-  try{
-    var {data}=await _sfListShowFiles();
-    (data||[]).filter(function(f){return /\.(png|jpe?g|webp|gif)$/i.test(f.name||'');}).forEach(function(f){
-      var disp=(typeof _fichDisplayName==='function')?_fichDisplayName(f.name):f.name;
-      var o=document.createElement('option');
-      o.value=f.path; o.textContent='Image : '+disp;
-      sel.appendChild(o);
-    });
-  }catch(e){}
 }
 function _closeNewLinkForm(){
   var f=document.getElementById('link-new-form');
@@ -5554,7 +5537,6 @@ async function _createLink(){
     note: (document.getElementById('rider-note')?.value||'').trim(),
     info: (document.getElementById('rider-info')?.value||'').trim(),
     files: _riderPickedFiles.size>0?Array.from(_riderPickedFiles):[],
-    stage_image: (document.getElementById('link-stage-image')?.value||''),
     out_snapshot: CUR_SHOW.out_data||OUT_DATA||{}
   };
 
@@ -7008,6 +6990,69 @@ async function ilAiPlace(chs){
   }
   renderTable();
   return added;
+}
+
+/* ══════════════════════════════════════
+   PLAN DE SCÈNE assigné à l'Input List (patch courant).
+   Stocké dans IL_PATCHES[i].stageImage : '' = plan PatchFlow (éditeur),
+   sinon le chemin d'une image uploadée. Utilisé par le bouton « Voir le
+   plan de scène » des liens partagés.
+   ══════════════════════════════════════ */
+async function openStagePlanPicker(){
+  if(!CUR_SHOW){ toast('Aucun show sélectionné.'); return; }
+  var patch=(IL_PATCHES||[]).find(function(p){return p.id===CUR_PATCH_ID;})||IL_PATCHES[0];
+  if(!patch){ toast('Aucun patch.'); return; }
+  var cur=patch.stageImage||'';
+  var imgs=[];
+  try{ var r=await _sfListShowFiles(); imgs=(r.data||[]).filter(function(f){return /\.(png|jpe?g|webp|gif)$/i.test(f.name||'');}); }catch(e){}
+
+  var ov=document.createElement('div');
+  ov.id='stageplan-modal';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(5,8,16,.72);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+  var opts='';
+  /* Option plan PatchFlow */
+  opts+=_spOptHtml('', '<i class="ti ti-map-2" style="font-size:17px;color:var(--ora)"></i>', 'Plan PatchFlow (éditeur)', 'Le plan de scène construit sur PatchFlow', cur==='');
+  imgs.forEach(function(f){
+    var disp=(typeof _fichDisplayName==='function')?_fichDisplayName(f.name):f.name;
+    opts+=_spOptHtml(f.path, '<i class="ti ti-photo" style="font-size:17px;color:#34d399"></i>', disp, 'Image liée', cur===f.path);
+  });
+  if(!imgs.length){
+    opts+='<div style="font-size:11px;color:var(--muted);padding:10px 4px;font-style:italic">Aucune image dans les fichiers du show. Uploadez un PNG/JPG dans les Fichiers pour pouvoir le lier ici.</div>';
+  }
+  ov.innerHTML=
+    '<div style="background:var(--surf);border:1px solid var(--bdr2);border-radius:14px;max-width:440px;width:100%;max-height:80vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)">'
+    +'<div style="display:flex;align-items:center;gap:8px;padding:16px 18px;border-bottom:1px solid var(--bdr2)">'
+      +'<i class="ti ti-map-2" style="font-size:16px;color:var(--ora)"></i>'
+      +'<span style="font-weight:700;font-size:14px;color:var(--txt)">Plan de scène — '+(patch.name||'patch').replace(/</g,'&lt;')+'</span>'
+      +'<button onclick="closeStagePlanPicker()" style="margin-left:auto;background:none;border:none;color:var(--txt2);cursor:pointer;font-size:18px;line-height:1">&#10005;</button>'
+    +'</div>'
+    +'<div style="font-size:11px;color:var(--muted);padding:12px 18px 4px">Choisissez ce qui s\'ouvre via le bouton « Voir le plan de scène » dans les liens partagés de cette input list.</div>'
+    +'<div style="display:flex;flex-direction:column;gap:7px;padding:8px 14px 16px">'+opts+'</div>'
+    +'</div>';
+  ov.addEventListener('click',function(e){ if(e.target===ov) closeStagePlanPicker(); });
+  document.body.appendChild(ov);
+}
+function _spOptHtml(val, icon, title, sub, active){
+  return '<button onclick="_setStagePlan(\''+encodeURIComponent(val)+'\')" '
+    +'style="display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:11px 13px;border:1px solid '+(active?'var(--ora)':'var(--bdr2)')+';'
+    +'background:'+(active?'var(--ora-d)':'var(--surf2)')+';border-radius:10px;cursor:pointer;font-family:var(--f)">'
+    +icon
+    +'<span style="flex:1;min-width:0"><span style="display:block;font-size:13px;font-weight:600;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+title.replace(/</g,'&lt;')+'</span>'
+    +'<span style="display:block;font-size:10px;color:var(--txt2)">'+sub+'</span></span>'
+    +(active?'<i class="ti ti-check" style="font-size:16px;color:var(--ora)"></i>':'')
+    +'</button>';
+}
+function _setStagePlan(encVal){
+  var val=decodeURIComponent(encVal);
+  var patch=(IL_PATCHES||[]).find(function(p){return p.id===CUR_PATCH_ID;})||IL_PATCHES[0];
+  if(!patch){ closeStagePlanPicker(); return; }
+  patch.stageImage=val||'';
+  savePatchMeta();
+  closeStagePlanPicker();
+  toast(val?'✓ Image liée comme plan de scène':'✓ Plan PatchFlow assigné');
+}
+function closeStagePlanPicker(){
+  var m=document.getElementById('stageplan-modal'); if(m) m.remove();
 }
 
 function _makeBpCanvas(cb){
@@ -16584,7 +16629,12 @@ function _svFs(imgId, title){
   };
   /* ── « Voir le plan de scène » en un clic (depuis l'Input List) ──
      Source : image liée au lien (rider.stage_image) sinon le plan PatchFlow. */
+  function _svPatchStageImage(){
+    var patch=(IL_PATCHES||[]).find(function(p){return p.id===CUR_PATCH_ID;});
+    return (patch&&patch.stageImage)||'';
+  }
   function _svPlanAvailable(){
+    if(_svPatchStageImage()) return true;
     var rider=show.stage_data&&show.stage_data.rider;
     if(rider&&rider.stage_image) return true;
     var sc=(typeof SHOW_SCENES!=='undefined'&&SHOW_SCENES.stage)||[];
@@ -16605,7 +16655,7 @@ function _svFs(imgId, title){
   }
   window._svViewPlan=async function(){
     var rider=show.stage_data&&show.stage_data.rider;
-    var stageImg=rider&&rider.stage_image;
+    var stageImg=_svPatchStageImage()||(rider&&rider.stage_image);
     if(stageImg){
       try{
         var res=await fetch('https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/b2-storage',{
