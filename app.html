@@ -1486,13 +1486,21 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
               <div class="tpl-dd-list" id="tpl-quick-list"></div>
             </div>
           </div>
-          <button class="btn" style="background:var(--surf2);border-color:var(--bdr2);color:var(--err)" onclick="clearAllRows()"><i class="ti ti-trash"></i>Tout supprimer</button>
+          <!-- Hidden file inputs (déclenchés depuis le menu « Plus ») -->
           <input type="file" id="csv-import-input" accept=".csv,.txt" style="display:none" onchange="importCSVLoad(this)">
-          <button class="btn" style="background:var(--surf2);border-color:var(--bdr2)" onclick="importCSVClick()"><i class="ti ti-upload"></i>Import CSV</button>
           <input type="file" id="il-ai-file" accept=".pdf,.csv,.txt,.doc,.docx,image/png,image/jpeg,image/webp,image/gif,application/pdf,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="display:none" onchange="ilAiHandleFile(this)">
-          <button class="btn" id="il-ai-btn" style="background:linear-gradient(135deg,var(--ora),#ff3d00);border-color:var(--ora);color:#fff" onclick="ilAiImport()"><i class="ti ti-sparkles"></i>Adapter une liste (IA)</button>
-          <button class="btn" id="il-stageplan-btn" style="background:var(--surf2);border-color:var(--bdr2)" onclick="openStagePlanPicker()"><i class="ti ti-map-2"></i>Plan de scène</button>
-          <button class="btn ghost" onclick="toggleColPanel()" id="col-btn"><i class="ti ti-columns"></i>Colonnes</button>
+          <!-- ⋯ Plus : actions secondaires regroupées -->
+          <div class="exp-wrap">
+            <button class="btn ghost" id="il-more-btn" onclick="toggleExpMenu('il-more-menu','il-more-btn')"><i class="ti ti-dots"></i>Plus</button>
+            <div class="exp-menu" id="il-more-menu">
+              <button class="exp-item" id="il-ai-btn" onclick="ilAiImport();closeExpMenu('il-more-menu')"><i class="ti ti-sparkles" style="color:var(--ora)"></i>Adapter une liste (IA)</button>
+              <button class="exp-item" id="il-stageplan-btn" onclick="openStagePlanPicker();closeExpMenu('il-more-menu')"><i class="ti ti-map-2"></i>Plan de scène</button>
+              <button class="exp-item" onclick="importCSVClick();closeExpMenu('il-more-menu')"><i class="ti ti-upload"></i>Import CSV</button>
+              <button class="exp-item" id="col-btn" onclick="toggleColPanel();closeExpMenu('il-more-menu')"><i class="ti ti-columns"></i>Colonnes</button>
+              <div class="exp-sep"></div>
+              <button class="exp-item" style="color:var(--err)" onclick="clearAllRows();closeExpMenu('il-more-menu')"><i class="ti ti-trash"></i>Tout supprimer</button>
+            </div>
+          </div>
           <div class="exp-wrap">
             <button class="btn sm" id="il-exp-btn" onclick="toggleExpMenu('il-exp-menu','il-exp-btn')"><i class="ti ti-file-export"></i>Exporter <i class="ti ti-chevron-down" style="font-size:10px;margin-left:2px"></i></button>
             <div class="exp-menu" id="il-exp-menu">
@@ -6940,6 +6948,7 @@ async function ilAiHandleFile(input){
   }catch(e){ toast('Impossible de lire le fichier.'); return; }
 
   _ilAiSetLoading(true);
+  toast('Analyse du fichier en cours…');
   try{
     const sess=(await sb.auth.getSession()).data?.session;
     const res=await fetch('https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/inputlist-ai',{
