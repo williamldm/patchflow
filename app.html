@@ -669,7 +669,7 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .spl-item-ic-emoji{width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;border:1px solid}
 .site-canvas-wrap{position:relative;overflow:hidden;background:#ffffff;border:1px solid var(--bdr2);border-radius:11px}
 .site-canvas-wrap.link-mode{cursor:crosshair}
-#site-viewport{position:absolute;inset:0;background-image:linear-gradient(rgba(29,58,95,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(29,58,95,.04) 1px,transparent 1px);background-size:40px 40px;background-position:0 0}
+#site-viewport{position:absolute;inset:0;background-color:#f7f9fc;background-image:linear-gradient(rgba(0,0,0,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,.05) 1px,transparent 1px);background-size:24px 24px;background-position:0 0}
 #site-bg-img{position:absolute;top:0;left:0;transform-origin:0 0;display:none;pointer-events:none;max-width:none}
 #site-nodes{position:absolute;top:0;left:0;transform-origin:0 0;width:5000px;height:4000px}
 #site-cables{position:absolute;top:0;left:0;transform-origin:0 0;width:5000px;height:4000px;overflow:visible;pointer-events:none}
@@ -688,6 +688,16 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .spl-conn{position:absolute;bottom:-9px;left:50%;transform:translateX(-50%);background:#fff;border:1.5px solid var(--ora);color:var(--ora);border-radius:50%;width:20px;height:20px;font-size:11px;cursor:pointer;display:none;align-items:center;justify-content:center;z-index:20;transition:all .11s;box-shadow:0 1px 4px rgba(0,0,0,.10)}
 .spl-node:hover .spl-conn,.spl-node.sel .spl-conn{display:flex}
 .spl-conn:hover{background:var(--grn);border-color:var(--grn);color:#fff}
+/* Nœuds « carte » — alignés sur le synoptique (.sp-node-card) : icône + label
+   dans une carte blanche à ombre. Appliqué aux équipements (pas texte/image). */
+.spl-card{background:#fff;border:1px solid #c8d4e0;border-radius:11px;padding:9px 12px 12px;box-shadow:0 2px 10px rgba(0,0,0,.07);gap:5px}
+.spl-card .spl-body{border:none!important;background:transparent!important;box-shadow:none!important;padding:0}
+.spl-card .spl-lbl{background:transparent;border:none;box-shadow:none;color:#1d3a5f;font-weight:700;padding:0;margin-top:1px}
+.spl-card.sel{border-color:var(--ora);box-shadow:0 0 0 2px var(--ora),0 4px 16px rgba(255,107,26,.28)}
+.spl-card.sel .spl-body{box-shadow:none!important;border:none!important}
+.spl-card.link-src{animation:pulse .7s infinite;border-color:var(--grn);box-shadow:0 0 0 3px var(--grn),0 0 20px rgba(34,214,160,.4)}
+.spl-card.link-src .spl-body{animation:none;box-shadow:none!important}
+.spl-card .spl-del{top:5px;right:5px}
 .site-link-banner{display:none;position:absolute;top:14px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,.96);border:1px solid var(--ora);border-radius:8px;padding:7px 18px;font-size:11px;color:var(--ora);z-index:50;backdrop-filter:blur(6px);white-space:nowrap;pointer-events:none;font-family:var(--m);font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.10)}
 .site-link-banner.show{display:block}
 .site-zoom-bar{position:absolute;bottom:14px;right:14px;display:flex;align-items:center;gap:7px;background:rgba(15,21,37,.82);border:1px solid var(--bdr2);border-radius:9px;padding:5px 10px;z-index:40;backdrop-filter:blur(8px);user-select:none;flex-direction:row}
@@ -11712,7 +11722,8 @@ const SitePlan = (() => {
       const it = findItem(el.type);
       const isSel = state.selected?.kind==='el' && state.selected.id===el.id;
       const isLink = state.linkFrom===el.id;
-      div.className = `spl-node${isSel?' sel':''}${isLink?' link-src':''}`;
+      const isCard = el.type!=='text_lbl' && el.type!=='image_frame';
+      div.className = `spl-node${isCard?' spl-card':''}${isSel?' sel':''}${isLink?' link-src':''}`;
       div.style.left = el.x+'px'; div.style.top = el.y+'px';
       div.style.setProperty('--el-ts', el.elTextScale || 1);
       if(el.type==='text_lbl'){
