@@ -577,6 +577,11 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .sp-node-del{position:absolute;top:4px;right:4px;width:20px;height:20px;border:none;border-radius:50%;background:rgba(255,77,106,.92);color:#fff;cursor:pointer;display:none;align-items:center;justify-content:center;font-size:12px;line-height:1;box-shadow:0 1px 4px rgba(0,0,0,.3);z-index:5;pointer-events:auto}
 .sp-node.sel .sp-node-del{display:flex}
 .sp-node-del:hover{background:#ff4d6a;transform:scale(1.1)}
+/* Poignées de redimensionnement des images (image_frame) du synoptique */
+.sp-rsz{position:absolute;width:14px;height:14px;background:#ff6b1a;border:2px solid #fff;border-radius:3px;box-shadow:0 1px 5px rgba(0,0,0,.45);z-index:30;pointer-events:auto;touch-action:none}
+.sp-rsz-nw,.sp-rsz-se{cursor:nwse-resize}
+.sp-rsz-ne,.sp-rsz-sw{cursor:nesw-resize}
+.sp-node[data-type="image_frame"] .sp-node-del{top:-10px;right:auto;left:50%;transform:translateX(-50%);z-index:31}
 
 .sp-doc-foot{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:8px 18px;background:#fff;border-top:1px solid #e1e8f0;font-family:Outfit,sans-serif;font-size:11px;color:#5a6a80;min-height:36px}
 .sp-legend{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
@@ -8333,6 +8338,7 @@ const SynPro = (() => {
   let cableFrom = null;    // first node id during cable creation
   let dragging = null;
   let panning = null;
+  let resizing = null;
   let view = { zoom:1, panX:0, panY:0 };
 
   function _defaultState() {
@@ -8845,12 +8851,28 @@ const SynPro = (() => {
       } else if (n.type === 'text_label') {
         iconHtml = '<div style="font-family:Outfit,sans-serif;font-size:14px;font-weight:700;color:var(--txt);white-space:pre-wrap;min-width:80px;padding:4px 2px;cursor:grab;user-select:none">' + esc(label || 'Texte') + '</div>';
       } else if (n.type === 'image_frame') {
-        /* Image flottante indépendante — pas de fond de carte */
-        var ifSz = (n.imgPx || 120) + 'px';
+        /* Image flottante indépendante — au RATIO de l'image (pas de carré). */
+        var ifAsp = n.imgAspect || 1;
+        var ifW = (n.imgPx || 120);
+        var ifH = Math.max(1, Math.round(ifW / ifAsp));
+        if(n.iconImg && !n.imgAspect && !n._aspChk){
+          n._aspChk=true;
+          var _sim=new Image();
+          _sim.onload=function(){ if(_sim.naturalHeight){ n.imgAspect=_sim.naturalWidth/_sim.naturalHeight; render(); } };
+          _sim.src=n.iconImg;
+        }
+        var spHS=7;
+        var spHandles = (sel && n.iconImg)
+          ? '<div class="sp-rsz sp-rsz-nw" data-id="'+n.id+'" data-corner="nw" style="left:'+(-spHS)+'px;top:'+(-spHS)+'px"></div>'
+            + '<div class="sp-rsz sp-rsz-ne" data-id="'+n.id+'" data-corner="ne" style="left:'+(ifW-spHS)+'px;top:'+(-spHS)+'px"></div>'
+            + '<div class="sp-rsz sp-rsz-sw" data-id="'+n.id+'" data-corner="sw" style="left:'+(-spHS)+'px;top:'+(ifH-spHS)+'px"></div>'
+            + '<div class="sp-rsz sp-rsz-se" data-id="'+n.id+'" data-corner="se" style="left:'+(ifW-spHS)+'px;top:'+(ifH-spHS)+'px"></div>'
+          : '';
         iconHtml = n.iconImg
-          ? '<img src="' + n.iconImg + '" style="width:'+ifSz+';height:'+ifSz+';object-fit:contain;border-radius:6px;display:block;pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.15)"/>'
+          ? '<img src="' + n.iconImg + '" style="width:'+ifW+'px;height:'+ifH+'px;object-fit:fill;border-radius:6px;display:block;pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.15)"/>'
             + (label ? '<div class="sp-node-label" style="margin-top:4px">'+esc(label)+'</div>' : '')
-          : '<div style="width:'+ifSz+';height:'+ifSz+';border:2px dashed var(--bdr2);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-direction:column;gap:6px" onclick="SynPro.uploadNodeIcon(\''+n.id+'\')">'
+            + spHandles
+          : '<div style="width:'+ifW+'px;height:'+ifW+'px;border:2px dashed var(--bdr2);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-direction:column;gap:6px" onclick="SynPro.uploadNodeIcon(\''+n.id+'\')">'
             + '<i class="ti ti-photo" style="font-size:28px;color:var(--muted)"></i>'
             + '<span style="font-size:10px;color:var(--muted);font-family:var(--m)">Ajouter une image</span></div>';
       } else if (n.iconImg) {
@@ -9151,14 +9173,24 @@ const SynPro = (() => {
       /* Belt-and-braces : a previous interaction's pointerup may have been
          missed (browser bug, release outside window, focus shift...). Clear
          any stale drag/pan state so this click starts fresh. */
-      if (dragging || panning) {
+      if (dragging || panning || resizing) {
         dragging = null;
         panning = null;
+        resizing = null;
         vp.style.cursor = '';
       }
 
       var del = e.target.closest('.sp-node-del');
       if (del) { deleteNode(del.dataset.del); return; }
+
+      var rsz = e.target.closest('.sp-rsz');
+      if (rsz) {
+        var rn = nodeById(rsz.dataset.id); if(!rn) return;
+        var rw0 = rn.imgPx||120, rasp = rn.imgAspect||1;
+        resizing = { id:rsz.dataset.id, corner:rsz.dataset.corner, x0:rn.x, y0:rn.y, right:rn.x+rw0, bottom:rn.y+rw0/rasp, asp:rasp };
+        vp.setPointerCapture(e.pointerId);
+        e.preventDefault(); e.stopPropagation(); return;
+      }
 
       var nodeEl = e.target.closest('.sp-node');
       var edgeEl = e.target.closest('.sp-edge-hit,.sp-edge');
@@ -9225,6 +9257,24 @@ const SynPro = (() => {
     });
 
     vp.addEventListener('pointermove', function(e){
+      if (resizing) {
+        var rn2 = nodeById(resizing.id);
+        if (rn2) {
+          var rw = clientToWorld(e.clientX, e.clientY);
+          var rc = resizing.corner;
+          var nw = (rc==='se'||rc==='ne') ? (rw.x - resizing.x0) : (resizing.right - rw.x);
+          nw = Math.max(40, Math.min(900, Math.round(nw)));
+          var nh = Math.round(nw / resizing.asp);
+          if (rc==='se'){ rn2.x=resizing.x0; rn2.y=resizing.y0; }
+          else if (rc==='ne'){ rn2.x=resizing.x0; rn2.y=resizing.bottom-nh; }
+          else if (rc==='sw'){ rn2.x=resizing.right-nw; rn2.y=resizing.y0; }
+          else { rn2.x=resizing.right-nw; rn2.y=resizing.bottom-nh; }
+          rn2.x=Math.round(rn2.x); rn2.y=Math.round(rn2.y);
+          rn2.imgPx = nw;
+          _renderNodes(); _renderEdges();
+        }
+        return;
+      }
       if (dragging) {
         dragging.moved = true;
         var n = nodeById(dragging.id);
@@ -9251,6 +9301,7 @@ const SynPro = (() => {
 
     vp.addEventListener('pointerup', function(){
       vp.style.cursor = '';
+      if (resizing) { scheduleSave(); resizing = null; _renderInspector(); return; }
       if (dragging) {
         if (dragging.moved) scheduleSave();
         dragging = null;
@@ -9263,6 +9314,7 @@ const SynPro = (() => {
 
     vp.addEventListener('pointercancel', function(){
       vp.style.cursor = '';
+      if (resizing) { scheduleSave(); resizing = null; }
       dragging = null;
       panning = null;
     });
@@ -9271,6 +9323,7 @@ const SynPro = (() => {
        clean up so the next click can be processed normally. */
     vp.addEventListener('lostpointercapture', function(){
       vp.style.cursor = '';
+      if (resizing) { scheduleSave(); resizing = null; _renderInspector(); }
       if (dragging) {
         if (dragging.moved) scheduleSave();
         dragging = null;
@@ -9641,10 +9694,11 @@ const SynPro = (() => {
       }
 
       if (n.type === 'image_frame') {
-        var ifSz = n.imgPx || 120;
+        var ifW = n.imgPx || 120;
+        var ifH = Math.max(1, Math.round(ifW / (n.imgAspect || 1)));
         if (n.iconImg) {
-          svg += '<image x="' + x + '" y="' + y + '" width="' + ifSz + '" height="' + ifSz + '" href="' + n.iconImg + '" xlink:href="' + n.iconImg + '" preserveAspectRatio="xMidYMid meet"/>';
-          if (label) svg += '<text x="' + (x+ifSz/2) + '" y="' + (y+ifSz+14) + '" text-anchor="middle" font-family="Outfit,sans-serif" font-size="11" fill="#1d3a5f">' + esc(label) + '</text>';
+          svg += '<image x="' + x + '" y="' + y + '" width="' + ifW + '" height="' + ifH + '" href="' + n.iconImg + '" xlink:href="' + n.iconImg + '" preserveAspectRatio="none"/>';
+          if (label) svg += '<text x="' + (x+ifW/2) + '" y="' + (y+ifH+14) + '" text-anchor="middle" font-family="Outfit,sans-serif" font-size="11" fill="#1d3a5f">' + esc(label) + '</text>';
         }
         return;
       }
@@ -9922,6 +9976,10 @@ const SynPro = (() => {
         var b2Key=(CUR_SHOW?.id||'unknown')+'/node-icons/syno-'+nodeId+'-'+Date.now()+'.jpg';
         _b2DeleteIcon(n.iconImgB2);
         n.iconImg=b64; n.iconImgB2=b2Key;
+        n._aspChk=true;
+        var _aim=new Image();
+        _aim.onload=function(){ if(_aim.naturalHeight){ n.imgAspect=_aim.naturalWidth/_aim.naturalHeight; scheduleSave(); render(); } };
+        _aim.src=b64;
         scheduleSave(); render(); _renderInspector();
         _b2UploadIcon(file, b2Key);
       }catch(e){ toast('Erreur image : '+e.message); }
