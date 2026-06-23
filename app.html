@@ -9130,6 +9130,9 @@ const SynPro = (() => {
     if(type === 'image_frame') setTimeout(function(){ uploadNodeIcon(n.id); }, 100);
   }
   function deleteNode(id) {
+    /* Supprime aussi l'image du serveur (B2) si le nœud en portait une. */
+    var _dn = nodeById(id);
+    if (_dn && _dn.iconImgB2) _b2DeleteIcon(_dn.iconImgB2);
     state.nodes = state.nodes.filter(function(n){ return n.id !== id; });
     state.cables = state.cables.filter(function(c){ return c.from !== id && c.to !== id; });
     if (selected.id === id) selected = { kind:null, id:null };
@@ -10884,6 +10887,9 @@ const BandPlan=(()=>{
   }
 
   function deleteNode(id){
+    /* Supprime aussi l'image du serveur (B2) si l'élément en portait une. */
+    const _del=st.els.find(e=>e.id===id);
+    if(_del&&_del.iconImgB2)_b2DeleteIcon(_del.iconImgB2);
     st.els=st.els.filter(e=>e.id!==id);
     document.querySelector('[data-bpid="'+id+'"]')?.remove();
     if(_sel===id){_sel=null;renderInspector();}
@@ -12143,7 +12149,7 @@ const SitePlan = (() => {
         let idx=ET_STEPS.findIndex(s=>Math.abs(s-(el.elTextScale||1))<0.05); if(idx<0)idx=3;
         el.elTextScale=ET_STEPS[Math.min(ET_STEPS.length-1,idx+1)]; saveSite(); renderNodes(); updEt();
       });
-      $('si-del')?.addEventListener('click',()=>{ state.elements=state.elements.filter(x=>x.id!==el.id); state.cables=state.cables.filter(c=>c.fromId!==el.id&&c.toId!==el.id); state.selected=null; saveSite(); render(); });
+      $('si-del')?.addEventListener('click',()=>{ if(el.iconImgB2)_b2DeleteIcon(el.iconImgB2); state.elements=state.elements.filter(x=>x.id!==el.id); state.cables=state.cables.filter(c=>c.fromId!==el.id&&c.toId!==el.id); state.selected=null; saveSite(); render(); });
     }
     if(state.selected.kind==='cable') {
       const cable = state.cables.find(c=>c.id===state.selected.id);
@@ -12209,6 +12215,9 @@ const SitePlan = (() => {
       const del=ev.target.closest('.spl-del');
       if(del){
         const id=del.dataset.del;
+        /* Supprime aussi l'image du serveur (B2) si l'élément en portait une. */
+        const _del=state.elements.find(e=>e.id===id);
+        if(_del&&_del.iconImgB2)_b2DeleteIcon(_del.iconImgB2);
         state.elements=state.elements.filter(e=>e.id!==id);
         state.cables=state.cables.filter(c=>c.fromId!==id&&c.toId!==id);
         if(state.selected?.id===id)state.selected=null;
