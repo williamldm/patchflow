@@ -10411,7 +10411,7 @@ const BandPlan=(()=>{
     const el={id,type,label:it.n,x:Math.round(x),y:Math.round(y),scl:1,rot:0,z:id,ch:null};
     if(type==='riser'){el.riserW=2;el.riserH=1;el.riserAlt=0.4;}
     if(type==='kit'){el.chs=[];}
-    if(type==='image_frame'){el.imgPx=120;el.imgAspect=1;el.label='';}
+    if(type==='image_frame'){el.imgPx=240;el.imgAspect=1;el.label='';}
     st.els.push(el);
     renderNode(el);selectNode(id);saveStage();
     if(type==='image_frame') setTimeout(function(){ uploadElementIcon(el.id); },80);
@@ -10863,7 +10863,7 @@ const BandPlan=(()=>{
         const cx=(e.clientX-wr.left-st.view.px)/st.view.z;
         const c=_bpRsz.corner;
         let nw=(c==='se'||c==='ne')?cx-_bpRsz.anchorX:_bpRsz.anchorX-cx;
-        nw=Math.max(40,Math.min(900,Math.round(nw)));
+        nw=Math.max(40,Math.min(2400,Math.round(nw)));
         const nh=Math.max(1,Math.round(nw/_bpRsz.asp));
         el.imgPx=nw;
         if(c==='nw'||c==='sw'){el.x=Math.round(_bpRsz.anchorX-nw);}
@@ -11037,9 +11037,9 @@ const BandPlan=(()=>{
               +'<div class="bp-insp-title"><i class="ti ti-photo" style="color:var(--ora)"></i>Image</div>'
               +'<div style="font-size:9px;font-family:var(--m);color:var(--muted);margin-bottom:5px">Taille</div>'
               +'<div style="display:flex;align-items:center;gap:7px;margin-bottom:9px">'
-              +'<button class="spl-ts-btn" onclick="BandPlan.adjImgPx(\''+sel.id+'\',-20)">-</button>'
-              +'<span style="flex:1;text-align:center;font-size:10px;color:var(--muted)">'+(sel.imgPx||120)+'px</span>'
-              +'<button class="spl-ts-btn" onclick="BandPlan.adjImgPx(\''+sel.id+'\',20)">+</button>'
+              +'<button class="spl-ts-btn" onclick="BandPlan.adjImgPx(\''+sel.id+'\',-40)">-</button>'
+              +'<span style="flex:1;text-align:center;font-size:10px;color:var(--muted)">'+(sel.imgPx||240)+'px</span>'
+              +'<button class="spl-ts-btn" onclick="BandPlan.adjImgPx(\''+sel.id+'\',40)">+</button>'
               +'</div>'
               +_iconImgInspHtml(sel.id, !!sel.iconImg, sel.iconImg||'', "BandPlan.uploadElementIcon('"+sel.id+"')", "BandPlan.clearElementIcon('"+sel.id+"')")
               +'</div>')
@@ -11472,7 +11472,7 @@ const BandPlan=(()=>{
 
   function adjImgPx(elId, delta){
     const el=st.els.find(e=>e.id===elId);if(!el)return;
-    el.imgPx=Math.max(40,Math.min(900,(el.imgPx||120)+delta));
+    el.imgPx=Math.max(40,Math.min(2400,(el.imgPx||240)+delta));
     renderNode(el);renderInspector();saveStage();
   }
 
