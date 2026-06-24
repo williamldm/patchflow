@@ -12165,6 +12165,7 @@ const SitePlan = (() => {
         (connList?`<div style="padding-top:8px;border-top:1px solid var(--bdr2);margin-bottom:6px"><div style="font-size:9px;color:var(--muted);font-family:var(--m);margin-bottom:5px">CONNEXIONS</div>${connList}</div>`:``) +
         ((el.iconImg || el.type==='image_frame') ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr2)"><div style="font-size:9px;font-family:var(--m);text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:5px">Taille de l'image</div><div style="display:flex;align-items:center;gap:7px"><button class="spl-ts-btn" onclick="SitePlan.adjImgPx('${el.id}',-16)">−</button><span id="si-img-px-lbl" style="flex:1;text-align:center;font-size:10px;color:var(--muted)">${el.imgPx||el.elSize||72}px</span><button class="spl-ts-btn" onclick="SitePlan.adjImgPx('${el.id}',16)">+</button></div></div>` : '') +
         (el.type!=='text_lbl' ? _iconImgInspHtml(el.id, !!el.iconImg, el.iconImg||'', `SitePlan.uploadElementIcon('${el.id}')`, `SitePlan.clearElementIcon('${el.id}')`) : '') +
+        `<button class="btn sm" style="width:100%;margin-top:10px" id="si-dup"><i class="ti ti-copy"></i> Dupliquer <span style="font-size:8px;color:var(--muted);font-family:var(--m);margin-left:3px">Ctrl/⌘ D</span></button>`+
         `<button class="btn sm" style="width:100%;margin-top:6px;background:rgba(255,77,106,.12);border-color:var(--err);color:var(--err)" id="si-del"><i class="ti ti-trash"></i> Supprimer</button>`;
       // Events
       $('si-txt')?.addEventListener('input',e=>{el.label=e.target.value;saveSite();renderNodes();});
@@ -12188,6 +12189,7 @@ const SitePlan = (() => {
         let idx=ET_STEPS.findIndex(s=>Math.abs(s-(el.elTextScale||1))<0.05); if(idx<0)idx=3;
         el.elTextScale=ET_STEPS[Math.min(ET_STEPS.length-1,idx+1)]; saveSite(); renderNodes(); updEt();
       });
+      $('si-dup')?.addEventListener('click',()=>{ duplicateSelectedEl(); });
       $('si-del')?.addEventListener('click',()=>{ if(el.iconImgB2)_b2DeleteIcon(el.iconImgB2); state.elements=state.elements.filter(x=>x.id!==el.id); state.cables=state.cables.filter(c=>c.fromId!==el.id&&c.toId!==el.id); state.selected=null; saveSite(); render(); });
     }
     if(state.selected.kind==='cable') {
@@ -12392,6 +12394,16 @@ const SitePlan = (() => {
         state.linkFrom=null; state.freePt1=null; state.cableMode=false;
         _clearPreview(); updateLinkBanner(); renderCablePicker(); renderNodes();
       }
+      /* Copier / coller / dupliquer — uniquement quand le plan de site est
+         visible et qu'on ne tape pas dans un champ. */
+      if(!(e.ctrlKey||e.metaKey)) return;
+      if(!host || host.offsetParent===null) return;
+      var t=e.target, tag=t&&t.tagName;
+      if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT'||(t&&t.isContentEditable)) return;
+      var k=(e.key||'').toLowerCase();
+      if(k==='c'){ if(copySelectedEl()) e.preventDefault(); }
+      else if(k==='v'){ if(_siteClip){ pasteEl(); e.preventDefault(); } }
+      else if(k==='d'){ if(state.selected&&state.selected.kind==='el'){ duplicateSelectedEl(); e.preventDefault(); } }
     });
   }
 
@@ -12423,6 +12435,37 @@ const SitePlan = (() => {
     state.selected={kind:'el',id:el.id};
     saveSite(); render();
     if(type==='image_frame') setTimeout(function(){ uploadElementIcon(el.id); },80);
+  }
+
+  /* ── Copier / coller / dupliquer un élément (mêmes nom, taille, image…) ── */
+  let _siteClip=null;
+  function copySelectedEl(){
+    if(!state.selected || state.selected.kind!=='el') return false;
+    var el=state.elements.find(function(e){return e.id===state.selected.id;});
+    if(!el) return false;
+    _siteClip=JSON.parse(JSON.stringify(el));
+    toast('Élément copié');
+    return true;
+  }
+  function pasteEl(){
+    if(!_siteClip) return;
+    var el=JSON.parse(JSON.stringify(_siteClip));
+    el.id=uid();
+    el.x=Math.round((_siteClip.x||0)+24);
+    el.y=Math.round((_siteClip.y||0)+24);
+    /* La copie est indépendante : on garde l'image (base64, ré-affichée et
+       comptée en DB) mais on retire la clé B2 partagée — ainsi supprimer
+       l'un n'efface pas le fichier serveur de l'autre. */
+    delete el.iconImgB2;
+    state.elements.push(el);
+    state.selected={kind:'el',id:el.id};
+    /* Cascade : la prochaine collure se décale à partir de cette copie. */
+    _siteClip=JSON.parse(JSON.stringify(el));
+    saveSite(); render();
+    toast('Élément collé');
+  }
+  function duplicateSelectedEl(){
+    if(copySelectedEl()) pasteEl();
   }
 
   function createCable(fromId,toId) {
