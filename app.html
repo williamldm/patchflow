@@ -1619,13 +1619,14 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
               <th data-col="gain">Gain</th>
               <th data-col="phantom">+48V</th>
               <th data-col="iem">IEM</th>
+              <th data-col="hf">Fréq. HF</th>
               <th data-col="foh">FOH</th>
               <th data-col="mon">MON</th>
               <th data-col="bc">BC</th>
               <th data-col="note">Note</th>
               <th style="width:64px"></th>
             </tr></thead>
-            <tbody id="il-body"><tr><td colspan="13"><div class="loading"><div class="spinner"></div>Connexion…</div></td></tr></tbody>
+            <tbody id="il-body"><tr><td colspan="14"><div class="loading"><div class="spinner"></div>Connexion…</div></td></tr></tbody>
           </table>
         </div>
         <button class="add-row" onclick="addRow()"><i class="ti ti-plus"></i>Nouveau canal</button>
@@ -1649,10 +1650,11 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
               <th>Nom long</th>
               <th style="width:95px">Type</th>
               <th>Destination</th>
+              <th style="width:78px">Fréq. HF</th>
               <th>Note</th>
               <th style="width:72px"></th>
             </tr></thead>
-            <tbody id="out-body"><tr><td colspan="7"><div class="loading"><div class="spinner"></div>Chargement…</div></td></tr></tbody>
+            <tbody id="out-body"><tr><td colspan="8"><div class="loading"><div class="spinner"></div>Chargement…</div></td></tr></tbody>
           </table>
         </div>
         <button class="add-row" onclick="addOutRow()"><i class="ti ti-plus"></i>Nouvelle sortie</button>
@@ -4005,7 +4007,7 @@ function renderOutTable() {
   var body = document.getElementById('out-body');
   if(!body) return;
   if(OUT_CHS.length === 0){
-    body.innerHTML = '<tr><td colspan="7"><div class="loading" style="color:var(--muted);padding:28px 20px"><i class="ti ti-inbox" style="font-size:22px;margin-right:8px"></i>Aucune sortie — cliquez "+ Sortie" ou utilisez l\'Assistant</div></td></tr>';
+    body.innerHTML = '<tr><td colspan="8"><div class="loading" style="color:var(--muted);padding:28px 20px"><i class="ti ti-inbox" style="font-size:22px;margin-right:8px"></i>Aucune sortie — cliquez "+ Sortie" ou utilisez l\'Assistant</div></td></tr>';
     return;
   }
   var selOpts = Object.keys(OUT_TYPES).map(function(k){
@@ -4022,6 +4024,7 @@ function renderOutTable() {
       +'<td><input class="ilinp" style="min-width:100px" value="'+_oh(r.long_name||'')+'" onchange="updateOutField(\''+r.id+'\',\'long_name\',this.value)"/></td>'
       +'<td><select class="out-type-sel" style="color:'+t.color+'" onchange="updateOutField(\''+r.id+'\',\'type\',this.value)">'+opts+'</select></td>'
       +'<td><input class="ilinp" value="'+_oh(r.dest||'')+'" onchange="updateOutField(\''+r.id+'\',\'dest\',this.value)" placeholder="Ampli, zone, room..."/></td>'
+      +'<td><input class="ilinp m" style="color:var(--grn);width:74px" value="'+_oh(r.hf||'')+'" onchange="updateOutField(\''+r.id+'\',\'hf\',this.value)" placeholder="MHz"/></td>'
       +'<td><input class="ilinp" value="'+_oh(r.note||'')+'" onchange="updateOutField(\''+r.id+'\',\'note\',this.value)"/></td>'
       +'<td style="white-space:nowrap">'
       +'<button class="move-btn" onclick="moveOutRow(\''+r.id+'\',-1)"'+(i===0?' disabled':'')+' ><i class="ti ti-chevron-up"></i></button>'
@@ -4033,7 +4036,7 @@ function renderOutTable() {
 
 function addOutRow() {
   var ch = OUT_CHS.length + 1;
-  OUT_CHS.push({id:'o'+Date.now()+Math.random().toString(36).slice(2,5), ch:ch, short_name:'OUT'+ch, long_name:'Sortie '+ch, type:'other', dest:'', note:''});
+  OUT_CHS.push({id:'o'+Date.now()+Math.random().toString(36).slice(2,5), ch:ch, short_name:'OUT'+ch, long_name:'Sortie '+ch, type:'other', dest:'', hf:'', note:''});
   saveOutData(); renderOutTable();
 }
 
@@ -4052,7 +4055,7 @@ function moveOutRow(id, dir) {
   saveOutData(); renderOutTable();
 }
 
-const _OUT_FIELDS=new Set(['short_name','long_name','type','dest','note']);
+const _OUT_FIELDS=new Set(['short_name','long_name','type','dest','hf','note']);
 function updateOutField(id, field, value) {
   if(!_OUT_FIELDS.has(field)){console.warn('[sec] champ sortie non autorisé:',field);return;}
   var r = OUT_CHS.find(function(x){return x.id===id;});
@@ -4694,6 +4697,7 @@ function renderTable(){
       <td data-col="gain"><input class="ilinp m" type="number" style="width:42px" value="${r.gain||0}" min="-60" max="60" step="1" onchange="scheduleSave('${r.id}','gain',parseInt(this.value)||0)"/></td>
       <td data-col="phantom" style="text-align:center"><input type="checkbox" class="cb" ${r.phantom?'checked':''} onchange="scheduleSave('${r.id}','phantom',this.checked)"/></td>
       <td data-col="iem"><input class="ilinp m" style="color:var(--grn);width:46px" value="${_oh(r.iem_group||'')}" onchange="scheduleSave('${r.id}','iem_group',this.value)" placeholder="GR1"/></td>
+      <td data-col="hf"><input class="ilinp m" style="color:var(--accent2,#9b6aff);width:74px" value="${_oh((r.custom_data&&r.custom_data._hf)||'')}" onchange="saveCustomCell('${r.id}','_hf',this.value)" placeholder="MHz"/></td>
       <td data-col="foh" style="text-align:center"><input type="checkbox" class="cb blu" ${r.foh?'checked':''} onchange="scheduleSave('${r.id}','foh',this.checked)"/></td>
       <td data-col="mon" style="text-align:center"><input type="checkbox" class="cb warn" ${r.mon?'checked':''} onchange="scheduleSave('${r.id}','mon',this.checked)"/></td>
       <td data-col="bc" style="text-align:center"><input type="checkbox" class="cb grn" ${r.bc?'checked':''} onchange="scheduleSave('${r.id}','bc',this.checked)"/></td>
@@ -5737,6 +5741,7 @@ const COLS=[
   {id:'gain',label:'Gain',icon:'ti-adjustments'},
   {id:'phantom',label:'+48V',icon:'ti-bolt'},
   {id:'iem',label:'IEM',icon:'ti-headphones'},
+  {id:'hf',label:'Fréquence HF',icon:'ti-antenna'},
   {id:'foh',label:'FOH',icon:'ti-speakerphone'},
   {id:'mon',label:'MON',icon:'ti-arrow-back-up'},
   {id:'bc',label:'BC',icon:'ti-broadcast'},
@@ -6491,14 +6496,15 @@ function _buildPdfInHTML(meta,brand){
   const accentColor=brand.color||'#ff6b1a';
   const logoHtml=brand.logo?'<img src="'+brand.logo+'" style="max-width:34px;max-height:34px;object-fit:contain"/>':_PF_LOGO_PX;
   const subLine=meta.title||(brand.tagline||(brand.co+' · INPUT LIST'));
-  const activeCols=[{id:'short',label:'Court'},{id:'long',label:'Nom Long'},{id:'src',label:'Source'},{id:'mic',label:'Micro/DI'},{id:'gain',label:'Gain'},{id:'phantom',label:'+48V'},{id:'iem',label:'IEM'},{id:'foh',label:'FOH'},{id:'mon',label:'MON'},{id:'bc',label:'BC'},{id:'note',label:'Pied micro'}].filter(c=>visCol.has(c.id));
+  const activeCols=[{id:'short',label:'Court'},{id:'long',label:'Nom Long'},{id:'src',label:'Source'},{id:'mic',label:'Micro/DI'},{id:'gain',label:'Gain'},{id:'phantom',label:'+48V'},{id:'iem',label:'IEM'},{id:'hf',label:'Fréq. HF'},{id:'foh',label:'FOH'},{id:'mon',label:'MON'},{id:'bc',label:'BC'},{id:'note',label:'Pied micro'}].filter(c=>visCol.has(c.id));
   const fm={short:'short_name',long:'long_name',src:'source',mic:'mic',gain:'gain',phantom:'phantom',iem:'iem_group',foh:'foh',mon:'mon',bc:'bc',note:'note'};
   let body=`<table><thead><tr><th>CH</th>${activeCols.map(c=>`<th>${c.label}</th>`).join('')}</tr></thead><tbody>`;
   CHS.forEach((r,i)=>{
     body+=`<tr style="${i%2===1?'background:#fdf8f4':''}"><td class="ch">${r.ch}</td>`;
     activeCols.forEach(c=>{
-      const v=r[fm[c.id]];let cell='';
+      const v=(c.id==='hf')?((r.custom_data&&r.custom_data._hf)||''):r[fm[c.id]];let cell='';
       if(c.id==='short')cell=`<b>${(v||'').trim()}</b>`;
+      else if(c.id==='hf')cell=v?`<span class="mo">${v}</span>`:'';
       else if(c.id==='phantom')cell=v?'<span class="badge-ph">+48V</span>':'';
       else if(c.id==='iem')cell=v?`<span class="badge-iem">${v}</span>`:'';
       else if(c.id==='foh')cell=v?'<span class="ck">&#10003;</span>':'';
@@ -6640,14 +6646,15 @@ function _buildPdfBothHTML(meta,brand){
   const engLine=[meta.eng,meta.role].filter(Boolean).join(' — ');
   const docTitle=meta.title||(brand.tagline||(brand.co));
   // Build IN body
-  const activeCols=[{id:'short',label:'Court'},{id:'long',label:'Nom Long'},{id:'src',label:'Source'},{id:'mic',label:'Micro/DI'},{id:'gain',label:'Gain'},{id:'phantom',label:'+48V'},{id:'iem',label:'IEM'},{id:'foh',label:'FOH'},{id:'mon',label:'MON'},{id:'bc',label:'BC'},{id:'note',label:'Pied micro'}].filter(c=>visCol.has(c.id));
+  const activeCols=[{id:'short',label:'Court'},{id:'long',label:'Nom Long'},{id:'src',label:'Source'},{id:'mic',label:'Micro/DI'},{id:'gain',label:'Gain'},{id:'phantom',label:'+48V'},{id:'iem',label:'IEM'},{id:'hf',label:'Fréq. HF'},{id:'foh',label:'FOH'},{id:'mon',label:'MON'},{id:'bc',label:'BC'},{id:'note',label:'Pied micro'}].filter(c=>visCol.has(c.id));
   const fm={short:'short_name',long:'long_name',src:'source',mic:'mic',gain:'gain',phantom:'phantom',iem:'iem_group',foh:'foh',mon:'mon',bc:'bc',note:'note'};
   let inBody='<table><thead><tr><th>CH</th>'+activeCols.map(c=>'<th>'+c.label+'</th>').join('')+'</tr></thead><tbody>';
   CHS.forEach(function(r,i){
     inBody+='<tr style="'+(i%2===1?'background:#fdf8f4':'')+'"><td class="ch">'+r.ch+'</td>';
     activeCols.forEach(function(c){
-      const v=r[fm[c.id]];var cell='';
+      const v=(c.id==='hf')?((r.custom_data&&r.custom_data._hf)||''):r[fm[c.id]];var cell='';
       if(c.id==='short')cell='<b>'+(v||'').trim()+'</b>';
+      else if(c.id==='hf')cell=v?'<span class="mo">'+v+'</span>':'';
       else if(c.id==='phantom')cell=v?'<span class="badge-ph">+48V</span>':'';
       else if(c.id==='iem')cell=v?'<span class="badge-iem">'+v+'</span>':'';
       else if(c.id==='foh')cell=v?'<span class="ck">&#10003;</span>':'';
@@ -6662,7 +6669,7 @@ function _buildPdfBothHTML(meta,brand){
   });
   inBody+='</tbody></table>';
   // Build OUT body
-  var outBody='<table><thead><tr><th>CH</th><th>Court</th><th>Nom Long</th><th>Type</th><th>Destination</th><th>Note</th></tr></thead><tbody>';
+  var outBody='<table><thead><tr><th>CH</th><th>Court</th><th>Nom Long</th><th>Type</th><th>Destination</th><th>Fréq. HF</th><th>Note</th></tr></thead><tbody>';
   OUT_CHS.forEach(function(r,i){
     var t=OUT_TYPES[r.type]||OUT_TYPES.other;
     outBody+='<tr style="'+(i%2===1?'background:#fdf8f4':'')+'"><td class="ch">'+r.ch+'</td>'
@@ -6670,6 +6677,7 @@ function _buildPdfBothHTML(meta,brand){
       +'<td><span class="mu">'+(r.long_name||'')+'</span></td>'
       +'<td><span class="badge-type" style="background:'+t.bg+';color:'+t.color+';border-color:'+t.color+'40">'+t.label+'</span></td>'
       +'<td><span class="mo">'+(r.dest||'')+'</span></td>'
+      +'<td>'+(r.hf?'<span class="mo">'+r.hf+'</span>':'')+'</td>'
       +'<td><span class="mu">'+(r.note||'')+'</span></td></tr>';
   });
   outBody+='</tbody></table>';
@@ -17102,6 +17110,10 @@ function _svFs(imgId, title){
 
   function _renderIL(){
     var h=_showMeta;
+    /* Fréquence HF (micros HF) : n'afficher la colonne que si au moins un
+       canal en porte une — garde le rider propre pour les shows sans HF. */
+    var _hfOf=function(r){return (r.custom_data&&r.custom_data._hf)||'';};
+    var hasHf=rows.some(function(r){return _hfOf(r);});
     /* Selector pour les patches s'il y en a plusieurs */
     if(IL_PATCHES&&IL_PATCHES.length>1){
       h+='<div style="margin-bottom:12px;display:flex;gap:6px;flex-wrap:wrap">';
@@ -17125,6 +17137,7 @@ function _svFs(imgId, title){
         if(r.phantom) tags+='<span style="background:rgba(245,197,66,.15);color:#f5c542;border:1px solid rgba(245,197,66,.3);border-radius:4px;font-size:9px;padding:2px 6px;font-family:DM Mono,monospace">+48V</span> ';
         if(r.foh)    tags+='<span style="background:rgba(34,214,160,.12);color:#22d6a0;border:1px solid rgba(34,214,160,.25);border-radius:4px;font-size:9px;padding:2px 6px;font-family:DM Mono,monospace">FOH</span> ';
         if(r.mon)    tags+='<span style="background:rgba(26,143,255,.12);color:#1a8fff;border:1px solid rgba(26,143,255,.25);border-radius:4px;font-size:9px;padding:2px 6px;font-family:DM Mono,monospace">MON</span> ';
+        if(_hfOf(r)) tags+='<span style="background:rgba(155,106,255,.12);color:#9b6aff;border:1px solid rgba(155,106,255,.25);border-radius:4px;font-size:9px;padding:2px 6px;font-family:DM Mono,monospace">HF '+esc(_hfOf(r))+'</span> ';
         h+='<div style="background:#0d1220;border:1px solid #1e2a3a;border-radius:10px;padding:10px 12px;display:flex;align-items:flex-start;gap:10px">'
           +'<span style="flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;background:#ff6b1a;color:#000;font-family:DM Mono,monospace;font-size:13px;font-weight:800;min-width:30px;height:30px;border-radius:6px;padding:0 5px;letter-spacing:-.3px">'+r.ch+'</span>'
           +'<div style="flex:1;min-width:0">'
@@ -17151,6 +17164,7 @@ function _svFs(imgId, title){
         +'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">+48V</th>'
         +'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">FOH</th>'
         +'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">MON</th>'
+        +(hasHf?'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">Fréq. HF</th>':'')
         +'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">Note</th>'
         +'</tr></thead><tbody>';
       rows.forEach(function(r,i){
@@ -17166,6 +17180,7 @@ function _svFs(imgId, title){
           +'<td style="padding:8px 12px">'+(r.phantom?'<span style="background:rgba(245,197,66,.15);color:#f5c542;border:1px solid rgba(245,197,66,.3);border-radius:4px;font-size:9px;padding:2px 6px;font-family:DM Mono,monospace">+48V</span>':'')+'</td>'
           +'<td style="padding:8px 12px;font-size:15px;font-weight:700">'+(r.foh?'<span style="color:#22d6a0">&#10003;</span>':'')+'</td>'
           +'<td style="padding:8px 12px;font-size:15px;font-weight:700">'+(r.mon?'<span style="color:#1a8fff">&#10003;</span>':'')+'</td>'
+          +(hasHf?'<td style="padding:8px 12px;color:#9b6aff;font-family:DM Mono,monospace;font-size:10px">'+esc(_hfOf(r))+'</td>':'')
           +'<td style="padding:8px 12px;color:#5a6a80;font-size:11px">'+esc(r.note||'')+'</td>'
           +'</tr>';
       });
@@ -17514,6 +17529,8 @@ function _svFs(imgId, title){
     else if(_opids.length<=1){ allOuts=(outData[_opids[0]]||[]).slice(); }
     else { allOuts=[]; _opids.forEach(function(pid){(outData[pid]||[]).forEach(function(o){allOuts.push(o);});}); }
     if(!allOuts.length) return _showMeta+_selOut+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:13px">Aucune sortie configuree pour ce patch.</div>';
+    /* Fréquence HF (ear monitors) : colonne affichée seulement si renseignée. */
+    var hasOutHf=allOuts.some(function(r){return r.hf;});
     var OUT_COLORS={main:'#22d6a0',mon:'#1a8fff',iem:'#a855f7',fx:'#f5c542',matrix:'#f97316',other:'#5a6a80'};
     var h=_showMeta+_selOut;
     if(isMobile){
@@ -17531,6 +17548,7 @@ function _svFs(imgId, title){
             +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:3px">'
               +'<span style="background:'+col+'22;color:'+col+';border:1px solid '+col+'44;border-radius:4px;font-size:9px;padding:2px 7px;font-family:DM Mono,monospace;text-transform:uppercase">'+esc(r.type||'')+'</span>'
               +(r.dest?'<span style="font-size:10px;color:#5a7a9a;font-family:DM Mono,monospace">'+esc(r.dest)+'</span>':'')
+              +(r.hf?'<span style="background:rgba(155,106,255,.12);color:#9b6aff;border:1px solid rgba(155,106,255,.25);border-radius:4px;font-size:9px;padding:2px 7px;font-family:DM Mono,monospace">HF '+esc(r.hf)+'</span>':'')
             +'</div>'
             +(r.note?'<div style="margin-top:5px;font-size:10px;color:#5a6a80;font-style:italic">'+esc(r.note)+'</div>':'')
           +'</div>'
@@ -17545,6 +17563,7 @@ function _svFs(imgId, title){
         +'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">Nom</th>'
         +'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">Type</th>'
         +'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">Destination</th>'
+        +(hasOutHf?'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">Fréq. HF</th>':'')
         +'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">Note</th>'
         +'</tr></thead><tbody>';
       allOuts.forEach(function(r,i){
@@ -17556,6 +17575,7 @@ function _svFs(imgId, title){
           +'<td style="padding:8px 12px;color:#c8d4e0">'+esc(r.long_name||'')+'</td>'
           +'<td style="padding:8px 12px"><span style="background:'+col+'22;color:'+col+';border:1px solid '+col+'44;border-radius:4px;font-size:9px;padding:2px 7px;font-family:DM Mono,monospace;text-transform:uppercase">'+esc(r.type||'')+'</span></td>'
           +'<td style="padding:8px 12px;color:#7a8a9a;font-family:DM Mono,monospace;font-size:10px">'+esc(r.dest||'')+'</td>'
+          +(hasOutHf?'<td style="padding:8px 12px;color:#9b6aff;font-family:DM Mono,monospace;font-size:10px">'+esc(r.hf||'')+'</td>':'')
           +'<td style="padding:8px 12px;color:#5a6a80;font-size:11px">'+esc(r.note||'')+'</td>'
           +'</tr>';
       });
