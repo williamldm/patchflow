@@ -8058,12 +8058,14 @@ async function loadAmps(){
   const {data,error}=await sb.from('coda_amps').select('*').eq('show_id',CUR_SHOW.id).order('position');
   if(error){console.error('loadAmps:',error);CODA_AMPS=DEFAULT_AMPS.map((a,i)=>({...a,id:'def'+i,show_id:CUR_SHOW.id}));return;}
   if(!data||data.length===0){
-    // First time: insert defaults for this show
-    const toInsert=DEFAULT_AMPS.map(a=>({...a,show_id:CUR_SHOW.id}));
-    const {data:ins}=await sb.from('coda_amps').insert(toInsert).select();
-    CODA_AMPS=ins||[];
+    /* Première fois : valeurs par défaut EN MÉMOIRE uniquement (id 'def…').
+       On n'insère pas : la colonne réelle est `channels` (pas `chs`), ces
+       défauts ne sont jamais persistés (saveAmp ignore les id 'def'), et la
+       fonctionnalité est héritée. Évite un 400 et des écritures inutiles. */
+    CODA_AMPS=DEFAULT_AMPS.map((a,i)=>({...a,id:'def'+i,show_id:CUR_SHOW.id}));
   } else {
-    CODA_AMPS=data;
+    // Mapping colonne DB `channels` → `chs` utilisé côté client.
+    CODA_AMPS=data.map(a=>({...a,chs:a.chs||a.channels||[]}));
   }
   // Legacy CODA amps : no longer linked to synoptique. Kept for future use.
 }
