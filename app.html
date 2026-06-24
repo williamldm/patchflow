@@ -716,7 +716,9 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .spl-node.no-bg .spl-lbl{background:transparent!important;border:none!important;box-shadow:none!important}
 /* Points de routage (waypoints) des câbles */
 #site-cables .sp-wp{fill:#fff;stroke:var(--ora);stroke-width:2;pointer-events:auto;cursor:grab}
-#site-cables .sp-wp:hover{fill:var(--ora)}
+#site-cables .sp-wp:hover{fill:var(--ora);r:9}
+/* Mode « placer un point » : curseur crosshair sur tout le plan */
+.sp-wp-add,.sp-wp-add *{cursor:crosshair!important}
 .site-link-banner{display:none;position:absolute;top:14px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,.96);border:1px solid var(--ora);border-radius:8px;padding:7px 18px;font-size:11px;color:var(--ora);z-index:50;backdrop-filter:blur(6px);white-space:nowrap;pointer-events:none;font-family:var(--m);font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.10)}
 .site-link-banner.show{display:block}
 .site-zoom-bar{position:absolute;bottom:14px;right:14px;display:flex;align-items:center;gap:7px;background:rgba(15,21,37,.82);border:1px solid var(--bdr2);border-radius:9px;padding:5px 10px;z-index:40;backdrop-filter:blur(8px);user-select:none;flex-direction:row}
@@ -11943,7 +11945,7 @@ const SitePlan = (() => {
   }
 
   let state = { elements:[], cables:[], bgImage:null, bgOpacity:100, view:{panX:60,panY:60,zoom:1}, selected:null, linkFrom:null, freePt1:null, activeCableType:'xlr', textScale:1, legendScale:1, cableTextScale:1, cableMode:false };
-  let dragging=null, panning=null, inited=false, resizing=null, _wpDrag=null;
+  let dragging=null, panning=null, inited=false, resizing=null, _wpDrag=null, _wpAddCid=null;
 
   const $  = id => document.getElementById(id);
   const uid = () => Math.random().toString(36).slice(2,9);
@@ -12252,6 +12254,13 @@ const SitePlan = (() => {
     if(!cable.waypoints) cable.waypoints=[];
     cable.waypoints.splice(best,0,{x:Math.round(p.x),y:Math.round(p.y)});
   }
+  /* Active/désactive le mode « placer un point ». cid=null pour désactiver. */
+  function _setWpAddMode(cid){
+    _wpAddCid=cid;
+    const vp=$('site-viewport'); if(vp) vp.style.cursor=cid?'crosshair':'';
+    const wrap=$('site-canvas-wrap'); if(wrap) wrap.classList.toggle('sp-wp-add', !!cid);
+    if(cid && typeof toast!=='undefined') toast('Cliquez sur le plan pour placer le point');
+  }
 
   // Returns endpoints + {pts, pathFwd, pathBack, nx,ny (end dir), bnx,bny (start dir)}
   // Avec waypoints : polyligne. Sinon : courbe bézier (comportement d'origine).
@@ -12370,16 +12379,25 @@ const SitePlan = (() => {
         saveSite(); render();
       });
     });
-    /* Poignées : glisser pour déplacer, double-clic pour retirer. */
+    /* Poignées : glisser (clic gauche) pour déplacer · clic droit ou
+       double-clic pour retirer CE point précis. */
+    const _delWp=(cid,idx)=>{
+      const cable=state.cables.find(x=>x.id===cid);
+      if(cable&&cable.waypoints){ cable.waypoints.splice(idx,1); if(!cable.waypoints.length) delete cable.waypoints; saveSite(); render(); }
+    };
     svg.querySelectorAll('.sp-wp').forEach(c2 => {
       c2.addEventListener('pointerdown', e => {
+        if(e.button!==0) return; /* laisser le clic droit pour la suppression */
         e.stopPropagation(); e.preventDefault();
-        _wpDrag={cid:c2.dataset.cid, idx:+c2.dataset.idx};
+        _wpDrag={cid:c2.dataset.cid, idx:+c2.dataset.idx, moved:false};
       });
       c2.addEventListener('dblclick', e => {
         e.stopPropagation(); e.preventDefault();
-        const cable=state.cables.find(x=>x.id===c2.dataset.cid);
-        if(cable&&cable.waypoints){ cable.waypoints.splice(+c2.dataset.idx,1); if(!cable.waypoints.length) delete cable.waypoints; saveSite(); render(); }
+        _delWp(c2.dataset.cid, +c2.dataset.idx);
+      });
+      c2.addEventListener('contextmenu', e => {
+        e.stopPropagation(); e.preventDefault();
+        _delWp(c2.dataset.cid, +c2.dataset.idx);
       });
     });
   }
@@ -12491,8 +12509,8 @@ const SitePlan = (() => {
         `<label class="syn-insp-lbl">Longueur</label><input class="syn-insp-inp" id="si-clen" value="${esc(cable.length||'')}" placeholder="ex: 30m"/>`+
         `<label class="syn-insp-lbl" style="margin-top:11px">Routage</label>`+
         `<div style="display:flex;gap:6px"><button class="btn sm" style="flex:1" id="si-cwp"><i class="ti ti-vector-bezier-2"></i> + Point</button>`+
-        (cable.waypoints&&cable.waypoints.length?`<button class="btn sm" style="flex:1" id="si-cwpc"><i class="ti ti-eraser"></i> Effacer (${cable.waypoints.length})</button>`:'')+`</div>`+
-        `<div style="font-size:9px;color:var(--muted);font-family:var(--m);margin-top:5px;line-height:1.5">Double-cliquez le câble pour ajouter un point · glissez les points · double-clic sur un point pour le retirer.</div>`+
+        (cable.waypoints&&cable.waypoints.length?`<button class="btn sm" style="flex:1" id="si-cwpc" title="Supprimer tous les points"><i class="ti ti-eraser"></i> Tout effacer (${cable.waypoints.length})</button>`:'')+`</div>`+
+        `<div style="font-size:9px;color:var(--muted);font-family:var(--m);margin-top:5px;line-height:1.5"><b>+ Point</b> puis cliquez où vous voulez sur le plan (ou double-cliquez le câble) · glissez un point pour le déplacer · <b>clic droit</b> ou double-clic sur un point pour le supprimer.</div>`+
         `<button class="btn sm" style="width:100%;margin-top:12px;background:rgba(255,77,106,.12);border-color:var(--err);color:var(--err)" id="si-cdel"><i class="ti ti-trash"></i> Supprimer</button>`;
       $('si-ct')?.addEventListener('change',e=>{cable.type=e.target.value;saveSite();render();});
       $('si-cl')?.addEventListener('change',e=>{cable.label=e.target.value;saveSite();renderCables();});
@@ -12502,7 +12520,7 @@ const SitePlan = (() => {
       $('si-dirbar')?.querySelectorAll('.spl-dir-btn').forEach(btn=>{
         btn.addEventListener('click',()=>{ cable.direction=btn.dataset.dir; saveSite(); render(); });
       });
-      $('si-cwp')?.addEventListener('click',()=>{ const g=_cableGeom(cable,_buildPairMap(),state.view.zoom||1); if(g){ const mid=_polyMid(g.pts); _addWaypointAt(cable,{x:mid.x,y:mid.y}); saveSite(); render(); } });
+      $('si-cwp')?.addEventListener('click',()=>{ _setWpAddMode(cable.id); });
       $('si-cwpc')?.addEventListener('click',()=>{ delete cable.waypoints; saveSite(); render(); });
       $('si-cdel')?.addEventListener('click',()=>{ state.cables=state.cables.filter(c=>c.id!==cable.id); state.selected=null; saveSite(); render(); });
     }
@@ -12511,6 +12529,22 @@ const SitePlan = (() => {
   function bindEvents() {
     const host=$('site-nodes'), vp=$('site-viewport'), wrap=$('site-canvas-wrap'), svg=$('site-cables');
     if(!host||!vp||!wrap) return;
+
+    /* Mode « placer un point » : après clic sur « + Point », le prochain clic
+       n'importe où sur le plan place le point de routage à cet endroit précis.
+       Capture-phase = on intercepte avant tout autre handler (nœuds, câbles…). */
+    wrap.addEventListener('pointerdown', e => {
+      if(!_wpAddCid) return;
+      const cable=state.cables.find(x=>x.id===_wpAddCid);
+      _setWpAddMode(null);
+      if(cable){
+        const w=clientToWorld(e.clientX,e.clientY);
+        _addWaypointAt(cable,{x:w.x,y:w.y});
+        state.selected={kind:'cable',id:cable.id}; state.linkFrom=null;
+        saveSite(); render();
+      }
+      e.stopPropagation(); e.preventDefault();
+    }, true);
 
     // Drop from palette
     wrap.addEventListener('dragover',e=>e.preventDefault());
@@ -12661,6 +12695,7 @@ const SitePlan = (() => {
 
     // Escape cancels link / free cable drawing
     document.addEventListener('keydown',e=>{
+      if(e.key==='Escape'&&_wpAddCid){ _setWpAddMode(null); return; }
       if(e.key==='Escape'&&(state.linkFrom||state.cableMode||state.freePt1)){
         state.linkFrom=null; state.freePt1=null; state.cableMode=false;
         _clearPreview(); updateLinkBanner(); renderCablePicker(); renderNodes();
