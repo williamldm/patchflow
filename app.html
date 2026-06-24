@@ -928,6 +928,36 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .sess-sort:focus{outline:none;border-color:var(--ora-g)}
 .sess-empty-search{grid-column:1/-1;padding:34px 20px;text-align:center;color:var(--muted);font-size:12px}
 @media(max-width:560px){.sess-search input{width:100px}.sess-toolbar{width:100%;margin-left:0}}
+/* ── Dossiers de sessions ── */
+.sess-folder-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:2px 0 12px}
+.sess-folder-bar:empty{display:none}
+.sess-fchip{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:18px;color:var(--txt2);font-size:11.5px;font-family:var(--f);cursor:pointer;transition:all .15s;white-space:nowrap;user-select:none}
+.sess-fchip:hover{border-color:var(--bdr3);background:var(--surf3)}
+.sess-fchip.on{background:var(--ora-d);border-color:var(--ora-g);color:var(--ora);font-weight:600}
+.sess-fchip .sess-fcount{font-family:var(--m);font-size:9px;background:var(--surf3);border-radius:9px;padding:1px 6px;color:var(--muted)}
+.sess-fchip.on .sess-fcount{background:rgba(255,107,26,.18);color:var(--ora)}
+.sess-fchip.drag-over{border-color:var(--ora);background:var(--ora-d);box-shadow:0 0 0 2px var(--ora-g)}
+.sess-fdot{width:9px;height:9px;border-radius:50%;flex-shrink:0;display:inline-block}
+.sess-fchip-new{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 13px;background:transparent;border:1px dashed var(--bdr3);border-radius:18px;color:var(--muted);font-size:11px;font-family:var(--f);cursor:pointer;transition:all .15s}
+.sess-fchip-new:hover{border-color:var(--ora-g);color:var(--ora)}
+.sess-fbar-tools{display:flex;align-items:center;gap:4px;margin-left:2px}
+.sess-fbar-tools button{background:var(--surf2);border:1px solid var(--bdr2);color:var(--muted);width:30px;height:30px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:13px;transition:all .15s}
+.sess-fbar-tools button:hover{border-color:var(--bdr3);color:var(--txt)}
+.sess-fbar-tools button.danger:hover{color:var(--err);border-color:rgba(255,77,106,.3)}
+.sess-fbar-colors{display:inline-flex;align-items:center;gap:5px;margin-left:4px}
+.sess-fcolor{width:16px;height:16px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform .12s}
+.sess-fcolor:hover{transform:scale(1.18)}
+.sess-card .sess-folder-pill{display:inline-flex;align-items:center;gap:5px;font-family:var(--m);font-size:9px;color:var(--muted);background:var(--surf2);border:1px solid var(--bdr2);border-radius:4px;padding:2px 7px}
+/* Popover déplacer vers dossier */
+.sess-move-menu{position:fixed;z-index:9000;min-width:200px;max-width:240px;background:var(--surf);border:1px solid var(--bdr3);border-radius:10px;box-shadow:0 10px 34px rgba(0,0,0,.4);padding:6px;max-height:60vh;overflow:auto}
+.sess-mm-hd{font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);padding:5px 9px 7px}
+.sess-mm-item{display:flex;align-items:center;gap:9px;width:100%;background:none;border:none;color:var(--txt2);font-size:12px;font-family:var(--f);padding:8px 9px;border-radius:7px;cursor:pointer;text-align:left;transition:background .12s}
+.sess-mm-item:hover{background:var(--surf2);color:var(--txt)}
+.sess-mm-item.on{color:var(--ora)}
+.sess-mm-item i:first-child{font-size:14px;width:15px;text-align:center;flex-shrink:0}
+.sess-mm-ck{margin-left:auto;color:var(--ora);font-size:13px}
+.sess-mm-sep{height:1px;background:var(--bdr);margin:5px 4px}
+.sess-card.sess-dragging{opacity:.5}
 .slink-box{background:var(--surf);border:1px solid var(--bdr2);border-radius:12px;padding:16px;margin-top:12px}
 .slink-title{font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:5px}
 .slink-row{display:flex;gap:7px;align-items:center;margin-top:12px}
@@ -1490,6 +1520,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
           <button class="btn" onclick="newShow()"><i class="ti ti-plus"></i>Nouveau show</button>
         </div>
       </div>
+      <div id="sess-folder-bar" class="sess-folder-bar"></div>
       <div id="sessions-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px;padding:2px 0 4px">
         <div class="loading" style="grid-column:1/-1"><div class="spinner"></div>Chargement…</div>
       </div>
@@ -12815,9 +12846,141 @@ const SitePlan = (() => {
 // ══════════════════════════════════════
 // SESSIONS PANEL
 // ══════════════════════════════════════
+/* ══════════════════════════════════════
+   DOSSIERS DE SESSIONS
+   Organisation personnelle de la grille des sessions (ex. archiver les
+   anciennes tournées). Stockée localement par utilisateur — les sessions
+   elles-mêmes restent dans la base ; les dossiers ne sont qu'une vue.
+   ══════════════════════════════════════ */
+const _SESS_FOLDER_COLORS=['#ff8c42','#4ca5ff','#22d6a0','#b48bff','#f5c542','#ff6b85','#2ad6c0'];
+let SESS_FOLDERS=[];        // [{id,name,color}]
+let SESS_ASSIGN={};         // { [showId]: folderId }
+let SESS_FOLDER_VIEW='all'; // 'all' | 'none' | folderId
+let _sessFoldersLoadedFor=null;
+function _sessKey(p){ return 'pf_sess_'+p+'_'+(ME&&ME.id||'anon'); }
+function _loadSessFolders(){
+  if(_sessFoldersLoadedFor===(ME&&ME.id)) return;
+  try{ SESS_FOLDERS=JSON.parse(localStorage.getItem(_sessKey('folders'))||'[]')||[]; }catch(e){ SESS_FOLDERS=[]; }
+  try{ SESS_ASSIGN=JSON.parse(localStorage.getItem(_sessKey('assign'))||'{}')||{}; }catch(e){ SESS_ASSIGN={}; }
+  SESS_FOLDER_VIEW=localStorage.getItem(_sessKey('view'))||'all';
+  if(!Array.isArray(SESS_FOLDERS)) SESS_FOLDERS=[];
+  _sessFoldersLoadedFor=(ME&&ME.id)||null;
+}
+function _saveSessFolders(){ try{ localStorage.setItem(_sessKey('folders'),JSON.stringify(SESS_FOLDERS)); }catch(e){} }
+function _saveSessAssign(){ try{ localStorage.setItem(_sessKey('assign'),JSON.stringify(SESS_ASSIGN)); }catch(e){} }
+function _saveSessView(){ try{ localStorage.setItem(_sessKey('view'),SESS_FOLDER_VIEW); }catch(e){} }
+function _sessFolderById(id){ return SESS_FOLDERS.find(function(f){return f.id===id;})||null; }
+function _sessFolderOf(showId){ return SESS_ASSIGN[showId]||''; }
+function _sessFolderCount(fid){
+  /* Compte les shows visibles (possédés + partagés) assignés à ce dossier. */
+  return (SHOWS||[]).filter(function(s){ return _sessFolderOf(s.id)===fid; }).length;
+}
+
+function createSessFolder(){
+  _loadSessFolders();
+  var name=prompt('Nom du dossier (ex. « Tournée 2024 », « Archives ») :','');
+  if(name===null) return;
+  name=name.trim();
+  if(!name){ toast('Nom de dossier vide.'); return; }
+  if(name.length>40) name=name.slice(0,40);
+  var id='f_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+  var color=_SESS_FOLDER_COLORS[SESS_FOLDERS.length%_SESS_FOLDER_COLORS.length];
+  SESS_FOLDERS.push({id:id,name:name,color:color});
+  _saveSessFolders();
+  SESS_FOLDER_VIEW=id; _saveSessView();
+  renderSessions();
+  toast('✓ Dossier « '+name+' » créé');
+}
+function renameSessFolder(id){
+  var f=_sessFolderById(id); if(!f) return;
+  var name=prompt('Renommer le dossier :',f.name);
+  if(name===null) return;
+  name=name.trim(); if(!name){ toast('Nom vide.'); return; }
+  f.name=name.slice(0,40); _saveSessFolders(); renderSessions();
+}
+function recolorSessFolder(id,color){
+  var f=_sessFolderById(id); if(!f) return;
+  f.color=color; _saveSessFolders(); renderSessions();
+}
+function deleteSessFolder(id){
+  var f=_sessFolderById(id); if(!f) return;
+  var n=_sessFolderCount(id);
+  if(!confirm('Supprimer le dossier « '+f.name+' » ?'+(n?'\n\nLes '+n+' session'+(n>1?'s':'')+' reviennent à « Sans dossier » (rien n\'est supprimé).':''))) return;
+  SESS_FOLDERS=SESS_FOLDERS.filter(function(x){return x.id!==id;});
+  Object.keys(SESS_ASSIGN).forEach(function(sid){ if(SESS_ASSIGN[sid]===id) delete SESS_ASSIGN[sid]; });
+  _saveSessFolders(); _saveSessAssign();
+  if(SESS_FOLDER_VIEW===id){ SESS_FOLDER_VIEW='all'; _saveSessView(); }
+  renderSessions();
+  toast('Dossier supprimé');
+}
+function setSessFolderView(v){
+  SESS_FOLDER_VIEW=v; _saveSessView(); _closeSessMoveMenu(); renderSessions();
+}
+function moveShowToFolder(showId,folderId){
+  _loadSessFolders();
+  if(folderId){ SESS_ASSIGN[showId]=folderId; } else { delete SESS_ASSIGN[showId]; }
+  _saveSessAssign(); _closeSessMoveMenu(); renderSessions();
+  var f=folderId?_sessFolderById(folderId):null;
+  toast(f?('Déplacé vers « '+f.name+' »'):'Retiré du dossier');
+}
+
+/* Popover « Déplacer vers un dossier » ancré sur un bouton de carte. */
+function _closeSessMoveMenu(){
+  var m=document.getElementById('sess-move-menu'); if(m) m.remove();
+  document.removeEventListener('click',_sessMoveMenuOutside,true);
+}
+function _sessMoveMenuOutside(e){
+  var m=document.getElementById('sess-move-menu');
+  if(m && !m.contains(e.target)) _closeSessMoveMenu();
+}
+function openSessMoveMenu(showId,btn,ev){
+  if(ev){ ev.stopPropagation(); ev.preventDefault(); }
+  _loadSessFolders();
+  var existing=document.getElementById('sess-move-menu');
+  if(existing){ _closeSessMoveMenu(); return; }
+  var cur=_sessFolderOf(showId);
+  var _e=function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
+  var items='<div class="sess-mm-hd">Déplacer vers…</div>';
+  items+='<button class="sess-mm-item'+(!cur?' on':'')+'" onclick="moveShowToFolder(\''+showId+'\',\'\')"><i class="ti ti-inbox"></i>Sans dossier'+(!cur?'<i class="ti ti-check sess-mm-ck"></i>':'')+'</button>';
+  SESS_FOLDERS.forEach(function(f){
+    items+='<button class="sess-mm-item'+(cur===f.id?' on':'')+'" onclick="moveShowToFolder(\''+showId+'\',\''+f.id+'\')"><span class="sess-fdot" style="background:'+f.color+'"></span>'+_e(f.name)+(cur===f.id?'<i class="ti ti-check sess-mm-ck"></i>':'')+'</button>';
+  });
+  items+='<div class="sess-mm-sep"></div><button class="sess-mm-item" onclick="_closeSessMoveMenu();createSessFolder()"><i class="ti ti-folder-plus" style="color:var(--ora)"></i>Nouveau dossier…</button>';
+  var menu=document.createElement('div');
+  menu.id='sess-move-menu'; menu.className='sess-move-menu'; menu.innerHTML=items;
+  document.body.appendChild(menu);
+  var r=btn.getBoundingClientRect();
+  var mw=210, mh=menu.offsetHeight;
+  var left=Math.min(r.left, window.innerWidth-mw-10);
+  var top=r.bottom+6; if(top+mh>window.innerHeight-10) top=Math.max(10,r.top-mh-6);
+  menu.style.left=Math.max(10,left)+'px'; menu.style.top=top+'px';
+  setTimeout(function(){ document.addEventListener('click',_sessMoveMenuOutside,true); },0);
+}
+
+/* Glisser-déposer d'une carte de session vers une puce de dossier. */
+let _sessDragShowId=null;
+function _sessDragStart(ev,showId){
+  _sessDragShowId=showId;
+  try{ ev.dataTransfer.effectAllowed='move'; ev.dataTransfer.setData('text/plain',showId); }catch(e){}
+  var card=ev.target.closest&&ev.target.closest('.sess-card'); if(card) card.classList.add('sess-dragging');
+}
+function _sessDragEnd(ev){
+  _sessDragShowId=null;
+  var card=ev.target.closest&&ev.target.closest('.sess-card'); if(card) card.classList.remove('sess-dragging');
+  document.querySelectorAll('.sess-fchip.drag-over').forEach(function(c){c.classList.remove('drag-over');});
+}
+function _sessChipDragOver(ev){ ev.preventDefault(); try{ev.dataTransfer.dropEffect='move';}catch(e){} ev.currentTarget.classList.add('drag-over'); }
+function _sessChipDragLeave(ev){ ev.currentTarget.classList.remove('drag-over'); }
+function _sessChipDrop(ev,folderId){
+  ev.preventDefault(); ev.currentTarget.classList.remove('drag-over');
+  var sid=_sessDragShowId||(ev.dataTransfer&&ev.dataTransfer.getData('text/plain'));
+  if(sid) moveShowToFolder(sid,folderId);
+}
+
 function renderSessions(){
   const grid=document.getElementById('sessions-grid');
-  if(!grid) return;
+  if(!grid){ var _fb0=document.getElementById('sess-folder-bar'); if(_fb0)_fb0.innerHTML=''; return; }
+  _loadSessFolders();
 
   const _e=function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
   const AV_COLS=[
@@ -12899,7 +13062,8 @@ function renderSessions(){
     var totalMembers=members.length+1;
     var chCount=isActive?CHS.length:'—';
     var mono=showMono(s.name);
-    return '<div class="sess-card'+(isActive?' active':'')+'" onclick="sessionSwitch(\''+s.id+'\')">'+
+    var _fid=_sessFolderOf(s.id); var _fold=_fid?_sessFolderById(_fid):null;
+    return '<div class="sess-card'+(isActive?' active':'')+'" draggable="true" ondragstart="_sessDragStart(event,\''+s.id+'\')" ondragend="_sessDragEnd(event)" onclick="sessionSwitch(\''+s.id+'\')">'+
       (isActive?'<div class="sess-stripe"></div>':'')+
       '<div class="sess-body">'+
         '<div class="sess-top">'+
@@ -12916,11 +13080,13 @@ function renderSessions(){
           '<span class="sess-tag"><i class="ti ti-users" style="font-size:9px"></i>'+totalMembers+' membre'+(totalMembers!==1?'s':'')+'</span>'+
           (SHOW_STORAGE_MAP[s.id]?'<span class="sess-tag"><i class="ti ti-cloud" style="font-size:9px"></i>'+_fmtSize(SHOW_STORAGE_MAP[s.id])+'</span>':'')+
           (!isOwn?'<span class="sess-tag" style="border-color:rgba(26,143,255,.3);color:var(--blu2)"><i class="ti ti-share" style="font-size:9px"></i>Partagé</span>':'')+
+          (_fold?'<span class="sess-folder-pill"><span class="sess-fdot" style="background:'+_fold.color+'"></span>'+_e(_fold.name)+'</span>':'')+
         '</div>'+
         '<div class="sess-members-row">'+renderMembersRow(s)+'</div>'+
       '</div>'+
       '<div class="sess-footer">'+
         '<button class="sess-open-btn" onclick="event.stopPropagation();sessionSwitch(\''+s.id+'\')">'+(isActive?'<i class="ti ti-check"></i> Actif':'Ouvrir')+'</button>'+
+        '<button class="sess-icon-btn'+(_fold?' has-folder':'')+'" onclick="event.stopPropagation();openSessMoveMenu(\''+s.id+'\',this,event)" title="Classer dans un dossier"'+(_fold?' style="color:'+_fold.color+';border-color:'+_fold.color+'55"':'')+'><i class="ti ti-folder"></i></button>'+
         (isOwn?'<button class="sess-icon-btn" onclick="event.stopPropagation();editShowMeta(\''+s.id+'\')" title="Modifier"><i class="ti ti-pencil"></i></button>':'')+
         (isOwn?'<button class="sess-icon-btn danger" onclick="event.stopPropagation();delShow(\''+s.id+'\')" title="Supprimer"><i class="ti ti-trash"></i></button>':'')+
         (!isOwn?'<button class="sess-icon-btn" onclick="leaveShow(\''+s.id+'\',event)" title="Quitter ce show" style="color:var(--muted)" onmouseover="this.style.color=\'var(--err)\';this.style.borderColor=\'rgba(255,77,106,.3)\'" onmouseout="this.style.color=\'var(--muted)\';this.style.borderColor=\'\'"><i class="ti ti-door-exit"></i></button>':'')+
@@ -12929,6 +13095,7 @@ function renderSessions(){
   }
 
   if(SHOWS.length===0){
+    var _fbe=document.getElementById('sess-folder-bar'); if(_fbe)_fbe.innerHTML='';
     grid.innerHTML='<div style="grid-column:1/-1;padding:48px 20px;text-align:center;color:var(--muted)"><i class="ti ti-folder-plus" style="font-size:36px;display:block;margin-bottom:12px;opacity:.4"></i><div style="font-size:13px;margin-bottom:14px">Aucune session — commencez ici</div><button class="btn" onclick="newShow()"><i class="ti ti-plus"></i>Créer un show</button></div>';
     return;
   }
@@ -12947,8 +13114,37 @@ function renderSessions(){
     return String(b.created_at||b.id||'').localeCompare(String(a.created_at||a.id||'')); // récents
   }
 
-  var myShows=SHOWS.filter(function(s){return s.owner_id===ME?.id;}).filter(matches).sort(sortFn);
-  var sharedShows=SHOWS.filter(function(s){return s.owner_id!==ME?.id;}).filter(matches).sort(sortFn);
+  /* Filtre par dossier (ignoré pendant une recherche : la recherche est globale). */
+  var inFolder=function(s){
+    if(q) return true;
+    if(SESS_FOLDER_VIEW==='all') return true;
+    if(SESS_FOLDER_VIEW==='none') return !_sessFolderOf(s.id);
+    return _sessFolderOf(s.id)===SESS_FOLDER_VIEW;
+  };
+  var myShows=SHOWS.filter(function(s){return s.owner_id===ME?.id;}).filter(matches).filter(inFolder).sort(sortFn);
+  var sharedShows=SHOWS.filter(function(s){return s.owner_id!==ME?.id;}).filter(matches).filter(inFolder).sort(sortFn);
+
+  /* ── Barre des dossiers (puces) ── */
+  (function(){
+    var fb=document.getElementById('sess-folder-bar'); if(!fb) return;
+    var allCount=SHOWS.length;
+    var noneCount=SHOWS.filter(function(s){return !_sessFolderOf(s.id);}).length;
+    var bar='';
+    bar+='<button class="sess-fchip'+(SESS_FOLDER_VIEW==='all'?' on':'')+'" onclick="setSessFolderView(\'all\')"><i class="ti ti-stack-2" style="font-size:13px"></i>Toutes<span class="sess-fcount">'+allCount+'</span></button>';
+    SESS_FOLDERS.forEach(function(f){
+      bar+='<button class="sess-fchip'+(SESS_FOLDER_VIEW===f.id?' on':'')+'" data-folder="'+f.id+'" ondragover="_sessChipDragOver(event)" ondragleave="_sessChipDragLeave(event)" ondrop="_sessChipDrop(event,\''+f.id+'\')" onclick="setSessFolderView(\''+f.id+'\')"><span class="sess-fdot" style="background:'+f.color+'"></span>'+_e(f.name)+'<span class="sess-fcount">'+_sessFolderCount(f.id)+'</span></button>';
+    });
+    if(SESS_FOLDERS.length){
+      bar+='<button class="sess-fchip'+(SESS_FOLDER_VIEW==='none'?' on':'')+'" data-folder="" ondragover="_sessChipDragOver(event)" ondragleave="_sessChipDragLeave(event)" ondrop="_sessChipDrop(event,\'\')" onclick="setSessFolderView(\'none\')"><i class="ti ti-inbox" style="font-size:12px"></i>Sans dossier<span class="sess-fcount">'+noneCount+'</span></button>';
+    }
+    bar+='<button class="sess-fchip-new" onclick="createSessFolder()"><i class="ti ti-folder-plus" style="font-size:13px"></i>Dossier</button>';
+    var curF=(SESS_FOLDER_VIEW!=='all'&&SESS_FOLDER_VIEW!=='none')?_sessFolderById(SESS_FOLDER_VIEW):null;
+    if(curF){
+      bar+='<span class="sess-fbar-colors">'+_SESS_FOLDER_COLORS.map(function(c){return '<span class="sess-fcolor" style="background:'+c+(curF.color===c?';border-color:#fff':'')+'" title="Couleur du dossier" onclick="recolorSessFolder(\''+curF.id+'\',\''+c+'\')"></span>';}).join('')+'</span>';
+      bar+='<span class="sess-fbar-tools"><button onclick="renameSessFolder(\''+curF.id+'\')" title="Renommer le dossier"><i class="ti ti-pencil"></i></button><button class="danger" onclick="deleteSessFolder(\''+curF.id+'\')" title="Supprimer le dossier"><i class="ti ti-trash"></i></button></span>';
+    }
+    fb.innerHTML=bar;
+  })();
 
   /* Aucun résultat de recherche */
   if(q && myShows.length===0 && sharedShows.length===0){
@@ -12961,19 +13157,34 @@ function renderSessions(){
   }
 
   var html='';
+  var curF2=(SESS_FOLDER_VIEW!=='all'&&SESS_FOLDER_VIEW!=='none')?_sessFolderById(SESS_FOLDER_VIEW):null;
+  var folderMode=!q && SESS_FOLDER_VIEW!=='all';
 
-  // ── Mes sessions
-  html+='<div class="sess-section-title"><i class="ti ti-folder" style="color:var(--ora);font-size:11px"></i>Mes sessions'+sectionCount(myShows.length)+'</div>';
-  if(myShows.length===0){
-    html+='<div style="grid-column:1/-1;color:var(--muted2);font-size:11px;font-family:var(--m);padding:6px 2px">'+(q?'Aucun résultat ici.':'Aucun show. <button class="btn sm" onclick="newShow()" style="margin-left:6px"><i class="ti ti-plus"></i>Créer</button>')+'</div>';
+  if(folderMode){
+    /* Vue d'un dossier précis (ou « Sans dossier ») : grille unique. */
+    var combined=myShows.concat(sharedShows);
+    var ftitle=curF2
+      ?'<span class="sess-fdot" style="background:'+curF2.color+'"></span>'+_e(curF2.name)
+      :'<i class="ti ti-inbox" style="color:var(--muted);font-size:11px"></i>Sans dossier';
+    html+='<div class="sess-section-title">'+ftitle+sectionCount(combined.length)+'</div>';
+    if(combined.length===0){
+      html+='<div style="grid-column:1/-1;color:var(--muted2);font-size:12px;padding:30px 6px;text-align:center"><i class="ti ti-folder-open" style="font-size:30px;display:block;margin-bottom:10px;opacity:.4"></i>'+(curF2?'Dossier vide — glissez des sessions ici, ou via le bouton <i class="ti ti-folder"></i> d\'une carte.':'Toutes vos sessions sont classées dans un dossier.')+'</div>';
+    } else {
+      combined.forEach(function(s,i){ html+=renderCard(s,i); });
+    }
   } else {
-    myShows.forEach(function(s,i){ html+=renderCard(s,i); });
-  }
-
-  // ── Partagées avec moi
-  if(sharedShows.length>0){
-    html+='<div class="sess-section-title" style="margin-top:8px"><i class="ti ti-users" style="color:var(--blu2);font-size:11px"></i>Partagées avec moi'+sectionCount(sharedShows.length)+'</div>';
-    sharedShows.forEach(function(s,i){ html+=renderCard(s,myShows.length+i); });
+    // ── Mes sessions
+    html+='<div class="sess-section-title"><i class="ti ti-folder" style="color:var(--ora);font-size:11px"></i>Mes sessions'+sectionCount(myShows.length)+'</div>';
+    if(myShows.length===0){
+      html+='<div style="grid-column:1/-1;color:var(--muted2);font-size:11px;font-family:var(--m);padding:6px 2px">'+(q?'Aucun résultat ici.':'Aucun show. <button class="btn sm" onclick="newShow()" style="margin-left:6px"><i class="ti ti-plus"></i>Créer</button>')+'</div>';
+    } else {
+      myShows.forEach(function(s,i){ html+=renderCard(s,i); });
+    }
+    // ── Partagées avec moi
+    if(sharedShows.length>0){
+      html+='<div class="sess-section-title" style="margin-top:8px"><i class="ti ti-users" style="color:var(--blu2);font-size:11px"></i>Partagées avec moi'+sectionCount(sharedShows.length)+'</div>';
+      sharedShows.forEach(function(s,i){ html+=renderCard(s,myShows.length+i); });
+    }
   }
 
   grid.innerHTML=html;
