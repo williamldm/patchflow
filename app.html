@@ -1750,6 +1750,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
             </div>
           </div>
           <span id="sp-save-status" style="font-size:10px;font-family:var(--m);display:flex;align-items:center;gap:4px;color:var(--muted)"></span>
+          <button type="button" class="btn ghost sm" data-undo="syno" onclick="undoSection('syno')" title="Annuler (Ctrl/⌘+Z)" style="display:none"><i class="ti ti-arrow-back-up"></i></button>
           <button type="button" class="btn ghost sm" id="sp-reset" title="Vider le synoptique"><i class="ti ti-trash"></i></button>
         </div>
         <div id="scene-tabs-syno" class="scene-tabs-bar hidden"></div>
@@ -1849,6 +1850,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
             <button class="pmb on" id="pmb-scene" onclick="setPlanMode('scene')"><i class="ti ti-layout-board"></i> Scène</button>
             <button class="pmb" id="pmb-site" onclick="setPlanMode('site')"><i class="ti ti-map-2"></i> Site</button>
           </div>
+          <button type="button" class="btn ghost sm" id="plan-undo-btn" data-undo="stage" onclick="undoActiveSection()" title="Annuler (Ctrl/⌘+Z)" style="display:none"><i class="ti ti-arrow-back-up"></i></button>
           <div class="exp-wrap" id="plan-exp-wrap" style="display:none">
             <button class="btn sm" id="plan-exp-btn" onclick="toggleExpMenu('plan-exp-menu','plan-exp-btn')"><i class="ti ti-file-export"></i>Exporter <i class="ti ti-chevron-down" style="font-size:10px;margin-left:2px"></i></button>
             <div class="exp-menu" id="plan-exp-menu">
@@ -3673,6 +3675,7 @@ async function _saveScene(type,dataObj){
 function _loadSceneStage(scene){
   const d=_firstSceneFallback('stage', scene?.data??null);
   BandPlan.load(d?.band??null);
+  if(typeof SectionUndo!=='undefined') SectionUndo.reset('stage', BandPlan.getData());
   setPlanMode('scene',false);
 }
 
@@ -3680,6 +3683,7 @@ function _loadSceneStage(scene){
 function _loadSceneSite(scene){
   const d=_firstSceneFallback('site', scene?.data??null);
   SitePlan.load(d?.site??null);
+  if(typeof SectionUndo!=='undefined') SectionUndo.reset('site', SitePlan.getData());
   setPlanMode('site',false);
 }
 
@@ -8124,12 +8128,84 @@ function loadStage(){
     SitePlan.load(siteData);
     setPlanMode(savedMode,false);
   }
+  /* Réinitialise l'historique d'annulation pour ce show/scène. */
+  if(typeof SectionUndo!=='undefined'){ SectionUndo.reset('stage', BandPlan.getData()); SectionUndo.reset('site', SitePlan.getData()); }
   _stageReady=true;
 }
 
 let saveStageTimer=null;
+/* ══════════════════════════════════════
+   ANNULER (Ctrl+Z) — réservé Pro
+   Historique par section (plan de scène / plan de site / synoptique).
+   On enregistre un instantané APRÈS chaque sauvegarde ; annuler restaure
+   l'instantané précédent. Données sérialisables via getData()/load().
+   ══════════════════════════════════════ */
+const SectionUndo = {
+  stacks:{}, _restoring:false, MAX:50,
+  isPro(){ try{ return userPlan()==='pro'; }catch(e){ return false; } },
+  reset(key, snap){ try{ this.stacks[key]=[JSON.stringify(snap)]; }catch(e){ this.stacks[key]=[]; } this._sync(key); },
+  record(key, getSnap){
+    if(this._restoring || !this.isPro()) return;
+    var st=this.stacks[key]||(this.stacks[key]=[]);
+    var s; try{ s=JSON.stringify(getSnap()); }catch(e){ return; }
+    if(!s) return;
+    if(st.length && st[st.length-1]===s) return; /* pas de doublon */
+    st.push(s);
+    if(st.length>this.MAX+1) st.shift();
+    this._sync(key);
+  },
+  canUndo(key){ return this.isPro() && (this.stacks[key]||[]).length>1; },
+  undo(key, restoreFn){
+    if(!this.canUndo(key)) return false;
+    var st=this.stacks[key]; st.pop();              /* retire l'état courant */
+    var prev; try{ prev=JSON.parse(st[st.length-1]); }catch(e){ return false; }
+    this._restoring=true;
+    try{ restoreFn(prev); }catch(e){ console.error('[undo]',e); }
+    this._restoring=false;
+    this._sync(key);
+    return true;
+  },
+  _sync(key){
+    var pro=this.isPro(), can=this.canUndo(key);
+    document.querySelectorAll('[data-undo="'+key+'"]').forEach(function(btn){
+      btn.style.display = pro ? '' : 'none';
+      btn.disabled = !can;
+      btn.style.opacity = can ? '' : '.4';
+    });
+  }
+};
+const _UNDO_ADAPTERS = {
+  stage:{ visible(){ return document.getElementById('plan-scene-wrap') && document.getElementById('plan-scene-wrap').offsetParent!==null; },
+          restore(d){ d.view=BandPlan.getData().view; BandPlan.load(d); saveStage(); } },
+  site: { visible(){ return document.getElementById('plan-site-wrap') && document.getElementById('plan-site-wrap').offsetParent!==null; },
+          restore(d){ d.view=SitePlan.getData().view; SitePlan.load(d); saveSite(); } },
+  syno: { visible(){ return document.getElementById('sp-world') && document.getElementById('sp-world').offsetParent!==null; },
+          restore(d){ if(SynPro.setData) SynPro.setData(d); else SynPro.loadSceneDirect(d); if(SynPro._saveNow) SynPro._saveNow(); } },
+};
+function undoSection(key){
+  var a=_UNDO_ADAPTERS[key]; if(!a) return;
+  if(!SectionUndo.isPro()){ if(typeof showUpgradeModal==='function') showUpgradeModal('multi_patches'); return; }
+  if(!SectionUndo.canUndo(key)){ if(typeof toast!=='undefined') toast('Rien à annuler'); return; }
+  if(SectionUndo.undo(key, a.restore) && typeof toast!=='undefined') toast('Action annulée');
+}
+function undoActiveSection(){
+  if(!SectionUndo.isPro()) return false;
+  var order=['site','stage','syno'];
+  for(var i=0;i<order.length;i++){ if(_UNDO_ADAPTERS[order[i]].visible()){ undoSection(order[i]); return true; } }
+  return false;
+}
+/* Ctrl/⌘+Z global (hors champs de saisie) */
+document.addEventListener('keydown', function(e){
+  if(!(e.ctrlKey||e.metaKey) || e.shiftKey) return;
+  if((e.key||'').toLowerCase()!=='z') return;
+  var t=e.target, tag=t&&t.tagName;
+  if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT'||(t&&t.isContentEditable)) return;
+  if(undoActiveSection()) e.preventDefault();
+});
+
 async function saveStage(){
   if(!CUR_SHOW)return;
+  SectionUndo.record('stage', ()=>BandPlan.getData());
   if(canDo('multi_scenes') && CUR_SCENES.stage){
     // Studio : sauvegarder dans la scène courante
     const stageData={band:BandPlan.getData()};
@@ -8165,6 +8241,7 @@ async function saveStage(){
 }
 async function saveSite(){
   if(!CUR_SHOW)return;
+  SectionUndo.record('site', ()=>SitePlan.getData());
   if(canDo('multi_scenes') && CUR_SCENES.site){
     const siteData={site:SitePlan.getData()};
     await _saveScene('site',siteData);
@@ -8500,6 +8577,7 @@ const SynPro = (() => {
 
   /* ── Persistence ── */
   function scheduleSave() {
+    if(typeof SectionUndo!=='undefined') SectionUndo.record('syno', function(){ return state; });
     /* 1. Save to localStorage IMMEDIATELY (synchronous, survives same-origin reload) */
     _lsSave();
     _setSaveStatus('saving');
@@ -8565,6 +8643,7 @@ const SynPro = (() => {
       state = (sd && sd.v === 1) ? sd : _defaultState();
       if (CUR_SHOW && CUR_SHOW.name && state.title === 'Diagramme reseau') state.title = CUR_SHOW.name;
       loaded = true;
+      if(typeof SectionUndo!=='undefined') SectionUndo.reset('syno', state);
       return true;
     }
     var saved = CUR_SHOW.synoptique_data;
@@ -8591,6 +8670,7 @@ const SynPro = (() => {
     state = saved && saved.v === 1 ? saved : _defaultState();
     if (CUR_SHOW.name && state.title === 'Diagramme reseau') state.title = CUR_SHOW.name;
     loaded = true;
+    if(typeof SectionUndo!=='undefined') SectionUndo.reset('syno', state);
     return true;
   }
 
@@ -10124,11 +10204,14 @@ const SynPro = (() => {
     view = { zoom:1, panX:0, panY:0 };
     _injectedSceneData = undefined;
     loaded = true;
+    if(typeof SectionUndo!=='undefined') SectionUndo.reset('syno', state);
     render();
     setTimeout(fitView, 50);
   }
   function getIconByType(type){ var s=spec(type); return (s&&s.icon)?s.icon:''; }
-  return { init, show, render, resetLoaded, isLoaded, getData, cancelCable, _saveNow, buildExportSvg: _buildExportSvg, setSceneId, setSceneData, loadSceneDirect, getIconByType, uploadNodeIcon, clearNodeIcon, adjImgPx };
+  /* Restaure un instantané (undo) sans réinitialiser la vue. */
+  function setData(d){ if(!d) return; state=d; loaded=true; selected={kind:null,id:null}; render(); }
+  return { init, show, render, resetLoaded, isLoaded, getData, setData, cancelCable, _saveNow, buildExportSvg: _buildExportSvg, setSceneId, setSceneData, loadSceneDirect, getIconByType, uploadNodeIcon, clearNodeIcon, adjImgPx };
 })();
 
 window.SynPro = SynPro;
@@ -11646,6 +11729,9 @@ function setPlanMode(mode,save=true){
   document.getElementById('plan-site-wrap').style.display=mode==='site'?'':'none';
   document.getElementById('pmb-scene').classList.toggle('on',mode==='scene');
   document.getElementById('pmb-site').classList.toggle('on',mode==='site');
+  /* Bouton Annuler du plan : suit le mode actif (scène→stage, site→site). */
+  var _undoBtn=document.getElementById('plan-undo-btn');
+  if(_undoBtn){ _undoBtn.setAttribute('data-undo', mode==='site'?'site':'stage'); if(typeof SectionUndo!=='undefined') SectionUndo._sync(mode==='site'?'site':'stage'); }
   /* Scene tabs — chaque mode a sa propre barre, masquer l'autre */
   var stTabs=document.getElementById('scene-tabs-stage');
   var siTabs=document.getElementById('scene-tabs-site');
