@@ -7731,10 +7731,14 @@ function doPDF(){
       if(_s2) SitePlan.load(_s2);
     }
     SitePlan.exportCanvas(function(cv){
-      if(!cv){toast('Plan de site vide — rien à exporter.');return;}
-      const dataUrl = cv.toDataURL('image/png');
-      const shareUrl = window.location.origin+window.location.pathname+'?view='+(CUR_SHOW?.id||'')+'&tab=site';
-      _openVisualPdf('Plan de site', meta, dataUrl, shareUrl, brand);
+      try{
+        if(!cv){toast('Plan de site vide — rien à exporter.');return;}
+        var dataUrl;
+        try{ dataUrl=cv.toDataURL('image/png'); }
+        catch(corsErr){ toast('Erreur export (image CORS) : '+corsErr.message); console.error('site pdf toDataURL:',corsErr); return; }
+        const shareUrl=window.location.origin+window.location.pathname+'?view='+(CUR_SHOW?.id||'')+'&tab=site';
+        _openVisualPdf('Plan de site', meta, dataUrl, shareUrl, brand).catch(function(e){toast('Erreur PDF : '+e.message);console.error('_openVisualPdf:',e);});
+      }catch(e){toast('Erreur export PDF : '+e.message);console.error('site pdf cb:',e);}
     });
     return;
   }
@@ -12915,8 +12919,9 @@ const SitePlan = (() => {
     };
     _loadSiteIconImgs(function() {
       _loadSiteCustomImgs(function(){
-        if(state.bgImage){ const img=new Image(); img.onload=()=>_draw(img); img.onerror=()=>_draw(null); img.src=state.bgImage; }
-        else { _draw(null); }
+        const _safeDraw=function(bgImg){try{_draw(bgImg);}catch(e){console.error('_makeCanvas _draw:',e);cb(null);}};
+        if(state.bgImage){ const img=new Image(); img.onload=()=>_safeDraw(img); img.onerror=()=>_safeDraw(null); img.src=state.bgImage; }
+        else { _safeDraw(null); }
       });
     });
   }
