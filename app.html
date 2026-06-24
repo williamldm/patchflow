@@ -12915,7 +12915,7 @@ const SitePlan = (() => {
     };
     _loadSiteIconImgs(function() {
       _loadSiteCustomImgs(function(){
-        if(state.bgImage){ const img=new Image(); img.onload=()=>_draw(img); img.src=state.bgImage; }
+        if(state.bgImage){ const img=new Image(); img.onload=()=>_draw(img); img.onerror=()=>_draw(null); img.src=state.bgImage; }
         else { _draw(null); }
       });
     });
