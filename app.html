@@ -2009,6 +2009,14 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
                 <button class="spl-ts-btn" onclick="SitePlan.setLegendScale(1)">A+</button>
               </div>
             </div>
+            <div class="site-insp-footer-row">
+              <span>Texte cables</span>
+              <div style="display:flex;gap:3px;align-items:center">
+                <button class="spl-ts-btn" onclick="SitePlan.setCableTextScale(-1)">A−</button>
+                <span id="spl-cab-val" style="font-size:9px;font-family:var(--m);color:var(--muted);min-width:28px;text-align:center">100%</span>
+                <button class="spl-ts-btn" onclick="SitePlan.setCableTextScale(1)">A+</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -11934,7 +11942,7 @@ const SitePlan = (() => {
     renderCablePicker();
   }
 
-  let state = { elements:[], cables:[], bgImage:null, bgOpacity:100, view:{panX:60,panY:60,zoom:1}, selected:null, linkFrom:null, freePt1:null, activeCableType:'xlr', textScale:1, legendScale:1, cableMode:false };
+  let state = { elements:[], cables:[], bgImage:null, bgOpacity:100, view:{panX:60,panY:60,zoom:1}, selected:null, linkFrom:null, freePt1:null, activeCableType:'xlr', textScale:1, legendScale:1, cableTextScale:1, cableMode:false };
   let dragging=null, panning=null, inited=false, resizing=null, _wpDrag=null;
 
   const $  = id => document.getElementById(id);
@@ -12330,9 +12338,10 @@ const SitePlan = (() => {
       if(dir==='backward'||dir==='both') paths += `<polygon points="${arrPoly(afx,afy,-bnx,-bny)}" fill="${c.color}" opacity="${op}"/>`;
       if(cable.label||cable.length) {
         const txt=[cable.label,cable.length].filter(Boolean).join(' · ');
-        const tw=txt.length*6.5;
-        paths += `<rect x="${mxo-tw/2-4}" y="${myo-19}" width="${tw+8}" height="16" rx="3" fill="rgba(8,8,20,0.82)"/>`;
-        paths += `<text x="${mxo}" y="${myo-6}" fill="${c.color}" font-size="11" font-family="var(--m)" text-anchor="middle" opacity="0.95" font-weight="600">${esc(txt)}</text>`;
+        const cts=state.cableTextScale||1;
+        const fs=(14*cts), tw=txt.length*7*cts, rh=18*cts;
+        paths += `<rect x="${mxo-tw/2-5*cts}" y="${myo-rh-5}" width="${tw+10*cts}" height="${rh}" rx="${4*cts}" fill="rgba(8,8,20,0.82)"/>`;
+        paths += `<text x="${mxo}" y="${myo-rh/2-5+fs*0.36}" fill="${c.color}" font-size="${fs.toFixed(1)}" font-family="var(--m)" text-anchor="middle" opacity="0.97" font-weight="700">${esc(txt)}</text>`;
       }
       /* Poignées des points de routage (cable sélectionné). */
       if(isSel && cable.waypoints && cable.waypoints.length){
@@ -12809,15 +12818,17 @@ const SitePlan = (() => {
     if(data?.activeCableType) state.activeCableType=data.activeCableType;
     if(data?.textScale) state.textScale=data.textScale;
     if(data?.legendScale) state.legendScale=data.legendScale;
+    state.cableTextScale=data?.cableTextScale||1;
     state.selected=null;state.linkFrom=null;state.freePt1=null;
     const sl=$('site-bg-opacity');if(sl)sl.value=state.bgOpacity;
     const tl=$('spl-ts-val');if(tl)tl.textContent=Math.round(state.textScale*100)+'%';
     const ll=$('spl-leg-val');if(ll)ll.textContent=Math.round((state.legendScale||1)*100)+'%';
+    const cl=$('spl-cab-val');if(cl)cl.textContent=Math.round((state.cableTextScale||1)*100)+'%';
     applyBg(); applyTransform();
     if(inited){ renderCablePicker(); render(); }
   }
 
-  function getData() { return {elements:state.elements,cables:state.cables,bgImage:state.bgImage,bgOpacity:state.bgOpacity,view:state.view,activeCableType:state.activeCableType,textScale:state.textScale,legendScale:state.legendScale}; }
+  function getData() { return {elements:state.elements,cables:state.cables,bgImage:state.bgImage,bgOpacity:state.bgOpacity,view:state.view,activeCableType:state.activeCableType,textScale:state.textScale,legendScale:state.legendScale,cableTextScale:state.cableTextScale}; }
 
   function clear() { state.elements=[];state.cables=[];state.selected=null;state.linkFrom=null;state.freePt1=null;_clearPreview(); saveSite(); render(); }
 
@@ -12903,6 +12914,16 @@ const SitePlan = (() => {
     idx=Math.max(0,Math.min(steps.length-1,idx+dir));
     state.legendScale=steps[idx]; saveSite(); renderLegend();
     const lbl=$('spl-leg-val'); if(lbl) lbl.textContent=Math.round(state.legendScale*100)+'%';
+  }
+
+  /* Taille du texte (longueur / label) des câbles — réglage global. */
+  function setCableTextScale(dir) {
+    const steps=[0.7,0.85,1,1.25,1.5,1.8,2.2,2.7];
+    let idx=steps.findIndex(s=>Math.abs(s-(state.cableTextScale||1))<0.05);
+    if(idx<0) idx=2;
+    idx=Math.max(0,Math.min(steps.length-1,idx+dir));
+    state.cableTextScale=steps[idx]; saveSite(); renderCables();
+    const lbl=$('spl-cab-val'); if(lbl) lbl.textContent=Math.round(state.cableTextScale*100)+'%';
   }
 
   function _rrect(ctx,x,y,w,h,r){
@@ -13025,9 +13046,14 @@ const SitePlan = (() => {
         if(dir==='backward'||dir==='both') drawArrow(wx(afx),wy(afy),-bnx,-bny, c.color, ARR);
         if(cable.label||cable.length){
           const txt=[cable.label,cable.length].filter(Boolean).join(' · ');
-          ctx.font=`${11*SCALE}px sans-serif`; ctx.fillStyle=c.color;
+          const cts=state.cableTextScale||1;
+          const fs=14*cts*SCALE;
+          ctx.font=`700 ${fs}px sans-serif`;
           ctx.textAlign='center'; ctx.textBaseline='middle';
-          ctx.fillText(txt, wx(mxo), wy(myo)-6*SCALE);
+          const tw=ctx.measureText(txt).width, rh=fs*1.5, cx=wx(mxo), cyy=wy(myo)-rh*0.7;
+          _rrect(ctx,cx-tw/2-6*cts*SCALE,cyy-rh/2,tw+12*cts*SCALE,rh,4*cts*SCALE);
+          ctx.fillStyle='rgba(8,8,20,0.82)'; ctx.fill();
+          ctx.fillStyle=c.color; ctx.fillText(txt, cx, cyy);
         }
       });
       const TS=state.textScale||1;
@@ -13135,7 +13161,7 @@ const SitePlan = (() => {
     saveSite(); render(); renderInspector();
     setTimeout(function(){ uploadElementIcon(id); },80);
   }
-  return {init,load,getData,loadBg,setBgOpacity,clearBg,clear,zoom,setZoomPct,fitView,resetView,selectCable,exportPng,exportCanvas,exportCanvasSafe,hasContent,setActiveCableType,toggleCableMode,setTextScale,setLegendScale,deleteCustomCableType,uploadElementIcon,clearElementIcon,adjImgPx,
+  return {init,load,getData,loadBg,setBgOpacity,clearBg,clear,zoom,setZoomPct,fitView,resetView,selectCable,exportPng,exportCanvas,exportCanvasSafe,hasContent,setActiveCableType,toggleCableMode,setTextScale,setLegendScale,setCableTextScale,deleteCustomCableType,uploadElementIcon,clearElementIcon,adjImgPx,
     /* Exposés pour le rendu fidèle côté lien partagé (couleur + icône réelles
        de la palette, identiques à _makeCanvas). */
     itemMeta:function(t){var it=findItem(t); return {color:(it&&it.color)||'#5a6a80', icon:(it&&it.icon)||null, label:(it&&it.label)||t};},
@@ -17951,9 +17977,14 @@ function _svFs(imgId, title){
           if(dir==='backward'||dir==='both') _arrow(wx(afx),wy(afy), -bnx, -bny, ct.color, ARR);
           if(c.label||c.length){
             var txt=[c.label,c.length].filter(Boolean).join(' · ');
-            ctx.font=(11*SCALE)+'px sans-serif'; ctx.fillStyle=ct.color;
+            var cts=siteData.cableTextScale||1;
+            var fs=14*cts*SCALE;
+            ctx.font='700 '+fs+'px sans-serif';
             ctx.textAlign='center'; ctx.textBaseline='middle';
-            ctx.fillText(txt, wx(mx), wy(my)-6*SCALE);
+            var tw=ctx.measureText(txt).width, rh=fs*1.5, cx=wx(mx), cyy=wy(my)-rh*0.7;
+            _rrect(ctx,cx-tw/2-6*cts*SCALE,cyy-rh/2,tw+12*cts*SCALE,rh,4*cts*SCALE);
+            ctx.fillStyle='rgba(8,8,20,0.82)'; ctx.fill();
+            ctx.fillStyle=ct.color; ctx.fillText(txt, cx, cyy);
           }
         });
 
