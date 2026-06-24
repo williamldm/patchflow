@@ -11658,6 +11658,150 @@ function setPlanMode(mode,save=true){
 }
 
 // ══════════════════════════════════════
+// RENDU FIDÈLE D'UN NŒUD DE PLAN DE SITE (export PNG/PDF + vue partagée)
+// Reproduit l'apparence de l'éditeur : carte blanche (.spl-card), icône SVG
+// centrée (sans boîte colorée), label gras navy, note. Utilisé par _makeCanvas
+// (SitePlan) ET par le renderer de la vue partagée pour un rendu identique.
+// ══════════════════════════════════════
+function _spRR(ctx,x,y,w,h,r){
+  if(r>w/2)r=w/2; if(r>h/2)r=h/2; if(r<0)r=0;
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r);
+  ctx.closePath();
+}
+/* Tronque un texte à une largeur max (px) avec ellipsis ASCII. ctx.font doit
+   déjà être réglé. */
+function _spFit(ctx,txt,maxW){
+  txt=String(txt==null?'':txt);
+  if(ctx.measureText(txt).width<=maxW) return txt;
+  var s=txt;
+  while(s.length>1 && ctx.measureText(s+'...').width>maxW) s=s.slice(0,-1);
+  return s+'...';
+}
+var _SP_FONT='ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
+var _SP_NAVY='#1d3a5f';
+/* Dessine UN nœud. ex,ey = coin haut-gauche en px CANVAS (= wx(el.x),wy(el.y)).
+   SCALE = facteur monde→canvas. TS = textScale. opt={color,iconImg,emoji}. */
+function _spDrawSiteNode(ctx, el, ex, ey, SCALE, TS, opt){
+  opt=opt||{}; TS=TS||1;
+  var elTS=el.elTextScale||1;
+  var color=opt.color||'#5a6580';
+  var iconImg=(opt.iconImg && opt.iconImg!=='loading') ? opt.iconImg : null;
+  var emoji=opt.emoji||'';
+
+  /* ── Texte libre ── */
+  if(el.type==='text_lbl'){
+    var fs=Math.max(9,(el.elSize||18)*SCALE*TS*elTS);
+    var txt=el.label||'';
+    ctx.font='600 '+fs+'px '+_SP_FONT;
+    ctx.textAlign='left'; ctx.textBaseline='top';
+    if(!el.noBg){
+      var tpadX=13*SCALE, tpadY=9*SCALE;
+      var tw=ctx.measureText(txt).width;
+      var bw=tw+tpadX*2, bh=fs+tpadY*2;
+      ctx.save();
+      ctx.shadowColor='rgba(0,0,0,.06)'; ctx.shadowBlur=4*SCALE; ctx.shadowOffsetY=1*SCALE;
+      _spRR(ctx,ex,ey,bw,bh,8*SCALE); ctx.fillStyle='#ffffff'; ctx.fill();
+      ctx.restore();
+      ctx.strokeStyle='rgba(29,58,95,.20)'; ctx.lineWidth=Math.max(1,1*SCALE); _spRR(ctx,ex,ey,bw,bh,8*SCALE); ctx.stroke();
+      ctx.fillStyle=el.textColor||_SP_NAVY; ctx.fillText(txt, ex+tpadX, ey+tpadY);
+    } else {
+      ctx.fillStyle=el.textColor||_SP_NAVY; ctx.fillText(txt, ex, ey);
+    }
+    return;
+  }
+
+  /* ── Image flottante (au ratio, sans carte) ── */
+  if(el.type==='image_frame'){
+    var w0=(el.imgPx||el.elSize||120), asp=el.imgAspect||1;
+    var iw=w0*SCALE, ih=(w0/asp)*SCALE;
+    if(iconImg){
+      ctx.save();
+      ctx.shadowColor='rgba(0,0,0,.20)'; ctx.shadowBlur=8*SCALE; ctx.shadowOffsetY=2*SCALE;
+      _spRR(ctx,ex,ey,iw,ih,6*SCALE); ctx.fillStyle='#fff'; ctx.fill();
+      ctx.restore();
+      ctx.save(); _spRR(ctx,ex,ey,iw,ih,6*SCALE); ctx.clip();
+      ctx.drawImage(iconImg, ex, ey, iw, ih);
+      ctx.restore();
+    } else {
+      ctx.strokeStyle='#c8d4e0'; ctx.setLineDash([5*SCALE,4*SCALE]); ctx.lineWidth=2*SCALE;
+      _spRR(ctx,ex,ey,iw,ih,6*SCALE); ctx.stroke(); ctx.setLineDash([]);
+    }
+    if(el.label){
+      var ilh=Math.max(9,12*TS*elTS*SCALE);
+      ctx.font='700 '+ilh+'px '+_SP_FONT; ctx.fillStyle=_SP_NAVY;
+      ctx.textAlign='center'; ctx.textBaseline='top';
+      ctx.fillText(_spFit(ctx,el.label,Math.max(iw,160*SCALE)), ex+iw/2, ey+ih+5*SCALE);
+    }
+    return;
+  }
+
+  /* ── Élément standard : carte blanche fidèle à .spl-card ── */
+  var esz=(el.elSize||72);
+  var bodyW=esz*SCALE, bodyH=esz*SCALE;
+  var padL=12*SCALE, padR=12*SCALE, padT=9*SCALE, padB=12*SCALE, gap=5*SCALE;
+  var lblFs=Math.max(9,12*TS*elTS*SCALE);
+  var noteFs=Math.max(8,10*TS*elTS*SCALE);
+  var maxInner=Math.max(bodyW,170*SCALE);
+  var label=(el.label!=null&&el.label!=='')?el.label:'';
+  var note=el.note||'';
+
+  ctx.font='700 '+lblFs+'px '+_SP_FONT;
+  var label2=label?_spFit(ctx,label,maxInner):'';
+  var lblW=label2?ctx.measureText(label2).width:0;
+  ctx.font='500 '+noteFs+'px '+_SP_FONT;
+  var note2=note?_spFit(ctx,note,maxInner):'';
+  var noteW=note2?ctx.measureText(note2).width:0;
+
+  var innerW=Math.max(bodyW,lblW,noteW);
+  var cardW=innerW+padL+padR;
+  var cardH=padT+bodyH+(label2?gap+lblFs:0)+(note2?4*SCALE+noteFs:0)+padB;
+
+  if(!el.noBg){
+    ctx.save();
+    ctx.shadowColor='rgba(0,0,0,.12)'; ctx.shadowBlur=10*SCALE; ctx.shadowOffsetY=2*SCALE;
+    _spRR(ctx,ex,ey,cardW,cardH,11*SCALE); ctx.fillStyle='#ffffff'; ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle='#c8d4e0'; ctx.lineWidth=Math.max(1,1*SCALE);
+    _spRR(ctx,ex,ey,cardW,cardH,11*SCALE); ctx.stroke();
+  }
+
+  /* Icône centrée en haut (SVG navy ou image custom), sans boîte colorée. */
+  var bodyX=ex+(cardW-bodyW)/2, bodyY=ey+padT;
+  if(iconImg){
+    var ipad=bodyW*0.06;
+    var iar=(iconImg.naturalWidth||1)/(iconImg.naturalHeight||1); if(!isFinite(iar)||iar<=0)iar=1;
+    var availW=bodyW-ipad*2, availH=bodyH-ipad*2;
+    var dw=availW, dh=availW/iar; if(dh>availH){dh=availH; dw=availH*iar;}
+    try{ ctx.drawImage(iconImg, bodyX+(bodyW-dw)/2, bodyY+(bodyH-dh)/2, dw, dh); }catch(e){}
+  } else if(emoji){
+    ctx.font=Math.round(bodyW*0.5)+'px '+_SP_FONT;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(emoji, bodyX+bodyW/2, bodyY+bodyH/2);
+  } else {
+    ctx.font='800 '+Math.round(bodyW*0.3)+'px '+_SP_FONT;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillStyle=color; ctx.fillText((el.type||'').slice(0,4).toUpperCase(), bodyX+bodyW/2, bodyY+bodyH/2);
+  }
+
+  /* Label gras navy + note, centrés sous l'icône. */
+  var cy=bodyY+bodyH+gap;
+  if(label2){
+    ctx.font='700 '+lblFs+'px '+_SP_FONT; ctx.fillStyle=_SP_NAVY;
+    ctx.textAlign='center'; ctx.textBaseline='top';
+    ctx.fillText(label2, ex+cardW/2, cy); cy+=lblFs+4*SCALE;
+  }
+  if(note2){
+    ctx.font='500 '+noteFs+'px '+_SP_FONT; ctx.fillStyle='#64748b';
+    ctx.textAlign='center'; ctx.textBaseline='top';
+    ctx.fillText(note2, ex+cardW/2, cy);
+  }
+}
+
+// ══════════════════════════════════════
 // SITE PLAN
 // ══════════════════════════════════════
 const SitePlan = (() => {
@@ -12796,8 +12940,11 @@ const SitePlan = (() => {
     if (!pending) { done(); return; }
     keys.forEach(function(k) {
       const img = new Image();
-      /* Add explicit width/height so naturalWidth > 0 on all browsers (SVG-as-img quirk) */
+      /* xmlns OBLIGATOIRE pour charger un SVG comme <img> : les icônes de la
+         palette n'en ont pas → sans lui, l'image échoue (onerror) et on retombe
+         sur l'abréviation. + width/height explicites pour naturalWidth>0. */
       var svgStr = allIcons[k];
+      if(svgStr && !/xmlns=/.test(svgStr)) svgStr = svgStr.replace(/^<svg /, '<svg xmlns="http://www.w3.org/2000/svg" ');
       if(svgStr && !/\bwidth=/.test(svgStr)) svgStr = svgStr.replace(/^<svg /, '<svg width="64" height="64" ');
       const svgBlob = new Blob([svgStr], {type:'image/svg+xml'});
       const url = URL.createObjectURL(svgBlob);
@@ -12824,8 +12971,9 @@ const SitePlan = (() => {
       let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
       if(bgImg){ minX=0; minY=0; maxX=bgImg.naturalWidth; maxY=bgImg.naturalHeight; }
       els.forEach(e=>{
+        const _es=(e.elSize||72), _iw=(e.type==='image_frame'?(e.imgPx||_es):_es);
         minX=Math.min(minX,e.x-40); minY=Math.min(minY,e.y-40);
-        maxX=Math.max(maxX,e.x+112); maxY=Math.max(maxY,e.y+130);
+        maxX=Math.max(maxX,e.x+Math.max(_iw,200)+24); maxY=Math.max(maxY,e.y+_es+150);
       });
       if(!isFinite(minX)){ minX=0;minY=0;maxX=1200;maxY=800; }
       const W=maxX-minX, H=maxY-minY;
@@ -12882,47 +13030,12 @@ const SitePlan = (() => {
       const TS=state.textScale||1;
       els.forEach(el=>{
         const it=findItem(el.type);
-        const esz=(el.elSize||72)*SCALE;
         const ex=wx(el.x), ey=wy(el.y);
-        const lblH=Math.round(12*TS*SCALE), noteH=Math.round(10*TS*SCALE);
-        if(el.type==='text_lbl'){
-          const fs=(el.elSize||18)*SCALE*(state.textScale||1)*(el.elTextScale||1);
-          ctx.font=`${fs}px sans-serif`; ctx.fillStyle=el.textColor||'#e8edf8';
-          ctx.textAlign='left'; ctx.textBaseline='top';
-          ctx.fillText(el.label||'', ex, ey);
-        } else if(el.type==='image_frame'){
-          /* Image au ratio, sans boîte colorée (cohérent avec l'éditeur). */
-          const _cimg=_siteCustomImgCache&&_siteCustomImgCache[el.id];
-          const w0=(el.imgPx||el.elSize||120), asp=el.imgAspect||1;
-          const iw=w0*SCALE, ih=(w0/asp)*SCALE;
-          if(_cimg){ ctx.drawImage(_cimg, ex, ey, iw, ih); }
-          else { ctx.strokeStyle='#c8d4e0'; ctx.setLineDash([5*SCALE,4*SCALE]); ctx.lineWidth=2*SCALE; _rrect(ctx,ex,ey,iw,ih,6*SCALE); ctx.stroke(); ctx.setLineDash([]); }
-          if(el.label){ const lblY=ey+ih+4*SCALE; ctx.font=`600 ${lblH}px sans-serif`; ctx.fillStyle='#1d3a5f'; ctx.textAlign='center'; ctx.textBaseline='top'; ctx.fillText(el.label, ex+iw/2, lblY); }
-        } else {
-          ctx.fillStyle=it.color+'18'; _rrect(ctx,ex,ey,esz,esz,13*SCALE); ctx.fill();
-          ctx.strokeStyle=it.color||'#667'; ctx.lineWidth=2*SCALE; ctx.stroke();
-          const _customImg = _siteCustomImgCache && _siteCustomImgCache[el.id];
-          const _icImg = _siteIconImgs && _siteIconImgs[el.type];
-          if (_customImg) {
-            const pad=esz*0.1;
-            ctx.drawImage(_customImg, ex+pad, ey+pad, esz-pad*2, esz-pad*2);
-          } else if (_icImg) {
-            const pad=esz*0.12;
-            ctx.drawImage(_icImg, ex+pad, ey+pad, esz-pad*2, esz-pad*2);
-          } else {
-            ctx.font=`bold ${esz*0.32}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
-            ctx.fillStyle=it.color||'#fff'; ctx.fillText((el.type||'').slice(0,4).toUpperCase(), ex+esz/2, ey+esz/2);
-          }
-          const lbl=el.label||el.type;
-          const lblY=ey+esz+4*SCALE;
-          ctx.font=`600 ${lblH}px sans-serif`; ctx.fillStyle=it.color;
-          ctx.textAlign='center'; ctx.textBaseline='top';
-          ctx.fillText(lbl.length>16?lbl.slice(0,15)+'...':lbl, ex+esz/2, lblY);
-          if(el.note){
-            ctx.font=`${noteH}px sans-serif`; ctx.fillStyle='#8899aa';
-            ctx.fillText(el.note.length>18?el.note.slice(0,17)+'...':el.note, ex+esz/2, lblY+lblH+2*SCALE);
-          }
-        }
+        const _customImg=_siteCustomImgCache&&_siteCustomImgCache[el.id];
+        const _icImg=_siteIconImgs&&_siteIconImgs[el.type];
+        const _iconImg=_customImg||_icImg||null;
+        const _emoji=(it&&typeof it.icon==='string'&&it.icon.charAt(0)!=='<')?it.icon:'';
+        _spDrawSiteNode(ctx, el, ex, ey, SCALE, TS, {color:(it&&it.color)||'#5a6580', iconImg:_iconImg, emoji:_emoji});
       });
       const usedIds=[...new Set(cables.map(c=>c.type))];
       if(usedIds.length>0){
@@ -17759,12 +17872,11 @@ function _svFs(imgId, title){
         var minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
         if(_bgImg){ minX=0;minY=0;maxX=_bgImg.naturalWidth;maxY=_bgImg.naturalHeight; }
         els.forEach(function(e){
-          var esz=e.elSize||72;
-          var lblH=Math.ceil(14*TS)+Math.ceil(12*TS)+4; /* label + note */
+          var esz=(e.elSize||72), iw=(e.type==='image_frame'?(e.imgPx||esz):esz);
           minX=Math.min(minX,e.x-40);
           minY=Math.min(minY,e.y-40);
-          maxX=Math.max(maxX,e.x+esz+40);
-          maxY=Math.max(maxY,e.y+esz+lblH+40);
+          maxX=Math.max(maxX,e.x+Math.max(iw,200)+24);
+          maxY=Math.max(maxY,e.y+esz+150);
         });
         if(!isFinite(minX)){ minX=0;minY=0;maxX=1200;maxY=800; }
         var W=maxX-minX, H=maxY-minY;
@@ -17808,53 +17920,14 @@ function _svFs(imgId, title){
           }
         });
 
-        /* Éléments */
+        /* Éléments — rendu FIDÈLE à l'éditeur (carte blanche + icône + label). */
         els.forEach(function(e){
-          var esz=(e.elSize||72)*SCALE;
           var ex=wx(e.x), ey=wy(e.y);
-          var lblH=Math.round(12*TS*SCALE);
-          var noteH=Math.round(10*TS*SCALE);
           var ic=_elColorOf(e.type);
-
-          if(e.type==='text_lbl'){
-            var fs=(e.elSize||18)*SCALE*(TS)*(e.elTextScale||1);
-            ctx.font=fs+'px sans-serif'; ctx.fillStyle=e.textColor||'#e8edf8';
-            ctx.textAlign='left'; ctx.textBaseline='top';
-            ctx.fillText(e.label||'', ex, ey);
-            return;
-          }
-
-          /* Fond de l'élément */
-          ctx.beginPath(); _rrect(ctx,ex,ey,esz,esz,13*SCALE);
-          ctx.fillStyle=ic+'28'; ctx.fill();
-          ctx.strokeStyle=ic; ctx.lineWidth=2*SCALE; ctx.stroke();
-
-          /* Image custom > icône intégrée recolorée > abréviation */
           var customImg=_imgs[e.id];
           var builtinIcon=_iconImgs[e.type];
-          if(customImg){
-            var pad=esz*0.1;
-            ctx.drawImage(customImg, ex+pad, ey+pad, esz-pad*2, esz-pad*2);
-          } else if(builtinIcon && builtinIcon!=='loading'){
-            var pad2=esz*0.14;
-            ctx.drawImage(builtinIcon, ex+pad2, ey+pad2, esz-pad2*2, esz-pad2*2);
-          } else {
-            /* Abréviation type (couleur réelle, visible) */
-            ctx.font='bold '+(esz*0.32)+'px sans-serif';
-            ctx.textAlign='center'; ctx.textBaseline='middle';
-            ctx.fillStyle=ic; ctx.fillText((e.type||'').slice(0,4).toUpperCase(), ex+esz/2, ey+esz/2);
-          }
-
-          /* Label sous l'élément */
-          var lbl=e.label||e.type;
-          var lblY=ey+esz+4*SCALE;
-          ctx.font='600 '+lblH+'px sans-serif';
-          ctx.fillStyle=ic; ctx.textAlign='center'; ctx.textBaseline='top';
-          ctx.fillText(lbl.length>16?lbl.slice(0,15)+'…':lbl, ex+esz/2, lblY);
-          if(e.note){
-            ctx.font=noteH+'px sans-serif'; ctx.fillStyle='#8899aa';
-            ctx.fillText(e.note.length>18?e.note.slice(0,17)+'…':e.note, ex+esz/2, lblY+lblH+2*SCALE);
-          }
+          var iconImg=customImg||((builtinIcon&&builtinIcon!=='loading')?builtinIcon:null);
+          _spDrawSiteNode(ctx, e, ex, ey, SCALE, TS, {color:ic, iconImg:iconImg, emoji:''});
         });
 
         /* 2e arg = largeur d'affichage en px RÉELS (coords monde) : le canvas est
