@@ -12919,7 +12919,7 @@ const SitePlan = (() => {
     };
     _loadSiteIconImgs(function() {
       _loadSiteCustomImgs(function(){
-        const _safeDraw=function(bgImg){try{_draw(bgImg);}catch(e){console.error('_makeCanvas _draw:',e);cb(null);}};
+        const _safeDraw=function(bgImg){try{_draw(bgImg);}catch(e){if(typeof toast!=='undefined')toast('Err canvas: '+e.message);console.error('_makeCanvas _draw:',e);cb(null);}};
         if(state.bgImage){ const img=new Image(); img.onload=()=>_safeDraw(img); img.onerror=()=>_safeDraw(null); img.src=state.bgImage; }
         else { _safeDraw(null); }
       });
