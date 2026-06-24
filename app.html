@@ -1554,7 +1554,10 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
               <div class="tpl-dd-list" id="tpl-quick-list"></div>
             </div>
           </div>
-          <!-- Hidden file inputs (déclenchés depuis le menu « Plus ») -->
+          <button type="button" class="btn ghost sm" data-undo="il" onclick="undoSection('il')" title="Annuler (Ctrl/⌘+Z)" style="display:none"><i class="ti ti-arrow-back-up"></i></button>
+          <button class="btn" style="background:var(--surf2);border-color:var(--bdr2)" onclick="importCSVClick()"><i class="ti ti-upload"></i>Import CSV</button>
+          <button class="btn" id="col-btn" style="background:var(--surf2);border-color:var(--bdr2)" onclick="toggleColPanel()"><i class="ti ti-columns"></i>Colonnes</button>
+          <!-- Hidden file inputs -->
           <input type="file" id="csv-import-input" accept=".csv,.txt" style="display:none" onchange="importCSVLoad(this)">
           <input type="file" id="il-ai-file" accept=".pdf,.csv,.txt,.doc,.docx,image/png,image/jpeg,image/webp,image/gif,application/pdf,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="display:none" onchange="ilAiHandleFile(this)">
           <!-- ⋯ Plus : actions secondaires regroupées -->
@@ -1563,8 +1566,6 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
             <div class="exp-menu" id="il-more-menu">
               <button class="exp-item" id="il-ai-btn" onclick="ilAiImport();closeExpMenu('il-more-menu')"><i class="ti ti-sparkles" style="color:var(--ora)"></i>Adapter une liste (IA)</button>
               <button class="exp-item" id="il-stageplan-btn" onclick="openStagePlanPicker();closeExpMenu('il-more-menu')"><i class="ti ti-map-2"></i>Plan de scène</button>
-              <button class="exp-item" onclick="importCSVClick();closeExpMenu('il-more-menu')"><i class="ti ti-upload"></i>Import CSV</button>
-              <button class="exp-item" id="col-btn" onclick="toggleColPanel();closeExpMenu('il-more-menu')"><i class="ti ti-columns"></i>Colonnes</button>
               <div class="exp-sep"></div>
               <button class="exp-item" style="color:var(--err)" onclick="clearAllRows();closeExpMenu('il-more-menu')"><i class="ti ti-trash"></i>Tout supprimer</button>
             </div>
@@ -2899,6 +2900,7 @@ let SHOWS=[], CUR_SHOW=null, SHOW_MEMBERS_MAP={}, SHOW_OWNERS_CACHE={}, SHOW_STO
 let SHOW_SCENES={syno:[],stage:[],site:[]};
 let CUR_SCENES={syno:null,stage:null,site:null};
 let CHS=[];
+let _chRTSuppress=0;     // timestamp jusqu'auquel on ignore le toast realtime (undo en cours)
 let ALL_CHS=[];          // tous les canaux du show, toutes les input lists (patches)
 /* Résout un canal par id à travers TOUTES les input lists (pas seulement le
    patch actif) — utilisé par le plan de scène pour lier/afficher des canaux
@@ -3847,6 +3849,8 @@ async function loadChs(){
   ALL_CHS=all;
   CHS=all.filter(r=>(r.patch_id||'main')===CUR_PATCH_ID);
   renderTable();
+  /* Réinitialise l'historique d'annulation Input List pour ce patch/show. */
+  if(typeof SectionUndo!=='undefined') SectionUndo.reset('il', CHS);
 }
 function setILBody(html,wrap){
   document.getElementById('il-body').innerHTML=wrap?`<tr><td colspan="13">${html}</td></tr>`:html;
@@ -4289,6 +4293,7 @@ function scheduleSave(id,field,val){
   if(!_CH_FIELDS.has(field)){console.warn('[sec] champ non autorisé:',field);return;}
   clearTimeout(saveT);
   const r=CHS.find(x=>x.id===id);if(r)r[field]=val;
+  if(typeof SectionUndo!=='undefined') SectionUndo.record('il', function(){ return CHS; });
   setSaving(true);
   saveT=setTimeout(async()=>{
     await sb.from('channels').update({[field]:val,updated_by:ME.id}).eq('id',id);
@@ -4737,6 +4742,7 @@ function _expandNoteAbbr(inp){
   return inp.value;
 }
 function renderTable(){
+  if(typeof SectionUndo!=='undefined') SectionUndo.record('il', function(){ return CHS; });
   initDragDrop();
   if(CHS.length===0){setILBody('<div class="loading" style="color:var(--muted)"><i class="ti ti-inbox" style="font-size:20px"></i>Aucun canal — clique sur "+ Canal" pour commencer</div>',true);}
   else{
@@ -4782,7 +4788,8 @@ function subRT(){
       if(ev==='INSERT'&&!CHS.find(r=>r.id===nr.id)){CHS.push(nr);CHS.sort((a,b)=>a.ch-b.ch);}
       else if(ev==='UPDATE'){const i=CHS.findIndex(r=>r.id===nr.id);if(i>=0){CHS[i]=nr;flashRow(nr.id);}}
       else if(ev==='DELETE'){CHS=CHS.filter(r=>r.id!==or.id);}
-      renderTable();toast('↻ Modifié par un collaborateur');
+      renderTable();
+      if(!(_chRTSuppress&&Date.now()<_chRTSuppress)) toast('↻ Modifié par un collaborateur');
     })
     .subscribe(function(s){
       if(s==='SUBSCRIBED'){setRT('live');_hideOfflineBanner();}
@@ -8183,7 +8190,30 @@ const _UNDO_ADAPTERS = {
           restore(d){ d.view=SitePlan.getData().view; SitePlan.load(d); saveSite(); } },
   syno: { visible(){ return document.getElementById('sp-world') && document.getElementById('sp-world').offsetParent!==null; },
           restore(d){ if(SynPro.setData) SynPro.setData(d); else SynPro.loadSceneDirect(d); if(SynPro._saveNow) SynPro._saveNow(); } },
+  il:   { visible(){ var p=document.getElementById('panel-inputlist'); return p && p.offsetParent!==null && (typeof CUR_IL_MODE==='undefined'||CUR_IL_MODE==='in'); },
+          restore(d){ _ilUndoRestore(d); } },
 };
+/* Restauration de l'Input List (undo) — réconciliation DB : on remet les
+   lignes de l'instantané (upsert) et on supprime celles ajoutées depuis. */
+const _CH_UNDO_COLS=['id','show_id','ch','short_name','long_name','source','mic','gain','phantom','iem_group','foh','mon','bc','note','patch_id','custom_data'];
+function _chCleanForUpsert(r){ var o={}; _CH_UNDO_COLS.forEach(function(k){ if(k in r) o[k]=r[k]; }); if(typeof ME!=='undefined'&&ME) o.updated_by=ME.id; return o; }
+async function _ilUndoRestore(prevRows){
+  if(!Array.isArray(prevRows)) return;
+  var prevIds={}; prevRows.forEach(function(r){ prevIds[r.id]=1; });
+  var toDelete=CHS.filter(function(r){ return !prevIds[r.id]; }).map(function(r){ return r.id; });
+  /* 1) Restaure en mémoire immédiatement */
+  CHS = prevRows.map(function(r){ return Object.assign({}, r); });
+  if(typeof ALL_CHS!=='undefined') ALL_CHS = ALL_CHS.filter(function(r){ return (r.patch_id||'main')!==CUR_PATCH_ID; }).concat(CHS);
+  renderTable(); if(typeof renderPills==='function') renderPills();
+  /* 2) Persiste en base (en évitant l'écho realtime « modifié par un collaborateur ») */
+  _chRTSuppress=Date.now()+2500;
+  if(typeof setSaving==='function') setSaving(true);
+  try{
+    if(prevRows.length){ var up=await sb.from('channels').upsert(prevRows.map(_chCleanForUpsert)); if(up.error) throw up.error; }
+    if(toDelete.length){ var del=await sb.from('channels').delete().in('id',toDelete); if(del.error) throw del.error; }
+  }catch(e){ console.error('[il undo persist]',e); if(typeof toast!=='undefined') toast('Erreur annulation Input List : '+(e.message||e)); }
+  if(typeof setSaving==='function') setSaving(false);
+}
 function undoSection(key){
   var a=_UNDO_ADAPTERS[key]; if(!a) return;
   if(!SectionUndo.isPro()){ if(typeof showUpgradeModal==='function') showUpgradeModal('multi_patches'); return; }
@@ -8192,7 +8222,7 @@ function undoSection(key){
 }
 function undoActiveSection(){
   if(!SectionUndo.isPro()) return false;
-  var order=['site','stage','syno'];
+  var order=['il','site','stage','syno'];
   for(var i=0;i<order.length;i++){ if(_UNDO_ADAPTERS[order[i]].visible()){ undoSection(order[i]); return true; } }
   return false;
 }
