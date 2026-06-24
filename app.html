@@ -17896,27 +17896,61 @@ function _svFs(imgId, title){
           ctx.restore();
         }
 
-        /* Câbles */
+        /* Câbles — fidèle à l'éditeur : waypoints (polyligne), câbles libres,
+           flèches de direction, jointures arrondies. */
+        function _arrow(tx,ty,dx,dy,color,sz){
+          var bx=tx-dx*sz, by=ty-dy*sz;
+          ctx.save(); ctx.fillStyle=color; ctx.beginPath();
+          ctx.moveTo(tx,ty);
+          ctx.lineTo(bx-dy*sz*0.55, by+dx*sz*0.55);
+          ctx.lineTo(bx+dy*sz*0.55, by-dx*sz*0.55);
+          ctx.closePath(); ctx.fill(); ctx.restore();
+        }
         cables.forEach(function(c){
-          var from=els.find(function(e){return e.id===c.fromId;});
-          var to  =els.find(function(e){return e.id===c.toId;});
-          if(!from||!to) return;
+          var fcx,fcy,tcx,tcy,fR,tR;
+          if(c.fromPt){
+            fcx=c.fromPt.x; fcy=c.fromPt.y; tcx=c.toPt.x; tcy=c.toPt.y; fR=0; tR=0;
+          } else {
+            var from=els.find(function(e){return e.id===c.fromId;});
+            var to  =els.find(function(e){return e.id===c.toId;});
+            if(!from||!to) return;
+            var fh=(from.type==='text_lbl'?20:(from.elSize||72)/2);
+            var th=(to.type==='text_lbl'?20:(to.elSize||72)/2);
+            fcx=from.x+fh; fcy=from.y+fh; tcx=to.x+th; tcy=to.y+th; fR=fh+4; tR=th+4;
+          }
           var ct=_cableColor(c.type);
-          var esz1=(from.elSize||72), esz2=(to.elSize||72);
-          var fx=from.x+esz1/2, fy=from.y+esz1/2;
-          var tx=to.x+esz2/2,   ty=to.y+esz2/2;
-          var my=(fy+ty)/2;
-          ctx.beginPath();
-          ctx.moveTo(wx(fx),wy(fy));
-          ctx.bezierCurveTo(wx(fx),wy(my), wx(tx),wy(my), wx(tx),wy(ty));
-          ctx.strokeStyle=ct.color;
-          ctx.lineWidth=(c.width||4)*SCALE;
-          if(ct.dash) ctx.setLineDash(ct.dash.split(' ').map(function(n){return parseFloat(n)*SCALE;}));
-          ctx.stroke(); ctx.setLineDash([]);
-          if(c.label){
+          var wps=(c.waypoints&&c.waypoints.length)?c.waypoints:null;
+          ctx.strokeStyle=ct.color; ctx.lineWidth=(c.width||4)*SCALE;
+          ctx.lineJoin='round'; ctx.lineCap='round';
+          if(ct.dash) ctx.setLineDash(ct.dash.split(' ').map(function(n){return parseFloat(n)*SCALE;})); else ctx.setLineDash([]);
+          var afx,afy,atx,aty,nx,ny,bnx,bny,mx,my,pts;
+          if(wps){
+            var first=wps[0], last=wps[wps.length-1];
+            var sdx=first.x-fcx, sdy=first.y-fcy, sd=Math.hypot(sdx,sdy)||1; bnx=sdx/sd; bny=sdy/sd;
+            var edx=tcx-last.x, edy=tcy-last.y, ed=Math.hypot(edx,edy)||1; nx=edx/ed; ny=edy/ed;
+            afx=fcx+bnx*fR; afy=fcy+bny*fR; atx=tcx-nx*tR; aty=tcy-ny*tR;
+            pts=[{x:afx,y:afy}].concat(wps.map(function(p){return {x:p.x,y:p.y};})).concat([{x:atx,y:aty}]);
+            ctx.beginPath(); ctx.moveTo(wx(pts[0].x),wy(pts[0].y));
+            for(var i=1;i<pts.length;i++) ctx.lineTo(wx(pts[i].x),wy(pts[i].y));
+            ctx.stroke();
+            var midp=pts[Math.floor(pts.length/2)]; mx=midp.x; my=midp.y;
+          } else {
+            var ddx=tcx-fcx, ddy=tcy-fcy, dist=Math.hypot(ddx,ddy)||1; nx=ddx/dist; ny=ddy/dist; bnx=nx; bny=ny;
+            afx=fcx+nx*fR; afy=fcy+ny*fR; atx=tcx-nx*tR; aty=tcy-ny*tR;
+            my=(afy+aty)/2; mx=(afx+atx)/2;
+            ctx.beginPath(); ctx.moveTo(wx(afx),wy(afy));
+            ctx.bezierCurveTo(wx(afx),wy(my), wx(atx),wy(my), wx(atx),wy(aty));
+            ctx.stroke();
+          }
+          ctx.setLineDash([]);
+          var ARR=14*SCALE, dir=c.direction||'forward';
+          if(dir==='forward'||dir==='both') _arrow(wx(atx),wy(aty), nx, ny, ct.color, ARR);
+          if(dir==='backward'||dir==='both') _arrow(wx(afx),wy(afy), -bnx, -bny, ct.color, ARR);
+          if(c.label||c.length){
+            var txt=[c.label,c.length].filter(Boolean).join(' · ');
             ctx.font=(11*SCALE)+'px sans-serif'; ctx.fillStyle=ct.color;
             ctx.textAlign='center'; ctx.textBaseline='middle';
-            ctx.fillText(c.label, wx((fx+tx)/2), wy(my)-6*SCALE);
+            ctx.fillText(txt, wx(mx), wy(my)-6*SCALE);
           }
         });
 
