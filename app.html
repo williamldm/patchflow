@@ -7691,7 +7691,7 @@ function _buildPdfRecapBlock(rows,accentColor){
   +'</div>';
 }
 
-function doPDF(){
+async function doPDF(){
   const type = _pdfExportType;
   const $v = id => (document.getElementById(id)?.value||'').trim();
   const brand = _pdfBrand();
@@ -7732,7 +7732,7 @@ function doPDF(){
       toast('Plan de scène vide (live:0 · sauvé:'+_saved+' · scène:'+(CUR_SCENES.stage||'-')+')');
       return;
     }
-    _ensureShareActive(); /* activer le partage pour que le lien/QR du PDF fonctionne */
+    await _ensureShareActive(); /* activer le partage (rider) AVANT de générer le lien/QR — sinon « pas de lien actif » */
     _makeBpCanvas(function(cv){
       try{
         if(!cv){toast('Plan de scène : canvas vide.');return;}
@@ -7752,6 +7752,7 @@ function doPDF(){
       if(!_s2&&SHOW_SCENES.site&&SHOW_SCENES.site.length){var _sc2=SHOW_SCENES.site.find(function(s){return s.id===CUR_SCENES.site;});_s2=_sc2&&_sc2.data&&_sc2.data.site||null;}
       if(_s2) SitePlan.load(_s2);
     }
+    await _ensureShareActive(); /* activer le partage (rider) AVANT de générer le lien/QR */
     SitePlan.exportCanvas(function(cv){
       try{
         if(!cv){toast('Plan de site vide — rien à exporter.');return;}
@@ -7770,6 +7771,7 @@ function doPDF(){
     if(!synEl||!synEl.children.length){toast('Synoptique vide — rien à exporter.');return;}
     const svgEl = document.getElementById('sp-edges');
     const synHtml = (svgEl?svgEl.outerHTML:'') + synEl.innerHTML;
+    await _ensureShareActive(); /* activer le partage (rider) AVANT de générer le lien/QR */
     const shareUrl = window.location.origin+window.location.pathname+'?view='+(CUR_SHOW?.id||'')+'&tab=syno';
     _openSynoPdf(meta, synHtml, shareUrl, brand);
     return;
@@ -7786,6 +7788,7 @@ function doPDF(){
        - out  → onglets Output + Input, Output actif
        - both → onglets Input + Output, Input actif
        - in   → Input seul (comportement d'origine) */
+  if(_inclLink) await _ensureShareActive(); /* activer le partage (rider) AVANT de générer le lien/QR */
   var _slBase = window.location.origin+window.location.pathname+'?view='+(CUR_SHOW?.id||'');
   const _shareUrl = !_inclLink ? ''
     : type==='out'  ? _slBase+'&sections=out,il'
