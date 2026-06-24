@@ -12801,9 +12801,16 @@ const SitePlan = (() => {
       if(svgStr && !/\bwidth=/.test(svgStr)) svgStr = svgStr.replace(/^<svg /, '<svg width="64" height="64" ');
       const svgBlob = new Blob([svgStr], {type:'image/svg+xml'});
       const url = URL.createObjectURL(svgBlob);
-      img.onload = img.onerror = function() {
-        /* Accept the image even if naturalWidth is 0 (some browsers report 0 for SVG) */
-        _siteIconImgs[k] = img.complete ? img : null;
+      /* onload = succès (on accepte même si naturalWidth==0, certains navigateurs
+         le rapportent ainsi pour les SVG). onerror = image cassée → null, sinon
+         drawImage lève InvalidStateError ('broken' state) et casse tout l'export. */
+      img.onload = function() {
+        _siteIconImgs[k] = img;
+        URL.revokeObjectURL(url);
+        if (--pending === 0) done();
+      };
+      img.onerror = function() {
+        _siteIconImgs[k] = null;
         URL.revokeObjectURL(url);
         if (--pending === 0) done();
       };
@@ -12941,7 +12948,7 @@ const SitePlan = (() => {
     };
     _loadSiteIconImgs(function() {
       _loadSiteCustomImgs(function(){
-        const _safeDraw=function(bgImg){try{_draw(bgImg);}catch(e){if(typeof toast!=='undefined')toast('Err canvas: '+e.message);console.error('_makeCanvas _draw:',e);cb(null);}};
+        const _safeDraw=function(bgImg){try{_draw(bgImg);}catch(e){if(typeof toast!=='undefined')toast('Erreur lors du rendu du plan : '+e.message);console.error('_makeCanvas _draw:',e);cb(null);}};
         if(state.bgImage){ const img=new Image(); img.onload=()=>_safeDraw(img); img.onerror=()=>_safeDraw(null); img.src=state.bgImage; }
         else { _safeDraw(null); }
       });
