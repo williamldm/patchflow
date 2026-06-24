@@ -7714,12 +7714,34 @@ function doPDF(){
 
   /* ── Visual plans — image-based exports ── */
   if(type === 'stage'){
-    if(!BandPlan.getData().els.length){toast('Plan de scène vide — rien à exporter.');return;}
+    /* Le module live peut être désynchronisé (scènes) : si BandPlan rapporte
+       vide, retomber sur la scène active puis sur stage_data.band avant
+       d'abandonner. */
+    var _live=BandPlan.getData();
+    if(!_live.els.length){
+      var _bd=null;
+      if(typeof canDo!=='undefined' && canDo('multi_scenes') && CUR_SCENES.stage && SHOW_SCENES.stage){
+        var _ss=SHOW_SCENES.stage.find(function(s){return s.id===CUR_SCENES.stage;});
+        _bd=_ss&&_ss.data&&_ss.data.band||null;
+      }
+      if(!(_bd&&_bd.els&&_bd.els.length)) _bd=CUR_SHOW?.stage_data?.band||null;
+      if(_bd&&_bd.els&&_bd.els.length){ BandPlan.load(_bd); _live=BandPlan.getData(); }
+    }
+    if(!_live.els.length){
+      var _saved=(CUR_SHOW&&CUR_SHOW.stage_data&&CUR_SHOW.stage_data.band&&CUR_SHOW.stage_data.band.els&&CUR_SHOW.stage_data.band.els.length)||0;
+      toast('Plan de scène vide (live:0 · sauvé:'+_saved+' · scène:'+(CUR_SCENES.stage||'-')+')');
+      return;
+    }
     _ensureShareActive(); /* activer le partage pour que le lien/QR du PDF fonctionne */
     _makeBpCanvas(function(cv){
-      const dataUrl = cv.toDataURL('image/png');
-      const shareUrl = window.location.origin+window.location.pathname+'?view='+(CUR_SHOW?.id||'')+'&tab=stage';
-      _openVisualPdf('Plan de scene', meta, dataUrl, shareUrl, brand);
+      try{
+        if(!cv){toast('Plan de scène : canvas vide.');return;}
+        var dataUrl;
+        try{ dataUrl=cv.toDataURL('image/png'); }
+        catch(corsErr){ toast('Erreur export (image CORS) : '+corsErr.message); console.error('stage pdf toDataURL:',corsErr); return; }
+        const shareUrl=window.location.origin+window.location.pathname+'?view='+(CUR_SHOW?.id||'')+'&tab=stage';
+        _openVisualPdf('Plan de scene', meta, dataUrl, shareUrl, brand).catch(function(e){toast('Erreur PDF : '+e.message);console.error('_openVisualPdf:',e);});
+      }catch(e){toast('Erreur export PDF : '+e.message);console.error('stage pdf cb:',e);}
     });
     return;
   }
