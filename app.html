@@ -185,11 +185,56 @@ body{display:flex;flex-direction:column;min-height:100vh}
   /* Side panel full width */
   .side-panel{width:100%;border-left:none;border-top:1px solid var(--bdr2)}
 
-  /* Input list: horizontal scroll hint */
-  .table-wrap{-webkit-overflow-scrolling:touch}
-  .iltable{min-width:600px;font-size:10px}
-  .iltable th{padding:7px 6px;font-size:8px}
-  .iltable td{padding:4px 6px}
+  /* ── Input/Output List → cartes empilées (lisible et tactile) ──
+     Le tableau large devient une pile de cartes : un canal = une carte,
+     chaque cellule devient « libellé : champ ». Réutilise tout le JS
+     existant (autosave, temps réel, annuler, réordonner, colonnes visibles). */
+  #il-table-wrap .table-wrap,#out-table-wrap .table-wrap{
+    overflow:visible;border:none;border-radius:0;background:transparent}
+  .iltable{display:block;width:100%;min-width:0;font-size:13px}
+  .iltable thead{display:none}                 /* en-têtes inutiles : chaque cellule porte son libellé */
+  .iltable tbody{display:block}
+  .iltable tbody tr{
+    display:block;background:var(--surf2);border:1px solid var(--bdr2);
+    border-radius:13px;padding:6px 12px 10px;margin-bottom:13px;box-shadow:0 1px 4px rgba(0,0,0,.18)}
+  .iltable tbody tr:hover td,.iltable tbody tr.flash td{background:transparent}
+  .iltable tbody tr.flash{background:rgba(34,214,160,.08)}
+  .iltable tbody td{
+    display:flex;align-items:center;gap:12px;width:auto;
+    padding:8px 0;border:none;border-bottom:1px solid var(--bdr);min-height:42px}
+  .iltable tbody td:last-child{border-bottom:none}
+  /* Libellé de gauche tiré de data-label */
+  .iltable tbody td[data-label]::before{
+    content:attr(data-label);flex:0 0 88px;
+    font-family:var(--m);font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+  /* Champs : pleine largeur, hauteur tactile, bordure visible */
+  .iltable tbody td .ilinp{
+    flex:1;width:auto;font-size:16px;padding:9px 10px;
+    background:var(--bg);border:1px solid var(--bdr2);border-radius:8px}
+  .iltable tbody td .ilinp:focus{border-color:var(--ora);background:var(--bg)}
+  .iltable tbody td .ilinp.m,.iltable tbody td .ilinp.sh{font-size:16px}
+  .iltable tbody td .ilinp[type=number]{flex:0 0 90px;width:auto;text-align:center}
+  .iltable tbody td .out-type-sel{flex:1;width:auto;font-size:15px;padding:9px 10px}
+  /* Cases à cocher = grosses cibles, alignées à droite */
+  .iltable tbody td input[type=checkbox].cb{width:28px;height:28px;margin-left:auto}
+  /* Numéro de canal = bandeau-titre de la carte */
+  .iltable tbody td.ch-num{
+    justify-content:flex-start;font-size:22px;font-weight:800;color:var(--ora);
+    padding:4px 0 9px;margin-bottom:3px;border-bottom:2px solid var(--bdr2);min-height:0}
+  .iltable tbody td.ch-num::before{
+    content:"CH";flex:0 0 auto;margin-right:8px;font-family:var(--m);
+    font-size:11px;font-weight:500;letter-spacing:1px;color:var(--muted)}
+  /* Cellule actions = pied de carte, boutons larges */
+  .iltable tbody td.il-actions-cell{
+    justify-content:flex-end;gap:4px;padding-top:10px;border-bottom:none}
+  .iltable tbody td.il-actions-cell .move-btn,
+  .iltable tbody td.il-actions-cell .del-btn{
+    width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;font-size:18px}
+  .iltable tbody td.il-actions-cell .del-btn{color:var(--err);margin-left:6px}
+  .iltable tbody td.il-actions-cell .drag-handle{display:none}  /* glisser tactile non fiable → on garde ↑/↓ */
+  /* Bouton « + Canal » détaché sous la pile de cartes */
+  #il-table-wrap .add-row,#out-table-wrap .add-row{
+    border-radius:11px;border-style:solid;padding:14px;font-size:14px;margin-top:2px}
 
   /* Template quick bar horizontal scroll */
   #tpl-quick-list{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
@@ -4203,13 +4248,13 @@ function renderOutTable() {
     }).join('');
     return '<tr data-outid="'+r.id+'">'
       +'<td class="ch-num">'+r.ch+'</td>'
-      +'<td><input class="ilinp sh" maxlength="8" value="'+_oh(r.short_name||'')+'" onchange="updateOutField(\''+r.id+'\',\'short_name\',this.value.toUpperCase().slice(0,8))"/></td>'
-      +'<td><input class="ilinp" style="min-width:100px" value="'+_oh(r.long_name||'')+'" onchange="updateOutField(\''+r.id+'\',\'long_name\',this.value)"/></td>'
-      +'<td><select class="out-type-sel" style="color:'+t.color+'" onchange="updateOutField(\''+r.id+'\',\'type\',this.value)">'+opts+'</select></td>'
-      +'<td><input class="ilinp" value="'+_oh(r.dest||'')+'" onchange="updateOutField(\''+r.id+'\',\'dest\',this.value)" placeholder="Ampli, zone, room..."/></td>'
-      +'<td><input class="ilinp m" style="color:var(--grn);width:74px" value="'+_oh(r.hf||'')+'" onchange="updateOutField(\''+r.id+'\',\'hf\',this.value)" placeholder="MHz"/></td>'
-      +'<td><input class="ilinp" value="'+_oh(r.note||'')+'" onchange="updateOutField(\''+r.id+'\',\'note\',this.value)"/></td>'
-      +'<td style="white-space:nowrap">'
+      +'<td data-label="Court"><input class="ilinp sh" maxlength="8" value="'+_oh(r.short_name||'')+'" onchange="updateOutField(\''+r.id+'\',\'short_name\',this.value.toUpperCase().slice(0,8))"/></td>'
+      +'<td data-label="Nom long"><input class="ilinp" style="min-width:100px" value="'+_oh(r.long_name||'')+'" onchange="updateOutField(\''+r.id+'\',\'long_name\',this.value)"/></td>'
+      +'<td data-label="Type"><select class="out-type-sel" style="color:'+t.color+'" onchange="updateOutField(\''+r.id+'\',\'type\',this.value)">'+opts+'</select></td>'
+      +'<td data-label="Destination"><input class="ilinp" value="'+_oh(r.dest||'')+'" onchange="updateOutField(\''+r.id+'\',\'dest\',this.value)" placeholder="Ampli, zone, room..."/></td>'
+      +'<td data-label="Fréq. HF"><input class="ilinp m" style="color:var(--grn);width:74px" value="'+_oh(r.hf||'')+'" onchange="updateOutField(\''+r.id+'\',\'hf\',this.value)" placeholder="MHz"/></td>'
+      +'<td data-label="Note"><input class="ilinp" value="'+_oh(r.note||'')+'" onchange="updateOutField(\''+r.id+'\',\'note\',this.value)"/></td>'
+      +'<td class="il-actions-cell" style="white-space:nowrap">'
       +'<button class="move-btn" onclick="moveOutRow(\''+r.id+'\',-1)"'+(i===0?' disabled':'')+' ><i class="ti ti-chevron-up"></i></button>'
       +'<button class="move-btn" onclick="moveOutRow(\''+r.id+'\',1)"'+(i===OUT_CHS.length-1?' disabled':'')+' ><i class="ti ti-chevron-down"></i></button>'
       +'<button class="del-btn" onclick="deleteOutRow(\''+r.id+'\')"><i class="ti ti-trash"></i></button>'
@@ -4875,20 +4920,20 @@ function renderTable(){
     document.getElementById('il-body').innerHTML=CHS.map(r=>`
     <tr data-rid="${r.id}" draggable="true">
       <td class="ch-num">${r.ch}</td>
-      <td data-col="short"><input class="ilinp sh" maxlength="4" value="${_oh((r.short_name||'').trim())}" onchange="scheduleSave('${r.id}','short_name',this.value.toUpperCase().slice(0,4));renderPills()"/></td>
-      <td data-col="long"><input class="ilinp" value="${_oh(r.long_name||'')}" onchange="scheduleSave('${r.id}','long_name',this.value);renderPills()"/></td>
-      <td data-col="src"><input class="ilinp" style="color:var(--txt2)" value="${_oh(r.source||'')}" onchange="scheduleSave('${r.id}','source',this.value)"/></td>
-      <td data-col="mic"><input class="ilinp m" value="${_oh(r.mic||'')}" onchange="scheduleSave('${r.id}','mic',this.value)"/></td>
-      <td data-col="gain"><input class="ilinp m" type="number" style="width:42px" value="${r.gain||0}" min="-60" max="60" step="1" onchange="scheduleSave('${r.id}','gain',parseInt(this.value)||0)"/></td>
-      <td data-col="phantom" style="text-align:center"><input type="checkbox" class="cb" ${r.phantom?'checked':''} onchange="scheduleSave('${r.id}','phantom',this.checked)"/></td>
-      <td data-col="iem"><input class="ilinp m" style="color:var(--grn);width:46px" value="${_oh(r.iem_group||'')}" onchange="scheduleSave('${r.id}','iem_group',this.value)" placeholder="GR1"/></td>
-      <td data-col="hf"><input class="ilinp m" style="color:var(--accent2,#9b6aff);width:74px" value="${_oh((r.custom_data&&r.custom_data._hf)||'')}" onchange="saveCustomCell('${r.id}','_hf',this.value)" placeholder="MHz"/></td>
-      <td data-col="foh" style="text-align:center"><input type="checkbox" class="cb blu" ${r.foh?'checked':''} onchange="scheduleSave('${r.id}','foh',this.checked)"/></td>
-      <td data-col="mon" style="text-align:center"><input type="checkbox" class="cb warn" ${r.mon?'checked':''} onchange="scheduleSave('${r.id}','mon',this.checked)"/></td>
-      <td data-col="bc" style="text-align:center"><input type="checkbox" class="cb grn" ${r.bc?'checked':''} onchange="scheduleSave('${r.id}','bc',this.checked)"/></td>
-      <td data-col="note"><input class="ilinp" list="il-note-list" style="color:var(--txt2)" value="${_oh(r.note||'')}" placeholder="—" onchange="scheduleSave('${r.id}','note',_expandNoteAbbr(this))" onblur="_expandNoteAbbr(this)"/></td>
-      ${_getCustomCols().map(col=>{const v=(r.custom_data&&r.custom_data[col.id])||'';return `<td data-col="${col.id}" style="text-align:${col.type==='bool'?'center':'left'}">${_customCellHTML(col,r.id,v)}</td>`;}).join('')}
-      <td style="white-space:nowrap">
+      <td data-col="short" data-label="Court"><input class="ilinp sh" maxlength="4" value="${_oh((r.short_name||'').trim())}" onchange="scheduleSave('${r.id}','short_name',this.value.toUpperCase().slice(0,4));renderPills()"/></td>
+      <td data-col="long" data-label="Nom long"><input class="ilinp" value="${_oh(r.long_name||'')}" onchange="scheduleSave('${r.id}','long_name',this.value);renderPills()"/></td>
+      <td data-col="src" data-label="Source"><input class="ilinp" style="color:var(--txt2)" value="${_oh(r.source||'')}" onchange="scheduleSave('${r.id}','source',this.value)"/></td>
+      <td data-col="mic" data-label="Micro/DI"><input class="ilinp m" value="${_oh(r.mic||'')}" onchange="scheduleSave('${r.id}','mic',this.value)"/></td>
+      <td data-col="gain" data-label="Gain"><input class="ilinp m" type="number" style="width:42px" value="${r.gain||0}" min="-60" max="60" step="1" onchange="scheduleSave('${r.id}','gain',parseInt(this.value)||0)"/></td>
+      <td data-col="phantom" data-label="+48V" style="text-align:center"><input type="checkbox" class="cb" ${r.phantom?'checked':''} onchange="scheduleSave('${r.id}','phantom',this.checked)"/></td>
+      <td data-col="iem" data-label="IEM"><input class="ilinp m" style="color:var(--grn);width:46px" value="${_oh(r.iem_group||'')}" onchange="scheduleSave('${r.id}','iem_group',this.value)" placeholder="GR1"/></td>
+      <td data-col="hf" data-label="Fréq. HF"><input class="ilinp m" style="color:var(--accent2,#9b6aff);width:74px" value="${_oh((r.custom_data&&r.custom_data._hf)||'')}" onchange="saveCustomCell('${r.id}','_hf',this.value)" placeholder="MHz"/></td>
+      <td data-col="foh" data-label="FOH" style="text-align:center"><input type="checkbox" class="cb blu" ${r.foh?'checked':''} onchange="scheduleSave('${r.id}','foh',this.checked)"/></td>
+      <td data-col="mon" data-label="MON" style="text-align:center"><input type="checkbox" class="cb warn" ${r.mon?'checked':''} onchange="scheduleSave('${r.id}','mon',this.checked)"/></td>
+      <td data-col="bc" data-label="BC" style="text-align:center"><input type="checkbox" class="cb grn" ${r.bc?'checked':''} onchange="scheduleSave('${r.id}','bc',this.checked)"/></td>
+      <td data-col="note" data-label="Note"><input class="ilinp" list="il-note-list" style="color:var(--txt2)" value="${_oh(r.note||'')}" placeholder="—" onchange="scheduleSave('${r.id}','note',_expandNoteAbbr(this))" onblur="_expandNoteAbbr(this)"/></td>
+      ${_getCustomCols().map(col=>{const v=(r.custom_data&&r.custom_data[col.id])||'';return `<td data-col="${col.id}" data-label="${_oh(col.label||'')}" style="text-align:${col.type==='bool'?'center':'left'}">${_customCellHTML(col,r.id,v)}</td>`;}).join('')}
+      <td class="il-actions-cell" style="white-space:nowrap">
         <i class="ti ti-grip-vertical drag-handle"></i>
         <button class="move-btn" onclick="moveRow('${r.id}',-1)" ${r.ch===1?'disabled':''}><i class="ti ti-chevron-up"></i></button>
         <button class="move-btn" onclick="moveRow('${r.id}',1)" ${r.ch===CHS.length?'disabled':''}><i class="ti ti-chevron-down"></i></button>
