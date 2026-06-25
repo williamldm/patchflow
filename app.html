@@ -2511,7 +2511,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
   <div class="modal-box" style="width:400px;max-width:95vw">
     <div class="modal-head">
       <i class="ti ti-line" style="font-size:15px;color:var(--ora)"></i>
-      <span class="modal-title">Nouveau type de cable</span>
+      <span class="modal-title" id="nct-title">Nouveau type de cable</span>
       <button class="btn ghost sm" onclick="closeCableTypeModal()"><i class="ti ti-x"></i></button>
     </div>
     <div class="modal-body" style="padding:18px 20px 20px;display:flex;flex-direction:column;gap:14px">
@@ -12177,6 +12177,32 @@ const SitePlan = (() => {
     renderCablePicker();
   }
 
+  /* Surcharges (label/couleur/trait) des liaisons — y compris les types
+     intégrés (qui ne sont pas dans CUSTOM_CABLES_KEY). Persistées et
+     ré-appliquées au chargement. */
+  const CABLE_OVERRIDES_KEY = 'siteplan_cable_overrides';
+  function _loadCableOverrides(){ try{ return JSON.parse(localStorage.getItem(CABLE_OVERRIDES_KEY)||'{}')||{}; }catch(e){ return {}; } }
+  function _saveCableOverride(id,patch){ try{ var o=_loadCableOverrides(); o[id]=Object.assign({},o[id],patch); localStorage.setItem(CABLE_OVERRIDES_KEY,JSON.stringify(o)); }catch(e){} }
+  function _applyCableOverrides(){
+    var o=_loadCableOverrides();
+    CABLE_TYPES.forEach(function(t){
+      var ov=o[t.id]; if(!ov) return;
+      if(ov.label!=null) t.label=ov.label;
+      if(ov.color!=null) t.color=ov.color;
+      if(ov.dash!=null)  t.dash=ov.dash;
+    });
+  }
+  /* Renommer / recolorier une liaison (intégrée ou personnalisée). */
+  function updateCableType(id, patch){
+    var c=CABLE_TYPES.find(function(t){return t.id===id;}); if(!c) return;
+    if(patch.label!=null) c.label=patch.label;
+    if(patch.color!=null) c.color=patch.color;
+    if(patch.dash!=null)  c.dash=patch.dash;
+    if(c.builtin) _saveCableOverride(id,{label:c.label,color:c.color,dash:c.dash});
+    else _saveCustomCableTypes();
+    renderCablePicker(); renderCables(); renderLegend();
+  }
+
   let state = { elements:[], cables:[], bgImage:null, bgOpacity:100, view:{panX:60,panY:60,zoom:1}, selected:null, linkFrom:null, freePt1:null, activeCableType:'xlr', textScale:1, legendScale:1, cableTextScale:1, cableMode:false };
   let dragging=null, panning=null, inited=false, resizing=null, _wpDrag=null, _wpAddCid=null;
 
@@ -12190,6 +12216,7 @@ const SitePlan = (() => {
     if(inited) return;
     inited = true;
     _loadCustomCableTypes();
+    _applyCableOverrides();
     renderPalette();
     renderCablePicker();
     bindEvents();
@@ -12322,11 +12349,14 @@ const SitePlan = (() => {
         ? `background:repeating-linear-gradient(90deg,${_c2} 0,${_c2} 7px,transparent 7px,transparent 10px);`
         : `background:${_c2};`;
       const isCur = ct2.id === state.activeCableType;
+      const _isPro = (typeof userPlan==='function') && userPlan()==='pro';
+      const editBtn = _isPro ?
+        `<button class="spl-cable-del" data-edit="${ct2.id}" title="Renommer / couleur" onclick="event.stopPropagation();editCableType('${ct2.id}')" style="opacity:.6"><i class="ti ti-pencil" style="font-size:10px"></i></button>` : '';
       const delBtn = ct2.builtin ? '' :
         `<button class="spl-cable-del" data-del="${ct2.id}" title="Supprimer" onclick="event.stopPropagation();SitePlan.deleteCustomCableType('${ct2.id}')">✕</button>`;
       return `<div style="display:flex;align-items:center;gap:2px">` +
         `<button class="spl-cable-btn${isCur?' active':''}" style="--c:${_c2};flex:1" onclick="SitePlan.setActiveCableType('${ct2.id}')">` +
-        `<div class="spl-cable-dot-sm" style="${ds}"></div>${esc(ct2.label)}</button>${delBtn}</div>`;
+        `<div class="spl-cable-dot-sm" style="${ds}"></div>${esc(ct2.label)}</button>${editBtn}${delBtn}</div>`;
     }).join('');
     const addBtn =
       `<button class="spl-cable-btn" style="color:var(--ora);font-weight:600;margin-top:3px;border:1px dashed var(--bdr2)" onclick="openCableTypeModal()">` +
@@ -13429,7 +13459,7 @@ const SitePlan = (() => {
     saveSite(); render(); renderInspector();
     setTimeout(function(){ uploadElementIcon(id); },80);
   }
-  return {init,load,getData,loadBg,setBgOpacity,clearBg,clear,zoom,setZoomPct,fitView,resetView,selectCable,exportPng,exportCanvas,exportCanvasSafe,hasContent,setActiveCableType,toggleCableMode,setTextScale,setLegendScale,setCableTextScale,deleteCustomCableType,uploadElementIcon,clearElementIcon,adjImgPx,
+  return {init,load,getData,loadBg,setBgOpacity,clearBg,clear,zoom,setZoomPct,fitView,resetView,selectCable,exportPng,exportCanvas,exportCanvasSafe,hasContent,setActiveCableType,toggleCableMode,setTextScale,setLegendScale,setCableTextScale,deleteCustomCableType,updateCableType,uploadElementIcon,clearElementIcon,adjImgPx,
     /* Exposés pour le rendu fidèle côté lien partagé (couleur + icône réelles
        de la palette, identiques à _makeCanvas). */
     itemMeta:function(t){var it=findItem(t); return {color:(it&&it.color)||'#5a6a80', icon:(it&&it.icon)||null, label:(it&&it.label)||t};},
@@ -13795,18 +13825,31 @@ async function sessionSwitch(id){
 // ══════════════════════════════════════
 // CABLE TYPE MODAL
 // ══════════════════════════════════════
-function openCableTypeModal() {
+/* id de la liaison en cours d'édition (null = création d'un nouveau type) */
+let _editingCableId = null;
+/* Ouvre la modale pour RENOMMER / RECOLORIER une liaison (Pro). */
+function editCableType(id){
+  if(typeof userPlan==='function' && userPlan()!=='pro'){ if(typeof showUpgradeModal==='function') showUpgradeModal('multi_patches'); return; }
+  var meta = (typeof SitePlan!=='undefined' && SitePlan.cableMeta) ? SitePlan.cableMeta(id) : null;
+  if(!meta){ toast('Liaison introuvable.'); return; }
+  openCableTypeModal({ id:id, label:meta.label||'', color:meta.color||'#44bbff', dash:meta.dash||'' });
+}
+function openCableTypeModal(edit) {
   const m = document.getElementById('cable-type-modal');
   if(!m) return;
-  // Reset form
+  const isEdit = edit && edit.id;
+  _editingCableId = isEdit ? edit.id : null;
   const lbl = document.getElementById('nct-label');
   const col  = document.getElementById('nct-color');
   const hex  = document.getElementById('nct-color-hex');
   const dash = document.getElementById('nct-dash');
-  if(lbl)  lbl.value  = '';
-  if(col)  col.value  = '#44bbff';
-  if(hex)  hex.value  = '#44bbff';
-  if(dash) dash.value = '';
+  const initColor = isEdit ? (/^#[0-9a-fA-F]{6}$/.test(edit.color)?edit.color:'#44bbff') : '#44bbff';
+  if(lbl)  lbl.value  = isEdit ? edit.label : '';
+  if(col)  col.value  = initColor;
+  if(hex)  hex.value  = initColor;
+  if(dash) dash.value = isEdit ? (edit.dash||'') : '';
+  const ttl = document.getElementById('nct-title'); if(ttl) ttl.textContent = isEdit ? 'Modifier la liaison' : 'Nouveau type de cable';
+  const sbtn = document.getElementById('nct-save-btn'); if(sbtn) sbtn.innerHTML = '<i class="ti ti-check"></i>'+(isEdit?'Enregistrer':'Ajouter');
   _nctUpdatePreview();
   m.classList.add('show');
   setTimeout(function(){ if(lbl) lbl.focus(); }, 80);
@@ -13859,6 +13902,16 @@ function saveNewCableType() {
   if(!label) { if(lbl){ lbl.style.outline='2px solid var(--err)'; setTimeout(function(){lbl.style.outline='';},1200); } return; }
   const rawColor = (hex && /^#[0-9a-fA-F]{6}$/.test(hex.value)) ? hex.value : (col ? col.value : '#44bbff');
   const dashVal  = dash ? dash.value : '';
+  /* Mode édition : on met à jour la liaison existante (renommer / recolorier). */
+  if(_editingCableId){
+    if(typeof SitePlan !== 'undefined' && SitePlan.updateCableType){
+      SitePlan.updateCableType(_editingCableId, { label:label, color:rawColor, dash:dashVal });
+    }
+    _editingCableId = null;
+    closeCableTypeModal();
+    toast('✓ Liaison "' + label + '" mise à jour');
+    return;
+  }
   const id = 'custom_' + Date.now().toString(36);
   const newType = { id:id, label:label, color:rawColor, dash:dashVal, builtin:false };
   if(typeof SitePlan !== 'undefined' && SitePlan.addCustomCableType) {
