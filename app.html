@@ -430,8 +430,10 @@ body{display:flex;flex-direction:column;min-height:100vh}
 /* ── PDF.js viewer ── */
 .fich-pdf-loading{display:flex;align-items:center;justify-content:center;gap:10px;padding:60px 20px;color:var(--muted);font-size:13px;flex:1;height:100%}
 .fich-pdf-nav{display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--surf2);border-bottom:1px solid var(--bdr);flex-shrink:0;flex-wrap:wrap}
-.fich-pdf-pageinfo{font-family:var(--m);font-size:11px;color:var(--txt2);min-width:60px;text-align:center}
-.fich-pdf-wrap{flex:1;overflow-y:auto;overflow-x:auto;padding:16px;display:flex;flex-direction:column;align-items:center;gap:16px;background:#1a1a2e}
+.fich-pdf-pageinfo{font-family:var(--m);font-size:11px;color:var(--txt2);min-width:52px;text-align:center}
+.fich-pdf-nav-sep{flex:1;min-width:6px}
+.fich-pdf-wrap{flex:1;overflow-y:auto;overflow-x:auto;padding:16px;background:#1a1a2e;touch-action:pan-y}
+.fich-pdf-inner{display:flex;flex-direction:column;align-items:center;gap:16px;width:100%;min-width:min-content}
 .fich-pdf-page{position:relative;flex-shrink:0}
 .fich-pdf-canvas{border-radius:4px;box-shadow:0 4px 24px rgba(0,0,0,.6);display:block;position:absolute;top:0;left:0;pointer-events:none}
 .fich-pdf-text{position:absolute;top:0;left:0;overflow:hidden;line-height:1;user-select:text;-webkit-user-select:text}
@@ -439,6 +441,8 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .fich-pdf-text span::selection,.fich-pdf-text span::-moz-selection{background:rgba(0,120,255,.3)}
 .fich-pdf-text .markedContent{position:absolute;top:0;height:0}
 .fich-pdf-text br{display:none}
+.fich-pdf-zoom-badge{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.8);color:#fff;font-size:22px;font-weight:700;padding:14px 28px;border-radius:14px;pointer-events:none;opacity:0;transition:opacity .15s;z-index:9999;white-space:nowrap}
+.fich-pdf-zoom-badge.show{opacity:1}
 #fich-viewer-content{display:flex;flex-direction:column}
 #fich-viewer-modal{display:none;position:fixed;inset:0;z-index:1200}
 .fich-viewer-ov{position:absolute;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(4px)}
@@ -448,6 +452,17 @@ body{display:flex;flex-direction:column;min-height:100vh}
 #fich-viewer-content{flex:1;overflow:auto;min-height:0;background:#08080f}
 #fich-viewer-content video{width:100%;height:100%;display:block;object-fit:contain;background:#000}
 .fich-audio-wrap{display:flex;align-items:center;justify-content:center;height:100%;padding:40px;background:var(--surf)}
+/* PDF viewer — adaptations mobile */
+@media(max-width:767px){
+  .fich-viewer-win{top:0;left:0;right:0;bottom:0;border-radius:0}
+  .fich-viewer-bar{padding:8px 10px}
+  .fich-viewer-bar .fich-dl-txt{display:none}
+  .fich-pdf-nav{order:1;border-bottom:none;border-top:1px solid var(--bdr);flex-wrap:nowrap;overflow-x:auto;padding:6px 8px;gap:2px}
+  .fich-pdf-wrap{order:0;padding:6px 4px}
+  .fich-pdf-inner{gap:8px}
+  .fich-pdf-nav .btn.sm{min-height:44px;min-width:44px;display:flex;align-items:center;justify-content:center;padding:0 8px;font-size:15px}
+  .fich-pdf-pageinfo{min-width:44px}
+}
 .fich-audio-wrap audio{width:100%;max-width:500px}
 /* Word viewer */
 .fich-docx-wrap{flex:1;overflow:auto;padding:32px;background:#f8fafc;min-height:0}
@@ -2410,7 +2425,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
     <div class="fich-viewer-bar">
       <span class="fich-viewer-title" id="fich-viewer-title"></span>
       <div style="display:flex;gap:6px;flex-shrink:0">
-        <a id="fich-viewer-dl" class="btn ghost sm" target="_blank"><i class="ti ti-download"></i> Télécharger</a>
+        <a id="fich-viewer-dl" class="btn ghost sm" target="_blank"><i class="ti ti-download"></i><span class="fich-dl-txt"> Télécharger</span></a>
         <button class="btn ghost sm" onclick="closeFichierViewer()"><i class="ti ti-x"></i></button>
       </div>
     </div>
@@ -15843,8 +15858,10 @@ async function _openPdfJs(url, container){
       '<button class="btn ghost sm" id="pdf-prev" onclick="_pdfPage(-1)" title="Page précédente"><i class="ti ti-chevron-left"></i></button>' +
       '<span id="pdf-page-info" class="fich-pdf-pageinfo">1 / ' + pdf.numPages + '</span>' +
       '<button class="btn ghost sm" id="pdf-next" onclick="_pdfPage(1)" title="Page suivante"><i class="ti ti-chevron-right"></i></button>' +
+      '<span class="fich-pdf-nav-sep"></span>' +
       '<button class="btn ghost sm" onclick="_pdfZoom(-0.2)" title="Zoom -"><i class="ti ti-zoom-out"></i></button>' +
-      '<button class="btn ghost sm" onclick="_pdfZoom(0.2)"  title="Zoom +"><i class="ti ti-zoom-in"></i></button>' +
+      '<span id="pdf-zoom-info" class="fich-pdf-pageinfo">100%</span>' +
+      '<button class="btn ghost sm" onclick="_pdfZoom(0.2)" title="Zoom +"><i class="ti ti-zoom-in"></i></button>' +
       '<button class="btn ghost sm" onclick="_pdfFit()" title="Ajuster"><i class="ti ti-arrows-maximize"></i></button>';
     container.appendChild(nav);
 
@@ -15852,34 +15869,99 @@ async function _openPdfJs(url, container){
     wrap.className = 'fich-pdf-wrap';
     container.appendChild(wrap);
 
-    window._pdfState = { pdf, page: 1, scale: null, zoom: 1.0, wrap, pageEls: [], observer: null, renderAll: null };
+    /* Conteneur interne : reçoit le transform CSS pendant le geste pinch */
+    const inner = document.createElement('div');
+    inner.className = 'fich-pdf-inner';
+    wrap.appendChild(inner);
+
+    /* Badge zoom : s'affiche brièvement au centre après chaque changement de zoom */
+    const badge = document.createElement('div');
+    badge.className = 'fich-pdf-zoom-badge';
+    container.appendChild(badge);
+
+    window._pdfState = { pdf, page: 1, scale: null, zoom: 1.0, wrap, inner, pageEls: [], observer: null, renderAll: null };
 
     function _calcFitScale(pg){
       const vp0 = pg.getViewport({ scale: 1 });
-      return Math.min(Math.max(wrap.clientWidth - 32, 300) / vp0.width, 1.5);
+      return Math.min(Math.max(inner.clientWidth || 300, 300) / vp0.width, 1.5);
     }
+
+    /* ── Pinch-to-zoom ── */
+    let _pinch = null, _badgeTimer = null;
+    function _pinchDist(t){ return Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY); }
+    function _pinchOrigin(t){
+      const r = inner.getBoundingClientRect();
+      return { x:(t[0].clientX+t[1].clientX)/2 - r.left, y:(t[0].clientY+t[1].clientY)/2 - r.top };
+    }
+    function _showBadge(zoom){
+      badge.textContent = Math.round(zoom*100)+'%';
+      badge.classList.add('show');
+      clearTimeout(_badgeTimer);
+      _badgeTimer = setTimeout(()=>badge.classList.remove('show'), 900);
+    }
+    wrap.addEventListener('touchstart', function(e){
+      if(e.touches.length === 2){
+        e.preventDefault();
+        _pinch = { dist:_pinchDist(e.touches), zoom:window._pdfState.zoom||1.0, origin:_pinchOrigin(e.touches) };
+      }
+    }, { passive:false });
+    wrap.addEventListener('touchmove', function(e){
+      if(e.touches.length === 2 && _pinch){
+        e.preventDefault();
+        const ratio = _pinchDist(e.touches) / _pinch.dist;
+        const nz = Math.max(0.2, Math.min(4.0, _pinch.zoom * ratio));
+        inner.style.transform = 'scale('+ratio+')';
+        inner.style.transformOrigin = _pinch.origin.x+'px '+_pinch.origin.y+'px';
+        _showBadge(nz);
+      }
+    }, { passive:false });
+    wrap.addEventListener('touchend', function(e){
+      if(_pinch && e.touches.length < 2){
+        const m = inner.style.transform.match(/scale\(([^)]+)\)/);
+        const ratio = m ? parseFloat(m[1]) : 1;
+        const nz = Math.max(0.2, Math.min(4.0, _pinch.zoom * ratio));
+        inner.style.transform = '';
+        inner.style.transformOrigin = '';
+        _pinch = null;
+        if(Math.abs(nz - (window._pdfState.zoom||1.0)) > 0.04){
+          window._pdfState.renderAll(nz);
+        }
+      }
+    }, { passive:true });
+
+    /* ── Double-tap : bascule fit ↔ 2× ── */
+    let _lastTap = 0;
+    wrap.addEventListener('touchend', function(e){
+      if(e.touches.length === 0 && e.changedTouches.length === 1 && !_pinch){
+        const now = Date.now();
+        if(now - _lastTap < 300){
+          const s = window._pdfState;
+          if(s && s.renderAll) (s.zoom||1) <= 1.05 ? s.renderAll(2.0) : _pdfFit();
+        }
+        _lastTap = now;
+      }
+    }, { passive:true });
 
     async function renderAllPages(zoomOverride){
       if(window._pdfState.observer){ window._pdfState.observer.disconnect(); window._pdfState.observer = null; }
-      wrap.innerHTML = '';
+      inner.innerHTML = '';
       window._pdfState.pageEls = [];
 
-      /* zoom : multiplicateur appliqué à chaque page par-dessus son fit individuel.
-         1.0 = chaque page remplit exactement la largeur disponible. */
+      /* zoom : multiplicateur sur le fitScale de chaque page (1.0 = remplit la largeur) */
       const zoom = zoomOverride !== undefined ? zoomOverride : (window._pdfState.zoom || 1.0);
       window._pdfState.zoom = zoom;
       const dpr = window.devicePixelRatio || 1;
 
+      const zi = document.getElementById('pdf-zoom-info');
+      if(zi) zi.textContent = Math.round(zoom*100)+'%';
+      _showBadge(zoom);
+
       for(var i = 1; i <= pdf.numPages; i++){
         const pg = await pdf.getPage(i);
-        /* Chaque page calcule son propre fitScale pour remplir la largeur du conteneur,
-           puis on applique le multiplicateur zoom (1.0 = fit, >1 = zoom in). */
         const fitScale = _calcFitScale(pg);
         const scale = fitScale * zoom;
-        window._pdfState.scale = scale; // dernière valeur, utilisée pour référence zoom
-        /* vVp : viewport visuel (taille CSS) — utilisé pour le layout et le calque texte */
+        window._pdfState.scale = scale;
         const vVp = pg.getViewport({ scale });
-        /* cVp : viewport haute résolution pour le canvas (DPR) */
         const cVp = pg.getViewport({ scale: scale * dpr });
 
         const pageEl = document.createElement('div');
@@ -15888,7 +15970,6 @@ async function _openPdfJs(url, container){
         pageEl.style.width  = vVp.width  + 'px';
         pageEl.style.height = vVp.height + 'px';
 
-        /* Canvas rendu en haute résolution, affiché à taille CSS */
         const canvas = document.createElement('canvas');
         canvas.className = 'fich-pdf-canvas';
         canvas.width  = cVp.width;
@@ -15897,14 +15978,12 @@ async function _openPdfJs(url, container){
         canvas.style.height = vVp.height + 'px';
         await pg.render({ canvasContext: canvas.getContext('2d'), viewport: cVp }).promise;
 
-        /* Calque texte transparent (sélectionnable) */
         const textDiv = document.createElement('div');
         textDiv.className = 'fich-pdf-text';
         textDiv.style.width  = vVp.width  + 'px';
         textDiv.style.height = vVp.height + 'px';
         textDiv.style.zIndex = '2';
         try {
-          /* renderTextLayer attend un ReadableStream via streamTextContent() */
           if(typeof pdfjs.renderTextLayer === 'function'){
             const rt = pdfjs.renderTextLayer({
               textContentSource: pg.streamTextContent({ includeMarkedContent: true }),
@@ -15915,7 +15994,6 @@ async function _openPdfJs(url, container){
             const p = rt && (rt.promise || (typeof rt.then === 'function' ? rt : null));
             if(p) await p;
           } else {
-            /* Fallback manuel : positionne chaque item de texte à la main */
             const tc = await pg.getTextContent();
             const U = pdfjs.Util;
             tc.items.forEach(function(item){
@@ -15937,11 +16015,10 @@ async function _openPdfJs(url, container){
 
         pageEl.appendChild(canvas);
         pageEl.appendChild(textDiv);
-        wrap.appendChild(pageEl);
+        inner.appendChild(pageEl);
         window._pdfState.pageEls.push(pageEl);
       }
 
-      /* IntersectionObserver : met a jour le compteur de page en defilant */
       const obs = new IntersectionObserver(function(entries){
         var best = null, bestR = 0;
         entries.forEach(function(e){ if(e.intersectionRatio > bestR){ bestR = e.intersectionRatio; best = e.target; } });
