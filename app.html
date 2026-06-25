@@ -13366,22 +13366,24 @@ const SitePlan = (() => {
       });
       const usedIds=[...new Set(cables.map(c=>c.type))];
       if(usedIds.length>0){
-        const LH=(usedIds.length*22+28)*SCALE, LW=175*SCALE;
+        const LS=state.legendScale||1;
+        const ROW=22*LS, HDR=28*LS, LW=175*LS;
+        const LH=(usedIds.length*ROW+HDR)*SCALE;
         const LX=16*SCALE, LY=ch-LH-16*SCALE;
-        ctx.fillStyle='rgba(10,15,28,0.9)'; _rrect(ctx,LX,LY,LW,LH,6*SCALE); ctx.fill();
-        ctx.font=`bold ${9*SCALE}px sans-serif`; ctx.fillStyle='#888';
+        ctx.fillStyle='rgba(10,15,28,0.9)'; _rrect(ctx,LX,LY,LW*SCALE,LH,6*SCALE); ctx.fill();
+        ctx.font=`bold ${9*LS*SCALE}px sans-serif`; ctx.fillStyle='#888';
         ctx.textAlign='left'; ctx.textBaseline='top';
-        ctx.fillText('LIAISONS', LX+10*SCALE, LY+8*SCALE);
+        ctx.fillText('LIAISONS', LX+10*LS*SCALE, LY+8*LS*SCALE);
         usedIds.forEach((id,i)=>{
           const c=CABLE_TYPES.find(t=>t.id===id)||CABLE_TYPES[0];
-          const ry=LY+(22+i*22)*SCALE;
-          ctx.beginPath(); ctx.strokeStyle=c.color; ctx.lineWidth=2.5*SCALE;
-          if(c.dash) ctx.setLineDash(c.dash.split(' ').map(n=>parseFloat(n)*SCALE));
+          const ry=LY+(HDR+i*ROW)*SCALE;
+          ctx.beginPath(); ctx.strokeStyle=c.color; ctx.lineWidth=2.5*LS*SCALE;
+          if(c.dash) ctx.setLineDash(c.dash.split(' ').map(n=>parseFloat(n)*LS*SCALE));
           else ctx.setLineDash([]);
-          ctx.moveTo(LX+10*SCALE,ry+7*SCALE); ctx.lineTo(LX+38*SCALE,ry+7*SCALE);
+          ctx.moveTo(LX+10*LS*SCALE,ry+7*LS*SCALE); ctx.lineTo(LX+38*LS*SCALE,ry+7*LS*SCALE);
           ctx.stroke(); ctx.setLineDash([]);
-          ctx.font=`${10*SCALE}px sans-serif`; ctx.fillStyle='#ccc';
-          ctx.textBaseline='top'; ctx.fillText(c.label, LX+46*SCALE, ry);
+          ctx.font=`${10*LS*SCALE}px sans-serif`; ctx.fillStyle='#ccc';
+          ctx.textBaseline='top'; ctx.fillText(c.label, LX+46*LS*SCALE, ry);
         });
       }
       cb(canvas);
@@ -15850,25 +15852,31 @@ async function _openPdfJs(url, container){
     wrap.className = 'fich-pdf-wrap';
     container.appendChild(wrap);
 
-    window._pdfState = { pdf, page: 1, scale: null, wrap, pageEls: [], observer: null, renderAll: null };
+    window._pdfState = { pdf, page: 1, scale: null, zoom: 1.0, wrap, pageEls: [], observer: null, renderAll: null };
 
     function _calcFitScale(pg){
       const vp0 = pg.getViewport({ scale: 1 });
       return Math.min(Math.max(wrap.clientWidth - 32, 300) / vp0.width, 1.5);
     }
 
-    async function renderAllPages(scaleOverride){
+    async function renderAllPages(zoomOverride){
       if(window._pdfState.observer){ window._pdfState.observer.disconnect(); window._pdfState.observer = null; }
       wrap.innerHTML = '';
       window._pdfState.pageEls = [];
 
-      const firstPg = await pdf.getPage(1);
-      const scale = scaleOverride !== undefined ? scaleOverride : _calcFitScale(firstPg);
-      window._pdfState.scale = scale;
+      /* zoom : multiplicateur appliqué à chaque page par-dessus son fit individuel.
+         1.0 = chaque page remplit exactement la largeur disponible. */
+      const zoom = zoomOverride !== undefined ? zoomOverride : (window._pdfState.zoom || 1.0);
+      window._pdfState.zoom = zoom;
       const dpr = window.devicePixelRatio || 1;
 
       for(var i = 1; i <= pdf.numPages; i++){
         const pg = await pdf.getPage(i);
+        /* Chaque page calcule son propre fitScale pour remplir la largeur du conteneur,
+           puis on applique le multiplicateur zoom (1.0 = fit, >1 = zoom in). */
+        const fitScale = _calcFitScale(pg);
+        const scale = fitScale * zoom;
+        window._pdfState.scale = scale; // dernière valeur, utilisée pour référence zoom
         /* vVp : viewport visuel (taille CSS) — utilisé pour le layout et le calque texte */
         const vVp = pg.getViewport({ scale });
         /* cVp : viewport haute résolution pour le canvas (DPR) */
@@ -15967,12 +15975,13 @@ function _pdfPage(delta){
 
 function _pdfZoom(delta){
   var s = window._pdfState; if(!s || !s.renderAll) return;
-  s.renderAll(Math.max(0.4, Math.min(3.5, s.scale + delta)));
+  s.renderAll(Math.max(0.2, Math.min(4.0, (s.zoom || 1.0) + delta)));
 }
 
 function _pdfFit(){
   var s = window._pdfState; if(!s || !s.renderAll) return;
-  s.renderAll(undefined);
+  s.zoom = 1.0;
+  s.renderAll(1.0);
 }
 
 function closeFichierViewer() {

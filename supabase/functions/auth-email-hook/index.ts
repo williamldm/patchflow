@@ -59,6 +59,15 @@ serve(async (req) => {
     const ed = data.email_data;
     const type = ed.email_action_type; // signup | recovery | magiclink | email_change | invite
 
+    /* Diagnostic (sans secret) : type réel envoyé par GoTrue + email + préfixe du
+       token_hash → permet de voir quel template est choisi et de détecter les
+       renvois (même token_hash = retry GoTrue, token_hash différent = 2 demandes). */
+    console.log('[auth-email-hook]', JSON.stringify({
+      type,
+      email: user && user.email,
+      token_hash: String(ed.token_hash || '').slice(0, 8),
+    }));
+
     /* Validate redirect_to to prevent open-redirect phishing attacks */
     const rawRedirect = ed.redirect_to || '';
     const safeRedirect = rawRedirect.startsWith(SITE_URL)

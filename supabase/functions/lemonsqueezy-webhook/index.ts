@@ -1,11 +1,26 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import nodemailer from 'npm:nodemailer@6.9.9';
 
 const SUPABASE_URL      = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE_KEY  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const LS_WEBHOOK_SECRET = Deno.env.get('LEMONSQUEEZY_WEBHOOK_SECRET') ?? '';
 const RESEND_API_KEY    = Deno.env.get('RESEND_API_KEY') ?? '';
 const SUPPORT_EMAIL     = Deno.env.get('SUPPORT_EMAIL') ?? 'support@patchflow.fr';
+const SMTP_HOST         = Deno.env.get('SMTP_HOST') ?? '';
+const SMTP_PORT         = parseInt(Deno.env.get('SMTP_PORT') ?? '465');
+const SMTP_USER         = Deno.env.get('SMTP_USER') ?? '';
+const SMTP_PASS         = Deno.env.get('SMTP_PASS') ?? '';
+
+/* Transport SMTP via nodemailer — même méthode éprouvée que invite-member /
+   send-support-email. */
+const transporter = nodemailer.createTransport({
+  host: SMTP_HOST,
+  port: SMTP_PORT,
+  secure: SMTP_PORT === 465,
+  auth: { user: SMTP_USER, pass: SMTP_PASS },
+  tls: { rejectUnauthorized: false },
+});
 
 const DAYS_BEFORE_PURGE = 20;
 
@@ -42,16 +57,25 @@ function statusToPlan(status: string, endsAt: string | null): 'free' | 'pro' {
   }
 }
 
-/* Envoie un email via Resend */
+/* Envoie un email : Resend si RESEND_API_KEY est défini, sinon SMTP/nodemailer
+   (chemin par défaut éprouvé, identique aux autres fonctions). Avant, cette
+   fonction n'envoyait QUE via Resend et abandonnait silencieusement sans clé —
+   du coup l'email d'avertissement « données supprimées dans 20 jours » (Pro→Free)
+   n'était jamais envoyé alors que le reste du projet tourne sur SMTP. */
 async function sendEmail(to: string, subject: string, html: string) {
-  if (!RESEND_API_KEY) { console.warn('[ls-webhook] Pas de RESEND_API_KEY'); return; }
   try {
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: `PatchFlow <${SUPPORT_EMAIL}>`, to: [to], subject, html }),
-    });
-    if (!res.ok) console.error('[ls-webhook] Resend error', await res.text());
+    if (RESEND_API_KEY) {
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: `PatchFlow <${SUPPORT_EMAIL}>`, to: [to], subject, html }),
+      });
+      if (!res.ok) console.error('[ls-webhook] Resend error', await res.text());
+    } else if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
+      await transporter.sendMail({ from: `PatchFlow <${SMTP_USER}>`, to, subject, html });
+    } else {
+      console.warn('[ls-webhook] Aucun service email configuré (RESEND_API_KEY ou SMTP_* requis)');
+    }
   } catch (e) {
     console.error('[ls-webhook] sendEmail failed', e);
   }
