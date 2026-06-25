@@ -285,6 +285,8 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .il-ptab.active{background:var(--ora);border-color:var(--ora);color:#000}
 .il-ptab-del{background:none;border:none;color:inherit;cursor:pointer;padding:0 0 0 4px;font-size:12px;opacity:.65;line-height:1}
 .il-ptab-del:hover{opacity:1}
+.il-ptab-dup{background:none;border:none;color:inherit;cursor:pointer;padding:0 0 0 4px;font-size:11px;opacity:.55;line-height:1;display:inline-flex;align-items:center}
+.il-ptab-dup:hover{opacity:1;color:var(--ora)}
 .il-ptab-add{background:none;border:1px dashed var(--bdr2);color:var(--muted);font-size:16px;width:26px;height:26px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all .15s;line-height:1}
 .il-ptab-add:hover{border-color:var(--ora);color:var(--ora)}
 
@@ -3574,9 +3576,10 @@ function _renderSceneTabs(type){
     const active=s.id===CUR_SCENES[type];
     return `<div class="il-ptab${active?' active':''}" onclick="switchScene('${type}','${s.id}')" ondblclick="renameScene('${type}','${s.id}')" title="Double-clic pour renommer">
       ${s.name}
+      <button class="il-ptab-dup" onclick="event.stopPropagation();duplicateScene('${type}','${s.id}')" title="Dupliquer cette version"><i class="ti ti-copy"></i></button>
       ${scenes.length>1?`<button class="il-ptab-del" onclick="event.stopPropagation();deleteScene('${type}','${s.id}')" title="Supprimer">×</button>`:''}
     </div>`;
-  }).join('')+'<button class="il-ptab-add" onclick="addScene(\''+type+'\')" title="Nouvelle scène">+</button>';
+  }).join('')+'<button class="il-ptab-add" onclick="addScene(\''+type+'\')" title="Nouvelle version (vide)">+</button>';
 }
 
 async function switchScene(type,sceneId){
@@ -3622,6 +3625,37 @@ async function addScene(type){
   if(error){toast('Erreur : '+error.message);return;}
   SHOW_SCENES[type].push(data);
   await switchScene(type,data.id);
+}
+
+/* Duplique une scène (plan de scène / site / synoptique) AVEC son contenu →
+   crée une variante (version B) à partir d'une version A. Réservé Pro. */
+async function duplicateScene(type,sceneId){
+  if(!CUR_SHOW){return;}
+  if(!canDo('multi_scenes')){showUpgradeModal('multi_patches');return;}
+  const src=SHOW_SCENES[type].find(s=>s.id===sceneId);
+  if(!src){toast('Scène introuvable.');return;}
+  /* Données source : si c'est la scène ACTIVE, on prend l'état live du module
+     (capture les modifs non encore sauvegardées) ; sinon la donnée stockée. */
+  let srcData=null;
+  if(sceneId===CUR_SCENES[type]){
+    if(type==='stage')      srcData={band:BandPlan.getData()};
+    else if(type==='site')  srcData={site:SitePlan.getData()};
+    else if(type==='syno')  srcData=SynPro.getData();
+  } else {
+    srcData=src.data;
+  }
+  let copy=null;
+  try{ copy = srcData ? JSON.parse(JSON.stringify(srcData)) : null; }catch(e){ copy=null; }
+  const name=prompt('Nom de la variante :', (src.name||SCENE_LABELS[type])+' (copie)');
+  if(!name||!name.trim()) return;
+  const pos=SHOW_SCENES[type].length;
+  const {data,error}=await sb.from('show_scenes').insert({
+    show_id:CUR_SHOW.id, type, name:name.trim(), data:copy, position:pos
+  }).select().single();
+  if(error){toast('Erreur : '+error.message);return;}
+  SHOW_SCENES[type].push(data);
+  await switchScene(type,data.id);
+  toast('✓ Variante créée');
 }
 
 async function deleteScene(type,sceneId){
@@ -3970,9 +4004,10 @@ function renderPatchTabs(){
     const active=p.id===CUR_PATCH_ID;
     return `<div class="il-ptab${active?' active':''}" onclick="switchPatch('${p.id}')" ondblclick="renamePatch('${p.id}')" title="Double-clic pour renommer">
       ${p.name.replace(/</g,'&lt;')}
+      <button class="il-ptab-dup" onclick="event.stopPropagation();duplicatePatch('${p.id}')" title="Dupliquer ce patch (avec ses canaux)"><i class="ti ti-copy"></i></button>
       ${IL_PATCHES.length>1?`<button class="il-ptab-del" onclick="event.stopPropagation();deletePatch('${p.id}')" title="Supprimer">×</button>`:''}
     </div>`;
-  }).join('')+'<button class="il-ptab-add" onclick="addPatch()" title="Nouveau patch">+</button>';
+  }).join('')+'<button class="il-ptab-add" onclick="addPatch()" title="Nouveau patch (vide)">+</button>';
 }
 
 async function switchPatch(id){
@@ -3993,6 +4028,51 @@ function addPatch(){
   IL_PATCHES.push({id,name:name.trim(),pos:IL_PATCHES.length});
   savePatchMeta();
   switchPatch(id);
+}
+
+/* Duplique un patch (Input List) AVEC tous ses canaux → variante d'input list.
+   Réservé Pro. Copie les canaux du patch source vers de nouvelles lignes
+   portant le nouveau patch_id. */
+async function duplicatePatch(patchId){
+  if(!CUR_SHOW){return;}
+  if(!canDo('multi_scenes')){showUpgradeModal('multi_patches');return;}
+  const src=IL_PATCHES.find(p=>p.id===patchId);
+  if(!src){toast('Patch introuvable.');return;}
+  /* Canaux source : patch courant → CHS (frais) ; sinon depuis ALL_CHS. */
+  const rows = (patchId===CUR_PATCH_ID) ? CHS
+             : (typeof ALL_CHS!=='undefined'?ALL_CHS:[]).filter(r=>(r.patch_id||'main')===patchId);
+  if(rows.length && !_patchColReady){
+    toast("La séparation par patch n'est pas disponible sur ce show.");
+    return;
+  }
+  if(rows.length > planLimit('max_channels')){ showUpgradeModal('max_channels'); return; }
+  const name=prompt('Nom de la variante :', src.name+' (copie)');
+  if(!name||!name.trim()) return;
+  const newId='p'+Date.now();
+  const newRows=rows.map((r,i)=>{
+    const o={ show_id:CUR_SHOW.id, ch:i+1,
+      short_name:r.short_name||'', long_name:r.long_name||'', source:r.source||'',
+      mic:r.mic||'', gain:r.gain||0, phantom:!!r.phantom, iem_group:r.iem_group||'',
+      foh:r.foh!==false, mon:!!r.mon, bc:!!r.bc, note:r.note||'' };
+    if(_patchColReady) o.patch_id=newId;
+    if(r.custom_data) o.custom_data=r.custom_data; // copie HF & colonnes perso
+    return o;
+  });
+  IL_PATCHES.push({id:newId,name:name.trim(),pos:IL_PATCHES.length});
+  savePatchMeta();
+  if(newRows.length){
+    setSaving(true);
+    const {data,error}=await sb.from('channels').insert(newRows).select();
+    setSaving(false);
+    if(error){
+      // rollback meta local en cas d'échec
+      IL_PATCHES=IL_PATCHES.filter(p=>p.id!==newId); savePatchMeta();
+      toast('Erreur : '+error.message); return;
+    }
+    if(typeof ALL_CHS!=='undefined') ALL_CHS=[...ALL_CHS,...(data||[])];
+  }
+  await switchPatch(newId);
+  toast('✓ Variante créée ('+newRows.length+' canaux)');
 }
 
 async function deletePatch(id){
