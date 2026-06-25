@@ -3450,7 +3450,7 @@ async function loadShows(){
       }
     }
   }
-  else await newShowDefault();
+  else await _maybeCreateDefaultShow();
   /* Restore last active tab after everything is loaded */
   try{
     const lastTab=localStorage.getItem(TAB_PERSIST_KEY);
@@ -3751,6 +3751,33 @@ async function loadAllShowMembers(){
   });
 }
 
+/* Auto-création SÛRE d'un show par défaut quand la liste est vide.
+   Bug corrigé : pendant des soucis réseau/RLS, le SELECT shows pouvait renvoyer
+   une liste VIDE sans erreur dure → newShowDefault() créait un show par défaut,
+   répété à chaque rechargement → plusieurs « Mon premier show » en double.
+   Gardes : (1) si un cache local contient des shows, un vide est forcément
+   transitoire → on ne crée rien ; (2) double-vérification serveur par COUNT
+   avant toute insertion ; (3) verrou anti-concurrence. */
+let _creatingDefaultShow=false;
+async function _maybeCreateDefaultShow(){
+  if(_creatingDefaultShow) return;
+  /* (1) Cache non vide → l'utilisateur a déjà des shows, le vide est transitoire. */
+  const cached=_loadShowsFromCache();
+  if(cached && cached.length){
+    console.warn('[shows] liste vide mais cache non vide → résultat transitoire, aucune création.');
+    SHOWS=cached; try{renderSPShows();renderSessions();}catch(e){}
+    setILBody('<div class="loading" style="color:var(--muted)"><i class="ti ti-wifi-off" style="font-size:20px;color:#f87171"></i>Connexion instable — <button class="btn sm" onclick="initApp()" style="margin-left:8px">Réessayer</button></div>',true);
+    return;
+  }
+  _creatingDefaultShow=true;
+  try{
+    /* (2) Double-vérification serveur : combien de shows possède réellement ce compte ? */
+    const {count,error}=await sb.from('shows').select('id',{count:'exact',head:true}).eq('owner_id',ME.id);
+    if(error){ console.error('[shows] verif count:',error); return; } // erreur → ne RIEN créer
+    if(count && count>0){ await loadShows(); return; }               // il y en a → recharger, pas créer
+    await newShowDefault();                                          // compte réellement vide → ok
+  } finally { _creatingDefaultShow=false; }
+}
 async function newShowDefault(){
   const {data,error}=await sb.from('shows').insert({name:'Mon premier show',slug:'premier-show-'+Date.now(),owner_id:ME.id}).select().single();
   if(error){
