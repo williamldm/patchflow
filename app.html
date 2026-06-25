@@ -15982,6 +15982,9 @@ async function _openPdfJs(url, container){
           const vp1 = pg.getViewport({ scale:1 });
           const fit = Wv / vp1.width;             // la page remplit la largeur de l'écran
           const el  = await _buildPage(i, fit, dpr);
+          el.dataset.fit = fit;                   // échelle CSS de référence (largeur écran)
+          const cv = el.querySelector('canvas');
+          if(cv) cv.dataset.rscale = dpr;         // multiple de rastérisation courant
           inner.appendChild(el);
           window._pdfState.pageEls.push(el);
         }
@@ -16014,6 +16017,57 @@ async function _openPdfJs(url, container){
         clamp();
         inner.style.transform = 'translate('+tx+'px,'+ty+'px) scale('+s+')';
         updateCounter();
+        scheduleSharpen();
+      }
+
+      /* ── Netteté : re-rastérise les pages VISIBLES à la résolution écran réelle ──
+         Le transform CSS étire le bitmap → flou au-delà de la rastérisation de
+         base. Après stabilisation du zoom (debounce), on re-rend uniquement les
+         pages à l'écran à un multiple proche de dpr×zoom (plafonné pour iOS), et
+         on redescend les pages hors-champ à la base → mémoire bornée (canvas HD
+         limités à 2-3 pages). Géométrie inchangée : seule la finesse du canvas
+         augmente, le calque texte et le layout ne bougent pas. */
+      const MAXDIM = 4096, MAXAREA = 12e6;
+      let _shToken = 0, _shTimer = null;
+      function scheduleSharpen(){ clearTimeout(_shTimer); _shTimer = setTimeout(sharpen, 200); }
+      function pageVisible(el){
+        const top = ty + el.offsetTop*s, bot = top + el.offsetHeight*s;
+        return bot > -60 && top < Hv + 60;
+      }
+      async function renderCanvasAt(el, mult, token){
+        const num = parseInt(el.dataset.page), fit = parseFloat(el.dataset.fit);
+        const old = el.querySelector('canvas'); if(!old) return;
+        const pg  = await pdf.getPage(num);
+        const cVp = pg.getViewport({ scale: fit*mult });
+        const nc  = document.createElement('canvas');   // rendu hors-écran → pas de flash
+        nc.className = 'fich-pdf-canvas';
+        nc.width  = Math.round(cVp.width);
+        nc.height = Math.round(cVp.height);
+        nc.style.width  = old.style.width;               // taille CSS inchangée (fit)
+        nc.style.height = old.style.height;
+        nc.style.zIndex = '1';
+        await pg.render({ canvasContext: nc.getContext('2d'), viewport: cVp }).promise;
+        if(token !== _shToken) return;                   // un nouveau zoom est arrivé → on jette
+        nc.dataset.rscale = mult;
+        old.replaceWith(nc);
+      }
+      async function sharpen(){
+        const token = ++_shToken;
+        const target = Math.min(s, MAXS);
+        for(const el of window._pdfState.pageEls){
+          if(token !== _shToken) return;
+          const cv = el.querySelector('canvas'); if(!cv) continue;
+          const cur = parseFloat(cv.dataset.rscale || dpr);
+          const elW = el.offsetWidth, elH = el.offsetHeight;
+          if(pageVisible(el)){
+            let mult = dpr * target;                      // densité écran ≈ dpr
+            mult = Math.min(mult, MAXDIM/elW, MAXDIM/elH, Math.sqrt(MAXAREA/(elW*elH)), 6);
+            mult = Math.max(mult, dpr);
+            if(mult - cur > 0.2) await renderCanvasAt(el, mult, token);
+          } else if(cur > dpr + 0.1){
+            await renderCanvasAt(el, dpr, token);         // hors-champ → libère la mémoire
+          }
+        }
       }
       /* Zoom centré sur un point écran (fx,fy) — le contenu sous ce point reste fixe */
       function zoomAt(ns, fx, fy){
