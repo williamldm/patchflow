@@ -15859,9 +15859,9 @@ async function _openPdfJs(url, container){
       '<span id="pdf-page-info" class="fich-pdf-pageinfo">1 / ' + pdf.numPages + '</span>' +
       '<button class="btn ghost sm" id="pdf-next" onclick="_pdfPage(1)" title="Page suivante"><i class="ti ti-chevron-right"></i></button>' +
       '<span class="fich-pdf-nav-sep"></span>' +
-      '<button class="btn ghost sm" onclick="_pdfZoom(-0.2)" title="Zoom -"><i class="ti ti-zoom-out"></i></button>' +
+      '<button class="btn ghost sm" onclick="_pdfZoom(-0.25)" title="Zoom -"><i class="ti ti-zoom-out"></i></button>' +
       '<span id="pdf-zoom-info" class="fich-pdf-pageinfo">100%</span>' +
-      '<button class="btn ghost sm" onclick="_pdfZoom(0.2)" title="Zoom +"><i class="ti ti-zoom-in"></i></button>' +
+      '<button class="btn ghost sm" onclick="_pdfZoom(0.25)" title="Zoom +"><i class="ti ti-zoom-in"></i></button>' +
       '<button class="btn ghost sm" onclick="_pdfFit()" title="Ajuster"><i class="ti ti-arrows-maximize"></i></button>';
     container.appendChild(nav);
 
@@ -15869,204 +15869,318 @@ async function _openPdfJs(url, container){
     wrap.className = 'fich-pdf-wrap';
     container.appendChild(wrap);
 
-    /* Conteneur interne : reçoit le transform CSS pendant le geste pinch */
     const inner = document.createElement('div');
     inner.className = 'fich-pdf-inner';
     wrap.appendChild(inner);
 
-    /* Badge zoom : s'affiche brièvement au centre après chaque changement de zoom */
+    /* Badge zoom : s'affiche brièvement au centre après chaque changement */
     const badge = document.createElement('div');
     badge.className = 'fich-pdf-zoom-badge';
     container.appendChild(badge);
 
-    window._pdfState = { pdf, page: 1, scale: null, zoom: 1.0, wrap, inner, pageEls: [], observer: null, renderAll: null };
+    /* Détection tactile/mobile : pilote le mode d'interaction (pan/zoom transform). */
+    const isTouch = window.matchMedia('(max-width:767px)').matches ||
+      ((navigator.maxTouchPoints || 0) > 0 && window.matchMedia('(pointer:coarse)').matches);
 
-    function _calcFitScale(pg){
-      const vp0 = pg.getViewport({ scale: 1 });
-      return Math.min(Math.max(inner.clientWidth || 300, 300) / vp0.width, 1.5);
-    }
+    window._pdfState = { pdf, page:1, wrap, inner, badge, pageEls:[], observer:null,
+                         zoomBy:null, fitView:null, goPage:null, _cleanup:null };
 
-    /* ── Pinch-to-zoom ── */
-    let _pinch = null, _badgeTimer = null;
-    function _pinchDist(t){ return Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY); }
-    function _pinchOrigin(t){
-      const r = inner.getBoundingClientRect();
-      return { x:(t[0].clientX+t[1].clientX)/2 - r.left, y:(t[0].clientY+t[1].clientY)/2 - r.top };
-    }
-    function _showBadge(zoom){
-      badge.textContent = Math.round(zoom*100)+'%';
+    let _badgeTimer = null;
+    function _showBadge(z){
+      badge.textContent = Math.round(z*100)+'%';
       badge.classList.add('show');
       clearTimeout(_badgeTimer);
       _badgeTimer = setTimeout(()=>badge.classList.remove('show'), 900);
-    }
-    wrap.addEventListener('touchstart', function(e){
-      if(e.touches.length === 2){
-        e.preventDefault();
-        _pinch = { dist:_pinchDist(e.touches), zoom:window._pdfState.zoom||1.0, origin:_pinchOrigin(e.touches) };
-      }
-    }, { passive:false });
-    wrap.addEventListener('touchmove', function(e){
-      if(e.touches.length === 2 && _pinch){
-        e.preventDefault();
-        const ratio = _pinchDist(e.touches) / _pinch.dist;
-        const nz = Math.max(0.2, Math.min(4.0, _pinch.zoom * ratio));
-        inner.style.transform = 'scale('+ratio+')';
-        inner.style.transformOrigin = _pinch.origin.x+'px '+_pinch.origin.y+'px';
-        _showBadge(nz);
-      }
-    }, { passive:false });
-    wrap.addEventListener('touchend', function(e){
-      if(_pinch && e.touches.length < 2){
-        const m = inner.style.transform.match(/scale\(([^)]+)\)/);
-        const ratio = m ? parseFloat(m[1]) : 1;
-        const nz = Math.max(0.2, Math.min(4.0, _pinch.zoom * ratio));
-        inner.style.transform = '';
-        inner.style.transformOrigin = '';
-        _pinch = null;
-        if(Math.abs(nz - (window._pdfState.zoom||1.0)) > 0.04){
-          window._pdfState.renderAll(nz);
-        }
-      }
-    }, { passive:true });
-
-    /* ── Double-tap : bascule fit ↔ 2× ── */
-    let _lastTap = 0;
-    wrap.addEventListener('touchend', function(e){
-      if(e.touches.length === 0 && e.changedTouches.length === 1 && !_pinch){
-        const now = Date.now();
-        if(now - _lastTap < 300){
-          const s = window._pdfState;
-          if(s && s.renderAll) (s.zoom||1) <= 1.05 ? s.renderAll(2.0) : _pdfFit();
-        }
-        _lastTap = now;
-      }
-    }, { passive:true });
-
-    async function renderAllPages(zoomOverride){
-      if(window._pdfState.observer){ window._pdfState.observer.disconnect(); window._pdfState.observer = null; }
-      inner.innerHTML = '';
-      window._pdfState.pageEls = [];
-
-      /* zoom : multiplicateur sur le fitScale de chaque page (1.0 = remplit la largeur) */
-      const zoom = zoomOverride !== undefined ? zoomOverride : (window._pdfState.zoom || 1.0);
-      window._pdfState.zoom = zoom;
-      const dpr = window.devicePixelRatio || 1;
-
       const zi = document.getElementById('pdf-zoom-info');
-      if(zi) zi.textContent = Math.round(zoom*100)+'%';
-      _showBadge(zoom);
-
-      for(var i = 1; i <= pdf.numPages; i++){
-        const pg = await pdf.getPage(i);
-        const fitScale = _calcFitScale(pg);
-        const scale = fitScale * zoom;
-        window._pdfState.scale = scale;
-        const vVp = pg.getViewport({ scale });
-        const cVp = pg.getViewport({ scale: scale * dpr });
-
-        const pageEl = document.createElement('div');
-        pageEl.className = 'fich-pdf-page';
-        pageEl.dataset.page = i;
-        pageEl.style.width  = vVp.width  + 'px';
-        pageEl.style.height = vVp.height + 'px';
-
-        const canvas = document.createElement('canvas');
-        canvas.className = 'fich-pdf-canvas';
-        canvas.width  = cVp.width;
-        canvas.height = cVp.height;
-        canvas.style.width  = vVp.width  + 'px';
-        canvas.style.height = vVp.height + 'px';
-        await pg.render({ canvasContext: canvas.getContext('2d'), viewport: cVp }).promise;
-
-        const textDiv = document.createElement('div');
-        textDiv.className = 'fich-pdf-text';
-        textDiv.style.width  = vVp.width  + 'px';
-        textDiv.style.height = vVp.height + 'px';
-        textDiv.style.zIndex = '2';
-        try {
-          if(typeof pdfjs.renderTextLayer === 'function'){
-            const rt = pdfjs.renderTextLayer({
-              textContentSource: pg.streamTextContent({ includeMarkedContent: true }),
-              container: textDiv,
-              viewport: vVp,
-              textDivs: []
-            });
-            const p = rt && (rt.promise || (typeof rt.then === 'function' ? rt : null));
-            if(p) await p;
-          } else {
-            const tc = await pg.getTextContent();
-            const U = pdfjs.Util;
-            tc.items.forEach(function(item){
-              if(!item.str) return;
-              var tx = U.transform(vVp.transform, item.transform);
-              var h = Math.hypot(tx[2], tx[3]);
-              var angle = Math.atan2(tx[1], tx[0]);
-              var sp = document.createElement('span');
-              sp.textContent = item.str;
-              var css = 'position:absolute;color:transparent;white-space:pre;cursor:text;transform-origin:0% 0%;' +
-                'left:' + tx[4] + 'px;top:' + (vVp.height - tx[5]) + 'px;font-size:' + h + 'px;';
-              if(Math.abs(angle) > 0.001) css += 'transform:rotate(' + (-angle) + 'rad);';
-              sp.style.cssText = css;
-              textDiv.appendChild(sp);
-            });
-          }
-        } catch(_){}
-        canvas.style.zIndex = '1';
-
-        pageEl.appendChild(canvas);
-        pageEl.appendChild(textDiv);
-        inner.appendChild(pageEl);
-        window._pdfState.pageEls.push(pageEl);
-      }
-
-      const obs = new IntersectionObserver(function(entries){
-        var best = null, bestR = 0;
-        entries.forEach(function(e){ if(e.intersectionRatio > bestR){ bestR = e.intersectionRatio; best = e.target; } });
-        if(best){
-          var p = parseInt(best.dataset.page);
-          window._pdfState.page = p;
-          var info = document.getElementById('pdf-page-info');
-          if(info) info.textContent = p + ' / ' + pdf.numPages;
-        }
-      }, { root: wrap, threshold: [0.1, 0.3, 0.5, 0.7, 0.9] });
-      window._pdfState.pageEls.forEach(function(el){ obs.observe(el); });
-      window._pdfState.observer = obs;
+      if(zi) zi.textContent = Math.round(z*100)+'%';
     }
 
-    window._pdfState.renderAll = renderAllPages;
-    await renderAllPages();
+    /* ── Construit une page (canvas HD + calque texte) à l'échelle CSS donnée ── */
+    async function _buildPage(i, cssScale, backDpr){
+      const pg  = await pdf.getPage(i);
+      const vVp = pg.getViewport({ scale: cssScale });
+      const cVp = pg.getViewport({ scale: cssScale * backDpr });
+
+      const pageEl = document.createElement('div');
+      pageEl.className = 'fich-pdf-page';
+      pageEl.dataset.page = i;
+      pageEl.style.width  = vVp.width  + 'px';
+      pageEl.style.height = vVp.height + 'px';
+
+      const canvas = document.createElement('canvas');
+      canvas.className = 'fich-pdf-canvas';
+      canvas.width  = cVp.width;
+      canvas.height = cVp.height;
+      canvas.style.width  = vVp.width  + 'px';
+      canvas.style.height = vVp.height + 'px';
+      await pg.render({ canvasContext: canvas.getContext('2d'), viewport: cVp }).promise;
+
+      const textDiv = document.createElement('div');
+      textDiv.className = 'fich-pdf-text';
+      textDiv.style.width  = vVp.width  + 'px';
+      textDiv.style.height = vVp.height + 'px';
+      textDiv.style.zIndex = '2';
+      try {
+        if(typeof pdfjs.renderTextLayer === 'function'){
+          const rt = pdfjs.renderTextLayer({
+            textContentSource: pg.streamTextContent({ includeMarkedContent: true }),
+            container: textDiv, viewport: vVp, textDivs: []
+          });
+          const p = rt && (rt.promise || (typeof rt.then === 'function' ? rt : null));
+          if(p) await p;
+        } else {
+          const tc = await pg.getTextContent();
+          const U = pdfjs.Util;
+          tc.items.forEach(function(item){
+            if(!item.str) return;
+            var tx = U.transform(vVp.transform, item.transform);
+            var h = Math.hypot(tx[2], tx[3]);
+            var angle = Math.atan2(tx[1], tx[0]);
+            var sp = document.createElement('span');
+            sp.textContent = item.str;
+            var css = 'position:absolute;color:transparent;white-space:pre;cursor:text;transform-origin:0% 0%;' +
+              'left:' + tx[4] + 'px;top:' + (vVp.height - tx[5]) + 'px;font-size:' + h + 'px;';
+            if(Math.abs(angle) > 0.001) css += 'transform:rotate(' + (-angle) + 'rad);';
+            sp.style.cssText = css;
+            textDiv.appendChild(sp);
+          });
+        }
+      } catch(_){}
+      canvas.style.zIndex = '1';
+      pageEl.appendChild(canvas);
+      pageEl.appendChild(textDiv);
+      return pageEl;
+    }
+
+    if(isTouch) await _setupTouch();
+    else        await _setupDesktop();
+
+    /* ════════════════════════════════════════════════════════════════
+       MODE TACTILE (téléphone / tablette)
+       Pages rastérisées UNE SEULE FOIS à la largeur de l'écran. Le zoom
+       et le déplacement passent par un transform CSS (GPU) — jamais de
+       re-rendu à haute résolution, donc pas de canvas vide ni de saut.
+         écran = translate(tx,ty) · scale(s) · contenu   (origine 0 0)
+       ════════════════════════════════════════════════════════════════ */
+    async function _setupTouch(){
+      wrap.style.overflow   = 'hidden';
+      wrap.style.padding     = '0';
+      wrap.style.touchAction = 'none';
+      inner.style.transformOrigin = '0 0';
+      inner.style.willChange = 'transform';
+      inner.style.alignItems = 'stretch';
+
+      const dpr = Math.min(window.devicePixelRatio || 1, 2); // plafonné → mémoire maîtrisée
+      let Wv = wrap.clientWidth, Hv = wrap.clientHeight;
+
+      async function raster(){
+        inner.innerHTML = '';
+        window._pdfState.pageEls = [];
+        Wv = wrap.clientWidth; Hv = wrap.clientHeight;
+        for(let i=1;i<=pdf.numPages;i++){
+          const pg  = await pdf.getPage(i);
+          const vp1 = pg.getViewport({ scale:1 });
+          const fit = Wv / vp1.width;             // la page remplit la largeur de l'écran
+          const el  = await _buildPage(i, fit, dpr);
+          inner.appendChild(el);
+          window._pdfState.pageEls.push(el);
+        }
+      }
+      await raster();
+
+      /* État du transform */
+      let s = 1, tx = 0, ty = 0;
+      const MINS = 1, MAXS = 4;
+      function contentH(){ return inner.offsetHeight; }   // hauteur non transformée
+      function clamp(){
+        const sw = Wv * s, sh = contentH() * s;
+        if(sw <= Wv) tx = (Wv - sw) / 2;
+        else tx = Math.min(0, Math.max(Wv - sw, tx));
+        if(sh <= Hv) ty = 0;
+        else ty = Math.min(0, Math.max(Hv - sh, ty));
+      }
+      function updateCounter(){
+        const els = window._pdfState.pageEls;
+        const centerY = (Hv/2 - ty) / s;   // coord. contenu au centre de l'écran
+        let p = 1;
+        for(let k=0;k<els.length;k++){
+          if(els[k].offsetTop <= centerY) p = k+1; else break;
+        }
+        window._pdfState.page = p;
+        const info = document.getElementById('pdf-page-info');
+        if(info) info.textContent = p + ' / ' + pdf.numPages;
+      }
+      function apply(){
+        clamp();
+        inner.style.transform = 'translate('+tx+'px,'+ty+'px) scale('+s+')';
+        updateCounter();
+      }
+      /* Zoom centré sur un point écran (fx,fy) — le contenu sous ce point reste fixe */
+      function zoomAt(ns, fx, fy){
+        ns = Math.max(MINS, Math.min(MAXS, ns));
+        if(ns === s) return;
+        const cx = (fx - tx) / s, cy = (fy - ty) / s;
+        s = ns;
+        tx = fx - s*cx; ty = fy - s*cy;
+        apply(); _showBadge(s);
+      }
+      apply();
+
+      /* ── Gestes ── */
+      let mode = null;           // 'pan' | 'pinch'
+      let startDist = 0, anchor = null;   // pinch
+      let startX = 0, startY = 0, tx0 = 0, ty0 = 0;  // pan
+      let lastTap = 0;
+      const mid = t => ({ x:(t[0].clientX+t[1].clientX)/2, y:(t[0].clientY+t[1].clientY)/2 });
+      const dist = t => Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY);
+      const rel  = (cx,cy) => { const r = wrap.getBoundingClientRect(); return { x:cx-r.left, y:cy-r.top }; };
+
+      function onStart(e){
+        if(e.touches.length === 2){
+          e.preventDefault();
+          mode = 'pinch';
+          startDist = dist(e.touches);
+          const m = mid(e.touches), p = rel(m.x, m.y);
+          anchor = { sx:p.x, sy:p.y, cx:(p.x-tx)/s, cy:(p.y-ty)/s, s0:s };
+        } else if(e.touches.length === 1){
+          mode = 'pan';
+          const p = rel(e.touches[0].clientX, e.touches[0].clientY);
+          startX = p.x; startY = p.y; tx0 = tx; ty0 = ty;
+        }
+      }
+      function onMove(e){
+        if(mode === 'pinch' && e.touches.length === 2){
+          e.preventDefault();
+          const ns = Math.max(MINS, Math.min(MAXS, anchor.s0 * dist(e.touches)/startDist));
+          const m = mid(e.touches), p = rel(m.x, m.y);
+          s = ns;
+          tx = p.x - s*anchor.cx;   // garde le point de contenu ancré sous les doigts
+          ty = p.y - s*anchor.cy;
+          apply(); _showBadge(s);
+        } else if(mode === 'pan' && e.touches.length === 1){
+          const p = rel(e.touches[0].clientX, e.touches[0].clientY);
+          /* Au zoom 1, un seul doigt fait défiler verticalement uniquement. */
+          tx = (s > 1.001) ? tx0 + (p.x - startX) : tx;
+          ty = ty0 + (p.y - startY);
+          if(s > 1.001 || Math.abs(p.y - startY) > 2) e.preventDefault();
+          apply();
+        }
+      }
+      function onEnd(e){
+        if(e.touches.length === 0){
+          /* double-tap → bascule ajuster ↔ 2,5× sur le point touché */
+          if(mode !== 'pinch' && e.changedTouches.length === 1){
+            const now = Date.now();
+            if(now - lastTap < 300){
+              const p = rel(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+              if(s <= 1.05) zoomAt(2.5, p.x, p.y);
+              else { s = 1; tx = 0; ty = 0; apply(); _showBadge(1); }
+            }
+            lastTap = now;
+          }
+          mode = null;
+        } else if(e.touches.length === 1 && mode === 'pinch'){
+          /* fin du pinch mais un doigt reste → passe en pan */
+          mode = 'pan';
+          const p = rel(e.touches[0].clientX, e.touches[0].clientY);
+          startX = p.x; startY = p.y; tx0 = tx; ty0 = ty;
+        }
+      }
+      wrap.addEventListener('touchstart', onStart, { passive:false });
+      wrap.addEventListener('touchmove',  onMove,  { passive:false });
+      wrap.addEventListener('touchend',   onEnd,   { passive:true });
+
+      /* Réagencrage si rotation / redimensionnement (re-rastérise à la nouvelle largeur) */
+      let _rsTimer = null;
+      function onResize(){
+        clearTimeout(_rsTimer);
+        _rsTimer = setTimeout(async ()=>{
+          /* préserve la page courante : on retient l'offset relatif avant re-raster */
+          const frac = contentH() ? (-ty/s) / contentH() : 0;
+          await raster();
+          tx = 0; ty = -frac * contentH() * s; apply();
+        }, 250);
+      }
+      window.addEventListener('resize', onResize);
+      window._pdfState._cleanup = ()=>window.removeEventListener('resize', onResize);
+
+      /* Boutons toolbar */
+      window._pdfState.zoomBy   = d => zoomAt(s + d, Wv/2, Hv/2);
+      window._pdfState.fitView  = () => { s=1; tx=0; ty=0; apply(); _showBadge(1); };
+      window._pdfState.goPage   = d => {
+        const n = Math.max(1, Math.min(pdf.numPages, window._pdfState.page + d));
+        const el = window._pdfState.pageEls[n-1];
+        if(el){ ty = -el.offsetTop * s; apply(); }
+      };
+    }
+
+    /* ════════════════════════════════════════════════════════════════
+       MODE BUREAU (souris) — défilement natif vertical + zoom par re-rendu
+       (mémoire confortable sur desktop, texte toujours net).
+       ════════════════════════════════════════════════════════════════ */
+    async function _setupDesktop(){
+      window._pdfState.zoom = 1.0;
+      function fitScale(pg){
+        const vp0 = pg.getViewport({ scale:1 });
+        return Math.min(Math.max(inner.clientWidth || 300, 300) / vp0.width, 1.5);
+      }
+      async function renderAll(zoom){
+        if(window._pdfState.observer){ window._pdfState.observer.disconnect(); window._pdfState.observer = null; }
+        inner.innerHTML = '';
+        window._pdfState.pageEls = [];
+        zoom = zoom !== undefined ? zoom : (window._pdfState.zoom || 1.0);
+        window._pdfState.zoom = zoom;
+        _showBadge(zoom);
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        for(let i=1;i<=pdf.numPages;i++){
+          const pg  = await pdf.getPage(i);
+          const el  = await _buildPage(i, fitScale(pg)*zoom, dpr);
+          inner.appendChild(el);
+          window._pdfState.pageEls.push(el);
+        }
+        const obs = new IntersectionObserver(function(entries){
+          var best=null, bestR=0;
+          entries.forEach(function(e){ if(e.intersectionRatio>bestR){ bestR=e.intersectionRatio; best=e.target; } });
+          if(best){
+            var p = parseInt(best.dataset.page);
+            window._pdfState.page = p;
+            var info = document.getElementById('pdf-page-info');
+            if(info) info.textContent = p + ' / ' + pdf.numPages;
+          }
+        }, { root: wrap, threshold:[0.1,0.3,0.5,0.7,0.9] });
+        window._pdfState.pageEls.forEach(el=>obs.observe(el));
+        window._pdfState.observer = obs;
+      }
+      window._pdfState.zoomBy  = d => renderAll(Math.max(0.4, Math.min(3.5, (window._pdfState.zoom||1)+d)));
+      window._pdfState.fitView = () => { window._pdfState.zoom=1; renderAll(1); };
+      window._pdfState.goPage  = d => {
+        const n = Math.max(1, Math.min(pdf.numPages, window._pdfState.page + d));
+        if(n === window._pdfState.page) return;
+        window._pdfState.page = n;
+        const el = window._pdfState.pageEls[n-1];
+        if(el) el.scrollIntoView({ behavior:'smooth', block:'start' });
+      };
+      await renderAll(1);
+    }
 
   } catch(e) {
     container.innerHTML = '<div class="fich-pdf-loading" style="flex-direction:column;gap:10px"><i class="ti ti-file-broken" style="font-size:36px;opacity:.4"></i><span style="font-size:12px">Impossible d\'ouvrir ce PDF<br/><span style="opacity:.6">' + e.message + '</span></span></div>';
   }
 }
 
-function _pdfPage(delta){
-  var s = window._pdfState; if(!s) return;
-  var next = Math.max(1, Math.min(s.pdf.numPages, s.page + delta));
-  if(next === s.page) return;
-  s.page = next;
-  var el = s.pageEls && s.pageEls[next - 1];
-  if(el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-function _pdfZoom(delta){
-  var s = window._pdfState; if(!s || !s.renderAll) return;
-  s.renderAll(Math.max(0.2, Math.min(4.0, (s.zoom || 1.0) + delta)));
-}
-
-function _pdfFit(){
-  var s = window._pdfState; if(!s || !s.renderAll) return;
-  s.zoom = 1.0;
-  s.renderAll(1.0);
-}
+function _pdfPage(delta){ var s = window._pdfState; if(s && s.goPage)  s.goPage(delta); }
+function _pdfZoom(delta){ var s = window._pdfState; if(s && s.zoomBy)  s.zoomBy(delta); }
+function _pdfFit(){       var s = window._pdfState; if(s && s.fitView) s.fitView(); }
 
 function closeFichierViewer() {
   var modal   = document.getElementById('fich-viewer-modal');
   var content = document.getElementById('fich-viewer-content');
   if(modal)   modal.style.display = 'none';
   if(content) content.innerHTML   = '';
-  if(window._pdfState && window._pdfState.observer) window._pdfState.observer.disconnect();
+  if(window._pdfState){
+    if(window._pdfState.observer) window._pdfState.observer.disconnect();
+    if(window._pdfState._cleanup) window._pdfState._cleanup();
+  }
   window._pdfState  = null;
   window._xlsxState = null;
 }
