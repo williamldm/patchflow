@@ -3470,12 +3470,13 @@ const SCENE_LABELS={syno:'Synoptique',stage:'Plan de scène',site:'Plan de site'
 async function loadScenes(showId){
   SHOW_SCENES={syno:[],stage:[],site:[]};
   CUR_SCENES={syno:null,stage:null,site:null};
-  if(!canDo('multi_scenes')){
-    _renderAllSceneTabs(); // Afficher l'aperçu verrouillé pour non-Studio
-    return;
-  }
+  /* On charge TOUJOURS les scènes : un membre non-Studio d'un show créé par un
+     propriétaire Studio doit pouvoir LIRE les plans stockés dans show_scenes
+     (sinon plan de site/scène vide). L'auto-création de scènes, elle, reste
+     réservée aux comptes Studio (voir plus bas). Le lieu de stockage dépend du
+     plan du PROPRIÉTAIRE, pas de celui du lecteur. */
   const {data,error}=await sb.from('show_scenes').select('*').eq('show_id',showId).order('position');
-  if(error){console.error('loadScenes:',error);return;}
+  if(error){console.error('loadScenes:',error); _renderAllSceneTabs(); return;}
   (data||[]).forEach(function(s){
     if(!SHOW_SCENES[s.type]) SHOW_SCENES[s.type]=[];
     SHOW_SCENES[s.type].push(s);
@@ -3498,7 +3499,9 @@ async function loadScenes(showId){
      pour que la scène 1 contienne déjà le travail existant. ── */
   const toInit=[];
   const raw=CUR_SHOW?.stage_data;
-  SCENE_TYPES.forEach(function(t){
+  /* Auto-création réservée aux Studio : un membre non-Studio ne doit jamais
+     créer de scènes (échec RLS + scènes parasites). Il lit seulement. */
+  if(canDo('multi_scenes')) SCENE_TYPES.forEach(function(t){
     if(SHOW_SCENES[t].length===0){
       var initialData=null;
       if(t==='stage' && raw?.band!=null)                   initialData={band:raw.band};
@@ -3787,8 +3790,9 @@ async function switchShow(id, opts){
   if(typeof SynPro!=="undefined"){SynPro.resetLoaded();SynPro.setSceneId(null);}
   // Charger les scènes multi (Studio) avant les plans
   await loadScenes(id);
-  // Configurer la scène synoptique courante (avec fallback migration paresseuse)
-  if(canDo('multi_scenes') && CUR_SCENES.syno){
+  // Configurer la scène synoptique courante (lecture depuis les scènes dès
+  // qu'elles existent — y compris pour un membre non-Studio).
+  if(CUR_SCENES.syno){
     const sc=SHOW_SCENES.syno?.find(s=>s.id===CUR_SCENES.syno);
     const synoData=_firstSceneFallback('syno', sc?.data??null);
     /* Use setSceneData which sets the sentinel AFTER resetLoaded cleared it */
@@ -8116,8 +8120,12 @@ function _saveChsSnapshot(){
 }
 function loadStage(){
   _stageReady=false;
-  if(canDo('multi_scenes') && (CUR_SCENES.stage||CUR_SCENES.site)){
-    // Studio : charger depuis les scènes (avec fallback migration paresseuse)
+  /* Si des scènes existent (show créé par un propriétaire Studio), on lit
+     TOUJOURS depuis elles — y compris pour un membre non-Studio — car c'est là
+     que vivent les plans. Sinon (show legacy / propriétaire non-Studio), on lit
+     stage_data. On ne dépend donc PAS du plan du lecteur. */
+  if(CUR_SCENES.stage||CUR_SCENES.site){
+    // Charger depuis les scènes (avec fallback migration paresseuse)
     const stageScene=SHOW_SCENES.stage?.find(s=>s.id===CUR_SCENES.stage);
     const siteScene=SHOW_SCENES.site?.find(s=>s.id===CUR_SCENES.site);
     const stageData=_firstSceneFallback('stage', stageScene?.data??null);
