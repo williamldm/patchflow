@@ -15996,31 +15996,40 @@ async function deleteFichier(relPath) {
 async function viewFichier(relPath) {
   const filename = relPath.split('/').pop();
   const displayName = _fichDisplayName(filename);
-  const info = _fichInfoOf(displayName);
   const path = CUR_SHOW.id + '/' + relPath;
 
   const { data, error } = await B2Storage.createSignedUrl(path, 3600);
   if (error || !data?.signedUrl) { toast('Erreur : ' + (error?.message || 'URL invalide')); return; }
-  const url = data.signedUrl;
+  _openFileViewer(data.signedUrl, displayName, { b2Path: path });
+}
 
-  if (info.preview === 'none') {
-    const a = document.createElement('a');
-    a.href = url; a.download = displayName; a.target = '_blank'; a.click();
-    return;
-  }
-
+/* Ouvre un fichier dans la visionneuse modale partagée (PDF.js, image, vidéo,
+   audio, docx, tableur, texte) à partir d'une URL DÉJÀ signée. Utilisé par la
+   section Fichiers (édition possible) ET par la vue rider partagée
+   (opts.readonly → les éditeurs lourds sont ouverts en téléchargement). */
+function _openFileViewer(url, displayName, opts){
+  opts = opts || {};
+  const info = (typeof _fichInfoOf==='function') ? _fichInfoOf(displayName) : {preview:'none'};
+  const path = opts.b2Path || '';
   const modal = document.getElementById('fich-viewer-modal');
   const titleEl = document.getElementById('fich-viewer-title');
   const content = document.getElementById('fich-viewer-content');
   const dlLink = document.getElementById('fich-viewer-dl');
-  if (!modal) return;
+  if (!modal || !content) { try{ window.open(url,'_blank'); }catch(e){} return; }
+
+  /* Éditeurs lourds (docx/odt/xlsx/texte) en lecture seule, ou type sans aperçu
+     → ouverture/téléchargement dans un nouvel onglet. */
+  const heavyEditable = (info.preview==='docx'||info.preview==='odt'||info.preview==='xlsx'||info.preview==='text');
+  if (info.preview === 'none' || (opts.readonly && heavyEditable)) {
+    const a = document.createElement('a');
+    a.href = url; a.download = displayName; a.target = '_blank'; a.rel = 'noopener'; a.click();
+    return;
+  }
 
   if (titleEl) titleEl.textContent = displayName;
   if (dlLink) { dlLink.href = url; dlLink.download = displayName; }
 
   if (info.preview === 'pdf') {
-    if (titleEl) titleEl.textContent = displayName;
-    if (dlLink) { dlLink.href = url; dlLink.download = displayName; }
     modal.style.display = 'flex';
     _openPdfJs(url, content);
     return;
@@ -19093,21 +19102,31 @@ function _svFs(imgId, title){
 
   // ── Pieces jointes tab ──
   var _activeFile=0;
-  function _fileCard(i,fpath,url,active){
+  function _fileCard(i,fpath,url){
     var fname=fpath.split('/').pop();
     var disp=fname.replace(/^\d+_/,'');
     var ext=(fname.split('.').pop()||'').toLowerCase();
-    var icons={pdf:'&#128196;',mp3:'&#127925;',wav:'&#127925;',mp4:'&#127916;',mov:'&#127916;',docx:'&#128196;',doc:'&#128196;',xlsx:'&#128200;',xls:'&#128200;'};
-    var icon=icons[ext]||'&#128196;';
-    var bg=active?'background:#111c2e;border-color:#ff6b1a':'background:#0d1520;border-color:#1e2a3a';
-    var nameColor=active?'color:#ff6b1a':'color:#c8d4e0';
-    return '<div onclick="_svFileSelect('+i+')" style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid;border-radius:8px;margin-bottom:8px;transition:all .15s;'+bg+'">'
-      +'<span style="font-size:18px;flex-shrink:0">'+icon+'</span>'
-      +'<div style="flex:1;overflow:hidden"><div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'+nameColor+'">'+esc(disp)+'</div>'
-      +'<div style="font-size:9px;font-family:DM Mono,monospace;color:#5a6a80;margin-top:2px">'+ext.toUpperCase()+'</div></div>'
-      +(url?'<a href="'+url+'" download target="_blank" onclick="event.stopPropagation()" title="Telecharger" style="color:#5a6a80;font-size:16px;text-decoration:none;flex-shrink:0">&#11123;</a>':'')
+    /* Icône Tabler par type (cohérent avec la section Fichiers) */
+    var info=(typeof _fichInfoOf==='function')?_fichInfoOf(disp):null;
+    var icon=(info&&info.icon)||'<i class="ti ti-file" style="color:#8899aa;font-size:20px"></i>';
+    return '<div onclick="_svOpenFile('+i+')" style="cursor:pointer;display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid #1e2a3a;border-radius:10px;background:#0d1520;transition:border-color .15s,background .15s" onmouseover="this.style.borderColor=\'#ff6b1a\';this.style.background=\'#111c2e\'" onmouseout="this.style.borderColor=\'#1e2a3a\';this.style.background=\'#0d1520\'">'
+      +'<span style="flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:9px;background:#0a0f1c">'+icon+'</span>'
+      +'<div style="flex:1;overflow:hidden"><div style="font-size:13px;font-weight:600;color:#e0eaf8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(disp)+'</div>'
+      +'<div style="font-size:9px;font-family:DM Mono,monospace;color:#5a6a80;margin-top:2px">'+ext.toUpperCase()+((info&&info.label)?' · '+esc(info.label):'')+'</div></div>'
+      +'<i class="ti ti-eye" style="color:#ff6b1a;font-size:17px;flex-shrink:0" title="Ouvrir"></i>'
+      +(url?'<a href="'+url+'" download target="_blank" onclick="event.stopPropagation()" title="Télécharger" style="color:#5a6a80;font-size:16px;text-decoration:none;flex-shrink:0"><i class="ti ti-download"></i></a>':'')
       +'</div>';
   }
+  /* Ouvre le fichier dans la même visionneuse modale que la section Fichiers
+     (PDF.js défilable/zoomable, image, vidéo, audio…), en lecture seule. */
+  window._svOpenFile=function(i){
+    var fp=rFiles[i]; if(!fp) return;
+    var url=_signedUrls[fp];
+    var disp=fp.split('/').pop().replace(/^\d+_/,'');
+    if(!url){ alert('Fichier temporairement indisponible — réessayez dans un instant.'); return; }
+    if(typeof _openFileViewer==='function'){ _openFileViewer(url, disp, {readonly:true}); }
+    else { window.open(url,'_blank','noopener'); }
+  };
 
   function _fileViewer(fpath,url){
     if(!url) return '<div style="text-align:center;color:#f87171;padding:40px;font-size:12px">Fichier temporairement indisponible.</div>';
@@ -19352,25 +19371,12 @@ function _svFs(imgId, title){
 
   function _renderFilesPane(){
     if(!rFiles.length) return '<div style="text-align:center;color:#5a6a80;padding:60px">Aucun fichier joint.</div>';
-    var sidebar='<div style="display:flex;flex-direction:column">';
-    for(var i=0;i<rFiles.length;i++){
-      sidebar+=_fileCard(i,rFiles[i],_signedUrls[rFiles[i]],i===_activeFile);
-    }
-    sidebar+='</div>';
-    var viewer='<div id="sv-file-viewer">'+_fileViewer(rFiles[_activeFile],_signedUrls[rFiles[_activeFile]])+'</div>';
-    if(rFiles.length===1){
-      return '<div style="padding:20px 0">'+_fileViewer(rFiles[0],_signedUrls[rFiles[0]])+'</div>';
-    }
-    if(isMobile){
-      return '<div style="display:flex;flex-direction:column;gap:14px">'
-        +'<div>'+sidebar+'</div>'
-        +'<div>'+viewer+'</div>'
-        +'</div>';
-    }
-    return '<div style="display:grid;grid-template-columns:260px 1fr;gap:20px;align-items:start">'
-      +'<div>'+sidebar+'</div>'
-      +'<div>'+viewer+'</div>'
-      +'</div>';
+    var h='<div style="max-width:640px;margin:0 auto;padding:8px 0">'
+      +'<div style="font-size:10px;font-family:DM Mono,monospace;color:#5a6a80;text-transform:uppercase;letter-spacing:.08em;margin:0 0 12px 2px">'+rFiles.length+' fichier'+(rFiles.length>1?'s':'')+' joint'+(rFiles.length>1?'s':'')+' · cliquez pour ouvrir</div>'
+      +'<div style="display:flex;flex-direction:column;gap:8px">';
+    for(var i=0;i<rFiles.length;i++){ h+=_fileCard(i,rFiles[i],_signedUrls[rFiles[i]]); }
+    h+='</div></div>';
+    return h;
   }
 
   window._svFileSelect=function(i){
