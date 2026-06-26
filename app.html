@@ -984,6 +984,15 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .sess-sort:focus{outline:none;border-color:var(--ora-g)}
 .sess-empty-search{grid-column:1/-1;padding:34px 20px;text-align:center;color:var(--muted);font-size:12px}
 @media(max-width:560px){.sess-search input{width:100px}.sess-toolbar{width:100%;margin-left:0}}
+/* Corbeille « Supprimés récemment » */
+.sess-trash-count{background:var(--ora);color:#000;font-family:var(--m);font-size:9px;font-weight:700;border-radius:9px;padding:1px 6px;margin-left:4px}
+.trash-row{display:flex;align-items:center;gap:12px;padding:11px 12px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:9px;margin-bottom:9px}
+.trash-row:last-child{margin-bottom:0}
+.trash-info{flex:1;min-width:0}
+.trash-name{font-size:13px;font-weight:600;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trash-meta{font-size:11px;color:var(--muted);font-family:var(--m);margin-top:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.trash-dot{color:var(--muted2)}
+.trash-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
 /* ── Dossiers de sessions ── */
 .sess-folder-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:2px 0 12px}
 .sess-folder-bar:empty{display:none}
@@ -1573,6 +1582,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
             <option value="az">A → Z</option>
             <option value="date">Date du show</option>
           </select>
+          <button class="btn ghost" id="sess-trash-btn" onclick="openTrashModal()" title="Supprimés récemment" style="display:none"><i class="ti ti-trash"></i><span id="sess-trash-count" class="sess-trash-count" style="display:none"></span></button>
           <button class="btn" onclick="newShow()"><i class="ti ti-plus"></i>Nouveau show</button>
         </div>
       </div>
@@ -2279,6 +2289,21 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
   </div>
 </div>
 
+<!-- SUPPRIMÉS RÉCEMMENT (corbeille shows — Pro) -->
+<div class="modal-ov" id="trash-modal" onclick="if(event.target===this)closeTrashModal()">
+  <div class="modal-box" style="width:560px">
+    <div class="modal-head"><i class="ti ti-trash" style="font-size:16px;color:var(--ora)"></i><span class="modal-title">Supprimés récemment</span><button class="btn ghost sm" onclick="closeTrashModal()"><i class="ti ti-x"></i></button></div>
+    <div class="modal-body">
+      <div class="ila-intro"><i class="ti ti-info-circle ila-intro-icon"></i><span>Les shows supprimés sont conservés <strong>30 jours</strong>, puis effacés définitivement. Restaure-les tant qu'ils sont là.</span></div>
+      <div id="trash-list"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost sm" id="trash-empty-btn" onclick="emptyTrash()" style="color:var(--err);border-color:rgba(255,77,106,.3);margin-right:auto;display:none"><i class="ti ti-trash-x"></i>Vider la corbeille</button>
+      <button class="btn ghost sm" onclick="closeTrashModal()"><i class="ti ti-x"></i>Fermer</button>
+    </div>
+  </div>
+</div>
+
 <!-- OUTPUT LIST ASSISTANT MODAL -->
 <div class="modal-ov" id="ol-assist-modal">
   <div class="modal-box" style="width:520px">
@@ -2943,6 +2968,8 @@ if (_inPasswordRecovery) {
 // ══════════════════════════════════════
 let ME=null, PROFILE=null;
 let SHOWS=[], CUR_SHOW=null, SHOW_MEMBERS_MAP={}, SHOW_OWNERS_CACHE={}, SHOW_STORAGE_MAP={};
+let DELETED_SHOWS=[];   // shows en corbeille (Pro) — restaurables 30 jours
+const TRASH_RETENTION_DAYS=30;
 let SHOW_SCENES={syno:[],stage:[],site:[]};
 let CUR_SCENES={syno:null,stage:null,site:null};
 let CHS=[];
@@ -3454,8 +3481,14 @@ async function loadShows(){
   // Merge, deduplicate by id
   const allShows=[...(ownedData||[]),...memberShows];
   const seen=new Set();
-  SHOWS=allShows.filter(s=>{if(seen.has(s.id))return false;seen.add(s.id);return true;})
+  const deduped=allShows.filter(s=>{if(seen.has(s.id))return false;seen.add(s.id);return true;});
+  /* Séparation corbeille / actifs — filtrage 100% côté client (deleted_at peut
+     ne pas exister encore : undefined → traité comme actif, aucune requête ne casse). */
+  DELETED_SHOWS=deduped.filter(s=>s.deleted_at && s.owner_id===ME.id)
+    .sort((a,b)=>new Date(b.deleted_at)-new Date(a.deleted_at));
+  SHOWS=deduped.filter(s=>!s.deleted_at)
     .sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  _updTrashBtn();
 
   /* Rendu IMMÉDIAT de tous les shows (owned + partagés) — garantit que la liste
      complète s'affiche même si une étape ultérieure (membres, stockage) échoue. */
@@ -3931,10 +3964,121 @@ async function newShow(){
 async function delShow(id,e){
   e?.stopPropagation();
   const s=SHOWS.find(x=>x.id===id);
-  if(!confirm(`Supprimer "${s?.name}" et tous ses canaux ?`))return;
-  await sb.from('shows').delete().eq('id',id);
-  SHOWS=SHOWS.filter(x=>x.id!==id);renderSPShows();
+  if(!s) return;
+  const pro = userPlan()==='pro';
+
+  if(pro){
+    /* Pro : suppression douce → corbeille « Supprimés récemment » (restaurable 30 j). */
+    if(!confirm(`Déplacer "${s.name}" dans les supprimés récemment ?\n\nTu pourras le restaurer pendant ${TRASH_RETENTION_DAYS} jours.`)) return;
+    const iso=new Date().toISOString();
+    const {error}=await sb.from('shows').update({deleted_at:iso}).eq('id',id);
+    if(error){
+      /* Colonne deleted_at absente (migration non appliquée) → repli explicite. */
+      console.warn('soft-delete indisponible:',error.message);
+      if(!confirm('La corbeille nécessite une mise à jour de la base (pas encore appliquée).\n\nSupprimer "'+s.name+'" DÉFINITIVEMENT à la place ?')) return;
+      await sb.from('shows').delete().eq('id',id);
+    } else {
+      s.deleted_at=iso;
+      DELETED_SHOWS.unshift(s);
+      _updTrashBtn();
+      toast('🗑 « '+s.name+' » déplacé dans Supprimés récemment');
+    }
+  } else {
+    /* Gratuit : suppression définitive (la corbeille est une fonction Pro). */
+    if(!confirm(`Supprimer "${s.name}" et tous ses canaux ?`)) return;
+    await sb.from('shows').delete().eq('id',id);
+  }
+
+  SHOWS=SHOWS.filter(x=>x.id!==id);renderSPShows();renderSessions();
   if(CUR_SHOW?.id===id){if(SHOWS.length>0)await switchShow(SHOWS[0].id);else await newShowDefault();}
+}
+
+/* ── Corbeille « Supprimés récemment » (Pro) ────────────────────────────── */
+function _trashDaysLeft(iso){
+  const purge=new Date(iso).getTime()+TRASH_RETENTION_DAYS*864e5;
+  return Math.max(0, Math.ceil((purge-Date.now())/864e5));
+}
+function _updTrashBtn(){
+  const b=document.getElementById('sess-trash-btn');
+  if(!b) return;
+  const pro=userPlan()==='pro';
+  const n=DELETED_SHOWS.length;
+  b.style.display = pro ? '' : 'none';   // visible seulement pour les Pro
+  const c=document.getElementById('sess-trash-count');
+  if(c){ c.textContent = n>0 ? n : ''; c.style.display = n>0 ? '' : 'none'; }
+}
+async function _purgeOldTrash(){
+  const cutoff=new Date(Date.now()-TRASH_RETENTION_DAYS*864e5).toISOString();
+  const old=DELETED_SHOWS.filter(s=>s.deleted_at && s.deleted_at<cutoff);
+  if(!old.length) return;
+  try{
+    await sb.from('shows').delete().lt('deleted_at',cutoff).eq('owner_id',ME.id);
+    DELETED_SHOWS=DELETED_SHOWS.filter(s=>!(s.deleted_at && s.deleted_at<cutoff));
+    _updTrashBtn();
+  }catch(err){ console.warn('purge corbeille:',err); }
+}
+async function openTrashModal(){
+  if(userPlan()!=='pro'){ showUpgradeModal('recently_deleted'); return; }
+  const m=document.getElementById('trash-modal'); if(!m) return;
+  m.style.display='flex';
+  await _purgeOldTrash();
+  renderTrashList();
+}
+function closeTrashModal(){ const m=document.getElementById('trash-modal'); if(m) m.style.display='none'; }
+function renderTrashList(){
+  const box=document.getElementById('trash-list'); if(!box) return;
+  const empBtn=document.getElementById('trash-empty-btn');
+  if(!DELETED_SHOWS.length){
+    box.innerHTML='<div style="text-align:center;padding:40px 20px;color:var(--muted)"><i class="ti ti-trash-off" style="font-size:34px;display:block;margin-bottom:12px;opacity:.4"></i><div style="font-size:13px">Aucun show supprimé récemment</div><div style="font-size:11px;color:var(--muted2);margin-top:6px">Les shows que tu supprimes apparaissent ici et sont restaurables pendant '+TRASH_RETENTION_DAYS+' jours.</div></div>';
+    if(empBtn) empBtn.style.display='none';
+    return;
+  }
+  if(empBtn) empBtn.style.display='';
+  box.innerHTML=DELETED_SHOWS.map(function(s){
+    const days=_trashDaysLeft(s.deleted_at);
+    const danger=days<=3;
+    return '<div class="trash-row">'
+      +'<div class="trash-info">'
+        +'<div class="trash-name">'+_oh(s.name)+'</div>'
+        +'<div class="trash-meta">Supprimé '+_timeAgo(s.deleted_at)+'<span class="trash-dot">·</span>'
+          +'<span style="color:'+(danger?'var(--err)':'var(--muted)')+'">suppression définitive dans '+days+' j</span></div>'
+      +'</div>'
+      +'<div class="trash-actions">'
+        +'<button class="btn sm" onclick="restoreShow(\''+s.id+'\')"><i class="ti ti-arrow-back-up"></i>Restaurer</button>'
+        +'<button class="btn ghost sm" title="Supprimer définitivement" style="color:var(--err);border-color:rgba(255,77,106,.3)" onclick="purgeShowForever(\''+s.id+'\')"><i class="ti ti-trash-x"></i></button>'
+      +'</div>'
+    +'</div>';
+  }).join('');
+}
+async function restoreShow(id){
+  const s=DELETED_SHOWS.find(x=>x.id===id); if(!s) return;
+  const {error}=await sb.from('shows').update({deleted_at:null}).eq('id',id);
+  if(error){ toast('Erreur restauration : '+error.message); return; }
+  s.deleted_at=null;
+  DELETED_SHOWS=DELETED_SHOWS.filter(x=>x.id!==id);
+  SHOWS.unshift(s);
+  SHOWS.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+  _updTrashBtn(); renderTrashList(); renderSPShows(); renderSessions();
+  toast('✓ « '+s.name+' » restauré');
+}
+async function purgeShowForever(id){
+  const s=DELETED_SHOWS.find(x=>x.id===id); if(!s) return;
+  if(!confirm('Supprimer DÉFINITIVEMENT "'+s.name+'" et tous ses canaux ?\n\nCette action est irréversible.')) return;
+  const {error}=await sb.from('shows').delete().eq('id',id);
+  if(error){ toast('Erreur : '+error.message); return; }
+  DELETED_SHOWS=DELETED_SHOWS.filter(x=>x.id!==id);
+  _updTrashBtn(); renderTrashList();
+  toast('Show supprimé définitivement');
+}
+async function emptyTrash(){
+  if(!DELETED_SHOWS.length) return;
+  if(!confirm('Vider la corbeille ? Les '+DELETED_SHOWS.length+' show(s) seront supprimés DÉFINITIVEMENT.\n\nCette action est irréversible.')) return;
+  const ids=DELETED_SHOWS.map(s=>s.id);
+  const {error}=await sb.from('shows').delete().in('id',ids);
+  if(error){ toast('Erreur : '+error.message); return; }
+  DELETED_SHOWS=[];
+  _updTrashBtn(); renderTrashList();
+  toast('Corbeille vidée');
 }
 
 // ══════════════════════════════════════
@@ -16924,10 +17068,10 @@ function closeUD(){document.getElementById('user-dd').classList.remove('show');}
 const PLAN_PERMS = {
   free:   { max_shows:3,        max_channels:26,       max_members:1,        max_templates:5,        max_share_links:5,
             export_pdf:true,    share_link:true,       site_plan:true,       pdf_watermark:true,
-            storage:true,       multi_scenes:false,    multi_patches:false,  custom_exports:false,  vintage_view:false, recap_matos:false, recent_activity:false, console_export:false, ai_stage:false, ai_inputlist:false, bulk_link:false },
+            storage:true,       multi_scenes:false,    multi_patches:false,  custom_exports:false,  vintage_view:false, recap_matos:false, recent_activity:false, console_export:false, ai_stage:false, ai_inputlist:false, bulk_link:false, recently_deleted:false },
   pro:    { max_shows:Infinity, max_channels:Infinity, max_members:Infinity, max_templates:Infinity, max_share_links:Infinity,
             export_pdf:true,    share_link:true,       site_plan:true,       pdf_watermark:false,
-            storage:true,       multi_scenes:true,     multi_patches:true,   custom_exports:true,   vintage_view:true,  recap_matos:true,  recent_activity:true, console_export:true, ai_stage:true, ai_inputlist:true, bulk_link:true },
+            storage:true,       multi_scenes:true,     multi_patches:true,   custom_exports:true,   vintage_view:true,  recap_matos:true,  recent_activity:true, console_export:true, ai_stage:true, ai_inputlist:true, bulk_link:true, recently_deleted:true },
 };
 
 const PLAN_META = {
@@ -16954,6 +17098,7 @@ const GATE_META = {
   ai_inputlist:   { icon:'ti-sparkles',         title:'Input List par IA',             desc:'Envoyez une input list existante (image, PDF, CSV, Word) : l\'IA la numérise et crée automatiquement les canaux avec micro, +48V, IEM et pied de micro.', plan:'pro', feats:['Formats image, PDF, CSV et Word','Détecte micro/DI, +48V, IEM et pied','Canaux ajoutés prêts à ajuster'] },
   max_share_links:{ icon:'ti-link',             title:'Limite de liens de partage',   desc:'Le plan Gratuit est limite a 5 liens de partage au total. Passez au Pro pour des liens illimites.', plan:'pro', feats:['Liens de partage illimites sur Pro','Partagez chaque show en lecture seule','Mise a jour en temps reel'] },
   bulk_link:      { icon:'ti-checkbox',         title:'Liaison multiple de canaux',   desc:'Liez plusieurs canaux d\'un coup a un kit (batterie, percussions...) en les cochant — au lieu de les ajouter un par un.', plan:'pro', feats:['Cochez 8 canaux et liez-les en un clic','Ideal pour les kits batterie / percussions','Inclus dans le plan Pro'] },
+  recently_deleted:{ icon:'ti-trash',          title:'Supprimés récemment',          desc:'Vos shows supprimés ne sont plus perdus : ils sont conservés 30 jours dans une corbeille d\'où vous pouvez les restaurer en un clic.', plan:'pro', feats:['Corbeille de récupération des shows','Restauration en un clic pendant 30 jours','Suppression définitive quand vous le décidez'] },
 };
 
 function userPlan() { return PROFILE?.plan || 'free'; }
