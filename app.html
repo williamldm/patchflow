@@ -304,6 +304,13 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .mob-zoom-btn:active{background:var(--ora);color:#000;transform:scale(.9)}
 .mob-plan-foot{padding:7px 14px;font-size:10px;color:var(--muted);font-family:var(--m);text-align:center;border-top:1px solid var(--bdr);flex-shrink:0;background:var(--surf)}
 .mob-plan-loading{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:48px 24px;color:var(--muted);font-size:13px;position:absolute;inset:0}
+/* Sélecteur de scènes (multi-scène) dans le visionneur mobile de plan */
+.mob-scene-bar{display:none;align-items:center;gap:6px;padding:7px 12px;background:var(--surf);border-bottom:1px solid var(--bdr2);flex-shrink:0;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.mob-scene-bar::-webkit-scrollbar{display:none}
+.mob-scene-chip{flex-shrink:0;background:var(--surf2);border:1px solid var(--bdr2);color:var(--txt2);font-size:12px;font-weight:600;padding:7px 13px;border-radius:8px;cursor:pointer;font-family:var(--f);white-space:nowrap;min-height:34px;display:inline-flex;align-items:center;gap:5px}
+.mob-scene-chip.active{background:var(--ora);border-color:var(--ora);color:#000}
+.mob-scene-chip.add{color:var(--ora);font-weight:700;font-size:15px;padding:6px 13px}
+.mob-scene-chip.locked{color:var(--ora);background:var(--ora-d);border-color:var(--ora-g)}
 
 /* ── IL patch tabs + Scene tabs (shared style) ── */
 .il-patch-tabs{display:flex;align-items:center;gap:5px;margin-bottom:10px;flex-wrap:wrap}
@@ -3681,6 +3688,14 @@ async function switchScene(type,sceneId){
     _loadSceneStage(scene);
   } else if(type==='site'){
     _loadSceneSite(scene);
+  }
+  /* Sur téléphone, le plan est un aperçu image : re-générer après bascule. */
+  if(typeof _isMobile==='function' && _isMobile()){
+    const ovId = (type==='syno') ? 'mob-syno-ov' : 'mob-stage-ov';
+    const ov = document.getElementById(ovId);
+    if(ov && ov.classList.contains('mob-plan-show')){
+      setTimeout(function(){ _showMobilePlanView(type); }, 60);
+    }
   }
 }
 function _persistCurScenes(){
@@ -16998,6 +17013,28 @@ function _mobEmptyState(icon, label){
   </div>`;
 }
 
+/* Sélecteur de scènes du visionneur mobile (multi-scène Pro). Le type est
+   'syno' | 'stage' | 'site'. Permet de basculer/ajouter une version sur
+   téléphone — l'éditeur complet restant réservé au bureau. */
+function _renderMobSceneBar(type){
+  const barId = (type==='syno') ? 'mob-syno-scenes' : 'mob-stage-scenes';
+  const bar = document.getElementById(barId);
+  if(!bar) return;
+  if(!canDo('multi_scenes')){
+    /* Gratuit : chip verrouillé (découverte → modale d'upgrade). */
+    bar.innerHTML = '<button class="mob-scene-chip locked" onclick="showUpgradeModal(\'multi_patches\')"><i class="ti ti-lock" style="font-size:10px"></i>Multi-scènes (Pro)</button>';
+    bar.style.display = 'flex';
+    return;
+  }
+  const scenes = SHOW_SCENES[type] || [];
+  if(!scenes.length){ bar.style.display='none'; return; }
+  bar.innerHTML = scenes.map(function(s){
+    const active = s.id===CUR_SCENES[type];
+    return '<button class="mob-scene-chip'+(active?' active':'')+'" onclick="switchScene(\''+type+'\',\''+s.id+'\')">'+_oh(s.name)+'</button>';
+  }).join('') + '<button class="mob-scene-chip add" onclick="addScene(\''+type+'\')" title="Nouvelle version">+</button>';
+  bar.style.display = 'flex';
+}
+
 async function _showMobilePlanView(type){
   /* Ne pas afficher si l'app n'est pas active (écran d'auth, vue partagée) */
   const appEl = document.getElementById('app');
@@ -17008,6 +17045,7 @@ async function _showMobilePlanView(type){
   const ov      = document.getElementById(ovId);
   if(!ov) return;
   ov.classList.add('mob-plan-show');
+  _renderMobSceneBar(type);
 
   /* Update title & icon for stage/site */
   if(!isSyno){
@@ -19363,6 +19401,7 @@ function _svFs(imgId, title){
     <span class="mob-plan-hint"><i class="ti ti-lock" style="font-size:9px"></i> Lecture</span>
     <button class="btn ghost sm" onclick="openPDFModal('syno')" style="font-size:10px;padding:5px 9px;flex-shrink:0"><i class="ti ti-file-type-pdf"></i>PDF</button>
   </div>
+  <div class="mob-scene-bar" id="mob-syno-scenes"></div>
   <!-- Canvas : sans le HUD pour éviter que touchstart mange les taps -->
   <div class="mob-plan-canvas" id="mob-syno-scroll">
     <div class="mob-plan-loading"><div class="spinner"></div>Génération…</div>
@@ -19384,6 +19423,7 @@ function _svFs(imgId, title){
     <button id="mob-plan-mode-btn" onclick="setPlanMode(PLAN_MODE==='site'?'scene':'site')" style="flex-shrink:0;background:var(--surf2);border:1px solid var(--bdr2);color:var(--txt2);font-size:10px;font-weight:600;padding:5px 9px;border-radius:7px;cursor:pointer;display:flex;align-items:center;gap:5px;font-family:var(--f)"><i class="ti ti-map-2" style="font-size:12px"></i><span id="mob-plan-mode-lbl">Site</span></button>
     <button class="btn ghost sm" id="mob-stage-pdf-btn" onclick="openPDFModal('stage')" style="font-size:10px;padding:5px 9px;flex-shrink:0"><i class="ti ti-file-type-pdf"></i>PDF</button>
   </div>
+  <div class="mob-scene-bar" id="mob-stage-scenes"></div>
   <div class="mob-plan-canvas" id="mob-stage-scroll">
     <div class="mob-plan-loading"><div class="spinner"></div>Génération…</div>
   </div>
