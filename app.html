@@ -2395,7 +2395,15 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
         <button id="pdf-exp-syno"  class="pmb"    onclick="setPdfExportType('syno')"  style="justify-content:center;font-size:10px"><i class="ti ti-topology-star" style="font-size:11px"></i>Synoptique</button>
       </div>
       <!-- Sous-titre — utile pour plans visuels -->
-      <div id="pdf-sub-row" class="pdf-fld" style="display:none;margin-bottom:10px"><label class="pdf-lbl">Sous-titre / Production</label><input class="pdf-inp" id="pdf-sub" placeholder="Nom de la production, tournée…"/></div>
+      <div id="pdf-sub-row" class="pdf-fld" style="display:none;margin-bottom:10px"><label class="pdf-lbl">Sous-titre / Production <span style="font-size:9px;color:var(--muted);font-family:var(--m)">(optionnel)</span></label><input class="pdf-inp" id="pdf-sub" placeholder="Nom de la production, tournée…"/></div>
+      <!-- Orientation d'impression (plans visuels) -->
+      <div id="pdf-orient-row" style="display:none;margin-bottom:10px">
+        <label class="pdf-lbl" style="display:block;margin-bottom:5px">Orientation pour l'impression</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;background:var(--surf3);border:1px solid var(--bdr2);border-radius:8px;padding:3px">
+          <button type="button" id="pdf-orient-land" class="pmb on" onclick="setPdfOrient('landscape')" style="justify-content:center;font-size:10px"><i class="ti ti-rectangle" style="font-size:12px"></i>Paysage</button>
+          <button type="button" id="pdf-orient-port" class="pmb" onclick="setPdfOrient('portrait')" style="justify-content:center;font-size:10px"><i class="ti ti-rectangle-vertical" style="font-size:12px"></i>Portrait</button>
+        </div>
+      </div>
       <div id="pdf-free-notice" style="display:none;align-items:center;gap:9px;background:rgba(255,107,26,.06);border:1px solid rgba(255,107,26,.22);border-radius:7px;padding:8px 12px;font-size:11px;color:var(--txt2);margin-bottom:12px"><i class="ti ti-droplet" style="color:var(--ora);flex-shrink:0;font-size:14px"></i><span>Plan Gratuit : l'export inclut un <strong>léger filigrane</strong> PatchFlow. <button onclick="closePDF();showUpgradeModal('export_pdf_pro')" style="background:none;border:none;color:var(--ora);cursor:pointer;font-size:11px;padding:0;font-family:var(--f);text-decoration:underline">Passer Pro</button> pour un PDF sans filigrane + champs complets.</span></div>
       <div class="pdf-sec"><div class="pdf-sec-title"><i class="ti ti-user" style="color:var(--ora)"></i>Ing&eacute;nieur</div>
         <div class="pdf-grid">
@@ -3020,6 +3028,7 @@ let OUT_CHS=[];         // sorties du patch courant
 let OUT_DATA={};        // { [patch_id]: [...out_channels] }
 let _saveOutTimer=null;
 let _pdfExportType='in';          // 'in' | 'out'
+let _pdfOrient='landscape';       // orientation des plans visuels : 'landscape' | 'portrait'
 let _pdfLogoDataUrl=null;         // base64 logo studio
 let _pdfBranding={co:'',site:'',color:'#ff6b1a',tagline:''};
 let _patchColReady=false;
@@ -6774,15 +6783,23 @@ function setPdfExportType(type){
   if(titleEl) titleEl.textContent = titles[type]||'Exporter en PDF';
   const isVisual = type==='stage'||type==='site'||type==='syno';
   const isTable  = !isVisual;
-  // Show subtitle only for visual plans
+  // Show subtitle + orientation only for visual plans
   const subRow = document.getElementById('pdf-sub-row');
   if(subRow) subRow.style.display = isVisual ? '' : 'none';
+  const orientRow = document.getElementById('pdf-orient-row');
+  if(orientRow) orientRow.style.display = isVisual ? '' : 'none';
   // Hide link/recap checkboxes for visual plans
   const foot1 = document.querySelector('#pdf-modal .modal-foot > div:first-child');
   if(foot1) foot1.style.display = isTable ? '' : 'none';
   // Hide toggle row entirely if only one option visible
   const toggleRow = document.querySelector('#pdf-modal .modal-body > div:first-child');
   if(toggleRow) toggleRow.style.display = _pdfVisibleTypes.length <= 1 ? 'none' : '';
+}
+function setPdfOrient(o){
+  _pdfOrient = (o==='portrait') ? 'portrait' : 'landscape';
+  var l=document.getElementById('pdf-orient-land'), p=document.getElementById('pdf-orient-port');
+  if(l) l.classList.toggle('on', _pdfOrient==='landscape');
+  if(p) p.classList.toggle('on', _pdfOrient==='portrait');
 }
 function loadPdfLogo(input){
   var file=input.files[0];if(!file)return;
@@ -7155,8 +7172,8 @@ function openPDFModal(forceType){
   if(venueEl&&!venueEl.value&&CUR_SHOW?.venue) venueEl.value=CUR_SHOW.venue;
   const dateEl=document.getElementById('pdf-date');
   if(dateEl&&!dateEl.value&&CUR_SHOW?.show_date) dateEl.value=CUR_SHOW.show_date;
-  const subEl=document.getElementById('pdf-sub');
-  if(subEl&&!subEl.value&&CUR_SHOW?.name) subEl.value=CUR_SHOW.name;
+  /* On ne pré-remplit PLUS le sous-titre avec le nom du show (rendu PDF plus
+     pro : le titre du document est mis en avant, pas le nom interne du show). */
   const type = forceType || CUR_IL_MODE;
   setPdfExportType(type);
   document.getElementById('pdf-modal').className='modal-ov show';
@@ -8085,7 +8102,7 @@ async function doPDF(){
         try{ dataUrl=cv.toDataURL('image/png'); }
         catch(corsErr){ toast('Erreur export (image CORS) : '+corsErr.message); console.error('stage pdf toDataURL:',corsErr); return; }
         const shareUrl=window.location.origin+window.location.pathname+'?view='+(CUR_SHOW?.id||'')+'&tab=stage';
-        _openVisualPdf('Plan de scene', meta, dataUrl, shareUrl, brand).catch(function(e){toast('Erreur PDF : '+e.message);console.error('_openVisualPdf:',e);});
+        _openVisualPdf('Plan de scene', meta, dataUrl, shareUrl, brand, {orientation:_pdfOrient}).catch(function(e){toast('Erreur PDF : '+e.message);console.error('_openVisualPdf:',e);});
       }catch(e){toast('Erreur export PDF : '+e.message);console.error('stage pdf cb:',e);}
     });
     return;
@@ -8105,7 +8122,7 @@ async function doPDF(){
         try{ dataUrl=cv.toDataURL('image/png'); }
         catch(corsErr){ toast('Erreur export (image CORS) : '+corsErr.message); console.error('site pdf toDataURL:',corsErr); return; }
         const shareUrl=window.location.origin+window.location.pathname+'?view='+(CUR_SHOW?.id||'')+'&tab=site';
-        _openVisualPdf('Plan de site', meta, dataUrl, shareUrl, brand).catch(function(e){toast('Erreur PDF : '+e.message);console.error('_openVisualPdf:',e);});
+        _openVisualPdf('Plan de site', meta, dataUrl, shareUrl, brand, {orientation:_pdfOrient}).catch(function(e){toast('Erreur PDF : '+e.message);console.error('_openVisualPdf:',e);});
       }catch(e){toast('Erreur export PDF : '+e.message);console.error('site pdf cb:',e);}
     });
     return;
@@ -8252,37 +8269,49 @@ async function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand, opts){
       ratio = await _imgRatio(dataUrl);
     }
 
-    const doc = new JsPDF({orientation:'landscape',unit:'mm',format:'a4'});
-    const PW=297, PH=210;
+    /* Orientation choisie par l'utilisateur (paysage par défaut). */
+    const orientation = (opts.orientation==='portrait') ? 'portrait' : 'landscape';
+    const doc = new JsPDF({orientation, unit:'mm', format:'a4'});
+    const PW = orientation==='portrait' ? 210 : 297;
+    const PH = orientation==='portrait' ? 297 : 210;
     const now = new Date().toLocaleString('fr-FR');
     const acc = _hex2rgb(_safeColor(brand.color)||'#ff6b1a');
-    const title = String(meta.title||CUR_SHOW?.name||docType).slice(0,60);
+    /* Titre mis en avant. Le nom interne du show n'est PLUS injecté ici :
+       si aucun titre n'est saisi, on retombe sur le type de document. */
+    const title = String(meta.title||docType).slice(0,60);
     const sub   = String(meta.sub||'').slice(0,90);
     const eng   = [meta.eng, meta.role].filter(Boolean).join(' — ');
 
-    /* ── Header sombre ── */
-    const HDR=16;
+    /* ── Header sombre — titre en grand ── */
+    const HDR=19;
     doc.setFillColor(10,15,28); doc.rect(0,0,PW,HDR,'F');
-    doc.setFillColor(acc[0],acc[1],acc[2]); doc.rect(0,HDR,PW,0.6,'F');
-    doc.setFontSize(6); doc.setFont('helvetica','bold'); doc.setTextColor(acc[0],acc[1],acc[2]);
-    doc.text((brand.co||'PATCHFLOW').toUpperCase(),10,5.2);
-    doc.setFontSize(13); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
-    doc.text(title,10, sub?10:11.5);
-    if(sub){ doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(128,144,168); doc.text(sub,10,13.8); }
-    doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(acc[0],acc[1],acc[2]);
-    doc.text(String(docType).toUpperCase(),PW-10,5.2,{align:'right'});
+    doc.setFillColor(acc[0],acc[1],acc[2]); doc.rect(0,HDR,PW,0.8,'F');
+    /* Société (petit, au-dessus du titre) */
+    doc.setFontSize(6.5); doc.setFont('helvetica','bold'); doc.setTextColor(acc[0],acc[1],acc[2]);
+    doc.text((brand.co||'PATCHFLOW').toUpperCase(),10,6);
+    /* Type de doc + horodatage (à droite) */
+    doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(acc[0],acc[1],acc[2]);
+    doc.text(String(docType).toUpperCase(),PW-10,6,{align:'right'});
     doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor(122,138,160);
-    doc.text((meta.rev?'Rev. '+meta.rev+'  ·  ':'')+now,PW-10,10,{align:'right'});
+    doc.text((meta.rev?'Rev. '+meta.rev+'  ·  ':'')+now,PW-10,10.5,{align:'right'});
+    /* Titre — grand, auto-réduit s'il déborde de la place dispo */
+    let tFs=18; doc.setFont('helvetica','bold');
+    const titleMaxW = PW - 20 - 38; /* marge gauche + réserve droite (type/date) */
+    doc.setFontSize(tFs);
+    while(tFs>11 && doc.getTextWidth(title) > titleMaxW){ tFs-=1; doc.setFontSize(tFs); }
+    doc.setTextColor(255,255,255);
+    doc.text(title,10, sub?12.5:14.5);
+    if(sub){ doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(150,165,190); doc.text(sub,10,16.8); }
 
     /* ── Barre méta ── */
-    let y=HDR+0.6;
+    let y=HDR+0.8;
     const mItems=[];
     if(meta.venue) mItems.push(['Venue',meta.venue]);
     if(meta.date)  mItems.push(['Date',meta.date]);
     if(eng)        mItems.push(['Créateur',eng]);
     if(meta.co)    mItems.push(['Société',meta.co]);
     if(mItems.length){
-      const MB=9;
+      const MB=8.5;
       doc.setFillColor(247,248,250); doc.rect(0,y,PW,MB,'F');
       doc.setDrawColor(230,232,236); doc.setLineWidth(0.2); doc.line(0,y+MB,PW,y+MB);
       const cw=PW/mItems.length;
@@ -8290,27 +8319,31 @@ async function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand, opts){
         const cx=i*cw+6;
         if(i>0){ doc.setDrawColor(230,232,236); doc.line(i*cw,y+1.5,i*cw,y+MB-1.5); }
         doc.setFontSize(5.5); doc.setFont('helvetica','normal'); doc.setTextColor(160,160,160);
-        doc.text(it[0].toUpperCase(),cx,y+3.6);
+        doc.text(it[0].toUpperCase(),cx,y+3.4);
         doc.setFontSize(7.5); doc.setFont('helvetica','bold');
         if(it[0]==='Créateur') doc.setTextColor(acc[0],acc[1],acc[2]); else doc.setTextColor(51,51,51);
-        doc.text(String(it[1]).slice(0,38),cx,y+7);
+        doc.text(String(it[1]).slice(0,38),cx,y+6.8);
       });
       y+=MB;
     }
 
-    /* ── Zone image (maximisée, centrée, ratio préservé) ── */
+    /* ── Zone image (maximisée, centrée, ratio préservé) — chrome resserré
+       pour laisser le plan le plus grand possible ── */
     const hasQr = !!shareUrl;
-    const QRH = hasQr?16:0;
+    const QRH = hasQr?13:0;
     const notesLines = meta.notes ? doc.splitTextToSize(String(meta.notes), PW-20) : [];
-    const notesH = meta.notes ? Math.min(18, 6+notesLines.length*3) : 0;
-    const PAD=3;
+    const notesH = meta.notes ? Math.min(16, 6+notesLines.length*3) : 0;
+    const PAD=2;
     const availH = PH - y - QRH - notesH - PAD*2;
     const availW = PW - PAD*2;
     let drawW=availW, drawH=availW/ratio;
     if(drawH>availH){ drawH=availH; drawW=availH*ratio; }
+    const ix=(PW-drawW)/2, iy=y+PAD;
     /* compression 'FAST' (zlib) : indispensable, sinon le PNG d'un grand canvas
        gonfle le PDF à plusieurs dizaines de Mo */
-    doc.addImage(planImg,'PNG',(PW-drawW)/2,y+PAD,drawW,drawH,undefined,'FAST');
+    doc.addImage(planImg,'PNG',ix,iy,drawW,drawH,undefined,'FAST');
+    /* Cadre fin autour du plan (rendu pro) */
+    doc.setDrawColor(208,214,222); doc.setLineWidth(0.3); doc.rect(ix,iy,drawW,drawH);
 
     /* ── Notes ── */
     if(meta.notes){
@@ -8373,7 +8406,7 @@ function _openSynoPdf(meta, synHtml, shareUrl, brand){
 
   /* On passe le SVG STRING directement (pas un data URI) au visual PDF.
      _openVisualPdf détecte le préfixe '<svg' et l'inline dans la page. */
-  _openVisualPdf('Synoptique', meta, ex.svg, shareUrl, brand, {bigPlan:true, inlineSvg:true});
+  _openVisualPdf('Synoptique', meta, ex.svg, shareUrl, brand, {bigPlan:true, inlineSvg:true, orientation:_pdfOrient});
 }
 
 // ══════════════════════════════════════
