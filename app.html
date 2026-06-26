@@ -19278,22 +19278,25 @@ function _svFs(imgId, title){
         +'<span style="margin-left:auto;display:inline-flex;align-items:center;gap:4px;font-size:10px;color:#5a6a80;font-family:DM Mono,monospace">Ouvrir<i class="ti ti-arrow-right" style="font-size:13px"></i></span>'
         +'</div>';
     });
-    /* Fichiers — data-fp pour téléchargement */
+    /* Fichiers — ligne cliquable pour OUVRIR (visionneuse), + bouton télécharger */
     fileItems.forEach(function(f){
       var name=(typeof _fichDisplayName==='function')?_fichDisplayName(f.name):f.name.replace(/^[a-z0-9]+_/,'');
       var size=f.metadata&&f.metadata.size?_cloudFmtSize(f.metadata.size):'';
       var fp=_cloudPrefix(path)+f.name;
       var ft=FTYPE(name);
-      h+='<div style="display:flex;align-items:center;gap:12px;padding:9px 14px;background:#0d1220;border:1px solid #1e2a3a;border-radius:11px">'
+      h+='<div class="_cloud_open" data-fp="'+_fEsc(fp)+'" data-name="'+_fEsc(name)+'" '
+        +'style="display:flex;align-items:center;gap:12px;padding:9px 14px;background:#0d1220;border:1px solid #1e2a3a;border-radius:11px;cursor:pointer;transition:border-color .12s,background .12s" '
+        +'onmouseover="this.style.borderColor=\'#ff6b1a\';this.style.background=\'#111a2c\'" onmouseout="this.style.borderColor=\'#1e2a3a\';this.style.background=\'#0d1220\'">'
         +_icoBox(ft[0],ft[1],'rgba(255,255,255,.04)')
         +'<div style="min-width:0;flex:1">'
           +'<div style="font-size:12px;font-weight:600;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(name)+'</div>'
           +(size?'<div style="font-size:10px;color:#5a6a80;font-family:DM Mono,monospace;margin-top:1px">'+esc(size)+'</div>':'')
         +'</div>'
-        +'<button class="_cloud_dl" data-fp="'+_fEsc(fp)+'" data-name="'+_fEsc(name)+'" '
-          +'style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px;background:#1e2a3a;border:1px solid #2d3d50;color:#c0d0e0;font-size:11px;font-weight:600;padding:6px 12px;border-radius:8px;cursor:pointer;white-space:nowrap;transition:all .12s" '
-          +'onmouseover="this.style.background=\'#ff6b1a\';this.style.color=\'#000\';this.style.borderColor=\'#ff6b1a\'" onmouseout="this.style.background=\'#1e2a3a\';this.style.color=\'#c0d0e0\';this.style.borderColor=\'#2d3d50\'">'
-          +'<i class="ti ti-download" style="font-size:14px"></i>Télécharger</button>'
+        +'<span style="flex-shrink:0;color:#ff6b1a;display:inline-flex;align-items:center" title="Ouvrir"><i class="ti ti-eye" style="font-size:16px"></i></span>'
+        +'<button class="_cloud_dl" data-fp="'+_fEsc(fp)+'" data-name="'+_fEsc(name)+'" title="Télécharger" '
+          +'style="flex-shrink:0;display:inline-flex;align-items:center;background:#1e2a3a;border:1px solid #2d3d50;color:#c0d0e0;font-size:11px;font-weight:600;padding:6px 10px;border-radius:8px;cursor:pointer;transition:all .12s" '
+          +'onmouseover="this.style.background=\'#2d3d50\';this.style.color=\'#fff\'" onmouseout="this.style.background=\'#1e2a3a\';this.style.color=\'#c0d0e0\'">'
+          +'<i class="ti ti-download" style="font-size:14px"></i></button>'
         +'</div>';
     });
     h+='</div>';
@@ -19325,12 +19328,41 @@ function _svFs(imgId, title){
         try{ _cloudNavTo(JSON.parse(el.getAttribute('data-path')||'[]')); }catch(e){}
       });
     });
-    /* Téléchargements */
-    container.querySelectorAll('._cloud_dl').forEach(function(el){
+    /* Ouverture d'un fichier (même visionneuse que la section Fichiers) */
+    container.querySelectorAll('._cloud_open').forEach(function(el){
       el.addEventListener('click',function(){
+        _cloudOpen(el.getAttribute('data-fp'),el.getAttribute('data-name'));
+      });
+    });
+    /* Téléchargements (stopPropagation : ne pas déclencher l'ouverture de la ligne) */
+    container.querySelectorAll('._cloud_dl').forEach(function(el){
+      el.addEventListener('click',function(e){
+        e.stopPropagation();
         _cloudDownload(el.getAttribute('data-fp'),el.getAttribute('data-name'));
       });
     });
+  }
+
+  /* Récupère une URL signée publique puis ouvre le fichier dans la visionneuse
+     modale partagée (PDF.js, image, vidéo, audio…), comme la section Fichiers. */
+  async function _cloudOpen(filePath, name){
+    var info=(typeof _fichInfoOf==='function')?_fichInfoOf(name):{preview:'none'};
+    if(info.preview==='none'){ _cloudDownload(filePath,name); return; }
+    try{
+      var res=await fetch('https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/b2-storage',{
+        method:'POST',
+        headers:_pubHeaders,
+        body:JSON.stringify({action:'public-rider-file',path:filePath,showId:_cloudCurrentShowId,linkId:linkId||undefined})
+      });
+      var json=await res.json();
+      if(json.error) throw new Error(json.error.message||json.error);
+      var url=json.data?.signedUrl;
+      if(!url) throw new Error('URL invalide');
+      if(typeof _openFileViewer==='function'){ _openFileViewer(url, name, {readonly:true}); }
+      else { window.open(url,'_blank','noopener'); }
+    }catch(e){
+      alert('Erreur : '+e.message);
+    }
   }
 
   async function _cloudLoadDir(path, cb){
