@@ -157,9 +157,12 @@ body{display:flex;flex-direction:column;min-height:100vh}
   .content{padding-bottom:62px}
   .panel{padding:12px}
 
-  /* Stack pbar vertically on very small screens */
-  .pbar{gap:6px}
-  .ptitle{font-size:9px;min-width:0;flex:1 1 100%;order:-1}
+  /* Stack pbar vertically on very small screens.
+     NB : .pbar .ptitle (spécificité 0,2,0) pour battre la règle de base
+     « .ptitle{flex:1} » déclarée plus loin dans le fichier — sinon le titre
+     se réduit et les boutons se chevauchent dessus. */
+  .pbar{gap:6px;row-gap:8px}
+  .pbar .ptitle{font-size:9px;min-width:0;flex:1 1 100%;order:-1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
   /* Barre d'outils Input List : boutons compacts icône seule, rangée nette.
      (Le texte est masqué via font-size:0 ; l'icône garde sa taille. Les menus
@@ -197,23 +200,30 @@ body{display:flex;flex-direction:column;min-height:100vh}
      mais les deux premières colonnes restent collées à gauche pour garder le
      contexte du canal. Tout le JS existant est réutilisé tel quel. */
   #il-table-wrap .table-wrap,#out-table-wrap .table-wrap{-webkit-overflow-scrolling:touch}
-  .iltable{min-width:720px;font-size:12px}
-  .iltable th{padding:7px 7px;font-size:8px}
-  .iltable td{padding:3px 6px}
-  .iltable td .ilinp{font-size:13px;padding:6px 5px}
-  .iltable td .ilinp.m,.iltable td .ilinp.sh{font-size:13px}
+  /* Tableau compact : largeur dictée par le contenu (pas de min-width qui
+     étire les colonnes), cellules serrées → plus de colonnes visibles d'un coup. */
+  .iltable{min-width:0;width:auto;font-size:12px}
+  .iltable th{padding:6px 8px;font-size:8px}
+  .iltable td{padding:2px 5px}
+  /* Largeurs fixes compactes → colonnes serrées, plus de colonnes à l'écran
+     (sinon les <input> prennent leur largeur intrinsèque ~140px). */
+  .iltable td .ilinp{font-size:13px;padding:6px 4px;width:102px}
+  .iltable td .ilinp.sh{width:52px}
+  .iltable td .ilinp.m{font-size:12.5px;width:66px}
+  .iltable td .ilinp[type=number]{width:42px}
   .iltable td .out-type-sel{font-size:12px;padding:5px 6px}
   .cb{width:20px;height:20px}
   .move-btn{font-size:14px;padding:4px}.del-btn{font-size:14px;padding:4px 6px}
   .drag-handle{display:none}                      /* glisser tactile peu fiable → on garde ↑/↓ */
   /* Colonne N° figée à gauche */
   .iltable th:first-child,.iltable td.ch-num{
-    position:sticky;left:0;z-index:6;width:38px;min-width:38px;
+    position:sticky;left:0;z-index:6;width:34px;min-width:34px;padding:0 4px;
     background:var(--bg);box-shadow:1px 0 0 var(--bdr2)}
+  .iltable td.ch-num{font-size:16px}
   .iltable thead th:first-child{z-index:13;background:var(--surf2)}
   /* Colonne Court figée juste après le N° */
   .iltable th[data-col="short"],.iltable td[data-col="short"]{
-    position:sticky;left:38px;z-index:6;min-width:56px;
+    position:sticky;left:34px;z-index:6;
     background:var(--bg);box-shadow:1px 0 0 var(--bdr2)}
   .iltable thead th[data-col="short"]{z-index:13;background:var(--surf2)}
   /* Le survol/flash ne doit pas laisser transparaître le contenu défilé dessous */
