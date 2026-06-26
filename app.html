@@ -8249,7 +8249,30 @@ function _imgRatio(dataUrl){
   });
 }
 
-/* Génère et TÉLÉCHARGE directement un PDF A4 paysage du plan visuel
+/* Logo PatchFlow (marque seule) en SVG, rastérisé en PNG pour l'en-tête PDF. */
+function _pfLogoSvg(color){
+  color = color || '#FF6B2B';
+  return '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">'
+    +'<path d="M70 60 C100 60 100 140 130 140" fill="none" stroke="'+color+'" stroke-width="14" stroke-linecap="round"/>'
+    +'<path d="M130 60 C100 60 100 140 70 140" fill="none" stroke="'+color+'" stroke-width="14" stroke-linecap="round" opacity="0.45"/>'
+    +'<circle cx="60" cy="60" r="14" fill="none" stroke="'+color+'" stroke-width="10"/><circle cx="60" cy="60" r="5" fill="'+color+'"/>'
+    +'<circle cx="140" cy="60" r="14" fill="none" stroke="'+color+'" stroke-width="10"/><circle cx="140" cy="60" r="5" fill="'+color+'"/>'
+    +'<circle cx="60" cy="140" r="14" fill="none" stroke="'+color+'" stroke-width="10"/><circle cx="60" cy="140" r="5" fill="'+color+'"/>'
+    +'<circle cx="140" cy="140" r="14" fill="none" stroke="'+color+'" stroke-width="10"/><circle cx="140" cy="140" r="5" fill="'+color+'"/></svg>';
+}
+async function _pfLogoPng(color){
+  try{
+    var svg=_pfLogoSvg(color);
+    var url=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml;charset=utf-8'}));
+    var img=await new Promise(function(res,rej){ var im=new Image(); im.onload=function(){res(im);}; im.onerror=rej; im.src=url; });
+    var cv=document.createElement('canvas'); cv.width=200; cv.height=200;
+    cv.getContext('2d').drawImage(img,0,0,200,200);
+    URL.revokeObjectURL(url);
+    return cv.toDataURL('image/png');
+  }catch(e){ return null; }
+}
+
+/* Génère et TÉLÉCHARGE directement un PDF A4 (paysage/portrait) du plan visuel
    (plan de scène, plan de site, synoptique) — plus de popup ni d'impression. */
 async function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand, opts){
   opts = opts || {};
@@ -8282,26 +8305,31 @@ async function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand, opts){
     const sub   = String(meta.sub||'').slice(0,90);
     const eng   = [meta.eng, meta.role].filter(Boolean).join(' — ');
 
-    /* ── Header sombre — titre en grand ── */
-    const HDR=19;
+    /* Logo PatchFlow rastérisé (best-effort) — réutilisé en-tête + pied. */
+    let _pfLogo=null; try{ _pfLogo = await _pfLogoPng('#FF6B2B'); }catch(e){ _pfLogo=null; }
+
+    /* ── Header sombre — logo + titre en grand ── */
+    const HDR=21;
     doc.setFillColor(10,15,28); doc.rect(0,0,PW,HDR,'F');
-    doc.setFillColor(acc[0],acc[1],acc[2]); doc.rect(0,HDR,PW,0.8,'F');
-    /* Société (petit, au-dessus du titre) */
-    doc.setFontSize(6.5); doc.setFont('helvetica','bold'); doc.setTextColor(acc[0],acc[1],acc[2]);
-    doc.text((brand.co||'PATCHFLOW').toUpperCase(),10,6);
+    doc.setFillColor(acc[0],acc[1],acc[2]); doc.rect(0,HDR,PW,0.9,'F');
+    let LX=10;
+    if(_pfLogo){ try{ doc.addImage(_pfLogo,'PNG',10,5.6,10,10); LX=24; }catch(e){ LX=10; } }
+    /* Marque / société (petit, au-dessus du titre) */
+    doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(acc[0],acc[1],acc[2]);
+    doc.text((brand.co||'PatchFlow').toUpperCase(), LX, 8.2);
     /* Type de doc + horodatage (à droite) */
     doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(acc[0],acc[1],acc[2]);
-    doc.text(String(docType).toUpperCase(),PW-10,6,{align:'right'});
+    doc.text(String(docType).toUpperCase(),PW-10,8.2,{align:'right'});
     doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor(122,138,160);
-    doc.text((meta.rev?'Rev. '+meta.rev+'  ·  ':'')+now,PW-10,10.5,{align:'right'});
+    doc.text((meta.rev?'Rev. '+meta.rev+'  ·  ':'')+now,PW-10,12.8,{align:'right'});
     /* Titre — grand, auto-réduit s'il déborde de la place dispo */
     let tFs=18; doc.setFont('helvetica','bold');
-    const titleMaxW = PW - 20 - 38; /* marge gauche + réserve droite (type/date) */
+    const titleMaxW = PW - LX - 44; /* marge gauche (logo+texte) + réserve droite (type/date) */
     doc.setFontSize(tFs);
     while(tFs>11 && doc.getTextWidth(title) > titleMaxW){ tFs-=1; doc.setFontSize(tFs); }
     doc.setTextColor(255,255,255);
-    doc.text(title,10, sub?12.5:14.5);
-    if(sub){ doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(150,165,190); doc.text(sub,10,16.8); }
+    doc.text(title, LX, sub?14.4:16.2);
+    if(sub){ doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(150,165,190); doc.text(sub, LX, 18.4); }
 
     /* ── Barre méta ── */
     let y=HDR+0.8;
@@ -8330,7 +8358,7 @@ async function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand, opts){
     /* ── Zone image (maximisée, centrée, ratio préservé) — chrome resserré
        pour laisser le plan le plus grand possible ── */
     const hasQr = !!shareUrl;
-    const QRH = hasQr?13:0;
+    const QRH = hasQr?18:0;
     const notesLines = meta.notes ? doc.splitTextToSize(String(meta.notes), PW-20) : [];
     const notesH = meta.notes ? Math.min(16, 6+notesLines.length*3) : 0;
     const PAD=2;
@@ -8356,7 +8384,7 @@ async function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand, opts){
       doc.text(notesLines,10,ny+6.6);
     }
 
-    /* ── Footer QR + lien partagé ── */
+    /* ── Footer QR + lien partagé + marque PatchFlow ── */
     if(hasQr){
       const fy=PH-QRH;
       doc.setFillColor(244,250,255); doc.rect(0,fy,PW,QRH,'F');
@@ -8364,14 +8392,22 @@ async function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand, opts){
       const qrUrl='https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=0&data='+encodeURIComponent(shareUrl);
       const qr=await _loadImgDataUrl(qrUrl);
       let tx=10;
-      if(qr){ doc.addImage(qr.dataUrl,'PNG',10,fy+2,12,12); tx=25; }
-      doc.setFontSize(5.5); doc.setFont('helvetica','bold'); doc.setTextColor(26,143,255);
-      doc.text('FICHE À JOUR EN LIGNE',tx,fy+4.5);
+      /* QR centré verticalement dans le pied → plus de débordement/crop */
+      const qrSize=13, qy=fy+(QRH-qrSize)/2;
+      if(qr){ doc.addImage(qr.dataUrl,'PNG',10,qy,qrSize,qrSize); tx=10+qrSize+5; }
+      doc.setFontSize(6); doc.setFont('helvetica','bold'); doc.setTextColor(26,143,255);
+      doc.text('FICHE À JOUR EN LIGNE',tx,fy+6);
       doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(26,79,255);
-      const lnk=String(shareUrl).slice(0,95);
-      if(doc.textWithLink){ doc.textWithLink(lnk,tx,fy+8.6,{url:shareUrl}); } else { doc.text(lnk,tx,fy+8.6); }
+      const lnk=String(shareUrl).slice(0,88);
+      if(doc.textWithLink){ doc.textWithLink(lnk,tx,fy+10.5,{url:shareUrl}); } else { doc.text(lnk,tx,fy+10.5); }
       doc.setFontSize(5.5); doc.setFont('helvetica','normal'); doc.setTextColor(122,138,154);
-      doc.text('Scannez le QR code ou ouvrez le lien pour retrouver cette fiche à jour à tout moment.',tx,fy+12.2);
+      doc.text('Scannez le QR code ou ouvrez le lien pour retrouver cette fiche à jour à tout moment.',tx,fy+14.2);
+      /* Marque PatchFlow à droite du pied (logo + wordmark) */
+      const wm='patchflow.fr', wmY=fy+QRH/2+1;
+      doc.setFontSize(7); doc.setFont('helvetica','bold');
+      const wmW=doc.getTextWidth(wm);
+      if(_pfLogo){ try{ doc.addImage(_pfLogo,'PNG',PW-10-wmW-9,fy+(QRH-7)/2,7,7); }catch(e){} }
+      doc.setTextColor(26,143,255); doc.text(wm,PW-10,wmY,{align:'right'});
     }
 
     /* ── Filigrane plan Gratuit ── */
