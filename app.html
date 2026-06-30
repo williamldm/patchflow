@@ -18328,6 +18328,9 @@ function _svFs(imgId, title){
   var _shareShowId=sid||'';
   /* Variables pour le switching multi-patches/scènes */
   var _allRows=[];
+  /* Réponse de get-shared-show mémorisée au pré-chargement, réutilisée telle
+     quelle au moment du rendu pour éviter un 2e appel réseau identique. */
+  var _sharedResp=null;
 
   if(linkId||riderId){
     // Charger config depuis la edge function publique
@@ -18346,6 +18349,7 @@ function _svFs(imgId, title){
         body:JSON.stringify(_reqBody)
       });
       var _prj=await _pr.json();
+      _sharedResp=_prj; // réutilisé au rendu (pas de 2e fetch identique)
       if(!_prj.error&&_prj.data){
         preShow=_prj.data.show;
         /* Pour un ?link=, les sections/config viennent de overrideRider */
@@ -18507,14 +18511,19 @@ function _svFs(imgId, title){
   // ── Load show via edge function publique (bypass RLS pour les liens partagés) ──
   var show,rows=[];
   try{
-    /* Pour ?link=uuid, envoyer linkId ; pour ?rider=showId, envoyer showId */
-    var _sfBody=linkId?{linkId:linkId}:{showId:sid};
-    var _sfRes=await fetch('https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/get-shared-show',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},
-      body:JSON.stringify(_sfBody)
-    });
-    var _sfJson=await _sfRes.json();
+    /* Réutiliser la réponse déjà obtenue au pré-chargement (liens ?link= / ?rider=) ;
+       sinon (lien legacy ?view=) faire l'appel maintenant. Évite un 2e aller-retour
+       réseau + un 2e jeu de requêtes serveur pour le même show. */
+    var _sfJson=_sharedResp;
+    if(!_sfJson){
+      var _sfBody=linkId?{linkId:linkId}:{showId:sid};
+      var _sfRes=await fetch('https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/get-shared-show',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},
+        body:JSON.stringify(_sfBody)
+      });
+      _sfJson=await _sfRes.json();
+    }
     if(_sfJson.error||!_sfJson.data){
       document.getElementById('sv-body').innerHTML='<div style="text-align:center;color:#f87171;margin-top:60px;font-size:14px">'
         +esc(_sfJson.error||'Show introuvable')+'</div>';
