@@ -1042,7 +1042,7 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .sess-card.sess-dragging{opacity:.5}
 .slink-box{background:var(--surf);border:1px solid var(--bdr2);border-radius:12px;padding:16px;margin-top:12px}
 .slink-title{font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:5px}
-.slink-row{display:flex;gap:7px;align-items:center;margin-top:12px}
+.slink-row{display:flex;gap:7px;align-items:center;margin-top:12px;flex-wrap:wrap}
 .slink-url{flex:1;background:var(--surf2);border:1px solid var(--bdr2);border-radius:5px;font-family:var(--m);font-size:10px;color:var(--ora);padding:6px 9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:text}
 .slink-sections{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:4px}
 .slink-check{display:flex;align-items:center;justify-content:center;gap:7px;padding:9px 12px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;cursor:pointer;transition:all .15s;font-size:11px;font-weight:500;color:var(--txt2);font-family:var(--f)}
@@ -1080,6 +1080,10 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .link-card-btn{flex-shrink:0;background:none;border:1px solid var(--bdr2);color:var(--muted);font-size:10px;padding:3px 8px;border-radius:5px;cursor:pointer;font-family:var(--f);display:flex;align-items:center;gap:4px;transition:all .1s}
 .link-card-btn:hover{border-color:var(--bdr3);color:var(--txt2)}
 .link-card-btn.del:hover{border-color:var(--err);color:var(--err)}
+.link-card-btn.wa{border-color:rgba(37,211,102,.45);color:#25d366}
+.link-card-btn.wa:hover{border-color:#25d366;background:rgba(37,211,102,.12);color:#25d366}
+.slink-wa{background:#25d366!important;border-color:#25d366!important;color:#06210f!important}
+.slink-wa:hover{background:#1fc15c!important}
 .link-new-btn{display:flex;align-items:center;justify-content:center;gap:7px;padding:10px;background:none;border:1px dashed var(--bdr2);border-radius:10px;color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;width:100%;transition:all .15s;font-family:var(--f)}
 .link-new-btn:hover{border-color:var(--ora);color:var(--ora);background:var(--ora-d)}
 /* Formulaire nouveau lien */
@@ -2180,6 +2184,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
             <div id="rider-link-row" style="display:none;margin-top:10px">
               <div class="slink-row">
                 <div class="slink-url" id="slink-url"></div>
+                <button class="btn sm slink-wa" onclick="_waShareFree()"><i class="ti ti-brand-whatsapp"></i>WhatsApp</button>
                 <button class="btn blu sm" onclick="copyRiderLink()"><i class="ti ti-copy"></i>Copier</button>
               </div>
               <div style="font-size:10px;color:var(--grn);font-family:var(--m);margin-top:6px;display:none" id="rider-saved-ok"><i class="ti ti-check"></i> Lien sauvegardé</div>
@@ -5919,7 +5924,8 @@ function _renderLinksManager(){
   var SEC_LABELS={il:'Input List',out:'Output',syno:'Synoptique',stage:'Scène',site:'Site',cloud:'Fichiers',files:'PJ'};
   var base=window.location.origin+window.location.pathname;
   list.innerHTML=_proLinks.map(function(lnk){
-    var url=base+'?link='+lnk.id;
+    var code=lnk.code||lnk.id;
+    var url=base+'?link='+code;
     var secs=(lnk.sections||[]).map(function(s){
       return '<span class="link-sec-badge">'+_fEsc(SEC_LABELS[s]||s)+'</span>';
     }).join('');
@@ -5932,6 +5938,7 @@ function _renderLinksManager(){
       +(secs?'<div class="link-card-secs">'+secs+'</div>':'')
       +'<div class="link-card-url">'
         +'<span class="link-card-url-text">'+_fEsc(url)+'</span>'
+        +'<button class="link-card-btn wa" onclick="_waShareLink(\''+_fEsc(code)+'\')"><i class="ti ti-brand-whatsapp" style="font-size:11px"></i>WhatsApp</button>'
         +'<button class="link-card-btn" onclick="_copyProLink(\''+_fEsc(url)+'\')"><i class="ti ti-copy" style="font-size:10px"></i>Copier</button>'
       +'</div>'
     +'</div>';
@@ -5996,12 +6003,25 @@ async function _createLink(){
   if(sections.includes('syno')){ config.syn_snapshot=CUR_SHOW.synoptique_data||null; }
   if(sections.includes('out')){ config.out_snapshot=CUR_SHOW.out_data||OUT_DATA||{}; }
 
-  var {data,error}=await sb.from('show_riders').insert({
-    show_id:CUR_SHOW.id,
-    name:name,
-    sections:sections,
-    config:config
-  }).select().maybeSingle();
+  /* On stocke un code court pour obtenir une URL facile à partager. Si la
+     colonne "code" n'existe pas encore (migration non appliquée), on retombe
+     proprement sur l'insertion sans code (l'URL utilisera alors l'UUID). */
+  function _insRider(withCode){
+    var pl={show_id:CUR_SHOW.id,name:name,sections:sections,config:config};
+    if(withCode) pl.code=_genLinkCode();
+    return sb.from('show_riders').insert(pl).select().maybeSingle();
+  }
+  var data,error;
+  for(var _t=0;_t<3;_t++){
+    var _r=await _insRider(true);
+    data=_r.data;error=_r.error;
+    if(!error) break;
+    if(error.code==='23505'){ continue; }                 // code déjà pris → régénère
+    if(error.code==='PGRST204'||/'?code'?/.test(error.message||'')){ // colonne absente
+      var _r2=await _insRider(false); data=_r2.data;error=_r2.error;
+    }
+    break;
+  }
 
   if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-check"></i>Créer';}
   if(error){toast('Erreur : '+error.message);return;}
@@ -6019,6 +6039,32 @@ async function _deleteLink(id){
   _proLinks=_proLinks.filter(function(l){return l.id!==id;});
   _renderLinksManager();
   toast('Lien supprimé');
+}
+
+/* Code court pour des liens faciles à envoyer (WhatsApp). Alphabet sans
+   caractères ambigus (pas de 0/O/1/l/I). */
+function _genLinkCode(){
+  var A='23456789abcdefghjkmnpqrstuvwxyz',s='';
+  try{var arr=new Uint32Array(7);crypto.getRandomValues(arr);for(var i=0;i<7;i++)s+=A[arr[i]%A.length];}
+  catch(e){for(var j=0;j<7;j++)s+=A[Math.floor(Math.random()*A.length)];}
+  return s;
+}
+
+/* Ouvre WhatsApp (mobile ou web) avec un message pré-rempli + le lien. */
+function _waShare(url,label){
+  var sn=(CUR_SHOW&&CUR_SHOW.name)?CUR_SHOW.name:'Patch';
+  var head=label?(sn+' ('+label+')'):sn;
+  var msg=head+'\nFiche à jour en temps réel :\n'+url;
+  window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank','noopener');
+}
+function _waShareLink(code){
+  var url=window.location.origin+window.location.pathname+'?link='+code;
+  var lnk=_proLinks.find(function(l){return (l.code||l.id)===code;});
+  _waShare(url,lnk?lnk.name:'');
+}
+function _waShareFree(){
+  var url=(document.getElementById('slink-url')||{}).textContent||'';
+  if(url)_waShare(url,'');
 }
 
 function _copyProLink(url){

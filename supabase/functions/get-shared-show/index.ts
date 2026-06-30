@@ -49,16 +49,22 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
 
-    /* ── Mode Pro : lien nommé depuis show_riders (?link=uuid) ── */
+    /* ── Mode Pro : lien nommé depuis show_riders ──
+       Accepte soit un code court (?link=k7m3p9q), soit un UUID complet
+       (?link=uuid) pour rester compatible avec les liens déjà partagés. */
     if (body.linkId) {
       const { linkId } = body;
-      if (!UUID_RE.test(linkId)) return json({ error: 'linkId invalide' }, 400);
+      const isUuid = UUID_RE.test(linkId);
+      // Code court : alphanumérique, 4 à 32 caractères. Sinon on rejette.
+      if (!isUuid && !/^[A-Za-z0-9]{4,32}$/.test(linkId)) {
+        return json({ error: 'linkId invalide' }, 400);
+      }
 
-      const { data: rider } = await sbAdmin
+      let q = sbAdmin
         .from('show_riders')
-        .select('id, show_id, name, sections, config')
-        .eq('id', linkId)
-        .maybeSingle();
+        .select('id, show_id, name, sections, config');
+      q = isUuid ? q.eq('id', linkId) : q.eq('code', linkId);
+      const { data: rider } = await q.maybeSingle();
 
       if (!rider) return json({ error: 'Lien introuvable ou expiré' }, 404);
 
