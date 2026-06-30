@@ -1855,7 +1855,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
             </div>
             <div class="sp-doc-foot">
               <div id="sp-legend" class="sp-legend"></div>
-              <div class="sp-footer-url" id="sp-footer">www.patchflow.app</div>
+              <div class="sp-footer-url" id="sp-footer">www.patchflow.fr</div>
             </div>
           </div>
           <div class="sp-inspector" id="sp-inspector-wrap">
@@ -2913,7 +2913,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
         <textarea class="support-txt" id="support-msg" placeholder="Decrivez votre probleme ou votre question..."></textarea>
       </div>
       <button class="btn" style="width:100%" onclick="submitSupport()"><i class="ti ti-send"></i>Envoyer le message</button>
-      <p class="support-note">Vous pouvez aussi nous ecrire directement a <a href="mailto:support@patchflow.io">support@patchflow.io</a></p>
+      <p class="support-note">Vous pouvez aussi nous ecrire directement a <a href="mailto:support@patchflow.fr">support@patchflow.fr</a></p>
     </div>
     <div class="modal-foot">
       <button class="btn ghost sm" onclick="closeSupport()">Fermer</button>
@@ -8967,7 +8967,7 @@ const SynPro = (() => {
       v:1,
       title:'Diagramme reseau',
       headerColor:'#ff6b1a',
-      footer:'www.patchflow.app',
+      footer:'www.patchflow.fr',
       nodes:[],
       cables:[],
       networks: DEFAULT_NETWORKS.map(function(n){return Object.assign({},n);}),
@@ -10369,9 +10369,9 @@ const SynPro = (() => {
     });
 
     /* Footer — uniquement si l'utilisateur a défini un texte personnalisé
-       (on n'affiche plus la marque "www.patchflow.app" par défaut) */
+       (on n'affiche plus la marque "www.patchflow.fr" par défaut) */
     var ftxt = (state.footer || '').trim();
-    if (ftxt && ftxt.toLowerCase() !== 'www.patchflow.app' && ftxt.toLowerCase() !== 'patchflow.app') {
+    if (ftxt && ftxt.toLowerCase() !== 'www.patchflow.fr' && ftxt.toLowerCase() !== 'patchflow.fr') {
       svg += '<text x="' + (fullW-14) + '" y="' + (fullH-12) + '" text-anchor="end" font-family="Outfit,sans-serif" font-size="10" font-weight="600" fill="#94a3b8">' + esc(ftxt) + '</text>';
     }
     svg += '</svg>';
