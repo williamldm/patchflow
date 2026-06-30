@@ -189,9 +189,13 @@ serve(async (req) => {
       // le fichier est autorisé si la section "cloud" est partagée OU si le path
       // figure explicitement dans la liste des fichiers du lien.
       let fileAllowed = false;
-      if (linkId && UUID_RE.test(linkId)) {
-        const { data: rider } = await sbAdmin
-          .from('show_riders').select('show_id, sections, config').eq('id', linkId).maybeSingle();
+      // linkId = code court (?link=k7m3p9q) ou UUID legacy : on accepte les deux.
+      const linkIsUuid = !!linkId && UUID_RE.test(linkId);
+      const linkIsCode = !!linkId && !linkIsUuid && /^[A-Za-z0-9]{4,32}$/.test(linkId);
+      if (linkIsUuid || linkIsCode) {
+        let rq = sbAdmin.from('show_riders').select('show_id, sections, config');
+        rq = linkIsUuid ? rq.eq('id', linkId) : rq.eq('code', linkId);
+        const { data: rider } = await rq.maybeSingle();
         if (rider && rider.show_id === showId) {
           const cloudShared = (rider.sections || []).includes('cloud');
           const allowedFiles: string[] = rider.config?.files || [];
@@ -240,9 +244,13 @@ serve(async (req) => {
       // (show_riders.id = linkId avec "cloud" dans ses sections), soit via le
       // rider legacy (shows.stage_data.rider.sections).
       let cloudOk = false;
-      if (linkId && UUID_RE.test(linkId)) {
-        const { data: rider } = await sbAdmin
-          .from('show_riders').select('show_id, sections').eq('id', linkId).maybeSingle();
+      // linkId = code court (?link=k7m3p9q) ou UUID legacy : on accepte les deux.
+      const linkIsUuid = !!linkId && UUID_RE.test(linkId);
+      const linkIsCode = !!linkId && !linkIsUuid && /^[A-Za-z0-9]{4,32}$/.test(linkId);
+      if (linkIsUuid || linkIsCode) {
+        let rq = sbAdmin.from('show_riders').select('show_id, sections');
+        rq = linkIsUuid ? rq.eq('id', linkId) : rq.eq('code', linkId);
+        const { data: rider } = await rq.maybeSingle();
         cloudOk = !!rider && rider.show_id === showId && (rider.sections || []).includes('cloud');
       } else {
         const { data: showRow } = await sbAdmin
