@@ -921,6 +921,7 @@ body{display:flex;flex-direction:column;min-height:100vh}
 
 /* ── TEAM ── */
 .team-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.team-quota{display:none;align-items:center;gap:7px;flex-wrap:wrap;font-size:11px;font-family:var(--m);color:var(--muted);background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;padding:8px 12px;margin-top:12px}
 .tc{background:var(--surf);border:1px solid var(--bdr2);border-radius:11px;padding:14px;transition:border-color .18s}
 .tc:hover{border-color:var(--bdr3)}
 .tc-head{display:flex;align-items:center;gap:10px;margin-bottom:9px}
@@ -2109,6 +2110,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
     <div class="panel" id="panel-team">
       <div class="pbar"><span class="ptitle"><i class="ti ti-users" style="color:var(--ora)"></i>Équipe<span class="ptitle-sep">/</span><span id="sn-team" style="color:var(--txt2)">…</span></span></div>
       <div id="team-grid" class="team-grid"><div class="loading"><div class="spinner"></div>Chargement…</div></div>
+      <div id="team-quota" class="team-quota"></div>
       <div class="invite-box">
         <i class="ti ti-mail" style="color:var(--muted);font-size:15px;flex-shrink:0"></i>
         <input class="inv-inp" id="inv-email" type="email" placeholder="Inviter par e-mail…" list="inv-email-list" autocomplete="off" onkeydown="if(event.key==='Enter'&&!window._inviting)inviteMember()"/>
@@ -5216,6 +5218,9 @@ async function loadMembers(){
 
   const isOwner = CUR_SHOW?.owner_id === ME?.id;
   let html='';
+  /* Le quota de membres dépend du plan du PROPRIÉTAIRE du show (c'est lui qui
+     invite/paie), pas du plan de la personne qui regarde. */
+  let ownerPlan = isOwner ? (PROFILE?.plan || 'free') : 'free';
 
   if(isOwner){
     /* Current user IS the owner — show them first */
@@ -5224,6 +5229,7 @@ async function loadMembers(){
   } else {
     /* Current user is a member — fetch actual owner's profile first */
     const {data:ownerProf}=await sb.from('profiles').select('full_name,email,plan,avatar_url').eq('id',CUR_SHOW.owner_id).maybeSingle();
+    ownerPlan = ownerProf?.plan || 'free';
     const ownerName=ownerProf?.full_name||ownerProf?.email||'Propriétaire';
     html=`<div class="tc"><div class="tc-head">${mkAv(ownerName,'var(--ora-d)','var(--ora)',ownerProf?.avatar_url,ownerProf?.plan)}<div><div class="tc-name">${_es(ownerName)}</div><div class="tc-role" style="font-size:9px;color:var(--muted)">${_es(ownerProf?.email||'')}</div></div></div><div class="tc-perms">${roleBadge('admin')}<span class="tag t-ora">Propriétaire</span>${planPill(ownerProf?.plan)}</div><div class="tc-status"><span class="off-dot"></span>Owner</div></div>`;
   }
@@ -5240,7 +5246,34 @@ async function loadMembers(){
   });
 
   grid.innerHTML=html;grid.className='team-grid';
+  _renderTeamQuota(ownerPlan, members.length, isOwner);
   _renderContactsBar();
+}
+
+/* Indicateur de quota de membres dans l'onglet Équipe : illimité (Pro) ou
+   nombre invités / limite (Gratuit), avec lien d'upgrade pour le propriétaire. */
+function _renderTeamQuota(ownerPlan, used, isOwner){
+  const el=document.getElementById('team-quota');
+  if(!el) return;
+  const perms=PLAN_PERMS[ownerPlan||'free']||PLAN_PERMS.free;
+  const limit=(typeof perms.max_members==='number')?perms.max_members:Infinity;
+  let html;
+  if(limit===Infinity){
+    html='<i class="ti ti-infinity" style="font-size:14px;color:var(--grn)"></i>'
+      +'<span>Membres <strong style="color:var(--grn)">illimités</strong> <span style="color:var(--muted2)">· plan Pro</span></span>';
+  }else{
+    const remaining=Math.max(0,limit-used);
+    const full=remaining===0;
+    html='<i class="ti ti-users" style="font-size:13px;color:'+(full?'var(--warn)':'var(--ora)')+'"></i>'
+      +'<span><strong style="color:var(--txt)">'+used+' / '+limit+'</strong> membre'+(limit>1?'s':'')+' invité'+(used>1?'s':'')
+      +(full?' — limite atteinte':'')+'</span>';
+    if(isOwner){
+      html+='<span style="color:var(--muted2)">·</span>'
+        +'<span style="color:var(--ora);cursor:pointer;text-decoration:underline" onclick="showUpgradeModal(\'max_members\')">Passez Pro pour une équipe illimitée</span>';
+    }
+  }
+  el.innerHTML=html;
+  el.style.display='flex';
 }
 /* ── Role labels ── */
 const ROLE_LABELS = { admin:'Administrateur', editor:'Éditeur', viewer:'Lecture seule' };
