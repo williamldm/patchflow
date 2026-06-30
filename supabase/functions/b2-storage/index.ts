@@ -8,6 +8,7 @@ import {
   CopyObjectCommand,
   DeleteObjectCommand,
   DeleteObjectsCommand,
+  ListObjectVersionsCommand,
 } from 'npm:@aws-sdk/client-s3@3.490.0';
 import { getSignedUrl } from 'npm:@aws-sdk/s3-request-presigner@3.490.0';
 
@@ -303,6 +304,27 @@ serve(async (req) => {
       if (!sid) return false;
       return userCanAccessShow(user.id, sid, accessCache);
     };
+
+    /* ── purge-old-versions : supprime les versions obsolètes d'un fichier ──
+       Appelé après un remplacement : B2 versionne chaque écriture sur une même
+       clé, donc l'ancienne version reste stockée (et facturée). On liste les
+       versions de cette clé et on supprime tout sauf la version courante. */
+    if (action === 'purge-old-versions') {
+      const { path } = body as { path: string };
+      if (!path || !(await checkPath(path))) return deny();
+      const res = await s3.send(new ListObjectVersionsCommand({ Bucket: B2_BUCKET, Prefix: path }));
+      // Prefix peut matcher des clés voisines → on ne garde QUE la clé exacte.
+      const versions = (res.Versions || []).filter((v) => v.Key === path);
+      const markers  = (res.DeleteMarkers || []).filter((d) => d.Key === path && d.VersionId);
+      // Supprimer toutes les versions non-courantes + tout delete-marker.
+      const stale = versions.filter((v) => !v.IsLatest && v.VersionId);
+      let deleted = 0;
+      for (const v of [...stale, ...markers]) {
+        await s3.send(new DeleteObjectCommand({ Bucket: B2_BUCKET, Key: path, VersionId: v.VersionId }));
+        deleted++;
+      }
+      return json({ data: { deleted }, error: null });
+    }
 
     // ── list : lecture depuis Supabase show_files (plus rapide que B2) ──
     if (action === 'list') {

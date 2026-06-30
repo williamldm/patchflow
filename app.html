@@ -1880,6 +1880,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
         <span id="fich-upload-status" style="font-size:10px;color:var(--muted);display:none"><i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Upload…</span>
       </div>
       <input type="file" id="fichiers-file-input" style="display:none" multiple>
+      <input type="file" id="fich-replace-input" style="display:none">
       <div id="fich-breadcrumb" class="fich-breadcrumb" style="display:none"></div>
       <!-- Actions + search + sort -->
       <div class="fich-filter-bar" style="border-bottom:none;padding-bottom:4px">
@@ -15242,6 +15243,10 @@ const B2Storage={
   async move(fromPath,toPath){
     return _b2Call('move',{fromPath,toPath});
   },
+  /* purge des anciennes versions B2 d'une clé (après un remplacement) */
+  async purgeOldVersions(path){
+    return _b2Call('purge-old-versions',{path});
+  },
   /* delete one or many objects */
   async remove(paths){
     return _b2Call('delete',{paths});
@@ -15900,6 +15905,7 @@ function _renderFichiersGrid() {
             '<div class="fich-file-info"><div class="fich-file-name">' + _fEsc(name) + '</div><div class="fich-file-meta">' + _fEsc(meta) + '</div>' + vTag + '</div>' +
             '<div class="fich-file-actions">' +
               '<button class="fich-file-btn vf' + (isVerified?' on':'') + '" onclick="event.stopPropagation();toggleFileVerified(' + fidJ + ',' + fpJ + ')" title="' + _fEsc(vTitle) + '"><i class="ti ' + (isVerified?'ti-rosette-discount-check-filled':'ti-rosette-discount-check') + '"></i></button>' +
+              '<button class="fich-file-btn" onclick="event.stopPropagation();replaceFichier(' + fpJ + ')" title="Remplacer par une nouvelle version (même nom)"><i class="ti ti-refresh"></i></button>' +
               '<button class="fich-file-btn" onclick="event.stopPropagation();renameFichier(' + fpJ + ')" title="Renommer"><i class="ti ti-pencil"></i></button>' +
               '<button class="fich-file-btn mv" onclick="event.stopPropagation();openMoveFichier(event,' + fpJ + ')" title="Déplacer dans un dossier"><i class="ti ti-folder-share"></i></button>' +
               '<button class="fich-file-btn dl" onclick="event.stopPropagation();_fichDownload(' + fpJ + ')" title="Telecharger"><i class="ti ti-download"></i></button>' +
@@ -15969,34 +15975,134 @@ function initFichiersDrop() {
     dz.addEventListener('click', () => inp?.click());
   }
   if (inp) inp.addEventListener('change', e => { doUpload(e.target.files); inp.value = ''; });
+  const rinp = document.getElementById('fich-replace-input');
+  if (rinp) rinp.addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) _doReplaceFichier(f); });
   if (panel) {
     panel.addEventListener('dragover', e => e.preventDefault());
     panel.addEventListener('drop', e => { e.preventDefault(); doUpload(e.dataTransfer.files); });
   }
 }
 
+/* Cherche dans le dossier courant un fichier (pas un dossier) qui porte le même
+   nom affiché — sert à détecter un doublon avant l'upload. */
+function _fichFindByDisplay(displayName) {
+  const dn = (displayName || '').toLowerCase();
+  return SHOW_FILES.find(f => !f._isFolder && f.id !== null
+    && _fichDisplayName(f.name).toLowerCase() === dn) || null;
+}
+function _fichSplitName(name) {
+  const dot = name.lastIndexOf('.');
+  return { base: dot > 0 ? name.slice(0, dot) : name, ext: dot > 0 ? name.slice(dot) : '' };
+}
+/* Propose « bon (2).pdf », « bon (3).pdf »… jusqu'à un nom libre dans le dossier. */
+function _fichUniqueDisplayName(displayName) {
+  const { base, ext } = _fichSplitName(displayName);
+  const taken = new Set(SHOW_FILES.filter(f => !f._isFolder)
+    .map(f => _fichDisplayName(f.name).toLowerCase()));
+  let n = 2, cand = displayName;
+  while (taken.has(cand.toLowerCase()) && n < 999) { cand = base + ' (' + n + ')' + ext; n++; }
+  return cand;
+}
+
 async function _uploadFichiers(files) {
   if (!CUR_SHOW || !files.length) return;
   if (!canDo('storage')) { showUpgradeModal('storage'); return; }
   const status = document.getElementById('fich-upload-status');
-  if (status) status.style.display = '';
-  let ok = 0;
+  let ok = 0, replaced = 0;
   for (const file of files) {
-    /* Vérifier le quota AVANT chaque fichier */
-    if (!await _quotaCheck(file.size)) break;
-    const prefix = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-    const path = _fichFullPath(prefix + '_' + file.name);
-    const { error } = await B2Storage.upload(path, file, { upsert: false });
-    if (error) { toast('Erreur upload : ' + error.message); }
-    else {
-      ok++;
-      _storageCache = null;
-      // Sync Supabase (fire-and-forget, non bloquant)
-      _sfUpsertFile(path, file).catch(() => {});
+    let displayName = file.name;
+    let replacePath = null, oldSize = 0;
+
+    /* Doublon : un fichier du même nom existe déjà dans ce dossier ? */
+    const existing = _fichFindByDisplay(displayName);
+    if (existing) {
+      const choice = await _dupFileModal(displayName);
+      if (choice === 'cancel') continue;
+      if (choice === 'replace') {
+        replacePath = existing._path;
+        oldSize = existing.metadata?.size || 0;
+      } else { /* rename : garder les deux */
+        const sug = _fichSplitName(_fichUniqueDisplayName(displayName));
+        const nv = await _promptModal('Renommer le fichier', 'Nouveau nom :', sug.base);
+        if (nv === null) continue;
+        const clean = (nv || '').trim();
+        if (!clean) continue;
+        displayName = clean + sug.ext;
+      }
+    }
+
+    /* Quota : on ne compte que le surplus réel (taille - ancienne version). */
+    if (!await _quotaCheck(Math.max(0, file.size - oldSize))) break;
+    if (status) status.style.display = '';
+
+    let uploadPath, isReplace = !!replacePath;
+    if (isReplace) {
+      uploadPath = replacePath; // même clé B2 → on écrase le contenu, on garde le nom
+    } else {
+      const prefix = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+      uploadPath = _fichFullPath(prefix + '_' + displayName);
+    }
+
+    const { error } = await B2Storage.upload(uploadPath, file, { upsert: isReplace });
+    if (error) { toast('Erreur upload : ' + error.message); continue; }
+    ok++;
+    _storageCache = null;
+    if (isReplace) {
+      replaced++;
+      _signedUrlCache.delete(uploadPath); // l'aperçu doit refléter la nouvelle version
+      /* Met à jour la ligne : taille, type, date, et retire la vérification
+         (c'est une nouvelle version, à re-vérifier). */
+      await sb.from('show_files').update({
+        size: file.size || 0, content_type: file.type || '',
+        created_at: new Date().toISOString(),
+        verified_at: null, verified_by: null, verified_by_name: null,
+      }).eq('show_id', CUR_SHOW.id).eq('path', uploadPath).then(() => {}, () => {});
+      B2Storage.purgeOldVersions(uploadPath).catch(() => {}); // purge l'ancienne version B2
+    } else {
+      _sfUpsertFile(uploadPath, file).catch(() => {}); // sync Supabase, non bloquant
     }
   }
   if (status) status.style.display = 'none';
-  if (ok) toast(ok === 1 ? '✓ Fichier importé' : '✓ ' + ok + ' fichiers importés');
+  if (ok) {
+    const added = ok - replaced;
+    let msg = [];
+    if (added) msg.push(added === 1 ? '✓ Fichier importé' : '✓ ' + added + ' fichiers importés');
+    if (replaced) msg.push(replaced === 1 ? '✓ Fichier mis à jour' : '✓ ' + replaced + ' fichiers mis à jour');
+    toast(msg.join(' · '));
+  }
+  await loadFichiers();
+}
+
+/* ── Remplacer un fichier précis par une nouvelle version (même nom, même place) ── */
+let _fichReplaceTarget = null;
+function replaceFichier(relPath) {
+  if (!canDo('storage')) { showUpgradeModal('storage'); return; }
+  _fichReplaceTarget = relPath;
+  const inp = document.getElementById('fich-replace-input');
+  if (inp) { inp.value = ''; inp.click(); }
+}
+async function _doReplaceFichier(file) {
+  const relPath = _fichReplaceTarget; _fichReplaceTarget = null;
+  if (!file || !relPath || !CUR_SHOW) return;
+  const fullPath = CUR_SHOW.id + '/' + relPath;
+  const display = _fichDisplayName(relPath.split('/').pop());
+  const cur = SHOW_FILES.find(f => f._path === fullPath);
+  const oldSize = cur?.metadata?.size || 0;
+  if (!await _quotaCheck(Math.max(0, file.size - oldSize))) return;
+  const status = document.getElementById('fich-upload-status');
+  if (status) status.style.display = '';
+  const { error } = await B2Storage.upload(fullPath, file, { upsert: true });
+  if (status) status.style.display = 'none';
+  if (error) { toast('Erreur remplacement : ' + error.message); return; }
+  _storageCache = null;
+  _signedUrlCache.delete(fullPath);
+  await sb.from('show_files').update({
+    size: file.size || 0, content_type: file.type || '',
+    created_at: new Date().toISOString(),
+    verified_at: null, verified_by: null, verified_by_name: null,
+  }).eq('show_id', CUR_SHOW.id).eq('path', fullPath).then(() => {}, () => {});
+  B2Storage.purgeOldVersions(fullPath).catch(() => {}); // purge l'ancienne version B2
+  toast('✓ « ' + display +' » mis à jour');
   await loadFichiers();
 }
 
@@ -17715,6 +17821,29 @@ function _confirmModal(title, sub) {
     ov.querySelector('#_mc-ok').onclick = function() { document.body.removeChild(ov); resolve(true); };
     ov.querySelector('#_mc-cancel').onclick = function() { document.body.removeChild(ov); resolve(false); };
     ov.addEventListener('keydown', function(e) { if(e.key==='Escape'){document.body.removeChild(ov);resolve(false);} });
+  });
+}
+
+/* Doublon à l'upload : propose de remplacer (écraser) ou de garder les deux
+   (renommer). Résout 'replace' | 'rename' | 'cancel'. */
+function _dupFileModal(displayName) {
+  return new Promise(function(resolve) {
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)';
+    ov.innerHTML = '<div style="background:var(--surf);border:1px solid var(--bdr2);border-radius:14px;padding:24px;max-width:400px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.6)">'
+      + '<div style="font-size:15px;font-weight:700;color:var(--txt);margin-bottom:6px"><i class="ti ti-file-alert" style="color:var(--ora);margin-right:6px"></i>Ce fichier existe déjà</div>'
+      + '<div style="font-size:12px;color:var(--muted);margin-bottom:20px">« ' + _fEsc(displayName) + ' » est déjà dans ce dossier. Remplacer la version existante, ou garder les deux ?</div>'
+      + '<div style="display:flex;flex-direction:column;gap:8px">'
+      + '<button id="_dup-replace" style="background:var(--ora);border:none;color:#000;font-size:12px;font-weight:700;padding:10px 16px;border-radius:8px;cursor:pointer;font-family:var(--f);display:flex;align-items:center;justify-content:center;gap:7px"><i class="ti ti-refresh"></i>Remplacer la version existante</button>'
+      + '<button id="_dup-rename" style="background:var(--surf2);border:1px solid var(--bdr2);color:var(--txt);font-size:12px;font-weight:600;padding:10px 16px;border-radius:8px;cursor:pointer;font-family:var(--f);display:flex;align-items:center;justify-content:center;gap:7px"><i class="ti ti-copy-plus"></i>Garder les deux (renommer)</button>'
+      + '<button id="_dup-cancel" style="background:none;border:none;color:var(--muted);font-size:12px;font-weight:600;padding:6px;border-radius:8px;cursor:pointer;font-family:var(--f)">Annuler</button>'
+      + '</div></div>';
+    document.body.appendChild(ov);
+    const done = function(v) { document.body.removeChild(ov); resolve(v); };
+    ov.querySelector('#_dup-replace').onclick = function() { done('replace'); };
+    ov.querySelector('#_dup-rename').onclick  = function() { done('rename'); };
+    ov.querySelector('#_dup-cancel').onclick  = function() { done('cancel'); };
+    ov.addEventListener('keydown', function(e) { if (e.key === 'Escape') { done('cancel'); } });
   });
 }
 
