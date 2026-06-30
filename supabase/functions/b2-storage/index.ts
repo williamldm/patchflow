@@ -267,6 +267,7 @@ serve(async (req) => {
         .select('id, name, folder, size, is_folder, created_at, path')
         .eq('show_id', showId)
         .eq('folder', folder)
+        .not('path', 'like', '%/node-icons/%')   // exclure les assets internes
         .order('name', { ascending: true });
       if (e1) return json({ error: e1.message }, 500);
       const directFiles = (directRows ?? []).filter((r) => !r.is_folder);
@@ -282,6 +283,7 @@ serve(async (req) => {
         const seg = r.folder.slice(childPrefix.length).split('/')[0];
         if (seg) subSet.add(seg);
       });
+      subSet.delete('node-icons'); // ne jamais exposer le dossier d'assets internes
       const folders = [...subSet].sort().map((name) => ({
         name, id: null, metadata: { size: 0 }, created_at: null,
         _path: showId + '/' + childPrefix + name, _isFolder: true,
