@@ -19,6 +19,7 @@
   var m=location.search.match(/[?&](link|rider|view)=([^&#]+)/);
   if(!m) return;
   document.documentElement.classList.add('rider-boot');
+  window.__riderMode=true; // court-circuite le boot de l'app normale (voir onAuthStateChange)
   try{
     var b=(m[1]==='link')?{linkId:decodeURIComponent(m[2])}:{showId:decodeURIComponent(m[2])};
     window.__riderPrefetch=fetch('https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/get-shared-show',{
@@ -3233,6 +3234,11 @@ async function doLogout(){
 }());
 
 sb.auth.onAuthStateChange(async(event,session)=>{
+  /* Vue rider partagée (?link=/?rider=/?view=) : on n'initialise JAMAIS l'app
+     complète — elle resterait cachée derrière le rider mais chargerait tout
+     (shows, canaux, rendu) en tâche de fond → lenteur + flash. checkShareMode
+     s'occupe seul de la vue partagée. */
+  if(window.__riderMode) return;
   /* Lien de réinitialisation : Supabase fire PASSWORD_RECOVERY puis SIGNED_IN.
      On intercepte les deux pour rester sur le formulaire. */
   if(event==='PASSWORD_RECOVERY'){
