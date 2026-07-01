@@ -11,14 +11,39 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://ofiiutcueoogmtdvaupg.supabase.co" crossorigin/>
 <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com"/>
+<!-- Lien rider partagé : dès le premier octet, on masque l'écran d'auth et on
+     lance le chargement des données en parallèle du parsing. C'est la première
+     impression d'un futur client : pas de flash de login, splash de marque. -->
+<script>
+(function(){
+  var m=location.search.match(/[?&](link|rider|view)=([^&#]+)/);
+  if(!m) return;
+  document.documentElement.classList.add('rider-boot');
+  try{
+    var b=(m[1]==='link')?{linkId:decodeURIComponent(m[2])}:{showId:decodeURIComponent(m[2])};
+    window.__riderPrefetch=fetch('https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/get-shared-show',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9maWl1dGN1ZW9vZ210ZHZhdXBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4NTA2NjcsImV4cCI6MjA5NDQyNjY2N30.PSZMkuq7GBJiQMhh5shH_tOZ6DAmA310K4c7au9e4mE'},
+      body:JSON.stringify(b)
+    }).then(function(r){return r.json();}).catch(function(){return null;});
+  }catch(e){}
+})();
+</script>
+<style>
+html.rider-boot #auth-wrap,html.rider-boot #app{display:none!important}
+#rider-splash{display:none}
+html.rider-boot #rider-splash{display:flex}
+#rider-splash{position:fixed;inset:0;z-index:99998;background:#0a0f1c;flex-direction:column;align-items:center;justify-content:center;gap:20px}
+#rider-splash .rsp-sp{width:30px;height:30px;border:3px solid rgba(255,107,26,.2);border-top-color:#ff6b1a;border-radius:50%;animation:rspspin .8s linear infinite}
+#rider-splash .rsp-tx{color:#5a6a80;font:600 12px/1 system-ui,-apple-system,Segoe UI,sans-serif;letter-spacing:.05em}
+@keyframes rspspin{to{transform:rotate(360deg)}}
+</style>
 <!-- Police chargée en async pour ne pas bloquer le premier rendu (FOUT plutôt que page blanche) -->
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet"/></noscript>
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css"/></noscript>
-<!-- Supabase SDK (synchrone car le script inline plus bas l'utilise immédiatement) -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -1431,6 +1456,9 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 </style>
 </head>
 <body>
+
+<!-- Splash instantané pour les liens rider (peint avant le gros script) -->
+<div id="rider-splash"><svg width="48" height="48" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M70 60 C100 60 100 140 130 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round"/><path d="M130 60 C100 60 100 140 70 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round" opacity="0.45"/><circle cx="60" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="60" r="5" fill="#FF6B2B"/><circle cx="140" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="60" r="5" fill="#FF6B2B"/><circle cx="60" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="140" r="5" fill="#FF6B2B"/><circle cx="140" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="140" r="5" fill="#FF6B2B"/></svg><div class="rsp-sp"></div><div class="rsp-tx">Chargement du rider…</div></div>
 
 <!-- AUTH -->
 <div class="auth-wrap show" id="auth-wrap">
@@ -2931,6 +2959,9 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 
 <div id="toast"></div>
 
+<!-- Supabase SDK : chargé juste avant le script principal qui l'utilise, plutôt
+     qu'en <head>, pour ne pas bloquer le premier rendu (splash rider instantané). -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ══════════════════════════════════════
 // SUPABASE
@@ -18364,6 +18395,17 @@ function _svFs(imgId, title){
   /* Réponse de get-shared-show mémorisée au pré-chargement, réutilisée telle
      quelle au moment du rendu pour éviter un 2e appel réseau identique. */
   var _sharedResp=null;
+  /* Consomme le préchargement lancé très tôt dans le <head> (en parallèle du
+     parsing du gros script) si disponible ; sinon lance l'appel maintenant. */
+  async function _getShared(){
+    if(window.__riderPrefetch){
+      var _pp=window.__riderPrefetch; window.__riderPrefetch=null;
+      try{ var _pj=await _pp; if(_pj) return _pj; }catch(_e){}
+    }
+    var _b=linkId?{linkId:linkId}:{showId:(sid||riderId)};
+    var _r=await fetch(SB_URL+'/functions/v1/get-shared-show',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},body:JSON.stringify(_b)});
+    return await _r.json();
+  }
 
   if(linkId||riderId){
     // Charger config depuis la edge function publique
@@ -18375,15 +18417,9 @@ function _svFs(imgId, title){
     document.body.prepend(tmp);
     let preShow;
     try{
-      var _reqBody=linkId?{linkId:linkId}:{showId:riderId};
-      var _pr=await fetch('https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/get-shared-show',{
-        method:'POST',
-        headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},
-        body:JSON.stringify(_reqBody)
-      });
-      var _prj=await _pr.json();
+      var _prj=await _getShared();
       _sharedResp=_prj; // réutilisé au rendu (pas de 2e fetch identique)
-      if(!_prj.error&&_prj.data){
+      if(_prj&&!_prj.error&&_prj.data){
         preShow=_prj.data.show;
         /* Pour un ?link=, les sections/config viennent de overrideRider */
         if(linkId&&_prj.data.overrideRider){
@@ -18517,6 +18553,8 @@ function _svFs(imgId, title){
       +'<div style="text-align:center;margin-top:16px;font-size:10px;font-family:DM Mono,monospace;color:#3a4a5a;letter-spacing:.5px">PatchFlow — Par des techniciens, pour des techniciens</div>'
     +'</div>';
   document.body.prepend(wrap);
+  /* La vue rider est en place : on retire le splash de démarrage. */
+  var _rspEl=document.getElementById('rider-splash'); if(_rspEl)_rspEl.remove();
 
   // Pre-generate signed URLs for all attached files
   var _signedUrls={};
@@ -18547,17 +18585,8 @@ function _svFs(imgId, title){
     /* Réutiliser la réponse déjà obtenue au pré-chargement (liens ?link= / ?rider=) ;
        sinon (lien legacy ?view=) faire l'appel maintenant. Évite un 2e aller-retour
        réseau + un 2e jeu de requêtes serveur pour le même show. */
-    var _sfJson=_sharedResp;
-    if(!_sfJson){
-      var _sfBody=linkId?{linkId:linkId}:{showId:sid};
-      var _sfRes=await fetch('https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/get-shared-show',{
-        method:'POST',
-        headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},
-        body:JSON.stringify(_sfBody)
-      });
-      _sfJson=await _sfRes.json();
-    }
-    if(_sfJson.error||!_sfJson.data){
+    var _sfJson=_sharedResp||await _getShared();
+    if(!_sfJson||_sfJson.error||!_sfJson.data){
       document.getElementById('sv-body').innerHTML='<div style="text-align:center;color:#f87171;margin-top:60px;font-size:14px">'
         +esc(_sfJson.error||'Show introuvable')+'</div>';
       return;
