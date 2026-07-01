@@ -87,9 +87,21 @@ function safeFilename(name: string): boolean {
 /* Paramètres GET sécurisés : inline pour les formats prévisualisables, sinon
    téléchargement forcé + Content-Type neutralisé → un fichier actif (html/svg/…)
    ne peut jamais s'exécuter en s'ouvrant depuis le bucket. */
-function buildGetParams(path: string) {
+function buildGetParams(path: string, downloadName?: string) {
   const fname = baseName(path);
   const ext = extOf(fname);
+  /* Téléchargement explicite : on force l'attachment avec le nom propre fourni
+     par le client (sans le préfixe interne), quel que soit le type. C'est le seul
+     moyen fiable de nommer le fichier — l'attribut HTML `download` est ignoré
+     pour une URL cross-origin (B2). */
+  if (downloadName) {
+    const ascii = String(downloadName).replace(/[\r\n"\\]/g, '_').replace(/[^\x20-\x7E]/g, '_');
+    return {
+      Bucket: B2_BUCKET, Key: path,
+      ResponseContentType: 'application/octet-stream',
+      ResponseContentDisposition: 'attachment; filename="' + ascii + "\"; filename*=UTF-8''" + encodeURIComponent(downloadName),
+    };
+  }
   if (INLINE_SAFE_EXT.has(ext)) {
     return {
       Bucket: B2_BUCKET, Key: path,
@@ -173,7 +185,7 @@ serve(async (req) => {
        Cela permet aux destinataires d'un lien partagé de télécharger
        les pièces jointes sans avoir de compte. */
     if (action === 'public-rider-file') {
-      const { path, showId, linkId } = body as { path: string; showId: string; linkId?: string };
+      const { path, showId, linkId, downloadName } = body as { path: string; showId: string; linkId?: string; downloadName?: string };
       if (!path || !showId || !UUID_RE.test(showId)) {
         return json({ error: 'Paramètres invalides' }, 400);
       }
@@ -226,7 +238,7 @@ serve(async (req) => {
       // GET sécurisé (inline pour images/pdf/av, téléchargement forcé sinon).
       // Important côté public : un destinataire non authentifié ne doit jamais
       // pouvoir exécuter un html/svg piégé hébergé sur le bucket.
-      const cmd = new GetObjectCommand(buildGetParams(path));
+      const cmd = new GetObjectCommand(buildGetParams(path, downloadName));
       const url = await getSignedUrl(s3, cmd, { expiresIn: 3600 });
       return json({ data: { signedUrl: url }, error: null });
     }
@@ -424,9 +436,9 @@ serve(async (req) => {
 
     // ── signed-url : presigned GET for download / view ──
     if (action === 'signed-url') {
-      const { path, expiresIn } = body as { path: string; expiresIn?: number };
+      const { path, expiresIn, downloadName } = body as { path: string; expiresIn?: number; downloadName?: string };
       if (!path || !(await checkPath(path))) return deny();
-      const cmd = new GetObjectCommand(buildGetParams(path));
+      const cmd = new GetObjectCommand(buildGetParams(path, downloadName));
       // Limiter la durée maximale d'un lien signé à 7 jours
       const exp = Math.min(Math.max(60, expiresIn ?? 3600), 604800);
       const url = await getSignedUrl(s3, cmd, { expiresIn: exp });

@@ -15323,18 +15323,21 @@ const B2Storage={
   },
   /* presigned GET for view / download — avec cache mémoire et dédup
      pour éviter de rappeler la edge function pour le même path */
-  async createSignedUrl(path,expiresIn){
+  async createSignedUrl(path,expiresIn,downloadName){
     const exp = expiresIn||3600;
+    /* Clé de cache distincte pour un lien de téléchargement (Content-Disposition
+       différent d'un lien de visualisation) */
+    const ckey = downloadName ? path+' dl:'+downloadName : path;
     /* Cache valide tant qu'on est dans 90% de la durée d'expiration */
-    const cached = _signedUrlCache.get(path);
+    const cached = _signedUrlCache.get(ckey);
     if(cached && cached.exp > Date.now()){
       return { data:{ signedUrl: cached.url }, error:null };
     }
     /* Dédup : si deux appels demandent le même path en parallèle → 1 seule requête */
-    return _dedup('signurl:'+path, async function(){
-      const res = await _b2Call('signed-url',{path,expiresIn:exp});
+    return _dedup('signurl:'+ckey, async function(){
+      const res = await _b2Call('signed-url',{path,expiresIn:exp,downloadName});
       if(!res.error && res.data?.signedUrl){
-        _signedUrlCache.set(path, {
+        _signedUrlCache.set(ckey, {
           url: res.data.signedUrl,
           /* Valable jusqu'à 90% de la durée pour avoir une marge */
           exp: Date.now() + exp*1000*0.9
@@ -15599,16 +15602,32 @@ async function loadFichiers() {
   _backfillRows(b2Files, prefix, folderRel);
 }
 
+/* « Pierres tombales » : chemins B2 qu'on vient de renommer/supprimer/déplacer.
+   La suppression B2 est à consistance différée → le listing peut encore renvoyer
+   l'ancien fichier. Sans ça, la réconciliation le voit « manquant » de show_files
+   et le RÉ-INJECTE → doublon après un renommage. On l'ignore pendant 30 s. */
+const _fichGone = new Map(); // path complet -> expiry (ms)
+function _fichMarkGone(path){ if (path) _fichGone.set(path, Date.now() + 30000); }
+function _fichIsGone(path){
+  const exp = _fichGone.get(path);
+  if (exp === undefined) return false;
+  if (exp < Date.now()) { _fichGone.delete(path); return false; }
+  return true;
+}
+
 /* Upsert une liste d'entrées B2 brutes dans show_files */
 async function _backfillRows(b2Files, prefix, folderRel) {
   if (!b2Files.length || !ME) return;
-  const rows = b2Files.map(f => {
-    const isDir = f.id === null;
-    return {
-      show_id: CUR_SHOW.id, path: prefix + f.name, name: f.name, folder: folderRel,
-      size: isDir ? 0 : (f.metadata?.size || 0), content_type: '', is_folder: isDir, created_by: ME.id,
-    };
-  });
+  const rows = b2Files
+    .filter(f => !_fichIsGone(prefix + f.name)) // ne pas ressusciter un fichier renommé/supprimé
+    .map(f => {
+      const isDir = f.id === null;
+      return {
+        show_id: CUR_SHOW.id, path: prefix + f.name, name: f.name, folder: folderRel,
+        size: isDir ? 0 : (f.metadata?.size || 0), content_type: '', is_folder: isDir, created_by: ME.id,
+      };
+    });
+  if (!rows.length) return;
   await sb.from('show_files').upsert(rows, { onConflict: 'show_id,path' }).then(()=>{});
 }
 
@@ -15620,7 +15639,7 @@ async function _reconcileFolderWithB2(prefix, folderRel) {
     const { data: b2Data } = await B2Storage.listB2Raw(prefix);
     if (!b2Data) return;
     const SKIP = new Set(['.emptyFolderPlaceholder', '.keep']);
-    const b2Files = b2Data.filter(f => !SKIP.has(f.name) && f.name);
+    const b2Files = b2Data.filter(f => !SKIP.has(f.name) && f.name && !_fichIsGone(prefix + f.name));
     if (!b2Files.length) return;
     // Noms déjà affichés
     const known = new Set(SHOW_FILES.map(f => f.name));
@@ -15747,6 +15766,7 @@ async function renameFichier(relPath) {
   const newPath = CUR_SHOW.id + '/' + dir + prefix + clean + ext;
   const { error } = await B2Storage.move(oldPath, newPath);
   if (error) { toast('Erreur renommage : ' + error.message); return; }
+  _fichMarkGone(oldPath); // empêche la réconciliation de recréer l'ancien nom
   // Sync Supabase
   await _sfMoveFile(oldPath, newPath).catch(() => {});
   toast('Fichier renomme');
@@ -15862,6 +15882,7 @@ async function moveFichierToFolder(destDir) {
   try {
     const { error } = await B2Storage.move(oldFullPath, newFullPath);
     if (error) { toast('Erreur déplacement : ' + error.message); return; }
+    _fichMarkGone(oldFullPath); // évite la ré-injection de l'ancien emplacement
     // Sync Supabase
     await _sfMoveFile(oldFullPath, newFullPath).catch(() => {});
     const destLabel = destDir === '' ? 'la racine' : destDir.replace(/\/$/, '').split('/').pop();
@@ -16018,7 +16039,9 @@ async function _fichDownload(relPath) {
   const filename = relPath.split('/').pop();
   const displayName = _fichDisplayName(filename);
   const path = CUR_SHOW.id + '/' + relPath;
-  const { data, error } = await B2Storage.createSignedUrl(path, 3600);
+  /* downloadName → le serveur force Content-Disposition avec le nom propre
+     (l'attribut a.download est ignoré cross-origin sur les URLs B2). */
+  const { data, error } = await B2Storage.createSignedUrl(path, 3600, displayName);
   if (error || !data?.signedUrl) { toast('Erreur telechargement'); return; }
   const a = document.createElement('a');
   a.href = data.signedUrl; a.download = displayName; a.target = '_blank'; a.click();
@@ -16245,6 +16268,7 @@ async function deleteFichier(relPath) {
   const fullPath = CUR_SHOW.id + '/' + relPath;
   const { error } = await B2Storage.remove([fullPath]);
   if (error) { toast('Erreur : ' + error.message); return; }
+  _fichMarkGone(fullPath); // évite la ré-injection par la réconciliation B2
   // Sync Supabase
   await _sfDeleteFile(fullPath);
   toast('Fichier supprimé');
@@ -19392,7 +19416,7 @@ function _svFs(imgId, title){
   var _activeFile=0;
   function _fileCard(i,fpath,url){
     var fname=fpath.split('/').pop();
-    var disp=fname.replace(/^\d+_/,'');
+    var disp=(typeof _fichDisplayName==='function')?_fichDisplayName(fname):fname.replace(/^[a-z0-9]+_/i,'');
     var ext=(fname.split('.').pop()||'').toLowerCase();
     /* Icône Tabler par type (cohérent avec la section Fichiers) */
     var info=(typeof _fichInfoOf==='function')?_fichInfoOf(disp):null;
@@ -19402,7 +19426,7 @@ function _svFs(imgId, title){
       +'<div style="flex:1;overflow:hidden"><div style="font-size:13px;font-weight:600;color:#e0eaf8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(disp)+'</div>'
       +'<div style="font-size:9px;font-family:DM Mono,monospace;color:#5a6a80;margin-top:2px">'+ext.toUpperCase()+((info&&info.label)?' · '+esc(info.label):'')+'</div></div>'
       +'<i class="ti ti-eye" style="color:#ff6b1a;font-size:17px;flex-shrink:0" title="Ouvrir"></i>'
-      +(url?'<a href="'+url+'" download target="_blank" onclick="event.stopPropagation()" title="Télécharger" style="color:#5a6a80;font-size:16px;text-decoration:none;flex-shrink:0"><i class="ti ti-download"></i></a>':'')
+      +'<button onclick="event.stopPropagation();_svDownloadAttach('+i+')" title="Télécharger" style="color:#5a6a80;font-size:16px;flex-shrink:0;background:none;border:none;cursor:pointer;padding:0;display:inline-flex"><i class="ti ti-download"></i></button>'
       +'</div>';
   }
   /* Ouvre le fichier dans la même visionneuse modale que la section Fichiers
@@ -19410,10 +19434,26 @@ function _svFs(imgId, title){
   window._svOpenFile=function(i){
     var fp=rFiles[i]; if(!fp) return;
     var url=_signedUrls[fp];
-    var disp=fp.split('/').pop().replace(/^\d+_/,'');
+    var disp=(typeof _fichDisplayName==='function')?_fichDisplayName(fp.split('/').pop()):fp.split('/').pop().replace(/^[a-z0-9]+_/i,'');
     if(!url){ alert('Fichier temporairement indisponible — réessayez dans un instant.'); return; }
     if(typeof _openFileViewer==='function'){ _openFileViewer(url, disp, {readonly:true}); }
     else { window.open(url,'_blank','noopener'); }
+  };
+  /* Téléchargement d'une pièce jointe avec son nom propre (le serveur force le
+     Content-Disposition ; l'attribut download est ignoré cross-origin sur B2). */
+  window._svDownloadAttach=async function(i){
+    var fp=rFiles[i]; if(!fp) return;
+    var name=(typeof _fichDisplayName==='function')?_fichDisplayName(fp.split('/').pop()):fp.split('/').pop().replace(/^[a-z0-9]+_/i,'');
+    try{
+      var res=await fetch('https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/b2-storage',{
+        method:'POST',headers:_pubHeaders,
+        body:JSON.stringify({action:'public-rider-file',path:fp,showId:_shareShowId,linkId:linkId||undefined,downloadName:name})
+      });
+      var json=await res.json();
+      if(json.error) throw new Error(json.error.message||json.error);
+      var url=json.data?.signedUrl; if(!url) throw new Error('URL invalide');
+      var a=document.createElement('a'); a.href=url; a.download=name; a.target='_blank'; a.click();
+    }catch(e){ alert('Erreur : '+e.message); }
   };
 
   function _fileViewer(fpath,url){
@@ -19422,7 +19462,7 @@ function _svFs(imgId, title){
     if(ext==='pdf'){
       if(isMobile){
         // Sur mobile, les iframes PDF ne defilent pas — ouvrir dans le viewer natif du navigateur
-        var fname=fpath.split('/').pop().replace(/^\d+_/,'');
+        var fname=fpath.split('/').pop().replace(/^[a-z0-9]+_/i,'');
         return '<div style="display:flex;flex-direction:column;align-items:center;gap:20px;padding:48px 24px;text-align:center">'
           +'<div style="width:64px;height:80px;background:#1e2a3a;border:2px solid #2d3d50;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px">'
             +'<div style="font-size:26px;line-height:1">&#128196;</div>'
@@ -19438,11 +19478,11 @@ function _svFs(imgId, title){
               +'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>'
               +'Ouvrir le PDF'
             +'</a>'
-            +'<a href="'+url+'" download target="_blank" rel="noopener" '
-              +'style="display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 20px;background:#1e2a3a;border:1px solid #2d3d50;color:#a0b0c0;font-weight:600;border-radius:10px;text-decoration:none;font-size:13px">'
+            +'<button onclick="_svDownloadAttach('+_activeFile+')" '
+              +'style="display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 20px;background:#1e2a3a;border:1px solid #2d3d50;color:#a0b0c0;font-weight:600;border-radius:10px;font-size:13px;cursor:pointer">'
               +'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'
               +'Telecharger'
-            +'</a>'
+            +'</button>'
           +'</div>'
         +'</div>';
       }
@@ -19452,7 +19492,7 @@ function _svFs(imgId, title){
       return '<video src="'+url+'" controls style="width:100%;max-height:70vh;border-radius:8px;background:#000;display:block"></video>';
     }
     if(['mp3','wav','m4a','aac','flac','ogg'].includes(ext)){
-      var fname=fpath.split('/').pop().replace(/^\d+_/,'');
+      var fname=fpath.split('/').pop().replace(/^[a-z0-9]+_/i,'');
       return '<div style="padding:40px 20px;text-align:center">'
         +'<div style="font-size:48px;margin-bottom:16px">&#127925;</div>'
         +'<div style="font-size:14px;font-weight:600;color:#c8d4e0;margin-bottom:20px">'+esc(fname)+'</div>'
@@ -19460,13 +19500,13 @@ function _svFs(imgId, title){
         +'</div>';
     }
     // Other formats: download card
-    var fname=fpath.split('/').pop().replace(/^\d+_/,'');
+    var fname=fpath.split('/').pop().replace(/^[a-z0-9]+_/i,'');
     var ext2=(fpath.split('.').pop()||'').toUpperCase();
     return '<div style="text-align:center;padding:60px 20px">'
       +'<div style="font-size:52px;margin-bottom:16px">&#128196;</div>'
       +'<div style="font-size:15px;font-weight:700;color:#c8d4e0;margin-bottom:6px">'+esc(fname)+'</div>'
       +'<div style="font-size:10px;font-family:DM Mono,monospace;color:#5a6a80;margin-bottom:24px">'+ext2+'</div>'
-      +'<a href="'+url+'" target="_blank" download style="display:inline-flex;align-items:center;gap:8px;padding:10px 22px;background:#ff6b1a;color:#000;font-weight:700;border-radius:8px;text-decoration:none;font-size:13px">&#11123; Telecharger</a>'
+      +'<button onclick="_svDownloadAttach('+_activeFile+')" style="display:inline-flex;align-items:center;gap:8px;padding:10px 22px;background:#ff6b1a;color:#000;font-weight:700;border-radius:8px;font-size:13px;cursor:pointer;border:none">&#11123; Telecharger</button>'
       +'</div>';
   }
 
@@ -19677,7 +19717,7 @@ function _svFs(imgId, title){
       var res=await fetch('https://ofiiutcueoogmtdvaupg.supabase.co/functions/v1/b2-storage',{
         method:'POST',
         headers:_pubHeaders,
-        body:JSON.stringify({action:'public-rider-file',path:filePath,showId:_cloudCurrentShowId,linkId:linkId||undefined})
+        body:JSON.stringify({action:'public-rider-file',path:filePath,showId:_cloudCurrentShowId,linkId:linkId||undefined,downloadName:name})
       });
       var json=await res.json();
       if(json.error) throw new Error(json.error.message||json.error);
