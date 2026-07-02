@@ -1036,7 +1036,7 @@ async function switchShow(id, opts){
   document.getElementById('cur-show-name').textContent=n;
   const tbn=document.getElementById('tb-show-name');if(tbn)tbn.textContent=n;
   ['il','sf','stage','team'].forEach(k=>{const el=document.getElementById('sn-'+k);if(el)el.textContent=n;});
-  document.getElementById('slink-url').textContent=`${window.location.origin}${window.location.pathname}?view=${CUR_SHOW.id}&tab=il`;
+  document.getElementById('slink-url').textContent=`${_riderBase()}?view=${CUR_SHOW.id}&tab=il`;
   renderSPShows();
   // Init patches
   IL_PATCHES=loadPatchMeta();
@@ -3032,7 +3032,7 @@ function _renderLinksManager(){
     return;
   }
   var SEC_LABELS={il:'Input List',out:'Output',syno:'Synoptique',stage:'Scène',site:'Site',cloud:'Fichiers',files:'PJ'};
-  var base=window.location.origin+window.location.pathname;
+  var base=_riderBase();
   list.innerHTML=_proLinks.map(function(lnk){
     var code=lnk.code||lnk.id;
     var url=base+'?link='+code;
