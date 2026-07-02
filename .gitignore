@@ -4,6 +4,9 @@
 # Unignore project files
 !.gitignore
 !app.html
+!rider.html
+!pf-app.js
+!pf-app.css
 !index.html
 !favicon.svg
 !serve.py
