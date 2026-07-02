@@ -17,7 +17,10 @@
 <script>
 (function(){
   var m=location.search.match(/[?&](link|rider|view)=([^&#]+)/);
-  if(!m) return;
+  /* Page rider dédiée : sans paramètre de partage valide (lien tronqué,
+     accès direct), il n'y a rien à afficher — on renvoie vers la landing
+     plutôt que de laisser fuiter l'UI de l'app. */
+  if(!m){ location.replace('/'); return; }
   document.documentElement.classList.add('rider-boot');
   window.__riderMode=true; // court-circuite le boot de l'app normale (voir onAuthStateChange)
   try{
