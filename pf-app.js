@@ -4972,13 +4972,33 @@ function _makeBpCanvas(cb){
 }
 
 /* ── Export dropdown helpers — partagés entre toutes les sections ── */
+/* Recale un menu déroulant (position:absolute; right:0) pour qu'il tienne dans
+   l'écran. Sur mobile, la barre d'outils wrappe : le bouton peut finir à gauche
+   ou à droite d'une ligne, et le menu débordait hors de l'écran. */
+function _clampMenuToViewport(menu) {
+  if (!menu) return;
+  menu.style.left = ''; menu.style.right = '';   // reset (utile après resize)
+  if (window.innerWidth > 640) return;           // desktop : on garde right:0
+  const op = menu.offsetParent;                  // contexte de positionnement réel
+  if (!op) return;
+  const wrapRect = menu.getBoundingClientRect(); // position actuelle (right:0) du menu
+  const opRect = op.getBoundingClientRect();
+  const mw = menu.offsetWidth;
+  const vw = document.documentElement.clientWidth;
+  const margin = 10;
+  // Position viewport actuelle bornée à l'écran (ni trop à gauche, ni à droite).
+  const vpLeft = Math.max(margin, Math.min(wrapRect.left, vw - mw - margin));
+  menu.style.right = 'auto';
+  menu.style.left = (vpLeft - opRect.left) + 'px';
+}
+
 function toggleExpMenu(menuId, btnId) {
   const menu = document.getElementById(menuId);
   if (!menu) return;
   const isOpen = menu.classList.contains('open');
-  /* Fermer tous les menus ouverts */
-  document.querySelectorAll('.exp-menu.open, .sp-export-menu.open').forEach(function(m){ m.classList.remove('open'); });
-  if (!isOpen) menu.classList.add('open');
+  /* Fermer tous les menus ouverts (+ nettoyer un éventuel recalage inline) */
+  document.querySelectorAll('.exp-menu.open, .sp-export-menu.open').forEach(function(m){ m.classList.remove('open'); m.style.left=''; m.style.right=''; });
+  if (!isOpen) { menu.classList.add('open'); _clampMenuToViewport(menu); }
 }
 function closeExpMenu(menuId) {
   const m = document.getElementById(menuId); if(m) m.classList.remove('open');
@@ -7152,8 +7172,9 @@ const SynPro = (() => {
       expBtn.addEventListener('click', function(e){
         e.stopPropagation();
         expMenu.classList.toggle('open');
+        if (expMenu.classList.contains('open')) _clampMenuToViewport(expMenu);
       });
-      document.addEventListener('click', function(){ expMenu.classList.remove('open'); });
+      document.addEventListener('click', function(){ expMenu.classList.remove('open'); expMenu.style.left=''; expMenu.style.right=''; });
       expMenu.querySelectorAll('.sp-exp-item').forEach(function(item){
         item.addEventListener('click', function(e){
           e.stopPropagation();
