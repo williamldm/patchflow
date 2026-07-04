@@ -3019,8 +3019,23 @@ async function _loadLinksManager(){
   if(!CUR_SHOW)return;
   var list=document.getElementById('links-mgr-list');
   if(list) list.innerHTML='<div style="font-size:11px;color:var(--muted);padding:8px 0">Chargement…</div>';
-  var {data,error}=await sb.from('show_riders').select('*').eq('show_id',CUR_SHOW.id).order('created_at');
-  _proLinks=data||[];
+  var showId=CUR_SHOW.id;
+  /* NE PAS charger `config` : elle peut contenir des snapshots de plusieurs Mo
+     (site_snapshot). La liste n'affiche que nom/sections/code → charger tout
+     rendait la requête lourde et la faisait échouer par intermittence
+     (« aucun lien créé »). On sélectionne uniquement les colonnes utiles. */
+  var cols='id, show_id, name, sections, code, created_at';
+  var res=await sb.from('show_riders').select(cols).eq('show_id',showId).order('created_at');
+  if(res.error){ // retry une fois (refresh token / réseau transitoire)
+    await new Promise(function(r){setTimeout(r,600);});
+    res=await sb.from('show_riders').select(cols).eq('show_id',showId).order('created_at');
+  }
+  if(!CUR_SHOW||CUR_SHOW.id!==showId) return; // show changé entre-temps
+  if(res.error){
+    if(list) list.innerHTML='<div style="font-size:11px;color:var(--muted);padding:6px 0">Erreur de chargement des liens. <span style="color:var(--ora);cursor:pointer;text-decoration:underline" onclick="_loadLinksManager()">Réessayer</span></div>';
+    return;
+  }
+  _proLinks=res.data||[];
   _renderLinksManager();
 }
 
