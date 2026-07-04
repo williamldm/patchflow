@@ -921,23 +921,29 @@ function _loadSceneSite(scene){
   setPlanMode('site',false);
 }
 
-/* Calcule la taille de stockage de chaque show en arrière-plan */
+/* Calcule la taille de stockage de chaque show en arrière-plan.
+   UNE seule requête Supabase (show_files = miroir du bucket) pour TOUS les
+   shows → chaque carte peut afficher sa jauge de stockage, sans appels B2. */
+var SHOW_FILECOUNT_MAP={};
 async function loadShowStorage(){
-  /* PERF : un seul appel batché au lieu d'1 appel par show.
-     Pour l'affichage par carte show, on agrège plus tard si besoin.
-     Ici on calcule juste le total — les badges par show sont optionnels. */
   SHOW_STORAGE_MAP={};
+  SHOW_FILECOUNT_MAP={};
   if(!SHOWS.length || !canDo('storage')) return;
-  /* On garde le détail par show via /storage-used uniquement pour le show
-     actuellement visible (lazy) — sinon trop d'appels au chargement.
-     Le total global est dans Mon abonnement (user-storage). */
-  const cur=CUR_SHOW?.id;
-  if(cur){
-    try{
-      const {data}=await _b2Call('storage-used',{showId:cur});
-      if(data?.bytes!=null) SHOW_STORAGE_MAP[cur]=data.bytes;
-    }catch(e){}
-  }
+  try{
+    const ids=SHOWS.map(function(s){return s.id;});
+    const {data,error}=await sb.from('show_files')
+      .select('show_id,size,path')
+      .in('show_id',ids)
+      .eq('is_folder',false);
+    if(error||!data) return;
+    data.forEach(function(f){
+      if(/(^|\/)node-icons\//.test(f.path||'')) return; // assets internes exclus
+      SHOW_STORAGE_MAP[f.show_id]=(SHOW_STORAGE_MAP[f.show_id]||0)+(f.size||0);
+      SHOW_FILECOUNT_MAP[f.show_id]=(SHOW_FILECOUNT_MAP[f.show_id]||0)+1;
+    });
+    /* Shows sans fichier : marquer 0 explicite (l'UI distingue "inconnu") */
+    ids.forEach(function(id){ if(SHOW_STORAGE_MAP[id]==null){SHOW_STORAGE_MAP[id]=0;SHOW_FILECOUNT_MAP[id]=0;} });
+  }catch(e){}
   renderSessions();
 }
 
@@ -11136,6 +11142,17 @@ function renderSessions(){
     return '<span class="sess-plan-chip '+p+'">'+(labels[p]||p)+'</span>';
   }
 
+  /* Date lisible (12 juin 2026) au lieu de l'ISO brut */
+  function fmtShowDate(d){
+    if(!d) return '';
+    var dt=new Date(String(d).length===10?d+'T00:00:00':d);
+    if(isNaN(dt)) return String(d);
+    return dt.toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});
+  }
+  /* Jauge comparative : le show le plus lourd sert d'échelle */
+  var _maxStorage=0;
+  SHOWS.forEach(function(s){ var b=SHOW_STORAGE_MAP[s.id]; if(b>_maxStorage)_maxStorage=b; });
+
   function initials(name){
     return String(name||'?').split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase()||'?';
   }
@@ -11180,25 +11197,37 @@ function renderSessions(){
     var chCount=isActive?CHS.length:'—';
     var mono=showMono(s.name);
     var _fid=_sessFolderOf(s.id); var _fold=_fid?_sessFolderById(_fid):null;
+    /* Jauge de stockage cloud du show (échelle = show le plus lourd) */
+    var _bytes=SHOW_STORAGE_MAP[s.id];
+    var _files=SHOW_FILECOUNT_MAP[s.id];
+    var _stRow='';
+    if(_bytes!=null){
+      var _pct=_bytes>0?Math.max(5,Math.round(_bytes/(_maxStorage||1)*100)):0;
+      _stRow='<div class="sess-storage" title="Stockage cloud de ce show">'
+        +'<i class="ti ti-cloud"></i>'
+        +'<div class="sess-storage-track"><div class="sess-storage-fill" style="width:'+_pct+'%"></div></div>'
+        +'<span class="sess-storage-lbl">'+(_bytes>0?_fmtSize(_bytes):'0 o')+(_files?' <span class="sess-storage-fc">· '+_files+' fichier'+(_files>1?'s':'')+'</span>':'')+'</span>'
+      +'</div>';
+    }
     return '<div class="sess-card'+(isActive?' active':'')+'" draggable="true" ondragstart="_sessDragStart(event,\''+s.id+'\')" ondragend="_sessDragEnd(event)" onclick="sessionSwitch(\''+s.id+'\')">'+
-      (isActive?'<div class="sess-stripe"></div>':'')+
+      '<div class="sess-stripe" style="background:linear-gradient(90deg,'+mono.c.fg+','+mono.c.bd+');opacity:'+(isActive?'1':'.45')+'"></div>'+
       '<div class="sess-body">'+
         '<div class="sess-top">'+
-          '<div class="sess-icon-wrap sess-mono" style="background:'+mono.c.bg+';border-color:'+mono.c.bd+';color:'+mono.c.fg+'">'+_e(mono.ini)+'</div>'+
+          '<div class="sess-icon-wrap sess-mono" style="background:linear-gradient(145deg,'+mono.c.bg+',rgba(255,255,255,.02));border-color:'+mono.c.bd+';color:'+mono.c.fg+';box-shadow:0 3px 14px '+mono.c.bg+'">'+_e(mono.ini)+'</div>'+
           '<div class="sess-title-wrap">'+
             '<div class="sess-name">'+_e(s.name)+'</div>'+
-            '<div class="sess-venue">'+(s.venue?_e(s.venue):'<span style="color:var(--muted2);font-style:italic">Venue non renseignée</span>')+'</div>'+
+            '<div class="sess-venue"><i class="ti ti-map-pin" style="font-size:10px;opacity:.7"></i> '+(s.venue?_e(s.venue):'<span style="color:var(--muted2);font-style:italic">Lieu non renseigné</span>')+'</div>'+
           '</div>'+
-          (isActive?'<span style="display:flex;align-items:center;gap:4px;font-size:9px;color:var(--grn);font-family:var(--m);font-weight:700;flex-shrink:0;margin-top:2px"><span class="on-dot"></span>Actif</span>':'')+
+          (isActive?'<span class="sess-live-pill"><span class="on-dot"></span>Actif</span>':'')+
         '</div>'+
         '<div class="sess-tags">'+
-          (s.show_date?'<span class="sess-tag"><i class="ti ti-calendar" style="font-size:9px"></i>'+_e(s.show_date)+'</span>':'')+
+          (s.show_date?'<span class="sess-tag date"><i class="ti ti-calendar" style="font-size:9px"></i>'+_e(fmtShowDate(s.show_date))+'</span>':'')+
           '<span class="sess-tag'+(isActive?' active':'')+'"><i class="ti ti-list" style="font-size:9px"></i>'+chCount+' canaux</span>'+
           '<span class="sess-tag"><i class="ti ti-users" style="font-size:9px"></i>'+totalMembers+' membre'+(totalMembers!==1?'s':'')+'</span>'+
-          (SHOW_STORAGE_MAP[s.id]?'<span class="sess-tag"><i class="ti ti-cloud" style="font-size:9px"></i>'+_fmtSize(SHOW_STORAGE_MAP[s.id])+'</span>':'')+
           (!isOwn?'<span class="sess-tag" style="border-color:rgba(26,143,255,.3);color:var(--blu2)"><i class="ti ti-share" style="font-size:9px"></i>Partagé</span>':'')+
           (_fold?'<span class="sess-folder-pill"><span class="sess-fdot" style="background:'+_fold.color+'"></span>'+_e(_fold.name)+'</span>':'')+
         '</div>'+
+        _stRow+
         '<div class="sess-members-row">'+renderMembersRow(s)+'</div>'+
       '</div>'+
       '<div class="sess-footer">'+
