@@ -3014,28 +3014,37 @@ function _initRiderBuilder(){
 
 /* ══ Gestionnaire de liens Pro ══════════════════════════════════ */
 var _proLinks=[]; // cache des liens du show courant
+var _lastLinksShowId=null; // show auquel appartient le cache _proLinks (anti-flicker)
 
 async function _loadLinksManager(){
   if(!CUR_SHOW)return;
   var list=document.getElementById('links-mgr-list');
   if(list) list.innerHTML='<div style="font-size:11px;color:var(--muted);padding:8px 0">Chargement…</div>';
   var showId=CUR_SHOW.id;
+  /* A-t-on déjà des liens affichés pour CE show ? Si oui, on ne clignote pas et
+     surtout on ne vide JAMAIS la liste sur une erreur réseau (connexion
+     instable → liens qui apparaissent/disparaissent). */
+  var hadLinks=!!(_proLinks&&_proLinks.length&&_lastLinksShowId===showId);
+  if(list&&!hadLinks) list.innerHTML='<div style="font-size:11px;color:var(--muted);padding:8px 0">Chargement…</div>';
   /* NE PAS charger `config` : elle peut contenir des snapshots de plusieurs Mo
-     (site_snapshot). La liste n'affiche que nom/sections/code → charger tout
-     rendait la requête lourde et la faisait échouer par intermittence
-     (« aucun lien créé »). On sélectionne uniquement les colonnes utiles. */
+     (site_snapshot) → requête lourde qui échouait par intermittence. On ne
+     sélectionne que les colonnes utiles à l'affichage. */
   var cols='id, show_id, name, sections, code, created_at';
-  var res=await sb.from('show_riders').select(cols).eq('show_id',showId).order('created_at');
-  if(res.error){ // retry une fois (refresh token / réseau transitoire)
-    await new Promise(function(r){setTimeout(r,600);});
+  var res;
+  for(var _i=0;_i<4;_i++){ // retries avec backoff (résiste à une connexion instable)
     res=await sb.from('show_riders').select(cols).eq('show_id',showId).order('created_at');
+    if(!res.error) break;
+    await new Promise(function(r){setTimeout(r,500*(_i+1));});
   }
   if(!CUR_SHOW||CUR_SHOW.id!==showId) return; // show changé entre-temps
   if(res.error){
-    if(list) list.innerHTML='<div style="font-size:11px;color:var(--muted);padding:6px 0">Erreur de chargement des liens. <span style="color:var(--ora);cursor:pointer;text-decoration:underline" onclick="_loadLinksManager()">Réessayer</span></div>';
+    /* Échec persistant : on GARDE la liste déjà affichée (pas de disparition).
+       Message discret uniquement si on n'avait encore rien. */
+    if(list&&!hadLinks) list.innerHTML='<div style="font-size:11px;color:var(--muted);padding:6px 0">Connexion instable. <span style="color:var(--ora);cursor:pointer;text-decoration:underline" onclick="_loadLinksManager()">Réessayer</span></div>';
     return;
   }
   _proLinks=res.data||[];
+  _lastLinksShowId=showId;
   _renderLinksManager();
 }
 
@@ -3159,6 +3168,7 @@ async function _createLink(){
   if(error){toast('Erreur : '+error.message);return;}
 
   _proLinks.push(data);
+  _lastLinksShowId=CUR_SHOW.id; // le cache est à jour pour ce show
   _renderLinksManager();
   _closeNewLinkForm();
   toast('Lien "'+name+'" créé ✓');
