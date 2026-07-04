@@ -136,13 +136,14 @@ body{display:flex;flex-direction:column;min-height:100vh}
   .panel{padding:12px}
 
   /* iOS Safari ne rétracte sa barre d'adresse que si c'est le DOCUMENT qui
-     scrolle, pas un conteneur interne. On fait donc scroller la page (et non
-     .content) sur mobile → on récupère la place quand la barre se réduit.
-     Les plans (synoptique/scène/site) passent par des overlays position:fixed,
-     donc non impactés ; la topbar est déjà sticky, la bottom-nav fixed. */
+     scrolle. On repasse l'ossature en flux BLOC normal sur mobile (au lieu de
+     flex + conteneur interne .content) pour que la page elle-même scrolle →
+     Safari réduit sa barre et on récupère la place. Les plans passent par des
+     overlays position:fixed (non impactés), la topbar est sticky, la nav fixe. */
   html,body{height:auto}
-  #app,#app.show{min-height:100vh;min-height:100dvh}
-  .content{overflow:visible}
+  body{display:block;min-height:100vh}
+  #app,#app.show{display:block;min-height:100vh;min-height:100dvh}
+  .content{overflow:visible;flex:none}
 
   /* Stack pbar vertically on very small screens.
      NB : .pbar .ptitle (spécificité 0,2,0) pour battre la règle de base
