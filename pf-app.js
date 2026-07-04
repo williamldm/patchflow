@@ -3103,12 +3103,19 @@ async function _createLink(){
       var _siteToLoad=_siteFromSD||_siteFromScene;
       if(_siteToLoad) SitePlan.load(_siteToLoad);
     }
-    try{
-      config.site_snapshot=await new Promise(function(resolve){
-        var t=setTimeout(function(){resolve(null);},6000);
-        SitePlan.exportCanvasSafe(function(cv){clearTimeout(t);resolve(cv?cv.toDataURL('image/png'):null);});
-      });
-    }catch(e){}
+    /* On ne stocke le snapshot (gros PNG base64, souvent plusieurs Mo) QUE s'il
+       n'y a pas de données de scène site : sinon la vue rider redessine le plan
+       depuis la scène, et le serveur retire de toute façon ce snapshot de la
+       réponse. Évite de gonfler la base et accélère la création du lien. */
+    var _hasSiteScene=!!(SHOW_SCENES.site&&SHOW_SCENES.site.some(function(s){return s.data&&Object.keys(s.data).length>0;}));
+    if(!_hasSiteScene){
+      try{
+        config.site_snapshot=await new Promise(function(resolve){
+          var t=setTimeout(function(){resolve(null);},6000);
+          SitePlan.exportCanvasSafe(function(cv){clearTimeout(t);resolve(cv?cv.toDataURL('image/png'):null);});
+        });
+      }catch(e){}
+    }
   }
   if(sections.includes('syno')){ config.syn_snapshot=CUR_SHOW.synoptique_data||null; }
   if(sections.includes('out')){ config.out_snapshot=CUR_SHOW.out_data||OUT_DATA||{}; }

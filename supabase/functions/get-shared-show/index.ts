@@ -39,6 +39,22 @@ async function fetchShowData(sbAdmin: ReturnType<typeof createClient>, showId: s
   };
 }
 
+/* Retire les snapshots d'image redondants de la config du lien. Ces snapshots
+   (PNG base64, souvent plusieurs Mo) ne sont qu'un SECOURS : quand les données
+   de scène existent, la vue rider redessine le plan à partir d'elles. Les
+   envoyer alourdit énormément la réponse (ex. site_snapshot de 10 Mo). */
+function stripHeavySnapshots(cfg: Record<string, unknown> | null | undefined,
+                            scenes: Array<{ type?: string; data?: unknown }>) {
+  if (!cfg) return cfg;
+  const hasData = (type: string) =>
+    (scenes || []).some((s) => s.type === type && s.data && typeof s.data === 'object'
+      && Object.keys(s.data as Record<string, unknown>).length > 0);
+  if (hasData('site'))  delete cfg.site_snapshot;
+  if (hasData('syno'))  delete cfg.syn_snapshot;
+  if (hasData('stage')) delete cfg.stage_image;
+  return cfg;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
@@ -79,7 +95,7 @@ serve(async (req) => {
           riderName: rider.name,
           overrideRider: {
             sections: rider.sections,
-            ...(rider.config || {}),
+            ...(stripHeavySnapshots({ ...(rider.config || {}) }, scenes) || {}),
           },
         },
         error: null,
@@ -95,6 +111,9 @@ serve(async (req) => {
 
     const rider = show.stage_data?.rider;
     if (!rider) return json({ error: "Ce show n'a pas de lien de partage actif" }, 403);
+
+    // Alléger : retirer les snapshots redondants du rider legacy (cf. supra).
+    stripHeavySnapshots(rider, scenes);
 
     return json({ data: { show, channels, scenes }, error: null });
 
