@@ -6175,6 +6175,7 @@ const SynPro = (() => {
   let panning = null;
   let resizing = null;
   let wpDrag = null;   // { cid, idx, moved } — glissement d'un point de routage de câble
+  let wpAddCid = null; // id du câble en mode « placer un point » (bouton + Point)
   let view = { zoom:1, panX:0, panY:0 };
 
   function _defaultState() {
@@ -6415,6 +6416,14 @@ const SynPro = (() => {
   function _synDelWp(cid, idx) {
     var c = cableById(cid);
     if(c && c.waypoints){ c.waypoints.splice(idx,1); if(!c.waypoints.length) delete c.waypoints; scheduleSave(); _renderEdges(); }
+  }
+  /* Active/désactive le mode « placer un point » (bouton + Point de l'inspecteur).
+     cid=null pour désactiver. Le prochain clic sur le plan dépose le point. */
+  function _setWpAddModeSyn(cid) {
+    wpAddCid = cid;
+    var vp = $('sp-viewport');
+    if (vp) vp.style.cursor = cid ? 'crosshair' : '';
+    if (cid && typeof toast !== 'undefined') toast('Cliquez sur le plan pour placer le point de guidage');
   }
 
   /* ── Render palette ── */
@@ -6957,9 +6966,17 @@ const SynPro = (() => {
         '</div>' +
         '<label class="sp-insp-lbl">Etiquette (ex: Liaison gigaACE RJ45 5m)</label>' +
         '<textarea class="sp-insp-tx" id="sp-ins-clbl" rows="3" placeholder="Type + longueur">' + esc(c.label || '') + '</textarea>' +
+        '<label class="sp-insp-lbl">Points de guidage</label>' +
+        '<div style="display:flex;gap:6px">' +
+          '<button class="btn ghost sm' + (wpAddCid===c.id?' active':'') + '" id="sp-ins-cwp" style="flex:1"><i class="ti ti-vector-bezier-2"></i> + Point</button>' +
+          (c.waypoints && c.waypoints.length ? '<button class="btn ghost sm" id="sp-ins-cwpc" style="flex:1" title="Supprimer tous les points"><i class="ti ti-eraser"></i> Effacer (' + c.waypoints.length + ')</button>' : '') +
+        '</div>' +
+        '<div style="font-size:9px;color:var(--muted);font-family:var(--m);margin-top:5px;line-height:1.4">Cliquez « + Point » puis sur le plan. Glissez un point pour l\'ajuster, double-clic pour le retirer.</div>' +
         '<button class="btn ghost sm" id="sp-ins-cdel" style="margin-top:12px;width:100%;color:var(--err)"><i class="ti ti-trash"></i>Supprimer le cable</button>';
       $('sp-ins-net').addEventListener('change', function(e){ c.network = e.target.value; _renderEdges(); _renderLegend(); scheduleSave(); });
       $('sp-ins-clbl').addEventListener('input', function(e){ c.label = e.target.value; _renderEdges(); scheduleSave(); });
+      $('sp-ins-cwp')?.addEventListener('click', function(){ _setWpAddModeSyn(wpAddCid===c.id?null:c.id); _renderInspector(); });
+      $('sp-ins-cwpc')?.addEventListener('click', function(){ delete c.waypoints; _renderEdges(); scheduleSave(); _renderInspector(); });
       $('sp-ins-cdel').addEventListener('click', function(){ deleteCable(c.id); });
       el.querySelectorAll('.sp-dir-btn').forEach(function(btn){
         btn.addEventListener('click', function(){
@@ -7082,6 +7099,21 @@ const SynPro = (() => {
         panning = null;
         resizing = null;
         vp.style.cursor = '';
+      }
+
+      /* Mode « placer un point » (bouton + Point) : ce clic dépose un point de
+         guidage sur le câble, puis on sort du mode. */
+      if (wpAddCid) {
+        var _cbl = cableById(wpAddCid);
+        _setWpAddModeSyn(null);
+        if (_cbl) {
+          var _wp = clientToWorld(e.clientX, e.clientY);
+          _synAddWaypointAt(_cbl, { x:_wp.x, y:_wp.y });
+          selected = { kind:'cable', id:_cbl.id };
+          scheduleSave(); render();
+        }
+        e.preventDefault(); e.stopPropagation();
+        return;
       }
 
       var del = e.target.closest('.sp-node-del');
@@ -7372,10 +7404,11 @@ const SynPro = (() => {
       foot.addEventListener('click', function(){ _editText(foot, function(v){ state.footer = v; scheduleSave(); _renderHeader(); }); });
     }
 
-    /* Escape cancels cable mode */
+    /* Escape cancels cable mode / point-placing mode */
     document.addEventListener('keydown', function(e){
-      if (e.key === 'Escape' && activeCable) {
-        cancelCable();
+      if (e.key === 'Escape') {
+        if (wpAddCid) { _setWpAddModeSyn(null); _renderInspector(); }
+        else if (activeCable) { cancelCable(); }
       }
     });
   }
