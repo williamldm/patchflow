@@ -6174,6 +6174,7 @@ const SynPro = (() => {
   let dragging = null;
   let panning = null;
   let resizing = null;
+  let wpDrag = null;   // { cid, idx, moved } — glissement d'un point de routage de câble
   let view = { zoom:1, panX:0, panY:0 };
 
   function _defaultState() {
@@ -6357,22 +6358,63 @@ const SynPro = (() => {
   }
 
   /* ── Edge geometry — straight line between node edges, clipped to bounding box ── */
+  /* Point d'accroche sur le bord d'une carte, dans la direction (dx,dy). */
+  function _attach(center, dx, dy) {
+    var horiz = Math.abs(dx) >= Math.abs(dy);
+    if (horiz) return { x: center.x + (dx >= 0 ? center.w/2 : -center.w/2), y: center.y };
+    return { x: center.x, y: center.y + (dy >= 0 ? center.h/2 : -center.h/2) };
+  }
   function edgeGeom(c) {
     var fn = nodeById(c.from), tn = nodeById(c.to);
     if (!fn || !tn) return null;
     var a = nodeCenter(fn), b = nodeCenter(tn);
-    /* Choose attachment side : left/right edge of each card based on relative position */
-    var dx = b.x - a.x, dy = b.y - a.y;
-    var horiz = Math.abs(dx) >= Math.abs(dy);
+    var wps = (c.waypoints && c.waypoints.length) ? c.waypoints : null;
     var p0, p1;
-    if (horiz) {
-      p0 = { x: a.x + (dx >= 0 ? a.w/2 : -a.w/2), y: a.y };
-      p1 = { x: b.x + (dx >= 0 ? -b.w/2 : b.w/2), y: b.y };
-    } else {
-      p0 = { x: a.x, y: a.y + (dy >= 0 ? a.h/2 : -a.h/2) };
-      p1 = { x: b.x, y: b.y + (dy >= 0 ? -b.h/2 : b.h/2) };
+    if (wps) {
+      /* Les points de routage dirigent le câble : on s'accroche vers le 1er
+         point côté source, et depuis le dernier point côté destination. */
+      var first = wps[0], last = wps[wps.length-1];
+      p0 = _attach(a, first.x - a.x, first.y - a.y);
+      p1 = _attach(b, last.x - b.x, last.y - b.y);
+      var pts = [p0].concat(wps.map(function(p){return {x:p.x,y:p.y};})).concat([p1]);
+      return { p0:p0, p1:p1, wps:wps, pts:pts, mid: _polyMidSyn(pts) };
     }
+    /* Sans point : côté gauche/droite ou haut/bas selon la position relative */
+    var dx = b.x - a.x, dy = b.y - a.y;
+    p0 = _attach(a, dx, dy);
+    p1 = _attach(b, -dx, -dy);
     return { p0:p0, p1:p1, mid:{ x:(p0.x+p1.x)/2, y:(p0.y+p1.y)/2 } };
+  }
+  /* Milieu géométrique d'une polyligne (pour placer le label). */
+  function _polyMidSyn(pts) {
+    var total = 0, segs = [];
+    for (var i=0;i<pts.length-1;i++){ var L=Math.hypot(pts[i+1].x-pts[i].x, pts[i+1].y-pts[i].y); segs.push(L); total+=L; }
+    var half = total/2, acc = 0;
+    for (var j=0;j<segs.length;j++){
+      if (acc+segs[j] >= half){ var t=(half-acc)/(segs[j]||1); return { x:pts[j].x+(pts[j+1].x-pts[j].x)*t, y:pts[j].y+(pts[j+1].y-pts[j].y)*t }; }
+      acc+=segs[j];
+    }
+    return { x:(pts[0].x+pts[pts.length-1].x)/2, y:(pts[0].y+pts[pts.length-1].y)/2 };
+  }
+  /* Distance d'un point à un segment (pour insérer un point au bon endroit). */
+  function _distToSegSyn(p, a, b) {
+    var vx=b.x-a.x, vy=b.y-a.y, wx=p.x-a.x, wy=p.y-a.y;
+    var c1=vx*wx+vy*wy; if(c1<=0) return Math.hypot(p.x-a.x,p.y-a.y);
+    var c2=vx*vx+vy*vy; if(c2<=c1) return Math.hypot(p.x-b.x,p.y-b.y);
+    var t=c1/c2; return Math.hypot(p.x-(a.x+vx*t), p.y-(a.y+vy*t));
+  }
+  /* Ajoute un point de routage au bon endroit (segment le plus proche du clic). */
+  function _synAddWaypointAt(c, p) {
+    var g = edgeGeom(c); if(!g) return;
+    var pts = g.pts || [g.p0, g.p1];
+    var best=0, bd=Infinity;
+    for (var i=0;i<pts.length-1;i++){ var d=_distToSegSyn(p, pts[i], pts[i+1]); if(d<bd){bd=d;best=i;} }
+    if(!c.waypoints) c.waypoints=[];
+    c.waypoints.splice(best,0,{x:Math.round(p.x), y:Math.round(p.y)});
+  }
+  function _synDelWp(cid, idx) {
+    var c = cableById(cid);
+    if(c && c.waypoints){ c.waypoints.splice(idx,1); if(!c.waypoints.length) delete c.waypoints; scheduleSave(); _renderEdges(); }
   }
 
   /* ── Render palette ── */
@@ -6590,11 +6632,11 @@ const SynPro = (() => {
     }).join('');
     el.innerHTML =
       '<div class="sp-pal-cat' + collapsed + '" data-cat="' + catKey + '">' +
-        '<div class="sp-pal-cat-name" data-toggle><span class="sp-pal-cat-chevron">&#9660;</span><span><i class="ti ti-cable" style="margin-right:4px"></i>Cables</span><span class="sp-pal-cat-count">' + state.networks.length + '</span></div>' +
+        '<div class="sp-pal-cat-name" data-toggle><span class="sp-pal-cat-chevron">&#9660;</span><span><i class="ti ti-line" style="margin-right:4px"></i>Liaisons</span><span class="sp-pal-cat-count">' + state.networks.length + '</span></div>' +
         '<div class="sp-pal-cat-items">' +
-          '<button class="sp-pal-cat-add" id="sp-cable-add" style="width:100%"><i class="ti ti-plus"></i> Nouveau type de cable</button>' +
+          '<button class="sp-pal-cat-add" id="sp-cable-add" style="width:100%"><i class="ti ti-plus"></i> Nouveau type de liaison</button>' +
           items +
-          '<div style="margin-top:6px;font-size:9px;color:var(--muted);text-align:center;font-family:var(--m);line-height:1.4;padding:4px">Cliquez puis 2 equipements pour relier</div>' +
+          '<div style="margin-top:6px;font-size:9px;color:var(--muted);text-align:center;font-family:var(--m);line-height:1.5;padding:4px">Cliquez un type puis 2 equipements pour relier.<br/>Double-cliquez une liaison pour ajouter un point de guidage.</div>' +
         '</div>' +
       '</div>';
     el.querySelector('[data-toggle]').addEventListener('click', function(){
@@ -6782,6 +6824,7 @@ const SynPro = (() => {
       var count  = group.length;
 
       var p0 = g.p0, p1 = g.p1;
+      var hasWp = !!(g.wps && g.wps.length);
 
       /* Unit vectors along + perpendicular to the line */
       var dx = p1.x - p0.x, dy = p1.y - p0.y;
@@ -6789,18 +6832,31 @@ const SynPro = (() => {
       var ux = dx / linLen, uy = dy / linLen;          /* along */
       var perpX = -uy, perpY = ux;                      /* perpendicular */
 
-      /* Offset: cables spaced by STEP px, centered around 0 */
-      var STEP = 16;  /* px between parallel cables */
+      /* Décalage parallèle SEULEMENT pour les câbles droits (les câbles routés
+         par points sont placés explicitement → pas d'offset). */
+      var STEP = 16;
       var totalSpan = (count - 1) * STEP;
-      var offset = idx * STEP - totalSpan / 2;
+      var offset = hasWp ? 0 : (idx * STEP - totalSpan / 2);
+      var GAP = 7;  /* recul depuis le bord des cartes pour les flèches */
 
-      /* Pull endpoints back from the box edges so arrows don't touch the cards */
-      var GAP = 7;
-      var sx0 = p0.x + perpX * offset + ux * GAP, sy0 = p0.y + perpY * offset + uy * GAP;
-      var sx1 = p1.x + perpX * offset - ux * GAP, sy1 = p1.y + perpY * offset - uy * GAP;
-      var midX = (sx0 + sx1) / 2, midY = (sy0 + sy1) / 2;
-
-      var d = 'M' + sx0 + ',' + sy0 + ' L' + sx1 + ',' + sy1;
+      var d, midX, midY;
+      if (hasWp) {
+        /* Polyligne : p0 → points de routage → p1, extrémités reculées vers
+           le 1er / dernier point. */
+        var w0 = g.wps[0], wN = g.wps[g.wps.length-1];
+        var a0x=w0.x-p0.x, a0y=w0.y-p0.y, a0=Math.hypot(a0x,a0y)||1;
+        var a1x=p1.x-wN.x, a1y=p1.y-wN.y, a1=Math.hypot(a1x,a1y)||1;
+        var A = { x:p0.x + a0x/a0*GAP, y:p0.y + a0y/a0*GAP };
+        var B = { x:p1.x - a1x/a1*GAP, y:p1.y - a1y/a1*GAP };
+        var poly = [A].concat(g.wps.map(function(p){return {x:p.x,y:p.y};})).concat([B]);
+        d = 'M' + poly.map(function(p){return p.x+','+p.y;}).join(' L');
+        var m = _polyMidSyn(poly); midX=m.x; midY=m.y;
+      } else {
+        var sx0 = p0.x + perpX * offset + ux * GAP, sy0 = p0.y + perpY * offset + uy * GAP;
+        var sx1 = p1.x + perpX * offset - ux * GAP, sy1 = p1.y + perpY * offset - uy * GAP;
+        midX = (sx0 + sx1) / 2; midY = (sy0 + sy1) / 2;
+        d = 'M' + sx0 + ',' + sy0 + ' L' + sx1 + ',' + sy1;
+      }
 
       /* Arrow markers */
       var dir = c.dir || 'none';
@@ -6809,7 +6865,7 @@ const SynPro = (() => {
       var mStart = (dir === 'backward' || dir === 'both') ? ' marker-start="url(#arr-' + colId + '-bwd)"' : '';
 
       html += '<path class="sp-edge-hit" data-cid="' + c.id + '" d="' + d + '" stroke="' + net.color + '" stroke-width="14" fill="none"/>';
-      html += '<path class="sp-edge' + (sel ? ' sel' : '') + '" data-cid="' + c.id + '" d="' + d + '" stroke="' + net.color + '" stroke-width="' + lw + '" stroke-linecap="butt" fill="none"' + mEnd + mStart + '/>';
+      html += '<path class="sp-edge' + (sel ? ' sel' : '') + '" data-cid="' + c.id + '" d="' + d + '" stroke="' + net.color + '" stroke-width="' + lw + '" stroke-linejoin="round" stroke-linecap="round" fill="none"' + mEnd + mStart + '/>';
 
       /* Label — for parallel cables, push each label further out perpendicular so they never overlap */
       if (c.label && c.label.trim()) {
@@ -6818,12 +6874,19 @@ const SynPro = (() => {
         var maxW = 0;
         lines.forEach(function(ln){ maxW = Math.max(maxW, ln.length); });
         var bw = Math.min(160, maxW * 6.5 + 12);
-        /* Extra perpendicular separation so each label sits on its own band */
-        var labelGap = (count > 1) ? (idx - (count - 1) / 2) * (totalH + 10) : 0;
+        var labelGap = (!hasWp && count > 1) ? (idx - (count - 1) / 2) * (totalH + 10) : 0;
         var lx = midX + perpX * labelGap, ly = midY + perpY * labelGap;
         html += '<rect x="' + (lx - bw/2) + '" y="' + (ly - totalH/2 - 3) + '" width="' + bw + '" height="' + (totalH + 6) + '" rx="3" fill="#fff" opacity=".94"/>';
         lines.forEach(function(ln, i){
           html += '<text x="' + lx + '" y="' + (ly - totalH/2 + lh/2 + 3 + i*lh) + '" text-anchor="middle" font-family="Outfit,sans-serif" font-size="10" font-weight="500" fill="' + net.color + '">' + esc(ln) + '</text>';
+        });
+      }
+
+      /* Poignées des points de routage (câble sélectionné) : glisser pour
+         déplacer · double-clic / clic droit pour retirer. */
+      if (sel && hasWp) {
+        g.wps.forEach(function(p, wi){
+          html += '<circle class="sp-wp" cx="' + p.x + '" cy="' + p.y + '" r="6" data-cid="' + c.id + '" data-idx="' + wi + '"/>';
         });
       }
     });
@@ -7033,6 +7096,16 @@ const SynPro = (() => {
         e.preventDefault(); e.stopPropagation(); return;
       }
 
+      /* Glisser un point de routage de câble */
+      var wpEl = e.target.closest('.sp-wp');
+      if (wpEl) {
+        if (e.button !== 0) return; /* clic droit réservé à la suppression */
+        wpDrag = { cid: wpEl.dataset.cid, idx: +wpEl.dataset.idx, moved:false };
+        vp.setPointerCapture(e.pointerId);
+        e.preventDefault(); e.stopPropagation();
+        return;
+      }
+
       var nodeEl = e.target.closest('.sp-node');
       var edgeEl = e.target.closest('.sp-edge-hit,.sp-edge');
 
@@ -7098,6 +7171,16 @@ const SynPro = (() => {
     });
 
     vp.addEventListener('pointermove', function(e){
+      if (wpDrag) {
+        var wc = cableById(wpDrag.cid);
+        if (wc && wc.waypoints && wc.waypoints[wpDrag.idx]) {
+          var ww = clientToWorld(e.clientX, e.clientY);
+          wc.waypoints[wpDrag.idx] = { x:Math.round(ww.x), y:Math.round(ww.y) };
+          wpDrag.moved = true;
+          _renderEdges();
+        }
+        return;
+      }
       if (resizing) {
         var rn2 = nodeById(resizing.id);
         if (rn2) {
@@ -7142,6 +7225,7 @@ const SynPro = (() => {
 
     vp.addEventListener('pointerup', function(){
       vp.style.cursor = '';
+      if (wpDrag) { if (wpDrag.moved) scheduleSave(); wpDrag = null; return; }
       if (resizing) { scheduleSave(); resizing = null; _renderInspector(); return; }
       if (dragging) {
         if (dragging.moved) scheduleSave();
@@ -7155,6 +7239,7 @@ const SynPro = (() => {
 
     vp.addEventListener('pointercancel', function(){
       vp.style.cursor = '';
+      if (wpDrag) { if (wpDrag.moved) scheduleSave(); wpDrag = null; }
       if (resizing) { scheduleSave(); resizing = null; }
       dragging = null;
       panning = null;
@@ -7164,6 +7249,7 @@ const SynPro = (() => {
        clean up so the next click can be processed normally. */
     vp.addEventListener('lostpointercapture', function(){
       vp.style.cursor = '';
+      if (wpDrag) { if (wpDrag.moved) scheduleSave(); wpDrag = null; }
       if (resizing) { scheduleSave(); resizing = null; _renderInspector(); }
       if (dragging) {
         if (dragging.moved) scheduleSave();
@@ -7188,12 +7274,28 @@ const SynPro = (() => {
       }
     });
 
-    /* Double-click cable or node to focus inspector */
+    /* Double-clic : poignée → retirer le point · câble → ajouter un point de
+       routage à cet endroit · nœud → focus inspecteur */
     vp.addEventListener('dblclick', function(e){
+      var wpe = e.target.closest('.sp-wp');
+      if (wpe) { e.preventDefault(); e.stopPropagation(); _synDelWp(wpe.dataset.cid, +wpe.dataset.idx); return; }
       var ne = e.target.closest('.sp-node');
       if (ne) { selected = { kind:'node', id: ne.dataset.id }; _renderInspector(); return; }
       var ee = e.target.closest('.sp-edge-hit,.sp-edge');
-      if (ee) { selected = { kind:'cable', id: ee.dataset.cid }; render(); return; }
+      if (ee) {
+        e.preventDefault(); e.stopPropagation();
+        var c = cableById(ee.dataset.cid); if(!c) return;
+        var w = clientToWorld(e.clientX, e.clientY);
+        _synAddWaypointAt(c, { x:w.x, y:w.y });
+        selected = { kind:'cable', id:c.id };
+        scheduleSave(); render();
+        return;
+      }
+    });
+    /* Clic droit sur une poignée : retirer ce point de routage */
+    vp.addEventListener('contextmenu', function(e){
+      var wpe = e.target.closest('.sp-wp');
+      if (wpe) { e.preventDefault(); e.stopPropagation(); _synDelWp(wpe.dataset.cid, +wpe.dataset.idx); }
     });
 
     /* Toolbar buttons */
@@ -7441,17 +7543,18 @@ const SynPro = (() => {
       var fn = nodeById(c.from), tn = nodeById(c.to);
       if (!fn || !tn) return null;
       var a = nodeCenterExport(fn), b = nodeCenterExport(tn);
-      var dx = b.x - a.x, dy = b.y - a.y;
-      var horiz = Math.abs(dx) >= Math.abs(dy);
+      var wps = (c.waypoints && c.waypoints.length) ? c.waypoints : null;
       var p0, p1;
-      if (horiz) {
-        p0 = { x: a.x + (dx >= 0 ? a.w/2 : -a.w/2), y: a.y };
-        p1 = { x: b.x + (dx >= 0 ? -b.w/2 : b.w/2), y: b.y };
+      if (wps) {
+        var first=wps[0], last=wps[wps.length-1];
+        p0 = _attach(a, first.x-a.x, first.y-a.y);
+        p1 = _attach(b, last.x-b.x, last.y-b.y);
       } else {
-        p0 = { x: a.x, y: a.y + (dy >= 0 ? a.h/2 : -a.h/2) };
-        p1 = { x: b.x, y: b.y + (dy >= 0 ? -b.h/2 : b.h/2) };
+        var dx = b.x - a.x, dy = b.y - a.y;
+        p0 = _attach(a, dx, dy);
+        p1 = _attach(b, -dx, -dy);
       }
-      return { p0:p0, p1:p1, mid:{ x:(p0.x+p1.x)/2, y:(p0.y+p1.y)/2 } };
+      return { p0:p0, p1:p1, wps:wps, mid:{ x:(p0.x+p1.x)/2, y:(p0.y+p1.y)/2 } };
     }
 
     /* ── Parallel cable groups (same logic as _renderEdges) ── */
@@ -7473,27 +7576,40 @@ const SynPro = (() => {
       var group = pairGroups[key] || [c.id];
       var idx = group.indexOf(c.id);
       var count = group.length;
+      var hasWp = !!(g.wps && g.wps.length);
       var p0x = g.p0.x + ox, p0y = g.p0.y + oy + headH;
       var p1x = g.p1.x + ox, p1y = g.p1.y + oy + headH;
       var dx = p1x - p0x, dy = p1y - p0y;
       var linLen = Math.sqrt(dx*dx + dy*dy) || 1;
       var ux = dx / linLen, uy = dy / linLen;
       var perpX = -uy, perpY = ux;
-      /* Parallel lines — perpendicular offset + gap from box edges */
       var STEP = 16, GAP = 7;
       var totalSpan = (count - 1) * STEP;
-      var offset = idx * STEP - totalSpan / 2;
-      var sx0 = p0x + perpX * offset + ux * GAP, sy0 = p0y + perpY * offset + uy * GAP;
-      var sx1 = p1x + perpX * offset - ux * GAP, sy1 = p1y + perpY * offset - uy * GAP;
-      var midX = (sx0 + sx1) / 2, midY = (sy0 + sy1) / 2;
-      var d = 'M' + sx0 + ',' + sy0 + ' L' + sx1 + ',' + sy1;
+      var offset = hasWp ? 0 : (idx * STEP - totalSpan / 2);
+      var d, midX, midY;
+      if (hasWp) {
+        var wpsE = g.wps.map(function(p){return {x:p.x+ox, y:p.y+oy+headH};});
+        var w0=wpsE[0], wN=wpsE[wpsE.length-1];
+        var a0x=w0.x-p0x,a0y=w0.y-p0y,a0=Math.hypot(a0x,a0y)||1;
+        var a1x=p1x-wN.x,a1y=p1y-wN.y,a1=Math.hypot(a1x,a1y)||1;
+        var A={x:p0x+a0x/a0*GAP,y:p0y+a0y/a0*GAP};
+        var B={x:p1x-a1x/a1*GAP,y:p1y-a1y/a1*GAP};
+        var polyE=[A].concat(wpsE).concat([B]);
+        d='M'+polyE.map(function(p){return p.x+','+p.y;}).join(' L');
+        var mE=_polyMidSyn(polyE); midX=mE.x; midY=mE.y;
+      } else {
+        var sx0 = p0x + perpX * offset + ux * GAP, sy0 = p0y + perpY * offset + uy * GAP;
+        var sx1 = p1x + perpX * offset - ux * GAP, sy1 = p1y + perpY * offset - uy * GAP;
+        midX = (sx0 + sx1) / 2; midY = (sy0 + sy1) / 2;
+        d = 'M' + sx0 + ',' + sy0 + ' L' + sx1 + ',' + sy1;
+      }
 
       var dir = c.dir || 'none';
       var colId = net.color.replace('#','');
       var mEnd   = (dir==='forward'  || dir==='both') ? ' marker-end="url(#arr-'   + colId + '-fwd)"' : '';
       var mStart = (dir==='backward' || dir==='both') ? ' marker-start="url(#arr-' + colId + '-bwd)"' : '';
 
-      svg += '<path d="' + d + '" stroke="' + net.color + '" stroke-width="2.5" stroke-linecap="butt" fill="none"' + mEnd + mStart + '/>';
+      svg += '<path d="' + d + '" stroke="' + net.color + '" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"' + mEnd + mStart + '/>';
 
       if (c.label && c.label.trim()) {
         var lines = c.label.split('\n');
@@ -7501,7 +7617,7 @@ const SynPro = (() => {
         var maxLen = 0;
         lines.forEach(function(ln){ maxLen = Math.max(maxLen, ln.length); });
         var bw = Math.min(160, maxLen * 6.5 + 12);
-        var labelGap = (count > 1) ? (idx - (count - 1) / 2) * (totalH + 10) : 0;
+        var labelGap = (!hasWp && count > 1) ? (idx - (count - 1) / 2) * (totalH + 10) : 0;
         var lx = midX + perpX * labelGap, ly = midY + perpY * labelGap;
         svg += '<rect x="' + (lx-bw/2) + '" y="' + (ly-totalH/2-3) + '" width="' + bw + '" height="' + (totalH+6) + '" rx="3" fill="#ffffff" stroke="' + net.color + '" stroke-width="0.5"/>';
         lines.forEach(function(ln, i){

@@ -766,8 +766,8 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .spl-node.no-bg .spl-text-node{background:transparent!important;border-color:transparent!important;box-shadow:none!important}
 .spl-node.no-bg .spl-lbl{background:transparent!important;border:none!important;box-shadow:none!important}
 /* Points de routage (waypoints) des câbles */
-#site-cables .sp-wp{fill:#fff;stroke:var(--ora);stroke-width:2;pointer-events:auto;cursor:grab}
-#site-cables .sp-wp:hover{fill:var(--ora);r:9}
+#site-cables .sp-wp,#sp-edges .sp-wp{fill:#fff;stroke:var(--ora);stroke-width:2;pointer-events:auto;cursor:grab}
+#site-cables .sp-wp:hover,#sp-edges .sp-wp:hover{fill:var(--ora);r:9}
 /* Mode « placer un point » : curseur crosshair sur tout le plan */
 .sp-wp-add,.sp-wp-add *{cursor:crosshair!important}
 .site-link-banner{display:none;position:absolute;top:14px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,.96);border:1px solid var(--ora);border-radius:8px;padding:7px 18px;font-size:11px;color:var(--ora);z-index:50;backdrop-filter:blur(6px);white-space:nowrap;pointer-events:none;font-family:var(--m);font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.10)}
