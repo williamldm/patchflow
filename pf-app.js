@@ -6874,7 +6874,7 @@ const SynPro = (() => {
       var mStart = (dir === 'backward' || dir === 'both') ? ' marker-start="url(#arr-' + colId + '-bwd)"' : '';
 
       html += '<path class="sp-edge-hit" data-cid="' + c.id + '" d="' + d + '" stroke="' + net.color + '" stroke-width="14" fill="none"/>';
-      html += '<path class="sp-edge' + (sel ? ' sel' : '') + '" data-cid="' + c.id + '" d="' + d + '" stroke="' + net.color + '" stroke-width="' + lw + '" stroke-linejoin="round" stroke-linecap="round" fill="none"' + mEnd + mStart + '/>';
+      html += '<path class="sp-edge' + (sel ? ' sel' : '') + '" data-cid="' + c.id + '" d="' + d + '" stroke="' + net.color + '" stroke-width="' + lw + '" stroke-linejoin="round" stroke-linecap="butt" fill="none"' + mEnd + mStart + '/>';
 
       /* Label — for parallel cables, push each label further out perpendicular so they never overlap */
       if (c.label && c.label.trim()) {
@@ -7642,7 +7642,7 @@ const SynPro = (() => {
       var mEnd   = (dir==='forward'  || dir==='both') ? ' marker-end="url(#arr-'   + colId + '-fwd)"' : '';
       var mStart = (dir==='backward' || dir==='both') ? ' marker-start="url(#arr-' + colId + '-bwd)"' : '';
 
-      svg += '<path d="' + d + '" stroke="' + net.color + '" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"' + mEnd + mStart + '/>';
+      svg += '<path d="' + d + '" stroke="' + net.color + '" stroke-width="2.5" stroke-linecap="butt" stroke-linejoin="round" fill="none"' + mEnd + mStart + '/>';
 
       if (c.label && c.label.trim()) {
         var lines = c.label.split('\n');
