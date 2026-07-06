@@ -461,7 +461,7 @@ html.rider-boot #rider-splash{display:flex}
         <div class="sp-body">
           <div class="sp-palette">
             <div class="sp-pal-hd"><i class="ti ti-box"></i>Bibliotheque</div>
-            <div id="sp-cable-list" style="border-bottom:1px solid var(--bdr2);padding:0"></div>
+            <div id="sp-cable-list" style="border-bottom:1px solid var(--bdr2);padding:0;max-height:38vh;overflow-y:auto;flex-shrink:0"></div>
             <div id="sp-pal-list" style="flex:1;overflow-y:auto"></div>
           </div>
           <div class="sp-canvas-wrap">
@@ -486,11 +486,11 @@ html.rider-boot #rider-splash{display:flex}
           </div>
           <div class="sp-inspector" id="sp-inspector-wrap">
             <div class="sp-insp-hd"><i class="ti ti-adjustments"></i>Proprietes</div>
-            <div id="sp-inspector" style="padding:12px;flex:1;overflow-y:auto"><p class="sp-insp-empty">Glissez un equipement depuis la palette sur le plan.<br><br>Pour relier : cliquez un type de cable, puis cliquez deux equipements.</p></div>
+            <div id="sp-inspector" style="padding:12px;flex:1;overflow-y:auto"><p class="sp-insp-empty">Glissez un equipement depuis la palette sur le plan.<br><br>Pour relier : cliquez un type de liaison, puis cliquez deux equipements.</p></div>
           </div>
         </div>
         <div class="sp-hintbar">
-          <i class="ti ti-info-circle"></i> Glissez un equipement &middot; Cliquez un cable puis 2 equipements pour les relier &middot; Double-clic sur un cable/equipement pour editer
+          <i class="ti ti-info-circle"></i> Glissez un equipement &middot; Cliquez une liaison puis 2 equipements pour les relier &middot; Double-clic sur une liaison/equipement pour editer
         </div>
       </div>
     </div>

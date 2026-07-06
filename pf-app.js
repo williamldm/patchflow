@@ -6853,7 +6853,7 @@ const SynPro = (() => {
       m = document.createElement('div');
       m.id = 'sp-add-cable-modal';
       m.className = 'sp-modal';
-      m.innerHTML = '<div class="sp-modal-card"><div class="sp-modal-title"><i class="ti ti-cable"></i>Nouveau type de cable</div><div id="sp-add-cable-body"></div></div>';
+      m.innerHTML = '<div class="sp-modal-card"><div class="sp-modal-title"><i class="ti ti-cable"></i>Nouveau type de liaison</div><div id="sp-add-cable-body"></div></div>';
       document.body.appendChild(m);
       m.addEventListener('click', function(e){ if (e.target === m) m.classList.remove('show'); });
     }
@@ -6861,11 +6861,11 @@ const SynPro = (() => {
     var palette = ['#ea8a3b','#5db865','#1d9bf0','#a855f7','#f43f5e','#fbbf24','#22d3ee','#10b981','#ec4899','#94a3b8','#dc2626','#facc15','#1f2937','#ef4444'];
     var defColor = palette[state.networks.length % palette.length];
     body.innerHTML =
-      '<label class="sp-insp-lbl">Nom du cable / reseau *</label>' +
+      '<label class="sp-insp-lbl">Nom de la liaison / reseau *</label>' +
       '<input class="sp-insp-inp" id="sp-cab-name" placeholder="Ex: Ethernet CAT6, Optocore, Word Clock..." autofocus>' +
       '<label class="sp-insp-lbl">Couleur</label>' +
       '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><input type="color" id="sp-cab-color" value="' + defColor + '" style="width:42px;height:30px;border:none;cursor:pointer;border-radius:4px"><span style="font-size:10px;color:var(--muted)">Trait colore sur le synoptique &middot; legende</span></div>' +
-      '<div style="font-size:10px;color:var(--muted);background:var(--surf2);border:1px solid var(--bdr);border-radius:6px;padding:8px 10px;line-height:1.5;margin-top:8px"><i class="ti ti-info-circle" style="color:var(--ora)"></i> Une fois cree, ce type sera disponible pour tracer des cables. L\'etiquette individuelle (ex: <i>"RJ45 5m"</i>) se modifie sur chaque cable.</div>' +
+      '<div style="font-size:10px;color:var(--muted);background:var(--surf2);border:1px solid var(--bdr);border-radius:6px;padding:8px 10px;line-height:1.5;margin-top:8px"><i class="ti ti-info-circle" style="color:var(--ora)"></i> Une fois cree, ce type sera disponible pour tracer des liaisons. L\'etiquette individuelle (ex: <i>"RJ45 5m"</i>) se modifie sur chaque cable.</div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button class="btn ghost sm" id="sp-cab-cancel">Annuler</button><button class="btn sm" id="sp-cab-save"><i class="ti ti-device-floppy"></i>Enregistrer</button></div>';
     body.querySelector('#sp-cab-cancel').addEventListener('click', function(){ m.classList.remove('show'); });
     body.querySelector('#sp-cab-save').addEventListener('click', function(){
@@ -6878,7 +6878,7 @@ const SynPro = (() => {
       _renderCablePalette();
       _renderLegend();
       m.classList.remove('show');
-      toast('Type de cable "' + name + '" ajoute.');
+      toast('Type de liaison "' + name + '" ajoutee.');
     });
     var inp = body.querySelector('#sp-cab-name');
     inp.addEventListener('keydown', function(e){ if (e.key === 'Enter') body.querySelector('#sp-cab-save').click(); });
@@ -6891,7 +6891,7 @@ const SynPro = (() => {
     if (!b) return;
     if (activeCable) {
       var n = netById(activeCable);
-      b.innerHTML = '<i class="ti ti-cable"></i>Cable <b>' + esc(n ? n.name : activeCable) + '</b> &mdash; ' + (cableFrom ? 'cliquez la 2eme equipement' : 'cliquez la 1ere equipement') + ' <button onclick="SynPro.cancelCable()">Esc</button>';
+      b.innerHTML = '<i class="ti ti-cable"></i>Liaison <b>' + esc(n ? n.name : activeCable) + '</b> &mdash; ' + (cableFrom ? 'cliquez la 2eme equipement' : 'cliquez la 1ere equipement') + ' <button onclick="SynPro.cancelCable()">Esc</button>';
       b.classList.add('show');
     } else {
       b.classList.remove('show');
@@ -7130,7 +7130,7 @@ const SynPro = (() => {
       }).join('');
       var dir = c.dir || 'none';
       el.innerHTML =
-        '<div class="sp-insp-title"><i class="ti ti-cable"></i>Cable</div>' +
+        '<div class="sp-insp-title"><i class="ti ti-cable"></i>Liaison</div>' +
         '<label class="sp-insp-lbl">Reseau</label>' +
         '<select class="sp-insp-inp" id="sp-ins-net">' + netOpts + '</select>' +
         '<label class="sp-insp-lbl">Direction du signal</label>' +
@@ -7148,7 +7148,7 @@ const SynPro = (() => {
           (c.waypoints && c.waypoints.length ? '<button class="btn ghost sm" id="sp-ins-cwpc" style="flex:1" title="Supprimer tous les points"><i class="ti ti-eraser"></i> Effacer (' + c.waypoints.length + ')</button>' : '') +
         '</div>' +
         '<div style="font-size:9px;color:var(--muted);font-family:var(--m);margin-top:5px;line-height:1.4">Cliquez « + Point » puis sur le plan. Glissez un point pour l\'ajuster, double-clic pour le retirer.</div>' +
-        '<button class="btn ghost sm" id="sp-ins-cdel" style="margin-top:12px;width:100%;color:var(--err)"><i class="ti ti-trash"></i>Supprimer le cable</button>';
+        '<button class="btn ghost sm" id="sp-ins-cdel" style="margin-top:12px;width:100%;color:var(--err)"><i class="ti ti-trash"></i>Supprimer la liaison</button>';
       $('sp-ins-net').addEventListener('change', function(e){ c.network = e.target.value; _renderEdges(); _renderLegend(); scheduleSave(); });
       $('sp-ins-clbl').addEventListener('input', function(e){ c.label = e.target.value; _renderEdges(); scheduleSave(); });
       $('sp-ins-cwp')?.addEventListener('click', function(){ _setWpAddModeSyn(wpAddCid===c.id?null:c.id); _renderInspector(); });
@@ -7163,7 +7163,7 @@ const SynPro = (() => {
         });
       });
     } else {
-      el.innerHTML = '<p class="sp-insp-empty">Glissez un equipement depuis la palette sur le plan.<br><br>Pour relier : cliquez un type de cable, puis cliquez deux equipements.</p>';
+      el.innerHTML = '<p class="sp-insp-empty">Glissez un equipement depuis la palette sur le plan.<br><br>Pour relier : cliquez un type de liaison, puis cliquez deux equipements.</p>';
     }
   }
 
