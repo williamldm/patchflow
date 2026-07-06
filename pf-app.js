@@ -3757,6 +3757,7 @@ function dlFile(t){
 }
 // ── CSV IMPORT ──────────────────────────────────────────────────
 var _csvRawRows=[], _csvHeaders=[], _csvColMap={}, _csvMode='append';
+var _csvTarget='in'; // 'in' (Input List → table channels) | 'out' (Output List → shows.out_data)
 var _CSV_FIELDS=[
   {id:'short_name',label:'Court',    candidates:['court','short','short_name','ch_name','nom court']},
   {id:'long_name', label:'Nom long', candidates:['nom long','long','long_name','nom','name','label','description','libelle']},
@@ -3766,7 +3767,32 @@ var _CSV_FIELDS=[
   {id:'phantom',   label:'Phantom',  candidates:['phantom','+48v','48v','alimentation phantom']},
   {id:'note',      label:'Note',     candidates:['note','notes','commentaire','comment','remarque','pied','pieds','stand','micro stand','mic stand']},
 ];
+var _CSV_FIELDS_OUT=[
+  {id:'short_name',label:'Court',       candidates:['court','short','short_name','ch_name','nom court']},
+  {id:'long_name', label:'Nom long',    candidates:['nom long','long','long_name','nom','name','label','description','libelle']},
+  {id:'type',      label:'Type',        candidates:['type','categorie','category']},
+  {id:'dest',      label:'Destination', candidates:['destination','dest','ampli','amp','zone','room']},
+  {id:'hf',        label:'Fréq. HF',    candidates:['hf','frequence','freq','mhz']},
+  {id:'note',      label:'Note',        candidates:['note','notes','commentaire','comment','remarque']},
+];
+function _csvFields(){ return _csvTarget==='out' ? _CSV_FIELDS_OUT : _CSV_FIELDS; }
+/* Fait correspondre une valeur brute du CSV (ex: "Monitor", "iem") à une clé
+   OUT_TYPES connue — match exact d'abord (clé ou libellé), puis "contains". */
+function _matchOutType(raw){
+  var v=(raw||'').toLowerCase().trim();
+  if(!v) return 'other';
+  var keys=Object.keys(OUT_TYPES);
+  for(var i=0;i<keys.length;i++){ if(keys[i]===v||OUT_TYPES[keys[i]].label.toLowerCase()===v) return keys[i]; }
+  for(var j=0;j<keys.length;j++){ if(v.indexOf(keys[j])!==-1||v.indexOf(OUT_TYPES[keys[j]].label.toLowerCase())!==-1) return keys[j]; }
+  return 'other';
+}
 function importCSVClick(){
+  _csvTarget='in';
+  document.getElementById('csv-import-input').value='';
+  document.getElementById('csv-import-input').click();
+}
+function importOutCSVClick(){
+  _csvTarget='out';
   document.getElementById('csv-import-input').value='';
   document.getElementById('csv-import-input').click();
 }
@@ -3781,6 +3807,15 @@ function importCSVLoad(inp){
     _detectCSVCols();
     _csvMode='append';
     document.getElementById('csv-import-fname').textContent=f.name;
+    var isOut=_csvTarget==='out';
+    var titleEl=document.querySelector('#csv-import-modal .modal-title');
+    if(titleEl) titleEl.textContent=isOut?'Importer CSV — Output List':'Importer CSV — Input List';
+    var infoEl=document.getElementById('csv-info-text');
+    if(infoEl) infoEl.textContent=isOut
+      ? 'Associe les colonnes de ton CSV aux champs de l\'output list. Le numero de sortie sera attribue automatiquement a la suite des sorties existantes.'
+      : 'Associe les colonnes de ton CSV aux champs de l\'input list. Le numero de canal sera attribue automatiquement a la suite des canaux existants.';
+    var replaceBtn=document.getElementById('csv-mode-replace');
+    if(replaceBtn) replaceBtn.innerHTML='<i class="ti ti-refresh"></i>'+(isOut?'Remplacer toutes les sorties':'Remplacer tous les canaux');
     document.getElementById('csv-import-modal').className='modal-ov show';
     _renderCSVModal();
   };
@@ -3804,7 +3839,7 @@ function _parseCSV(text){
 }
 function _detectCSVCols(){
   _csvColMap={};
-  _CSV_FIELDS.forEach(function(f){
+  _csvFields().forEach(function(f){
     _csvColMap[f.id]=-1;
     for(var i=0;i<_csvHeaders.length;i++){
       var h=(_csvHeaders[i]||'').toLowerCase().trim();
@@ -3832,7 +3867,7 @@ function setCsvMode(mode){
 }
 function _renderCSVModal(){
   var mapHtml='';
-  _CSV_FIELDS.forEach(function(f){
+  _csvFields().forEach(function(f){
     mapHtml+='<div class="csv-map-field">';
     mapHtml+='<span class="csv-map-lbl">'+f.label+'</span>';
     mapHtml+='<select class="csv-map-sel" onchange="csvMapChange(\''+f.id+'\',this)">';
@@ -3851,19 +3886,24 @@ function _renderCSVModal(){
 function _renderCSVPreview(){
   var dataRows=_csvRawRows.slice(1).filter(function(r){return r.some(function(c){return c.trim();});});
   var preview=dataRows.slice(0,6);
-  var startCh=(_csvMode==='replace')?1:(CHS.length?CHS[CHS.length-1].ch+1:1);
-  var h='<table class="csv-preview-tbl"><thead><tr><th>CH</th>';
-  _CSV_FIELDS.forEach(function(f){h+='<th>'+f.label+'</th>';});
+  var isOut=_csvTarget==='out';
+  var fields=_csvFields();
+  var startCh=isOut
+    ? ((_csvMode==='replace')?1:(OUT_CHS.length?OUT_CHS[OUT_CHS.length-1].ch+1:1))
+    : ((_csvMode==='replace')?1:(CHS.length?CHS[CHS.length-1].ch+1:1));
+  var h='<table class="csv-preview-tbl"><thead><tr><th>'+(isOut?'N°':'CH')+'</th>';
+  fields.forEach(function(f){h+='<th>'+f.label+'</th>';});
   h+='</tr></thead><tbody>';
-  if(preview.length===0){h+='<tr><td colspan="'+(1+_CSV_FIELDS.length)+'" style="text-align:center;padding:18px;color:var(--muted)">Aucune donnee</td></tr>';}
+  if(preview.length===0){h+='<tr><td colspan="'+(1+fields.length)+'" style="text-align:center;padding:18px;color:var(--muted)">Aucune donnee</td></tr>';}
   preview.forEach(function(row,i){
     h+='<tr><td class="csv-td-ch">'+(startCh+i)+'</td>';
-    _CSV_FIELDS.forEach(function(f){
+    fields.forEach(function(f){
       var v=_csvGetVal(row,f.id);
       if(f.id==='phantom'&&v){
         var pl=v.toLowerCase();
         v=(pl==='on'||pl==='1'||pl==='true'||pl==='oui')?'+48V':'Off';
       }
+      if(f.id==='type'&&isOut&&v){ v=OUT_TYPES[_matchOutType(v)].label; }
       h+='<td>'+(v?v:'<span style="color:var(--muted2)">—</span>')+'</td>';
     });
     h+='</tr>';
@@ -3876,6 +3916,7 @@ async function doCSVImport(){
   if(!CUR_SHOW){alert('Aucun show selectionne.');return;}
   var dataRows=_csvRawRows.slice(1).filter(function(r){return r.some(function(c){return c.trim();});});
   if(!dataRows.length){alert('Aucune donnee a importer.');return;}
+  if(_csvTarget==='out'){ _doCSVImportOut(dataRows); return; }
 
   /* ── Enforce plan channel limit ── */
   var _csvLimit=planLimit('max_channels');
@@ -3933,6 +3974,45 @@ async function doCSVImport(){
     renderTable();
     closeCSVImport();
     toast(dataRows.length+' canal'+(dataRows.length!==1?'ux':'')+' importe'+(dataRows.length!==1?'s':'')+' !');
+  }catch(err){
+    console.error(err);
+    alert('Erreur import : '+(err.message||err));
+  }finally{
+    btn.disabled=false;
+    btn.innerHTML='<i class="ti ti-file-import"></i>Importer';
+  }
+}
+/* Import CSV → Output List. Contrairement à l'Input List (table Supabase
+   `channels`, insert ligne par ligne), les sorties vivent en mémoire dans
+   OUT_CHS et se sauvegardent en un seul JSON (shows.out_data) via
+   saveOutData() — pas d'appel réseau par ligne, ni de limite de plan (comme
+   pour "+ Sortie" qui n'en impose pas non plus). */
+function _doCSVImportOut(dataRows){
+  var btn=document.getElementById('csv-do-import-btn');
+  btn.disabled=true;
+  btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .7s linear infinite"></i> Import...';
+  try{
+    if(_csvMode==='replace') OUT_CHS=[];
+    var startCh=OUT_CHS.length?OUT_CHS[OUT_CHS.length-1].ch+1:1;
+    for(var i=0;i<dataRows.length;i++){
+      var row=dataRows[i];
+      var sn=(_csvGetVal(row,'short_name')||'').toUpperCase().slice(0,8);
+      var ln=_csvGetVal(row,'long_name')||sn;
+      OUT_CHS.push({
+        id:'o'+Date.now()+Math.random().toString(36).slice(2,5)+i,
+        ch:startCh+i,
+        short_name:sn,
+        long_name:ln,
+        type:_matchOutType(_csvGetVal(row,'type')),
+        dest:_csvGetVal(row,'dest')||'',
+        hf:_csvGetVal(row,'hf')||'',
+        note:_csvGetVal(row,'note')||''
+      });
+    }
+    saveOutData();
+    renderOutTable();
+    closeCSVImport();
+    toast(dataRows.length+' sortie'+(dataRows.length!==1?'s':'')+' importee'+(dataRows.length!==1?'s':'')+' !');
   }catch(err){
     console.error(err);
     alert('Erreur import : '+(err.message||err));

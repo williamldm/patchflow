@@ -289,6 +289,7 @@ html.rider-boot #rider-splash{display:flex}
         <span id="il-out-btns" style="display:none">
           <button class="btn" onclick="addOutRow()"><i class="ti ti-plus"></i>Sortie</button>
           <button class="btn" style="background:var(--surf2);border-color:var(--bdr2)" onclick="openOLAssist()"><i class="ti ti-wand"></i>Assistant</button>
+          <button class="btn" style="background:var(--surf2);border-color:var(--bdr2)" onclick="importOutCSVClick()"><i class="ti ti-upload"></i>Import CSV</button>
           <button class="btn blu" onclick="exportOutCSV()"><i class="ti ti-download"></i>CSV</button>
           <button class="btn" style="background:var(--surf2);border-color:var(--bdr2);color:var(--err)" onclick="clearAllOutRows()"><i class="ti ti-trash"></i>Tout effacer</button>
         </span>
@@ -973,7 +974,7 @@ html.rider-boot #rider-splash{display:flex}
     <div class="modal-body">
       <div class="csv-info-bar">
         <i class="ti ti-info-circle csv-info-icon"></i>
-        <span>Associe les colonnes de ton CSV aux champs de l'input list. Le numero de canal sera attribue automatiquement a la suite des canaux existants.</span>
+        <span id="csv-info-text">Associe les colonnes de ton CSV aux champs de l'input list. Le numero de canal sera attribue automatiquement a la suite des canaux existants.</span>
       </div>
       <div class="csv-stat-row">
         <div class="csv-sec-hd" style="margin-bottom:0"><i class="ti ti-columns" style="color:var(--ora)"></i>Mapping des colonnes</div>
