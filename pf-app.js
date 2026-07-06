@@ -1075,6 +1075,14 @@ async function switchShow(id, opts){
   /* Pré-charger le cache de stockage en arrière-plan pour que les checks soient instantanés */
   _storageCache = null;
   if(typeof _getStorageUsage === 'function') _getStorageUsage(true).catch(function(){});
+  /* Si l'onglet Fichiers/Show Files est déjà ouvert au moment du changement de
+     show, goTab() ne sera pas rappelé (on ne change pas d'onglet) → sans ceci
+     la liste affichée restait celle de l'ANCIEN show. On réinitialise aussi le
+     dossier courant, sinon une navigation dans un sous-dossier restait
+     "collée" d'un show à l'autre. */
+  _fichPath = [];
+  if(document.getElementById('panel-fichiers')?.classList.contains('on')) renderFichiers();
+  if(document.getElementById('panel-showfiles')?.classList.contains('on')){ renderPills(); updateStats(); }
 }
 
 async function newShow(){
