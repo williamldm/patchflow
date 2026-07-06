@@ -6899,59 +6899,75 @@ const SynPro = (() => {
   }
 
   /* ── Render nodes ── */
+  /* Construit le HTML complet d'un nœud (icône, label, sous-titre…).
+     Extrait de _renderNodes() pour pouvoir aussi rafraîchir UN SEUL nœud en
+     place (_refreshNodeDom) sans reconstruire tout le canvas. */
+  function _buildNodeHtml(n) {
+    var sp = spec(n.type);
+    var label = n.label || (sp ? sp.label : '');
+    var sub = n.sub != null ? n.sub : (sp ? sp.defaultSub : '');
+    var w = sp ? sp.w : 140;
+    var sel = (selected.kind === 'node' && selected.id === n.id) ? ' sel' : '';
+    var target = (activeCable && cableFrom && cableFrom !== n.id) ? ' target-hint' : '';
+    var iconHtml = '';
+    if (n.type === 'note') {
+      iconHtml = '<div class="sp-node-card" style="background:#fef3c7;border-color:#fbbf24;min-width:180px;padding:10px 14px"><div style="font-size:12px;color:#92400e;line-height:1.4;font-weight:600;white-space:pre-wrap">' + esc(label || 'Note') + '</div>' + (sub ? '<div style="font-size:10px;color:#a16207;margin-top:4px;white-space:pre-wrap">' + esc(sub) + '</div>' : '') + '</div>';
+    } else if (n.type === 'text_label') {
+      iconHtml = '<div style="font-family:Outfit,sans-serif;font-size:14px;font-weight:700;color:var(--txt);white-space:pre-wrap;min-width:80px;padding:4px 2px;cursor:grab;user-select:none">' + esc(label || 'Texte') + '</div>';
+    } else if (n.type === 'image_frame') {
+      /* Image flottante indépendante — au RATIO de l'image (pas de carré). */
+      var ifAsp = n.imgAspect || 1;
+      var ifW = (n.imgPx || 120);
+      var ifH = Math.max(1, Math.round(ifW / ifAsp));
+      if(n.iconImg && !n.imgAspect && !n._aspChk){
+        n._aspChk=true;
+        var _sim=new Image();
+        _sim.onload=function(){ if(_sim.naturalHeight){ n.imgAspect=_sim.naturalWidth/_sim.naturalHeight; render(); } };
+        _sim.src=n.iconImg;
+      }
+      var spHS=7;
+      var spHandles = (sel && n.iconImg)
+        ? '<div class="sp-rsz sp-rsz-nw" data-id="'+n.id+'" data-corner="nw" style="left:'+(-spHS)+'px;top:'+(-spHS)+'px"></div>'
+          + '<div class="sp-rsz sp-rsz-ne" data-id="'+n.id+'" data-corner="ne" style="left:'+(ifW-spHS)+'px;top:'+(-spHS)+'px"></div>'
+          + '<div class="sp-rsz sp-rsz-sw" data-id="'+n.id+'" data-corner="sw" style="left:'+(-spHS)+'px;top:'+(ifH-spHS)+'px"></div>'
+          + '<div class="sp-rsz sp-rsz-se" data-id="'+n.id+'" data-corner="se" style="left:'+(ifW-spHS)+'px;top:'+(ifH-spHS)+'px"></div>'
+        : '';
+      iconHtml = n.iconImg
+        ? '<img src="' + _safeImgSrc(n.iconImg) + '" style="width:'+ifW+'px;height:'+ifH+'px;object-fit:fill;border-radius:6px;display:block;pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.15)"/>'
+          + (label ? '<div class="sp-node-label" style="margin-top:4px">'+esc(label)+'</div>' : '')
+          + spHandles
+        : '<div style="width:'+ifW+'px;height:'+ifW+'px;border:2px dashed var(--bdr2);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-direction:column;gap:6px" onclick="SynPro.uploadNodeIcon(\''+n.id+'\')">'
+          + '<i class="ti ti-photo" style="font-size:28px;color:var(--muted)"></i>'
+          + '<span style="font-size:10px;color:var(--muted);font-family:var(--m)">Ajouter une image</span></div>';
+    } else if (n.iconImg) {
+      /* Custom image icon with adaptive size */
+      var imgSz = (n.imgPx || 90) + 'px';
+      iconHtml = '<div class="sp-node-card"><div class="sp-node-icon" style="width:'+imgSz+';height:'+imgSz+';background:transparent"><img src="' + _safeImgSrc(n.iconImg) + '" style="width:100%;height:100%;object-fit:contain;border-radius:4px;pointer-events:none"/></div><div class="sp-node-label">' + esc(label) + '</div>' + (sub ? '<div class="sp-node-sub">' + esc(sub).replace(/\n/g,'<br>') + '</div>' : '') + '</div>';
+    } else {
+      var icon = sp ? sp.icon : _iconRack(3);
+      iconHtml = '<div class="sp-node-card"><div class="sp-node-icon">' + icon + '</div><div class="sp-node-label">' + esc(label) + '</div>' + (sub ? '<div class="sp-node-sub">' + esc(sub).replace(/\n/g, '<br>') + '</div>' : '') + '</div>';
+    }
+    var nodeMinW = (n.type === 'image_frame') ? '0' : w + 'px';
+    return '<div class="sp-node' + sel + target + '" data-id="' + n.id + '" data-type="' + esc(n.type) + '" style="left:' + n.x + 'px;top:' + n.y + 'px;min-width:' + nodeMinW + '">' + iconHtml + '<button type="button" class="sp-node-del" data-del="' + n.id + '" title="Supprimer">&times;</button></div>';
+  }
+
   function _renderNodes() {
     var host = $('sp-nodes');
     if (!host) return;
     var h = '';
-    state.nodes.forEach(function(n){
-      var sp = spec(n.type);
-      var label = n.label || (sp ? sp.label : '');
-      var sub = n.sub != null ? n.sub : (sp ? sp.defaultSub : '');
-      var w = sp ? sp.w : 140;
-      var sel = (selected.kind === 'node' && selected.id === n.id) ? ' sel' : '';
-      var target = (activeCable && cableFrom && cableFrom !== n.id) ? ' target-hint' : '';
-      var iconHtml = '';
-      if (n.type === 'note') {
-        iconHtml = '<div class="sp-node-card" style="background:#fef3c7;border-color:#fbbf24;min-width:180px;padding:10px 14px"><div style="font-size:12px;color:#92400e;line-height:1.4;font-weight:600;white-space:pre-wrap">' + esc(label || 'Note') + '</div>' + (sub ? '<div style="font-size:10px;color:#a16207;margin-top:4px;white-space:pre-wrap">' + esc(sub) + '</div>' : '') + '</div>';
-      } else if (n.type === 'text_label') {
-        iconHtml = '<div style="font-family:Outfit,sans-serif;font-size:14px;font-weight:700;color:var(--txt);white-space:pre-wrap;min-width:80px;padding:4px 2px;cursor:grab;user-select:none">' + esc(label || 'Texte') + '</div>';
-      } else if (n.type === 'image_frame') {
-        /* Image flottante indépendante — au RATIO de l'image (pas de carré). */
-        var ifAsp = n.imgAspect || 1;
-        var ifW = (n.imgPx || 120);
-        var ifH = Math.max(1, Math.round(ifW / ifAsp));
-        if(n.iconImg && !n.imgAspect && !n._aspChk){
-          n._aspChk=true;
-          var _sim=new Image();
-          _sim.onload=function(){ if(_sim.naturalHeight){ n.imgAspect=_sim.naturalWidth/_sim.naturalHeight; render(); } };
-          _sim.src=n.iconImg;
-        }
-        var spHS=7;
-        var spHandles = (sel && n.iconImg)
-          ? '<div class="sp-rsz sp-rsz-nw" data-id="'+n.id+'" data-corner="nw" style="left:'+(-spHS)+'px;top:'+(-spHS)+'px"></div>'
-            + '<div class="sp-rsz sp-rsz-ne" data-id="'+n.id+'" data-corner="ne" style="left:'+(ifW-spHS)+'px;top:'+(-spHS)+'px"></div>'
-            + '<div class="sp-rsz sp-rsz-sw" data-id="'+n.id+'" data-corner="sw" style="left:'+(-spHS)+'px;top:'+(ifH-spHS)+'px"></div>'
-            + '<div class="sp-rsz sp-rsz-se" data-id="'+n.id+'" data-corner="se" style="left:'+(ifW-spHS)+'px;top:'+(ifH-spHS)+'px"></div>'
-          : '';
-        iconHtml = n.iconImg
-          ? '<img src="' + _safeImgSrc(n.iconImg) + '" style="width:'+ifW+'px;height:'+ifH+'px;object-fit:fill;border-radius:6px;display:block;pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.15)"/>'
-            + (label ? '<div class="sp-node-label" style="margin-top:4px">'+esc(label)+'</div>' : '')
-            + spHandles
-          : '<div style="width:'+ifW+'px;height:'+ifW+'px;border:2px dashed var(--bdr2);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-direction:column;gap:6px" onclick="SynPro.uploadNodeIcon(\''+n.id+'\')">'
-            + '<i class="ti ti-photo" style="font-size:28px;color:var(--muted)"></i>'
-            + '<span style="font-size:10px;color:var(--muted);font-family:var(--m)">Ajouter une image</span></div>';
-      } else if (n.iconImg) {
-        /* Custom image icon with adaptive size */
-        var imgSz = (n.imgPx || 90) + 'px';
-        iconHtml = '<div class="sp-node-card"><div class="sp-node-icon" style="width:'+imgSz+';height:'+imgSz+';background:transparent"><img src="' + _safeImgSrc(n.iconImg) + '" style="width:100%;height:100%;object-fit:contain;border-radius:4px;pointer-events:none"/></div><div class="sp-node-label">' + esc(label) + '</div>' + (sub ? '<div class="sp-node-sub">' + esc(sub).replace(/\n/g,'<br>') + '</div>' : '') + '</div>';
-      } else {
-        var icon = sp ? sp.icon : _iconRack(3);
-        iconHtml = '<div class="sp-node-card"><div class="sp-node-icon">' + icon + '</div><div class="sp-node-label">' + esc(label) + '</div>' + (sub ? '<div class="sp-node-sub">' + esc(sub).replace(/\n/g, '<br>') + '</div>' : '') + '</div>';
-      }
-      var nodeMinW = (n.type === 'image_frame') ? '0' : w + 'px';
-      h += '<div class="sp-node' + sel + target + '" data-id="' + n.id + '" data-type="' + esc(n.type) + '" style="left:' + n.x + 'px;top:' + n.y + 'px;min-width:' + nodeMinW + '">' + iconHtml + '<button type="button" class="sp-node-del" data-del="' + n.id + '" title="Supprimer">&times;</button></div>';
-    });
+    state.nodes.forEach(function(n){ h += _buildNodeHtml(n); });
     host.innerHTML = h;
+  }
+
+  /* Reconstruit UN SEUL nœud en place (ex: frappe dans le champ label/
+     sous-titre de l'inspecteur) — évite de devoir rafraîchir toute la page
+     pour voir apparaître un sous-titre qui n'existait pas encore dans le DOM. */
+  function _refreshNodeDom(id) {
+    var n = nodeById(id);
+    if (!n) return;
+    var wrap = document.querySelector('.sp-node[data-id="' + id + '"]');
+    if (!wrap) return;
+    wrap.outerHTML = _buildNodeHtml(n);
   }
 
   /* ── Render edges (SVG) ── */
@@ -7118,9 +7134,16 @@ const SynPro = (() => {
         '<textarea class="sp-insp-tx" id="sp-ins-sub" rows="2">' + esc(n.sub != null ? n.sub : (sp ? sp.defaultSub : '')) + '</textarea>' +
         ((n.iconImg || n.type==='image_frame') ? '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr2)"><div style="font-size:9px;font-family:var(--m);text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:5px">Taille de l\'image</div><div style="display:flex;align-items:center;gap:7px"><button class="spl-ts-btn" onclick="SynPro.adjImgPx(\''+ nId +'\',-20)">−</button><span id="sp-img-px-lbl" style="flex:1;text-align:center;font-size:10px;color:var(--muted)">'+(n.imgPx||90)+'px</span><button class="spl-ts-btn" onclick="SynPro.adjImgPx(\''+ nId +'\',20)">+</button></div></div>' : '') +
         (n.type !== 'note' && n.type !== 'text_label' ? _iconImgInspHtml(nId, !!n.iconImg, n.iconImg||'', "SynPro.uploadNodeIcon('"+nId+"')", "SynPro.clearNodeIcon('"+nId+"')") : '') +
-        '<button class="btn ghost sm" id="sp-ins-del" style="margin-top:12px;width:100%;color:var(--err)"><i class="ti ti-trash"></i>Supprimer</button>';
-      $('sp-ins-label').addEventListener('input', function(e){ n.label = e.target.value; var el2 = document.querySelector('.sp-node[data-id="' + n.id + '"] .sp-node-label'); if (el2) el2.textContent = n.label; scheduleSave(); });
-      $('sp-ins-sub').addEventListener('input', function(e){ n.sub = e.target.value; var el2 = document.querySelector('.sp-node[data-id="' + n.id + '"] .sp-node-sub'); if (el2) el2.innerHTML = esc(n.sub).replace(/\n/g, '<br>'); scheduleSave(); });
+        '<button class="btn sm" id="sp-ins-dup" style="width:100%;margin-top:12px"><i class="ti ti-copy"></i> Dupliquer <span style="font-size:8px;color:var(--muted);font-family:var(--m);margin-left:3px">Ctrl/⌘ D</span></button>' +
+        '<button class="btn ghost sm" id="sp-ins-del" style="margin-top:8px;width:100%;color:var(--err)"><i class="ti ti-trash"></i>Supprimer</button>';
+      /* Re-rendu complet du nœud à chaque frappe (au lieu de patcher un enfant
+         ciblé) : évite qu'un sous-titre ajouté sur un nœud qui n'en avait pas
+         reste invisible tant qu'on n'a pas rafraîchi la page — le div
+         .sp-node-sub n'existe dans le DOM que si "sub" est déjà non-vide au
+         moment du rendu initial. */
+      $('sp-ins-label').addEventListener('input', function(e){ n.label = e.target.value; _refreshNodeDom(n.id); scheduleSave(); });
+      $('sp-ins-sub').addEventListener('input', function(e){ n.sub = e.target.value; _refreshNodeDom(n.id); scheduleSave(); });
+      $('sp-ins-dup').addEventListener('click', function(){ duplicateSelectedNode(); });
       $('sp-ins-del').addEventListener('click', function(){ deleteNode(n.id); });
     } else if (selected.kind === 'cable') {
       var c = cableById(selected.id);
@@ -7204,6 +7227,39 @@ const SynPro = (() => {
     scheduleSave();
     render();
   }
+
+  /* ── Copier / coller / dupliquer un equipement (memes label, sous-titre,
+     image...) — meme fonctionnement que le Plan de site, pour ne pas
+     depayser l'utilisateur. ── */
+  var _synClip = null;
+  function copySelectedNode(){
+    if (!selected || selected.kind !== 'node') return false;
+    var n = nodeById(selected.id);
+    if (!n) return false;
+    _synClip = JSON.parse(JSON.stringify(n));
+    toast('Élément copié');
+    return true;
+  }
+  function pasteNode(){
+    if (!_synClip) return;
+    var n = JSON.parse(JSON.stringify(_synClip));
+    n.id = uid();
+    n.x = Math.round((_synClip.x || 0) + 24);
+    n.y = Math.round((_synClip.y || 0) + 24);
+    /* La copie est independante : on garde l'image (base64) mais on retire
+       la cle B2 partagee — supprimer l'un n'efface pas le fichier serveur
+       de l'autre. */
+    delete n.iconImgB2;
+    state.nodes.push(n);
+    selected = { kind:'node', id:n.id };
+    scheduleSave();
+    render();
+    toast('Élément collé');
+  }
+  function duplicateSelectedNode(){
+    if (copySelectedNode()) pasteNode();
+  }
+
   function deleteCable(id) {
     state.cables = state.cables.filter(function(c){ return c.id !== id; });
     if (selected.id === id) selected = { kind:null, id:null };
@@ -7568,6 +7624,20 @@ const SynPro = (() => {
       if ((e.ctrlKey || e.metaKey) && e.key === '-') { e.preventDefault(); _zoomBy(1/1.2); }
       /* Cmd/Ctrl+S = force save immediately */
       if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); _saveNow(); }
+    });
+
+    /* Copier / coller / dupliquer un equipement — uniquement quand le
+       synoptique est visible a l'ecran et qu'on ne tape pas dans un champ
+       (meme garde que le Plan de site). */
+    document.addEventListener('keydown', function(e){
+      if (!(e.ctrlKey || e.metaKey)) return;
+      if (!vp || vp.offsetParent === null) return;
+      var t = e.target, tag = t && t.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
+      var k = (e.key || '').toLowerCase();
+      if (k === 'c') { if (copySelectedNode()) e.preventDefault(); }
+      else if (k === 'v') { if (_synClip) { pasteNode(); e.preventDefault(); } }
+      else if (k === 'd') { if (selected.kind === 'node') { duplicateSelectedNode(); e.preventDefault(); } }
     });
 
     /* Editable header texts (in canvas header) */
