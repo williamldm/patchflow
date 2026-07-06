@@ -7260,6 +7260,49 @@ const SynPro = (() => {
     if (copySelectedNode()) pasteNode();
   }
 
+  /* ── Menu contextuel (clic droit) sur un equipement ──────────────
+     Affiche un petit menu flottant avec "Dupliquer" et "Supprimer",
+     pour que l'action soit visible et decouvrable sans passer par
+     l'inspecteur ni connaitre le raccourci clavier. */
+  function _closeNodeCtxMenu(){
+    var m = document.getElementById('sp-node-ctx');
+    if (m) m.remove();
+    document.removeEventListener('pointerdown', _ctxOutside, true);
+    document.removeEventListener('keydown', _ctxEsc, true);
+    window.removeEventListener('blur', _closeNodeCtxMenu);
+  }
+  function _ctxOutside(e){
+    var m = document.getElementById('sp-node-ctx');
+    if (m && !m.contains(e.target)) _closeNodeCtxMenu();
+  }
+  function _ctxEsc(e){ if (e.key === 'Escape') _closeNodeCtxMenu(); }
+  function _showNodeCtxMenu(id, clientX, clientY){
+    _closeNodeCtxMenu();
+    var n = nodeById(id);
+    if (!n) return;
+    var m = document.createElement('div');
+    m.id = 'sp-node-ctx';
+    m.className = 'sp-ctx-menu';
+    m.innerHTML =
+      '<button class="sp-exp-item" data-act="dup"><i class="ti ti-copy"></i>Dupliquer</button>' +
+      '<button class="sp-exp-item" data-act="del" style="color:var(--err)"><i class="ti ti-trash"></i>Supprimer</button>';
+    document.body.appendChild(m);
+    /* Placer au niveau du curseur, puis rabattre dans la fenetre */
+    m.style.left = clientX + 'px';
+    m.style.top  = clientY + 'px';
+    var r = m.getBoundingClientRect();
+    if (r.right  > window.innerWidth)  m.style.left = Math.max(4, clientX - r.width)  + 'px';
+    if (r.bottom > window.innerHeight) m.style.top  = Math.max(4, clientY - r.height) + 'px';
+    m.querySelector('[data-act="dup"]').addEventListener('click', function(){ _closeNodeCtxMenu(); selected = { kind:'node', id:id }; duplicateSelectedNode(); });
+    m.querySelector('[data-act="del"]').addEventListener('click', function(){ _closeNodeCtxMenu(); deleteNode(id); });
+    /* Fermeture : clic ailleurs, Echap, ou perte de focus fenetre */
+    setTimeout(function(){
+      document.addEventListener('pointerdown', _ctxOutside, true);
+      document.addEventListener('keydown', _ctxEsc, true);
+      window.addEventListener('blur', _closeNodeCtxMenu);
+    }, 0);
+  }
+
   function deleteCable(id) {
     state.cables = state.cables.filter(function(c){ return c.id !== id; });
     if (selected.id === id) selected = { kind:null, id:null };
@@ -7556,10 +7599,20 @@ const SynPro = (() => {
         return;
       }
     });
-    /* Clic droit sur une poignée : retirer ce point de routage */
+    /* Clic droit : sur une poignée → retirer ce point de routage ;
+       sur un equipement → menu contextuel (Dupliquer / Supprimer). */
     vp.addEventListener('contextmenu', function(e){
       var wpe = e.target.closest('.sp-wp');
-      if (wpe) { e.preventDefault(); e.stopPropagation(); _synDelWp(wpe.dataset.cid, +wpe.dataset.idx); }
+      if (wpe) { e.preventDefault(); e.stopPropagation(); _synDelWp(wpe.dataset.cid, +wpe.dataset.idx); return; }
+      var ne = e.target.closest('.sp-node');
+      if (ne) {
+        e.preventDefault(); e.stopPropagation();
+        var nid = ne.dataset.id;
+        selected = { kind:'node', id:nid };
+        document.querySelectorAll('.sp-node').forEach(function(el){ el.classList.toggle('sel', el.dataset.id === nid); });
+        render();
+        _showNodeCtxMenu(nid, e.clientX, e.clientY);
+      }
     });
 
     /* Toolbar buttons */

@@ -566,6 +566,9 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .sp-exp-item:hover,.exp-item:hover{background:var(--surf2);color:var(--txt)}
 .sp-exp-item i,.exp-item i{font-size:14px;color:var(--muted)}
 .sp-exp-item:hover i,.exp-item:hover i{color:var(--ora)}
+.sp-ctx-menu{position:fixed;z-index:9000;background:var(--surf);border:1px solid var(--bdr2);border-radius:9px;padding:5px;min-width:160px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+.sp-ctx-menu .sp-exp-item[data-act="del"]:hover{background:rgba(255,77,106,.12)}
+.sp-ctx-menu .sp-exp-item[data-act="del"]:hover i{color:var(--err)}
 .sp-exp-sep,.exp-sep{height:1px;background:var(--bdr2);margin:4px 0}
 .exp-wrap{position:relative;display:inline-block}
 
