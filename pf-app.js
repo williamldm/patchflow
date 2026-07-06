@@ -2172,26 +2172,45 @@ function _expandNoteAbbr(inp){
   if(_NOTE_ABBR[v]){inp.value=_NOTE_ABBR[v];}
   return inp.value;
 }
+/* Un générateur de cellule par colonne fixe — appelés dans l'ordre de
+   colOrder pour permettre à l'utilisateur de réordonner les colonnes
+   (ex: "Nom court" après "Nom long"). */
+const _IL_CELL_RENDERERS={
+  short:  r=>`<td data-col="short" data-label="Court"><input class="ilinp sh" maxlength="4" value="${_oh((r.short_name||'').trim())}" onchange="scheduleSave('${r.id}','short_name',this.value.toUpperCase().slice(0,4));renderPills()"/></td>`,
+  long:   r=>`<td data-col="long" data-label="Nom long"><input class="ilinp" value="${_oh(r.long_name||'')}" onchange="scheduleSave('${r.id}','long_name',this.value);renderPills()"/></td>`,
+  src:    r=>`<td data-col="src" data-label="Source"><input class="ilinp" style="color:var(--txt2)" value="${_oh(r.source||'')}" onchange="scheduleSave('${r.id}','source',this.value)"/></td>`,
+  mic:    r=>`<td data-col="mic" data-label="Micro/DI"><input class="ilinp m" value="${_oh(r.mic||'')}" onchange="scheduleSave('${r.id}','mic',this.value)"/></td>`,
+  gain:   r=>`<td data-col="gain" data-label="Gain"><input class="ilinp m" type="number" style="width:42px" value="${r.gain||0}" min="-60" max="60" step="1" onchange="scheduleSave('${r.id}','gain',parseInt(this.value)||0)"/></td>`,
+  phantom:r=>`<td data-col="phantom" data-label="+48V" style="text-align:center"><input type="checkbox" class="cb" ${r.phantom?'checked':''} onchange="scheduleSave('${r.id}','phantom',this.checked)"/></td>`,
+  iem:    r=>`<td data-col="iem" data-label="IEM"><input class="ilinp m" style="color:var(--grn);width:46px" value="${_oh(r.iem_group||'')}" onchange="scheduleSave('${r.id}','iem_group',this.value)" placeholder="GR1"/></td>`,
+  hf:     r=>`<td data-col="hf" data-label="Fréq. HF"><input class="ilinp m" style="color:var(--accent2,#9b6aff);width:74px" value="${_oh((r.custom_data&&r.custom_data._hf)||'')}" onchange="saveCustomCell('${r.id}','_hf',this.value)" placeholder="MHz"/></td>`,
+  foh:    r=>`<td data-col="foh" data-label="FOH" style="text-align:center"><input type="checkbox" class="cb blu" ${r.foh?'checked':''} onchange="scheduleSave('${r.id}','foh',this.checked)"/></td>`,
+  mon:    r=>`<td data-col="mon" data-label="MON" style="text-align:center"><input type="checkbox" class="cb warn" ${r.mon?'checked':''} onchange="scheduleSave('${r.id}','mon',this.checked)"/></td>`,
+  bc:     r=>`<td data-col="bc" data-label="BC" style="text-align:center"><input type="checkbox" class="cb grn" ${r.bc?'checked':''} onchange="scheduleSave('${r.id}','bc',this.checked)"/></td>`,
+  note:   r=>`<td data-col="note" data-label="Note"><input class="ilinp" list="il-note-list" style="color:var(--txt2)" value="${_oh(r.note||'')}" placeholder="—" onchange="scheduleSave('${r.id}','note',_expandNoteAbbr(this))" onblur="_expandNoteAbbr(this)"/></td>`,
+};
+const _IL_COL_LABELS={short:'Court',long:'Nom long',src:'Source',mic:'Micro/DI',gain:'Gain',phantom:'+48V',iem:'IEM',hf:'Fréq. HF',foh:'FOH',mon:'MON',bc:'BC',note:'Note'};
+/* Reconstruit le thead selon colOrder. Les colonnes personnalisées (ajoutées
+   à droite, non réordonnables) sont ré-attachées ensuite par
+   _loadCustomColsIntoTable(), appelé après ce rendu. */
+function _renderColHead(){
+  var head=document.getElementById('il-head');
+  if(!head) return;
+  var html='<th>CH</th>';
+  colOrder.forEach(function(id){ html+='<th data-col="'+id+'">'+(_IL_COL_LABELS[id]||id)+'</th>'; });
+  html+='<th style="width:64px"></th>';
+  head.innerHTML=html;
+}
 function renderTable(){
   if(typeof SectionUndo!=='undefined') SectionUndo.record('il', function(){ return CHS; });
   initDragDrop();
+  _renderColHead();
   if(CHS.length===0){setILBody('<div class="loading" style="color:var(--muted)"><i class="ti ti-inbox" style="font-size:20px"></i>Aucun canal — clique sur "+ Canal" pour commencer</div>',true);}
   else{
     document.getElementById('il-body').innerHTML=CHS.map(r=>`
     <tr data-rid="${r.id}" draggable="true">
       <td class="ch-num">${r.ch}</td>
-      <td data-col="short" data-label="Court"><input class="ilinp sh" maxlength="4" value="${_oh((r.short_name||'').trim())}" onchange="scheduleSave('${r.id}','short_name',this.value.toUpperCase().slice(0,4));renderPills()"/></td>
-      <td data-col="long" data-label="Nom long"><input class="ilinp" value="${_oh(r.long_name||'')}" onchange="scheduleSave('${r.id}','long_name',this.value);renderPills()"/></td>
-      <td data-col="src" data-label="Source"><input class="ilinp" style="color:var(--txt2)" value="${_oh(r.source||'')}" onchange="scheduleSave('${r.id}','source',this.value)"/></td>
-      <td data-col="mic" data-label="Micro/DI"><input class="ilinp m" value="${_oh(r.mic||'')}" onchange="scheduleSave('${r.id}','mic',this.value)"/></td>
-      <td data-col="gain" data-label="Gain"><input class="ilinp m" type="number" style="width:42px" value="${r.gain||0}" min="-60" max="60" step="1" onchange="scheduleSave('${r.id}','gain',parseInt(this.value)||0)"/></td>
-      <td data-col="phantom" data-label="+48V" style="text-align:center"><input type="checkbox" class="cb" ${r.phantom?'checked':''} onchange="scheduleSave('${r.id}','phantom',this.checked)"/></td>
-      <td data-col="iem" data-label="IEM"><input class="ilinp m" style="color:var(--grn);width:46px" value="${_oh(r.iem_group||'')}" onchange="scheduleSave('${r.id}','iem_group',this.value)" placeholder="GR1"/></td>
-      <td data-col="hf" data-label="Fréq. HF"><input class="ilinp m" style="color:var(--accent2,#9b6aff);width:74px" value="${_oh((r.custom_data&&r.custom_data._hf)||'')}" onchange="saveCustomCell('${r.id}','_hf',this.value)" placeholder="MHz"/></td>
-      <td data-col="foh" data-label="FOH" style="text-align:center"><input type="checkbox" class="cb blu" ${r.foh?'checked':''} onchange="scheduleSave('${r.id}','foh',this.checked)"/></td>
-      <td data-col="mon" data-label="MON" style="text-align:center"><input type="checkbox" class="cb warn" ${r.mon?'checked':''} onchange="scheduleSave('${r.id}','mon',this.checked)"/></td>
-      <td data-col="bc" data-label="BC" style="text-align:center"><input type="checkbox" class="cb grn" ${r.bc?'checked':''} onchange="scheduleSave('${r.id}','bc',this.checked)"/></td>
-      <td data-col="note" data-label="Note"><input class="ilinp" list="il-note-list" style="color:var(--txt2)" value="${_oh(r.note||'')}" placeholder="—" onchange="scheduleSave('${r.id}','note',_expandNoteAbbr(this))" onblur="_expandNoteAbbr(this)"/></td>
+      ${colOrder.map(function(id){return _IL_CELL_RENDERERS[id]?_IL_CELL_RENDERERS[id](r):'';}).join('')}
       ${_getCustomCols().map(col=>{const v=(r.custom_data&&r.custom_data[col.id])||'';return `<td data-col="${col.id}" data-label="${_oh(col.label||'')}" style="text-align:${col.type==='bool'?'center':'left'}">${_customCellHTML(col,r.id,v)}</td>`;}).join('')}
       <td class="il-actions-cell" style="white-space:nowrap">
         <i class="ti ti-grip-vertical drag-handle"></i>
@@ -3342,6 +3361,26 @@ const COLS=[
   {id:'bc',label:'BC',icon:'ti-broadcast'},
   {id:'note',label:'Pied micro',icon:'ti-ruler'},
 ];
+/* ── Ordre des colonnes (préférence persistante, glisser-déposer dans le
+   panneau Colonnes) — ex: préférer "Nom court" après "Nom long". ── */
+const _COLORDER_KEY='pf_il_col_order';
+function _loadColOrder(){
+  try{
+    var saved=JSON.parse(localStorage.getItem(_COLORDER_KEY)||'null');
+    if(Array.isArray(saved)&&saved.length){
+      var validIds=new Set(COLS.map(function(c){return c.id;}));
+      var filtered=saved.filter(function(id){return validIds.has(id);});
+      /* Ajoute à la fin les colonnes absentes de la sauvegarde (ex: nouvelle
+         colonne ajoutée à l'app après que l'utilisateur ait figé son ordre). */
+      COLS.forEach(function(c){ if(filtered.indexOf(c.id)===-1) filtered.push(c.id); });
+      return filtered;
+    }
+  }catch(e){}
+  return COLS.map(function(c){return c.id;});
+}
+function _saveColOrder(){try{localStorage.setItem(_COLORDER_KEY,JSON.stringify(colOrder));}catch(e){}}
+let colOrder=_loadColOrder();
+function _resetColOrder(){colOrder=COLS.map(function(c){return c.id;});_saveColOrder();loadColChips();renderTable();toast('✓ Ordre des colonnes réinitialisé');}
 const COL_PRESETS={
   simple:['short','long','src','mic'],
   foh:['short','long','src','mic','gain','phantom','foh','note'],
@@ -3349,12 +3388,61 @@ const COL_PRESETS={
   full:COLS.map(c=>c.id),
 };
 function loadColChips(){
-  document.getElementById('col-chips').innerHTML=COLS.map(c=>`
-    <div class="col-chip ${visCol.has(c.id)?'on':''}" onclick="toggleCol('${c.id}')">
+  var byId={}; COLS.forEach(function(c){byId[c.id]=c;});
+  document.getElementById('col-chips').innerHTML=colOrder.map(function(id){
+    var c=byId[id]; if(!c) return '';
+    return `<div class="col-chip ${visCol.has(c.id)?'on':''}" draggable="true" data-col="${c.id}" onclick="toggleCol('${c.id}')">
+      <i class="ti ti-grip-vertical col-chip-grip" title="Glisser pour réordonner" onclick="event.stopPropagation()"></i>
       <span class="pip"></span><i class="ti ${c.icon}" style="font-size:11px"></i>${c.label}
-    </div>`).join('');
+    </div>`;
+  }).join('');
+  _initColDragDrop();
 }
 function toggleCol(id){visCol.has(id)?visCol.delete(id):visCol.add(id);_saveVisCol();applyColVis();loadColChips();updateColBtn();}
+
+/* ── Glisser-déposer des chips pour réordonner les colonnes de l'Input List ── */
+var _colDragSrc=null,_colDragOver=null,_colDndInit=false;
+function _initColDragDrop(){
+  var wrap=document.getElementById('col-chips');
+  if(!wrap||_colDndInit) return; _colDndInit=true;
+  wrap.addEventListener('dragstart',function(e){
+    var chip=e.target.closest('.col-chip[data-col]'); if(!chip) return;
+    _colDragSrc=chip.dataset.col;
+    e.dataTransfer.effectAllowed='move';
+    e.dataTransfer.setData('text/plain',_colDragSrc);
+    setTimeout(function(){chip.classList.add('dragging');},0);
+  });
+  wrap.addEventListener('dragover',function(e){
+    e.preventDefault(); e.dataTransfer.dropEffect='move';
+    var chip=e.target.closest('.col-chip[data-col]');
+    if(!chip||chip.dataset.col===_colDragSrc) return;
+    if(chip.dataset.col===_colDragOver) return;
+    wrap.querySelectorAll('.drag-over').forEach(function(c2){c2.classList.remove('drag-over');});
+    chip.classList.add('drag-over'); _colDragOver=chip.dataset.col;
+  });
+  wrap.addEventListener('dragleave',function(e){
+    var chip=e.target.closest('.col-chip[data-col]');
+    if(chip&&!chip.contains(e.relatedTarget)) chip.classList.remove('drag-over');
+  });
+  wrap.addEventListener('drop',function(e){
+    e.preventDefault();
+    var src=_colDragSrc,dst=_colDragOver;
+    _colDragSrc=null;_colDragOver=null;
+    wrap.querySelectorAll('.dragging,.drag-over').forEach(function(c2){c2.classList.remove('dragging','drag-over');});
+    if(!src||!dst||src===dst) return;
+    var from=colOrder.indexOf(src), to=colOrder.indexOf(dst);
+    if(from===-1||to===-1) return;
+    colOrder.splice(from,1);
+    colOrder.splice(to,0,src);
+    _saveColOrder();
+    loadColChips();
+    renderTable();
+  });
+  wrap.addEventListener('dragend',function(){
+    _colDragSrc=null;_colDragOver=null;
+    wrap.querySelectorAll('.dragging,.drag-over').forEach(function(c2){c2.classList.remove('dragging','drag-over');});
+  });
+}
 function applyColVis(){
   document.querySelectorAll('#il-head th[data-col]').forEach(th=>th.style.display=visCol.has(th.dataset.col)?'':'none');
   document.querySelectorAll('#il-body tr').forEach(tr=>tr.querySelectorAll('td[data-col]').forEach(td=>td.style.display=visCol.has(td.dataset.col)?'':'none'));

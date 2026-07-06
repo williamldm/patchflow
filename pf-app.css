@@ -203,6 +203,8 @@ body{display:flex;flex-direction:column;min-height:100vh}
   .cb{width:20px;height:20px}
   .move-btn{font-size:14px;padding:4px}.del-btn{font-size:14px;padding:4px 6px}
   .drag-handle{display:none}                      /* glisser tactile peu fiable → on garde ↑/↓ */
+  .col-chip-grip{display:none}                    /* idem pour la réorganisation des colonnes */
+  .col-chip{cursor:pointer}
   /* Colonne N° figée à gauche */
   .iltable th:first-child,.iltable td.ch-num{
     position:sticky;left:0;z-index:6;width:34px;min-width:34px;padding:0 4px;
@@ -281,6 +283,10 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .drag-handle:hover{color:var(--muted)}
 .iltable tr.dragging{opacity:.3}
 .iltable tr.drag-over td{border-top:2px solid var(--ora) !important}
+.col-chip-grip{cursor:grab;color:var(--muted2);font-size:12px;transition:color .12s}
+.col-chip-grip:hover{color:var(--muted)}
+.col-chip.dragging{opacity:.35}
+.col-chip.drag-over{box-shadow:inset 2px 0 0 var(--ora)}
 
 /* ── Mobile plan viewer ── */
 /* Mobile plan viewer — activé uniquement par JS (.mob-plan-show) */
