@@ -1031,6 +1031,9 @@ async function switchShow(id, opts){
   _stageReady=false;
   CUR_SHOW=SHOWS.find(s=>s.id===id);
   if(!CUR_SHOW)return;
+  /* Recharger la mise en page de l'Input List (ordre + colonnes visibles) du
+     show : suit l'utilisateur d'un navigateur/appareil à l'autre. */
+  _hydrateILLayout();
   /* Persist the active show so reload restores it — SAUF bascule automatique
      de repli (opts.persist===false) : on ne veut pas écraser le dernier show
      réellement choisi par l'utilisateur si la liste était transitoirement
@@ -2190,16 +2193,17 @@ const _IL_CELL_RENDERERS={
   note:   r=>`<td data-col="note" data-label="Note"><input class="ilinp" list="il-note-list" style="color:var(--txt2)" value="${_oh(r.note||'')}" placeholder="—" onchange="scheduleSave('${r.id}','note',_expandNoteAbbr(this))" onblur="_expandNoteAbbr(this)"/></td>`,
 };
 const _IL_COL_LABELS={short:'Court',long:'Nom long',src:'Source',mic:'Micro/DI',gain:'Gain',phantom:'+48V',iem:'IEM',hf:'Fréq. HF',foh:'FOH',mon:'MON',bc:'BC',note:'Note'};
-/* Reconstruit le thead selon colOrder. Les colonnes personnalisées (ajoutées
-   à droite, non réordonnables) sont ré-attachées ensuite par
-   _loadCustomColsIntoTable(), appelé après ce rendu. */
+/* Reconstruit le thead selon l'ordre effectif (colonnes natives ET
+   personnalisées, cf. _orderedColIds). Chaque en-tête est déplaçable. */
 function _renderColHead(){
   var head=document.getElementById('il-head');
   if(!head) return;
   var html='<th>CH</th>';
-  colOrder.forEach(function(id){
+  _orderedColIds().forEach(function(id){
+    var def=_colDefById(id); if(!def) return;
+    var label=_IL_COL_LABELS[id]||def.label||id;
     html+='<th class="il-col-th" draggable="true" data-col="'+id+'" title="Glisser pour réordonner la colonne">'+
-          '<span class="il-col-th-in"><i class="ti ti-grip-vertical il-col-grip"></i>'+(_IL_COL_LABELS[id]||id)+'</span></th>';
+          '<span class="il-col-th-in"><i class="ti ti-grip-vertical il-col-grip"></i>'+_oh(label)+'</span></th>';
   });
   html+='<th style="width:64px"></th>';
   head.innerHTML=html;
@@ -2243,7 +2247,7 @@ function _initColHeadDnd(){
     if(from===-1||to===-1) return;
     colOrder.splice(from,1);
     colOrder.splice(to,0,src);
-    _saveColOrder();
+    _saveILLayout();
     renderTable();
     if(typeof loadColChips==='function' && document.getElementById('col-chips')) loadColChips();
   });
@@ -2261,8 +2265,7 @@ function renderTable(){
     document.getElementById('il-body').innerHTML=CHS.map(r=>`
     <tr data-rid="${r.id}" draggable="true">
       <td class="ch-num">${r.ch}</td>
-      ${colOrder.map(function(id){return _IL_CELL_RENDERERS[id]?_IL_CELL_RENDERERS[id](r):'';}).join('')}
-      ${_getCustomCols().map(col=>{const v=(r.custom_data&&r.custom_data[col.id])||'';return `<td data-col="${col.id}" data-label="${_oh(col.label||'')}" style="text-align:${col.type==='bool'?'center':'left'}">${_customCellHTML(col,r.id,v)}</td>`;}).join('')}
+      ${_orderedColIds().map(function(id){return _ilCellFor(id,r);}).join('')}
       <td class="il-actions-cell" style="white-space:nowrap">
         <i class="ti ti-grip-vertical drag-handle"></i>
         <button class="move-btn" onclick="moveRow('${r.id}',-1)" ${r.ch===1?'disabled':''}><i class="ti ti-chevron-up"></i></button>
@@ -2273,7 +2276,6 @@ function renderTable(){
   }
   applyColVis();renderPills();updateStats();
   _saveChsSnapshot();
-  _loadCustomColsIntoTable();
 }
 
 // ══════════════════════════════════════
@@ -3431,7 +3433,68 @@ function _loadColOrder(){
 }
 function _saveColOrder(){try{localStorage.setItem(_COLORDER_KEY,JSON.stringify(colOrder));}catch(e){}}
 let colOrder=_loadColOrder();
-function _resetColOrder(){colOrder=COLS.map(function(c){return c.id;});_saveColOrder();loadColChips();renderTable();toast('✓ Ordre des colonnes réinitialisé');}
+
+/* ── Colonnes personnalisées intégrées au système d'ordre ────────────
+   Les colonnes custom (stage_data.il_custom_cols) sont désormais traitées
+   comme les colonnes natives : présentes dans colOrder, donc déplaçables
+   par glisser-déposer et affichables/masquables comme les autres. */
+function _customColMap(){ var m={}; _getCustomCols().forEach(function(c){m[c.id]=c;}); return m; }
+function _colDefById(id){
+  for(var i=0;i<COLS.length;i++){ if(COLS[i].id===id) return COLS[i]; }
+  var cm=_customColMap();
+  if(cm[id]) return {id:id,label:cm[id].label,icon:'ti-square-rounded-plus',custom:true,type:cm[id].type};
+  return null;
+}
+/* Retourne l'ordre effectif : colOrder nettoyé (ids valides, sans doublon),
+   avec toutes les colonnes natives puis toutes les custom garanties présentes
+   (celles ajoutées après le dernier enregistrement sont ajoutées à la fin). */
+function _orderedColIds(src){
+  var seen={},out=[];
+  var validBuiltin={}; COLS.forEach(function(c){validBuiltin[c.id]=1;});
+  var cm=_customColMap();
+  (src||colOrder||[]).forEach(function(id){ if((validBuiltin[id]||cm[id])&&!seen[id]){seen[id]=1;out.push(id);} });
+  COLS.forEach(function(c){ if(!seen[c.id]){seen[c.id]=1;out.push(c.id);} });
+  _getCustomCols().forEach(function(c){ if(!seen[c.id]){seen[c.id]=1;out.push(c.id);} });
+  return out;
+}
+/* Cellule tbody pour n'importe quelle colonne (native ou custom) */
+function _ilCellFor(id,r){
+  if(_IL_CELL_RENDERERS[id]) return _IL_CELL_RENDERERS[id](r);
+  var col=_customColMap()[id]; if(!col) return '';
+  var v=(r.custom_data&&r.custom_data[id])||'';
+  return '<td data-col="'+id+'" data-label="'+_oh(col.label||'')+'" style="text-align:'+(col.type==='bool'?'center':'left')+'">'+_customCellHTML(col,r.id,v)+'</td>';
+}
+
+/* ── Persistance de la mise en page de l'Input List ──────────────────
+   Ordre (colOrder) + colonnes visibles (visCol) sont enregistrés à la fois
+   en localStorage (rapide, hors-ligne) ET dans stage_data du show, pour que
+   la configuration suive l'utilisateur d'un navigateur/appareil à l'autre. */
+var _ilLayoutTimer=null;
+function _saveILLayout(){
+  _saveColOrder(); _saveVisCol();
+  if(!CUR_SHOW) return;
+  var sd=Object.assign({},CUR_SHOW.stage_data||{v:2},{il_col_order:colOrder.slice(),il_vis_col:[...visCol]});
+  CUR_SHOW.stage_data=sd;
+  clearTimeout(_ilLayoutTimer);
+  _ilLayoutTimer=setTimeout(function(){
+    if(CUR_SHOW) sb.from('shows').update({stage_data:CUR_SHOW.stage_data}).eq('id',CUR_SHOW.id);
+  },600);
+}
+/* Hydrate colOrder + visCol depuis le show courant (appelé au changement de
+   show). Priorité : réglage enregistré dans le show > localStorage > défauts. */
+function _hydrateILLayout(){
+  var sd=CUR_SHOW&&CUR_SHOW.stage_data;
+  if(sd&&Array.isArray(sd.il_col_order)&&sd.il_col_order.length){ colOrder=_orderedColIds(sd.il_col_order); }
+  else { colOrder=_orderedColIds(colOrder); }
+  if(sd&&Array.isArray(sd.il_vis_col)){ visCol=new Set(sd.il_vis_col); }
+  else {
+    /* Pas de préférence enregistrée dans le show : on garde visCol (localStorage
+       ou défaut) et on rend visibles par défaut les colonnes custom existantes. */
+    var hasLocal=!!localStorage.getItem(_VISCOL_KEY);
+    if(!hasLocal) _getCustomCols().forEach(function(c){ visCol.add(c.id); });
+  }
+}
+function _resetColOrder(){colOrder=_orderedColIds(COLS.map(function(c){return c.id;}));_saveILLayout();loadColChips();renderTable();toast('✓ Ordre des colonnes réinitialisé');}
 const COL_PRESETS={
   simple:['short','long','src','mic'],
   foh:['short','long','src','mic','gain','phantom','foh','note'],
@@ -3439,17 +3502,17 @@ const COL_PRESETS={
   full:COLS.map(c=>c.id),
 };
 function loadColChips(){
-  var byId={}; COLS.forEach(function(c){byId[c.id]=c;});
-  document.getElementById('col-chips').innerHTML=colOrder.map(function(id){
-    var c=byId[id]; if(!c) return '';
+  var wrap=document.getElementById('col-chips'); if(!wrap) return;
+  wrap.innerHTML=_orderedColIds().map(function(id){
+    var c=_colDefById(id); if(!c) return '';
     return `<div class="col-chip ${visCol.has(c.id)?'on':''}" draggable="true" data-col="${c.id}" onclick="toggleCol('${c.id}')">
       <i class="ti ti-grip-vertical col-chip-grip" title="Glisser pour réordonner" onclick="event.stopPropagation()"></i>
-      <span class="pip"></span><i class="ti ${c.icon}" style="font-size:11px"></i>${c.label}
+      <span class="pip"></span><i class="ti ${c.icon||'ti-square-rounded-plus'}" style="font-size:11px"></i>${_oh(c.label)}
     </div>`;
   }).join('');
   _initColDragDrop();
 }
-function toggleCol(id){visCol.has(id)?visCol.delete(id):visCol.add(id);_saveVisCol();applyColVis();loadColChips();updateColBtn();}
+function toggleCol(id){visCol.has(id)?visCol.delete(id):visCol.add(id);_saveILLayout();applyColVis();loadColChips();updateColBtn();}
 
 /* ── Glisser-déposer des chips pour réordonner les colonnes de l'Input List ── */
 var _colDragSrc=null,_colDragOver=null,_colDndInit=false;
@@ -3485,7 +3548,7 @@ function _initColDragDrop(){
     if(from===-1||to===-1) return;
     colOrder.splice(from,1);
     colOrder.splice(to,0,src);
-    _saveColOrder();
+    _saveILLayout();
     loadColChips();
     renderTable();
   });
@@ -3500,7 +3563,7 @@ function applyColVis(){
   updateColBtn();
 }
 function updateColBtn(){const b=document.getElementById('col-btn');if(b)b.innerHTML=`<i class="ti ti-columns"></i>Colonnes <span style="font-family:var(--m);font-size:9px;background:var(--ora);color:#000;border-radius:9px;padding:1px 5px;margin-left:2px">${visCol.size}</span>`;}
-function colPreset(n){visCol=new Set(COL_PRESETS[n]||COLS.map(c=>c.id));_saveVisCol();applyColVis();loadColChips();toast(`✓ Vue "${n}" appliquée`);}
+function colPreset(n){visCol=new Set(COL_PRESETS[n]||COLS.map(c=>c.id));_saveILLayout();applyColVis();loadColChips();toast(`✓ Vue "${n}" appliquée`);}
 function toggleColPanel(){const p=document.getElementById('col-panel');p.style.display=p.style.display==='none'||!p.style.display?'block':'none';if(p.style.display==='block'){loadColChips();_renderCustomColList();renderChNumSizes();}}
 
 /* ── Taille du numéro de canal (préférence d'affichage, persistante) ── */
@@ -3563,10 +3626,13 @@ function _submitAddCustomCol(){
     document.getElementById('cc-label-inp').value='';
     document.getElementById('custom-col-form').style.display='none';
     _renderCustomColList();
-    /* Ajouter la colonne à la table visible */
-    _addCustomColToTable({id,label:lbl,type});
+    /* Intégrer la nouvelle colonne à l'ordre + la rendre visible, puis
+       re-render complet pour qu'elle soit déplaçable comme les autres. */
+    if(colOrder.indexOf(id)===-1) colOrder.push(id);
     visCol.add(id);
-    _saveVisCol();
+    _saveILLayout();
+    renderTable();
+    loadColChips();
     updateColBtn();
     toast(`Colonne "${lbl}" créée`);
   });
@@ -3576,10 +3642,12 @@ async function _deleteCustomCol(colId){
   if(!confirm('Supprimer cette colonne ? Les données de tous les canaux seront perdues.'))return;
   const cols=_getCustomCols().filter(c=>c.id!==colId);
   await _saveCustomCols(cols);
-  /* Supprimer la colonne de la table */
-  document.querySelectorAll(`th[data-col="${colId}"],td[data-col="${colId}"]`).forEach(e=>e.remove());
+  /* Retirer la colonne de l'ordre + des colonnes visibles, puis re-render */
+  colOrder=colOrder.filter(x=>x!==colId);
   visCol.delete(colId);
-  _saveVisCol();
+  _saveILLayout();
+  renderTable();
+  loadColChips();
   updateColBtn();
   _renderCustomColList();
   toast('Colonne supprimée');
