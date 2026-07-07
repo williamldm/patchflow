@@ -2197,9 +2197,60 @@ function _renderColHead(){
   var head=document.getElementById('il-head');
   if(!head) return;
   var html='<th>CH</th>';
-  colOrder.forEach(function(id){ html+='<th data-col="'+id+'">'+(_IL_COL_LABELS[id]||id)+'</th>'; });
+  colOrder.forEach(function(id){
+    html+='<th class="il-col-th" draggable="true" data-col="'+id+'" title="Glisser pour réordonner la colonne">'+
+          '<span class="il-col-th-in"><i class="ti ti-grip-vertical il-col-grip"></i>'+(_IL_COL_LABELS[id]||id)+'</span></th>';
+  });
   html+='<th style="width:64px"></th>';
   head.innerHTML=html;
+  _initColHeadDnd();
+}
+
+/* ── Glisser-déposer des EN-TÊTES de colonnes directement dans le tableau ──
+   Réordonne colOrder comme les chips du panneau, mais depuis le tableau lui
+   même (plus découvrable). Réutilise les globals _colDragSrc/_colDragOver. */
+var _colHeadDndInit=false;
+function _initColHeadDnd(){
+  var head=document.getElementById('il-head');
+  if(!head||_colHeadDndInit) return; _colHeadDndInit=true;
+  head.addEventListener('dragstart',function(e){
+    var th=e.target.closest('th.il-col-th[data-col]'); if(!th) return;
+    _colDragSrc=th.dataset.col;
+    e.dataTransfer.effectAllowed='move';
+    e.dataTransfer.setData('text/plain',_colDragSrc);
+    setTimeout(function(){th.classList.add('dragging');},0);
+  });
+  head.addEventListener('dragover',function(e){
+    if(!_colDragSrc) return;
+    e.preventDefault(); e.dataTransfer.dropEffect='move';
+    var th=e.target.closest('th.il-col-th[data-col]');
+    if(!th||th.dataset.col===_colDragSrc||th.dataset.col===_colDragOver) return;
+    head.querySelectorAll('.drag-over').forEach(function(c2){c2.classList.remove('drag-over');});
+    th.classList.add('drag-over'); _colDragOver=th.dataset.col;
+  });
+  head.addEventListener('dragleave',function(e){
+    var th=e.target.closest('th.il-col-th[data-col]');
+    if(th&&!th.contains(e.relatedTarget)) th.classList.remove('drag-over');
+  });
+  head.addEventListener('drop',function(e){
+    if(!_colDragSrc) return;
+    e.preventDefault();
+    var src=_colDragSrc,dst=_colDragOver;
+    _colDragSrc=null;_colDragOver=null;
+    head.querySelectorAll('.dragging,.drag-over').forEach(function(c2){c2.classList.remove('dragging','drag-over');});
+    if(!src||!dst||src===dst) return;
+    var from=colOrder.indexOf(src),to=colOrder.indexOf(dst);
+    if(from===-1||to===-1) return;
+    colOrder.splice(from,1);
+    colOrder.splice(to,0,src);
+    _saveColOrder();
+    renderTable();
+    if(typeof loadColChips==='function' && document.getElementById('col-chips')) loadColChips();
+  });
+  head.addEventListener('dragend',function(){
+    _colDragSrc=null;_colDragOver=null;
+    head.querySelectorAll('.dragging,.drag-over').forEach(function(c2){c2.classList.remove('dragging','drag-over');});
+  });
 }
 function renderTable(){
   if(typeof SectionUndo!=='undefined') SectionUndo.record('il', function(){ return CHS; });
