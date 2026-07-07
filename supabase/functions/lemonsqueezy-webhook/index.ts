@@ -162,11 +162,20 @@ serve(async (req) => {
       // 1. Récupérer le plan actuel pour détecter la transition Pro → Free
       const { data: profile } = await sb
         .from('profiles')
-        .select('plan, email')
+        .select('plan, email, plan_override')
         .eq('id', userId)
         .maybeSingle();
 
-      const wasProNowFree = profile?.plan === 'pro' && newPlan === 'free';
+      // Compte avec octroi manuel (plan_override=true) : on enregistre quand
+      // même l'abonnement (utile si l'user paie un jour un vrai abonnement),
+      // mais on NE TOUCHE PAS à profiles.plan — sinon un événement LS (retry,
+      // relance, ancien abonnement expiré...) écraserait l'accès offert
+      // manuellement en base.
+      if (profile?.plan_override) {
+        console.log('[ls-webhook] plan_override actif — profiles.plan non modifié pour', userId);
+      }
+
+      const wasProNowFree = !profile?.plan_override && profile?.plan === 'pro' && newPlan === 'free';
       const isNowPro      = newPlan === 'pro';
 
       // 2. Upsert abonnement
@@ -186,8 +195,10 @@ serve(async (req) => {
         updated_at: new Date().toISOString(),
       }, { onConflict: 'ls_subscription_id' });
 
-      // 3. Mise à jour du plan dans le profil
-      await sb.from('profiles').update({ plan: newPlan }).eq('id', userId);
+      // 3. Mise à jour du plan dans le profil — sauf si octroi manuel actif
+      if (!profile?.plan_override) {
+        await sb.from('profiles').update({ plan: newPlan }).eq('id', userId);
+      }
 
       // 4a. Pro → Free : planifier la suppression + envoyer l'email
       if (wasProNowFree) {
