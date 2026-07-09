@@ -487,6 +487,14 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .fich-pdf-text{position:absolute;top:0;left:0;overflow:hidden;line-height:1;user-select:text;-webkit-user-select:text}
 .fich-pdf-text span{color:transparent;position:absolute;white-space:pre;cursor:text;transform-origin:0% 0%}
 .fich-pdf-text span::selection,.fich-pdf-text span::-moz-selection{background:rgba(0,120,255,.3)}
+.fich-pdf-text span.pdf-hit{background:rgba(255,213,0,.45);border-radius:2px}
+.fich-pdf-text span.pdf-hit-cur{background:rgba(255,138,0,.8)}
+.fich-pdf-search{display:flex;align-items:center;gap:4px;background:var(--surf3);border:1px solid var(--bdr2);border-radius:7px;padding:2px 4px 2px 8px}
+.fich-pdf-search>i{font-size:13px;color:var(--muted);flex-shrink:0}
+.fich-pdf-search input{background:transparent;border:none;outline:none;color:var(--txt);font-family:var(--f);font-size:12px;width:120px;padding:4px 2px}
+.fich-pdf-search input::placeholder{color:var(--muted)}
+.fich-pdf-search-count{font-family:var(--m);font-size:10px;color:var(--muted);min-width:30px;text-align:center;flex-shrink:0}
+.fich-pdf-search-count.none{color:var(--err)}
 .fich-pdf-text .markedContent{position:absolute;top:0;height:0}
 .fich-pdf-text br{display:none}
 .fich-pdf-zoom-badge{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.8);color:#fff;font-size:22px;font-weight:700;padding:14px 28px;border-radius:14px;pointer-events:none;opacity:0;transition:opacity .15s;z-index:9999;white-space:nowrap}

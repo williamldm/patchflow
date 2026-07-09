@@ -3362,7 +3362,13 @@ async function _riderPreviewPdf(encodedPath, displayName){
   var dlLink  = document.getElementById('fich-viewer-dl');
   if (!modal) return;
   if (titleEl) titleEl.textContent = displayName;
-  if (dlLink) { dlLink.href = url; dlLink.download = displayName; }
+  /* Nom de téléchargement propre : cf. _openFileViewer (download ignoré
+     cross-origin → on regénère une URL signée avec downloadName). */
+  if (dlLink) {
+    dlLink.download = displayName;
+    dlLink.setAttribute('href', url);
+    dlLink.onclick = function(ev){ ev.preventDefault(); _viewerDownload(path, displayName, url); };
+  }
   modal.style.display = 'flex';
   _openPdfJs(url, content);
 }
@@ -13977,6 +13983,20 @@ async function viewFichier(relPath) {
    audio, docx, tableur, texte) à partir d'une URL DÉJÀ signée. Utilisé par la
    section Fichiers (édition possible) ET par la vue rider partagée
    (opts.readonly → les éditeurs lourds sont ouverts en téléchargement). */
+/* Télécharge depuis la visionneuse avec le bon nom : regénère une URL signée
+   avec downloadName (Content-Disposition côté serveur). Repli sur l'URL inline
+   si la regénération échoue. */
+async function _viewerDownload(path, displayName, fallbackUrl){
+  try{
+    const { data } = await B2Storage.createSignedUrl(path, 3600, displayName);
+    if(data && data.signedUrl){
+      const a=document.createElement('a'); a.href=data.signedUrl; a.download=displayName; a.click();
+      return;
+    }
+  }catch(e){}
+  const a=document.createElement('a'); a.href=fallbackUrl; a.download=displayName; a.target='_blank'; a.click();
+}
+
 function _openFileViewer(url, displayName, opts){
   opts = opts || {};
   const info = (typeof _fichInfoOf==='function') ? _fichInfoOf(displayName) : {preview:'none'};
@@ -13997,7 +14017,20 @@ function _openFileViewer(url, displayName, opts){
   }
 
   if (titleEl) titleEl.textContent = displayName;
-  if (dlLink) { dlLink.href = url; dlLink.download = displayName; }
+  /* Lien de téléchargement : l'attribut `download` est ignoré sur une URL
+     cross-origin (B2) → sans en-tête Content-Disposition, le fichier est
+     enregistré sous la clé interne (préfixe bizarre). Quand on connaît le
+     chemin B2, on regénère à la volée une URL signée AVEC downloadName pour
+     forcer le nom propre côté serveur. */
+  if (dlLink) {
+    dlLink.download = displayName;
+    if (path) {
+      dlLink.setAttribute('href', url); // fallback si la regénération échoue
+      dlLink.onclick = function(ev){ ev.preventDefault(); _viewerDownload(path, displayName, url); };
+    } else {
+      dlLink.href = url; dlLink.onclick = null;
+    }
+  }
 
   if (info.preview === 'pdf') {
     modal.style.display = 'flex';
@@ -14072,7 +14105,16 @@ async function _openPdfJs(url, container){
       '<button class="btn ghost sm" onclick="_pdfZoom(-0.25)" title="Zoom -"><i class="ti ti-zoom-out"></i></button>' +
       '<span id="pdf-zoom-info" class="fich-pdf-pageinfo">100%</span>' +
       '<button class="btn ghost sm" onclick="_pdfZoom(0.25)" title="Zoom +"><i class="ti ti-zoom-in"></i></button>' +
-      '<button class="btn ghost sm" onclick="_pdfFit()" title="Ajuster"><i class="ti ti-arrows-maximize"></i></button>';
+      '<button class="btn ghost sm" onclick="_pdfFit()" title="Ajuster"><i class="ti ti-arrows-maximize"></i></button>' +
+      '<span class="fich-pdf-nav-sep"></span>' +
+      '<div class="fich-pdf-search">' +
+        '<i class="ti ti-search"></i>' +
+        '<input id="pdf-search-inp" type="text" placeholder="Rechercher…" ' +
+          'oninput="_pdfSearchInput()" onkeydown="_pdfSearchKey(event)" autocomplete="off"/>' +
+        '<span id="pdf-search-count" class="fich-pdf-search-count"></span>' +
+        '<button class="btn ghost sm" onclick="_pdfSearchNav(-1)" title="Résultat précédent"><i class="ti ti-chevron-up"></i></button>' +
+        '<button class="btn ghost sm" onclick="_pdfSearchNav(1)" title="Résultat suivant"><i class="ti ti-chevron-down"></i></button>' +
+      '</div>';
     container.appendChild(nav);
 
     const wrap = document.createElement('div');
@@ -14093,7 +14135,8 @@ async function _openPdfJs(url, container){
       ((navigator.maxTouchPoints || 0) > 0 && window.matchMedia('(pointer:coarse)').matches);
 
     window._pdfState = { pdf, page:1, wrap, inner, badge, pageEls:[], observer:null,
-                         zoomBy:null, fitView:null, goPage:null, _cleanup:null };
+                         zoomBy:null, fitView:null, goPage:null, _cleanup:null,
+                         isTouch, search:{ q:'', hits:[], idx:-1 } };
 
     let _badgeTimer = null;
     function _showBadge(z){
@@ -14198,6 +14241,7 @@ async function _openPdfJs(url, container){
           inner.appendChild(el);
           window._pdfState.pageEls.push(el);
         }
+        _pdfReapplySearch();
       }
       await raster();
 
@@ -14414,6 +14458,7 @@ async function _openPdfJs(url, container){
         }, { root: wrap, threshold:[0.1,0.3,0.5,0.7,0.9] });
         window._pdfState.pageEls.forEach(el=>obs.observe(el));
         window._pdfState.observer = obs;
+        _pdfReapplySearch();
       }
       window._pdfState.zoomBy  = d => renderAll(Math.max(0.4, Math.min(3.5, (window._pdfState.zoom||1)+d)));
       window._pdfState.fitView = () => { window._pdfState.zoom=1; renderAll(1); };
@@ -14435,6 +14480,94 @@ async function _openPdfJs(url, container){
 function _pdfPage(delta){ var s = window._pdfState; if(s && s.goPage)  s.goPage(delta); }
 function _pdfZoom(delta){ var s = window._pdfState; if(s && s.zoomBy)  s.zoomBy(delta); }
 function _pdfFit(){       var s = window._pdfState; if(s && s.fitView) s.fitView(); }
+
+/* ── Recherche dans le PDF ──────────────────────────────────────────
+   Cherche dans les calques texte déjà rendus (spans transparents posés
+   sur le canvas). Insensible à la casse et aux accents. Surligne les
+   correspondances et permet de naviguer de l'une à l'autre. */
+function _pdfNorm(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+
+var _pdfSearchTimer = null;
+function _pdfSearchInput(){
+  clearTimeout(_pdfSearchTimer);
+  _pdfSearchTimer = setTimeout(_pdfRunSearch, 180);
+}
+function _pdfSearchKey(e){
+  if(e.key === 'Enter'){ e.preventDefault(); _pdfSearchNav(e.shiftKey ? -1 : 1); }
+  else if(e.key === 'Escape'){ e.preventDefault(); var inp=document.getElementById('pdf-search-inp'); if(inp){ inp.value=''; } _pdfRunSearch(); }
+}
+function _pdfRunSearch(){
+  var st = window._pdfState; if(!st) return;
+  var inp = document.getElementById('pdf-search-inp');
+  var q = inp ? inp.value.trim() : '';
+  st.search.q = q;
+  st.search.idx = -1;
+  _pdfCollectHits();
+  if(st.search.hits.length){ st.search.idx = 0; _pdfGotoHit(0); }
+  _pdfUpdateSearchCount();
+}
+/* (Re)construit la liste des spans correspondants dans le DOM courant */
+function _pdfCollectHits(){
+  var st = window._pdfState; if(!st) return;
+  var wrap = st.wrap;
+  /* Nettoyer les surlignages précédents */
+  wrap.querySelectorAll('.fich-pdf-text span.pdf-hit').forEach(function(sp){
+    sp.classList.remove('pdf-hit','pdf-hit-cur');
+  });
+  st.search.hits = [];
+  var q = _pdfNorm(st.search.q);
+  if(!q) return;
+  wrap.querySelectorAll('.fich-pdf-text span').forEach(function(sp){
+    if(!sp.textContent) return;
+    if(_pdfNorm(sp.textContent).indexOf(q) !== -1){
+      sp.classList.add('pdf-hit');
+      st.search.hits.push(sp);
+    }
+  });
+}
+/* Réapplique la recherche après un re-rendu (zoom) qui a recréé les spans */
+function _pdfReapplySearch(){
+  var st = window._pdfState; if(!st || !st.search || !st.search.q) return;
+  var prevIdx = st.search.idx;
+  _pdfCollectHits();
+  if(st.search.hits.length){
+    st.search.idx = Math.max(0, Math.min(prevIdx, st.search.hits.length - 1));
+    var cur = st.search.hits[st.search.idx];
+    if(cur) cur.classList.add('pdf-hit-cur');
+  } else {
+    st.search.idx = -1;
+  }
+  _pdfUpdateSearchCount();
+}
+function _pdfSearchNav(dir){
+  var st = window._pdfState; if(!st || !st.search.hits.length) return;
+  st.search.idx = (st.search.idx + dir + st.search.hits.length) % st.search.hits.length;
+  _pdfGotoHit(st.search.idx);
+  _pdfUpdateSearchCount();
+}
+function _pdfGotoHit(i){
+  var st = window._pdfState; if(!st) return;
+  var hits = st.search.hits;
+  hits.forEach(function(sp){ sp.classList.remove('pdf-hit-cur'); });
+  var el = hits[i]; if(!el) return;
+  el.classList.add('pdf-hit-cur');
+  var pageEl = el.closest('.fich-pdf-page');
+  if(st.isTouch && st.goPage && pageEl){
+    /* Mode tactile : le wrap ne défile pas (transform) → on saute à la page */
+    var idx = st.pageEls.indexOf(pageEl);
+    if(idx >= 0) st.goPage((idx + 1) - st.page);
+  } else {
+    el.scrollIntoView({ behavior:'smooth', block:'center', inline:'center' });
+  }
+}
+function _pdfUpdateSearchCount(){
+  var st = window._pdfState; var c = document.getElementById('pdf-search-count');
+  if(!c || !st) return;
+  var n = st.search.hits.length;
+  if(!st.search.q){ c.textContent = ''; }
+  else if(!n){ c.textContent = '0'; c.classList.add('none'); }
+  else { c.textContent = (st.search.idx + 1) + '/' + n; c.classList.remove('none'); }
+}
 
 function closeFichierViewer() {
   var modal   = document.getElementById('fich-viewer-modal');
