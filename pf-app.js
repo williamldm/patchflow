@@ -10273,7 +10273,7 @@ const SitePlan = (() => {
     renderCablePicker(); renderCables(); renderLegend();
   }
 
-  let state = { elements:[], cables:[], bgImage:null, bgOpacity:100, view:{panX:60,panY:60,zoom:1}, selected:null, linkFrom:null, freePt1:null, activeCableType:'xlr', textScale:1, legendScale:1, cableTextScale:1, cableMode:false };
+  let state = { elements:[], cables:[], bgImage:null, bgOpacity:100, bgRotation:0, view:{panX:60,panY:60,zoom:1}, selected:null, linkFrom:null, freePt1:null, activeCableType:'xlr', textScale:1, legendScale:1, cableTextScale:1, cableMode:false };
   let dragging=null, panning=null, inited=false, resizing=null, _wpDrag=null, _wpAddCid=null;
 
   const $  = id => document.getElementById(id);
@@ -10389,7 +10389,21 @@ const SitePlan = (() => {
     const nn = $('site-nodes'), cc = $('site-cables'), bg = $('site-bg-img');
     if(nn){ nn.style.transform = t; nn.style.setProperty('--spl-ts', state.textScale); }
     if(cc) cc.style.transform = t;
-    if(bg) bg.style.transform = t;
+    if(bg){
+      /* Le fond peut être pivoté autour de son propre centre. On compose la
+         rotation à l'INTÉRIEUR du translate/scale de la vue (origine 0 0
+         partagée avec les nœuds) : translate(centre) rotate translate(-centre)
+         tourne l'image sur elle-même sans casser l'alignement pan/zoom. */
+      const rot = state.bgRotation || 0;
+      let bt = t;
+      if(rot){
+        const w = bg.naturalWidth || 0, h = bg.naturalHeight || 0;
+        bt = (w && h)
+          ? `${t} translate(${w/2}px,${h/2}px) rotate(${rot}deg) translate(${-w/2}px,${-h/2}px)`
+          : `${t} rotate(${rot}deg)`;
+      }
+      bg.style.transform = bt;
+    }
     const lbl = $('site-zoom-lbl');
     if(lbl) lbl.textContent = Math.round(state.view.zoom*100)+'%';
     const sl  = $('site-zoom-slider');
@@ -11166,12 +11180,35 @@ const SitePlan = (() => {
 
   function applyBg() {
     const img=$('site-bg-img'),ctrl=$('site-bg-controls');
-    if(img){if(state.bgImage){img.src=state.bgImage;img.style.display='block';img.style.opacity=state.bgOpacity/100;}else{img.src='';img.style.display='none';}}
+    if(img){
+      if(state.bgImage){
+        /* Les dimensions naturelles ne sont connues qu'après le chargement :
+           on recalcule alors la transform pour centrer correctement la rotation. */
+        img.onload=applyTransform;
+        img.src=state.bgImage;img.style.display='block';img.style.opacity=state.bgOpacity/100;
+      } else { img.onload=null; img.src='';img.style.display='none'; }
+    }
     if(ctrl)ctrl.style.display=state.bgImage?'block':'none';
+    applyTransform();
   }
 
   function setBgOpacity(val) { state.bgOpacity=+val; const img=$('site-bg-img'); if(img)img.style.opacity=val/100; saveSite(); }
-  function clearBg() { state.bgImage=null; applyBg(); saveSite(); }
+  /* Rotation absolue du fond (degrés, -180..180) */
+  function setBgRotation(val) {
+    let d=Math.round(+val)||0;
+    state.bgRotation=d;
+    const lbl=$('site-bg-rot-val'); if(lbl)lbl.textContent=d+'°';
+    const sl=$('site-bg-rotation'); if(sl&&+sl.value!==d)sl.value=d;
+    applyTransform(); saveSite();
+  }
+  /* Pivote de `delta` degrés, replié dans (-180..180] (bouton +90°) */
+  function rotateBg(delta) {
+    let d=((state.bgRotation||0)+delta)%360;
+    d=((d%360)+360)%360;      // 0..359
+    if(d>180) d-=360;         // -179..180 (180 reste 180)
+    setBgRotation(d);
+  }
+  function clearBg() { state.bgImage=null; state.bgRotation=0; const sl=$('site-bg-rotation'); if(sl)sl.value=0; const lbl=$('site-bg-rot-val'); if(lbl)lbl.textContent='0°'; applyBg(); saveSite(); }
 
   function load(data) {
     if(data){
@@ -11179,9 +11216,10 @@ const SitePlan = (() => {
       state.cables=data.cables||[];
       state.bgImage=data.bgImage||null;
       state.bgOpacity=data.bgOpacity??100;
+      state.bgRotation=data.bgRotation||0;
       if(data.view)state.view=data.view;
     } else {
-      state.elements=[];state.cables=[];state.bgImage=null;state.bgOpacity=100;state.view={panX:60,panY:60,zoom:1};
+      state.elements=[];state.cables=[];state.bgImage=null;state.bgOpacity=100;state.bgRotation=0;state.view={panX:60,panY:60,zoom:1};
     }
     if(data?.activeCableType) state.activeCableType=data.activeCableType;
     if(data?.textScale) state.textScale=data.textScale;
@@ -11189,6 +11227,8 @@ const SitePlan = (() => {
     state.cableTextScale=data?.cableTextScale||1;
     state.selected=null;state.linkFrom=null;state.freePt1=null;
     const sl=$('site-bg-opacity');if(sl)sl.value=state.bgOpacity;
+    const rl=$('site-bg-rotation');if(rl)rl.value=state.bgRotation||0;
+    const rv=$('site-bg-rot-val');if(rv)rv.textContent=(state.bgRotation||0)+'°';
     const tl=$('spl-ts-val');if(tl)tl.textContent=Math.round(state.textScale*100)+'%';
     const ll=$('spl-leg-val');if(ll)ll.textContent=Math.round((state.legendScale||1)*100)+'%';
     const cl=$('spl-cab-val');if(cl)cl.textContent=Math.round((state.cableTextScale||1)*100)+'%';
@@ -11196,7 +11236,7 @@ const SitePlan = (() => {
     if(inited){ renderCablePicker(); render(); }
   }
 
-  function getData() { return {elements:state.elements,cables:state.cables,bgImage:state.bgImage,bgOpacity:state.bgOpacity,view:state.view,activeCableType:state.activeCableType,textScale:state.textScale,legendScale:state.legendScale,cableTextScale:state.cableTextScale}; }
+  function getData() { return {elements:state.elements,cables:state.cables,bgImage:state.bgImage,bgOpacity:state.bgOpacity,bgRotation:state.bgRotation||0,view:state.view,activeCableType:state.activeCableType,textScale:state.textScale,legendScale:state.legendScale,cableTextScale:state.cableTextScale}; }
 
   function clear() { state.elements=[];state.cables=[];state.selected=null;state.linkFrom=null;state.freePt1=null;_clearPreview(); saveSite(); render(); }
 
@@ -11361,7 +11401,18 @@ const SitePlan = (() => {
     const _draw = bgImg => {
       const els=state.elements, cables=state.cables;
       let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
-      if(bgImg){ minX=0; minY=0; maxX=bgImg.naturalWidth; maxY=bgImg.naturalHeight; }
+      if(bgImg){
+        const _bw=bgImg.naturalWidth, _bh=bgImg.naturalHeight;
+        const _brot=(state.bgRotation||0)*Math.PI/180;
+        if(_brot){
+          /* Boîte englobante de l'image pivotée (autour de son centre) pour
+             qu'elle ne soit pas rognée à l'export. */
+          const _cos=Math.abs(Math.cos(_brot)), _sin=Math.abs(Math.sin(_brot));
+          const _rw=_bw*_cos+_bh*_sin, _rh=_bw*_sin+_bh*_cos;
+          const _cx=_bw/2, _cy=_bh/2;
+          minX=_cx-_rw/2; minY=_cy-_rh/2; maxX=_cx+_rw/2; maxY=_cy+_rh/2;
+        } else { minX=0; minY=0; maxX=_bw; maxY=_bh; }
+      }
       els.forEach(e=>{
         const _es=(e.elSize||72), _iw=(e.type==='image_frame'?(e.imgPx||_es):_es);
         minX=Math.min(minX,e.x-40); minY=Math.min(minY,e.y-40);
@@ -11378,6 +11429,11 @@ const SitePlan = (() => {
       const wx=x=>(x-minX)*SCALE, wy=y=>(y-minY)*SCALE;
       if(bgImg){
         ctx.save(); ctx.globalAlpha=state.bgOpacity/100;
+        const _brot=(state.bgRotation||0)*Math.PI/180;
+        if(_brot){
+          const _cx=wx(bgImg.naturalWidth/2), _cy=wy(bgImg.naturalHeight/2);
+          ctx.translate(_cx,_cy); ctx.rotate(_brot); ctx.translate(-_cx,-_cy);
+        }
         ctx.drawImage(bgImg, wx(0), wy(0), bgImg.naturalWidth*SCALE, bgImg.naturalHeight*SCALE);
         ctx.restore();
       }
@@ -11531,7 +11587,7 @@ const SitePlan = (() => {
     saveSite(); render(); renderInspector();
     setTimeout(function(){ uploadElementIcon(id); },80);
   }
-  return {init,load,getData,loadBg,setBgOpacity,clearBg,clear,zoom,setZoomPct,fitView,resetView,selectCable,exportPng,exportCanvas,exportCanvasSafe,hasContent,setActiveCableType,toggleCableMode,setTextScale,setLegendScale,setCableTextScale,deleteCustomCableType,updateCableType,uploadElementIcon,clearElementIcon,adjImgPx,
+  return {init,load,getData,loadBg,setBgOpacity,setBgRotation,rotateBg,clearBg,clear,zoom,setZoomPct,fitView,resetView,selectCable,exportPng,exportCanvas,exportCanvasSafe,hasContent,setActiveCableType,toggleCableMode,setTextScale,setLegendScale,setCableTextScale,deleteCustomCableType,updateCableType,uploadElementIcon,clearElementIcon,adjImgPx,
     /* Exposés pour le rendu fidèle côté lien partagé (couleur + icône réelles
        de la palette, identiques à _makeCanvas). */
     itemMeta:function(t){var it=findItem(t); return {color:(it&&it.color)||'#5a6a80', icon:(it&&it.icon)||null, label:(it&&it.label)||t};},

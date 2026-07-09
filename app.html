@@ -662,7 +662,13 @@ html.rider-boot #rider-splash{display:flex}
               <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)">
                 <i class="ti ti-sun" style="font-size:11px"></i>
                 <input type="range" id="site-bg-opacity" min="5" max="100" value="100" style="flex:1;accent-color:var(--ora)" oninput="SitePlan.setBgOpacity(this.value)"/>
-                <button onclick="SitePlan.clearBg()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0">&#x2715;</button>
+                <button onclick="SitePlan.clearBg()" title="Retirer l'image de fond" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0">&#x2715;</button>
+              </div>
+              <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);margin-top:5px">
+                <i class="ti ti-rotate" style="font-size:11px"></i>
+                <input type="range" id="site-bg-rotation" min="-180" max="180" value="0" step="1" style="flex:1;accent-color:var(--ora)" oninput="SitePlan.setBgRotation(this.value)"/>
+                <span id="site-bg-rot-val" style="font-family:var(--m);font-size:9px;min-width:30px;text-align:right">0&deg;</span>
+                <button onclick="SitePlan.rotateBg(90)" title="Pivoter de 90&deg;" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0"><i class="ti ti-rotate-clockwise"></i></button>
               </div>
             </div>
           </div>
