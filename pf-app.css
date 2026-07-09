@@ -477,11 +477,11 @@ body{display:flex;flex-direction:column;min-height:100vh}
 
 /* ── PDF.js viewer ── */
 .fich-pdf-loading{display:flex;align-items:center;justify-content:center;gap:10px;padding:60px 20px;color:var(--muted);font-size:13px;flex:1;height:100%}
-.fich-pdf-nav{display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--surf2);border-bottom:1px solid var(--bdr);flex-shrink:0;flex-wrap:wrap}
+.fich-pdf-nav{display:flex;align-items:center;gap:5px;padding:3px 10px;background:var(--surf2);border-bottom:1px solid var(--bdr);flex-shrink:0;flex-wrap:wrap}
 .fich-pdf-pageinfo{font-family:var(--m);font-size:11px;color:var(--txt2);min-width:52px;text-align:center}
 .fich-pdf-nav-sep{flex:1;min-width:6px}
-.fich-pdf-wrap{flex:1;overflow-y:auto;overflow-x:auto;padding:16px;background:#1a1a2e;touch-action:pan-y}
-.fich-pdf-inner{display:flex;flex-direction:column;align-items:center;gap:16px;width:100%;min-width:min-content}
+.fich-pdf-wrap{flex:1;overflow-y:auto;overflow-x:auto;padding:10px;background:#1a1a2e;touch-action:pan-y}
+.fich-pdf-inner{display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;min-width:min-content}
 .fich-pdf-page{position:relative;flex-shrink:0}
 .fich-pdf-canvas{border-radius:4px;box-shadow:0 4px 24px rgba(0,0,0,.6);display:block;position:absolute;top:0;left:0;pointer-events:none}
 .fich-pdf-text{position:absolute;top:0;left:0;overflow:hidden;line-height:1;user-select:text;-webkit-user-select:text}
@@ -502,8 +502,10 @@ body{display:flex;flex-direction:column;min-height:100vh}
 #fich-viewer-content{display:flex;flex-direction:column}
 #fich-viewer-modal{display:none;position:fixed;inset:0;z-index:1200}
 .fich-viewer-ov{position:absolute;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(4px)}
-.fich-viewer-win{position:absolute;top:3%;left:3%;right:3%;bottom:3%;background:var(--surf);border-radius:12px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.8)}
-.fich-viewer-bar{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--bdr);flex-shrink:0;background:var(--surf2);gap:10px}
+/* Fenêtre quasi plein écran : le chrome (marges + barres) doit laisser un
+   maximum de place au document lui-même. */
+.fich-viewer-win{position:absolute;top:10px;left:10px;right:10px;bottom:10px;background:var(--surf);border-radius:10px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.8)}
+.fich-viewer-bar{display:flex;align-items:center;justify-content:space-between;padding:4px 10px;border-bottom:1px solid var(--bdr);flex-shrink:0;background:var(--surf2);gap:10px}
 .fich-viewer-title{font-size:12px;font-weight:600;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
 #fich-viewer-content{flex:1;overflow:auto;min-height:0;background:#08080f}
 #fich-viewer-content video{width:100%;height:100%;display:block;object-fit:contain;background:#000}
