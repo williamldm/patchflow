@@ -14229,6 +14229,11 @@ async function _openPdfJs(url, container){
       textDiv.style.width  = vVp.width  + 'px';
       textDiv.style.height = vVp.height + 'px';
       textDiv.style.zIndex = '2';
+      /* pdf.js ≥3 dimensionne le calque texte et les polices via la variable
+         CSS --scale-factor (width:round(var(--scale-factor)*Wpt,1px), etc.).
+         Sans elle, le calque s'effondre à 0×0 → le texte n'est plus cliquable
+         (donc pas sélectionnable à la souris). On la fixe à l'échelle CSS. */
+      textDiv.style.setProperty('--scale-factor', cssScale);
       try {
         if(typeof pdfjs.renderTextLayer === 'function'){
           const rt = pdfjs.renderTextLayer({
