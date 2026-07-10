@@ -3,6 +3,7 @@
 
 # Unignore project files
 !.gitignore
+!.htaccess
 !app.html
 !rider.html
 !pf-app.js
