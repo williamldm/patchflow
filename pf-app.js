@@ -5573,8 +5573,10 @@ function _buildPdfRecapBlock(rows,accentColor){
   +'</div>';
 }
 
-async function doPDF(){
+async function doPDF(toFiles){
   const type = _pdfExportType;
+  /* Cible : téléchargement (défaut) ou enregistrement dans Fichiers (Pro). */
+  _pdfSaveToFiles = !!toFiles;
   const $v = id => (document.getElementById(id)?.value||'').trim();
   const brand = _pdfBrand();
 
@@ -5677,15 +5679,18 @@ async function doPDF(){
     : type==='both' ? _slBase+'&sections=il,out'
     :                 _slBase+'&tab=il';
   const _accentColor = brand.color||'#ff6b1a';
-  const recapHtml = _inclRecap ? _buildPdfRecapBlock(CHS, _accentColor) : '';
   meta.shareLink = _shareUrl;
-  meta.recapHtml = recapHtml;
-  const html = type==='both' ? _buildPdfBothHTML(meta,brand)
-             : type==='out'  ? _buildPdfOutHTML(meta,brand)
-             :                 _buildPdfInHTML(meta,brand);
-  const w = window.open('','_blank','width=1100,height=750');
-  if(!w){alert('Autorisez les popups');return;}
-  w.document.write(html); w.document.close();
+  /* Export vectoriel propre (vrai fichier PDF) — remplace l'ancienne impression
+     navigateur. Sert au téléchargement comme à l'enregistrement dans Fichiers. */
+  await _openTablePdf(type, meta, brand, _shareUrl);
+}
+
+/* Enregistrement direct du PDF dans la section Fichiers (Pro) — même modal,
+   même contenu, mais le PDF est stocké dans le cloud du show au lieu d'être
+   téléchargé. */
+function doPDFToFiles(){
+  if(!canDo('storage')){ showUpgradeModal('storage'); return; }
+  doPDF(true);
 }
 
 /* Shared visual PDF (stage / site) — full-page landscape image */
@@ -5939,8 +5944,7 @@ async function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand, opts){
     }
 
     const slug=function(s){return String(s||'').replace(/[^a-z0-9]/gi,'-').replace(/-+/g,'-').toLowerCase().replace(/^-|-$/g,'');};
-    doc.save((slug(title)||'plan')+'-'+(slug(docType)||'document')+'.pdf');
-    toast('✓ PDF téléchargé');
+    await _pdfDeliver(doc, (slug(title)||'plan')+'-'+(slug(docType)||'document')+'.pdf');
   } catch(e){
     console.error('_openVisualPdf:',e);
     toast('Erreur PDF : '+(e&&e.message||e));
@@ -5963,6 +5967,208 @@ function _openSynoPdf(meta, synHtml, shareUrl, brand){
   /* On passe le SVG STRING directement (pas un data URI) au visual PDF.
      _openVisualPdf détecte le préfixe '<svg' et l'inline dans la page. */
   _openVisualPdf('Synoptique', meta, ex.svg, shareUrl, brand, {bigPlan:true, inlineSvg:true, orientation:_pdfOrient});
+}
+
+// ══════════════════════════════════════════════════════════════════
+// EXPORT PDF — cible (téléchargement vs Fichiers) + tableaux vectoriels
+// ══════════════════════════════════════════════════════════════════
+/* Cible de l'export : false = téléchargement (défaut), true = Fichiers cloud.
+   Lu au moment de la remise du PDF (_pdfDeliver), donc positionné en amont
+   par doPDF() et jamais réinitialisé de façon synchrone (les générateurs sont
+   asynchrones). */
+var _pdfSaveToFiles=false;
+function _pdfSlug(s){return String(s||'').replace(/[^a-z0-9]/gi,'-').replace(/-+/g,'-').toLowerCase().replace(/^-|-$/g,'');}
+
+/* Remet le PDF fini : téléchargement navigateur OU enregistrement direct dans
+   la section Fichiers (via _uploadFichiers → quota, doublon, upload B2, sync,
+   rafraîchissement de la liste). */
+async function _pdfDeliver(doc, filename){
+  if(_pdfSaveToFiles){
+    if(!canDo('storage')){ showUpgradeModal('storage'); return; }
+    try{
+      var blob=doc.output('blob');
+      var file=new File([blob], filename, {type:'application/pdf'});
+      await _uploadFichiers([file]);
+    }catch(e){ toast('Erreur enregistrement dans Fichiers : '+(e&&e.message||e)); console.error('_pdfDeliver:',e); }
+  } else {
+    doc.save(filename);
+    toast('✓ PDF téléchargé');
+  }
+}
+
+/* Charge jsPDF puis le plugin autotable (tableaux paginés propres). */
+const _AUTOTABLE_CDN='https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js';
+function _loadAutoTable(){
+  return _bpLoadJsPDF().then(function(JsPDF){
+    if(JsPDF.API && typeof JsPDF.API.autoTable==='function') return JsPDF;
+    return new Promise(function(resolve,reject){
+      var s=document.createElement('script');
+      s.src=_AUTOTABLE_CDN;
+      s.onload=function(){ resolve(window.jspdf.jsPDF); };
+      s.onerror=function(){ reject(new Error('jspdf-autotable indisponible')); };
+      document.head.appendChild(s);
+    });
+  });
+}
+
+/* Colonnes Input List retenues pour le PDF (mêmes que la vue, filtrées par
+   la visibilité choisie). */
+function _ilColsForPdf(){
+  return [{id:'short',label:'Court'},{id:'long',label:'Nom Long'},{id:'src',label:'Source'},{id:'mic',label:'Micro/DI'},{id:'gain',label:'Gain'},{id:'phantom',label:'+48V'},{id:'iem',label:'IEM'},{id:'hf',label:'Fréq. HF'},{id:'foh',label:'FOH'},{id:'mon',label:'MON'},{id:'bc',label:'BC'},{id:'note',label:'Pied micro'}].filter(function(c){return visCol.has(c.id);});
+}
+
+/* Génère un vrai PDF vectoriel des listes (Input / Output / Les deux) — texte
+   net et sélectionnable, pagination correcte. Remplace l'ancien export par
+   impression navigateur, et sert aussi à l'enregistrement dans Fichiers. */
+async function _openTablePdf(type, meta, brand, shareUrl){
+  toast('Génération PDF…');
+  try{
+    var JsPDF=await _loadAutoTable();
+    var doc=new JsPDF({orientation:'landscape', unit:'mm', format:'a4'});
+    var PW=doc.internal.pageSize.getWidth(), PH=doc.internal.pageSize.getHeight();
+    var accent=_hex2rgb(brand.color||'#ff6b1a');
+    var M=12;
+    var now=new Date().toLocaleString('fr-FR');
+    var showName=(CUR_SHOW&&CUR_SHOW.name)||'Show';
+
+    /* Filigrane diagonal pour les comptes gratuits (sur chaque page) */
+    function _wm(){
+      if(!brand.watermark) return;
+      try{ if(doc.setGState) doc.setGState(new doc.GState({opacity:0.06})); }catch(e){}
+      doc.setTextColor(60,70,90); doc.setFont('helvetica','bold'); doc.setFontSize(46);
+      doc.text('PATCHFLOW · GRATUIT', PW/2, PH/2, {align:'center', angle:24});
+      try{ if(doc.setGState) doc.setGState(new doc.GState({opacity:1})); }catch(e){}
+    }
+
+    /* En-tête (page 1) */
+    var _pfLogo=null; try{ _pfLogo=await _pfLogoPng('#FF6B2B'); }catch(e){}
+    var y=M;
+    var titleX=M;
+    if(_pfLogo){ try{ doc.addImage(_pfLogo,'PNG',M,y,9,9); titleX=M+12; }catch(e){} }
+    doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(26,26,46);
+    doc.text(showName, titleX, y+6);
+    var docLabel=type==='out'?'OUTPUT LIST':type==='both'?'INPUT + OUTPUT LIST':'INPUT LIST';
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(accent[0],accent[1],accent[2]);
+    doc.text(docLabel, PW-M, y+3.5, {align:'right'});
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(110,110,110);
+    doc.text((meta.rev?('Rév. '+meta.rev+'   '):'')+now, PW-M, y+8, {align:'right'});
+    y+=11;
+    doc.setDrawColor(accent[0],accent[1],accent[2]); doc.setLineWidth(0.8); doc.line(M,y,PW-M,y);
+    y+=4;
+    var metaParts=[];
+    var engLine=[meta.eng,meta.role].filter(Boolean).join(' — ');
+    if(engLine) metaParts.push(['Ingénieur',engLine]);
+    if(meta.co) metaParts.push(['Société',meta.co]);
+    var venue=(CUR_SHOW&&CUR_SHOW.venue)||meta.venue; if(venue) metaParts.push(['Venue',venue]);
+    if(meta.date) metaParts.push(['Date',meta.date]);
+    if(meta.tel) metaParts.push(['Contact',meta.tel]);
+    if(metaParts.length){
+      var mx=M;
+      metaParts.forEach(function(p){
+        doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(150,150,150);
+        doc.text(p[0].toUpperCase(), mx, y);
+        var lblW=doc.getTextWidth(p[0].toUpperCase());
+        doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(60,60,80);
+        var val=' '+p[1];
+        doc.text(val, mx+lblW, y);
+        mx += lblW+doc.getTextWidth(val)+7;
+      });
+      y+=5;
+    }
+    var startY=y+1;
+
+    function drawInput(sy){
+      var cols=_ilColsForPdf();
+      var fm={short:'short_name',long:'long_name',src:'source',mic:'mic',gain:'gain',phantom:'phantom',iem:'iem_group',foh:'foh',mon:'mon',bc:'bc',note:'note'};
+      var head=[['CH'].concat(cols.map(function(c){return c.label;}))];
+      var body=CHS.map(function(r){
+        var row=[String(r.ch)];
+        cols.forEach(function(c){
+          var v;
+          if(c.id==='hf') v=(r.custom_data&&r.custom_data._hf)||'';
+          else v=r[fm[c.id]];
+          if(c.id==='phantom') v=v?'+48V':'';
+          else if(c.id==='foh'||c.id==='mon'||c.id==='bc') v=v?'X':'';
+          else if(c.id==='gain') v=(v||0)+' dB';
+          else v=(v==null?'':String(v));
+          row.push(v);
+        });
+        return row;
+      });
+      doc.autoTable({head:head,body:body,startY:sy,margin:{left:M,right:M,top:M},theme:'grid',
+        styles:{fontSize:7.5,cellPadding:1.4,lineColor:[236,232,225],lineWidth:0.1,textColor:[45,45,55],font:'helvetica'},
+        headStyles:{fillColor:accent,textColor:[255,255,255],fontSize:7,fontStyle:'bold'},
+        columnStyles:{0:{halign:'center',fontStyle:'bold',textColor:accent,cellWidth:9}},
+        alternateRowStyles:{fillColor:[253,248,244]},
+        didDrawPage:_wm});
+      var fy=doc.lastAutoTable.finalY;
+      doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(90,90,110);
+      doc.text('Total '+CHS.length+' canaux    +48V '+CHS.filter(function(r){return r.phantom;}).length+'    FOH '+CHS.filter(function(r){return r.foh;}).length+'    MON '+CHS.filter(function(r){return r.mon;}).length+'    IEM '+CHS.filter(function(r){return r.iem_group;}).length, M, fy+4.5);
+      return fy+6;
+    }
+    function drawOutput(sy){
+      var head=[['CH','Court','Nom Long','Type','Destination','Note']];
+      var body=OUT_CHS.map(function(r){
+        var t=(OUT_TYPES[r.type]||OUT_TYPES.other);
+        return [String(r.ch),(r.short_name||'').trim(),(r.long_name||''),(t&&t.label)||r.type||'',(r.dest||''),(r.note||'')];
+      });
+      doc.autoTable({head:head,body:body,startY:sy,margin:{left:M,right:M,top:M},theme:'grid',
+        styles:{fontSize:8,cellPadding:1.5,lineColor:[236,232,225],lineWidth:0.1,textColor:[45,45,55],font:'helvetica'},
+        headStyles:{fillColor:accent,textColor:[255,255,255],fontSize:7,fontStyle:'bold'},
+        columnStyles:{0:{halign:'center',fontStyle:'bold',textColor:accent,cellWidth:9}},
+        alternateRowStyles:{fillColor:[253,248,244]},
+        didDrawPage:_wm});
+      var fy=doc.lastAutoTable.finalY;
+      doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(90,90,110);
+      doc.text('Total '+OUT_CHS.length+' sorties', M, fy+4.5);
+      return fy+6;
+    }
+
+    var fy=startY;
+    if(type==='in'){ fy=drawInput(startY); }
+    else if(type==='out'){ fy=drawOutput(startY); }
+    else {
+      fy=drawInput(startY);
+      if(fy>PH-34){ doc.addPage(); fy=M; } else { fy+=4; }
+      doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(accent[0],accent[1],accent[2]);
+      doc.text('OUTPUT LIST', M, fy+2); fy+=4;
+      fy=drawOutput(fy);
+    }
+
+    /* Bloc QR + lien à jour */
+    if(shareUrl){
+      var footY=fy+3;
+      if(footY>PH-20){ doc.addPage(); footY=M+2; }
+      doc.setDrawColor(26,143,255); doc.setLineWidth(0.5); doc.line(M,footY,PW-M,footY);
+      footY+=3;
+      var qr=null;
+      try{ qr=await _loadImgDataUrl('https://api.qrserver.com/v1/create-qr-code/?size=140x140&margin=0&data='+encodeURIComponent(shareUrl)); }catch(e){}
+      var tx=M;
+      if(qr&&qr.dataUrl){ try{ doc.addImage(qr.dataUrl,'PNG',M,footY,13,13); tx=M+16; }catch(e){} }
+      doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(26,143,255);
+      doc.text('FICHE À JOUR EN LIGNE', tx, footY+3);
+      doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(26,79,255);
+      var lnk=String(shareUrl).slice(0,105);
+      if(doc.textWithLink){ doc.textWithLink(lnk, tx, footY+7, {url:shareUrl}); } else { doc.text(lnk, tx, footY+7); }
+      doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(120,130,145);
+      doc.text('Scannez le QR code ou ouvrez le lien pour retrouver cette fiche à jour à tout moment.', tx, footY+10.5);
+    }
+
+    /* Pied de page (marque + pagination) sur toutes les pages */
+    var pageCount=doc.internal.getNumberOfPages();
+    for(var pi=1;pi<=pageCount;pi++){
+      doc.setPage(pi);
+      doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(170,170,180);
+      doc.text((brand.co||'PATCHFLOW')+' · '+(brand.site||'patchflow.fr'), M, PH-5);
+      doc.text('Page '+pi+' / '+pageCount, PW-M, PH-5, {align:'right'});
+    }
+
+    var fname=(_pdfSlug(showName)||'patchflow')+'-'+(type==='out'?'output-list':type==='both'?'input-output-list':'input-list')+'.pdf';
+    await _pdfDeliver(doc, fname);
+  }catch(e){
+    console.error('_openTablePdf:',e);
+    toast('Erreur PDF : '+(e&&e.message||e));
+  }
 }
 
 // ══════════════════════════════════════

@@ -45,7 +45,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=3.3">
+<link rel="stylesheet" href="pf-app.css?v=3.4">
 </head>
 <body>
 
@@ -1094,10 +1094,10 @@ html.rider-boot #rider-splash{display:flex}
           <span style="font-family:var(--m);font-size:8px;font-weight:700;padding:1px 5px;border-radius:8px;background:var(--ora-d);color:var(--ora);border:1px solid var(--ora-g);margin-left:2px">Pro</span>
         </label>
       </div>
-      <div style="display:flex;align-items:center;gap:7px;margin-left:auto">
-        <span style="font-size:10px;color:var(--muted);font-family:var(--m)"><i class="ti ti-info-circle" style="font-size:11px;margin-right:3px"></i>Imprimer → Enregistrer PDF</span>
+      <div style="display:flex;align-items:center;gap:7px;margin-left:auto;flex-wrap:wrap">
         <button class="btn ghost sm" onclick="closePDF()">Annuler</button>
-        <button class="btn" onclick="doPDF()"><i class="ti ti-file-type-pdf"></i>Générer</button>
+        <button class="btn ghost sm" id="pdf-to-files-btn" onclick="doPDFToFiles()" title="Enregistrer le PDF directement dans les Fichiers du show"><i class="ti ti-cloud-upload"></i>Vers Fichiers <span style="font-family:var(--m);font-size:8px;font-weight:700;padding:1px 5px;border-radius:8px;background:var(--ora-d);color:var(--ora);border:1px solid var(--ora-g);margin-left:2px">Pro</span></button>
+        <button class="btn" onclick="doPDF()"><i class="ti ti-download"></i>Télécharger</button>
       </div>
     </div>
   </div>
@@ -1561,7 +1561,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Supabase SDK : chargé juste avant le script principal qui l'utilise, plutôt
      qu'en <head>, pour ne pas bloquer le premier rendu (splash rider instantané). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="pf-app.js?v=3.3"></script>
+<script src="pf-app.js?v=3.4"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
   <div class="mob-plan-bar">
