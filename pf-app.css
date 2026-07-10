@@ -588,6 +588,7 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .sp-ctx-menu .sp-exp-item[data-act="del"]:hover{background:rgba(255,77,106,.12)}
 .sp-ctx-menu .sp-exp-item[data-act="del"]:hover i{color:var(--err)}
 .sp-exp-sep,.exp-sep{height:1px;background:var(--bdr2);margin:4px 0}
+.exp-pro{margin-left:auto;font-family:var(--m);font-size:8px;font-weight:700;padding:1px 5px;border-radius:8px;background:var(--ora-d);color:var(--ora);border:1px solid var(--ora-g)}
 .exp-wrap{position:relative;display:inline-block}
 
 .sp-body{display:grid;grid-template-columns:200px 1fr 240px;gap:10px;flex:1;min-height:0;overflow:hidden;align-items:stretch}

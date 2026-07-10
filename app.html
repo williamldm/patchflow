@@ -45,7 +45,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=3.4">
+<link rel="stylesheet" href="pf-app.css?v=3.5">
 </head>
 <body>
 
@@ -273,9 +273,11 @@ html.rider-boot #rider-splash{display:flex}
             <div class="exp-menu" id="il-exp-menu">
               <button class="exp-item" onclick="exportCSV();closeExpMenu('il-exp-menu')"><i class="ti ti-file-type-csv"></i>Input List CSV</button>
               <button class="exp-item" onclick="openPDFModal('in');closeExpMenu('il-exp-menu')"><i class="ti ti-file-type-pdf"></i>Input List PDF</button>
+              <button class="exp-item" onclick="quickPdfToFiles('in');closeExpMenu('il-exp-menu')"><i class="ti ti-cloud-upload"></i>Input List → Fichiers<span class="exp-pro">Pro</span></button>
               <div class="exp-sep"></div>
               <button class="exp-item" onclick="exportOutCSV();closeExpMenu('il-exp-menu')"><i class="ti ti-file-type-csv"></i>Output List CSV</button>
               <button class="exp-item" onclick="openPDFModal('out');closeExpMenu('il-exp-menu')"><i class="ti ti-file-type-pdf"></i>Output List PDF</button>
+              <button class="exp-item" onclick="quickPdfToFiles('out');closeExpMenu('il-exp-menu')"><i class="ti ti-cloud-upload"></i>Output List → Fichiers<span class="exp-pro">Pro</span></button>
               <div class="exp-sep"></div>
               <button class="exp-item" onclick="openRecapMatos();closeExpMenu('il-exp-menu')"><i class="ti ti-clipboard-list"></i>Recap matériels</button>
               <button class="exp-item" onclick="openPrep();closeExpMenu('il-exp-menu')"><i class="ti ti-checklist"></i>Bon de préparation</button>
@@ -448,6 +450,7 @@ html.rider-boot #rider-splash{display:flex}
             <div class="sp-export-menu" id="sp-export-menu">
               <button class="sp-exp-item" data-fmt="png"><i class="ti ti-photo"></i>Image PNG</button>
               <button class="sp-exp-item" data-fmt="pdf"><i class="ti ti-file-type-pdf"></i>Document PDF</button>
+              <button class="sp-exp-item" data-fmt="pdffiles"><i class="ti ti-cloud-upload"></i>PDF → Fichiers<span class="exp-pro">Pro</span></button>
               <button class="sp-exp-item" data-fmt="svg"><i class="ti ti-vector"></i>Vectoriel SVG</button>
               <div class="sp-exp-sep"></div>
               <button class="sp-exp-item" data-fmt="print"><i class="ti ti-printer"></i>Imprimer</button>
@@ -557,6 +560,7 @@ html.rider-boot #rider-splash{display:flex}
             <div class="exp-menu" id="plan-exp-menu">
               <button class="exp-item" id="plan-exp-png" onclick="_planExpPng();closeExpMenu('plan-exp-menu')"><i class="ti ti-photo"></i>Image PNG</button>
               <button class="exp-item" id="plan-exp-pdf" onclick="_planExpPdf();closeExpMenu('plan-exp-menu')"><i class="ti ti-file-type-pdf"></i>Document PDF</button>
+              <button class="exp-item" onclick="_planExpPdfToFiles();closeExpMenu('plan-exp-menu')"><i class="ti ti-cloud-upload"></i>PDF → Fichiers<span class="exp-pro">Pro</span></button>
               <div class="exp-sep"></div>
               <button class="exp-item" id="plan-exp-share" onclick="_planExpShare();closeExpMenu('plan-exp-menu')"><i class="ti ti-link"></i>Lien de partage</button>
               <div class="exp-sep"></div>
@@ -1096,7 +1100,6 @@ html.rider-boot #rider-splash{display:flex}
       </div>
       <div style="display:flex;align-items:center;gap:7px;margin-left:auto;flex-wrap:wrap">
         <button class="btn ghost sm" onclick="closePDF()">Annuler</button>
-        <button class="btn ghost sm" id="pdf-to-files-btn" onclick="doPDFToFiles()" title="Enregistrer le PDF directement dans les Fichiers du show"><i class="ti ti-cloud-upload"></i>Vers Fichiers <span style="font-family:var(--m);font-size:8px;font-weight:700;padding:1px 5px;border-radius:8px;background:var(--ora-d);color:var(--ora);border:1px solid var(--ora-g);margin-left:2px">Pro</span></button>
         <button class="btn" onclick="doPDF()"><i class="ti ti-download"></i>Télécharger</button>
       </div>
     </div>
@@ -1561,7 +1564,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Supabase SDK : chargé juste avant le script principal qui l'utilise, plutôt
      qu'en <head>, pour ne pas bloquer le premier rendu (splash rider instantané). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="pf-app.js?v=3.4"></script>
+<script src="pf-app.js?v=3.5"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
   <div class="mob-plan-bar">

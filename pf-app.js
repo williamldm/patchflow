@@ -5685,12 +5685,17 @@ async function doPDF(toFiles){
   await _openTablePdf(type, meta, brand, _shareUrl);
 }
 
-/* Enregistrement direct du PDF dans la section Fichiers (Pro) — même modal,
-   même contenu, mais le PDF est stocké dans le cloud du show au lieu d'être
-   téléchargé. */
-function doPDFToFiles(){
+/* Export rapide en PDF directement dans la section Fichiers (Pro), depuis le
+   menu Exporter de chaque module — sans passer par le modal. Réutilise les
+   valeurs par défaut (profil/marque) déjà pré-remplies au démarrage. */
+function quickPdfToFiles(type){
   if(!canDo('storage')){ showUpgradeModal('storage'); return; }
+  _pdfExportType = type;
   doPDF(true);
+}
+/* Variante « → Fichiers » pour le plan (scène ou site selon le mode courant) */
+function _planExpPdfToFiles(){
+  quickPdfToFiles((typeof PLAN_MODE!=='undefined' && PLAN_MODE==='site') ? 'site' : 'stage');
 }
 
 /* Shared visual PDF (stage / site) — full-page landscape image */
@@ -7976,6 +7981,7 @@ const SynPro = (() => {
           if (fmt === 'png')   _exportPng();
           if (fmt === 'svg')   _exportSvg();
           if (fmt === 'pdf')   _openPdfMetaModal();
+          if (fmt === 'pdffiles' && typeof quickPdfToFiles==='function') quickPdfToFiles('syno');
           if (fmt === 'print') _print();
         });
       });
