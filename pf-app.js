@@ -13197,6 +13197,18 @@ function _iconImgInspHtml(objId, hasImg, thumbSrc, uploadFn, clearFn){
    sur connexion lente en évitant de re-appeler la edge function pour
    les mêmes fichiers (lignes par lignes dans une grille, navigation...). */
 const _signedUrlCache = new Map();
+/* Invalide TOUTES les URL signées d'un chemin (vue ET téléchargement) après un
+   remplacement/renommage : la clé de vue est `path`, celle de téléchargement
+   est `path dl:<nom>`. Sans ça, un lien de téléchargement en cache continuait
+   de pointer sur l'ancienne version (et le navigateur pouvait servir sa copie
+   HTTP en cache). Régénérer une URL signée fraîche = nouveau fetch. */
+function _invalidateSignedUrls(path){
+  if(!path) return;
+  const pref = path + ' dl:';
+  for(const k of Array.from(_signedUrlCache.keys())){
+    if(k === path || k.indexOf(pref) === 0) _signedUrlCache.delete(k);
+  }
+}
 
 /* ── B2Storage : drop-in replacement for B2Storage ──
    All file operations are proxied through the Supabase Edge Function
@@ -13601,7 +13613,15 @@ async function _backfillRows(b2Files, prefix, folderRel) {
 /* Réconcilie le dossier courant avec B2 : ajoute dans show_files les
    dossiers/fichiers présents en B2 mais absents de Supabase, et re-render
    si du nouveau contenu apparaît. Tourne en arrière-plan (non bloquant). */
+const _reconcileAt = new Map(); // prefix B2 -> dernier passage (ms)
 async function _reconcileFolderWithB2(prefix, folderRel) {
+  /* Optimisation : la réconciliation ne sert qu'à rattraper des fichiers
+     ajoutés HORS de cet appareil (nos propres uploads/remplacements/suppressions
+     mettent déjà show_files à jour et re-render). Inutile de rappeler B2 à
+     chaque navigation → on throttle par dossier. */
+  const last = _reconcileAt.get(prefix) || 0;
+  if (Date.now() - last < 12000) return;
+  _reconcileAt.set(prefix, Date.now());
   try {
     const { data: b2Data } = await B2Storage.listB2Raw(prefix);
     if (!b2Data) return;
@@ -13612,8 +13632,12 @@ async function _reconcileFolderWithB2(prefix, folderRel) {
     const known = new Set(SHOW_FILES.map(f => f.name));
     const missing = b2Files.filter(f => !known.has(f.name));
     if (!missing.length) return;
-    // Backfill puis recharger l'affichage depuis Supabase
-    await _backfillRows(b2Files, prefix, folderRel);
+    // Backfill UNIQUEMENT les fichiers manquants. NE PAS ré-upserter les
+    // fichiers déjà connus : leurs métadonnées dans show_files (taille, type,
+    // date) font autorité et sont à jour, alors que la liste B2 est à
+    // consistance différée → réécraser avec du B2 périmé ferait « revenir en
+    // arrière » une mise à jour/un remplacement récent.
+    await _backfillRows(missing, prefix, folderRel);
     // Vérifier qu'on est toujours sur le même dossier avant de re-render
     const stillHere = (CUR_SHOW.id + '/' + (_fichPathStr())) === prefix;
     if (stillHere) {
@@ -14109,7 +14133,7 @@ async function _uploadFichiers(files) {
     _storageCache = null;
     if (isReplace) {
       replaced++;
-      _signedUrlCache.delete(uploadPath); // l'aperçu doit refléter la nouvelle version
+      _invalidateSignedUrls(uploadPath); // l'aperçu ET le téléchargement doivent refléter la nouvelle version
       /* Met à jour la ligne : taille, type, date, et retire la vérification
          (c'est une nouvelle version, à re-vérifier). */
       await sb.from('show_files').update({
@@ -14119,7 +14143,10 @@ async function _uploadFichiers(files) {
       }).eq('show_id', CUR_SHOW.id).eq('path', uploadPath).then(() => {}, () => {});
       B2Storage.purgeOldVersions(uploadPath).catch(() => {}); // purge l'ancienne version B2
     } else {
-      _sfUpsertFile(uploadPath, file).catch(() => {}); // sync Supabase, non bloquant
+      /* Attendu : le loadFichiers() final doit voir la ligne pour afficher le
+         nouveau fichier de façon fiable (sinon on dépendait de la
+         réconciliation B2, à consistance différée). */
+      await _sfUpsertFile(uploadPath, file).catch(() => {});
     }
   }
   if (status) status.style.display = 'none';
@@ -14155,7 +14182,7 @@ async function _doReplaceFichier(file) {
   if (status) status.style.display = 'none';
   if (error) { toast('Erreur remplacement : ' + error.message); return; }
   _storageCache = null;
-  _signedUrlCache.delete(fullPath);
+  _invalidateSignedUrls(fullPath);
   await sb.from('show_files').update({
     size: file.size || 0, content_type: file.type || '',
     created_at: new Date().toISOString(),
