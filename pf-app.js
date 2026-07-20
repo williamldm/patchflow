@@ -6158,36 +6158,41 @@ async function _openTablePdf(type, meta, brand, shareUrl){
         var m=(r.mic||'').trim(); if(m) mics[m]=(mics[m]||0)+1;
         var s=(r.note||'').trim(); if(s) stands[s]=(stands[s]||0)+1;
       });
-      var micEntries=Object.keys(mics).sort(function(a,b){return mics[b]-mics[a];});
-      var standEntries=Object.keys(stands).sort(function(a,b){return stands[b]-stands[a];});
+      var micEntries=Object.keys(mics).sort(function(a,b){return mics[b]-mics[a]||a.localeCompare(b);});
+      var standEntries=Object.keys(stands).sort(function(a,b){return stands[b]-stands[a]||a.localeCompare(b);});
       if(!micEntries.length && !standEntries.length) return sy;
-      if(sy>PH-40){ doc.addPage(); sy=M; }
+      /* Réserver la place du titre + au moins l'en-tête d'un tableau */
+      if(sy>PH-46){ doc.addPage(); sy=M; }
+      sy+=4;
       doc.setDrawColor(accent[0],accent[1],accent[2]); doc.setLineWidth(0.6); doc.line(M,sy,PW-M,sy);
       sy+=5;
-      doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(accent[0],accent[1],accent[2]);
-      doc.text('RÉCAPITULATIF MATÉRIELS', M, sy);
-      sy+=4;
-      var gap=6, halfW=(PW-2*M-gap)/2;
+      doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(26,26,46);
+      doc.text('Récapitulatif matériels', M, sy);
+      doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(140,140,155);
+      doc.text('Décompte par modèle — à préparer', M, sy+3.8);
+      sy+=7;
+
+      var gap=8, halfW=(PW-2*M-gap)/2;
       var totalMics=micEntries.reduce(function(s,k){return s+mics[k];},0);
       var totalStands=standEntries.reduce(function(s,k){return s+stands[k];},0);
-      doc.setFont('helvetica','bold'); doc.setFontSize(6.5); doc.setTextColor(120,120,135);
-      doc.text('MICROS & DI ('+totalMics+')', M, sy+2);
-      doc.text('PIEDS DE MICRO ('+totalStands+')', M+halfW+gap, sy+2);
-      var tableY=sy+4;
-      doc.autoTable({
-        body: micEntries.length ? micEntries.map(function(k){return [k, String(mics[k])];}) : [['Aucun','']],
-        startY: tableY, margin:{left:M}, tableWidth: halfW, theme:'plain',
-        styles:{fontSize:7.5,cellPadding:1,textColor:[45,45,55]},
-        columnStyles:{1:{halign:'right',fontStyle:'bold',textColor:accent,cellWidth:14}},
-      });
-      var fyLeft=doc.lastAutoTable.finalY;
-      doc.autoTable({
-        body: standEntries.length ? standEntries.map(function(k){return [k, String(stands[k])];}) : [['Aucun','']],
-        startY: tableY, margin:{left:M+halfW+gap}, tableWidth: halfW, theme:'plain',
-        styles:{fontSize:7.5,cellPadding:1,textColor:[45,45,55]},
-        columnStyles:{1:{halign:'right',fontStyle:'bold',textColor:accent,cellWidth:14}},
-      });
-      var fyRight=doc.lastAutoTable.finalY;
+      /* Style commun des deux mini-tableaux : en-tête coloré + colonne Qté
+         centrée en gras + lignes alternées + ligne Total en pied. */
+      function recapTable(title, entries, counts, total, leftX){
+        doc.autoTable({
+          head: [[title, 'Qté']],
+          body: entries.length ? entries.map(function(k){return [k, String(counts[k])];}) : [['—','0']],
+          foot: [['Total', String(total)]],
+          startY: sy, margin:{left:leftX}, tableWidth: halfW, theme:'grid',
+          styles:{fontSize:8, cellPadding:1.7, lineColor:[228,224,217], lineWidth:0.1, textColor:[45,45,55], font:'helvetica', valign:'middle'},
+          headStyles:{fillColor:accent, textColor:[255,255,255], fontSize:7.5, fontStyle:'bold'},
+          footStyles:{fillColor:[248,244,239], textColor:accent, fontStyle:'bold', fontSize:8, lineColor:[228,224,217], lineWidth:0.1},
+          alternateRowStyles:{fillColor:[252,250,247]},
+          columnStyles:{1:{halign:'center', fontStyle:'bold', textColor:accent, cellWidth:14}},
+        });
+        return doc.lastAutoTable.finalY;
+      }
+      var fyLeft  = recapTable('Micros & DI',     micEntries,   mics,   totalMics,   M);
+      var fyRight = recapTable('Pieds de micro',  standEntries, stands, totalStands, M+halfW+gap);
       return Math.max(fyLeft,fyRight)+4;
     }
 
