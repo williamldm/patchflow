@@ -45,7 +45,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=3.7">
+<link rel="stylesheet" href="pf-app.css?v=3.8">
 </head>
 <body>
 
@@ -1564,7 +1564,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Supabase SDK : chargé juste avant le script principal qui l'utilise, plutôt
      qu'en <head>, pour ne pas bloquer le premier rendu (splash rider instantané). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="pf-app.js?v=3.7"></script>
+<script src="pf-app.js?v=3.8"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
   <div class="mob-plan-bar">

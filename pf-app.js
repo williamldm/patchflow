@@ -6035,6 +6035,15 @@ async function _openTablePdf(type, meta, brand, shareUrl){
     var M=12;
     var now=new Date().toLocaleString('fr-FR');
     var showName=(CUR_SHOW&&CUR_SHOW.name)||'Show';
+    /* Titre du document : le patch actif (ex. "Patch A — Festival") plutôt
+       que le nom du show/session, mais UNIQUEMENT si plusieurs patches
+       existent (usage réel du multi-patch A/B/festival) — avec un seul patch
+       par défaut ("Patch 1"), ce nom n'apporte rien et le show reste le
+       titre le plus utile. Le nom du show est gardé en sous-titre quand le
+       titre du patch est utilisé, pour ne pas perdre le contexte. */
+    var hasMultiPatch=(typeof IL_PATCHES!=='undefined' && IL_PATCHES.length>1);
+    var patchName=hasMultiPatch ? (IL_PATCHES.find(function(p){return p.id===CUR_PATCH_ID;})?.name || showName) : showName;
+    var docTitle=patchName, docSubtitle=hasMultiPatch?showName:'';
 
     /* Filigrane diagonal pour les comptes gratuits (sur chaque page) */
     function _wm(){
@@ -6051,13 +6060,17 @@ async function _openTablePdf(type, meta, brand, shareUrl){
     var titleX=M;
     if(_pfLogo){ try{ doc.addImage(_pfLogo,'PNG',M,y,9,9); titleX=M+12; }catch(e){} }
     doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(26,26,46);
-    doc.text(showName, titleX, y+6);
+    doc.text(docTitle, titleX, y+6);
+    if(docSubtitle){
+      doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(130,130,145);
+      doc.text(docSubtitle, titleX, y+10.5);
+    }
     var docLabel=type==='out'?'OUTPUT LIST':type==='both'?'INPUT + OUTPUT LIST':'INPUT LIST';
     doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(accent[0],accent[1],accent[2]);
     doc.text(docLabel, PW-M, y+3.5, {align:'right'});
     doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(110,110,110);
     doc.text((meta.rev?('Rév. '+meta.rev+'   '):'')+now, PW-M, y+8, {align:'right'});
-    y+=11;
+    y += docSubtitle ? 13 : 11;
     doc.setDrawColor(accent[0],accent[1],accent[2]); doc.setLineWidth(0.8); doc.line(M,y,PW-M,y);
     y+=4;
     var metaParts=[];
@@ -6168,7 +6181,8 @@ async function _openTablePdf(type, meta, brand, shareUrl){
       doc.text('Page '+pi+' / '+pageCount, PW-M, PH-5, {align:'right'});
     }
 
-    var fname=(_pdfSlug(showName)||'patchflow')+'-'+(type==='out'?'output-list':type==='both'?'input-output-list':'input-list')+'.pdf';
+    var fnameBase=hasMultiPatch ? (_pdfSlug(showName)+'-'+_pdfSlug(patchName)) : _pdfSlug(showName);
+    var fname=(fnameBase||'patchflow')+'-'+(type==='out'?'output-list':type==='both'?'input-output-list':'input-list')+'.pdf';
     await _pdfDeliver(doc, fname);
   }catch(e){
     console.error('_openTablePdf:',e);
