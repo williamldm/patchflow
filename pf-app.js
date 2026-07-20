@@ -4452,7 +4452,7 @@ td{padding:4px 7px;border-bottom:1px solid #f0eee8;vertical-align:middle}
 ${_pdfWatermarkHtml(brand)}
 <div class="hd"><div class="hl"><div class="logo">${logoHtml}</div><div><div class="ht">${show}</div><div class="hs">${subLine}</div></div></div><div class="hr"><div class="hdt">Input List</div><div class="hdm">${meta.rev?`Rev. ${meta.rev}<br/>`:''}${now}</div></div></div>
 <div class="ib">
-  ${engLine?`<div class="ic"><div class="il">Ing&eacute;nieur</div><div class="iv ivo">${engLine}</div></div>`:''}
+  ${engLine?`<div class="ic"><div class="il">Cr&eacute;&eacute; par</div><div class="iv ivo">${engLine}</div></div>`:''}
   ${meta.co?`<div class="ic"><div class="il">Soci&eacute;t&eacute;</div><div class="iv">${meta.co}</div></div>`:''}
   ${(CUR_SHOW?.venue||meta.venue)?`<div class="ic"><div class="il">Venue</div><div class="iv">${CUR_SHOW?.venue||meta.venue}</div></div>`:''}
   ${meta.date?`<div class="ic"><div class="il">Date</div><div class="iv">${meta.date}</div></div>`:''}
@@ -4526,7 +4526,7 @@ td{padding:4px 7px;border-bottom:1px solid #f0eee8;vertical-align:middle}
 ${_pdfWatermarkHtml(brand)}
 <div class="hd"><div class="hl"><div class="logo">${logoHtml}</div><div><div class="ht">${show}</div><div class="hs">${subLine}</div></div></div><div class="hr"><div class="hdt">Output List</div><div class="hdm">${meta.rev?`Rev. ${meta.rev}<br/>`:''}${now}</div></div></div>
 <div class="ib">
-  ${engLine?`<div class="ic"><div class="il">Ing&eacute;nieur</div><div class="iv ivo">${engLine}</div></div>`:''}
+  ${engLine?`<div class="ic"><div class="il">Cr&eacute;&eacute; par</div><div class="iv ivo">${engLine}</div></div>`:''}
   ${meta.co?`<div class="ic"><div class="il">Soci&eacute;t&eacute;</div><div class="iv">${meta.co}</div></div>`:''}
   ${(CUR_SHOW?.venue||meta.venue)?`<div class="ic"><div class="il">Venue</div><div class="iv">${CUR_SHOW?.venue||meta.venue}</div></div>`:''}
   ${meta.date?`<div class="ic"><div class="il">Date</div><div class="iv">${meta.date}</div></div>`:''}
@@ -4615,7 +4615,7 @@ td{padding:4px 7px;border-bottom:1px solid #f0eee8;vertical-align:middle}
 .pb{page-break-after:always;height:0;overflow:hidden}
 @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}`;
   const infoBar=`<div class="ib">
-  ${engLine?'<div class="ic"><div class="il">Ing&eacute;nieur</div><div class="iv ivo">'+engLine+'</div></div>':''}
+  ${engLine?'<div class="ic"><div class="il">Cr&eacute;&eacute; par</div><div class="iv ivo">'+engLine+'</div></div>':''}
   ${meta.co?'<div class="ic"><div class="il">Soci&eacute;t&eacute;</div><div class="iv">'+meta.co+'</div></div>':''}
   ${(CUR_SHOW?.venue||meta.venue)?'<div class="ic"><div class="il">Venue</div><div class="iv">'+(CUR_SHOW?.venue||meta.venue)+'</div></div>':''}
   ${meta.date?'<div class="ic"><div class="il">Date</div><div class="iv">'+meta.date+'</div></div>':''}
@@ -5472,7 +5472,7 @@ function doSitePlanPDF(){
       ? '<div class="mb">'
         +(meta.venue  ?'<div class="mc"><div class="ml">Venue</div><div class="mv">'+meta.venue+'</div></div>':'')
         +(meta.date   ?'<div class="mc"><div class="ml">Date</div><div class="mv">'+meta.date+'</div></div>':'')
-        +(meta.eng    ?'<div class="mc"><div class="ml">Ingenieur</div><div class="mvo">'+meta.eng+'</div></div>':'')
+        +(meta.eng    ?'<div class="mc"><div class="ml">Cree par</div><div class="mvo">'+meta.eng+'</div></div>':'')
         +(meta.contact?'<div class="mc"><div class="ml">Contact</div><div class="mv">'+meta.contact+'</div></div>':'')
         +'</div>' : '';
     const linkBlock=meta.link
@@ -6062,7 +6062,7 @@ async function _openTablePdf(type, meta, brand, shareUrl){
     y+=4;
     var metaParts=[];
     var engLine=[meta.eng,meta.role].filter(Boolean).join(' — ');
-    if(engLine) metaParts.push(['Ingénieur',engLine]);
+    if(engLine) metaParts.push(['Créé par',engLine]);
     if(meta.co) metaParts.push(['Société',meta.co]);
     var venue=(CUR_SHOW&&CUR_SHOW.venue)||meta.venue; if(venue) metaParts.push(['Venue',venue]);
     if(meta.date) metaParts.push(['Date',meta.date]);
@@ -8506,7 +8506,7 @@ const SynPro = (() => {
         pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
         pdf.setTextColor(100, 116, 139);
         var infoLine = [];
-        if (meta.eng)     infoLine.push('Ingenieur : ' + meta.eng);
+        if (meta.eng)     infoLine.push('Cree par : ' + meta.eng);
         if (meta.contact) infoLine.push('Contact : ' + meta.contact);
         if (infoLine.length) { pdf.text(infoLine.join('  ·  '), pad, y); y += 11; }
 
