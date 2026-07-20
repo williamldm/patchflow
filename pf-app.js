@@ -6035,15 +6035,20 @@ async function _openTablePdf(type, meta, brand, shareUrl){
     var M=12;
     var now=new Date().toLocaleString('fr-FR');
     var showName=(CUR_SHOW&&CUR_SHOW.name)||'Show';
-    /* Titre du document : le patch actif (ex. "Patch A — Festival") plutôt
-       que le nom du show/session, mais UNIQUEMENT si plusieurs patches
-       existent (usage réel du multi-patch A/B/festival) — avec un seul patch
-       par défaut ("Patch 1"), ce nom n'apporte rien et le show reste le
-       titre le plus utile. Le nom du show est gardé en sous-titre quand le
-       titre du patch est utilisé, pour ne pas perdre le contexte. */
+    /* Titre du document — même priorité que _openVisualPdf (plans visuels) :
+       1) le champ "Titre du document" saisi dans le modal (meta.title),
+          toujours visible ("tous plans"), prioritaire s'il est rempli ;
+       2) sinon, le patch actif (ex. "Patch A — Festival") plutôt que le nom
+          du show/session, UNIQUEMENT si plusieurs patches existent (usage
+          réel du multi-patch) — avec un seul patch par défaut ("Patch 1"),
+          ce nom n'apporte rien et le show reste le titre le plus utile.
+       Le nom du show est gardé en sous-titre quand le titre du patch est
+       utilisé (cas 2), pour ne pas perdre le contexte. */
     var hasMultiPatch=(typeof IL_PATCHES!=='undefined' && IL_PATCHES.length>1);
     var patchName=hasMultiPatch ? (IL_PATCHES.find(function(p){return p.id===CUR_PATCH_ID;})?.name || showName) : showName;
-    var docTitle=patchName, docSubtitle=hasMultiPatch?showName:'';
+    var userTitle=String(meta.title||'').trim();
+    var docTitle=userTitle || patchName;
+    var docSubtitle=userTitle ? '' : (hasMultiPatch?showName:'');
 
     /* Filigrane diagonal pour les comptes gratuits (sur chaque page) */
     function _wm(){
@@ -6181,7 +6186,7 @@ async function _openTablePdf(type, meta, brand, shareUrl){
       doc.text('Page '+pi+' / '+pageCount, PW-M, PH-5, {align:'right'});
     }
 
-    var fnameBase=hasMultiPatch ? (_pdfSlug(showName)+'-'+_pdfSlug(patchName)) : _pdfSlug(showName);
+    var fnameBase=userTitle ? _pdfSlug(userTitle) : (hasMultiPatch ? (_pdfSlug(showName)+'-'+_pdfSlug(patchName)) : _pdfSlug(showName));
     var fname=(fnameBase||'patchflow')+'-'+(type==='out'?'output-list':type==='both'?'input-output-list':'input-list')+'.pdf';
     await _pdfDeliver(doc, fname);
   }catch(e){
