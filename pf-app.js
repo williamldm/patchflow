@@ -5680,6 +5680,7 @@ async function doPDF(toFiles){
     :                 _slBase+'&tab=il';
   const _accentColor = brand.color||'#ff6b1a';
   meta.shareLink = _shareUrl;
+  meta.inclRecap = _inclRecap;
   /* Export vectoriel propre (vrai fichier PDF) — remplace l'ancienne impression
      navigateur. Sert au téléchargement comme à l'enregistrement dans Fichiers. */
   await _openTablePdf(type, meta, brand, _shareUrl);
@@ -6147,11 +6148,58 @@ async function _openTablePdf(type, meta, brand, shareUrl){
       return fy+6;
     }
 
+    /* Récapitulatif matériels (Pro) — décompte des micros/DI et pieds de
+       micro utilisés, à partir de l'Input List (colonnes mic / note). Repris
+       du bloc HTML _buildPdfRecapBlock (générateur d'impression, abandonné)
+       en version vectorielle native. */
+    function drawRecap(sy){
+      var mics={}, stands={};
+      CHS.forEach(function(r){
+        var m=(r.mic||'').trim(); if(m) mics[m]=(mics[m]||0)+1;
+        var s=(r.note||'').trim(); if(s) stands[s]=(stands[s]||0)+1;
+      });
+      var micEntries=Object.keys(mics).sort(function(a,b){return mics[b]-mics[a];});
+      var standEntries=Object.keys(stands).sort(function(a,b){return stands[b]-stands[a];});
+      if(!micEntries.length && !standEntries.length) return sy;
+      if(sy>PH-40){ doc.addPage(); sy=M; }
+      doc.setDrawColor(accent[0],accent[1],accent[2]); doc.setLineWidth(0.6); doc.line(M,sy,PW-M,sy);
+      sy+=5;
+      doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(accent[0],accent[1],accent[2]);
+      doc.text('RÉCAPITULATIF MATÉRIELS', M, sy);
+      sy+=4;
+      var gap=6, halfW=(PW-2*M-gap)/2;
+      var totalMics=micEntries.reduce(function(s,k){return s+mics[k];},0);
+      var totalStands=standEntries.reduce(function(s,k){return s+stands[k];},0);
+      doc.setFont('helvetica','bold'); doc.setFontSize(6.5); doc.setTextColor(120,120,135);
+      doc.text('MICROS & DI ('+totalMics+')', M, sy+2);
+      doc.text('PIEDS DE MICRO ('+totalStands+')', M+halfW+gap, sy+2);
+      var tableY=sy+4;
+      doc.autoTable({
+        body: micEntries.length ? micEntries.map(function(k){return [k, String(mics[k])];}) : [['Aucun','']],
+        startY: tableY, margin:{left:M}, tableWidth: halfW, theme:'plain',
+        styles:{fontSize:7.5,cellPadding:1,textColor:[45,45,55]},
+        columnStyles:{1:{halign:'right',fontStyle:'bold',textColor:accent,cellWidth:14}},
+      });
+      var fyLeft=doc.lastAutoTable.finalY;
+      doc.autoTable({
+        body: standEntries.length ? standEntries.map(function(k){return [k, String(stands[k])];}) : [['Aucun','']],
+        startY: tableY, margin:{left:M+halfW+gap}, tableWidth: halfW, theme:'plain',
+        styles:{fontSize:7.5,cellPadding:1,textColor:[45,45,55]},
+        columnStyles:{1:{halign:'right',fontStyle:'bold',textColor:accent,cellWidth:14}},
+      });
+      var fyRight=doc.lastAutoTable.finalY;
+      return Math.max(fyLeft,fyRight)+4;
+    }
+
     var fy=startY;
-    if(type==='in'){ fy=drawInput(startY); }
+    if(type==='in'){
+      fy=drawInput(startY);
+      if(meta.inclRecap) fy=drawRecap(fy);
+    }
     else if(type==='out'){ fy=drawOutput(startY); }
     else {
       fy=drawInput(startY);
+      if(meta.inclRecap) fy=drawRecap(fy);
       if(fy>PH-34){ doc.addPage(); fy=M; } else { fy+=4; }
       doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(accent[0],accent[1],accent[2]);
       doc.text('OUTPUT LIST', M, fy+2); fy+=4;
