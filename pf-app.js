@@ -13466,7 +13466,7 @@ async function _sfUpsertFile(fullPath, file) {
   if (!CUR_SHOW || !ME) return;
   const name = fullPath.split('/').pop();
   const folder = _sfFolder(fullPath);
-  await sb.from('show_files').upsert({
+  const { error } = await sb.from('show_files').upsert({
     show_id:      CUR_SHOW.id,
     path:         fullPath,
     name:         name,
@@ -13476,6 +13476,10 @@ async function _sfUpsertFile(fullPath, file) {
     is_folder:    false,
     created_by:   ME.id,
   }, { onConflict: 'show_id,path' });
+  /* Ne PAS avaler l'erreur : sans cette ligne le fichier est bien envoyé sur
+     B2 mais n'apparaît nulle part (c'est show_files qui alimente la liste) —
+     l'utilisateur voyait « ✓ Fichier importé » pour un fichier invisible. */
+  if (error) throw error;
 }
 
 /* Upsert un dossier dans show_files (entrée virtuelle) */
@@ -14217,8 +14221,16 @@ async function _uploadFichiers(files) {
     } else {
       /* Attendu : le loadFichiers() final doit voir la ligne pour afficher le
          nouveau fichier de façon fiable (sinon on dépendait de la
-         réconciliation B2, à consistance différée). */
-      await _sfUpsertFile(uploadPath, file).catch(() => {});
+         réconciliation B2, à consistance différée). Une erreur ici (ex. droits
+         insuffisants sur le show) doit être REMONTÉE : le binaire est sur B2
+         mais le fichier serait invisible — annoncer « importé » serait faux. */
+      try {
+        await _sfUpsertFile(uploadPath, file);
+      } catch (e) {
+        ok--;
+        toast('Import impossible : ' + (e && e.message ? e.message : 'enregistrement refusé'));
+        continue;
+      }
     }
   }
   if (status) status.style.display = 'none';
