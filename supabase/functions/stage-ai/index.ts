@@ -4,10 +4,10 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 /* ════════════════════════════════════════════════════════════════════
    STAGE-AI — "Mode IA" du plan de scène (réservé Pro).
    On reçoit l'image d'un plan de scène (photo, croquis, PDF aplati en
-   image…) et on demande à un modèle vision via OpenRouter (format compatible
-   OpenAI, sortie structurée JSON Schema) de la convertir en une liste
-   d'éléments plaçables dans l'éditeur BandPlan.
-   La clé API reste côté serveur (secret OPENROUTER_API_KEY).
+   image…) et on demande à Claude (API Anthropic, vision + sortie structurée
+   JSON Schema) de la convertir en une liste d'éléments plaçables dans
+   l'éditeur BandPlan.
+   La clé API reste côté serveur (secret ANTHROPIC_API_KEY).
    ════════════════════════════════════════════════════════════════════ */
 
 const CORS = {
@@ -17,8 +17,12 @@ const CORS = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
-const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY') ?? '';
-const MODEL = 'google/gemini-2.5-flash';
+const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY') ?? '';
+/* Modèle Claude. Opus 4.8 = meilleure qualité vision. Pour économiser le
+   crédit, on peut basculer sur 'claude-haiku-4-5' (moins cher) ou
+   'claude-sonnet-5' (intermédiaire) — tous supportent la vision + la sortie
+   structurée. */
+const MODEL = 'claude-opus-4-8';
 
 /* Catalogue des éléments disponibles dans l'éditeur (type → libellé FR).
    DOIT rester aligné avec CATS dans app.html. */
@@ -51,7 +55,7 @@ RÈGLES :
 TYPES AUTORISÉS (type = libellé) :
 ${TYPES.map((t) => `${t} = ${CATALOG[t]}`).join('\n')}`;
 
-/* Schéma JSON Schema strict (compatible OpenAI/OpenRouter) :
+/* Schéma JSON Schema strict pour output_config.format de Claude :
    additionalProperties:false + toutes les clés requises. */
 const SCHEMA = {
   type: 'object',
@@ -81,7 +85,7 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
   try {
-    if (!OPENROUTER_API_KEY) {
+    if (!ANTHROPIC_API_KEY) {
       return json({ error: "Le service IA n'est pas configuré (clé API manquante côté serveur)." }, 503);
     }
 
@@ -114,46 +118,53 @@ serve(async (req) => {
     if (!data || data.length < 100) return json({ error: 'Image manquante ou vide.' }, 400);
     if (data.length > 7_300_000) return json({ error: 'Image trop lourde (max ~5 Mo).' }, 413);
 
-    /* ── Appel OpenRouter : vision + sortie structurée (format OpenAI) ── */
-    const aiResp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    /* ── Appel Claude (API Anthropic) : vision + sortie structurée ── */
+    const aiResp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-        'HTTP-Referer': 'https://patchflow.app',
-        'X-Title': 'PatchFlow Stage AI',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 4096,
+        max_tokens: 8192,
+        system: SYSTEM,
         messages: [
-          { role: 'system', content: SYSTEM },
           {
             role: 'user',
             content: [
-              { type: 'image_url', image_url: { url: `data:${mediaType};base64,${data}` } },
+              { type: 'image', source: { type: 'base64', media_type: mediaType, data } },
               { type: 'text', text: 'Numérise ce plan de scène : liste tous les éléments présents avec leur type, leur position (repère 2400×1600) et un label court.' },
             ],
           },
         ],
-        response_format: {
-          type: 'json_schema',
-          json_schema: { name: 'stage_plot', strict: true, schema: SCHEMA },
+        /* Sortie structurée : garantit un premier bloc texte = JSON valide
+           conforme au schéma (additionalProperties:false + required). */
+        output_config: {
+          format: { type: 'json_schema', schema: SCHEMA },
         },
       }),
     });
 
     if (!aiResp.ok) {
       const txt = await aiResp.text().catch(() => '');
-      console.error('[stage-ai] OpenRouter error', aiResp.status, txt);
-      const friendly = aiResp.status === 429
+      console.error('[stage-ai] Anthropic error', aiResp.status, txt);
+      const friendly = (aiResp.status === 429 || aiResp.status === 529)
         ? 'Service IA momentanément surchargé, réessayez dans un instant.'
         : `IA ${aiResp.status}: ${txt.slice(0, 200)}`;
       return json({ error: friendly }, 502);
     }
 
     const aiJson = await aiResp.json();
-    const content = aiJson.choices?.[0]?.message?.content;
+    /* Claude peut refuser un contenu (HTTP 200 + stop_reason:"refusal"). */
+    if (aiJson.stop_reason === 'refusal') {
+      return json({ error: 'Le service IA a refusé de traiter cette image.' }, 502);
+    }
+    /* La réponse est une liste de blocs ; on lit le bloc texte (= le JSON). */
+    const content = Array.isArray(aiJson.content)
+      ? (aiJson.content.find((b: { type?: string }) => b.type === 'text') as { text?: string } | undefined)?.text
+      : undefined;
     if (!content) return json({ error: 'Réponse IA vide.' }, 502);
 
     let parsed: { elements?: unknown[] };

@@ -6,9 +6,10 @@ import JSZip from 'https://esm.sh/jszip@3.10.1';
    INPUTLIST-AI — "Mode IA" de l'input list (réservé Pro).
    On reçoit un document décrivant une liste de canaux (input list / patch
    list / rider) sous différents formats — image, PDF, CSV/texte, Word —
-   et on demande à un modèle vision/texte via OpenRouter (sortie structurée
-   JSON Schema) de le convertir en une liste de canaux prêts à insérer.
-   La clé API reste côté serveur (secret OPENROUTER_API_KEY).
+   et on demande à Claude (API Anthropic, sortie structurée JSON Schema) de le
+   convertir en une liste de canaux prêts à insérer. Les PDF sont lus
+   nativement par Claude (texte + mise en page), sans plugin externe.
+   La clé API reste côté serveur (secret ANTHROPIC_API_KEY).
    ════════════════════════════════════════════════════════════════════ */
 
 const CORS = {
@@ -18,8 +19,11 @@ const CORS = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
-const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY') ?? '';
-const MODEL = 'google/gemini-2.5-flash';
+const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY') ?? '';
+/* Modèle Claude. Opus 4.8 = meilleure qualité. Pour économiser le crédit, on
+   peut basculer sur 'claude-haiku-4-5' (moins cher) ou 'claude-sonnet-5'
+   (intermédiaire) — tous supportent vision, PDF et sortie structurée. */
+const MODEL = 'claude-opus-4-8';
 
 /* Pieds de micro reconnus — DOIVENT rester alignés avec la datalist
    #il-note-list dans app.html (champ "note" de l'input list). */
@@ -44,7 +48,7 @@ IMPORTANT :
 - Ne déduis le +48V que s'il est explicitement marqué : ne l'active pas "au cas où".
 - Si le document est illisible ou ne contient aucune liste de canaux, renvoie une liste vide.`;
 
-/* JSON Schema strict (compatible OpenAI/OpenRouter). */
+/* JSON Schema strict pour output_config.format de Claude. */
 const SCHEMA = {
   type: 'object',
   properties: {
@@ -93,7 +97,7 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
   try {
-    if (!OPENROUTER_API_KEY) {
+    if (!ANTHROPIC_API_KEY) {
       return json({ error: "Le service IA n'est pas configuré (clé API manquante côté serveur)." }, 503);
     }
 
@@ -123,9 +127,8 @@ serve(async (req) => {
     };
     const kind = body.kind || '';
 
-    /* Contenu utilisateur + éventuels plugins (PDF) selon le format reçu. */
+    /* Contenu utilisateur selon le format reçu (string ou blocs de contenu). */
     let userContent: unknown;
-    let plugins: unknown[] | undefined;
 
     if (kind === 'image') {
       const mediaType = body.mediaType || '';
@@ -135,18 +138,19 @@ serve(async (req) => {
       if (!data || data.length < 100) return json({ error: 'Image manquante ou vide.' }, 400);
       if (data.length > 7_300_000) return json({ error: 'Fichier trop lourd (max ~5 Mo).' }, 413);
       userContent = [
-        { type: 'image_url', image_url: { url: `data:${mediaType};base64,${data}` } },
+        { type: 'image', source: { type: 'base64', media_type: mediaType, data } },
         { type: 'text', text: PROMPT },
       ];
     } else if (kind === 'pdf') {
       const data = body.base64 || '';
       if (!data || data.length < 100) return json({ error: 'PDF manquant ou vide.' }, 400);
       if (data.length > 14_000_000) return json({ error: 'Fichier trop lourd (max ~10 Mo).' }, 413);
+      /* Claude lit le PDF nativement (document base64) — texte ET mise en
+         page. Le bloc document est placé AVANT le texte. */
       userContent = [
-        { type: 'file', file: { filename: 'inputlist.pdf', file_data: `data:application/pdf;base64,${data}` } },
+        { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data } },
         { type: 'text', text: PROMPT },
       ];
-      plugins = [{ id: 'file-parser', pdf: { engine: 'pdf-text' } }];
     } else if (kind === 'docx') {
       const data = body.base64 || '';
       if (!data || data.length < 100) return json({ error: 'Document manquant ou vide.' }, 400);
@@ -164,43 +168,45 @@ serve(async (req) => {
       return json({ error: 'Format de fichier non pris en charge.' }, 400);
     }
 
-    /* ── Appel OpenRouter : sortie structurée (format OpenAI) ── */
-    const reqBody: Record<string, unknown> = {
-      model: MODEL,
-      max_tokens: 8000,
-      messages: [
-        { role: 'system', content: SYSTEM },
-        { role: 'user', content: userContent },
-      ],
-      response_format: {
-        type: 'json_schema',
-        json_schema: { name: 'input_list', strict: true, schema: SCHEMA },
-      },
-    };
-    if (plugins) reqBody.plugins = plugins;
-
-    const aiResp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    /* ── Appel Claude (API Anthropic) : sortie structurée ── */
+    const aiResp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-        'HTTP-Referer': 'https://patchflow.app',
-        'X-Title': 'PatchFlow Input List AI',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
       },
-      body: JSON.stringify(reqBody),
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 8192,
+        system: SYSTEM,
+        messages: [
+          { role: 'user', content: userContent },
+        ],
+        /* Sortie structurée : premier bloc texte = JSON valide conforme au
+           schéma (additionalProperties:false + required). */
+        output_config: {
+          format: { type: 'json_schema', schema: SCHEMA },
+        },
+      }),
     });
 
     if (!aiResp.ok) {
       const txt = await aiResp.text().catch(() => '');
-      console.error('[inputlist-ai] OpenRouter error', aiResp.status, txt);
-      const friendly = aiResp.status === 429
+      console.error('[inputlist-ai] Anthropic error', aiResp.status, txt);
+      const friendly = (aiResp.status === 429 || aiResp.status === 529)
         ? 'Service IA momentanément surchargé, réessayez dans un instant.'
         : `IA ${aiResp.status}: ${txt.slice(0, 200)}`;
       return json({ error: friendly }, 502);
     }
 
     const aiJson = await aiResp.json();
-    const content = aiJson.choices?.[0]?.message?.content;
+    if (aiJson.stop_reason === 'refusal') {
+      return json({ error: 'Le service IA a refusé de traiter ce document.' }, 502);
+    }
+    const content = Array.isArray(aiJson.content)
+      ? (aiJson.content.find((b: { type?: string }) => b.type === 'text') as { text?: string } | undefined)?.text
+      : undefined;
     if (!content) return json({ error: 'Réponse IA vide.' }, 502);
 
     let parsed: { channels?: unknown[] };
