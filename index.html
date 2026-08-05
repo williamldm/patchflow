@@ -19,6 +19,13 @@
   --f:'Outfit',sans-serif;--m:'DM Mono',monospace;
 }
 html{scroll-behavior:smooth}
+/* Focus clavier visible sur toute la page (exigence a11y) */
+a:focus-visible,button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--ora);outline-offset:3px;border-radius:2px}
+/* Respect de « réduire les animations » — aucune animation décorative imposée */
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+}
 body{background:var(--bg);color:var(--txt);font-family:var(--f);line-height:1.6;overflow-x:hidden}
 
 /* ── NAV ── */
@@ -39,50 +46,142 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(8,11,18,.85)
 .btn-lg{padding:14px 32px;font-size:15px;border-radius:12px}
 .btn-xl{padding:17px 40px;font-size:16px;border-radius:14px;font-weight:700}
 
-/* ── HERO ── */
-.hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:120px 5vw 80px;position:relative;overflow:hidden}
-.hero-glow{position:absolute;top:0;left:50%;transform:translateX(-50%);width:900px;height:600px;background:radial-gradient(ellipse at 50% 0%,rgba(255,107,26,.13) 0%,transparent 65%);pointer-events:none}
-.hero-glow2{position:absolute;bottom:0;left:10%;width:600px;height:400px;background:radial-gradient(ellipse at 0% 100%,rgba(26,143,255,.07) 0%,transparent 60%);pointer-events:none}
-/* Grille discrète derrière le hero — texture "papier millimétré régie" */
-.hero::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(232,237,248,.028) 1px,transparent 1px),linear-gradient(90deg,rgba(232,237,248,.028) 1px,transparent 1px);background-size:54px 54px;-webkit-mask-image:radial-gradient(ellipse 75% 55% at 50% 32%,#000,transparent 72%);mask-image:radial-gradient(ellipse 75% 55% at 50% 32%,#000,transparent 72%);pointer-events:none}
-.hero-badge{display:inline-flex;align-items:center;gap:7px;background:var(--ora-d);border:1px solid rgba(255,107,26,.3);color:var(--ora);font-size:11px;font-weight:700;font-family:var(--m);padding:5px 14px;border-radius:20px;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:28px}
-.hero-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--ora);animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.4)}}
-h1{font-size:clamp(38px,6vw,72px);font-weight:800;line-height:1.08;letter-spacing:-2px;margin-bottom:22px;max-width:860px}
-h1 span{background:linear-gradient(135deg,var(--ora),#ff9040);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.hero-sub{font-size:clamp(16px,2vw,20px);color:var(--txt2);max-width:600px;margin:0 auto 40px;font-weight:400;line-height:1.65}
-.hero-ctas{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:20px}
-.hero-reassure{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--txt2);font-weight:500;margin-bottom:40px}
-.hero-reassure span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
-.hero-reassure i{font-size:14px}
-.hero-reassure .hr-sep{color:var(--muted);padding:0 2px}
-@media(max-width:600px){.hero-reassure .hr-sep{display:none}}
-.hero-social{display:flex;align-items:center;gap:24px;color:var(--muted);font-size:12px;font-family:var(--m)}
-.hero-social span{display:flex;align-items:center;gap:6px}
-.hero-social strong{color:var(--txt2)}
+/* ══ HERO — split asymétrique, aligné à gauche ══
+   Parti pris : pas de hero centré, pas de blob flou, pas de titre en dégradé.
+   Colonne gauche = le discours ; colonne droite = une vraie feuille de patch
+   qui déborde du cadre à droite (le produit EST le visuel, pas une illustration). */
+.hero{position:relative;padding:118px 0 0;border-bottom:1px solid var(--bdr);overflow:hidden}
+/* Grille structurante façon papier de régie — visible, assumée, pas masquée en ellipse */
+.hero::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(232,237,248,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(232,237,248,.022) 1px,transparent 1px);background-size:48px 48px;pointer-events:none}
+/* Pas de min-height:100vh — la densité prime sur le vide décoratif. */
+.hero-inner{position:relative;display:grid;grid-template-columns:minmax(0,46fr) minmax(0,54fr);gap:56px;align-items:center;padding-left:5vw}
+.hero-col{padding:60px 0 78px}
 
-/* App preview */
-.hero-preview{width:100%;max-width:1100px;margin:72px auto 0;position:relative}
-.preview-glow{position:absolute;inset:-30px;background:radial-gradient(ellipse at 50% 0%,rgba(255,107,26,.15) 0%,transparent 60%);filter:blur(20px);pointer-events:none;z-index:0}
-.preview-frame{position:relative;z-index:1;background:var(--surf);border:1px solid var(--bdr2);border-radius:18px;overflow:hidden;box-shadow:0 40px 120px rgba(0,0,0,.7),0 0 0 1px rgba(255,107,26,.08)}
-.preview-bar{background:var(--bg2);border-bottom:1px solid var(--bdr);padding:10px 16px;display:flex;align-items:center;gap:8px}
-.preview-dot{width:10px;height:10px;border-radius:50%}
-.preview-title{flex:1;text-align:center;font-family:var(--m);font-size:10px;color:var(--muted)}
-.preview-screen{background:var(--bg2);padding:0;display:grid;grid-template-columns:210px 1fr;min-height:360px}
-.preview-sidebar{background:var(--surf);border-right:1px solid var(--bdr);padding:16px 12px;display:flex;flex-direction:column;gap:6px}
-.preview-sb-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;font-size:11px;color:var(--muted);cursor:default}
-.preview-sb-item.active{background:var(--ora-d);color:var(--ora);border:1px solid rgba(255,107,26,.2)}
-.preview-sb-item i{font-size:14px}
-.preview-canvas{padding:20px;overflow:hidden;position:relative}
-.preview-table{width:100%;border-collapse:collapse;font-size:11px}
-.preview-table th{background:var(--surf2);color:var(--muted);font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:.8px;padding:7px 10px;border-bottom:1px solid var(--bdr);text-align:left}
-.preview-table td{padding:7px 10px;border-bottom:1px solid var(--bdr);color:var(--txt2)}
-.preview-table tr:hover td{background:var(--surf)}
-.ch-num{font-weight:700;color:var(--ora);font-family:var(--m)}
-.badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:5px;font-size:9px;font-family:var(--m);font-weight:600}
-.badge-ph{background:rgba(245,197,66,.15);color:#f5c542;border:1px solid rgba(245,197,66,.25)}
-.badge-foh{background:rgba(34,214,160,.12);color:var(--grn)}
-.badge-mon{background:rgba(26,143,255,.12);color:var(--blu)}
+/* Label mono + filet orange — remplace la pilule arrondie */
+.hero-eyebrow{display:flex;align-items:center;gap:12px;font-family:var(--m);font-size:11px;letter-spacing:2.2px;text-transform:uppercase;color:var(--muted);margin-bottom:26px}
+.hero-eyebrow::before{content:'';width:26px;height:2px;background:var(--ora);flex-shrink:0}
+h1{font-size:clamp(36px,4.6vw,60px);font-weight:800;line-height:1.05;letter-spacing:-1.6px;margin-bottom:22px;max-width:14ch}
+h1 span{color:var(--ora)}
+.hero-sub{font-size:clamp(15px,1.5vw,18px);color:var(--txt2);max-width:48ch;margin:0 0 34px;line-height:1.7}
+.hero-sub strong{color:var(--txt);font-weight:600}
+
+/* Un seul bouton plein + un lien texte (jamais la paire plein/ghost outline) */
+.hero-ctas{display:flex;align-items:center;gap:24px;flex-wrap:wrap;margin-bottom:30px}
+.hero-link{color:var(--txt2);font-size:14px;font-weight:500;text-decoration:none;border-bottom:1px solid var(--bdr3);padding-bottom:2px;transition:color .15s,border-color .15s}
+.hero-link:hover{color:var(--ora);border-color:var(--ora)}
+
+/* Faits produit vérifiables — pas de compteurs d'utilisateurs inventés */
+.hero-facts{display:flex;flex-wrap:wrap;gap:8px 18px;font-family:var(--m);font-size:11.5px;color:var(--muted);letter-spacing:.2px}
+.hero-facts span{display:inline-flex;align-items:center;gap:7px}
+.hero-facts span::before{content:'';width:4px;height:4px;background:var(--bdr3);flex-shrink:0}
+
+/* ── Feuille de patch (colonne droite, déborde volontairement à droite) ── */
+.patch-sheet{background:var(--bg2);border:1px solid var(--bdr2);border-right:0;border-radius:3px 0 0 3px;overflow:hidden}
+.ps-head{display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding:13px 18px;background:var(--surf);border-bottom:1px solid var(--bdr)}
+.ps-field{display:flex;flex-direction:column;gap:2px;min-width:0}
+.ps-k{font-family:var(--m);font-size:9px;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted)}
+.ps-v{font-size:12.5px;font-weight:600;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ps-live{margin-left:auto;display:inline-flex;align-items:center;gap:7px;font-family:var(--m);font-size:10px;color:var(--grn);white-space:nowrap}
+.ps-live::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--grn);box-shadow:0 0 0 3px rgba(34,214,160,.14)}
+.ps-table{width:100%;border-collapse:collapse;font-size:12px}
+.ps-table th{background:var(--surf2);color:var(--muted);font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1px;padding:8px 10px;border-bottom:1px solid var(--bdr2);text-align:left;font-weight:500}
+.ps-table td{padding:8px 10px;border-bottom:1px solid var(--bdr);color:var(--txt2);white-space:nowrap}
+.ps-table tr:last-child td{border-bottom:0}
+.ps-ch{font-family:var(--m);font-weight:500;color:var(--ora);text-align:right;width:46px;padding-right:14px!important;font-size:11.5px}
+.ps-short{font-family:var(--m);font-size:11.5px;color:var(--txt);font-weight:500}
+.ps-mic{font-family:var(--m);font-size:11px;color:var(--muted)}
+.ps-flag{font-family:var(--m);font-size:9.5px;letter-spacing:.4px;color:var(--bdr3)}
+.ps-flag.on{color:var(--txt2)}
+.ps-flag.v48{color:#f5c542}
+.ps-foot{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:11px 18px;background:var(--surf);border-top:1px solid var(--bdr);font-family:var(--m);font-size:10.5px;color:var(--muted)}
+.ps-foot b{color:var(--txt2);font-weight:500}
+
+@media(max-width:1040px){
+  .hero{padding-top:96px}
+  /* minmax(0,1fr) et pas 1fr : sinon le contenu force la piste et déborde */
+  .hero-inner{grid-template-columns:minmax(0,1fr);gap:0;padding-left:0}
+  .hero-col{padding:48px 5vw 10px}
+  .hero-col:last-child{padding-left:5vw;padding-right:0}
+  h1{max-width:none}
+  /* La feuille de patch est large par nature : on la fait défiler
+     horizontalement plutôt que de la compresser illisiblement. */
+  .patch-sheet{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .ps-table{min-width:560px}
+}
+@media(max-width:560px){
+  .hero-col{padding:34px 5vw 6px}
+  .ps-head{gap:14px;padding:11px 14px}
+  .ps-table th,.ps-table td{padding:7px 8px}
+  .ps-table{min-width:440px}
+  /* On sacrifie FOH/MON sur très petit écran : CH, nom, micro et 48V priment. */
+  .ps-table th:nth-child(5),.ps-table td:nth-child(5),
+  .ps-table th:nth-child(6),.ps-table td:nth-child(6){display:none}
+  .hero-ctas{gap:16px;width:100%}
+  .hero-ctas .btn{width:100%;justify-content:center}
+  .hide-narrow{display:none}
+}
+
+
+/* ══ SECTION 01 — LE LIEN PUBLIC ══
+   Géométrie volontairement différente du hero : barre d'URL pleine largeur,
+   puis split 40/60. Le lien est l'argument le plus fort du produit, il occupe
+   la 2e place de la page. */
+.lien{background:var(--bg2);border-bottom:1px solid var(--bdr);padding:88px 5vw 96px}
+.lien-head{max-width:960px;margin-bottom:36px}
+.lien-head h2{margin-bottom:14px}
+.lien-head p{font-size:16px;color:var(--txt2);line-height:1.7;max-width:62ch}
+.lien-head strong{color:var(--txt);font-weight:600}
+
+/* Barre d'URL — mono, arêtes nettes, orange en ponctuation */
+.url-bar{display:flex;align-items:stretch;border:1px solid var(--bdr3);border-radius:3px;background:var(--bg);overflow:hidden;margin-bottom:8px}
+.url-scheme{display:flex;align-items:center;padding:0 14px;background:var(--surf);border-right:1px solid var(--bdr2);font-family:var(--m);font-size:11px;color:var(--muted);letter-spacing:.5px;white-space:nowrap}
+.url-val{flex:1;display:flex;align-items:center;gap:1px;padding:15px 16px;font-family:var(--m);font-size:clamp(12px,1.5vw,15px);color:var(--txt);overflow-x:auto;white-space:nowrap;scrollbar-width:none}
+.url-val::-webkit-scrollbar{display:none}
+.url-val b{color:var(--ora);font-weight:500}
+.url-copy{display:flex;align-items:center;gap:8px;padding:0 20px;background:var(--surf);border:0;border-left:1px solid var(--bdr2);color:var(--txt2);font-family:var(--m);font-size:11px;letter-spacing:.6px;cursor:pointer;transition:background .15s,color .15s;white-space:nowrap}
+.url-copy:hover{background:var(--surf2);color:var(--txt)}
+.url-copy:focus-visible{outline:2px solid var(--ora);outline-offset:-2px}
+.url-note{font-family:var(--m);font-size:11px;color:var(--muted);margin-bottom:44px}
+
+.lien-grid{display:grid;grid-template-columns:minmax(0,40fr) minmax(0,60fr);gap:48px;align-items:start}
+
+/* Colonne gauche : ce que ça change, en lignes de spec */
+.spec-list{border-top:1px solid var(--bdr2)}
+.spec-row{display:grid;grid-template-columns:26px 1fr;gap:16px;padding:16px 0;border-bottom:1px solid var(--bdr)}
+.spec-n{font-family:var(--m);font-size:11px;color:var(--ora);padding-top:3px}
+.spec-t{font-size:14.5px;font-weight:600;color:var(--txt);margin-bottom:5px;line-height:1.35}
+.spec-d{font-size:13.5px;color:var(--txt2);opacity:.8;line-height:1.6}
+
+/* Colonne droite : la page rider telle que le destinataire la voit */
+.rider-view{border:1px solid var(--bdr2);border-radius:3px;background:var(--bg);overflow:hidden}
+.rider-top{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--surf);border-bottom:1px solid var(--bdr);font-family:var(--m);font-size:10px;color:var(--muted);letter-spacing:.5px}
+.rider-top .rt-lock{color:var(--grn)}
+.rider-body{padding:22px 20px}
+.rider-title{font-size:19px;font-weight:700;color:var(--txt);letter-spacing:-.4px;margin-bottom:4px}
+.rider-meta{font-family:var(--m);font-size:11px;color:var(--muted);margin-bottom:20px}
+.rider-tabs{display:flex;gap:0;border-bottom:1px solid var(--bdr2);margin-bottom:16px;overflow-x:auto;scrollbar-width:none}
+.rider-tabs::-webkit-scrollbar{display:none}
+.rider-tab{padding:8px 14px;font-family:var(--m);font-size:11px;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap}
+.rider-tab.on{color:var(--ora);border-bottom-color:var(--ora)}
+.rider-lines{display:flex;flex-direction:column}
+.rider-line{display:grid;grid-template-columns:34px 1fr auto;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid var(--bdr)}
+.rider-line:last-child{border-bottom:0}
+.rl-ch{font-family:var(--m);font-size:11px;color:var(--muted);text-align:right}
+.rl-name{font-size:13px;color:var(--txt2)}
+.rl-name b{font-family:var(--m);font-size:11.5px;color:var(--txt);font-weight:500;margin-right:8px}
+.rl-mic{font-family:var(--m);font-size:11px;color:var(--muted);white-space:nowrap}
+
+@media(max-width:960px){
+  .lien-grid{grid-template-columns:minmax(0,1fr);gap:36px}
+}
+@media(max-width:560px){
+  .lien{padding:64px 5vw 72px}
+  .url-scheme{display:none}
+  .url-copy{padding:0 14px}
+  .url-copy span{display:none}
+  .url-val{padding:13px 14px}
+  .rider-body{padding:18px 15px}
+}
 
 /* ── SECTIONS ── */
 section{padding:110px 5vw}
@@ -93,16 +192,34 @@ h2 em{font-style:normal;color:var(--ora)}
 .center{text-align:center}
 .center .section-sub{margin:0 auto}
 
-/* ── PAIN GRID ── */
-.pain-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;max-width:1100px;margin:0 auto}
-.pain-card{background:var(--surf);border:1px solid var(--bdr);border-radius:18px;padding:28px 24px;transition:transform .22s,border-color .22s,box-shadow .22s}
-.pain-card:hover{transform:translateY(-5px);border-color:rgba(255,107,26,.3);box-shadow:0 18px 44px rgba(0,0,0,.35)}
-.pain-ico{width:48px;height:48px;border-radius:12px;background:rgba(255,77,106,.1);color:#ff4d6a;display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:16px;transition:transform .22s}
-.pain-card:hover .pain-ico{transform:scale(1.08) rotate(-4deg)}
-.pain-title{font-size:15px;font-weight:700;color:var(--txt);margin-bottom:8px;line-height:1.3}
-.pain-txt{font-size:13px;color:var(--muted);line-height:1.6}
-@media(max-width:900px){.pain-grid{grid-template-columns:1fr 1fr}}
-@media(max-width:560px){.pain-grid{grid-template-columns:1fr}}
+/* ══ SECTION 02 — LE TERRAIN ══
+   3e géométrie : titre tenu à gauche (38%), lignes numérotées à droite (62%).
+   Les 4 douleurs sont lues comme des lignes de patch, pas comme des cartes
+   à icône dans un carré arrondi. */
+.terrain{padding:92px 5vw 96px;border-bottom:1px solid var(--bdr)}
+.terrain-grid{display:grid;grid-template-columns:minmax(0,38fr) minmax(0,62fr);gap:64px;align-items:start}
+.terrain-aside h2{margin-bottom:16px}
+.terrain-aside p{font-size:15px;color:var(--txt2);opacity:.8;line-height:1.7;max-width:34ch}
+.terrain-sig{margin-top:26px;padding-top:20px;border-top:1px solid var(--bdr2);font-size:14.5px;color:var(--txt2);line-height:1.6;max-width:34ch}
+.terrain-sig b{color:var(--ora);font-weight:600}
+
+.tl-list{border-top:1px solid var(--bdr2)}
+.tl-row{display:grid;grid-template-columns:38px minmax(0,1fr);gap:20px;padding:22px 0;border-bottom:1px solid var(--bdr);align-items:start}
+.tl-n{font-family:var(--m);font-size:12px;color:var(--ora);padding-top:4px;letter-spacing:.5px}
+.tl-t{font-size:16.5px;font-weight:600;color:var(--txt);line-height:1.35;margin-bottom:7px}
+.tl-d{font-size:14.5px;color:var(--txt2);opacity:.8;line-height:1.65;max-width:62ch}
+.tl-d code{font-family:var(--m);font-size:13px;color:var(--txt2);background:var(--surf);border:1px solid var(--bdr2);border-radius:2px;padding:1px 6px;white-space:nowrap}
+
+@media(max-width:960px){
+  .terrain-grid{grid-template-columns:minmax(0,1fr);gap:38px}
+  .terrain-aside p,.terrain-sig{max-width:60ch}
+}
+@media(max-width:560px){
+  .terrain{padding:64px 5vw 68px}
+  .tl-row{grid-template-columns:30px minmax(0,1fr);gap:14px;padding:18px 0}
+  .tl-t{font-size:15.5px}
+  .tl-d{font-size:14px}
+}
 
 /* ── COMPARISON ── */
 .cmp-wrap{max-width:840px;margin:56px auto 0;border:1px solid var(--bdr2);border-radius:18px;overflow:hidden;background:var(--surf)}
@@ -406,7 +523,6 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
   .cta-final{padding:60px 24px;margin:0 5vw 60px;border-radius:18px}
   .promo-banner{padding:14px 18px;font-size:13px;text-align:center}
   .promo-banner span{font-size:13px}
-  .preview-frame{border-radius:14px}
   .preview-canvas{padding:12px}
   .preview-table th,.preview-table td{padding:6px 8px;font-size:10px}
 }
@@ -416,14 +532,12 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
   .hero{padding:96px 5vw 50px;min-height:auto}
   h1{letter-spacing:-1px;line-height:1.1;margin-bottom:18px}
   .hero-sub{font-size:15px;margin-bottom:30px;line-height:1.55}
-  .hero-badge{font-size:10px;padding:5px 12px;letter-spacing:1px;margin-bottom:20px}
   .hero-ctas{flex-direction:column;width:100%;gap:10px;margin-bottom:18px}
   .hero-ctas .btn{width:100%;justify-content:center}
   .btn-xl{padding:15px 24px;font-size:15px}
   .btn-lg{padding:13px 24px;font-size:14px}
   .hero-reassure{font-size:11.5px;line-height:1.7;gap:2px;flex-direction:column;align-items:flex-start;text-align:left;padding:0 8px}
   .hero-reassure i{margin-right:4px}
-  .hero-social{flex-wrap:wrap;justify-content:center;gap:14px;font-size:11px}
   h2{letter-spacing:-.5px}
   .section-label{font-size:10px;letter-spacing:1.5px}
   .section-sub{font-size:14px;line-height:1.6}
@@ -450,9 +564,6 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
   h1{font-size:30px;letter-spacing:-.5px;margin-bottom:14px}
   h2{font-size:24px}
   .hero-sub{font-size:14px}
-  .hero-badge{font-size:9.5px}
-  .pain-card{padding:20px 18px}
-  .pain-card-icon{font-size:28px}
   .cmp-cell{font-size:12.5px;padding:10px 14px}
   .cmp-cell.cmp-feat{padding:12px 14px}
   .cmp-cell-lbl{min-width:64px;font-size:9px;padding-right:6px}
@@ -520,112 +631,236 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
 
 <!-- HERO -->
 <section class="hero">
-  <div class="hero-glow"></div>
-  <div class="hero-glow2"></div>
-  <div class="hero-badge"><i class="ti ti-bolt" style="font-size:11px"></i>Par des techniciens, pour des techniciens</div>
-  <h1>Le patch du show,<br/><span>plié avant la balance.</span></h1>
-  <p class="hero-sub hide-mobile">Votre patch, vos plans et vos fichiers de prod au même endroit, <strong style="color:var(--txt)">à jour pour toute l'équipe</strong>. Fini les dix versions du même Excel qui traînent dans les mails.</p>
-  <p class="hero-sub only-mobile">Patch, plans et fichiers de prod au même endroit, à jour pour toute l'équipe. <strong style="color:var(--txt)">Un lien, et tout le monde a la bonne version.</strong></p>
-  <div class="hero-ctas">
-    <a class="btn btn-ora btn-xl" href="app.html"><i class="ti ti-rocket"></i>Créer mon patch gratuitement</a>
-    <a class="btn btn-ghost btn-lg" href="#features"><i class="ti ti-play"></i>Voir une démo</a>
+  <div class="hero-inner">
+
+    <!-- Colonne gauche : le discours -->
+    <div class="hero-col">
+      <p class="hero-eyebrow">Patch &amp; plans de scène</p>
+      <h1>Le patch au propre, <span>avant la balance.</span></h1>
+      <p class="hero-sub">Input list, plans de scène et fichiers de prod dans un seul endroit. Vous envoyez <strong>un lien</strong> au régisseur, au groupe ou au presta&nbsp;: ils ouvrent la version à jour, sans compte, sans pièce jointe.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-ora btn-lg" href="app.html">Monter mon premier patch</a>
+        <a class="hero-link" href="#lien">Voir un rider partagé</a>
+      </div>
+      <div class="hero-facts">
+        <span>Gratuit, sans carte bancaire</span>
+        <span>Export PDF</span>
+        <span class="hide-narrow">Le destinataire n'a rien à installer</span>
+      </div>
+    </div>
+
+    <!-- Colonne droite : une vraie feuille de patch -->
+    <div class="hero-col" style="padding-right:0">
+      <div class="patch-sheet">
+        <div class="ps-head">
+          <div class="ps-field">
+            <span class="ps-k">Show</span>
+            <span class="ps-v">Trio Marchand — Le Rocher</span>
+          </div>
+          <div class="ps-field">
+            <span class="ps-k">Console</span>
+            <span class="ps-v">DiGiCo SD9</span>
+          </div>
+          <div class="ps-field hide-narrow">
+            <span class="ps-k">Patch</span>
+            <span class="ps-v">24 lignes</span>
+          </div>
+          <span class="ps-live">à jour</span>
+        </div>
+
+        <table class="ps-table">
+          <thead>
+            <tr>
+              <th class="ps-ch" scope="col">CH</th>
+              <th scope="col">Nom</th>
+              <th scope="col">Micro / DI</th>
+              <th scope="col">48V</th>
+              <th scope="col">FOH</th>
+              <th scope="col">MON</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="ps-ch">01</td>
+              <td><span class="ps-short">BD1</span> <span class="ps-mic">Grosse caisse in</span></td>
+              <td class="ps-mic">Beta 91A</td>
+              <td><span class="ps-flag">—</span></td>
+              <td><span class="ps-flag on">FOH</span></td>
+              <td><span class="ps-flag on">MON</span></td>
+            </tr>
+            <tr>
+              <td class="ps-ch">02</td>
+              <td><span class="ps-short">SN-T</span> <span class="ps-mic">Caisse claire top</span></td>
+              <td class="ps-mic">SM57</td>
+              <td><span class="ps-flag">—</span></td>
+              <td><span class="ps-flag on">FOH</span></td>
+              <td><span class="ps-flag on">MON</span></td>
+            </tr>
+            <tr>
+              <td class="ps-ch">03</td>
+              <td><span class="ps-short">HH</span> <span class="ps-mic">Charleston</span></td>
+              <td class="ps-mic">KM184</td>
+              <td><span class="ps-flag v48">+48</span></td>
+              <td><span class="ps-flag on">FOH</span></td>
+              <td><span class="ps-flag">—</span></td>
+            </tr>
+            <tr>
+              <td class="ps-ch">09</td>
+              <td><span class="ps-short">BASS-DI</span> <span class="ps-mic">Basse DI</span></td>
+              <td class="ps-mic">Radial J48</td>
+              <td><span class="ps-flag v48">+48</span></td>
+              <td><span class="ps-flag on">FOH</span></td>
+              <td><span class="ps-flag on">MON</span></td>
+            </tr>
+            <tr>
+              <td class="ps-ch">12</td>
+              <td><span class="ps-short">GTR-L</span> <span class="ps-mic">Ampli guitare</span></td>
+              <td class="ps-mic">e906</td>
+              <td><span class="ps-flag">—</span></td>
+              <td><span class="ps-flag on">FOH</span></td>
+              <td><span class="ps-flag">—</span></td>
+            </tr>
+            <tr>
+              <td class="ps-ch">17</td>
+              <td><span class="ps-short">LD-VOX</span> <span class="ps-mic">Chant lead</span></td>
+              <td class="ps-mic">SM58</td>
+              <td><span class="ps-flag">—</span></td>
+              <td><span class="ps-flag on">FOH</span></td>
+              <td><span class="ps-flag on">MON</span></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="ps-foot">
+          <span>Stagebox <b>SD-Rack</b></span>
+          <span>Split <b>FOH / MON</b></span>
+          <span class="hide-narrow">Retours <b>4 wedges + 2 IEM</b></span>
+        </div>
+      </div>
+    </div>
+
   </div>
-  <div class="hero-reassure">
-    <span><i class="ti ti-circle-check" style="color:var(--grn)"></i> Gratuit, sans carte bancaire</span>
-    <span class="hr-sep">·</span>
-    <span><i class="ti ti-circle-check" style="color:var(--grn)"></i> Prêt en 2 minutes</span>
-    <span class="hr-sep">·</span>
-    <span><i class="ti ti-circle-check" style="color:var(--grn)"></i> Annulable à tout moment</span>
-  </div>
-  <div class="hero-social">
-    <span><strong>500+</strong> techniciens</span>
-    <span style="color:var(--bdr2)">|</span>
-    <span><strong>1 200+</strong> shows créés</span>
-    <span style="color:var(--bdr2)">|</span>
-    <span style="color:var(--grn)">● Synchronisé en temps réel</span>
+</section>
+
+<!-- ══ 01 · LE LIEN PUBLIC ══ -->
+<section class="lien" id="lien">
+  <div class="lien-head">
+    <p class="section-label">01 — Le lien public</p>
+    <h2>Vous envoyez un lien.<br/><em>Pas une pièce jointe.</em></h2>
+    <p>Le régisseur de la salle, le backline, le tourneur : ils ouvrent la page, ils voient le patch <strong>tel qu'il est à cet instant</strong>. Vous corrigez un canal à 17 h, ils rechargent, c'est à jour. Pas de compte à créer, pas d'appli à installer, pas de « tu peux me le renvoyer&nbsp;? ».</p>
   </div>
 
-  <!-- App preview -->
-  <div class="hero-preview fade-up">
-    <div class="preview-glow"></div>
-    <div class="preview-frame">
-      <div class="preview-bar">
-        <div class="preview-dot" style="background:#ff4d6a"></div>
-        <div class="preview-dot" style="background:#f5c542"></div>
-        <div class="preview-dot" style="background:#22d6a0"></div>
-        <div class="preview-title">PatchFlow — Hellfest 2025 · Main Stage</div>
-      </div>
-      <div class="preview-screen">
-        <div class="preview-sidebar">
-          <div style="font-size:9px;font-family:var(--m);color:var(--muted);text-transform:uppercase;letter-spacing:1px;padding:4px 10px;margin-bottom:4px">Navigation</div>
-          <div class="preview-sb-item active"><i class="ti ti-list-numbers"></i>Input List</div>
-          <div class="preview-sb-item"><i class="ti ti-list-check"></i>Output List</div>
-          <div class="preview-sb-item"><i class="ti ti-layout-board"></i>Plan de scene</div>
-          <div class="preview-sb-item"><i class="ti ti-topology-star"></i>Synoptique</div>
-          <div class="preview-sb-item"><i class="ti ti-map-2"></i>Plan de site</div>
-          <div class="preview-sb-item"><i class="ti ti-cloud"></i>Fichiers</div>
-          <div style="margin-top:auto">
-            <div style="background:rgba(34,214,160,.08);border:1px solid rgba(34,214,160,.2);border-radius:8px;padding:8px 10px;font-size:10px;color:var(--grn)"><i class="ti ti-users" style="font-size:11px;margin-right:4px"></i>3 membres en ligne</div>
-          </div>
+  <div class="url-bar">
+    <span class="url-scheme">https://</span>
+    <span class="url-val">patchflow.fr/rider.html?link=<b>k7m3p9q</b></span>
+    <button type="button" class="url-copy" id="copyLink" aria-label="Copier le lien de partage">
+      <i class="ti ti-copy" aria-hidden="true"></i><span>Copier</span>
+    </button>
+  </div>
+  <p class="url-note">Un lien par destinataire — révocable, sans donner accès à votre compte.</p>
+
+  <div class="lien-grid">
+    <div class="spec-list">
+      <div class="spec-row">
+        <span class="spec-n">01</span>
+        <div>
+          <div class="spec-t">Lecture seule</div>
+          <div class="spec-d">Ils consultent, ils n'éditent rien. Votre patch reste le vôtre.</div>
         </div>
-        <div class="preview-canvas">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
-            <div style="font-size:13px;font-weight:700">Input List</div>
-            <div style="font-family:var(--m);font-size:9px;background:var(--surf2);border:1px solid var(--bdr);border-radius:4px;padding:2px 8px;color:var(--muted)">32 canaux</div>
-            <div style="margin-left:auto;display:flex;gap:6px">
-              <div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:6px;padding:4px 10px;font-size:10px;color:var(--muted)">+ Canal</div>
-              <div style="background:var(--ora);border-radius:6px;padding:4px 10px;font-size:10px;color:#000;font-weight:600">Template</div>
-            </div>
-          </div>
-          <table class="preview-table">
-            <thead><tr><th>CH</th><th>Court</th><th>Nom long</th><th>Source</th><th>Micro / DI</th><th>+48V</th><th>FOH</th><th>MON</th></tr></thead>
-            <tbody>
-              <tr><td class="ch-num">1</td><td><strong>KICK</strong></td><td style="color:var(--txt)">Grosse caisse</td><td style="font-family:var(--m);font-size:10px">Batterie</td><td style="font-family:var(--m);font-size:10px">Beta 91A</td><td></td><td><span class="badge badge-foh">✓</span></td><td><span class="badge badge-mon">✓</span></td></tr>
-              <tr><td class="ch-num">2</td><td><strong>SNARE</strong></td><td style="color:var(--txt)">Caisse claire</td><td style="font-family:var(--m);font-size:10px">Batterie</td><td style="font-family:var(--m);font-size:10px">SM57</td><td></td><td><span class="badge badge-foh">✓</span></td><td><span class="badge badge-mon">✓</span></td></tr>
-              <tr><td class="ch-num">3</td><td><strong>GTRLEAD</strong></td><td style="color:var(--txt)">Guitare solo</td><td style="font-family:var(--m);font-size:10px">Guitares</td><td style="font-family:var(--m);font-size:10px">SM57 + e906</td><td></td><td><span class="badge badge-foh">✓</span></td><td></td></tr>
-              <tr><td class="ch-num">4</td><td><strong>KEYSL</strong></td><td style="color:var(--txt)">Claviers gauche</td><td style="font-family:var(--m);font-size:10px">Claviers</td><td style="font-family:var(--m);font-size:10px">DI Radial</td><td><span class="badge badge-ph">+48V</span></td><td><span class="badge badge-foh">✓</span></td><td><span class="badge badge-mon">✓</span></td></tr>
-              <tr><td class="ch-num">5</td><td><strong>VOX</strong></td><td style="color:var(--txt)">Chant principal</td><td style="font-family:var(--m);font-size:10px">Voix</td><td style="font-family:var(--m);font-size:10px">SM58</td><td></td><td><span class="badge badge-foh">✓</span></td><td><span class="badge badge-mon">✓</span></td></tr>
-            </tbody>
-          </table>
+      </div>
+      <div class="spec-row">
+        <span class="spec-n">02</span>
+        <div>
+          <div class="spec-t">Toujours la bonne version</div>
+          <div class="spec-d">Le lien pointe sur le patch vivant. Plus de v4 qui circule pendant que vous travaillez sur la v7.</div>
+        </div>
+      </div>
+      <div class="spec-row">
+        <span class="spec-n">03</span>
+        <div>
+          <div class="spec-t">Vous choisissez ce qui est visible</div>
+          <div class="spec-d">Input list seule pour le presta, plan de scène et retours pour le régisseur, tout pour le groupe.</div>
+        </div>
+      </div>
+      <div class="spec-row">
+        <span class="spec-n">04</span>
+        <div>
+          <div class="spec-t">Lisible sur téléphone</div>
+          <div class="spec-d">Consultable au plateau, en loge ou dans le camion. Le plan de scène se zoome au doigt.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="rider-view">
+      <div class="rider-top">
+        <i class="ti ti-lock rt-lock" aria-hidden="true"></i>
+        <span>Vu par le destinataire — aucun compte requis</span>
+      </div>
+      <div class="rider-body">
+        <div class="rider-title">Trio Marchand — Le Rocher</div>
+        <div class="rider-meta">Sam. 14 mars · Balance 16 h 30 · DiGiCo SD9 · 24 lignes</div>
+
+        <div class="rider-tabs" role="tablist" aria-label="Sections du rider">
+          <span class="rider-tab on" role="tab" aria-selected="true">Input list</span>
+          <span class="rider-tab" role="tab" aria-selected="false">Plan de scène</span>
+          <span class="rider-tab" role="tab" aria-selected="false">Retours</span>
+          <span class="rider-tab" role="tab" aria-selected="false">Fichiers</span>
+        </div>
+
+        <div class="rider-lines">
+          <div class="rider-line"><span class="rl-ch">01</span><span class="rl-name"><b>BD1</b>Grosse caisse in</span><span class="rl-mic">Beta 91A</span></div>
+          <div class="rider-line"><span class="rl-ch">02</span><span class="rl-name"><b>SN-T</b>Caisse claire top</span><span class="rl-mic">SM57</span></div>
+          <div class="rider-line"><span class="rl-ch">03</span><span class="rl-name"><b>HH</b>Charleston</span><span class="rl-mic">KM184 · +48</span></div>
+          <div class="rider-line"><span class="rl-ch">09</span><span class="rl-name"><b>BASS-DI</b>Basse DI</span><span class="rl-mic">Radial J48 · +48</span></div>
+          <div class="rider-line"><span class="rl-ch">12</span><span class="rl-name"><b>GTR-L</b>Ampli guitare</span><span class="rl-mic">e906</span></div>
+          <div class="rider-line"><span class="rl-ch">17</span><span class="rl-name"><b>LD-VOX</b>Chant lead</span><span class="rl-mic">SM58</span></div>
         </div>
       </div>
     </div>
   </div>
 </section>
+<!-- ══ 02 · LE TERRAIN ══ -->
+<section class="terrain" id="probleme">
+  <div class="terrain-grid">
 
-<!-- PROBLEM / PAIN -->
-<section id="probleme" style="background:var(--bg2);padding-top:90px;padding-bottom:90px">
-  <div class="center" style="margin-bottom:56px">
-    <div class="section-label center">Le quotidien d'un techos</div>
-    <h2 class="center">La prépa son, c'est <em>trop de fichiers</em><br/>et pas assez de temps.</h2>
-    <p class="section-sub center">Si vous avez déjà fait une date, vous connaissez la suite par cœur.</p>
-  </div>
-  <div class="pain-grid">
-    <div class="pain-card fade-up">
-      <div class="pain-ico"><i class="ti ti-file-x"></i></div>
-      <div class="pain-title">Le fichier Excel v7_FINAL_vraiment.xlsx</div>
-      <div class="pain-txt">Le régisseur a la v4, le backline la v6, et le patch a encore bougé hier soir. Plus personne sait laquelle fait foi.</div>
+    <div class="terrain-aside">
+      <p class="section-label">02 — Le terrain</p>
+      <h2>Ce qui coince, <em>en vrai.</em></h2>
+      <p>Quatre situations que tout le monde a déjà vécues entre le devis et les portes.</p>
+      <p class="terrain-sig">On a monté PatchFlow parce qu'on se les prenait toutes. <b>Chaque date.</b></p>
     </div>
-    <div class="pain-card fade-up stagger-1">
-      <div class="pain-ico"><i class="ti ti-mail-off"></i></div>
-      <div class="pain-title">Les allers-retours par mail</div>
-      <div class="pain-txt">L'input list par mail, le plan en PDF, les retours sur WhatsApp. Personne n'a la même version, et c'est à la balance que ça se voit.</div>
+
+    <div class="tl-list">
+      <div class="tl-row">
+        <span class="tl-n">01</span>
+        <div>
+          <div class="tl-t">Personne ne sait quelle version fait foi</div>
+          <div class="tl-d">Le régisseur a la <code>v4</code>, le backline la <code>v6</code>, et le patch a encore bougé hier soir. Trois fichiers portent le même nom, aucun ne dit la même chose.</div>
+        </div>
+      </div>
+      <div class="tl-row">
+        <span class="tl-n">02</span>
+        <div>
+          <div class="tl-t">L'info est éclatée sur quatre canaux</div>
+          <div class="tl-d">L'input list part par mail, le plan de scène en PDF, les retours se règlent sur WhatsApp et le reste au téléphone. Ça se voit à la balance, pas avant.</div>
+        </div>
+      </div>
+      <div class="tl-row">
+        <span class="tl-n">03</span>
+        <div>
+          <div class="tl-t">On repart d'une feuille blanche à chaque date</div>
+          <div class="tl-d">Même groupe, même patch, même backline qu'il y a trois semaines. Et on recopie tout, ligne par ligne, en re-vérifiant les +48V et les groupes IEM.</div>
+        </div>
+      </div>
+      <div class="tl-row">
+        <span class="tl-n">04</span>
+        <div>
+          <div class="tl-t">Ça se paie au moment où on n'a plus le temps</div>
+          <div class="tl-d">Un canal décalé sur la stagebox, un phantom oublié sur un DI actif, un wedge routé sur le mauvais mix. Il est 18 h 40, les portes ouvrent à 19 h.</div>
+        </div>
+      </div>
     </div>
-    <div class="pain-card fade-up stagger-2">
-      <div class="pain-ico"><i class="ti ti-clock-exclamation"></i></div>
-      <div class="pain-title">Tout refaire à chaque date</div>
-      <div class="pain-txt">Même groupe, même patch, et on repart quand même d'une feuille blanche. À tout recopier et revérifier, à chaque fois.</div>
-    </div>
-    <div class="pain-card fade-up stagger-3">
-      <div class="pain-ico"><i class="ti ti-alert-triangle"></i></div>
-      <div class="pain-title">Le stress de la balance</div>
-      <div class="pain-txt">Un canal qui saute, un +48V oublié, un retour mal routé. Et les portes ouvrent dans vingt minutes.</div>
-    </div>
-  </div>
-  <div style="text-align:center;margin-top:48px">
-    <div style="display:inline-flex;align-items:center;gap:10px;font-size:17px;font-weight:600;color:var(--txt)">
-      <i class="ti ti-arrow-down" style="color:var(--ora);font-size:20px"></i>On s'est fait l'outil qu'on cherchait. Le voilà.
-    </div>
+
   </div>
 </section>
 
@@ -1840,6 +2075,42 @@ document.querySelectorAll('.fade-up').forEach(el=>obs.observe(el));
 window.addEventListener('scroll',()=>{
   document.querySelector('nav').style.boxShadow=window.scrollY>40?'0 4px 40px rgba(0,0,0,.4)':'none';
 });
+
+/* Copie du lien de démo — micro-interaction utile, pas décorative :
+   le bouton fait vraiment ce qu'il annonce. */
+(function(){
+  var btn=document.getElementById('copyLink');
+  if(!btn)return;
+  var label=btn.querySelector('span');
+  var base=label?label.textContent:'Copier';
+  btn.addEventListener('click',function(){
+    var url='https://patchflow.fr/rider.html?link=k7m3p9q';
+    var flash=function(txt,color){
+      if(label)label.textContent=txt;
+      btn.style.color=color;
+      setTimeout(function(){ if(label)label.textContent=base; btn.style.color=''; },1600);
+    };
+    /* Repli execCommand : navigator.clipboard n'existe qu'en contexte sécurisé
+       (https) et peut être refusé. Sans ce repli, le bouton paraît mort. */
+    var legacy=function(){
+      var t=document.createElement('textarea');
+      t.value=url; t.setAttribute('readonly','');
+      t.style.cssText='position:absolute;left:-9999px;top:0';
+      document.body.appendChild(t);
+      t.select(); t.setSelectionRange(0,url.length);
+      var ok=false;
+      try{ ok=document.execCommand('copy'); }catch(e){ ok=false; }
+      document.body.removeChild(t);
+      flash(ok?'Copié':'Ctrl+C', ok?'var(--grn)':'var(--txt2)');
+    };
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(url).then(
+        function(){ flash('Copié','var(--grn)'); },
+        legacy
+      );
+    }else{ legacy(); }
+  });
+}());
 </script>
 </body>
 </html>
