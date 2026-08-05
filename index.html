@@ -15,7 +15,7 @@
   --txt:#e8edf8;--txt2:#b0bcd4;--muted:#6a7a94;
   --ora:#ff6b1a;--ora2:#ff8c42;--ora-d:rgba(255,107,26,.12);--ora-g:rgba(255,107,26,.28);
   --err:#f87171;
-  --blu:#1a8fff;--grn:#22d6a0;--pur:#9b6aff;
+  --blu:#1a8fff;--grn:#22d6a0;--pur:#9b6aff;--warn:#f5c542;
   --f:'Outfit',sans-serif;--m:'DM Mono',monospace;
 }
 html{scroll-behavior:smooth}
@@ -83,16 +83,26 @@ h1 span{color:var(--ora)}
 .ps-v{font-size:12.5px;font-weight:600;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ps-live{margin-left:auto;display:inline-flex;align-items:center;gap:7px;font-family:var(--m);font-size:10px;color:var(--grn);white-space:nowrap}
 .ps-live::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--grn);box-shadow:0 0 0 3px rgba(34,214,160,.14)}
-.ps-table{width:100%;border-collapse:collapse;font-size:12px}
-.ps-table th{background:var(--surf2);color:var(--muted);font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1px;padding:8px 10px;border-bottom:1px solid var(--bdr2);text-align:left;font-weight:500}
-.ps-table td{padding:8px 10px;border-bottom:1px solid var(--bdr);color:var(--txt2);white-space:nowrap}
-.ps-table tr:last-child td{border-bottom:0}
-.ps-ch{font-family:var(--m);font-weight:500;color:var(--ora);text-align:right;width:46px;padding-right:14px!important;font-size:11.5px}
-.ps-short{font-family:var(--m);font-size:11.5px;color:var(--txt);font-weight:500}
-.ps-mic{font-family:var(--m);font-size:11px;color:var(--muted)}
-.ps-flag{font-family:var(--m);font-size:9.5px;letter-spacing:.4px;color:var(--bdr3)}
-.ps-flag.on{color:var(--txt2)}
-.ps-flag.v48{color:#f5c542}
+/* Table calquée sur .iltable de l'app : mêmes tailles, mêmes filets verticaux,
+   même gros numéro de canal orange, mêmes cases à cocher par colonne. */
+.ps-table{width:100%;border-collapse:collapse;font-size:11px}
+.ps-table th{background:var(--surf2);color:var(--muted);font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1px;padding:8px 9px;border-bottom:1px solid var(--bdr2);border-right:1px solid var(--bdr);font-weight:500;text-align:left;white-space:nowrap}
+.ps-table th:last-child{border-right:none}
+.ps-table td{padding:5px 9px;border-bottom:1px solid var(--bdr);border-right:1px solid var(--bdr);vertical-align:middle;white-space:nowrap}
+.ps-table td:last-child{border-right:none}
+.ps-table tr:last-child td{border-bottom:none}
+.ps-table tbody tr:hover td{background:rgba(255,107,26,.03)}
+.ps-ch{font-family:var(--m);color:var(--ora);font-size:17px;font-weight:700;text-align:center;min-width:38px;padding:0 6px!important}
+.ps-short{font-family:var(--m);font-weight:500;font-size:12px;color:var(--ora);text-transform:uppercase}
+.ps-long{font-size:11px;color:var(--txt)}
+.ps-src{font-size:11px;color:var(--txt2)}
+.ps-mic{font-family:var(--m);font-size:10px;color:var(--txt)}
+.ps-col-cb{text-align:center}
+/* Vraies cases à cocher : rendu natif identique à l'app (accent-color par
+   colonne). Non interactives — c'est un aperçu, pas un formulaire. */
+.ps-cb{width:14px;height:14px;accent-color:var(--ora);pointer-events:none;margin:0;vertical-align:middle}
+.ps-cb.blu{accent-color:var(--blu)}
+.ps-cb.warn{accent-color:var(--warn)}
 .ps-foot{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:11px 18px;background:var(--surf);border-top:1px solid var(--bdr);font-family:var(--m);font-size:10.5px;color:var(--muted)}
 .ps-foot b{color:var(--txt2);font-weight:500}
 
@@ -106,16 +116,20 @@ h1 span{color:var(--ora)}
   /* La feuille de patch est large par nature : on la fait défiler
      horizontalement plutôt que de la compresser illisiblement. */
   .patch-sheet{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  .ps-table{min-width:560px}
+  .ps-table{min-width:660px}
 }
 @media(max-width:560px){
   .hero-col{padding:34px 5vw 6px}
   .ps-head{gap:14px;padding:11px 14px}
-  .ps-table th,.ps-table td{padding:7px 8px}
-  .ps-table{min-width:440px}
-  /* On sacrifie FOH/MON sur très petit écran : CH, nom, micro et 48V priment. */
-  .ps-table th:nth-child(5),.ps-table td:nth-child(5),
-  .ps-table th:nth-child(6),.ps-table td:nth-child(6){display:none}
+  .ps-table th{padding:7px 8px}
+  .ps-table td{padding:4px 8px}
+  .ps-table{min-width:0}
+  /* Colonnes : 1 CH · 2 Court · 3 Nom long · 4 Source · 5 Micro · 6 +48V · 7 FOH · 8 MON
+     Sur très petit écran on garde CH, Court, Nom long, Micro et +48V. */
+  .ps-table th:nth-child(4),.ps-table td:nth-child(4),
+  .ps-table th:nth-child(7),.ps-table td:nth-child(7),
+  .ps-table th:nth-child(8),.ps-table td:nth-child(8){display:none}
+  .ps-ch{font-size:15px}
   .hero-ctas{gap:16px;width:100%}
   .hero-ctas .btn{width:100%;justify-content:center}
   .hide-narrow{display:none}
@@ -671,62 +685,76 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
         <table class="ps-table">
           <thead>
             <tr>
-              <th class="ps-ch" scope="col">CH</th>
-              <th scope="col">Nom</th>
+              <th scope="col">CH</th>
+              <th scope="col">Court</th>
+              <th scope="col">Nom long</th>
+              <th scope="col">Source</th>
               <th scope="col">Micro / DI</th>
-              <th scope="col">48V</th>
-              <th scope="col">FOH</th>
-              <th scope="col">MON</th>
+              <th scope="col" class="ps-col-cb">+48V</th>
+              <th scope="col" class="ps-col-cb">FOH</th>
+              <th scope="col" class="ps-col-cb">MON</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td class="ps-ch">01</td>
-              <td><span class="ps-short">BD1</span> <span class="ps-mic">Grosse caisse in</span></td>
+              <td class="ps-ch">1</td>
+              <td><span class="ps-short">BD1</span></td>
+              <td class="ps-long">Grosse caisse in</td>
+              <td class="ps-src">Batterie</td>
               <td class="ps-mic">Beta 91A</td>
-              <td><span class="ps-flag">—</span></td>
-              <td><span class="ps-flag on">FOH</span></td>
-              <td><span class="ps-flag on">MON</span></td>
+              <td class="ps-col-cb"><input type="checkbox" class="ps-cb" tabindex="-1" aria-label="+48V désactivé"/></td>
+              <td class="ps-col-cb"><input type="checkbox" class="ps-cb blu" checked tabindex="-1" aria-label="Envoyé au FOH"/></td>
+              <td class="ps-col-cb"><input type="checkbox" class="ps-cb warn" checked tabindex="-1" aria-label="Envoyé aux retours"/></td>
             </tr>
             <tr>
-              <td class="ps-ch">02</td>
-              <td><span class="ps-short">SN-T</span> <span class="ps-mic">Caisse claire top</span></td>
+              <td class="ps-ch">2</td>
+              <td><span class="ps-short">SN-T</span></td>
+              <td class="ps-long">Caisse claire top</td>
+              <td class="ps-src">Batterie</td>
               <td class="ps-mic">SM57</td>
-              <td><span class="ps-flag">—</span></td>
-              <td><span class="ps-flag on">FOH</span></td>
-              <td><span class="ps-flag on">MON</span></td>
+              <td class="ps-col-cb"><input type="checkbox" class="ps-cb" tabindex="-1" aria-label="+48V désactivé"/></td>
+              <td class="ps-col-cb"><input type="checkbox" class="ps-cb blu" checked tabindex="-1" aria-label="Envoyé au FOH"/></td>
+              <td class="ps-col-cb"><input type="checkbox" class="ps-cb warn" checked tabindex="-1" aria-label="Envoyé aux retours"/></td>
             </tr>
             <tr>
-              <td class="ps-ch">03</td>
-              <td><span class="ps-short">HH</span> <span class="ps-mic">Charleston</span></td>
+              <td class="ps-ch">3</td>
+              <td><span class="ps-short">HH</span></td>
+              <td class="ps-long">Charleston</td>
+              <td class="ps-src">Batterie</td>
               <td class="ps-mic">KM184</td>
-              <td><span class="ps-flag v48">+48</span></td>
-              <td><span class="ps-flag on">FOH</span></td>
-              <td><span class="ps-flag">—</span></td>
+              <td class="ps-col-cb"><input type="checkbox" class="ps-cb" checked tabindex="-1" aria-label="+48V activé"/></td>
+              <td class="ps-col-cb"><input type="checkbox" class="ps-cb blu" checked tabindex="-1" aria-label="Envoyé au FOH"/></td>
+              <td class="ps-col-cb"><input type="checkbox" class="ps-cb warn" tabindex="-1" aria-label="Non envoyé aux retours"/></td>
             </tr>
             <tr>
-              <td class="ps-ch">09</td>
-              <td><span class="ps-short">BASS-DI</span> <span class="ps-mic">Basse DI</span></td>
+              <td class="ps-ch">9</td>
+              <td><span class="ps-short">BASS</span></td>
+              <td class="ps-long">Basse DI</td>
+              <td class="ps-src">Basse</td>
               <td class="ps-mic">Radial J48</td>
-              <td><span class="ps-flag v48">+48</span></td>
-              <td><span class="ps-flag on">FOH</span></td>
-              <td><span class="ps-flag on">MON</span></td>
+              <td class="ps-col-cb"><input type="checkbox" class="ps-cb" checked tabindex="-1" aria-label="+48V activé"/></td>
+              <td class="ps-col-cb"><input type="checkbox" class="ps-cb blu" checked tabindex="-1" aria-label="Envoyé au FOH"/></td>
+              <td class="ps-col-cb"><input type="checkbox" class="ps-cb warn" checked tabindex="-1" aria-label="Envoyé aux retours"/></td>
             </tr>
             <tr>
               <td class="ps-ch">12</td>
-              <td><span class="ps-short">GTR-L</span> <span class="ps-mic">Ampli guitare</span></td>
+              <td><span class="ps-short">GTRL</span></td>
+              <td class="ps-long">Ampli guitare</td>
+              <td class="ps-src">Guitares</td>
               <td class="ps-mic">e906</td>
-              <td><span class="ps-flag">—</span></td>
-              <td><span class="ps-flag on">FOH</span></td>
-              <td><span class="ps-flag">—</span></td>
+              <td class="ps-col-cb"><input type="checkbox" class="ps-cb" tabindex="-1" aria-label="+48V désactivé"/></td>
+              <td class="ps-col-cb"><input type="checkbox" class="ps-cb blu" checked tabindex="-1" aria-label="Envoyé au FOH"/></td>
+              <td class="ps-col-cb"><input type="checkbox" class="ps-cb warn" tabindex="-1" aria-label="Non envoyé aux retours"/></td>
             </tr>
             <tr>
               <td class="ps-ch">17</td>
-              <td><span class="ps-short">LD-VOX</span> <span class="ps-mic">Chant lead</span></td>
+              <td><span class="ps-short">LEAD</span></td>
+              <td class="ps-long">Chant lead</td>
+              <td class="ps-src">Voix</td>
               <td class="ps-mic">SM58</td>
-              <td><span class="ps-flag">—</span></td>
-              <td><span class="ps-flag on">FOH</span></td>
-              <td><span class="ps-flag on">MON</span></td>
+              <td class="ps-col-cb"><input type="checkbox" class="ps-cb" tabindex="-1" aria-label="+48V désactivé"/></td>
+              <td class="ps-col-cb"><input type="checkbox" class="ps-cb blu" checked tabindex="-1" aria-label="Envoyé au FOH"/></td>
+              <td class="ps-col-cb"><input type="checkbox" class="ps-cb warn" checked tabindex="-1" aria-label="Envoyé aux retours"/></td>
             </tr>
           </tbody>
         </table>
