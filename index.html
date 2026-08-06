@@ -29,15 +29,24 @@ a:focus-visible,button:focus-visible,[tabindex]:focus-visible{outline:2px solid 
 body{background:var(--bg);color:var(--txt);font-family:var(--f);line-height:1.6;overflow-x:hidden}
 
 /* ── NAV ── */
-nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(8,11,18,.85);backdrop-filter:blur(18px);border-bottom:1px solid var(--bdr);padding:0 5vw;display:flex;align-items:center;height:64px;gap:32px}
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:var(--bg);border-bottom:1px solid var(--bdr);padding:0 5vw;display:flex;align-items:center;height:64px;gap:32px}
 .nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;flex-shrink:0}
 .nav-logo-icon{width:36px;height:36px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .nav-logo-text{font-size:17px;font-weight:700;color:var(--txt);letter-spacing:-.3px}
 .nav-logo-text span{color:var(--ora)}
-.nav-links{display:flex;align-items:center;gap:28px;flex:1}
-.nav-links a{color:var(--muted);text-decoration:none;font-size:13px;font-weight:500;transition:color .15s}
+/* Sommaire : mêmes intitulés que les titres de section, même ordre que la page.
+   L'accent orange ne marque qu'une seule entrée à la fois — celle où on se trouve. */
+.nav-links{display:flex;align-items:center;gap:26px;flex:1}
+.nav-links a{position:relative;color:var(--muted);text-decoration:none;font-size:13px;font-weight:500;line-height:64px;transition:color .15s}
+.nav-links a::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--ora);transform:scaleX(0);transform-origin:left;transition:transform .18s}
 .nav-links a:hover{color:var(--txt)}
-.nav-cta{display:flex;gap:10px;align-items:center;margin-left:auto}
+.nav-links a[aria-current="true"]{color:var(--txt)}
+.nav-links a[aria-current="true"]::after{transform:scaleX(1)}
+.nav-cta{display:flex;gap:20px;align-items:center;margin-left:auto}
+/* Une seule action pleine dans la barre : « Se connecter » est un lien, pas un
+   second bouton — on évite la paire plein/fantôme. */
+.nav-signin{color:var(--txt2);text-decoration:none;font-size:13px;font-weight:500;transition:color .15s}
+.nav-signin:hover{color:var(--txt)}
 .btn{display:inline-flex;align-items:center;gap:7px;padding:9px 20px;border-radius:9px;font-family:var(--f);font-size:13px;font-weight:600;cursor:pointer;border:none;text-decoration:none;transition:all .18s;white-space:nowrap}
 .btn-ghost{background:transparent;color:var(--txt2);border:1px solid var(--bdr2)}
 .btn-ghost:hover{background:var(--surf2);color:var(--txt)}
@@ -535,12 +544,16 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
 .nav-burger{display:none;background:transparent;border:1px solid var(--bdr2);border-radius:8px;width:38px;height:38px;align-items:center;justify-content:center;cursor:pointer;color:var(--txt);margin-left:auto}
 .nav-burger:hover{background:var(--surf2)}
 .nav-burger i{font-size:20px}
-.nav-drawer{position:fixed;top:64px;left:0;right:0;background:rgba(8,11,18,.98);backdrop-filter:blur(20px);border-bottom:1px solid var(--bdr);padding:14px 5vw 22px;display:none;flex-direction:column;gap:4px;z-index:99;max-height:calc(100vh - 64px);overflow-y:auto}
+.nav-drawer{position:fixed;top:64px;left:0;right:0;background:var(--bg);border-bottom:1px solid var(--bdr);padding:6px 5vw 22px;display:none;flex-direction:column;z-index:99;max-height:calc(100vh - 64px);overflow-y:auto}
 .nav-drawer.open{display:flex}
-.nav-drawer a.drawer-link{color:var(--txt2);text-decoration:none;font-size:15px;font-weight:500;padding:14px 4px;border-bottom:1px solid var(--bdr);transition:color .15s}
-.nav-drawer a.drawer-link:hover{color:var(--ora)}
-.nav-drawer .drawer-cta{display:flex;gap:10px;margin-top:14px;flex-direction:column}
+/* En vertical il y a la place d'afficher le numéro de section : le menu devient
+   littéralement le sommaire de la page. */
+.nav-drawer a.drawer-link{display:flex;align-items:baseline;gap:14px;color:var(--txt2);text-decoration:none;font-size:15px;font-weight:500;padding:15px 2px;border-bottom:1px solid var(--bdr);transition:color .15s}
+.nav-drawer a.drawer-link:hover{color:var(--txt)}
+.nav-drawer a.drawer-link span{font-family:var(--m);font-size:11px;letter-spacing:1.5px;color:var(--ora)}
+.nav-drawer .drawer-cta{display:flex;flex-direction:column;align-items:stretch;gap:16px;margin-top:22px}
 .nav-drawer .drawer-cta .btn{justify-content:center;padding:14px 20px;font-size:14px}
+.nav-drawer .drawer-cta .nav-signin{text-align:center;font-size:14px}
 
 /* ── RESPONSIVE — 1000px (tablets) ── */
 @media(max-width:1000px){
@@ -645,29 +658,73 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
     <div class="nav-logo-text">Patch<span>Flow</span></div>
   </a>
   <div class="nav-links">
-    <a href="#features">Fonctionnalités</a>
-    <a href="#lien">Lien de partage</a>
+    <a href="#lien">Le lien public</a>
+    <a href="#features">Dans l'app</a>
     <a href="#pricing">Tarifs</a>
-    <a href="#faq">FAQ</a>
+    <a href="#faq">Questions</a>
   </div>
   <div class="nav-cta">
-    <a class="btn btn-ghost" href="app.html">Se connecter</a>
-    <a class="btn btn-ora" href="app.html">Commencer — c'est gratuit</a>
+    <a class="nav-signin" href="app.html">Se connecter</a>
+    <a class="btn btn-ora" href="app.html">Créer mon patch</a>
   </div>
-  <button class="nav-burger" id="nav-burger" onclick="document.getElementById('nav-drawer').classList.toggle('open');this.querySelector('i').className=document.getElementById('nav-drawer').classList.contains('open')?'ti ti-x':'ti ti-menu-2'" aria-label="Menu"><i class="ti ti-menu-2"></i></button>
+  <button class="nav-burger" id="nav-burger" onclick="pfToggleDrawer()" aria-label="Menu" aria-expanded="false" aria-controls="nav-drawer"><i class="ti ti-menu-2"></i></button>
 </nav>
 
 <!-- Mobile drawer -->
 <div class="nav-drawer" id="nav-drawer">
-  <a class="drawer-link" href="#features" onclick="document.getElementById('nav-drawer').classList.remove('open');document.querySelector('#nav-burger i').className='ti ti-menu-2'">Fonctionnalités</a>
-  <a class="drawer-link" href="#lien" onclick="document.getElementById('nav-drawer').classList.remove('open');document.querySelector('#nav-burger i').className='ti ti-menu-2'">Lien de partage</a>
-  <a class="drawer-link" href="#pricing" onclick="document.getElementById('nav-drawer').classList.remove('open');document.querySelector('#nav-burger i').className='ti ti-menu-2'">Tarifs</a>
-  <a class="drawer-link" href="#faq" onclick="document.getElementById('nav-drawer').classList.remove('open');document.querySelector('#nav-burger i').className='ti ti-menu-2'">FAQ</a>
+  <a class="drawer-link" href="#lien" onclick="pfCloseDrawer()"><span>01</span>Le lien public</a>
+  <a class="drawer-link" href="#probleme" onclick="pfCloseDrawer()"><span>02</span>Le terrain</a>
+  <a class="drawer-link" href="#features" onclick="pfCloseDrawer()"><span>03</span>Dans l'app</a>
+  <a class="drawer-link" href="#comparaison" onclick="pfCloseDrawer()"><span>04</span>Le comparatif</a>
+  <a class="drawer-link" href="#pricing" onclick="pfCloseDrawer()"><span>05</span>Tarifs</a>
+  <a class="drawer-link" href="#faq" onclick="pfCloseDrawer()"><span>06</span>Questions</a>
   <div class="drawer-cta">
-    <a class="btn btn-ghost" href="app.html">Se connecter</a>
-    <a class="btn btn-ora" href="app.html"><i class="ti ti-rocket"></i>Commencer — c'est gratuit</a>
+    <a class="btn btn-ora" href="app.html">Créer mon patch</a>
+    <a class="nav-signin" href="app.html">J'ai déjà un compte — se connecter</a>
   </div>
 </div>
+
+<script>
+/* Drawer mobile ------------------------------------------------------- */
+function pfSetDrawer(open){
+  var d=document.getElementById('nav-drawer'),b=document.getElementById('nav-burger');
+  d.classList.toggle('open',open);
+  b.setAttribute('aria-expanded',open?'true':'false');
+  b.querySelector('i').className=open?'ti ti-x':'ti ti-menu-2';
+}
+function pfToggleDrawer(){pfSetDrawer(!document.getElementById('nav-drawer').classList.contains('open'));}
+function pfCloseDrawer(){pfSetDrawer(false);}
+
+/* Sommaire actif : on surligne l'entrée de la section réellement sous le nez
+   du lecteur. Les sections non listées (02, 04, 07) n'allument rien —
+   l'accent orange reste une ponctuation, jamais un décor permanent. */
+function pfInitNavSpy(){
+  var links=[].slice.call(document.querySelectorAll('.nav-links a[href^="#"]'));
+  if(!links.length) return;
+  /* Ce script est placé juste sous le nav : les <section> n'existent pas encore
+     au moment du parse, d'où l'attente du DOMContentLoaded plus bas. */
+  var secs=[].slice.call(document.querySelectorAll('section[id]'));
+  if(!secs.length) return;
+  var pending=false;
+  function spy(){
+    pending=false;
+    var y=window.pageYOffset+90,cur='';
+    for(var i=0;i<secs.length;i++){ if(secs[i].offsetTop<=y) cur=secs[i].id; }
+    /* Bas de page : la dernière section reste active même si son haut est loin. */
+    if(window.innerHeight+window.pageYOffset>=document.body.scrollHeight-4) cur=secs[secs.length-1].id;
+    links.forEach(function(a){
+      if(a.getAttribute('href')==='#'+cur) a.setAttribute('aria-current','true');
+      else a.removeAttribute('aria-current');
+    });
+  }
+  function onScroll(){ if(!pending){pending=true;requestAnimationFrame(spy);} }
+  window.addEventListener('scroll',onScroll,{passive:true});
+  window.addEventListener('resize',onScroll,{passive:true});
+  spy();
+}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',pfInitNavSpy);
+else pfInitNavSpy();
+</script>
 
 <!-- HERO -->
 <section class="hero">
