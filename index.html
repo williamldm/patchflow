@@ -428,30 +428,15 @@ h2 em{font-style:normal;color:var(--ora)}
 @media(max-width:380px){.fm-grid{grid-template-columns:1fr}.fm-name{font-size:14px}.fm-desc{font-size:12px}}
 
 /* ── HOW ── */
-.how-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:32px;margin-top:64px;counter-reset:steps}
-.how-step{position:relative;padding:32px;background:var(--surf);border:1px solid var(--bdr);border-radius:16px;transition:transform .2s,border-color .2s}
-.how-step:hover{transform:translateY(-3px);border-color:var(--bdr3)}
-.how-step::before{counter-increment:steps;content:counter(steps,'0');position:absolute;top:-16px;left:28px;font-size:40px;font-weight:900;font-family:var(--m);color:rgba(255,107,26,.22);line-height:1}
-.how-step h3{font-size:16px;font-weight:700;margin-bottom:10px;margin-top:8px}
-.how-step p{font-size:13px;color:var(--muted);line-height:1.7}
-.how-arrow{display:none}
 
 /* ── SOCIAL PROOF ── */
-.testimonials{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-top:56px}
-.testi{background:var(--surf);border:1px solid var(--bdr);border-radius:14px;padding:28px}
-.testi-text{font-size:14px;color:var(--txt2);line-height:1.75;margin-bottom:20px;font-style:italic}
-.testi-text::before{content:'\201C';color:var(--ora);font-size:28px;font-family:serif;line-height:0;vertical-align:-8px;margin-right:4px}
-.testi-author{display:flex;align-items:center;gap:12px}
-.testi-av{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex-shrink:0}
-.testi-name{font-size:13px;font-weight:600}
-.testi-role{font-size:11px;color:var(--muted);font-family:var(--m)}
 
 /* ── PRICING ── */
 #pricing{background:var(--bg2)}
 .pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:56px;align-items:stretch}
 .pricing-grid-2{grid-template-columns:repeat(2,1fr);max-width:780px;margin-left:auto;margin-right:auto}
 /* Storage add-on card */
-.storage-addon{max-width:780px;margin:20px auto 0;display:flex;align-items:center;gap:20px;background:linear-gradient(135deg,var(--surf2),var(--surf));border:1px solid var(--bdr2);border-radius:16px;padding:22px 26px;transition:box-shadow .2s}
+.storage-addon{max-width:780px;margin:20px 0 0;display:flex;align-items:center;gap:20px;background:var(--surf);border:1px solid var(--bdr2);border-radius:3px;padding:22px 26px}
 .storage-addon:hover{box-shadow:0 12px 40px rgba(0,0,0,.3)}
 .storage-addon-icon{width:52px;height:52px;border-radius:13px;background:rgba(26,143,255,.12);color:var(--blu);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0}
 .storage-addon-body{flex:1;min-width:0}
@@ -476,15 +461,11 @@ h2 em{font-style:normal;color:var(--ora)}
 .plan-ent-right{text-align:center;flex-shrink:0;min-width:180px}
 .plan-card{background:var(--surf);border:1px solid var(--bdr);border-radius:20px;padding:36px 32px;position:relative;transition:transform .2s,box-shadow .2s,border-color .2s;display:flex;flex-direction:column}
 .plan-card:hover{transform:translateY(-4px);box-shadow:0 24px 60px rgba(0,0,0,.4);border-color:var(--bdr3)}
-.plan-card.popular{border-color:var(--ora);border-width:2px;background:linear-gradient(160deg,rgba(255,107,26,.2) 0%,rgba(255,80,0,.07) 42%,var(--surf) 100%);box-shadow:0 0 0 1px rgba(255,107,26,.35),0 24px 70px rgba(255,107,26,.2)}
+.plan-card.popular{border-color:var(--ora);background:var(--surf)}
 /* La carte Pro prend le dessus sur desktop : légèrement plus grande, halo orange */
 @media(min-width:721px){
-  .plan-card.popular{transform:scale(1.03)}
-  .plan-card.popular:hover{transform:scale(1.03) translateY(-4px);box-shadow:0 0 0 1px rgba(255,107,26,.45),0 30px 80px rgba(255,107,26,.28)}
 }
-.plan-badge{position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:linear-gradient(90deg,#ff6b1a,#ff3d00);color:#fff;font-size:10px;font-weight:800;font-family:var(--m);padding:5px 18px;border-radius:20px;letter-spacing:1.5px;text-transform:uppercase;white-space:nowrap;box-shadow:0 4px 16px rgba(255,80,0,.45);overflow:hidden}
-.plan-badge::after{content:'';position:absolute;top:0;left:-60%;width:45%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.5),transparent);animation:badgeShine 3.2s ease-in-out infinite}
-@keyframes badgeShine{0%{left:-60%}55%,100%{left:130%}}
+.plan-badge{position:absolute;top:-10px;left:22px;background:var(--ora);color:#000;font-size:9.5px;font-weight:700;font-family:var(--m);padding:3px 12px;border-radius:2px;letter-spacing:1.4px;text-transform:uppercase;white-space:nowrap}55%,100%{left:130%}}
 .plan-feat-head{font-family:var(--m);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--ora);padding-top:2px}
 .plan-card.popular .plan-features li i.ti-check{color:var(--ora)}
 /* Promo : -50% / -70% first 2 months */
@@ -492,7 +473,7 @@ h2 em{font-style:normal;color:var(--ora)}
 .plan-promo-tag{flex-shrink:0;background:var(--grn);color:#04150f;font-size:11px;font-weight:800;font-family:var(--m);padding:3px 8px;border-radius:6px;letter-spacing:.5px}
 .plan-promo-txt{font-size:11.5px;line-height:1.4;color:var(--txt2)}
 .plan-promo-txt strong{color:var(--grn)}
-.promo-banner{max-width:680px;margin:28px auto 0;display:flex;align-items:center;justify-content:center;gap:12px;background:linear-gradient(135deg,rgba(255,107,26,.14),rgba(255,107,26,.05));border:1px solid rgba(255,107,26,.4);border-radius:14px;padding:14px 22px;flex-wrap:wrap}
+.promo-banner{max-width:680px;margin:28px 0 0;display:flex;align-items:center;gap:12px;background:var(--ora-d);border:1px solid var(--ora-g);border-radius:3px;padding:14px 20px;flex-wrap:wrap}
 .promo-banner i{color:var(--ora);font-size:20px}
 .promo-banner b{color:var(--ora)}
 .promo-banner span{font-size:14px;color:var(--txt2);font-weight:500}
@@ -511,8 +492,8 @@ h2 em{font-style:normal;color:var(--ora)}
 .plan-features li strong{color:var(--txt)}
 
 /* ── FAQ ── */
-.faq-list{max-width:780px;margin:56px auto 0;display:flex;flex-direction:column;gap:3px}
-.faq-item{background:var(--surf);border:1px solid var(--bdr);border-radius:12px;overflow:hidden;transition:border-color .2s}
+.faq-list{max-width:860px;margin:0;display:flex;flex-direction:column;gap:3px}
+.faq-item{background:var(--surf);border:1px solid var(--bdr);border-radius:3px;overflow:hidden;transition:border-color .2s}
 .faq-item.open{border-color:var(--bdr2)}
 .faq-q{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;cursor:pointer;font-size:15px;font-weight:600;gap:16px;user-select:none}
 .faq-q:hover{background:var(--surf2)}
@@ -522,10 +503,24 @@ h2 em{font-style:normal;color:var(--ora)}
 .faq-item.open .faq-a{display:block}
 
 /* ── CTA FINAL ── */
-.cta-final{background:linear-gradient(135deg,var(--surf2) 0%,var(--surf) 100%);border:1px solid var(--bdr);border-radius:24px;padding:80px 40px;text-align:center;margin:0 5vw 100px;position:relative;overflow:hidden}
-.cta-final::before{content:'';position:absolute;top:-100px;left:50%;transform:translateX(-50%);width:600px;height:400px;background:radial-gradient(ellipse,rgba(255,107,26,.12) 0%,transparent 70%);pointer-events:none}
-.cta-final h2{font-size:clamp(28px,4vw,52px);margin-bottom:18px}
-.cta-final p{font-size:16px;color:var(--muted);margin-bottom:40px;max-width:500px;margin-left:auto;margin-right:auto}
+/* En-tête de section commun — aligné à gauche, jamais centré */
+.sec-head{max-width:960px;margin-bottom:44px}
+.sec-head h2{margin-bottom:14px}
+.sec-head .section-sub{max-width:64ch}
+
+/* ══ 07 · Bande de fin — pas de bloc flottant arrondi, pas de halo ══ */
+.cta-band{border-top:1px solid var(--bdr);background:var(--bg2);padding:84px 5vw 88px}
+.cta-grid{display:grid;grid-template-columns:minmax(0,44fr) minmax(0,56fr);gap:56px;align-items:center}
+.cta-grid h2{margin-bottom:0}
+.cta-txt{font-size:15.5px;color:var(--txt2);opacity:.85;line-height:1.7;max-width:56ch;margin-bottom:26px}
+.cta-actions{display:flex;align-items:center;gap:24px;flex-wrap:wrap;margin-bottom:22px}
+@media(max-width:960px){.cta-grid{grid-template-columns:minmax(0,1fr);gap:28px}}
+@media(max-width:560px){
+  .cta-band{padding:60px 5vw 64px}
+  .cta-actions{gap:16px;width:100%}
+  .cta-actions .btn{width:100%;justify-content:center}
+  .sec-head{margin-bottom:32px}
+}
 
 /* ── FOOTER ── */
 footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
@@ -557,7 +552,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
 /* ── RESPONSIVE — 900px ── */
 @media(max-width:900px){
   section{padding:72px 5vw}
-  .pricing-grid,.how-steps{grid-template-columns:1fr 1fr}
+  .pricing-grid{grid-template-columns:1fr 1fr}
   .plan-enterprise{grid-template-columns:1fr;gap:24px;padding:28px 24px}
   .plan-ent-left{grid-template-columns:1fr;gap:20px}
   .plan-ent-meta{min-width:0}
@@ -567,7 +562,6 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
   .preview-screen{grid-template-columns:1fr;min-height:auto}
   .preview-sidebar{display:none}
   .hero-preview{margin-top:50px}
-  .testimonials{grid-template-columns:1fr}
   footer{flex-direction:column;align-items:flex-start;gap:18px;text-align:left}
   .footer-links{flex-wrap:wrap;gap:16px}
 }
@@ -579,7 +573,6 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
   .storage-addon-right{align-items:flex-start;width:100%}
   .plan-card{padding:30px 24px}
   .plan-card.popular{order:-1}
-  .cta-final{padding:60px 24px;margin:0 5vw 60px;border-radius:18px}
   .promo-banner{padding:14px 18px;font-size:13px;text-align:center}
   .promo-banner span{font-size:13px}
   .preview-canvas{padding:12px}
@@ -601,15 +594,10 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
   .section-label{font-size:10px;letter-spacing:1.5px}
   .section-sub{font-size:14px;line-height:1.6}
   .features-grid{grid-template-columns:1fr}
-  .how-steps{grid-template-columns:1fr;gap:14px}
   .plan-ent-feats{grid-template-columns:1fr}
   .plan-price .amount{font-size:42px}
-  .testi{padding:22px 20px}
-  .testi-text{font-size:13.5px}
   .faq-q{padding:16px 18px;font-size:14px}
   .faq-a{padding:0 18px 16px;font-size:13.5px}
-  .cta-final h2{margin-bottom:14px}
-  .cta-final p{font-size:14.5px;margin-bottom:30px}
 }
 
 /* ── RESPONSIVE — 480px (small phones) ── */
@@ -629,17 +617,10 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
   .plan-card{padding:26px 20px}
   .plan-features li{font-size:12.5px}
   .plan-promo{padding:8px 10px;font-size:11px}
-  .cta-final{padding:48px 20px;margin:0 4vw 50px;border-radius:16px}
-  .cta-final h2{font-size:24px}
   footer{padding:30px 4vw}
 }
 
 /* ── ANIMATIONS ── */
-.fade-up{opacity:0;transform:translateY(28px);transition:opacity .6s ease,transform .6s ease}
-.fade-up.visible{opacity:1;transform:none}
-.stagger-1{transition-delay:.1s}
-.stagger-2{transition-delay:.2s}
-.stagger-3{transition-delay:.3s}
 </style>
 </head>
 <body>
@@ -665,7 +646,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
   </a>
   <div class="nav-links">
     <a href="#features">Fonctionnalités</a>
-    <a href="#how">Comment ça marche</a>
+    <a href="#lien">Lien de partage</a>
     <a href="#pricing">Tarifs</a>
     <a href="#faq">FAQ</a>
   </div>
@@ -679,7 +660,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
 <!-- Mobile drawer -->
 <div class="nav-drawer" id="nav-drawer">
   <a class="drawer-link" href="#features" onclick="document.getElementById('nav-drawer').classList.remove('open');document.querySelector('#nav-burger i').className='ti ti-menu-2'">Fonctionnalités</a>
-  <a class="drawer-link" href="#how" onclick="document.getElementById('nav-drawer').classList.remove('open');document.querySelector('#nav-burger i').className='ti ti-menu-2'">Comment ça marche</a>
+  <a class="drawer-link" href="#lien" onclick="document.getElementById('nav-drawer').classList.remove('open');document.querySelector('#nav-burger i').className='ti ti-menu-2'">Lien de partage</a>
   <a class="drawer-link" href="#pricing" onclick="document.getElementById('nav-drawer').classList.remove('open');document.querySelector('#nav-burger i').className='ti ti-menu-2'">Tarifs</a>
   <a class="drawer-link" href="#faq" onclick="document.getElementById('nav-drawer').classList.remove('open');document.querySelector('#nav-burger i').className='ti ti-menu-2'">FAQ</a>
   <div class="drawer-cta">
@@ -1086,11 +1067,13 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
 
 <!-- FEATURES -->
 <section id="features">
-  <div class="section-label center">Fonctionnalités</div>
-  <h2 class="center">Une seule app pour <em>tout</em> votre patch.</h2>
-  <p class="section-sub center"><span class="hide-mobile">Cliquez à gauche, l'aperçu est en face. Tout ce qui suit est déjà dans l'app, pas sur une roadmap.</span><span class="only-mobile">De quoi préparer une date en entier, sans changer d'outil.</span></p>
+  <div class="sec-head">
+    <p class="section-label">03 — Dans l'app</p>
+    <h2>Tout ce qu'une date demande, <em>au même endroit.</em></h2>
+    <p class="section-sub"><span class="hide-mobile">Cliquez un élément à gauche, l'aperçu réel s'affiche en face. Tout ce qui suit tourne déjà en production — rien sur une roadmap.</span><span class="only-mobile">De quoi préparer une date entière sans changer d'outil.</span></p>
+  </div>
 
-  <div class="feat-shell fade-up">
+  <div class="feat-shell">
 
     <!-- SIDEBAR -->
     <div class="feat-sidebar">
@@ -1516,7 +1499,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
           <div style="background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;padding:12px;font-size:11px;color:var(--muted)">
             <div style="font-weight:600;color:var(--txt2);margin-bottom:6px">Roles disponibles</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-              <div><span style="color:var(--ora)">Editor</span> — acces complet</div>
+              <div><span style="color:var(--ora)">Editor</span> — accès complet</div>
               <div><span style="color:var(--blu)">FOH</span> — edition patch</div>
               <div><span style="color:var(--grn)">Monitors</span> — retours</div>
               <div><span style="color:var(--muted)">Viewer</span> — lecture seule</div>
@@ -1817,7 +1800,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
   </div><!-- end feat-shell -->
 
   <!-- VERSION MOBILE — grille de cartes scannables (toutes les fonctionnalités d'un coup) -->
-  <div class="feat-mobile fade-up">
+  <div class="feat-mobile">
 
     <div class="fm-group-label">Construire le patch</div>
     <div class="fm-grid">
@@ -1903,11 +1886,13 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
 
 <!-- COMPARISON -->
 <section id="comparaison" style="background:var(--bg2)">
-  <div class="section-label center">Pourquoi PatchFlow</div>
-  <h2 class="center">Excel et Word n'ont <em>jamais été faits</em><br/>pour le live.</h2>
-  <p class="section-sub center">Ce que vous faites aujourd'hui, et ce que ça donne avec PatchFlow.</p>
+  <div class="sec-head">
+    <p class="section-label">04 — Le comparatif</p>
+    <h2>Excel et Word n'ont <em>jamais été faits</em> pour le live.</h2>
+    <p class="section-sub">Ce que vous bricolez aujourd'hui, et ce que ça donne quand l'outil est fait pour le métier.</p>
+  </div>
 
-  <div class="cmp-wrap fade-up">
+  <div class="cmp-wrap">
     <div class="cmp-row head">
       <div class="cmp-cell cmp-feat" style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px;font-family:var(--m)">Au quotidien</div>
       <div class="cmp-cell cmp-old" style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px;font-family:var(--m)">Excel · Word · Dropbox</div>
@@ -1959,38 +1944,15 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
   </div>
 </section>
 
-<!-- HOW IT WORKS -->
-<section id="how">
-  <div class="section-label center">Comment ça marche</div>
-  <h2 class="center">Opérationnel en <em>3 minutes.</em></h2>
-  <p class="section-sub center">Pas de manuel, pas de paramétrage. Vous créez le show, le reste suit.</p>
-
-  <div class="how-steps">
-    <div class="how-step fade-up">
-      <div style="font-size:28px;margin-bottom:8px">🎤</div>
-      <h3>Créez le show</h3>
-      <p>Un nom, un lieu, une date. Vous invitez l'équipe avec le bon rôle, et tout le monde travaille sur la même base. C'est l'affaire d'une minute.</p>
-    </div>
-    <div class="how-step fade-up stagger-1">
-      <div style="font-size:28px;margin-bottom:8px">📋</div>
-      <h3>Montez le patch</h3>
-      <p>L'assistant ILA sort l'Input List en quelques clics, ou repartez d'un de vos templates. Vous ajustez les micros, c'est prêt.</p>
-    </div>
-    <div class="how-step fade-up stagger-2">
-      <div style="font-size:28px;margin-bottom:8px">📡</div>
-      <h3>Balancez le lien</h3>
-      <p>Un lien pour le groupe, un PDF pour la prod, le plan imprimé pour le backline. Tout le monde a la même version, et c'est la bonne.</p>
-    </div>
-  </div>
-</section>
-
 <!-- PRICING -->
 <section id="pricing">
-  <div class="section-label center">Tarifs</div>
-  <h2 class="center">Simple, <em>transparent.</em></h2>
-  <p class="section-sub center" style="max-width:560px;margin-left:auto;margin-right:auto">Gratuit pour commencer, Pro quand ça tourne vraiment. Sans engagement, annulable quand vous voulez.</p>
+  <div class="sec-head">
+    <p class="section-label">05 — Tarifs</p>
+    <h2>Deux offres, <em>pas de piège.</em></h2>
+    <p class="section-sub">Gratuit pour commencer, Pro quand ça tourne vraiment. Sans engagement, résiliable quand vous voulez.</p>
+  </div>
 
-  <div class="promo-banner fade-up">
+  <div class="promo-banner">
     <i class="ti ti-gift"></i>
     <span><b>Offre saison d'été</b> &mdash; vos 2 premiers mois <b>&minus;50&nbsp;%</b> sur Pro, soit <b>5,99&nbsp;€/mois</b>. Sans engagement.</span>
   </div>
@@ -1998,7 +1960,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
   <div class="pricing-grid pricing-grid-2">
 
     <!-- FREE -->
-    <div class="plan-card fade-up">
+    <div class="plan-card">
       <div class="plan-name">Gratuit</div>
       <div class="plan-price">
         <span class="amount">0</span>
@@ -2026,7 +1988,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
     </div>
 
     <!-- PRO -->
-    <div class="plan-card popular fade-up stagger-1">
+    <div class="plan-card popular">
       <div class="plan-badge">Tout inclus</div>
       <div class="plan-name" style="color:var(--ora)">Pro</div>
       <div class="plan-price">
@@ -2062,7 +2024,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
   </div>
 
   <!-- STORAGE ADD-ON -->
-  <div class="storage-addon fade-up">
+  <div class="storage-addon">
     <div class="storage-addon-icon"><i class="ti ti-database"></i></div>
     <div class="storage-addon-body">
       <div class="storage-addon-title">Option Stockage <strong>500 Go</strong></div>
@@ -2075,7 +2037,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
   </div>
 
   <!-- ENTERPRISE (full width) -->
-  <div class="plan-enterprise fade-up" style="margin-top:20px">
+  <div class="plan-enterprise" style="margin-top:20px">
     <div class="plan-ent-left">
       <div class="plan-ent-meta">
         <div class="plan-name" style="margin-bottom:10px">Entreprise</div>
@@ -2092,7 +2054,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
         <li><i class="ti ti-check"></i><span><strong>Membres illimites</strong></span></li>
         <li><i class="ti ti-check"></i><span>Stockage <strong>illimite</strong></span></li>
         <li><i class="ti ti-check"></i><span>SSO / Active Directory</span></li>
-        <li><i class="ti ti-check"></i><span>API acces complet</span></li>
+        <li><i class="ti ti-check"></i><span>API accès complet</span></li>
         <li><i class="ti ti-check"></i><span>SLA garanti</span></li>
         <li><i class="ti ti-check"></i><span>Support dedie 24/7</span></li>
         <li><i class="ti ti-check"></i><span>Onboarding personnalise</span></li>
@@ -2114,49 +2076,12 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
   </div>
 </section>
 
-<!-- TESTIMONIALS -->
-<section style="padding-top:60px">
-  <div class="section-label center">Ils nous font confiance</div>
-  <h2 class="center">Ce que disent les <em>professionnels</em></h2>
-
-  <div class="testimonials">
-    <div class="testi fade-up">
-      <p class="testi-text">Fini les Excel qui tournent par mail. Tout le monde est sur la même version, ça m'a fait gagner un temps fou en préprod.</p>
-      <div class="testi-author">
-        <div class="testi-av" style="background:rgba(255,107,26,.15);color:var(--ora)">ML</div>
-        <div>
-          <div class="testi-name">Marc Leblanc</div>
-          <div class="testi-role">FOH Engineer — Festivals</div>
-        </div>
-      </div>
-    </div>
-    <div class="testi fade-up stagger-1">
-      <p class="testi-text">Le plan de scène, je le montre direct aux musiciens avec leurs canaux. Pour briefer le backline, c'est exactement ce qu'il me manquait.</p>
-      <div class="testi-author">
-        <div class="testi-av" style="background:rgba(34,214,160,.15);color:var(--grn)">SD</div>
-        <div>
-          <div class="testi-name">Sophie Durand</div>
-          <div class="testi-role">Monitor Engineer — Tournees</div>
-        </div>
-      </div>
-    </div>
-    <div class="testi fade-up stagger-2">
-      <p class="testi-text">Le lien de partage, je l'envoie au groupe et ils voient leur patch en temps réel. Plus personne qui se trompe sur les canaux IEM.</p>
-      <div class="testi-author">
-        <div class="testi-av" style="background:rgba(155,106,255,.15);color:var(--pur)">AR</div>
-        <div>
-          <div class="testi-name">Antoine Roussel</div>
-          <div class="testi-role">Technicien son — Spectacles</div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- FAQ -->
 <section id="faq">
-  <div class="section-label center">FAQ</div>
-  <h2 class="center">Questions <em>frequentes</em></h2>
+  <div class="sec-head">
+    <p class="section-label">06 — Questions</p>
+    <h2>Ce qu'on nous demande <em>le plus souvent.</em></h2>
+  </div>
 
   <div class="faq-list">
 
@@ -2165,7 +2090,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
         Puis-je utiliser PatchFlow sans abonnement payant ?
         <i class="ti ti-plus"></i>
       </div>
-      <div class="faq-a">Oui, le plan Gratuit est entierement fonctionnel. Il vous permet de gerer jusqu'a 3 shows actifs avec 32 canaux chacun, d'utiliser l'Input List et le plan de scene basique. Aucune carte bancaire requise pour commencer.</div>
+      <div class="faq-a">Oui, le plan Gratuit est entièrement fonctionnel. Il vous permet de gérer jusqu'à 3 shows actifs avec 32 canaux chacun, d'utiliser l'Input List et le plan de scène basique. Aucune carte bancaire requise pour commencer.</div>
     </div>
 
     <div class="faq-item">
@@ -2178,7 +2103,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
 
     <div class="faq-item">
       <div class="faq-q" onclick="toggleFaq(this)">
-        Mes donnees sont-elles sauvegardees automatiquement ?
+        Mes données sont-elles sauvegardées automatiquement ?
         <i class="ti ti-plus"></i>
       </div>
       <div class="faq-a">Oui, chaque modification est sauvegardee automatiquement sur nos serveurs Supabase (PostgreSQL), heberges en Europe. Vous retrouvez votre travail exactement ou vous l'avez laisse, depuis n'importe quel appareil.</div>
@@ -2186,7 +2111,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
 
     <div class="faq-item">
       <div class="faq-q" onclick="toggleFaq(this)">
-        Puis-je avoir plusieurs patches (configurations) pour un meme show ?
+        Puis-je avoir plusieurs patches (configurations) pour un même show ?
         <i class="ti ti-plus"></i>
       </div>
       <div class="faq-a">Oui. Les onglets de patch permettent d'avoir plusieurs configurations au sein d'un meme show — par exemple un patch FOH, un patch retours, ou des patches par artiste en cas de soiree multi-groupes. Les noms sont personnalisables.</div>
@@ -2194,7 +2119,7 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
 
     <div class="faq-item">
       <div class="faq-q" onclick="toggleFaq(this)">
-        L'assistant de creation de patch, comment ca marche ?
+        L'assistant de création de patch, comment ça marche ?
         <i class="ti ti-plus"></i>
       </div>
       <div class="faq-a">L'assistant "ILA" vous propose une palette d'instruments (batterie, guitares, claviers, voix, cuivres, etc.) avec des valeurs par defaut intelligentes. Vous ajustez le nombre de chaque instrument, l'assistant genere automatiquement les canaux avec les noms courts, noms longs, sources et microphones recommandes.</div>
@@ -2213,35 +2138,42 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
         Puis-je importer mon patch existant depuis Excel ou une autre appli ?
         <i class="ti ti-plus"></i>
       </div>
-      <div class="faq-a">Oui, l'import CSV est disponible. Depuis l'Input List, utilisez le bouton "Importer CSV" pour charger votre patch existant directement. L'export CSV est egalement disponible a tout moment. L'assistant ILA reste la solution la plus rapide pour partir de zero en moins de 2 minutes.</div>
+      <div class="faq-a">Oui, l'import CSV est disponible. Depuis l'Input List, utilisez le bouton "Importer CSV" pour charger votre patch existant directement. L'export CSV est également disponible à tout moment. L'assistant ILA reste la solution la plus rapide pour partir de zéro en moins de 2 minutes.</div>
     </div>
 
     <div class="faq-item">
       <div class="faq-q" onclick="toggleFaq(this)">
-        Comment fonctionnent les roles dans l'equipe ?
+        Comment fonctionnent les rôles dans l'équipe ?
         <i class="ti ti-plus"></i>
       </div>
-      <div class="faq-a">Vous pouvez inviter des membres avec differents roles : Editor (acces complet), FOH (edition Input List et plan de scene), Monitors, ou Lecture seule (Viewer). Chaque membre se connecte avec son propre compte et voit les modifications en temps reel.</div>
+      <div class="faq-a">Vous pouvez inviter des membres avec différents rôles : Editor (accès complet), FOH (édition Input List et plan de scène), Monitors, ou Lecture seule (Viewer). Chaque membre se connecte avec son propre compte et voit les modifications en temps reel.</div>
     </div>
 
   </div>
 </section>
 
-<!-- CTA FINAL -->
-<div class="cta-final fade-up">
-  <div class="section-label center">Votre prochain show</div>
-  <h2>Votre prochain show,<br/><em>bouclé sans prise de tête.</em></h2>
-  <p>Créez votre premier patch gratuitement, sans carte bancaire. Comme les 500+ techniciens qui ont laissé tomber les fichiers Excel.</p>
-  <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap">
-    <a class="btn btn-ora btn-xl" href="app.html"><i class="ti ti-rocket"></i>Créer mon compte gratuit</a>
-    <a class="btn btn-ghost btn-lg" href="#pricing">Voir les tarifs</a>
+<!-- ══ 07 · PASSER À L'ACTE ══ -->
+<section class="cta-band">
+  <div class="cta-grid">
+    <div>
+      <p class="section-label">07 — Démarrer</p>
+      <h2>Montez votre patch,<br/><em>envoyez le lien.</em></h2>
+    </div>
+    <div class="cta-right">
+      <p class="cta-txt">Le plan gratuit suffit pour une date : Input List, plan de scène, lien de partage et export PDF. Vous passez Pro le jour où vous en avez besoin, pas avant.</p>
+      <div class="cta-actions">
+        <a class="btn btn-ora btn-lg" href="app.html">Créer mon patch</a>
+        <a class="hero-link" href="#pricing">Voir les tarifs</a>
+      </div>
+      <div class="hero-facts">
+        <span>Sans carte bancaire</span>
+        <span>Données hébergées en Europe</span>
+        <span>Résiliable à tout moment</span>
+      </div>
+    </div>
   </div>
-  <div style="margin-top:24px;font-size:13px;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap">
-    <i class="ti ti-shield-check" style="color:var(--grn)"></i>Aucune carte bancaire requise
-    <span style="opacity:.4">·</span>Données hébergées en Europe
-    <span style="opacity:.4">·</span>Annulable à tout moment
-  </div>
-</div>
+</section>
+
 
 <!-- FOOTER -->
 <footer>
@@ -2285,11 +2217,6 @@ function toggleFaq(btn){
   if(!wasOpen)item.classList.add('open');
 }
 
-// Fade-up on scroll
-const obs=new IntersectionObserver(entries=>{
-  entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible');});
-},{threshold:.12});
-document.querySelectorAll('.fade-up').forEach(el=>obs.observe(el));
 
 // Nav scroll effect
 window.addEventListener('scroll',()=>{
