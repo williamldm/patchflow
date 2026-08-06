@@ -167,23 +167,68 @@ h1 span{color:var(--ora)}
 .spec-d{font-size:13.5px;color:var(--txt2);opacity:.8;line-height:1.6}
 
 /* Colonne droite : la page rider telle que le destinataire la voit */
+/* ── Vue rider : couleurs et styles repris de la page partagée réelle
+   (pf-app.js, rendu du lien public). Volontairement différente de l'éditeur :
+   badges de canal orange, lignes alternées, badges de type colorés. ── */
 .rider-view{border:1px solid var(--bdr2);border-radius:3px;background:var(--bg);overflow:hidden}
 .rider-top{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--surf);border-bottom:1px solid var(--bdr);font-family:var(--m);font-size:10px;color:var(--muted);letter-spacing:.5px}
 .rider-top .rt-lock{color:var(--grn)}
 .rider-body{padding:22px 20px}
 .rider-title{font-size:19px;font-weight:700;color:var(--txt);letter-spacing:-.4px;margin-bottom:4px}
 .rider-meta{font-family:var(--m);font-size:11px;color:var(--muted);margin-bottom:20px}
+
+/* Onglets réellement cliquables */
 .rider-tabs{display:flex;gap:0;border-bottom:1px solid var(--bdr2);margin-bottom:16px;overflow-x:auto;scrollbar-width:none}
 .rider-tabs::-webkit-scrollbar{display:none}
-.rider-tab{padding:8px 14px;font-family:var(--m);font-size:11px;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap}
-.rider-tab.on{color:var(--ora);border-bottom-color:var(--ora)}
-.rider-lines{display:flex;flex-direction:column}
-.rider-line{display:grid;grid-template-columns:34px 1fr auto;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid var(--bdr)}
-.rider-line:last-child{border-bottom:0}
-.rl-ch{font-family:var(--m);font-size:11px;color:var(--muted);text-align:right}
-.rl-name{font-size:13px;color:var(--txt2)}
-.rl-name b{font-family:var(--m);font-size:11.5px;color:var(--txt);font-weight:500;margin-right:8px}
-.rl-mic{font-family:var(--m);font-size:11px;color:var(--muted);white-space:nowrap}
+.rider-tab{appearance:none;background:none;border:0;border-bottom:2px solid transparent;padding:8px 14px;font-family:var(--m);font-size:11px;color:var(--muted);white-space:nowrap;cursor:pointer;transition:color .15s,border-color .15s}
+.rider-tab:hover{color:var(--txt2)}
+.rider-tab[aria-selected="true"]{color:var(--ora);border-bottom-color:var(--ora)}
+.rider-tab:focus-visible{outline:2px solid var(--ora);outline-offset:-2px}
+.rv-pane[hidden]{display:none}
+
+/* Tables (Input / Output) — mêmes valeurs que la page rider */
+.rv-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.rv-table{width:100%;border-collapse:collapse;font-size:12px}
+.rv-table thead tr{background:#111827;color:#8899aa;font-family:var(--m);font-size:10px;text-transform:uppercase;letter-spacing:.8px}
+.rv-table th{padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a;font-weight:400;white-space:nowrap}
+.rv-table tbody tr{border-bottom:1px solid #141c2e}
+.rv-table tbody tr:nth-child(odd){background:#0d1220}
+.rv-table tbody tr:nth-child(even){background:#0a0f1c}
+.rv-table td{padding:8px 12px;white-space:nowrap}
+.rv-chcell{padding:6px 10px!important;text-align:center}
+.rv-ch{display:inline-flex;align-items:center;justify-content:center;background:var(--ora);color:#000;font-family:var(--m);font-size:13px;font-weight:800;min-width:28px;height:22px;border-radius:5px;padding:0 6px;letter-spacing:-.3px;line-height:1}
+.rv-short{font-weight:700;font-size:13px;color:#f0f4ff}
+.rv-long{color:#c8d4e0;font-size:12px}
+.rv-meta2{color:#7a8a9a;font-family:var(--m);font-size:10px}
+.rv-48{background:rgba(245,197,66,.15);color:#f5c542;border:1px solid rgba(245,197,66,.3);border-radius:4px;font-size:9px;padding:2px 6px;font-family:var(--m)}
+.rv-ok{font-size:15px;font-weight:700}
+.rv-ok.foh{color:#22d6a0}
+.rv-ok.mon{color:#1a8fff}
+.rv-num{font-family:var(--m);font-weight:700;color:#5a6a80;text-align:center}
+.rv-type{display:inline-block;border-radius:4px;font-size:9px;padding:2px 7px;font-family:var(--m);text-transform:uppercase;border:1px solid}
+.rv-note{color:#5a6a80;font-size:11px}
+.rv-foot{margin-top:14px;text-align:center;font-size:10px;color:#3a4a5a;font-family:var(--m)}
+
+/* Plan de scène — canvas blanc, comme l'éditeur BandPlan */
+.rv-stage{position:relative;background:#fff;border-radius:3px;height:280px;overflow:hidden;background-image:linear-gradient(rgba(29,58,95,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(29,58,95,.06) 1px,transparent 1px);background-size:26px 26px}
+.rv-el{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:3px}
+.rv-el-body{width:44px;height:44px;border:2px solid;border-radius:10px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:21px;box-shadow:0 1px 6px rgba(0,0,0,.13);position:relative}
+.rv-el-ch{position:absolute;top:-7px;right:-9px;background:var(--ora);color:#000;font-family:var(--m);font-size:9px;font-weight:800;padding:1px 5px;border-radius:9px;line-height:1.3}
+.rv-el-lbl{font-family:var(--m);font-size:8.5px;color:#111;background:rgba(255,255,255,.92);padding:2px 6px;border-radius:5px;font-weight:600;white-space:nowrap}
+.rv-stage-front{position:absolute;left:0;right:0;bottom:0;padding:4px 0;text-align:center;font-family:var(--m);font-size:8.5px;letter-spacing:2px;text-transform:uppercase;color:#5a6a80;background:rgba(240,243,248,.9);border-top:1px dashed #c8d4e0}
+
+/* Fichiers */
+.rv-files{display:flex;flex-direction:column;gap:8px}
+.rv-file{display:flex;align-items:center;gap:11px;padding:10px 12px;background:#0d1520;border:1px solid #1e2a3a;border-radius:8px}
+.rv-file i{font-size:19px;flex-shrink:0}
+.rv-file-n{font-size:12.5px;font-weight:600;color:#e0eaf8}
+.rv-file-m{font-size:9.5px;font-family:var(--m);color:#5a6a80;margin-top:2px}
+
+@media(max-width:560px){
+  .rider-body{padding:18px 15px}
+  .rv-stage{height:220px}
+  .rv-el-body{width:36px;height:36px;font-size:17px}
+}
 
 @media(max-width:960px){
   .lien-grid{grid-template-columns:minmax(0,1fr);gap:36px}
@@ -829,20 +874,167 @@ footer{border-top:1px solid var(--bdr);padding:40px 5vw;display:flex;align-items
         <div class="rider-meta">Sam. 14 mars · Balance 16 h 30 · DiGiCo SD9 · 24 lignes</div>
 
         <div class="rider-tabs" role="tablist" aria-label="Sections du rider">
-          <span class="rider-tab on" role="tab" aria-selected="true">Input list</span>
-          <span class="rider-tab" role="tab" aria-selected="false">Plan de scène</span>
-          <span class="rider-tab" role="tab" aria-selected="false">Retours</span>
-          <span class="rider-tab" role="tab" aria-selected="false">Fichiers</span>
+          <button type="button" class="rider-tab" role="tab" id="rt-in"    aria-selected="true"  aria-controls="rp-in">Input list</button>
+          <button type="button" class="rider-tab" role="tab" id="rt-stage" aria-selected="false" aria-controls="rp-stage">Plan de scène</button>
+          <button type="button" class="rider-tab" role="tab" id="rt-out"   aria-selected="false" aria-controls="rp-out">Output list</button>
+          <button type="button" class="rider-tab" role="tab" id="rt-files" aria-selected="false" aria-controls="rp-files">Fichiers</button>
         </div>
 
-        <div class="rider-lines">
-          <div class="rider-line"><span class="rl-ch">01</span><span class="rl-name"><b>BD1</b>Grosse caisse in</span><span class="rl-mic">Beta 91A</span></div>
-          <div class="rider-line"><span class="rl-ch">02</span><span class="rl-name"><b>SN-T</b>Caisse claire top</span><span class="rl-mic">SM57</span></div>
-          <div class="rider-line"><span class="rl-ch">03</span><span class="rl-name"><b>HH</b>Charleston</span><span class="rl-mic">KM184 · +48</span></div>
-          <div class="rider-line"><span class="rl-ch">09</span><span class="rl-name"><b>BASS-DI</b>Basse DI</span><span class="rl-mic">Radial J48 · +48</span></div>
-          <div class="rider-line"><span class="rl-ch">12</span><span class="rl-name"><b>GTR-L</b>Ampli guitare</span><span class="rl-mic">e906</span></div>
-          <div class="rider-line"><span class="rl-ch">17</span><span class="rl-name"><b>LD-VOX</b>Chant lead</span><span class="rl-mic">SM58</span></div>
+        <!-- Input list -->
+        <div class="rv-pane" id="rp-in" role="tabpanel" aria-labelledby="rt-in">
+          <div class="rv-scroll">
+            <table class="rv-table">
+              <thead>
+                <tr>
+                  <th scope="col" style="text-align:center;width:52px">CH</th>
+                  <th scope="col">Court</th>
+                  <th scope="col">Nom</th>
+                  <th scope="col">Micro</th>
+                  <th scope="col">+48V</th>
+                  <th scope="col">FOH</th>
+                  <th scope="col">MON</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="rv-chcell"><span class="rv-ch">1</span></td>
+                  <td class="rv-short">BD1</td><td class="rv-long">Grosse caisse in</td>
+                  <td class="rv-meta2">Beta 91A</td><td></td>
+                  <td><span class="rv-ok foh">&#10003;</span></td><td><span class="rv-ok mon">&#10003;</span></td>
+                </tr>
+                <tr>
+                  <td class="rv-chcell"><span class="rv-ch">2</span></td>
+                  <td class="rv-short">SN-T</td><td class="rv-long">Caisse claire top</td>
+                  <td class="rv-meta2">SM57</td><td></td>
+                  <td><span class="rv-ok foh">&#10003;</span></td><td><span class="rv-ok mon">&#10003;</span></td>
+                </tr>
+                <tr>
+                  <td class="rv-chcell"><span class="rv-ch">3</span></td>
+                  <td class="rv-short">HH</td><td class="rv-long">Charleston</td>
+                  <td class="rv-meta2">KM184</td><td><span class="rv-48">+48V</span></td>
+                  <td><span class="rv-ok foh">&#10003;</span></td><td></td>
+                </tr>
+                <tr>
+                  <td class="rv-chcell"><span class="rv-ch">9</span></td>
+                  <td class="rv-short">BASS</td><td class="rv-long">Basse DI</td>
+                  <td class="rv-meta2">Radial J48</td><td><span class="rv-48">+48V</span></td>
+                  <td><span class="rv-ok foh">&#10003;</span></td><td><span class="rv-ok mon">&#10003;</span></td>
+                </tr>
+                <tr>
+                  <td class="rv-chcell"><span class="rv-ch">12</span></td>
+                  <td class="rv-short">GTRL</td><td class="rv-long">Ampli guitare</td>
+                  <td class="rv-meta2">e906</td><td></td>
+                  <td><span class="rv-ok foh">&#10003;</span></td><td></td>
+                </tr>
+                <tr>
+                  <td class="rv-chcell"><span class="rv-ch">17</span></td>
+                  <td class="rv-short">LEAD</td><td class="rv-long">Chant lead</td>
+                  <td class="rv-meta2">SM58</td><td></td>
+                  <td><span class="rv-ok foh">&#10003;</span></td><td><span class="rv-ok mon">&#10003;</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="rv-foot">PatchFlow — 24 canaux — patch à jour</p>
         </div>
+
+        <!-- Plan de scène -->
+        <div class="rv-pane" id="rp-stage" role="tabpanel" aria-labelledby="rt-stage" hidden>
+          <div class="rv-stage">
+            <div class="rv-el" style="left:50%;top:26%">
+              <div class="rv-el-body" style="border-color:#1a8fff;color:#1a8fff"><i class="ti ti-drum" aria-hidden="true"></i><span class="rv-el-ch">1-8</span></div>
+              <span class="rv-el-lbl">Batterie</span>
+            </div>
+            <div class="rv-el" style="left:19%;top:38%">
+              <div class="rv-el-body" style="border-color:#ff6b1a;color:#ff6b1a"><i class="ti ti-guitar-pick" aria-hidden="true"></i><span class="rv-el-ch">12</span></div>
+              <span class="rv-el-lbl">Ampli gtr</span>
+            </div>
+            <div class="rv-el" style="left:81%;top:38%">
+              <div class="rv-el-body" style="border-color:#9b6aff;color:#9b6aff"><i class="ti ti-device-speaker" aria-hidden="true"></i><span class="rv-el-ch">9</span></div>
+              <span class="rv-el-lbl">Ampli basse</span>
+            </div>
+            <div class="rv-el" style="left:26%;top:66%">
+              <div class="rv-el-body" style="border-color:#22d6a0;color:#22d6a0"><i class="ti ti-keyboard" aria-hidden="true"></i><span class="rv-el-ch">14</span></div>
+              <span class="rv-el-lbl">Claviers</span>
+            </div>
+            <div class="rv-el" style="left:56%;top:66%">
+              <div class="rv-el-body" style="border-color:#f5c542;color:#f5c542"><i class="ti ti-microphone" aria-hidden="true"></i><span class="rv-el-ch">17</span></div>
+              <span class="rv-el-lbl">Chant lead</span>
+            </div>
+            <div class="rv-stage-front">Face public</div>
+          </div>
+          <p class="rv-foot">Plan de scène — zoomable au doigt sur téléphone</p>
+        </div>
+
+        <!-- Output list -->
+        <div class="rv-pane" id="rp-out" role="tabpanel" aria-labelledby="rt-out" hidden>
+          <div class="rv-scroll">
+            <table class="rv-table">
+              <thead>
+                <tr>
+                  <th scope="col" style="text-align:center;width:64px">N°</th>
+                  <th scope="col">Court</th>
+                  <th scope="col">Nom</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Destination</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="rv-num">1</td><td class="rv-short">ML</td><td class="rv-long">Main L</td>
+                  <td><span class="rv-type" style="background:#22d6a022;color:#22d6a0;border-color:#22d6a044">main</span></td>
+                  <td class="rv-meta2">Ampli façade A</td>
+                </tr>
+                <tr>
+                  <td class="rv-num">2</td><td class="rv-short">MR</td><td class="rv-long">Main R</td>
+                  <td><span class="rv-type" style="background:#22d6a022;color:#22d6a0;border-color:#22d6a044">main</span></td>
+                  <td class="rv-meta2">Ampli façade B</td>
+                </tr>
+                <tr>
+                  <td class="rv-num">5</td><td class="rv-short">WDG1</td><td class="rv-long">Wedge chant</td>
+                  <td><span class="rv-type" style="background:#1a8fff22;color:#1a8fff;border-color:#1a8fff44">mon</span></td>
+                  <td class="rv-meta2">Retour 1 — face</td>
+                </tr>
+                <tr>
+                  <td class="rv-num">6</td><td class="rv-short">WDG2</td><td class="rv-long">Wedge guitare</td>
+                  <td><span class="rv-type" style="background:#1a8fff22;color:#1a8fff;border-color:#1a8fff44">mon</span></td>
+                  <td class="rv-meta2">Retour 2 — cour</td>
+                </tr>
+                <tr>
+                  <td class="rv-num">9</td><td class="rv-short">IEM1</td><td class="rv-long">IEM batteur</td>
+                  <td><span class="rv-type" style="background:#a855f722;color:#a855f7;border-color:#a855f744">iem</span></td>
+                  <td class="rv-meta2">Rack IEM — mix 1</td>
+                </tr>
+                <tr>
+                  <td class="rv-num">12</td><td class="rv-short">SUB</td><td class="rv-long">Départ subs</td>
+                  <td><span class="rv-type" style="background:#f9731622;color:#f97316;border-color:#f9731644">matrix</span></td>
+                  <td class="rv-meta2">Matrice 1</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="rv-foot">PatchFlow — 12 sorties — patch à jour</p>
+        </div>
+
+        <!-- Fichiers -->
+        <div class="rv-pane" id="rp-files" role="tabpanel" aria-labelledby="rt-files" hidden>
+          <div class="rv-files">
+            <div class="rv-file">
+              <i class="ti ti-file-type-pdf" style="color:#ef4444" aria-hidden="true"></i>
+              <div><div class="rv-file-n">Rider_technique_TrioMarchand.pdf</div><div class="rv-file-m">2,4 Mo · lecture dans le navigateur</div></div>
+            </div>
+            <div class="rv-file">
+              <i class="ti ti-adjustments-alt" style="color:#ff6b1a" aria-hidden="true"></i>
+              <div><div class="rv-file-n">SD9_TrioMarchand.dvs</div><div class="rv-file-m">Show file console · 840 Ko</div></div>
+            </div>
+            <div class="rv-file">
+              <i class="ti ti-photo" style="color:#ec4899" aria-hidden="true"></i>
+              <div><div class="rv-file-n">Implantation_backline.png</div><div class="rv-file-m">1,1 Mo · aperçu intégré</div></div>
+            </div>
+          </div>
+          <p class="rv-foot">Fichiers de prod — rangés dans le show, pas dans une boîte mail</p>
+        </div>
+
       </div>
     </div>
   </div>
@@ -2103,6 +2295,34 @@ document.querySelectorAll('.fade-up').forEach(el=>obs.observe(el));
 window.addEventListener('scroll',()=>{
   document.querySelector('nav').style.boxShadow=window.scrollY>40?'0 4px 40px rgba(0,0,0,.4)':'none';
 });
+
+/* Onglets de l'aperçu rider — réellement cliquables (Input list, Plan de
+   scène, Output list, Fichiers), avec navigation clavier flèches comme
+   attendu pour un role="tablist". */
+(function(){
+  var tabs=[].slice.call(document.querySelectorAll('.rider-tabs .rider-tab'));
+  if(!tabs.length)return;
+  function show(i){
+    tabs.forEach(function(t,k){
+      var sel=(k===i);
+      t.setAttribute('aria-selected',sel?'true':'false');
+      t.setAttribute('tabindex',sel?'0':'-1');
+      var pane=document.getElementById(t.getAttribute('aria-controls'));
+      if(pane){ if(sel){pane.removeAttribute('hidden');}else{pane.setAttribute('hidden','');} }
+    });
+  }
+  tabs.forEach(function(t,i){
+    t.addEventListener('click',function(){ show(i); });
+    t.addEventListener('keydown',function(e){
+      var d=e.key==='ArrowRight'?1:e.key==='ArrowLeft'?-1:0;
+      if(!d)return;
+      e.preventDefault();
+      var n=(i+d+tabs.length)%tabs.length;
+      show(n); tabs[n].focus();
+    });
+  });
+  show(0);
+}());
 
 /* Copie du lien de démo — micro-interaction utile, pas décorative :
    le bouton fait vraiment ce qu'il annonce. */
