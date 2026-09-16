@@ -11460,8 +11460,12 @@ const SitePlan = (() => {
     if(!isPdf && !/^image\//.test(file.type||'')){toast('Format non supporté (image ou PDF attendu)');return;}
     if(file.size>8*1024*1024){toast((isPdf?'PDF':'Image')+' trop lourd (max 8 Mo)');return;}
     try{
+      /* Le PDF est d'origine vectorielle : contrairement à une photo, le monter
+         en résolution ne coûte quasiment rien en poids une fois en PNG (voir
+         _pdfFirstPageToB64) — on vise donc une définition nettement plus fine
+         que pour une image importée. */
       const dataUrl = isPdf
-        ? await _pdfFirstPageToB64(file, 1600, _IMG_STORE_CAP)
+        ? await _pdfFirstPageToB64(file, 2600, _IMG_STORE_CAP)
         : await _compressImageToB64(file, 1600, _IMG_STORE_CAP);
       if(!await _quotaCheck(_dataUrlBytes(dataUrl))) return;
       state.bgImage=dataUrl;
@@ -13134,8 +13138,8 @@ async function _pdfFirstPageToB64(file, maxDim, capBytes){
   const pdf   = await pdfjs.getDocument({ data: buf }).promise;
   const pg    = await pdf.getPage(1);
   const vp1   = pg.getViewport({ scale: 1 });
-  // Plafond à 4x : un PDF au format carte de visite ne doit pas produire un canvas énorme.
-  const scale = Math.min(maxDim / vp1.width, maxDim / vp1.height, 4);
+  // Plafond à 6x : un PDF au format carte de visite ne doit pas produire un canvas énorme.
+  const scale = Math.min(maxDim / vp1.width, maxDim / vp1.height, 6);
   const vp    = pg.getViewport({ scale: Math.max(scale, 0.1) });
   const c     = document.createElement('canvas');
   c.width  = Math.max(1, Math.round(vp.width));
@@ -13143,8 +13147,16 @@ async function _pdfFirstPageToB64(file, maxDim, capBytes){
   const ctx = c.getContext('2d');
   ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); // PDF transparent → fond blanc opaque
   await pg.render({ canvasContext: ctx, viewport: vp }).promise;
-  let q = 0.9, out = c.toDataURL('image/jpeg', q);
-  while(_dataUrlBytes(out) > capBytes && q > 0.4){ q -= 0.1; out = c.toDataURL('image/jpeg', q); }
+  /* Un plan de site, c'est surtout du trait fin et du texte sur fond blanc :
+     le JPEG y crée des halos autour des contours, visibles dès qu'on zoome
+     dans l'éditeur. Le PNG, lossless, est net ET plus léger sur ce type de
+     contenu (grandes zones plates) — mesuré : ~2,5x plus petit qu'un JPEG
+     à qualité équivalente sur un plan réel. On ne bascule en JPEG que si le
+     PDF contient un fond photographique/scanné qui ferait exploser le PNG. */
+  const png = c.toDataURL('image/png');
+  if(_dataUrlBytes(png) <= capBytes) return png;
+  let q = 0.92, out = c.toDataURL('image/jpeg', q);
+  while(_dataUrlBytes(out) > capBytes && q > 0.5){ q -= 0.08; out = c.toDataURL('image/jpeg', q); }
   return out;
 }
 
