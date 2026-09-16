@@ -11456,15 +11456,18 @@ const SitePlan = (() => {
     const file=input.files?.[0];
     input.value='';
     if(!file) return;
-    if(!/^image\//.test(file.type||'')){toast('Format non supporté (image attendue)');return;}
-    if(file.size>8*1024*1024){toast('Image trop lourde (max 8 Mo)');return;}
+    const isPdf = file.type==='application/pdf' || /\.pdf$/i.test(file.name||'');
+    if(!isPdf && !/^image\//.test(file.type||'')){toast('Format non supporté (image ou PDF attendu)');return;}
+    if(file.size>8*1024*1024){toast((isPdf?'PDF':'Image')+' trop lourd (max 8 Mo)');return;}
     try{
-      const dataUrl=await _compressImageToB64(file, 1600, _IMG_STORE_CAP);
+      const dataUrl = isPdf
+        ? await _pdfFirstPageToB64(file, 1600, _IMG_STORE_CAP)
+        : await _compressImageToB64(file, 1600, _IMG_STORE_CAP);
       if(!await _quotaCheck(_dataUrlBytes(dataUrl))) return;
       state.bgImage=dataUrl;
       applyBg();
       saveSite();
-    }catch(e){ toast('Erreur image : '+(e&&e.message||e)); }
+    }catch(e){ toast('Erreur '+(isPdf?'PDF':'image')+' : '+(e&&e.message||e)); }
   }
 
   function applyBg() {
@@ -13120,6 +13123,29 @@ async function _compressImageToB64(file, maxDim, capBytes){
     img.onerror=function(){ URL.revokeObjectURL(url); reject(new Error("Impossible de lire l'image")); };
     img.src=url;
   });
+}
+
+/* Rend la 1re page d'un PDF en image (fond blanc, JPEG borné) — même contrat
+   de sortie que _compressImageToB64 pour pouvoir alimenter loadBg à l'identique.
+   Le PDF lui-même n'est jamais stocké : seul le rendu bitmap l'est. */
+async function _pdfFirstPageToB64(file, maxDim, capBytes){
+  const pdfjs = await _loadPdfJs();
+  const buf   = await file.arrayBuffer();
+  const pdf   = await pdfjs.getDocument({ data: buf }).promise;
+  const pg    = await pdf.getPage(1);
+  const vp1   = pg.getViewport({ scale: 1 });
+  // Plafond à 4x : un PDF au format carte de visite ne doit pas produire un canvas énorme.
+  const scale = Math.min(maxDim / vp1.width, maxDim / vp1.height, 4);
+  const vp    = pg.getViewport({ scale: Math.max(scale, 0.1) });
+  const c     = document.createElement('canvas');
+  c.width  = Math.max(1, Math.round(vp.width));
+  c.height = Math.max(1, Math.round(vp.height));
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); // PDF transparent → fond blanc opaque
+  await pg.render({ canvasContext: ctx, viewport: vp }).promise;
+  let q = 0.9, out = c.toDataURL('image/jpeg', q);
+  while(_dataUrlBytes(out) > capBytes && q > 0.4){ q -= 0.1; out = c.toDataURL('image/jpeg', q); }
+  return out;
 }
 
 async function _resizeIconToB64(file){

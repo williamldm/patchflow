@@ -660,8 +660,8 @@ html.rider-boot #rider-splash{display:flex}
         <div class="site-pal-wrap">
           <div class="site-pal-hd"><i class="ti ti-box"></i>Bibliotheque</div>
           <div style="padding:7px 8px 6px;border-bottom:1px solid var(--bdr2);flex-shrink:0;display:flex;flex-direction:column;gap:5px;background:var(--surf2)">
-            <input type="file" id="site-bg-file" accept="image/*" style="display:none" onchange="SitePlan.loadBg(this)"/>
-            <button class="btn ghost sm" style="width:100%;justify-content:center;font-size:10.5px" onclick="document.getElementById('site-bg-file').click()"><i class="ti ti-photo"></i> Image de fond</button>
+            <input type="file" id="site-bg-file" accept="image/*,application/pdf" style="display:none" onchange="SitePlan.loadBg(this)"/>
+            <button class="btn ghost sm" style="width:100%;justify-content:center;font-size:10.5px" onclick="document.getElementById('site-bg-file').click()" title="Image ou PDF (1re page utilisée comme fond)"><i class="ti ti-photo"></i> Image ou PDF de fond</button>
             <div id="site-bg-controls" style="display:none">
               <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)">
                 <i class="ti ti-sun" style="font-size:11px"></i>
@@ -1564,7 +1564,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Supabase SDK : chargé juste avant le script principal qui l'utilise, plutôt
      qu'en <head>, pour ne pas bloquer le premier rendu (splash rider instantané). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="pf-app.js?v=3.12"></script>
+<script src="pf-app.js?v=3.13"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
   <div class="mob-plan-bar">
