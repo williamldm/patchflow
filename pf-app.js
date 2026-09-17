@@ -10566,6 +10566,21 @@ function _spDrawSiteNode(ctx, el, ex, ey, SCALE, TS, opt){
 // ══════════════════════════════════════
 // SITE PLAN
 // ══════════════════════════════════════
+/* Extrémités d'une liaison du plan de site. Chaque bout est soit un élément
+   (fromId/toId, ancré au bord), soit un point libre (fromPt/toPt) — les deux
+   peuvent se mélanger depuis le tracé point à point. null si un élément manque. */
+function _siteCableEnds(c, findEl){
+  function end(pt, id){
+    if(pt) return {x:pt.x, y:pt.y, r:0};
+    const e=findEl(id); if(!e) return null;
+    const h=e.type==='text_lbl'?20:(e.elSize||72)/2;
+    return {x:e.x+h, y:e.y+h, r:h+4};
+  }
+  const f=end(c.fromPt, c.fromId), t=end(c.toPt, c.toId);
+  if(!f||!t) return null;
+  return {fcx:f.x, fcy:f.y, tcx:t.x, tcy:t.y, fR:f.r, tR:t.r};
+}
+
 const SitePlan = (() => {
   /* ── Professional SVG icon library ── */
   const SITE_ICONS = {
@@ -10719,7 +10734,7 @@ const SitePlan = (() => {
     renderCablePicker(); renderCables(); renderLegend();
   }
 
-  let state = { elements:[], cables:[], bgImage:null, bgOpacity:100, bgRotation:0, view:{panX:60,panY:60,zoom:1}, selected:null, linkFrom:null, freePt1:null, activeCableType:'xlr', textScale:1, legendScale:1, cableTextScale:1, cableMode:false };
+  let state = { elements:[], cables:[], bgImage:null, bgOpacity:100, bgRotation:0, view:{panX:60,panY:60,zoom:1}, selected:null, linkFrom:null, freePt1:null, drawPts:[], activeCableType:'xlr', textScale:1, legendScale:1, cableTextScale:1, cableMode:false };
   let dragging=null, panning=null, inited=false, resizing=null, _wpDrag=null, _wpAddCid=null;
 
   const $  = id => document.getElementById(id);
@@ -11013,7 +11028,7 @@ const SitePlan = (() => {
   function _buildPairMap() {
     const m={};
     state.cables.forEach(c=>{
-      const k=c.fromPt ? c.id : [c.fromId,c.toId].sort().join('|');
+      const k=(c.fromPt||c.toPt) ? c.id : [c.fromId,c.toId].sort().join('|');
       if(!m[k])m[k]=[];
       m[k].push(c.id);
     });
@@ -11058,22 +11073,9 @@ const SitePlan = (() => {
   // Returns endpoints + {pts, pathFwd, pathBack, nx,ny (end dir), bnx,bny (start dir)}
   // Avec waypoints : polyligne. Sinon : courbe bézier (comportement d'origine).
   function _cableGeom(cable, pairMap, zoom) {
-    let fcx, fcy, tcx, tcy, fR, tR;
-    if(cable.fromPt) {
-      // Free cable: absolute coordinates
-      fcx=cable.fromPt.x; fcy=cable.fromPt.y;
-      tcx=cable.toPt.x;   tcy=cable.toPt.y;
-      fR=0; tR=0;
-    } else {
-      const f=state.elements.find(e=>e.id===cable.fromId);
-      const t2=state.elements.find(e=>e.id===cable.toId);
-      if(!f||!t2) return null;
-      const fhalf = f.type==='text_lbl' ? 20 : (f.elSize||72)/2;
-      const thalf = t2.type==='text_lbl' ? 20 : (t2.elSize||72)/2;
-      fcx=f.x+fhalf; fcy=f.y+fhalf;
-      tcx=t2.x+thalf; tcy=t2.y+thalf;
-      fR=fhalf+4; tR=thalf+4;
-    }
+    const ends=_siteCableEnds(cable, id=>state.elements.find(e=>e.id===id));
+    if(!ends) return null;
+    const {fcx,fcy,tcx,tcy,fR,tR}=ends;
     const wps=(cable.waypoints&&cable.waypoints.length)?cable.waypoints:null;
     if(wps){
       const first=wps[0], last=wps[wps.length-1];
@@ -11095,7 +11097,7 @@ const SitePlan = (() => {
     const nx=ddx/dist, ny=ddy/dist;
     const sx=fcx+nx*fR, sy=fcy+ny*fR;
     const ex=tcx-nx*tR, ey=tcy-ny*tR;
-    const key=cable.fromPt ? cable.id : [cable.fromId,cable.toId].sort().join('|');
+    const key=(cable.fromPt||cable.toPt) ? cable.id : [cable.fromId,cable.toId].sort().join('|');
     const siblings=pairMap[key]||[cable.id];
     const idx=siblings.indexOf(cable.id);
     const n=siblings.length;
@@ -11104,11 +11106,14 @@ const SitePlan = (() => {
     const px=-ny*off, py=nx*off;
     const afx=sx+px, afy=sy+py, atx=ex+px, aty=ey+py;
     const myo=(afy+aty)/2, mxo=(afx+atx)/2;
+    /* Un bout libre = tracé à la main : ligne droite. La courbe reste pour
+       élément→élément, où elle sert à écarter les liaisons parallèles. */
+    const straight=!!(cable.fromPt||cable.toPt);
     return {
       afx,afy,atx,aty,myo,mxo,nx,ny,bnx:nx,bny:ny,
       pts:[{x:afx,y:afy},{x:atx,y:aty}],
-      pathFwd:`M${afx},${afy} C${afx},${myo} ${atx},${myo} ${atx},${aty}`,
-      pathBack:`M${atx},${aty} C${atx},${myo} ${afx},${myo} ${afx},${afy}`,
+      pathFwd: straight ? `M${afx},${afy} L${atx},${aty}` : `M${afx},${afy} C${afx},${myo} ${atx},${myo} ${atx},${aty}`,
+      pathBack: straight ? `M${atx},${aty} L${afx},${afy}` : `M${atx},${aty} C${atx},${myo} ${afx},${myo} ${afx},${afy}`,
     };
   }
 
@@ -11158,6 +11163,7 @@ const SitePlan = (() => {
       p.style.pointerEvents='stroke';
       p.addEventListener('click', e => {
         e.stopPropagation();
+        if(state.cableMode || _drawing()) return;
         state.selected={kind:'cable',id:p.dataset.cid};
         state.linkFrom=null;
         render();
@@ -11165,6 +11171,7 @@ const SitePlan = (() => {
       /* Double-clic sur le câble : ajoute un point de routage à cet endroit. */
       p.addEventListener('dblclick', e => {
         e.stopPropagation(); e.preventDefault();
+        if(state.cableMode || _drawing()) return;
         const cable=state.cables.find(x=>x.id===p.dataset.cid); if(!cable) return;
         const wld=clientToWorld(e.clientX,e.clientY);
         _addWaypointAt(cable,{x:wld.x,y:wld.y});
@@ -11272,9 +11279,9 @@ const SitePlan = (() => {
       const cable = state.cables.find(c=>c.id===state.selected.id);
       if(!cable){ insp.innerHTML=''; return; }
       const f = cable.fromPt ? null : state.elements.find(e=>e.id===cable.fromId);
-      const t2= cable.fromPt ? null : state.elements.find(e=>e.id===cable.toId);
+      const t2= cable.toPt   ? null : state.elements.find(e=>e.id===cable.toId);
       const fromLbl = cable.fromPt ? 'Point libre' : (f?esc(f.label):'?');
-      const toLbl   = cable.fromPt ? 'Point libre' : (t2?esc(t2.label):'?');
+      const toLbl   = cable.toPt   ? 'Point libre' : (t2?esc(t2.label):'?');
       const c = ct(cable.type);
       const w = cable.width ?? 4;
       const dir = cable.direction ?? 'forward';
@@ -11374,28 +11381,17 @@ const SitePlan = (() => {
       const conn=ev.target.closest('.spl-conn');
       if(conn){
         const id=conn.dataset.conn;
-        if(state.linkFrom===id){ state.linkFrom=null; updateLinkBanner(); render(); }
-        else if(state.linkFrom){ createCable(state.linkFrom,id); state.linkFrom=null; updateLinkBanner(); }
-        else{ state.linkFrom=id; updateLinkBanner(); renderNodes(); }
-        ev.stopPropagation(); return;
+        _drawClickElement(id);
+        ev.stopPropagation(); ev.preventDefault(); return;
       }
       const nodeEl=ev.target.closest('.spl-node');
       if(!nodeEl) return;
       const id=nodeEl.dataset.id;
       // Cable mode: direct click on element connects
-      if(state.cableMode){
-        if(state.freePt1){
-          // free point is set — snap the second end to this element center
-          const el2=state.elements.find(e=>e.id===id);
-          if(el2){const half=el2.type==='text_lbl'?20:(el2.elSize||72)/2; createFreeCable(state.freePt1,{x:el2.x+half,y:el2.y+half}); state.freePt1=null; _clearPreview(); updateLinkBanner();}
-          ev.stopPropagation(); ev.preventDefault(); return;
-        }
-        if(!state.linkFrom){ state.linkFrom=id; updateLinkBanner(); renderNodes(); }
-        else if(state.linkFrom===id){ state.linkFrom=null; updateLinkBanner(); renderNodes(); }
-        else{ createCable(state.linkFrom,id); state.linkFrom=null; updateLinkBanner(); renderNodes(); }
+      if(state.cableMode || _drawing()){
+        _drawClickElement(id);
         ev.stopPropagation(); ev.preventDefault(); return;
       }
-      if(state.linkFrom&&state.linkFrom!==id){ createCable(state.linkFrom,id); state.linkFrom=null; updateLinkBanner(); ev.preventDefault(); return; }
       state.selected={kind:'el',id};
       const el=state.elements.find(e=>e.id===id);
       if(!el) return;
@@ -11440,30 +11436,21 @@ const SitePlan = (() => {
 
     // Click on empty = deselect / cancel link / place free cable point
     vp.addEventListener('pointerdown',e=>{
-      if(e.target!==vp&&e.target.id!=='site-bg-img'&&e.target.id!=='site-nodes'&&!e.target.id.startsWith('site-')) return;
-      if(state.cableMode){
-        const w=clientToWorld(e.clientX,e.clientY);
-        if(state.freePt1){
-          createFreeCable(state.freePt1, w);
-          state.freePt1=null; _clearPreview(); updateLinkBanner();
-        } else if(!state.linkFrom){
-          state.freePt1=w; updateLinkBanner();
-        } else {
-          // linkFrom was set from element — use canvas point as destination free end
-          // treat as cancelling for now; user should click element
-          state.linkFrom=null; updateLinkBanner(); renderNodes();
-        }
+      /* Tracé en cours : tout clic gauche sur le plan (fond, câble existant…)
+         pose un coude. Les éléments sont gérés par le handler des nœuds. */
+      if((state.cableMode || _drawing()) && e.button===0 && !e.target.closest('.spl-node,.site-zoom-bar,.site-cable-legend-ov')){
+        _drawClickCanvas(clientToWorld(e.clientX,e.clientY), e);
         e.stopPropagation(); e.preventDefault(); return;
       }
-      if(state.linkFrom){ state.linkFrom=null; updateLinkBanner(); renderNodes(); return; }
+      if(e.target!==vp&&e.target.id!=='site-bg-img'&&e.target.id!=='site-nodes'&&!e.target.id.startsWith('site-')) return;
       if(state.selected){ state.selected=null; renderNodes(); renderInspector(); }
       panning={sx:e.clientX-state.view.panX,sy:e.clientY-state.view.panY};
       vp.setPointerCapture?.(e.pointerId);
     });
     vp.addEventListener('pointermove',e=>{
-      if(state.cableMode && state.freePt1){
-        const w=clientToWorld(e.clientX,e.clientY);
-        _renderPreview(state.freePt1,w);
+      if(_drawing()){
+        _lastMoveEv=e;
+        _renderDrawPreview(e);
       }
       if(!panning) return; state.view.panX=e.clientX-panning.sx; state.view.panY=e.clientY-panning.sy; applyTransform();
     });
@@ -11489,9 +11476,17 @@ const SitePlan = (() => {
     // Escape cancels link / free cable drawing
     document.addEventListener('keydown',e=>{
       if(e.key==='Escape'&&_wpAddCid){ _setWpAddMode(null); return; }
-      if(e.key==='Escape'&&(state.linkFrom||state.cableMode||state.freePt1)){
-        state.linkFrom=null; state.freePt1=null; state.cableMode=false;
-        _clearPreview(); updateLinkBanner(); renderCablePicker(); renderNodes();
+      if(_drawing()){
+        var tg=e.target, tn=tg&&tg.tagName;
+        if(tn==='INPUT'||tn==='TEXTAREA'||tn==='SELECT'||(tg&&tg.isContentEditable)) return;
+        if(e.key==='Escape'){ _cancelDraw(); e.preventDefault(); return; }
+        if(e.key==='Enter'){ _finishOnLastPoint(); e.preventDefault(); return; }
+        if(e.key==='Backspace'||e.key==='Delete'){ _undoDrawPoint(); e.preventDefault(); e.stopImmediatePropagation(); return; }
+        if(e.key==='Shift'||e.key==='Alt'){ if(_lastMoveEv) _renderDrawPreview(e, _lastMoveEv); }
+      }
+      if(e.key==='Escape'&&state.cableMode){
+        state.cableMode=false;
+        _cancelDraw(); renderCablePicker();
       }
       /* Copier / coller / dupliquer — uniquement quand le plan de site est
          visible et qu'on ne tape pas dans un champ. */
@@ -11503,6 +11498,10 @@ const SitePlan = (() => {
       if(k==='c'){ if(copySelectedEl()) e.preventDefault(); }
       else if(k==='v'){ if(_siteClip){ pasteEl(); e.preventDefault(); } }
       else if(k==='d'){ if(state.selected&&state.selected.kind==='el'){ duplicateSelectedEl(); e.preventDefault(); } }
+    });
+
+    document.addEventListener('keyup',e=>{
+      if((e.key==='Shift'||e.key==='Alt') && _drawing() && _lastMoveEv) _renderDrawPreview(e, _lastMoveEv);
     });
 
     /* Déplacement d'un point de routage de câble (drag global pour survivre
@@ -11523,19 +11522,22 @@ const SitePlan = (() => {
     if(!b) return;
     const c=CABLE_TYPES.find(t=>t.id===state.activeCableType)||CABLE_TYPES[0];
     const _cCol=_safeColor(c.color)||'#888', _cLbl=esc(c.label);
-    if(state.cableMode && state.freePt1){
-      b.innerHTML=`<i class="ti ti-plug-connected"></i> <span style="color:${_cCol};font-weight:600">${_cLbl}</span> &nbsp;— cliquez le <b>point d'arrivee</b> ou un element &nbsp;<span style="opacity:.5">Echap = annuler</span>`;
+    const head=`<i class="ti ti-plug-connected"></i> <span style="color:${_cCol};font-weight:600">${_cLbl}</span> &nbsp;— `;
+    const hint=t=>`&nbsp;<span style="opacity:.55">${t}</span>`;
+    if(_drawing()){
+      const n=state.drawPts.length;
+      b.innerHTML=head+(n
+        ? `<b>${n} coude${n>1?'s':''}</b> · cliquez pour continuer, un élément pour finir, <b>double-clic</b> pour finir ici`
+        : `cliquez pour poser un coude, ou un élément pour relier`)
+        +hint('Maj 45° · Alt sans aimant · ⌫ retirer · Échap annuler');
       b.classList.add('show');
-    } else if(state.cableMode && !state.linkFrom){
-      b.innerHTML=`<i class="ti ti-plug-connected"></i> <span style="color:${_cCol};font-weight:600">${_cLbl}</span> &nbsp;— cliquez un element ou un <b>point sur le plan</b> &nbsp;<span style="opacity:.5">Echap = quitter</span>`;
-      b.classList.add('show');
-    } else if(state.linkFrom){
-      b.innerHTML=`<i class="ti ti-plug-connected"></i> <span style="color:${_cCol};font-weight:600">${_cLbl}</span> &nbsp;— cliquez la <b>destination</b> &nbsp;<span style="opacity:.5">Echap = annuler</span>`;
+    } else if(state.cableMode){
+      b.innerHTML=head+`cliquez un élément ou un <b>point du plan</b> pour commencer`+hint('Échap = quitter');
       b.classList.add('show');
     } else {
       b.classList.remove('show');
     }
-    if(wrap) wrap.classList.toggle('link-mode', state.cableMode || !!state.linkFrom || !!state.freePt1);
+    if(wrap) wrap.classList.toggle('link-mode', state.cableMode || _drawing());
   }
 
   function addElement(type,x,y) {
@@ -11579,29 +11581,141 @@ const SitePlan = (() => {
     if(copySelectedEl()) pasteEl();
   }
 
-  function createCable(fromId,toId) {
-    if(fromId===toId) return;
-    const cable={id:uid(),fromId,toId,type:state.activeCableType,label:'',length:'',width:4,direction:'forward'};
-    state.cables.push(cable);
-    state.selected={kind:'cable',id:cable.id};
-    saveSite(); render();
+  /* ── Tracé point à point ─────────────────────────────────────────────
+     Départ : un élément (state.linkFrom) ou un point du plan (state.freePt1).
+     Chaque clic dans le vide pose un coude (state.drawPts). Cliquer un élément
+     termine sur lui ; recliquer le dernier point (double-clic) ou Entrée
+     termine en bout libre ; Retour arrière retire le dernier coude ; Échap
+     annule. Les coudes s'aimantent à l'horizontale/verticale et s'alignent
+     sur les centres d'éléments ; Maj = pas de 45°, Alt = sans aimant. */
+  let _lastMoveEv=null;
+  function _drawing(){ return !!(state.linkFrom || state.freePt1); }
+  function _elCenter(el){ const h=el.type==='text_lbl'?20:(el.elSize||72)/2; return {x:el.x+h,y:el.y+h}; }
+  function _drawStart(){
+    if(state.freePt1) return state.freePt1;
+    const el=state.elements.find(e=>e.id===state.linkFrom);
+    return el ? _elCenter(el) : null;
+  }
+  function _drawLast(){ const d=state.drawPts; return d.length ? d[d.length-1] : _drawStart(); }
+  const _rpt=p=>({x:Math.round(p.x),y:Math.round(p.y)});
+
+  /* Renvoie le point aimanté + les repères d'alignement à afficher. */
+  function _snapPoint(p, ev){
+    const prev=_drawLast();
+    let x=p.x, y=p.y; const guides=[];
+    if(!prev || (ev&&ev.altKey)) return {x,y,guides};
+    const dx=x-prev.x, dy=y-prev.y;
+    if(ev&&ev.shiftKey){
+      const step=Math.PI/4, a=Math.round(Math.atan2(dy,dx)/step)*step, d=Math.hypot(dx,dy);
+      return {x:prev.x+Math.cos(a)*d, y:prev.y+Math.sin(a)*d, guides};
+    }
+    const z=state.view.zoom||1, tol=10/z;
+    let lockX=false, lockY=false;
+    const ang=Math.abs(Math.atan2(dy,dx))*180/Math.PI;
+    if(ang<8||ang>172){ y=prev.y; lockY=true; }
+    else if(Math.abs(ang-90)<8){ x=prev.x; lockX=true; }
+    const refs=state.elements.map(_elCenter).concat(state.drawPts, state.freePt1?[state.freePt1]:[]);
+    if(!lockX){
+      let best=tol, r=null;
+      refs.forEach(q=>{ const d=Math.abs(q.x-x); if(d<best){best=d;r=q;} });
+      if(r){ x=r.x; guides.push([r.x,r.y,x,y]); }
+    }
+    if(!lockY){
+      let best=tol, r=null;
+      refs.forEach(q=>{ const d=Math.abs(q.y-y); if(d<best){best=d;r=q;} });
+      if(r){ y=r.y; guides.push([r.x,r.y,x,y]); }
+    }
+    return {x,y,guides};
   }
 
-  function createFreeCable(fromPt, toPt) {
-    const cable={id:uid(),fromPt:{x:Math.round(fromPt.x),y:Math.round(fromPt.y)},toPt:{x:Math.round(toPt.x),y:Math.round(toPt.y)},type:state.activeCableType,label:'',length:'',width:3,direction:'none'};
+  function _drawClickElement(id){
+    if(!_drawing()){
+      state.linkFrom=id; state.drawPts=[];
+      updateLinkBanner(); renderNodes(); return;
+    }
+    if(state.linkFrom===id){
+      /* Recliquer l'élément de départ sans coude = annuler. */
+      if(!state.drawPts.length) _cancelDraw();
+      return;
+    }
+    _finishDraw({id});
+  }
+  function _drawClickCanvas(w, ev){
+    if(!_drawing()){
+      /* Hors mode liaison, un clic dans le vide ne démarre rien. */
+      if(!state.cableMode) return;
+      state.freePt1=_rpt(w); state.drawPts=[];
+      updateLinkBanner(); _renderDrawPreview(ev); return;
+    }
+    const sp=_snapPoint(w, ev), pt=_rpt(sp), last=_drawLast();
+    const same=last && Math.hypot(pt.x-last.x, pt.y-last.y) < 6/(state.view.zoom||1);
+    if(same){
+      /* Clic sur le dernier coude (ou double-clic) = terminer ici. */
+      _finishOnLastPoint(); return;
+    }
+    state.drawPts.push(pt);
+    updateLinkBanner(); _renderDrawPreview(ev);
+  }
+  function _finishOnLastPoint(){
+    if(!_drawing()) return;
+    if(!state.drawPts.length){ return; }
+    const end=state.drawPts.pop();
+    _finishDraw({pt:end});
+  }
+  function _undoDrawPoint(){
+    if(!_drawing()) return;
+    if(state.drawPts.length) state.drawPts.pop();
+    else { _cancelDraw(); return; }
+    updateLinkBanner(); _renderDrawPreview(_lastMoveEv);
+  }
+  function _finishDraw(to){
+    const fromEl=!!state.linkFrom, toEl=!!to.id;
+    if(!fromEl && !state.freePt1) return;
+    if(!fromEl && !toEl && !state.drawPts.length && state.freePt1.x===to.pt.x && state.freePt1.y===to.pt.y) return;
+    const cable={id:uid(), type:state.activeCableType, label:'', length:'',
+      width:(fromEl||toEl)?4:3, direction:(fromEl&&toEl)?'forward':'none'};
+    if(fromEl) cable.fromId=state.linkFrom; else cable.fromPt=_rpt(state.freePt1);
+    if(toEl) cable.toId=to.id; else cable.toPt=_rpt(to.pt);
+    if(state.drawPts.length) cable.waypoints=state.drawPts.map(_rpt);
     state.cables.push(cable);
     state.selected={kind:'cable',id:cable.id};
-    saveSite(); render();
+    _resetDraw();
+    saveSite(); render(); updateLinkBanner();
   }
+  function _resetDraw(){ state.linkFrom=null; state.freePt1=null; state.drawPts=[]; _clearPreview(); }
+  function _cancelDraw(){ _resetDraw(); updateLinkBanner(); renderNodes(); }
 
-  function _renderPreview(from, to) {
+  function _renderDrawPreview(ev, posEv){
     const svg=$('site-cables');
     if(!svg) return;
     let g=document.getElementById('site-preview-cable');
     if(!g){g=document.createElementNS('http://www.w3.org/2000/svg','g');g.id='site-preview-cable';svg.appendChild(g);}
+    if(!_drawing()){ g.innerHTML=''; return; }
+    const pe=posEv||ev;
+    const start=_drawStart(); if(!start){ g.innerHTML=''; return; }
+    const pts=[start].concat(state.drawPts);
+    let cur=null, guides=[];
+    if(pe && pe.clientX!=null){
+      const hover=pe.target && pe.target.closest && pe.target.closest('.spl-node');
+      const hid=hover && hover.dataset.id;
+      const hel=hid && hid!==state.linkFrom && state.elements.find(e=>e.id===hid);
+      if(hel) cur=_elCenter(hel);
+      else { const sp=_snapPoint(clientToWorld(pe.clientX,pe.clientY), ev); cur=sp; guides=sp.guides; }
+    }
     const c=ct(state.activeCableType);
-    const dash=c.dash?'stroke-dasharray="'+c.dash+'"':'';
-    g.innerHTML='<line x1="'+from.x+'" y1="'+from.y+'" x2="'+to.x+'" y2="'+to.y+'" stroke="'+c.color+'" stroke-width="3" '+dash+' opacity="0.5"/>'+'<circle cx="'+from.x+'" cy="'+from.y+'" r="5" fill="'+c.color+'" opacity="0.7"/>';
+    const col=_safeColor(c.color)||'#ff6b1a';
+    const z=state.view.zoom||1;
+    const dash=c.dash?' stroke-dasharray="'+c.dash+'"':'';
+    let h='';
+    guides.forEach(function(gd){
+      h+='<line x1="'+gd[0]+'" y1="'+gd[1]+'" x2="'+gd[2]+'" y2="'+gd[3]+'" stroke="#ff6b1a" stroke-width="'+(1/z)+'" stroke-dasharray="'+(4/z)+' '+(4/z)+'" opacity="0.8"/>';
+    });
+    if(pts.length>1) h+='<polyline points="'+pts.map(p=>p.x+','+p.y).join(' ')+'" fill="none" stroke="'+col+'" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"'+dash+'/>';
+    if(cur) h+='<line x1="'+pts[pts.length-1].x+'" y1="'+pts[pts.length-1].y+'" x2="'+cur.x+'" y2="'+cur.y+'" stroke="'+col+'" stroke-width="3" stroke-linecap="round"'+dash+' opacity="0.55"/>';
+    pts.forEach(function(p,i){
+      h+='<circle cx="'+p.x+'" cy="'+p.y+'" r="'+((i===0?5:4)/z)+'" fill="'+(i===0?col:'#fff')+'" stroke="'+col+'" stroke-width="'+(2/z)+'"/>';
+    });
+    g.innerHTML=h;
   }
 
   function _clearPreview() {
@@ -11667,7 +11781,7 @@ const SitePlan = (() => {
     if(data?.textScale) state.textScale=data.textScale;
     if(data?.legendScale) state.legendScale=data.legendScale;
     state.cableTextScale=data?.cableTextScale||1;
-    state.selected=null;state.linkFrom=null;state.freePt1=null;
+    state.selected=null;state.linkFrom=null;state.freePt1=null;state.drawPts=[];
     const sl=$('site-bg-opacity');if(sl)sl.value=state.bgOpacity;
     const rl=$('site-bg-rotation');if(rl)rl.value=state.bgRotation||0;
     const rv=$('site-bg-rot-val');if(rv)rv.textContent=(state.bgRotation||0)+'°';
@@ -11680,7 +11794,7 @@ const SitePlan = (() => {
 
   function getData() { return {elements:state.elements,cables:state.cables,bgImage:state.bgImage,bgOpacity:state.bgOpacity,bgRotation:state.bgRotation||0,view:state.view,activeCableType:state.activeCableType,textScale:state.textScale,legendScale:state.legendScale,cableTextScale:state.cableTextScale}; }
 
-  function clear() { state.elements=[];state.cables=[];state.selected=null;state.linkFrom=null;state.freePt1=null;_clearPreview(); saveSite(); render(); }
+  function clear() { state.elements=[];state.cables=[];state.selected=null;state.linkFrom=null;state.freePt1=null;state.drawPts=[];_clearPreview(); saveSite(); render(); }
 
   function zoom(f) {
     const vp = $('site-viewport');
@@ -11735,14 +11849,15 @@ const SitePlan = (() => {
   function setActiveCableType(id) {
     state.activeCableType = id;
     state.cableMode = true;
-    state.linkFrom = null;
+    /* Changer de type en plein tracé garde les coudes déjà posés. */
     updateLinkBanner();
     renderCablePicker();
+    if(_drawing()) _renderDrawPreview(_lastMoveEv);
   }
 
   function toggleCableMode() {
     state.cableMode = !state.cableMode;
-    if(!state.cableMode) state.linkFrom = null;
+    if(!state.cableMode) _cancelDraw();
     updateLinkBanner();
     renderCablePicker();
   }
@@ -17526,17 +17641,9 @@ function _svFs(imgId, title){
           ctx.closePath(); ctx.fill(); ctx.restore();
         }
         cables.forEach(function(c){
-          var fcx,fcy,tcx,tcy,fR,tR;
-          if(c.fromPt){
-            fcx=c.fromPt.x; fcy=c.fromPt.y; tcx=c.toPt.x; tcy=c.toPt.y; fR=0; tR=0;
-          } else {
-            var from=els.find(function(e){return e.id===c.fromId;});
-            var to  =els.find(function(e){return e.id===c.toId;});
-            if(!from||!to) return;
-            var fh=(from.type==='text_lbl'?20:(from.elSize||72)/2);
-            var th=(to.type==='text_lbl'?20:(to.elSize||72)/2);
-            fcx=from.x+fh; fcy=from.y+fh; tcx=to.x+th; tcy=to.y+th; fR=fh+4; tR=th+4;
-          }
+          var ends=_siteCableEnds(c, function(id){ return els.find(function(e){return e.id===id;}); });
+          if(!ends) return;
+          var fcx=ends.fcx,fcy=ends.fcy,tcx=ends.tcx,tcy=ends.tcy,fR=ends.fR,tR=ends.tR;
           var ct=_cableColor(c.type);
           var wps=(c.waypoints&&c.waypoints.length)?c.waypoints:null;
           ctx.strokeStyle=ct.color; ctx.lineWidth=(c.width||4)*SCALE;
@@ -17558,7 +17665,8 @@ function _svFs(imgId, title){
             afx=fcx+nx*fR; afy=fcy+ny*fR; atx=tcx-nx*tR; aty=tcy-ny*tR;
             my=(afy+aty)/2; mx=(afx+atx)/2;
             ctx.beginPath(); ctx.moveTo(wx(afx),wy(afy));
-            ctx.bezierCurveTo(wx(afx),wy(my), wx(atx),wy(my), wx(atx),wy(aty));
+            if(c.fromPt||c.toPt) ctx.lineTo(wx(atx),wy(aty));
+            else ctx.bezierCurveTo(wx(afx),wy(my), wx(atx),wy(my), wx(atx),wy(aty));
             ctx.stroke();
           }
           ctx.setLineDash([]);

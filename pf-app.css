@@ -1466,3 +1466,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 #sp-bg-img.editing{pointer-events:auto;cursor:move;outline:2px dashed var(--ora)}
 .sp-viewport.sp-bg-editing #sp-nodes,.sp-viewport.sp-bg-editing #sp-edges{opacity:.35}
 .sp-viewport.sp-bg-editing #sp-nodes,.sp-viewport.sp-bg-editing #sp-nodes *,.sp-viewport.sp-bg-editing #sp-edges *{pointer-events:none!important}
+
+/* ── Plan de site : tracé point à point ── */
+.site-link-banner{white-space:normal;max-width:calc(100% - 28px);text-align:center;line-height:1.5}
+#site-preview-cable{pointer-events:none}
