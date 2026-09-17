@@ -1452,3 +1452,17 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 
 /* ── TOAST ── */
 #toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--ora);color:#000;font-family:var(--f);font-size:12px;font-weight:600;padding:9px 18px;border-radius:8px;z-index:500;transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .3s;opacity:0;box-shadow:0 4px 18px var(--ora-g);pointer-events:none;white-space:nowrap}
+/* ── Synoptique : image de fond ── */
+.sp-bg-box{padding:7px 8px 6px;border-bottom:1px solid var(--bdr2);flex-shrink:0;display:flex;flex-direction:column;gap:5px;background:var(--surf2)}
+.sp-bg-row{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);margin-top:5px}
+.sp-bg-row>i{font-size:11px}
+.sp-bg-row input[type=range]{flex:1;min-width:0;accent-color:var(--ora)}
+.sp-bg-ico{background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0}
+.sp-bg-ico:hover{color:var(--txt)}
+.sp-bg-val{font-family:var(--m);font-size:9px;min-width:30px;text-align:right}
+.sp-bg-edit{display:inline-flex;align-items:center;gap:3px;background:none;border:1px solid var(--bdr2);border-radius:5px;color:var(--txt2);font-size:10px;padding:2px 6px;cursor:pointer;white-space:nowrap}
+.sp-bg-edit.on{border-color:var(--ora);color:var(--ora)}
+#sp-bg-img{position:absolute;z-index:0;max-width:none;pointer-events:none;user-select:none;-webkit-user-drag:none;transform-origin:50% 50%}
+#sp-bg-img.editing{pointer-events:auto;cursor:move;outline:2px dashed var(--ora)}
+.sp-viewport.sp-bg-editing #sp-nodes,.sp-viewport.sp-bg-editing #sp-edges{opacity:.35}
+.sp-viewport.sp-bg-editing #sp-nodes,.sp-viewport.sp-bg-editing #sp-nodes *,.sp-viewport.sp-bg-editing #sp-edges *{pointer-events:none!important}

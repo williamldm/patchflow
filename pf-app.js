@@ -6918,12 +6918,150 @@ const SynPro = (() => {
       y:(cy - r.top  - view.panY) / view.zoom,
     };
   }
+  /* ── Image de fond (image ou 1re page de PDF), en coordonnées monde ──
+     state.bg = { img, aspect, x, y, w, w0, opacity, rotation } */
+  var bgEdit = false;
+  function _hasBg() { return !!(state && state.bg && state.bg.img); }
+  function _bgH(bg) { return bg.w / (bg.aspect || 1); }
+  /* Boîte englobante du fond une fois pivoté (pivot = centre de l'image). */
+  function _bgRect() {
+    if (!_hasBg()) return null;
+    var bg = state.bg, w = bg.w, h = _bgH(bg), r = (bg.rotation || 0) * Math.PI / 180;
+    var ew = Math.abs(w * Math.cos(r)) + Math.abs(h * Math.sin(r));
+    var eh = Math.abs(w * Math.sin(r)) + Math.abs(h * Math.cos(r));
+    var cx = bg.x + w / 2, cy = bg.y + h / 2;
+    return { minX:cx - ew/2, minY:cy - eh/2, maxX:cx + ew/2, maxY:cy + eh/2 };
+  }
+  function _applyBg() {
+    var world = $('sp-world'), vp = $('sp-viewport');
+    var img = $('sp-bg-img');
+    if (!_hasBg()) {
+      bgEdit = false;
+      if (img) img.remove();
+    } else {
+      var bg = state.bg;
+      if (!img && world) {
+        img = document.createElement('img');
+        img.id = 'sp-bg-img'; img.alt = ''; img.draggable = false;
+        img.addEventListener('pointerdown', _bgPointerDown);
+        world.insertBefore(img, world.firstChild);
+      }
+      if (img) {
+        var src = _safeImgSrc(bg.img);
+        if (img.getAttribute('src') !== src) img.setAttribute('src', src);
+        img.style.left = bg.x + 'px';
+        img.style.top = bg.y + 'px';
+        img.style.width = bg.w + 'px';
+        img.style.height = _bgH(bg) + 'px';
+        img.style.opacity = (bg.opacity == null ? 100 : bg.opacity) / 100;
+        img.style.transform = bg.rotation ? 'rotate(' + bg.rotation + 'deg)' : '';
+        img.classList.toggle('editing', bgEdit);
+      }
+    }
+    if (vp) vp.classList.toggle('sp-bg-editing', bgEdit);
+    _syncBgControls();
+  }
+  function _syncBgControls() {
+    var on = _hasBg(), bg = on ? state.bg : null;
+    var ctrl = $('sp-bg-controls'); if (ctrl) ctrl.style.display = on ? 'block' : 'none';
+    if (!bg) return;
+    var op = $('sp-bg-opacity'); if (op && +op.value !== (bg.opacity == null ? 100 : bg.opacity)) op.value = bg.opacity == null ? 100 : bg.opacity;
+    var ro = $('sp-bg-rotation'); if (ro && +ro.value !== (bg.rotation || 0)) ro.value = bg.rotation || 0;
+    var rv = $('sp-bg-rot-val'); if (rv) rv.textContent = (bg.rotation || 0) + '\u00b0';
+    var sv = $('sp-bg-size-val'); if (sv) sv.textContent = Math.round(bg.w / (bg.w0 || bg.w) * 100) + '%';
+    var eb = $('sp-bg-edit'); if (eb) eb.classList.toggle('on', bgEdit);
+  }
+  function _bgPointerDown(e) {
+    if (!bgEdit || e.button !== 0 || !_hasBg()) return;
+    e.preventDefault(); e.stopPropagation();
+    var el = e.currentTarget, p0 = clientToWorld(e.clientX, e.clientY);
+    var x0 = state.bg.x, y0 = state.bg.y, moved = false;
+    el.setPointerCapture(e.pointerId);
+    function mv(ev) {
+      var p = clientToWorld(ev.clientX, ev.clientY);
+      state.bg.x = Math.round(x0 + p.x - p0.x);
+      state.bg.y = Math.round(y0 + p.y - p0.y);
+      moved = true;
+      _applyBg();
+    }
+    function up() {
+      el.removeEventListener('pointermove', mv);
+      el.removeEventListener('pointerup', up);
+      el.removeEventListener('pointercancel', up);
+      if (moved) { scheduleSave(); _renderEdges(); }
+    }
+    el.addEventListener('pointermove', mv);
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', up);
+  }
+  async function loadBg(input) {
+    var file = input.files && input.files[0];
+    input.value = '';
+    if (!file || !state) return;
+    var dataUrl = await _bgFileToDataUrl(file);
+    if (!dataUrl) return;
+    var dims = await new Promise(function(res){
+      var im = new Image();
+      im.onload = function(){ res({ w:im.naturalWidth, h:im.naturalHeight }); };
+      im.onerror = function(){ res(null); };
+      im.src = dataUrl;
+    });
+    if (!dims || !dims.w || !dims.h) { toast("Impossible de lire l'image"); return; }
+    var aspect = dims.w / dims.h;
+    /* Ajusté dans la zone par défaut du synoptique (1100 x 600). */
+    var w = Math.round(Math.min(1100, 600 * aspect));
+    state.bg = { img:dataUrl, aspect:aspect, x:0, y:0, w:w, w0:w, opacity:100, rotation:0 };
+    bgEdit = false;
+    _applyBg(); _renderEdges();
+    scheduleSave();
+  }
+  function setBgOpacity(v) {
+    if (!_hasBg()) return;
+    state.bg.opacity = Math.max(5, Math.min(100, Math.round(+v) || 100));
+    _applyBg(); scheduleSave();
+  }
+  function setBgRotation(v) {
+    if (!_hasBg()) return;
+    state.bg.rotation = Math.max(-180, Math.min(180, Math.round(+v) || 0));
+    _applyBg(); _renderEdges(); scheduleSave();
+  }
+  function rotateBg(delta) {
+    if (!_hasBg()) return;
+    var d = (((state.bg.rotation || 0) + delta) % 360 + 360) % 360;
+    if (d > 180) d -= 360;
+    setBgRotation(d);
+  }
+  /* Redimensionne autour du centre pour que le fond ne « glisse » pas. */
+  function scaleBg(f) {
+    if (!_hasBg()) return;
+    var bg = state.bg, cx = bg.x + bg.w / 2, cy = bg.y + _bgH(bg) / 2;
+    bg.w = Math.round(Math.max(100, Math.min(20000, bg.w * f)));
+    bg.x = Math.round(cx - bg.w / 2);
+    bg.y = Math.round(cy - _bgH(bg) / 2);
+    _applyBg(); _renderEdges(); scheduleSave();
+  }
+  function toggleBgEdit() {
+    if (!_hasBg()) return;
+    bgEdit = !bgEdit;
+    _applyBg();
+  }
+  function clearBg() {
+    if (!state || !state.bg) return;
+    delete state.bg;
+    _applyBg(); _renderEdges(); scheduleSave();
+  }
+
   /* Bounding box of all current nodes in world coords, with optional padding.
      Always covers at least (0, 0, 1100, 600) so empty diagrams have a default
      canvas. Includes negative coords if any node was placed there. */
   function _worldBounds(pad) {
     pad = pad || 0;
     var minX = 0, minY = 0, maxX = 1100, maxY = 600;
+    var bgr = _bgRect();
+    if (bgr) {
+      minX = Math.min(minX, bgr.minX); minY = Math.min(minY, bgr.minY);
+      maxX = Math.max(maxX, bgr.maxX); maxY = Math.max(maxY, bgr.maxY);
+    }
     state.nodes.forEach(function(n){
       var sp = spec(n.type) || { w:140, h:100 };
       if (n.x - pad < minX) minX = n.x - pad;
@@ -7610,6 +7748,7 @@ const SynPro = (() => {
     if (world) world.style.transform = 'translate(' + view.panX + 'px,' + view.panY + 'px) scale(' + view.zoom + ')';
     _updateZoomHud();
     _renderHeader();
+    _applyBg();
     _renderNodes();
     _renderEdges();
     _renderLegend();
@@ -8151,9 +8290,11 @@ const SynPro = (() => {
 
   function fitView() {
     var vp = $('sp-viewport');
-    if (!vp || !state.nodes.length) { view = { zoom:1, panX:0, panY:0 }; render(); return; }
+    if (!vp || (!state.nodes.length && !_hasBg())) { view = { zoom:1, panX:0, panY:0 }; render(); return; }
     var r = vp.getBoundingClientRect();
     var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    var bgr = _bgRect();
+    if (bgr) { minX = bgr.minX; minY = bgr.minY; maxX = bgr.maxX; maxY = bgr.maxY; }
     state.nodes.forEach(function(n){
       var sp = spec(n.type) || { w:140, h:100 };
       minX = Math.min(minX, n.x); minY = Math.min(minY, n.y);
@@ -8275,6 +8416,20 @@ const SynPro = (() => {
       svg += '<text x="' + (fullW/2) + '" y="' + (headH/2+8) + '" text-anchor="middle" font-family="Outfit,sans-serif" font-weight="700" font-size="22" fill="#ffffff">' + esc(state.title) + '</text>';
       /* Thin separator line between header and canvas */
       svg += '<line x1="0" y1="' + headH + '" x2="' + fullW + '" y2="' + headH + '" stroke="#e2e8f0" stroke-width="1"/>';
+    }
+
+    /* Image de fond — sous les câbles et les équipements. */
+    if (_hasBg()) {
+      var bgs = _safeImgSrc(state.bg.img);
+      if (bgs) {
+        var bgw = state.bg.w, bgh = _bgH(state.bg);
+        var bgx = state.bg.x + ox, bgy = state.bg.y + oy + headH;
+        var bgo = (state.bg.opacity == null ? 100 : state.bg.opacity) / 100;
+        var bgrot = state.bg.rotation || 0;
+        svg += '<g clip-path="url(#exp-clip)"><image href="' + bgs + '" xlink:href="' + bgs + '" x="' + bgx + '" y="' + bgy +
+          '" width="' + bgw + '" height="' + bgh + '" preserveAspectRatio="none" opacity="' + bgo + '"' +
+          (bgrot ? ' transform="rotate(' + bgrot + ' ' + (bgx + bgw/2) + ' ' + (bgy + bgh/2) + ')"' : '') + '/></g>';
+      }
     }
 
     /* nodeCenterExport : version SANS DOM utilisée exclusivement pour l'export.
@@ -8704,6 +8859,7 @@ const SynPro = (() => {
     init();
     loaded = false;
     state = (data && data.v === 1) ? data : _defaultState();
+    bgEdit = false;
     if (CUR_SHOW && CUR_SHOW.name && state.title === 'Diagramme reseau') state.title = CUR_SHOW.name;
     selected = { kind:null, id:null };
     activeCable = null; cableFrom = null;
@@ -8716,8 +8872,9 @@ const SynPro = (() => {
   }
   function getIconByType(type){ var s=spec(type); return (s&&s.icon)?s.icon:''; }
   /* Restaure un instantané (undo) sans réinitialiser la vue. */
-  function setData(d){ if(!d) return; state=d; loaded=true; selected={kind:null,id:null}; render(); }
-  return { init, show, render, resetLoaded, isLoaded, getData, setData, cancelCable, _saveNow, buildExportSvg: _buildExportSvg, setSceneId, setSceneData, loadSceneDirect, getIconByType, uploadNodeIcon, clearNodeIcon, adjImgPx };
+  function setData(d){ if(!d) return; state=d; loaded=true; bgEdit=false; selected={kind:null,id:null}; render(); }
+  return { init, show, render, resetLoaded, isLoaded, getData, setData, cancelCable, _saveNow, buildExportSvg: _buildExportSvg, setSceneId, setSceneData, loadSceneDirect, getIconByType, uploadNodeIcon, clearNodeIcon, adjImgPx,
+           loadBg, setBgOpacity, setBgRotation, rotateBg, scaleBg, toggleBgEdit, clearBg };
 })();
 
 window.SynPro = SynPro;
@@ -11456,22 +11613,11 @@ const SitePlan = (() => {
     const file=input.files?.[0];
     input.value='';
     if(!file) return;
-    const isPdf = file.type==='application/pdf' || /\.pdf$/i.test(file.name||'');
-    if(!isPdf && !/^image\//.test(file.type||'')){toast('Format non supporté (image ou PDF attendu)');return;}
-    if(file.size>8*1024*1024){toast((isPdf?'PDF':'Image')+' trop lourd (max 8 Mo)');return;}
-    try{
-      /* Le PDF est d'origine vectorielle : contrairement à une photo, le monter
-         en résolution ne coûte quasiment rien en poids une fois en PNG (voir
-         _pdfFirstPageToB64) — on vise donc une définition nettement plus fine
-         que pour une image importée. */
-      const dataUrl = isPdf
-        ? await _pdfFirstPageToB64(file, 2600, _IMG_STORE_CAP)
-        : await _compressImageToB64(file, 1600, _IMG_STORE_CAP);
-      if(!await _quotaCheck(_dataUrlBytes(dataUrl))) return;
-      state.bgImage=dataUrl;
-      applyBg();
-      saveSite();
-    }catch(e){ toast('Erreur '+(isPdf?'PDF':'image')+' : '+(e&&e.message||e)); }
+    const dataUrl=await _bgFileToDataUrl(file);
+    if(!dataUrl) return;
+    state.bgImage=dataUrl;
+    applyBg();
+    saveSite();
   }
 
   function applyBg() {
@@ -13158,6 +13304,23 @@ async function _pdfFirstPageToB64(file, maxDim, capBytes){
   let q = 0.92, out = c.toDataURL('image/jpeg', q);
   while(_dataUrlBytes(out) > capBytes && q > 0.5){ q -= 0.08; out = c.toDataURL('image/jpeg', q); }
   return out;
+}
+
+/* Fichier choisi pour un fond de plan (plan de site, synoptique) → data-URL
+   prête à stocker, ou null (l'utilisateur a déjà eu un toast). */
+async function _bgFileToDataUrl(file){
+  const isPdf = file.type==='application/pdf' || /\.pdf$/i.test(file.name||'');
+  if(!isPdf && !/^image\//.test(file.type||'')){ toast('Format non supporté (image ou PDF attendu)'); return null; }
+  if(file.size>8*1024*1024){ toast((isPdf?'PDF':'Image')+' trop lourd (max 8 Mo)'); return null; }
+  try{
+    /* Un PDF est vectoriel : le monter en résolution ne coûte presque rien en
+       poids une fois en PNG — d'où une définition plus fine que pour une photo. */
+    const dataUrl = isPdf
+      ? await _pdfFirstPageToB64(file, 2600, _IMG_STORE_CAP)
+      : await _compressImageToB64(file, 1600, _IMG_STORE_CAP);
+    if(!await _quotaCheck(_dataUrlBytes(dataUrl))) return null;
+    return dataUrl;
+  }catch(e){ toast('Erreur '+(isPdf?'PDF':'image')+' : '+(e&&e.message||e)); return null; }
 }
 
 async function _resizeIconToB64(file){
@@ -17556,7 +17719,10 @@ function _svFs(imgId, title){
     /* New SynPro schema : { v:1, title, brand, brandColor, footer, nodes, cables, networks } */
     if(!synData||synData.v!==1) return _showMeta+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:13px">Synoptique non disponible &mdash; ouvrez le synoptique dans l\'application et generez le lien.</div>';
     var nodes=synData.nodes||[];var cables=synData.cables||[];var nets=synData.networks||[];
-    if(!nodes.length) return _showMeta+_svSceneSelector('syno')+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:13px">Synoptique vide.</div>';
+    var sbg=(synData.bg&&synData.bg.img)?synData.bg:null;
+    var sbgSrc=sbg?_safeImgSrc(sbg.img):'';
+    if(!sbgSrc) sbg=null;
+    if(!nodes.length&&!sbg) return _showMeta+_svSceneSelector('syno')+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:13px">Synoptique vide.</div>';
     var netMap={};nets.forEach(function(n){netMap[n.id]=n;});
     /* Bounding box from node positions + default sizes (we don\'t have the LIB in share view) */
     var DEF={'console':{w:200,h:130},'rack':{w:170,h:140},'io':{w:160,h:90},'amp':{w:170,h:100},'spk':{w:130,h:110},'net':{w:140,h:80},'src':{w:120,h:90},'note':{w:200,h:80},'text_label':{w:160,h:30}};
@@ -17566,6 +17732,15 @@ function _svFs(imgId, title){
     }
     var minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
     nodes.forEach(function(n){var s=sz(n);minX=Math.min(minX,n.x||0);minY=Math.min(minY,n.y||0);maxX=Math.max(maxX,(n.x||0)+s.w);maxY=Math.max(maxY,(n.y||0)+s.h);});
+    var sbgW=0,sbgH=0;
+    if(sbg){
+      /* Même boîte englobante que l'éditeur : fond pivoté autour de son centre. */
+      sbgW=+sbg.w||0;sbgH=sbgW/(+sbg.aspect||1);
+      var _r=(+sbg.rotation||0)*Math.PI/180;
+      var _ew=Math.abs(sbgW*Math.cos(_r))+Math.abs(sbgH*Math.sin(_r)),_eh=Math.abs(sbgW*Math.sin(_r))+Math.abs(sbgH*Math.cos(_r));
+      var _cx=(+sbg.x||0)+sbgW/2,_cy=(+sbg.y||0)+sbgH/2;
+      minX=Math.min(minX,_cx-_ew/2);minY=Math.min(minY,_cy-_eh/2);maxX=Math.max(maxX,_cx+_ew/2);maxY=Math.max(maxY,_cy+_eh/2);
+    }
     var pad=40;var vw=Math.max(1100,maxX-minX+pad*2);var vh=Math.max(560,maxY-minY+pad*2);
     var ox=pad-minX;var oy=pad-minY;
     /* Plus de bandeau titre dans le synoptique (retiré de l'éditeur, on
@@ -17681,6 +17856,12 @@ function _svFs(imgId, title){
     });
     /* Canvas bg */
     var bgSvg='<rect x="0" y="'+headH+'" width="'+vw+'" height="'+vh+'" fill="#f7f9fc"/>';
+    if(sbg){
+      var _bx=(+sbg.x||0)+ox,_by=(+sbg.y||0)+oy+headH,_rot=+sbg.rotation||0;
+      var _op=(sbg.opacity==null?100:+sbg.opacity)/100;
+      bgSvg+='<image href="'+sbgSrc+'" xlink:href="'+sbgSrc+'" x="'+_bx+'" y="'+_by+'" width="'+sbgW+'" height="'+sbgH+'" preserveAspectRatio="none" opacity="'+_op+'"'+
+        (_rot?' transform="rotate('+_rot+' '+(_bx+sbgW/2)+' '+(_by+sbgH/2)+')"':'')+'/>';
+    }
     var fullH=vh+headH+footH;
     var svgStr='<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100%" viewBox="0 0 '+vw+' '+fullH+'" style="max-width:100%;border-radius:10px;border:1px solid #1e2a3a;background:#fff;display:block">'+headSvg+bgSvg+edgeSvg+nodeSvg+footSvg+'</svg>';
     return _showMeta+_svSceneSelector('syno')+svgStr

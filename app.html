@@ -45,7 +45,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=3.12">
+<link rel="stylesheet" href="pf-app.css?v=3.13">
 </head>
 <body>
 
@@ -464,6 +464,30 @@ html.rider-boot #rider-splash{display:flex}
         <div class="sp-body">
           <div class="sp-palette">
             <div class="sp-pal-hd"><i class="ti ti-box"></i>Bibliotheque</div>
+            <div class="sp-bg-box">
+              <input type="file" id="sp-bg-file" accept="image/*,application/pdf" style="display:none" onchange="SynPro.loadBg(this)"/>
+              <button type="button" class="btn ghost sm" style="width:100%;justify-content:center;font-size:10.5px" onclick="document.getElementById('sp-bg-file').click()" title="Image ou PDF (1re page utilisée comme fond)"><i class="ti ti-photo"></i> Image ou PDF de fond</button>
+              <div id="sp-bg-controls" style="display:none">
+                <div class="sp-bg-row">
+                  <i class="ti ti-sun" title="Opacité"></i>
+                  <input type="range" id="sp-bg-opacity" min="5" max="100" value="100" oninput="SynPro.setBgOpacity(this.value)" aria-label="Opacité du fond"/>
+                  <button type="button" class="sp-bg-ico" onclick="SynPro.clearBg()" title="Retirer le fond">&#x2715;</button>
+                </div>
+                <div class="sp-bg-row">
+                  <i class="ti ti-rotate" title="Rotation"></i>
+                  <input type="range" id="sp-bg-rotation" min="-180" max="180" value="0" step="1" oninput="SynPro.setBgRotation(this.value)" aria-label="Rotation du fond"/>
+                  <span id="sp-bg-rot-val" class="sp-bg-val">0&deg;</span>
+                  <button type="button" class="sp-bg-ico" onclick="SynPro.rotateBg(90)" title="Pivoter de 90&deg;"><i class="ti ti-rotate-clockwise"></i></button>
+                </div>
+                <div class="sp-bg-row">
+                  <i class="ti ti-dimensions" title="Taille"></i>
+                  <button type="button" class="spl-ts-btn" onclick="SynPro.scaleBg(1/1.1)" title="Réduire">&minus;</button>
+                  <span id="sp-bg-size-val" class="sp-bg-val" style="flex:1;text-align:center">100%</span>
+                  <button type="button" class="spl-ts-btn" onclick="SynPro.scaleBg(1.1)" title="Agrandir">+</button>
+                  <button type="button" class="sp-bg-edit" id="sp-bg-edit" onclick="SynPro.toggleBgEdit()" title="Déplacer le fond à la souris"><i class="ti ti-arrows-move"></i> Déplacer</button>
+                </div>
+              </div>
+            </div>
             <div id="sp-cable-list" style="border-bottom:1px solid var(--bdr2);padding:0;max-height:38vh;overflow-y:auto;flex-shrink:0"></div>
             <div id="sp-pal-list" style="flex:1;overflow-y:auto"></div>
           </div>
@@ -1564,7 +1588,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Supabase SDK : chargé juste avant le script principal qui l'utilise, plutôt
      qu'en <head>, pour ne pas bloquer le premier rendu (splash rider instantané). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="pf-app.js?v=3.14"></script>
+<script src="pf-app.js?v=3.16"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
   <div class="mob-plan-bar">
