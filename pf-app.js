@@ -10447,6 +10447,58 @@ var _SP_FONT='ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif
 var _SP_NAVY='#1d3a5f';
 /* Dessine UN nœud. ex,ey = coin haut-gauche en px CANVAS (= wx(el.x),wy(el.y)).
    SCALE = facteur monde→canvas. TS = textScale. opt={color,iconImg,emoji}. */
+/* ── Texte libre : retour à la ligne ─────────────────────────────────────
+   Le DOM (éditeur) enveloppe le texte nativement via CSS (white-space:pre-wrap
+   + une largeur fixe optionnelle). Le canvas (export PNG/PDF, lien partagé)
+   n'a pas cette notion : on la reproduit ici, en mesures NON mises à
+   l'échelle (« monde ») — le ratio texte/largeur est indépendant de SCALE,
+   donc les mêmes mots tombent sur les mêmes lignes qu'on mesure à l'échelle
+   1 ou à l'échelle du canvas final. Un seul calcul sert donc à la fois à
+   réserver la place (bornes de l'export) et à dessiner. */
+var _spMeasureCtx=null;
+function _spBreakWord(ctx, word, maxWidth){
+  var out=[], chunk='';
+  for(var i=0;i<word.length;i++){
+    var t=chunk+word[i];
+    if(chunk && ctx.measureText(t).width>maxWidth){ out.push(chunk); chunk=word[i]; }
+    else chunk=t;
+  }
+  if(chunk) out.push(chunk);
+  return out;
+}
+function _spWrapLines(ctx, text, maxWidth){
+  var paras=String(text||'').split('\n'), lines=[];
+  paras.forEach(function(para){
+    if(!maxWidth || ctx.measureText(para).width<=maxWidth){ lines.push(para); return; }
+    var words=para.split(' '), cur='';
+    words.forEach(function(w){
+      var test=cur?cur+' '+w:w;
+      if(ctx.measureText(test).width<=maxWidth){ cur=test; return; }
+      if(cur){ lines.push(cur); cur=''; }
+      if(ctx.measureText(w).width<=maxWidth){ cur=w; return; }
+      var chunks=_spBreakWord(ctx,w,maxWidth);
+      for(var i=0;i<chunks.length-1;i++) lines.push(chunks[i]);
+      cur=chunks[chunks.length-1]||'';
+    });
+    lines.push(cur);
+  });
+  return lines.length?lines:[''];
+}
+/* Boîte (monde, non mise à l'échelle) d'un élément « texte libre » : police,
+   lignes déjà enveloppées, largeur/hauteur intérieures. */
+function _spTextLblBox(el, TS){
+  if(!_spMeasureCtx) _spMeasureCtx=document.createElement('canvas').getContext('2d');
+  var ctx=_spMeasureCtx;
+  var elTS=el.elTextScale||1;
+  var fs=Math.max(9,(el.elSize||18)*(TS||1)*elTS);
+  ctx.font='600 '+fs+'px '+_SP_FONT;
+  var maxW=el.wrapWidth?Math.max(1,el.wrapWidth*(TS||1)*elTS):0;
+  var lines=_spWrapLines(ctx, el.label||'', maxW);
+  var widest=0; lines.forEach(function(l){ widest=Math.max(widest, ctx.measureText(l).width); });
+  var padX=13, padY=9, lh=fs*1.4;
+  return { fs:fs, lh:lh, lines:lines, padX:padX, padY:padY, w:(maxW?maxW:widest)+padX*2, h:lines.length*lh+padY*2 };
+}
+
 function _spDrawSiteNode(ctx, el, ex, ey, SCALE, TS, opt){
   opt=opt||{}; TS=TS||1;
   var elTS=el.elTextScale||1;
@@ -10456,23 +10508,23 @@ function _spDrawSiteNode(ctx, el, ex, ey, SCALE, TS, opt){
 
   /* ── Texte libre ── */
   if(el.type==='text_lbl'){
-    var fs=Math.max(9,(el.elSize||18)*SCALE*TS*elTS);
-    var txt=el.label||'';
+    /* Lignes déjà enveloppées en unités « monde » (voir _spTextLblBox) — on
+       ne fait ici que les mettre à l'échelle SCALE pour le dessin. */
+    var tb=_spTextLblBox(el, TS);
+    var fs=tb.fs*SCALE, lh=tb.lh*SCALE, padX=tb.padX*SCALE, padY=tb.padY*SCALE;
+    var bw=tb.w*SCALE, bh=tb.h*SCALE;
     ctx.font='600 '+fs+'px '+_SP_FONT;
-    ctx.textAlign='left'; ctx.textBaseline='top';
+    ctx.textAlign='center'; ctx.textBaseline='top';
     if(!el.noBg){
-      var tpadX=13*SCALE, tpadY=9*SCALE;
-      var tw=ctx.measureText(txt).width;
-      var bw=tw+tpadX*2, bh=fs+tpadY*2;
       ctx.save();
       ctx.shadowColor='rgba(0,0,0,.06)'; ctx.shadowBlur=4*SCALE; ctx.shadowOffsetY=1*SCALE;
       _spRR(ctx,ex,ey,bw,bh,8*SCALE); ctx.fillStyle='#ffffff'; ctx.fill();
       ctx.restore();
       ctx.strokeStyle='rgba(29,58,95,.20)'; ctx.lineWidth=Math.max(1,1*SCALE); _spRR(ctx,ex,ey,bw,bh,8*SCALE); ctx.stroke();
-      ctx.fillStyle=el.textColor||_SP_NAVY; ctx.fillText(txt, ex+tpadX, ey+tpadY);
-    } else {
-      ctx.fillStyle=el.textColor||_SP_NAVY; ctx.fillText(txt, ex, ey);
     }
+    ctx.fillStyle=el.textColor||_SP_NAVY;
+    var cx=ex+bw/2;
+    tb.lines.forEach(function(l,i){ ctx.fillText(l, cx, ey+padY+i*lh); });
     return;
   }
 
@@ -10971,7 +11023,7 @@ const SitePlan = (() => {
         const fs = el.elSize || 18;
         div.innerHTML =
           `<button class="spl-del" data-del="${el.id}">×</button>`+
-          `<div class="spl-text-node" style="font-size:calc(${fs}px * var(--spl-ts,1) * var(--el-ts,1));color:${el.textColor||'#1d3a5f'}">${esc(el.label)}</div>`+
+          `<div class="spl-text-node" style="font-size:calc(${fs}px * var(--spl-ts,1) * var(--el-ts,1));color:${el.textColor||'#1d3a5f'}${el.wrapWidth?`;width:calc(${el.wrapWidth}px * var(--spl-ts,1) * var(--el-ts,1))`:''}">${esc(el.label)}</div>`+
           `<button class="spl-conn" data-conn="${el.id}" title="Connecter"><i class="ti ti-bolt" style="font-size:11px"></i></button>`;
       } else {
         const sz = el.elSize || 72;
@@ -11230,8 +11282,15 @@ const SitePlan = (() => {
         const cc=ct(c.type);
         return `<div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--txt2);margin-bottom:3px;cursor:pointer" onclick="SitePlan.selectCable('${c.id}')"><div style="width:18px;height:2px;background:${cc.color};border-radius:1px;flex-shrink:0"></div><span>${other?esc(other.label):'?'}</span><span style="color:var(--muted)">(${cc.label})</span></div>`;
       }).join('');
+      const WRAP_MIN=60, WRAP_MAX=600;
       const textBlock = el.type==='text_lbl'
-        ? `<label class="syn-insp-lbl">Contenu</label><textarea class="syn-insp-inp" id="si-txt" rows="4" style="resize:vertical;font-size:11px">${esc(el.label)}</textarea>`
+        ? `<label class="syn-insp-lbl">Contenu</label><textarea class="syn-insp-inp" id="si-txt" rows="4" style="resize:vertical;font-size:11px">${esc(el.label)}</textarea>`+
+          `<label style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer;font-size:11px;color:var(--txt2);user-select:none"><input type="checkbox" class="cb" id="si-wrap-on" ${el.wrapWidth?'checked':''}/> Largeur fixe (retour à la ligne)</label>`+
+          `<div id="si-wrap-row" style="display:${el.wrapWidth?'flex':'none'};align-items:center;gap:6px;margin-top:8px;margin-bottom:2px">`+
+          `<button class="spl-ts-btn" id="si-wrapminus">−</button>`+
+          `<div style="flex:1;height:3px;background:var(--bdr3);border-radius:2px"><div style="width:${Math.round(((el.wrapWidth||200)-WRAP_MIN)/(WRAP_MAX-WRAP_MIN)*100)}%;height:3px;background:var(--ora);border-radius:2px"></div></div>`+
+          `<button class="spl-ts-btn" id="si-wrapplus">+</button>`+
+          `<span id="si-wrapval" style="font-size:10px;color:var(--muted);min-width:32px;text-align:right">${el.wrapWidth||200}px</span></div>`
         : `<label class="syn-insp-lbl">Nom</label><input class="syn-insp-inp" id="si-lbl" value="${esc(el.label)}"/>`+
           `<label class="syn-insp-lbl">Note / Reference</label><input class="syn-insp-inp" id="si-note" value="${esc(el.note||'')}" placeholder="ex: SN 12345"/>`;
       const isSvgIcon = typeof it.icon === 'string' && it.icon.charAt(0) === '<';
@@ -11262,6 +11321,17 @@ const SitePlan = (() => {
       $('si-txt')?.addEventListener('input',e=>{el.label=e.target.value;saveSite();renderNodes();});
       $('si-lbl')?.addEventListener('change',e=>{el.label=e.target.value;saveSite();renderNodes();});
       $('si-note')?.addEventListener('change',e=>{el.note=e.target.value;saveSite();});
+      $('si-wrap-on')?.addEventListener('change',e=>{
+        if(e.target.checked) el.wrapWidth=el.wrapWidth||200; else delete el.wrapWidth;
+        saveSite(); renderNodes(); renderInspector();
+      });
+      const updWrap=()=>{
+        const v=el.wrapWidth||200;
+        const wv=$('si-wrapval'); if(wv)wv.textContent=v+'px';
+        const bar=$('si-wrap-row')?.querySelector('div>div'); if(bar) bar.style.width=Math.round((v-WRAP_MIN)/(WRAP_MAX-WRAP_MIN)*100)+'%';
+      };
+      $('si-wrapminus')?.addEventListener('click',()=>{ el.wrapWidth=Math.max(WRAP_MIN,(el.wrapWidth||200)-20); saveSite(); renderNodes(); updWrap(); });
+      $('si-wrapplus')?.addEventListener('click',()=>{ el.wrapWidth=Math.min(WRAP_MAX,(el.wrapWidth||200)+20); saveSite(); renderNodes(); updWrap(); });
       const updSz=()=>{
         const v=el.elSize||(el.type==='text_lbl'?18:72);
         const pct=Math.round((v-sizeMin)/(sizeMax-sizeMin)*100);
@@ -11995,8 +12065,13 @@ const SitePlan = (() => {
         } else { minX=0; minY=0; maxX=_bw; maxY=_bh; }
       }
       els.forEach(e=>{
-        const _es=(e.elSize||72), _iw=(e.type==='image_frame'?(e.imgPx||_es):_es);
         minX=Math.min(minX,e.x-40); minY=Math.min(minY,e.y-40);
+        if(e.type==='text_lbl'){
+          const tb=_spTextLblBox(e, state.textScale||1);
+          maxX=Math.max(maxX,e.x+tb.w+24); maxY=Math.max(maxY,e.y+tb.h+40);
+          return;
+        }
+        const _es=(e.elSize||72), _iw=(e.type==='image_frame'?(e.imgPx||_es):_es);
         maxX=Math.max(maxX,e.x+Math.max(_iw,200)+24); maxY=Math.max(maxY,e.y+_es+150);
       });
       if(!isFinite(minX)){ minX=0;minY=0;maxX=1200;maxY=800; }
@@ -17626,9 +17701,15 @@ function _svFs(imgId, title){
           } else { minX=0;minY=0;maxX=_bw;maxY=_bh; }
         }
         els.forEach(function(e){
-          var esz=(e.elSize||72), iw=(e.type==='image_frame'?(e.imgPx||esz):esz);
           minX=Math.min(minX,e.x-40);
           minY=Math.min(minY,e.y-40);
+          if(e.type==='text_lbl'){
+            var tb=_spTextLblBox(e, TS);
+            maxX=Math.max(maxX,e.x+tb.w+24);
+            maxY=Math.max(maxY,e.y+tb.h+40);
+            return;
+          }
+          var esz=(e.elSize||72), iw=(e.type==='image_frame'?(e.imgPx||esz):esz);
           maxX=Math.max(maxX,e.x+Math.max(iw,200)+24);
           maxY=Math.max(maxY,e.y+esz+150);
         });
