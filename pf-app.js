@@ -11872,6 +11872,12 @@ const SitePlan = (() => {
     } else {
       state.elements=[];state.cables=[];state.bgImage=null;state.bgOpacity=100;state.bgRotation=0;state.view={panX:60,panY:60,zoom:1};
     }
+    if(Array.isArray(data?.cableTypes)){
+      data.cableTypes.forEach(t=>{
+        if(t&&t.id&&!CABLE_TYPES.find(x=>x.id===t.id))
+          CABLE_TYPES.push({id:t.id,label:t.label||t.id,color:_safeColor(t.color)||'#888888',dash:t.dash||'',builtin:false});
+      });
+    }
     if(data?.activeCableType) state.activeCableType=data.activeCableType;
     if(data?.textScale) state.textScale=data.textScale;
     if(data?.legendScale) state.legendScale=data.legendScale;
@@ -11887,7 +11893,15 @@ const SitePlan = (() => {
     if(inited){ renderCablePicker(); render(); }
   }
 
-  function getData() { return {elements:state.elements,cables:state.cables,bgImage:state.bgImage,bgOpacity:state.bgOpacity,bgRotation:state.bgRotation||0,view:state.view,activeCableType:state.activeCableType,textScale:state.textScale,legendScale:state.legendScale,cableTextScale:state.cableTextScale}; }
+  function getData() { return {elements:state.elements,cables:state.cables,bgImage:state.bgImage,bgOpacity:state.bgOpacity,bgRotation:state.bgRotation||0,view:state.view,activeCableType:state.activeCableType,textScale:state.textScale,legendScale:state.legendScale,cableTextScale:state.cableTextScale,cableTypes:_usedCableTypes()}; }
+  /* Définition (libellé/couleur/trait) des types réellement utilisés, écrite
+     dans le plan : les types personnalisés et les couleurs modifiées ne vivent
+     sinon que dans le navigateur de leur auteur, et le lien partagé (ou un
+     collaborateur) retombait sur les couleurs par défaut. */
+  function _usedCableTypes(){
+    const ids=[...new Set(state.cables.map(c=>c.type))];
+    return ids.map(id=>{ const t=CABLE_TYPES.find(x=>x.id===id); return t?{id:t.id,label:t.label,color:t.color,dash:t.dash||''}:null; }).filter(Boolean);
+  }
 
   function clear() { state.elements=[];state.cables=[];state.selected=null;state.linkFrom=null;state.freePt1=null;state.drawPts=[];_clearPreview(); saveSite(); render(); }
 
@@ -12248,7 +12262,7 @@ const SitePlan = (() => {
     /* Exposés pour le rendu fidèle côté lien partagé (couleur + icône réelles
        de la palette, identiques à _makeCanvas). */
     itemMeta:function(t){var it=findItem(t); return {color:(it&&it.color)||'#5a6a80', icon:(it&&it.icon)||null, label:(it&&it.label)||t};},
-    cableMeta:function(id){var c=CABLE_TYPES.find(function(x){return x.id===id;})||CABLE_TYPES[0]; return c?{color:c.color,dash:c.dash||null,label:c.label||''}:{color:'#4a90d9',dash:null,label:''};},
+    cableMeta:function(id){var c=CABLE_TYPES.find(function(x){return x.id===id;})||CABLE_TYPES[0]; return c?{id:c.id,color:c.color,dash:c.dash||null,label:c.label||''}:{color:'#4a90d9',dash:null,label:''};},
     addCustomCableType:function(t){if(!CABLE_TYPES.find(function(x){return x.id===t.id;})){CABLE_TYPES.push(t);_saveCustomCableTypes();renderCablePicker();}}};
 })();
 
@@ -17608,14 +17622,15 @@ function _svFs(imgId, title){
     }
 
     /* Couleurs types de câbles (palette SitePlan, sinon custom/défaut) */
-    var _customCT = siteData.customCableTypes||[];
+    /* Couleurs des liaisons : d'abord la définition écrite dans le plan
+       (identique à l'export de l'auteur), puis la palette intégrée pour les
+       plans enregistrés avant. */
+    var _planCT = (siteData.cableTypes||[]).concat(siteData.customCableTypes||[]);
     function _cableColor(type){
-      try{ if(typeof SitePlan!=='undefined' && SitePlan.cableMeta){ var cm=SitePlan.cableMeta(type); if(cm&&cm.color) return {color:cm.color,dash:cm.dash||null}; } }catch(e){}
-      var ct=_customCT.find(function(t){return t.id===type;});
-      if(ct) return {color:ct.color, dash:ct.dash||null};
-      var defaults={'audio':{color:'#3b82f6'},'video':{color:'#a855f7'},
-        'power':{color:'#f59e0b'},'network':{color:'#22c55e'},'other':{color:'#6b7280'}};
-      return defaults[type]||{color:'#4a90d9'};
+      var pt=_planCT.find(function(t){return t&&t.id===type;});
+      if(pt&&pt.color) return {color:_safeColor(pt.color)||'#4a90d9', dash:pt.dash||null, label:pt.label||type};
+      try{ if(typeof SitePlan!=='undefined' && SitePlan.cableMeta){ var cm=SitePlan.cableMeta(type); if(cm&&cm.color&&cm.id===type) return {color:cm.color,dash:cm.dash||null,label:cm.label||type}; } }catch(e){}
+      return {color:'#4a90d9', dash:null, label:type};
     }
 
     var TS = siteData.textScale||1;
@@ -17674,7 +17689,9 @@ function _svFs(imgId, title){
     if(pending===0) _draw();
 
     function _rrect(ctx,x,y,w,h,r){
-      if(ctx.roundRect){ ctx.roundRect(x,y,w,h,r); }
+      /* beginPath obligatoire : roundRect AJOUTE au chemin courant, sinon le
+         fill() suivant repeint aussi la dernière forme dessinée. */
+      if(ctx.roundRect){ ctx.beginPath(); ctx.roundRect(x,y,w,h,r); }
       else {
         ctx.beginPath();
         ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y);
@@ -17801,6 +17818,30 @@ function _svFs(imgId, title){
           var iconImg=customImg||((builtinIcon&&builtinIcon!=='loading')?builtinIcon:null);
           _spDrawSiteNode(ctx, e, ex, ey, SCALE, TS, {color:ic, iconImg:iconImg, emoji:''});
         });
+
+        /* Légende des liaisons — même rendu que l'export PDF/PNG. */
+        var usedIds=[];
+        cables.forEach(function(c){ if(usedIds.indexOf(c.type)<0) usedIds.push(c.type); });
+        if(usedIds.length){
+          var LS=siteData.legendScale||1;
+          var ROW=22*LS, HDR=28*LS, LW=175*LS;
+          var LH=(usedIds.length*ROW+HDR)*SCALE;
+          var LX=16*SCALE, LY=ch-LH-16*SCALE;
+          ctx.fillStyle='rgba(10,15,28,0.9)'; _rrect(ctx,LX,LY,LW*SCALE,LH,6*SCALE); ctx.fill();
+          ctx.font='bold '+(9*LS*SCALE)+'px sans-serif'; ctx.fillStyle='#888';
+          ctx.textAlign='left'; ctx.textBaseline='top';
+          ctx.fillText('LIAISONS', LX+10*LS*SCALE, LY+8*LS*SCALE);
+          usedIds.forEach(function(id,i){
+            var lc=_cableColor(id);
+            var ry=LY+(HDR+i*ROW)*SCALE;
+            ctx.beginPath(); ctx.strokeStyle=lc.color; ctx.lineWidth=2.5*LS*SCALE;
+            if(lc.dash) ctx.setLineDash(lc.dash.split(' ').map(function(n){return parseFloat(n)*LS*SCALE;})); else ctx.setLineDash([]);
+            ctx.moveTo(LX+10*LS*SCALE,ry+7*LS*SCALE); ctx.lineTo(LX+38*LS*SCALE,ry+7*LS*SCALE);
+            ctx.stroke(); ctx.setLineDash([]);
+            ctx.font=(10*LS*SCALE)+'px sans-serif'; ctx.fillStyle='#ccc';
+            ctx.textBaseline='top'; ctx.fillText(lc.label, LX+46*LS*SCALE, ry);
+          });
+        }
 
         /* 2e arg = largeur d'affichage en px RÉELS (coords monde) : le canvas est
            rendu en haute résolution (x SCALE) mais affiché à la taille réelle ->
