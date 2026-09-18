@@ -1470,3 +1470,13 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 /* ── Plan de site : tracé point à point ── */
 .site-link-banner{white-space:normal;max-width:calc(100% - 28px);text-align:center;line-height:1.5}
 #site-preview-cable{pointer-events:none}
+
+/* ── Plan de site : bouton de tracé + action du bandeau ── */
+.spl-trace-btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:7px 10px;border-radius:6px;border:1px solid var(--bdr2);background:var(--surf2);color:var(--txt);font-family:var(--f);font-size:11px;font-weight:600;cursor:pointer;transition:background .12s,border-color .12s,color .12s}
+.spl-trace-btn i{font-size:13px}
+.spl-trace-btn:hover{border-color:var(--ora);color:var(--ora)}
+.spl-trace-btn.on{background:var(--ora);border-color:var(--ora);color:#fff}
+.spl-trace-btn.on:hover{filter:brightness(1.08);color:#fff}
+.site-banner-act{pointer-events:auto;display:inline-flex;align-items:center;gap:4px;margin-left:10px;padding:3px 10px;border-radius:5px;border:1px solid var(--ora);background:var(--ora);color:#fff;font-family:var(--m);font-size:10.5px;font-weight:600;cursor:pointer;vertical-align:middle}
+.site-banner-act:hover{filter:brightness(1.08)}
+.site-banner-act i{font-size:12px}

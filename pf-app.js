@@ -10959,16 +10959,15 @@ const SitePlan = (() => {
       `<button class="spl-cable-btn" style="color:var(--ora);font-weight:600;margin-top:3px;border:1px dashed var(--bdr2)" onclick="openCableTypeModal()">` +
       `<i class="ti ti-plus" style="font-size:11px"></i>Nouveau type…</button>`;
     el.innerHTML =
-      // Header row: active type + toggle list + ⚡ mode button
-      `<div style="display:flex;gap:4px;align-items:center;margin-bottom:3px">` +
-      `<button class="spl-cable-btn" id="spl-cpick-hd" style="--c:${c.color};flex:1;background:var(--surf2);border-color:var(--bdr2)" ` +
-        `onclick="var l=document.getElementById('spl-cpick-list');l.style.display=l.style.display==='none'?'':'none'">` +
+      // Type actif (liste dépliable) puis bouton explicite d'entrée/sortie du mode tracé
+      `<button class="spl-cable-btn" id="spl-cpick-hd" style="--c:${c.color};background:var(--surf2);border-color:var(--bdr2);margin-bottom:5px" ` +
+        `onclick="var l=document.getElementById('spl-cpick-list');l.style.display=l.style.display==='none'?'':'none'" title="Type de liaison">` +
         `<div class="spl-cable-dot-sm" style="${hdDot}"></div>` +
         `<span style="flex:1">${esc(c.label)}</span>` +
         `<span style="opacity:.4;font-size:9px">▾</span></button>` +
-      `<button class="spl-cable-btn${state.cableMode?' active':''}" style="--c:${c.color};padding:5px 9px;flex-shrink:0" ` +
-        `onclick="SitePlan.toggleCableMode()" title="${state.cableMode?'Desactiver connexion':'Mode connexion'}">⚡</button>` +
-      `</div>` +
+      `<button class="spl-trace-btn${state.cableMode?' on':''}" onclick="SitePlan.toggleCableMode()" ` +
+        `title="${state.cableMode?'Quitter le mode liaison (Échap)':'Cliquez un élément ou le plan pour commencer'}">` +
+        `<i class="ti ti-${state.cableMode?'check':'route'}"></i>${state.cableMode?'Terminer':'Tracer une liaison'}</button>` +
       // Expandable list (closed by default, re-opened if was open before)
       `<div id="spl-cpick-list" style="display:none">${items}${addBtn}</div>`;
     // Re-open if list was already open (preserve state across re-renders)
@@ -11024,7 +11023,7 @@ const SitePlan = (() => {
         div.innerHTML =
           `<button class="spl-del" data-del="${el.id}">×</button>`+
           `<div class="spl-text-node" style="font-size:calc(${fs}px * var(--spl-ts,1) * var(--el-ts,1));color:${el.textColor||'#1d3a5f'}${el.wrapWidth?`;width:calc(${el.wrapWidth}px * var(--spl-ts,1) * var(--el-ts,1))`:''}">${esc(el.label)}</div>`+
-          `<button class="spl-conn" data-conn="${el.id}" title="Connecter"><i class="ti ti-bolt" style="font-size:11px"></i></button>`;
+          `<button class="spl-conn" data-conn="${el.id}" title="Tirer une liaison"><i class="ti ti-plug-connected" style="font-size:11px"></i></button>`;
       } else {
         const sz = el.elSize || 72;
         const isSvg = typeof it.icon === 'string' && it.icon.charAt(0) === '<';
@@ -11054,11 +11053,11 @@ const SitePlan = (() => {
               `<img src="${_safeImgSrc(el.iconImg)}" style="width:${ifW}px;height:${ifH}px;object-fit:fill;border-radius:6px;display:block;pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.2)"/>`+
               (el.label?`<div class="spl-lbl">${esc(el.label)}</div>`:'')+
               handles+
-              `<button class="spl-conn" data-conn="${el.id}" title="Connecter"><i class="ti ti-bolt" style="font-size:11px"></i></button>`
+              `<button class="spl-conn" data-conn="${el.id}" title="Tirer une liaison"><i class="ti ti-plug-connected" style="font-size:11px"></i></button>`
             : `<button class="spl-del" data-del="${el.id}">×</button>`+
               `<div style="width:${ifW}px;height:${ifW}px;border:2px dashed var(--bdr2);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;cursor:pointer" onclick="SitePlan.uploadElementIcon('${el.id}')">`+
               `<i class="ti ti-photo" style="font-size:28px;color:var(--muted)"></i><span style="font-size:10px;color:var(--muted);font-family:var(--m)">Ajouter une image</span></div>`+
-              `<button class="spl-conn" data-conn="${el.id}" title="Connecter"><i class="ti ti-bolt" style="font-size:11px"></i></button>`;
+              `<button class="spl-conn" data-conn="${el.id}" title="Tirer une liaison"><i class="ti ti-plug-connected" style="font-size:11px"></i></button>`;
         } else {
         const iconMarkup = el.iconImg
           ? `<img src="${_safeImgSrc(el.iconImg)}" style="width:${sz-6}px;height:${sz-6}px;object-fit:contain;pointer-events:none;border-radius:4px"/>`
@@ -11070,7 +11069,7 @@ const SitePlan = (() => {
           `<div class="spl-body" style="border-color:${it.color};width:${sz}px;height:${sz}px">${iconMarkup}</div>`+
           `<div class="spl-lbl">${esc(el.label)}</div>`+
           (el.note?`<div class="spl-note">${esc(el.note)}</div>`:'')+
-          `<button class="spl-conn" data-conn="${el.id}" title="Connecter"><i class="ti ti-bolt" style="font-size:11px"></i></button>`;
+          `<button class="spl-conn" data-conn="${el.id}" title="Tirer une liaison"><i class="ti ti-plug-connected" style="font-size:11px"></i></button>`;
         }
       }
     });
@@ -11266,7 +11265,7 @@ const SitePlan = (() => {
   function renderInspector() {
     const insp = $('site-inspector');
     if(!insp) return;
-    if(!state.selected){ insp.innerHTML='<p class="syn-insp-empty">Cliquez un element.<br/><br/>Pour connecter :<br/>survolez puis cliquez ⚡</p>'; return; }
+    if(!state.selected){ insp.innerHTML='<p class="syn-insp-empty">Cliquez un élément.<br/><br/>Pour relier : « Tracer une liaison » à gauche, ou survolez un élément et cliquez sa pastille <i class="ti ti-plug-connected"></i>.</p>'; return; }
     if(state.selected.kind==='el') {
       const el = state.elements.find(e=>e.id===state.selected.id);
       if(!el){ insp.innerHTML=''; return; }
@@ -11623,10 +11622,12 @@ const SitePlan = (() => {
       b.innerHTML=head+(n
         ? `<b>${n} coude${n>1?'s':''}</b> · cliquez pour continuer, un élément pour finir, <b>double-clic</b> pour finir ici`
         : `cliquez pour poser un coude, ou un élément pour relier`)
-        +hint('Maj 45° · Alt sans aimant · ⌫ retirer · Échap annuler');
+        +hint('Maj 45° · Alt sans aimant · ⌫ retirer')
+        +`<button type="button" class="site-banner-act" onclick="SitePlan.cancelDraw()">Annuler ce câble</button>`;
       b.classList.add('show');
     } else if(state.cableMode){
-      b.innerHTML=head+`cliquez un élément ou un <b>point du plan</b> pour commencer`+hint('Échap = quitter');
+      b.innerHTML=head+`cliquez un élément ou un <b>point du plan</b> pour commencer`
+        +`<button type="button" class="site-banner-act" onclick="SitePlan.toggleCableMode()"><i class="ti ti-check"></i>Terminer</button>`;
       b.classList.add('show');
     } else {
       b.classList.remove('show');
@@ -12243,7 +12244,7 @@ const SitePlan = (() => {
     saveSite(); render(); renderInspector();
     setTimeout(function(){ uploadElementIcon(id); },80);
   }
-  return {init,load,getData,loadBg,setBgOpacity,setBgRotation,rotateBg,clearBg,clear,zoom,setZoomPct,fitView,resetView,selectCable,exportPng,exportCanvas,exportCanvasSafe,hasContent,setActiveCableType,toggleCableMode,setTextScale,setLegendScale,setCableTextScale,deleteCustomCableType,updateCableType,uploadElementIcon,clearElementIcon,adjImgPx,
+  return {init,load,getData,loadBg,setBgOpacity,setBgRotation,rotateBg,clearBg,clear,zoom,setZoomPct,fitView,resetView,selectCable,exportPng,exportCanvas,exportCanvasSafe,hasContent,setActiveCableType,toggleCableMode,cancelDraw:()=>_cancelDraw(),setTextScale,setLegendScale,setCableTextScale,deleteCustomCableType,updateCableType,uploadElementIcon,clearElementIcon,adjImgPx,
     /* Exposés pour le rendu fidèle côté lien partagé (couleur + icône réelles
        de la palette, identiques à _makeCanvas). */
     itemMeta:function(t){var it=findItem(t); return {color:(it&&it.color)||'#5a6a80', icon:(it&&it.icon)||null, label:(it&&it.label)||t};},
