@@ -11117,6 +11117,15 @@ const SitePlan = (() => {
     };
   }
 
+  /* Largeur réelle du texte d'une liaison, dans la police du rendu (DM Mono
+     gras) : une estimation par caractère sous-dimensionnait le fond. */
+  let _lblCtx=null;
+  function _measureCableLbl(txt, fs){
+    if(!_lblCtx) _lblCtx=document.createElement('canvas').getContext('2d');
+    _lblCtx.font='700 '+fs+'px '+(getComputedStyle(document.documentElement).getPropertyValue('--m').trim()||'monospace');
+    return _lblCtx.measureText(txt).width;
+  }
+
   function renderCables() {
     const svg = $('site-cables');
     if(!svg) return;
@@ -11146,7 +11155,7 @@ const SitePlan = (() => {
       if(cable.label||cable.length) {
         const txt=[cable.label,cable.length].filter(Boolean).join(' · ');
         const cts=state.cableTextScale||1;
-        const fs=(14*cts), tw=txt.length*7*cts, rh=18*cts;
+        const fs=(14*cts), tw=_measureCableLbl(txt, fs), rh=18*cts;
         paths += `<rect x="${mxo-tw/2-5*cts}" y="${myo-rh-5}" width="${tw+10*cts}" height="${rh}" rx="${4*cts}" fill="rgba(8,8,20,0.82)"/>`;
         paths += `<text x="${mxo}" y="${myo-rh/2-5+fs*0.36}" fill="${c.color}" font-size="${fs.toFixed(1)}" font-family="var(--m)" text-anchor="middle" opacity="0.97" font-weight="700">${esc(txt)}</text>`;
       }
