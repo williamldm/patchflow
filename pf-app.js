@@ -1671,7 +1671,7 @@ async function applyOLAssist() {
     closeOLAssist();
     toast(outputs.length+' sortie'+(outputs.length>1?'s':'')+' creee'+(outputs.length>1?'s':'')+'!');
   } finally {
-    btn.disabled=false; btn.innerHTML='<i class="ti ti-check"></i>Creer les sorties';
+    btn.disabled=false; btn.innerHTML='<i class="ti ti-check"></i>Créer les sorties';
   }
 }
 
@@ -1992,7 +1992,7 @@ function _ilaAddItemForm(catId) {
   return '<div class="ila-add-form-inline">'+
     '<div style="display:flex;gap:6px;margin-bottom:7px">'+
     '<input id="ila-nf-label" class="ila-af-inp" placeholder="Nom (ex: Acoustic Guitar)" style="flex:1">'+
-    '<input id="ila-nf-s" class="ila-af-inp" placeholder="CODE" maxlength="4" style="width:52px;font-family:var(--m);text-transform:uppercase;text-align:center">'+
+    '<input id="ila-nf-s" class="ila-af-inp" placeholder="CODE" maxlength="4" style="width:52px;font-family:var(--f);text-align:center;font-weight:500">'+
     '</div>'+
     '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">'+
     '<input id="ila-nf-mic" class="ila-af-inp" placeholder="Micro (ex: SM57)" style="flex:1;min-width:90px">'+
@@ -2377,7 +2377,7 @@ async function loadMembers(){
   const TC=['var(--ora)','var(--blu2)','var(--warn)','#c4a0ff','var(--grn)'];
   const _es=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   const planPill=p=>{const labels={free:'Gratuit',pro:'Pro'};return `<span class="plan-badge-pill ${_es(p||'free')}">${_es(labels[p||'free']||p||'free')}</span>`;};
-  const roleBadge=r=>{const l=ROLE_LABELS[r]||r;const c=ROLE_COLORS[r]||'var(--muted)';return `<span style="background:${c}18;color:${c};border:1px solid ${c}44;border-radius:5px;font-size:9px;padding:2px 7px;font-family:var(--m);text-transform:uppercase;letter-spacing:.5px">${_es(l)}</span>`;};
+  const roleBadge=r=>{const l=ROLE_LABELS[r]||r;const c=ROLE_COLORS[r]||'var(--muted)';return `<span style="background:${c}18;color:${c};border:1px solid ${c}44;border-radius:5px;font-size:12px;padding:2px 7px;font-family:var(--f);font-weight:500">${_es(l)}</span>`;};
   const mkAv=(name,bg,col,avatarUrl,plan)=>{
     const inner=_avHtml(name,avatarUrl,plan,38,bg,col);
     return `<div class="tc-av" style="background:transparent">${inner}</div>`;
@@ -2761,7 +2761,7 @@ async function generateRiderLink(){
   CUR_SHOW.stage_data=sd;
   // Also explicitly persist out_data and synoptique_data in their own columns
   var {error}=await sb.from('shows').update({stage_data:sd}).eq('id',CUR_SHOW.id);
-  if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-link"></i>Generer le lien';}
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-link"></i>Générer le lien';}
   if(error){toast('Erreur sauvegarde : '+error.message);return;}
   // Show URL
   var url=_riderBase()+'?rider='+CUR_SHOW.id;
@@ -2987,7 +2987,7 @@ td{padding:4px 7px;border-bottom:1px solid #f0eee8;vertical-align:middle}
       } else {
         /* Autres fichiers : liste avec lien cliquable */
         if(!filesHtml.includes('class="fj-list"')){
-          filesHtml+='<div class="page"><style>.fj-list{padding:14px 16px;display:flex;flex-direction:column;gap:8px}.fj-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid #e8edf4;border-radius:7px;background:#f8fafc}.fj-name{font-size:11px;font-weight:600;color:#1a1a2e;flex:1}.fj-type{font-size:9px;color:#888;font-family:"DM Mono",monospace;padding:2px 6px;background:#f0f2f5;border-radius:4px}.fj-dl{font-size:9px;color:#1a8fff;text-decoration:none;font-family:"DM Mono",monospace;padding:3px 8px;border:1px solid #b3d4ff;border-radius:4px;flex-shrink:0}</style>'
+          filesHtml+='<div class="page"><style>.fj-list{padding:14px 16px;display:flex;flex-direction:column;gap:8px}.fj-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid #e8edf4;border-radius:6px;background:#f8fafc}.fj-name{font-size:11px;font-weight:600;color:#1a1a2e;flex:1}.fj-type{font-size:9px;color:#888;font-family:"DM Mono",monospace;padding:2px 6px;background:#f0f2f5;border-radius:4px}.fj-dl{font-size:9px;color:#1a8fff;text-decoration:none;font-family:"DM Mono",monospace;padding:3px 8px;border:1px solid #b3d4ff;border-radius:4px;flex-shrink:0}</style>'
             +_hdr('Fichiers joints')
             +'<div class="fj-list">';
         }
@@ -3573,7 +3573,7 @@ function applyColVis(){
   document.querySelectorAll('#il-body tr').forEach(tr=>tr.querySelectorAll('td[data-col]').forEach(td=>td.style.display=visCol.has(td.dataset.col)?'':'none'));
   updateColBtn();
 }
-function updateColBtn(){const b=document.getElementById('col-btn');if(b)b.innerHTML=`<i class="ti ti-columns"></i>Colonnes <span style="font-family:var(--m);font-size:9px;background:var(--ora);color:#000;border-radius:9px;padding:1px 5px;margin-left:2px">${visCol.size}</span>`;}
+function updateColBtn(){const b=document.getElementById('col-btn');if(b)b.innerHTML=`<i class="ti ti-columns"></i>Colonnes <span class="btn-count">${visCol.size}</span>`;}
 function colPreset(n){visCol=new Set(COL_PRESETS[n]||COLS.map(c=>c.id));_saveILLayout();applyColVis();loadColChips();toast(`✓ Vue "${n}" appliquée`);}
 function toggleColPanel(){const p=document.getElementById('col-panel');p.style.display=p.style.display==='none'||!p.style.display?'block':'none';if(p.style.display==='block'){loadColChips();_renderCustomColList();renderChNumSizes();}}
 
@@ -4366,6 +4366,11 @@ function _safeBrandStr(s){
   if(!s) return '';
   return String(s).replace(/[<>"'`\\]/g,'').slice(0,80);
 }
+/* Libellés affichés des catégories de palette : les clés de données restent
+   sans accent (utilisées pour le regroupement et l'état ouvert/fermé mémorisé). */
+var _CAT_DISPLAY={'Reseau':'Réseau','Controle':'Contrôle','Energie':'Énergie','Video':'Vidéo','Eclairage':'Éclairage','Scene':'Scène'};
+function _catLabel(c){ return _CAT_DISPLAY[c]||c; }
+
 function _safeColor(c){
   if(!c) return '';
   return /^#[0-9a-fA-F]{3,8}$/.test(c) ? c : '';
@@ -4977,7 +4982,7 @@ async function openStagePlanPicker(){
     opts+='<div style="font-size:11px;color:var(--muted);padding:6px 4px;font-style:italic">Aucune image dans les fichiers du show. Uploadez un PNG/JPG dans les Fichiers pour pouvoir le lier ici.</div>';
   }
   ov.innerHTML=
-    '<div style="background:var(--surf);border:1px solid var(--bdr2);border-radius:14px;max-width:440px;width:100%;max-height:80vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)">'
+    '<div style="background:var(--surf);border:1px solid var(--bdr2);border-radius:8px;max-width:440px;width:100%;max-height:80vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)">'
     +'<div style="display:flex;align-items:center;gap:8px;padding:16px 18px;border-bottom:1px solid var(--bdr2)">'
       +'<i class="ti ti-map-2" style="font-size:16px;color:var(--ora)"></i>'
       +'<span style="font-weight:700;font-size:14px;color:var(--txt)">Plan de scène — '+(patch.name||'patch').replace(/</g,'&lt;')+'</span>'
@@ -4992,7 +4997,7 @@ async function openStagePlanPicker(){
 function _spOptHtml(kind, val, icon, title, sub, active){
   return '<button onclick="_setStagePlan(\''+kind+'\',\''+encodeURIComponent(val)+'\')" '
     +'style="display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:11px 13px;border:1px solid '+(active?'var(--ora)':'var(--bdr2)')+';'
-    +'background:'+(active?'var(--ora-d)':'var(--surf2)')+';border-radius:10px;cursor:pointer;font-family:var(--f)">'
+    +'background:'+(active?'var(--ora-d)':'var(--surf2)')+';border-radius:8px;cursor:pointer;font-family:var(--f)">'
     +icon
     +'<span style="flex:1;min-width:0"><span style="display:block;font-size:13px;font-weight:600;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+title.replace(/</g,'&lt;')+'</span>'
     +'<span style="display:block;font-size:10px;color:var(--txt2)">'+sub+'</span></span>'
@@ -7218,7 +7223,7 @@ const SynPro = (() => {
     });
 
     var h = '';
-    h += '<div style="padding:6px 8px 4px"><button class="sp-pal-cat-add" id="sp-pal-add" style="width:100%"><i class="ti ti-plus"></i> Nouvel equipement</button></div>';
+    h += '<div style="padding:6px 8px 4px"><button class="sp-pal-cat-add" id="sp-pal-add" style="width:100%"><i class="ti ti-plus"></i> Nouvel équipement</button></div>';
 
     catOrder.forEach(function(c, catIdx) {
       var subcats = tree[c];
@@ -7232,7 +7237,7 @@ const SynPro = (() => {
       var catCollapsed = !isCatOpen ? ' collapsed' : '';
 
       h += '<div class="sp-pal-cat' + catCollapsed + '" data-cat="' + esc(c) + '">';
-      h += '<div class="sp-pal-cat-name" data-toggle-cat><span class="sp-pal-cat-chevron">&#9660;</span><span>' + esc(c) + '</span><span class="sp-pal-cat-count">' + totalCount + '</span></div>';
+      h += '<div class="sp-pal-cat-name" data-toggle-cat><span class="sp-pal-cat-chevron">&#9660;</span><span>' + esc(_catLabel(c)) + '</span><span class="sp-pal-cat-count">' + totalCount + '</span></div>';
       h += '<div class="sp-pal-cat-items">';
 
       subcatKeys.forEach(function(sk, subIdx) {
@@ -7310,7 +7315,7 @@ const SynPro = (() => {
       m = document.createElement('div');
       m.id = 'sp-add-modal';
       m.className = 'sp-modal';
-      m.innerHTML = '<div class="sp-modal-card"><div class="sp-modal-title"><i class="ti ti-plus"></i>Nouvel equipement</div><div id="sp-add-body"></div></div>';
+      m.innerHTML = '<div class="sp-modal-card"><div class="sp-modal-title"><i class="ti ti-plus"></i>Nouvel équipement</div><div id="sp-add-body"></div></div>';
       document.body.appendChild(m);
       m.addEventListener('click', function(e){ if (e.target === m) m.classList.remove('show'); });
     }
@@ -7331,7 +7336,7 @@ const SynPro = (() => {
       '<label class="sp-insp-lbl">Categorie</label><div style="display:flex;gap:6px"><select class="sp-insp-inp" id="sp-add-catsel" style="flex:1">' + catOpts + '<option value="__new__">+ Nouvelle categorie...</option></select></div>' +
       '<input class="sp-insp-inp" id="sp-add-catnew" placeholder="Nouvelle categorie" style="display:none;margin-top:6px">' +
       '<label class="sp-insp-lbl">Icone</label><div class="sp-icon-grid">' + iconGrid + '</div>' +
-      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button class="btn ghost sm" id="sp-add-cancel">Annuler</button><button class="btn sm" id="sp-add-save"><i class="ti ti-device-floppy"></i>Enregistrer</button></div>';
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button class="btn ghost sm" id="sp-add-cancel">Annuler</button><button class="btn pri sm" id="sp-add-save"><i class="ti ti-device-floppy"></i>Enregistrer</button></div>';
     body.querySelector('#sp-add-catsel').addEventListener('change', function(e){
       body.querySelector('#sp-add-catnew').style.display = e.target.value === '__new__' ? 'block' : 'none';
     });
@@ -7417,7 +7422,7 @@ const SynPro = (() => {
       '<label class="sp-insp-lbl">Couleur</label>' +
       '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><input type="color" id="sp-cab-color" value="' + defColor + '" style="width:42px;height:30px;border:none;cursor:pointer;border-radius:4px"><span style="font-size:10px;color:var(--muted)">Trait colore sur le synoptique &middot; legende</span></div>' +
       '<div style="font-size:10px;color:var(--muted);background:var(--surf2);border:1px solid var(--bdr);border-radius:6px;padding:8px 10px;line-height:1.5;margin-top:8px"><i class="ti ti-info-circle" style="color:var(--ora)"></i> Une fois cree, ce type sera disponible pour tracer des liaisons. L\'etiquette individuelle (ex: <i>"RJ45 5m"</i>) se modifie sur chaque cable.</div>' +
-      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button class="btn ghost sm" id="sp-cab-cancel">Annuler</button><button class="btn sm" id="sp-cab-save"><i class="ti ti-device-floppy"></i>Enregistrer</button></div>';
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button class="btn ghost sm" id="sp-cab-cancel">Annuler</button><button class="btn pri sm" id="sp-cab-save"><i class="ti ti-device-floppy"></i>Enregistrer</button></div>';
     body.querySelector('#sp-cab-cancel').addEventListener('click', function(){ m.classList.remove('show'); });
     body.querySelector('#sp-cab-save').addEventListener('click', function(){
       var name = body.querySelector('#sp-cab-name').value.trim();
@@ -7683,7 +7688,7 @@ const SynPro = (() => {
         '<input class="sp-insp-inp" id="sp-ins-label" value="' + esc(n.label != null ? n.label : (sp ? sp.label : '')) + '">' +
         '<label class="sp-insp-lbl">Sous-titre</label>' +
         '<textarea class="sp-insp-tx" id="sp-ins-sub" rows="2">' + esc(n.sub != null ? n.sub : (sp ? sp.defaultSub : '')) + '</textarea>' +
-        ((n.iconImg || n.type==='image_frame') ? '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr2)"><div style="font-size:9px;font-family:var(--m);text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:5px">Taille de l\'image</div><div style="display:flex;align-items:center;gap:7px"><button class="spl-ts-btn" onclick="SynPro.adjImgPx(\''+ nId +'\',-20)">−</button><span id="sp-img-px-lbl" style="flex:1;text-align:center;font-size:10px;color:var(--muted)">'+(n.imgPx||90)+'px</span><button class="spl-ts-btn" onclick="SynPro.adjImgPx(\''+ nId +'\',20)">+</button></div></div>' : '') +
+        ((n.iconImg || n.type==='image_frame') ? '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr2)"><div style="font-size:12px;font-family:var(--f);color:var(--muted);margin-bottom:5px;font-weight:500">Taille de l\'image</div><div style="display:flex;align-items:center;gap:7px"><button class="spl-ts-btn" onclick="SynPro.adjImgPx(\''+ nId +'\',-20)">−</button><span id="sp-img-px-lbl" style="flex:1;text-align:center;font-size:10px;color:var(--muted)">'+(n.imgPx||90)+'px</span><button class="spl-ts-btn" onclick="SynPro.adjImgPx(\''+ nId +'\',20)">+</button></div></div>' : '') +
         (n.type !== 'note' && n.type !== 'text_label' ? _iconImgInspHtml(nId, !!n.iconImg, n.iconImg||'', "SynPro.uploadNodeIcon('"+nId+"')", "SynPro.clearNodeIcon('"+nId+"')") : '') +
         '<button class="btn sm" id="sp-ins-dup" style="width:100%;margin-top:12px"><i class="ti ti-copy"></i> Dupliquer <span style="font-size:8px;color:var(--muted);font-family:var(--m);margin-left:3px">Ctrl/⌘ D</span></button>' +
         '<button class="btn ghost sm" id="sp-ins-del" style="margin-top:8px;width:100%;color:var(--err)"><i class="ti ti-trash"></i>Supprimer</button>';
@@ -7737,7 +7742,7 @@ const SynPro = (() => {
         });
       });
     } else {
-      el.innerHTML = '<p class="sp-insp-empty">Glissez un equipement depuis la palette sur le plan.<br><br>Pour relier : cliquez un type de liaison, puis cliquez deux equipements.</p>';
+      el.innerHTML = '<p class="sp-insp-empty">Glissez un équipement depuis la palette sur le plan.<br><br>Pour relier : cliquez un type de liaison, puis cliquez deux equipements.</p>';
     }
   }
 
@@ -8337,7 +8342,7 @@ const SynPro = (() => {
       '<div class="sp-modal-section"><div class="sp-modal-section-title">Titre du document</div><input class="sp-insp-inp" id="sp-cf-title" value="' + esc(state.title) + '"></div>' +
       '<div class="sp-modal-section"><div class="sp-modal-section-title">Couleur du bandeau</div><div style="display:flex;gap:8px;align-items:center"><input type="color" id="sp-cf-headcol" value="' + esc(state.headerColor || '#1d9bf0') + '" style="width:42px;height:30px;border:none;cursor:pointer;border-radius:4px"><span style="font-size:10px;color:var(--muted)">Couleur de fond du bandeau de titre</span></div></div>' +
       '<div class="sp-modal-section"><div class="sp-modal-section-title">Pied de page</div><input class="sp-insp-inp" id="sp-cf-footer" value="' + esc(state.footer) + '"></div>' +
-      '<div class="sp-modal-section"><div class="sp-modal-section-title">Types de cables</div>' + netRows + '<button class="btn sm" id="sp-cf-addnet" style="margin-top:8px"><i class="ti ti-plus"></i>Ajouter un type</button></div>';
+      '<div class="sp-modal-section"><div class="sp-modal-section-title">Types de cables</div>' + netRows + '<button class="btn pri sm" id="sp-cf-addnet" style="margin-top:8px"><i class="ti ti-plus"></i>Ajouter un type</button></div>';
     body.querySelector('#sp-cf-headcol').addEventListener('input', function(e){ state.headerColor = e.target.value; scheduleSave(); _renderHeader(); });
     body.querySelector('#sp-cf-title').addEventListener('input', function(e){ state.title = e.target.value; scheduleSave(); _renderHeader(); });
     body.querySelector('#sp-cf-footer').addEventListener('input', function(e){ state.footer = e.target.value; scheduleSave(); _renderHeader(); });
@@ -9486,7 +9491,7 @@ const BandPlan=(()=>{
     if(el.type==='riser'){
       var rw=(el.riserW||2)*RISER_SCALE,rh=(el.riserH||1)*RISER_SCALE,alt=el.riserAlt||0.4;
       var op=(0.10+(alt/1.2)*0.25).toFixed(2),fs=Math.max(11,Math.min(18,rw/9));
-      return '<div class="bp-riser-body" style="width:'+rw+'px;height:'+rh+'px;background:rgba(255,107,26,'+op+');border:2px solid rgba(255,107,26,.45);border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;position:relative;box-sizing:border-box;box-shadow:0 1px 6px rgba(0,0,0,.10)">'
+      return '<div class="bp-riser-body" style="width:'+rw+'px;height:'+rh+'px;background:rgba(255,107,26,'+op+');border:2px solid rgba(255,107,26,.45);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;position:relative;box-sizing:border-box;box-shadow:0 1px 6px rgba(0,0,0,.10)">'
         +chBadge
         +'<span style="font-family:var(--m);font-size:'+fs+'px;color:#1d3a5f;font-weight:700;letter-spacing:.3px">'+((el.riserW||2)+'m \xd7 '+(el.riserH||1)+'m')+'</span>'
         +'<span style="font-family:var(--m);font-size:8px;color:#64748b">⬆ '+alt+'m</span>'
@@ -9503,7 +9508,7 @@ const BandPlan=(()=>{
           +'<span style="font-family:var(--m);font-size:12px;color:#1d3a5f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px">'+(r.long_name||r.short_name||'—')+'</span>'
           +'</div>';}).join('')
         :'<div style="font-family:var(--m);font-size:11px;color:#94a3b8;padding:7px 12px;font-style:italic">Aucun canal li\xe9</div>';
-      return '<div class="bp-kit-block" style="background:#ffffff;border:1.5px solid '+c+'66;border-radius:12px;overflow:hidden;min-width:210px;position:relative;box-shadow:0 2px 10px rgba(0,0,0,.10)">'
+      return '<div class="bp-kit-block" style="background:#ffffff;border:1.5px solid '+c+'66;border-radius:8px;overflow:hidden;min-width:210px;position:relative;box-shadow:0 2px 10px rgba(0,0,0,.10)">'
         +'<div style="display:flex;align-items:center;gap:8px;padding:8px 12px 7px;background:'+c+'12;border-bottom:1px solid '+c+'22">'
         +'<span style="font-size:22px">'+it.e+'</span>'
         +'<span style="font-family:var(--m);font-size:13px;font-weight:700;color:#1d3a5f;flex:1;letter-spacing:.2px">'+el.label.replace(/</g,'&lt;')+'</span>'
@@ -9589,7 +9594,7 @@ const BandPlan=(()=>{
       const fs=Math.max(18,Math.min(32,rw/6));
       const dimLbl=(el.riserW||2)+'m \xd7 '+(el.riserH||1)+'m';
       div.innerHTML=
-        '<div class="bp-riser-body" style="width:'+rw+'px;height:'+rh+'px;background:rgba(90,100,120,'+opacity.toFixed(2)+');border:2px solid rgba(100,115,140,0.7);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;position:relative;box-sizing:border-box">'
+        '<div class="bp-riser-body" style="width:'+rw+'px;height:'+rh+'px;background:rgba(90,100,120,'+opacity.toFixed(2)+');border:2px solid rgba(100,115,140,0.7);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;position:relative;box-sizing:border-box">'
         +chBadge
         +'<span style="font-family:var(--m);font-size:'+fs+'px;color:#fff;font-weight:700;letter-spacing:.3px;text-shadow:0 1px 3px rgba(0,0,0,.5)">'+dimLbl+'</span>'
         +'<span style="font-family:var(--m);font-size:18px;color:rgba(255,255,255,.75);text-shadow:0 1px 2px rgba(0,0,0,.5)">⬆ '+alt+'m</span>'
@@ -9601,16 +9606,16 @@ const BandPlan=(()=>{
       const rows=kitChs.map(id=>_chById(id)).filter(Boolean);
       const rowsHtml=rows.length
         ?rows.map(r=>'<div style="display:flex;align-items:center;gap:10px;padding:8px 14px;border-top:1px solid rgba(255,107,26,.15)">'
-          +'<span style="font-family:var(--m);font-size:28px;font-weight:900;color:#000;background:var(--ora);padding:4px 12px;border-radius:12px;min-width:64px;text-align:center">CH'+r.ch+'</span>'
+          +'<span style="font-family:var(--m);font-size:28px;font-weight:900;color:#000;background:var(--ora);padding:4px 12px;border-radius:8px;min-width:64px;text-align:center">CH'+r.ch+'</span>'
           +'<span style="font-family:var(--m);font-size:22px;font-weight:600;color:#111;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px">'+(r.long_name||r.short_name||'—')+'</span>'
           +'</div>').join('')
         :'<div style="font-family:var(--m);font-size:18px;color:rgba(100,100,100,.6);padding:10px 14px;font-style:italic">Aucun canal lie</div>';
       div.innerHTML=
-        '<div class="bp-kit-block" style="background:#fff;border:2px solid '+c+'55;border-radius:14px;overflow:hidden;min-width:280px;position:relative;box-shadow:0 2px 14px rgba(0,0,0,.14)">'
+        '<div class="bp-kit-block" style="background:#fff;border:2px solid '+c+'55;border-radius:8px;overflow:hidden;min-width:280px;position:relative;box-shadow:0 2px 14px rgba(0,0,0,.14)">'
         +'<div style="display:flex;align-items:center;gap:10px;padding:12px 16px 10px;background:'+c+'14">'
         +'<span style="font-size:36px">'+it.e+'</span>'
         +'<span style="font-family:var(--m);font-size:24px;font-weight:700;color:#222;flex:1">'+el.label.replace(/</g,'&lt;')+'</span>'
-        +(rows.length?'<span style="font-family:var(--m);font-size:18px;color:'+c+';background:'+c+'22;padding:3px 10px;border-radius:10px;font-weight:700">'+rows.length+' CH</span>':'')
+        +(rows.length?'<span style="font-family:var(--m);font-size:18px;color:'+c+';background:'+c+'22;padding:3px 10px;border-radius:8px;font-weight:700">'+rows.length+' CH</span>':'')
         +'<button class="bp-node-del" onclick="BandPlan.deleteNode('+el.id+')" title="Supprimer" style="position:relative;top:auto;right:auto;margin-left:6px">\xd7</button>'
         +'</div>'
         +rowsHtml
@@ -9733,7 +9738,7 @@ const BandPlan=(()=>{
     const el=document.getElementById('bp-insp-body');if(!el)return;
     const sel=st.els.find(e=>e.id===_sel);
     if(!sel){
-      el.innerHTML='<div class="bp-insp-empty"><i class="ti ti-cursor-text" style="font-size:28px;margin-bottom:9px;color:var(--muted2)"></i><span>Selectionnez un element</span></div>';
+      el.innerHTML='<div class="bp-insp-empty"><i class="ti ti-cursor-text" style="font-size:28px;margin-bottom:9px;color:var(--muted2)"></i><span>Sélectionnez un élément</span></div>';
       return;
     }
     const c=_elColor(sel.type);
@@ -10817,7 +10822,7 @@ const SitePlan = (() => {
       const catColor = g.color || '#5a6580';
       return '<div class="spl-cat-sec">'
         + '<div class="spl-cat-lbl" data-cat="' + gi + '">'
-        + '<span>' + g.cat + '</span>'
+        + '<span>' + _catLabel(g.cat) + '</span>'
         + '<i class="ti ti-chevron-right spl-cat-arrow"></i>'
         + '</div>'
         + '<div class="spl-cat-items" data-cat="' + gi + '" style="display:none">'
@@ -10838,7 +10843,7 @@ const SitePlan = (() => {
           }).join('')
         // Creation form
         + '<div class="spl-custom-form" data-cat="' + gi + '" data-catname="' + g.cat + '" style="margin-top:6px;padding-top:6px;border-top:1px solid var(--bdr)">'
-        + '<div style="font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px;font-family:var(--m)">Ajouter un objet</div>'
+        + '<div style="font-size:12px;color:var(--muted);margin-bottom:5px;font-family:var(--f);font-weight:500">Ajouter un objet</div>'
         + '<div style="display:flex;gap:3px;margin-bottom:4px">'
         + '<input class="spl-ci-icon syn-custom-inp" placeholder="&#x1F4E6;" style="width:34px;text-align:center;font-size:14px;padding:3px" maxlength="2"/>'
         + '<input class="spl-ci-label syn-custom-inp" placeholder="Nom..." style="flex:1"/>'
@@ -11291,7 +11296,7 @@ const SitePlan = (() => {
           `<button class="spl-ts-btn" id="si-wrapplus">+</button>`+
           `<span id="si-wrapval" style="font-size:10px;color:var(--muted);min-width:32px;text-align:right">${el.wrapWidth||200}px</span></div>`
         : `<label class="syn-insp-lbl">Nom</label><input class="syn-insp-inp" id="si-lbl" value="${esc(el.label)}"/>`+
-          `<label class="syn-insp-lbl">Note / Reference</label><input class="syn-insp-inp" id="si-note" value="${esc(el.note||'')}" placeholder="ex: SN 12345"/>`;
+          `<label class="syn-insp-lbl">Note / Référence</label><input class="syn-insp-inp" id="si-note" value="${esc(el.note||'')}" placeholder="ex: SN 12345"/>`;
       const isSvgIcon = typeof it.icon === 'string' && it.icon.charAt(0) === '<';
       const titleIcon = isSvgIcon
         ? `<span style="width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;border:1px solid ${it.color}55;border-radius:5px;background:#fff;padding:2px;box-sizing:border-box;flex-shrink:0">${it.icon}</span>`
@@ -11305,13 +11310,13 @@ const SitePlan = (() => {
         `<div style="flex:1;height:3px;background:var(--bdr3);border-radius:2px"><div style="width:${Math.round((elSz-sizeMin)/(sizeMax-sizeMin)*100)}%;height:3px;background:var(--ora);border-radius:2px"></div></div>`+
         `<button class="spl-ts-btn" id="si-szplus">+</button>`+
         `<span id="si-szval" style="font-size:10px;color:var(--muted);min-width:26px;text-align:right">${elSz}px</span></div>`+
-        `<label class="syn-insp-lbl">Texte element</label>`+
+        `<label class="syn-insp-lbl">Texte élément</label>`+
         `<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">`+
         `<button class="spl-ts-btn" id="si-etminus">A−</button>`+
         `<span id="si-etval" style="flex:1;font-size:10px;color:var(--muted);text-align:center">${Math.round(elTs*100)}%</span>`+
         `<button class="spl-ts-btn" id="si-etplus">A+</button></div>`+
         (connList?`<div style="padding-top:8px;border-top:1px solid var(--bdr2);margin-bottom:6px"><div style="font-size:9px;color:var(--muted);font-family:var(--m);margin-bottom:5px">CONNEXIONS</div>${connList}</div>`:``) +
-        ((el.iconImg || el.type==='image_frame') ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr2)"><div style="font-size:9px;font-family:var(--m);text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:5px">Taille de l'image</div><div style="display:flex;align-items:center;gap:7px"><button class="spl-ts-btn" onclick="SitePlan.adjImgPx('${el.id}',-16)">−</button><span id="si-img-px-lbl" style="flex:1;text-align:center;font-size:10px;color:var(--muted)">${el.imgPx||el.elSize||72}px</span><button class="spl-ts-btn" onclick="SitePlan.adjImgPx('${el.id}',16)">+</button></div></div>` : '') +
+        ((el.iconImg || el.type==='image_frame') ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr2)"><div style="font-size:12px;font-family:var(--f);color:var(--muted);margin-bottom:5px;font-weight:500">Taille de l'image</div><div style="display:flex;align-items:center;gap:7px"><button class="spl-ts-btn" onclick="SitePlan.adjImgPx('${el.id}',-16)">−</button><span id="si-img-px-lbl" style="flex:1;text-align:center;font-size:10px;color:var(--muted)">${el.imgPx||el.elSize||72}px</span><button class="spl-ts-btn" onclick="SitePlan.adjImgPx('${el.id}',16)">+</button></div></div>` : '') +
         (el.type!=='text_lbl' ? _iconImgInspHtml(el.id, !!el.iconImg, el.iconImg||'', `SitePlan.uploadElementIcon('${el.id}')`, `SitePlan.clearElementIcon('${el.id}')`) : '') +
         (el.type!=='image_frame' ? `<label style="display:flex;align-items:center;gap:8px;margin-top:11px;cursor:pointer;font-size:11px;color:var(--txt2);user-select:none"><input type="checkbox" class="cb" id="si-nobg" ${el.noBg?'checked':''}/> Fond transparent</label>` : '') +
         `<button class="btn sm" style="width:100%;margin-top:10px" id="si-dup"><i class="ti ti-copy"></i> Dupliquer <span style="font-size:8px;color:var(--muted);font-family:var(--m);margin-left:3px">Ctrl/⌘ D</span></button>`+
@@ -11377,13 +11382,13 @@ const SitePlan = (() => {
         `<select class="syn-insp-inp" id="si-ct">${CABLE_TYPES.map(ct2=>`<option value="${esc(ct2.id)}"${cable.type===ct2.id?' selected':''}>${esc(ct2.label)}</option>`).join('')}</select>`+
         `<label class="syn-insp-lbl">Sens</label>`+
         `<div class="spl-dir-bar" id="si-dirbar">${dirBtns}</div>`+
-        `<label class="syn-insp-lbl">Epaisseur</label>`+
+        `<label class="syn-insp-lbl">Épaisseur</label>`+
         `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">`+
         `<button class="spl-ts-btn" id="si-wminus">−</button>`+
         `<div style="flex:1;height:${w}px;border-radius:${w}px;background:${c.color};transition:height .12s"></div>`+
         `<button class="spl-ts-btn" id="si-wplus">+</button>`+
         `<span id="si-wval" style="font-size:10px;color:var(--muted);min-width:18px;text-align:right">${w}</span></div>`+
-        `<label class="syn-insp-lbl">Reference / label</label><input class="syn-insp-inp" id="si-cl" value="${esc(cable.label||'')}"/>`+
+        `<label class="syn-insp-lbl">Référence / label</label><input class="syn-insp-inp" id="si-cl" value="${esc(cable.label||'')}"/>`+
         `<label class="syn-insp-lbl">Longueur</label><input class="syn-insp-inp" id="si-clen" value="${esc(cable.length||'')}" placeholder="ex: 30m"/>`+
         `<label class="syn-insp-lbl">Texte</label>`+
         `<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">`+
@@ -12510,28 +12515,27 @@ function renderSessions(){
       +'</div>';
     }
     return '<div class="sess-card'+(isActive?' active':'')+'" draggable="true" ondragstart="_sessDragStart(event,\''+s.id+'\')" ondragend="_sessDragEnd(event)" onclick="sessionSwitch(\''+s.id+'\')">'+
-      '<div class="sess-stripe" style="background:linear-gradient(90deg,'+mono.c.fg+','+mono.c.bd+');opacity:'+(isActive?'1':'.45')+'"></div>'+
       '<div class="sess-body">'+
         '<div class="sess-top">'+
-          '<div class="sess-icon-wrap sess-mono" style="background:linear-gradient(145deg,'+mono.c.bg+',rgba(255,255,255,.02));border-color:'+mono.c.bd+';color:'+mono.c.fg+';box-shadow:0 3px 14px '+mono.c.bg+'">'+_e(mono.ini)+'</div>'+
+          '<div class="sess-icon-wrap sess-mono" style="background:'+mono.c.bg+';border-color:'+mono.c.bd+';color:'+mono.c.fg+'">'+_e(mono.ini)+'</div>'+
           '<div class="sess-title-wrap">'+
             '<div class="sess-name">'+_e(s.name)+'</div>'+
-            '<div class="sess-venue"><i class="ti ti-map-pin" style="font-size:10px;opacity:.7"></i> '+(s.venue?_e(s.venue):'<span style="color:var(--muted2);font-style:italic">Lieu non renseigné</span>')+'</div>'+
+            '<div class="sess-venue">'+(s.venue?_e(s.venue):'<span style="color:var(--muted2)">Lieu non renseigné</span>')+'</div>'+
           '</div>'+
-          (isActive?'<span class="sess-live-pill"><span class="on-dot"></span>Actif</span>':'')+
+          (isActive?'<span class="sess-live-pill"><span class="on-dot"></span>Ouvert</span>':'')+
         '</div>'+
+        /* Métadonnées en une ligne de texte, pas en pastilles. */
         '<div class="sess-tags">'+
-          (s.show_date?'<span class="sess-tag date"><i class="ti ti-calendar" style="font-size:9px"></i>'+_e(fmtShowDate(s.show_date))+'</span>':'')+
-          '<span class="sess-tag'+(isActive?' active':'')+'"><i class="ti ti-list" style="font-size:9px"></i>'+chCount+' canaux</span>'+
-          '<span class="sess-tag"><i class="ti ti-users" style="font-size:9px"></i>'+totalMembers+' membre'+(totalMembers!==1?'s':'')+'</span>'+
-          (!isOwn?'<span class="sess-tag" style="border-color:rgba(26,143,255,.3);color:var(--blu2)"><i class="ti ti-share" style="font-size:9px"></i>Partagé</span>':'')+
-          (_fold?'<span class="sess-folder-pill"><span class="sess-fdot" style="background:'+_fold.color+'"></span>'+_e(_fold.name)+'</span>':'')+
+          (s.show_date?'<span class="sess-tag date">'+_e(fmtShowDate(s.show_date))+'</span>':'<span class="sess-tag" style="color:var(--muted2)">Sans date</span>')+
+          '<span class="sess-tag">'+chCount+' canaux</span>'+
+          '<span class="sess-tag">'+totalMembers+' membre'+(totalMembers!==1?'s':'')+'</span>'+
+          (_fold?'<span class="sess-tag sess-folder-pill"><span class="sess-fdot" style="background:'+_fold.color+'"></span>'+_e(_fold.name)+'</span>':'')+
         '</div>'+
         _stRow+
         '<div class="sess-members-row">'+renderMembersRow(s)+'</div>'+
       '</div>'+
       '<div class="sess-footer">'+
-        '<button class="sess-open-btn" onclick="event.stopPropagation();sessionSwitch(\''+s.id+'\')">'+(isActive?'<i class="ti ti-check"></i> Actif':'Ouvrir')+'</button>'+
+        '<button class="sess-open-btn" onclick="event.stopPropagation();sessionSwitch(\''+s.id+'\')">'+(isActive?'<i class="ti ti-check"></i> Show ouvert':'Ouvrir')+'</button>'+
         '<button class="sess-icon-btn'+(_fold?' has-folder':'')+'" onclick="event.stopPropagation();openSessMoveMenu(\''+s.id+'\',this,event)" title="Classer dans un dossier"'+(_fold?' style="color:'+_fold.color+';border-color:'+_fold.color+'55"':'')+'><i class="ti ti-folder"></i></button>'+
         (isOwn?'<button class="sess-icon-btn" onclick="event.stopPropagation();editShowMeta(\''+s.id+'\')" title="Modifier"><i class="ti ti-pencil"></i></button>':'')+
         (isOwn?'<button class="sess-icon-btn danger" onclick="event.stopPropagation();delShow(\''+s.id+'\')" title="Supprimer"><i class="ti ti-trash"></i></button>':'')+
@@ -12542,7 +12546,7 @@ function renderSessions(){
 
   if(SHOWS.length===0){
     var _fbe=document.getElementById('sess-folder-bar'); if(_fbe)_fbe.innerHTML='';
-    grid.innerHTML='<div style="grid-column:1/-1;padding:48px 20px;text-align:center;color:var(--muted)"><i class="ti ti-folder-plus" style="font-size:36px;display:block;margin-bottom:12px;opacity:.4"></i><div style="font-size:13px;margin-bottom:14px">Aucune session — commencez ici</div><button class="btn" onclick="newShow()"><i class="ti ti-plus"></i>Créer un show</button></div>';
+    grid.innerHTML='<div style="grid-column:1/-1;padding:48px 20px;text-align:center;color:var(--muted)"><i class="ti ti-folder-plus" style="font-size:36px;display:block;margin-bottom:12px;opacity:.4"></i><div style="font-size:13px;margin-bottom:14px">Aucune session — commencez ici</div><button class="btn pri" onclick="newShow()"><i class="ti ti-plus"></i>Créer un show</button></div>';
     return;
   }
 
@@ -12599,7 +12603,7 @@ function renderSessions(){
   }
 
   function sectionCount(n){
-    return '<span style="background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;padding:0 7px;font-size:9px;color:var(--muted);font-weight:400">'+n+'</span>';
+    return '<span class="sess-section-count">'+n+'</span>';
   }
 
   var html='';
@@ -12620,15 +12624,15 @@ function renderSessions(){
     }
   } else {
     // ── Mes sessions
-    html+='<div class="sess-section-title"><i class="ti ti-folder" style="color:var(--ora);font-size:11px"></i>Mes sessions'+sectionCount(myShows.length)+'</div>';
+    html+='<div class="sess-section-title">Mes shows'+sectionCount(myShows.length)+'</div>';
     if(myShows.length===0){
-      html+='<div style="grid-column:1/-1;color:var(--muted2);font-size:11px;font-family:var(--m);padding:6px 2px">'+(q?'Aucun résultat ici.':'Aucun show. <button class="btn sm" onclick="newShow()" style="margin-left:6px"><i class="ti ti-plus"></i>Créer</button>')+'</div>';
+      html+='<div style="grid-column:1/-1;color:var(--muted2);font-size:11px;font-family:var(--m);padding:6px 2px">'+(q?'Aucun résultat ici.':'Aucun show. <button class="btn pri sm" onclick="newShow()" style="margin-left:6px"><i class="ti ti-plus"></i>Créer</button>')+'</div>';
     } else {
       myShows.forEach(function(s,i){ html+=renderCard(s,i); });
     }
     // ── Partagées avec moi
     if(sharedShows.length>0){
-      html+='<div class="sess-section-title" style="margin-top:8px"><i class="ti ti-users" style="color:var(--blu2);font-size:11px"></i>Partagées avec moi'+sectionCount(sharedShows.length)+'</div>';
+      html+='<div class="sess-section-title" style="margin-top:14px">Partagés avec moi'+sectionCount(sharedShows.length)+'</div>';
       sharedShows.forEach(function(s,i){ html+=renderCard(s,myShows.length+i); });
     }
   }
@@ -13063,7 +13067,7 @@ function selTpl(id){
     <table><thead><tr><th>CH</th><th>Court</th><th>Nom long</th><th>Micro/DI</th><th>FOH</th><th>MON</th></tr></thead>
     <tbody>${chs.map(r=>`<tr>
       <td style="font-family:var(--m);color:var(--ora);text-align:center">${r.ch}</td>
-      <td style="font-family:var(--m);font-weight:500;color:var(--ora2);text-transform:uppercase;font-size:10px">${(r.short_name||'').trim()}</td>
+      <td style="font-family:var(--f);font-weight:500;color:var(--ora2);font-size:12px">${(r.short_name||'').trim()}</td>
       <td style="color:var(--txt)">${r.long_name||''}</td>
       <td style="font-family:var(--m);font-size:10px;color:var(--txt2)">${r.mic||''}</td>
       <td style="text-align:center">${r.foh?'<span style="color:var(--blu2)">✓</span>':''}</td>
@@ -13150,7 +13154,7 @@ function loadNotifications(){
         +'</div>'
       +'</div>'
       +'<div class="sp-notif-acts">'
-        +'<button class="btn sm" onclick="acceptShowInvite(\''+inv.id+'\')"><i class="ti ti-check"></i>Accepter</button>'
+        +'<button class="btn pri sm" onclick="acceptShowInvite(\''+inv.id+'\')"><i class="ti ti-check"></i>Accepter</button>'
         +'<button class="btn-decline" onclick="declineShowInvite(\''+inv.id+'\')"><i class="ti ti-x"></i>Refuser</button>'
       +'</div>'
     +'</div>';
@@ -13683,7 +13687,7 @@ function _iconImgInspHtml(objId, hasImg, thumbSrc, uploadFn, clearFn){
   var proGate = canDo('multi_scenes') ? '' :
     '<div style="font-size:9px;color:var(--muted);font-family:var(--m);margin-top:4px"><i class="ti ti-lock" style="color:var(--ora)"></i> Pro uniquement</div>';
   return '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--bdr2)">'
-    +'<div style="font-size:9px;font-family:var(--m);text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px">Image personnalisée</div>'
+    +'<div style="font-size:12px;font-family:var(--f);color:var(--muted);margin-bottom:6px;font-weight:500">Image personnalisée</div>'
     +(hasImg ? '<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">'
         +'<img src="'+_safeImgSrc(thumbSrc)+'" style="width:40px;height:40px;object-fit:contain;border-radius:5px;border:1px solid var(--bdr2);background:#fff"/>'
         +'<button class="btn ghost sm" style="flex:1;font-size:10px" onclick="'+clearFn+'"><i class="ti ti-x"></i> Retirer</button>'
@@ -15428,7 +15432,7 @@ async function _openDocxViewer(url, displayName, b2Path, container){
     container.innerHTML=
       '<div class="fich-docx-bar">'
         +'<span class="fich-docx-status" id="docx-status">Lecture seule — cliquez dans le document pour modifier</span>'
-        +'<button class="btn sm" id="docx-save-btn" onclick="_saveDocxEdits(\''+_fEsc(b2Path)+'\',\''+_fEsc(displayName)+'\')" style="display:none"><i class="ti ti-device-floppy"></i>Enregistrer</button>'
+        +'<button class="btn pri sm" id="docx-save-btn" onclick="_saveDocxEdits(\''+_fEsc(b2Path)+'\',\''+_fEsc(displayName)+'\')" style="display:none"><i class="ti ti-device-floppy"></i>Enregistrer</button>'
         +'<a class="btn ghost sm" href="'+url+'" download="'+_fEsc(displayName)+'" target="_blank"><i class="ti ti-download"></i>Télécharger</a>'
       +'</div>'
       +'<div class="fich-docx-wrap">'
@@ -15689,7 +15693,7 @@ function _renderXlsxSheet(container, wb, sheetIdx){
     '<div class="fich-xlsx-bar">'
       +'<div class="fich-xlsx-tabs">'+tabs+'</div>'
       +'<span id="xlsx-status" style="font-size:10px;font-family:var(--m);color:var(--muted)">Cliquez une cellule pour modifier</span>'
-      +'<button class="btn sm" id="xlsx-save-btn" onclick="_saveXlsxEdits()" style="display:none"><i class="ti ti-device-floppy"></i>Enregistrer</button>'
+      +'<button class="btn pri sm" id="xlsx-save-btn" onclick="_saveXlsxEdits()" style="display:none"><i class="ti ti-device-floppy"></i>Enregistrer</button>'
       +'<a class="btn ghost sm" href="'+(window._xlsxState?.signedUrl||'#')+'" download="'+_fEsc(window._xlsxState?.displayName||'tableur.xlsx')+'" id="xlsx-dl-btn"><i class="ti ti-download"></i>Télécharger</a>'
     +'</div>'
     +tableHtml;
@@ -16150,12 +16154,12 @@ function closeGateModal() { document.getElementById('gate-modal').className = 'm
 /* ── Portail facturation ── */
 async function openPortal() {
   var cur = userPlan();
-  var icons  = { free:'🎙️', pro:'⚡' };
+  var icons  = { free:'<i class="ti ti-user"></i>', pro:'<i class="ti ti-star"></i>' };
   var names  = { free:'Plan Gratuit', pro:'Plan Pro' };
   var iconBg = { free:'var(--surf3)', pro:'var(--ora-d)' };
   var chips  = { free:'Gratuit', pro:'Pro · Actif' };
   var ci = document.getElementById('portal-cur-icon');
-  if(ci){ ci.textContent = icons[cur]||'🎙️'; ci.style.background = iconBg[cur]||'var(--surf3)'; }
+  if(ci){ ci.innerHTML = icons[cur]||icons.free; ci.style.background = iconBg[cur]||'var(--surf3)'; ci.style.color = cur==='pro'?'var(--ora)':'var(--txt2)'; }
   var cn = document.getElementById('portal-cur-name');
   if(cn) cn.textContent = names[cur]||'Plan Gratuit';
   var cd = document.getElementById('portal-cur-desc');
@@ -16320,17 +16324,17 @@ async function buyExtraStorage(gb, priceEur) {
 function openPlanModal() {
   const cur = userPlan();
   const descs = {
-    free:   'Passez au Pro pour debloquer le PDF sans filigrane, le multi-patches, l\'equipe illimitee et bien plus.',
-    pro:    'Vous avez acces a toutes les fonctionnalites de PatchFlow.',
+    free:   'Passez au Pro pour débloquer le PDF sans filigrane, le multi-patches, l\'équipe illimitée et bien plus.',
+    pro:    'Vous avez accès à toutes les fonctionnalités de PatchFlow.',
   };
-  const icons = { free:'🎙️', pro:'⚡' };
+  const icons = { free:'<i class="ti ti-user"></i>', pro:'<i class="ti ti-star"></i>' };
   const iconBg = { free:'var(--surf3)', pro:'var(--ora-d)' };
   const chips  = { free:'Gratuit · Actif', pro:'Pro · Actif' };
   const pm = PLAN_META[cur] || PLAN_META.free;
   document.getElementById('sub-current-label').textContent = 'Plan ' + pm.label;
   document.getElementById('sub-current-desc').textContent = descs[cur] || '';
   const iconEl = document.getElementById('plan-cur-icon');
-  if(iconEl){iconEl.textContent=icons[cur]||'⚡';iconEl.style.background=iconBg[cur]||'var(--surf3)';}
+  if(iconEl){iconEl.innerHTML=icons[cur]||icons.free;iconEl.style.background=iconBg[cur]||'var(--surf3)';iconEl.style.color=cur==='pro'?'var(--ora)':'var(--txt2)';}
   const chipEl = document.getElementById('plan-billing-chip');
   if(chipEl){chipEl.textContent=chips[cur]||'Actif';}
   const FEATS = {
@@ -16544,7 +16548,7 @@ function _confirmModal(title, sub) {
   return new Promise(function(resolve) {
     const ov = document.createElement('div');
     ov.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)';
-    ov.innerHTML = '<div style="background:var(--surf);border:1px solid var(--bdr2);border-radius:14px;padding:24px;max-width:380px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.6)">'
+    ov.innerHTML = '<div style="background:var(--surf);border:1px solid var(--bdr2);border-radius:8px;padding:24px;max-width:380px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.6)">'
       + '<div style="font-size:15px;font-weight:700;color:var(--txt);margin-bottom:6px">' + _fEsc(title) + '</div>'
       + (sub ? '<div style="font-size:12px;color:var(--muted);margin-bottom:20px">' + _fEsc(sub) + '</div>' : '<div style="margin-bottom:20px"></div>')
       + '<div style="display:flex;gap:8px;justify-content:flex-end">'
@@ -16564,7 +16568,7 @@ function _dupFileModal(displayName) {
   return new Promise(function(resolve) {
     const ov = document.createElement('div');
     ov.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)';
-    ov.innerHTML = '<div style="background:var(--surf);border:1px solid var(--bdr2);border-radius:14px;padding:24px;max-width:400px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.6)">'
+    ov.innerHTML = '<div style="background:var(--surf);border:1px solid var(--bdr2);border-radius:8px;padding:24px;max-width:400px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.6)">'
       + '<div style="font-size:15px;font-weight:700;color:var(--txt);margin-bottom:6px"><i class="ti ti-file-alert" style="color:var(--ora);margin-right:6px"></i>Ce fichier existe déjà</div>'
       + '<div style="font-size:12px;color:var(--muted);margin-bottom:20px">« ' + _fEsc(displayName) + ' » est déjà dans ce dossier. Remplacer la version existante, ou garder les deux ?</div>'
       + '<div style="display:flex;flex-direction:column;gap:8px">'
@@ -16585,9 +16589,9 @@ function _promptModal(title, label, defaultVal) {
   return new Promise(function(resolve) {
     const ov = document.createElement('div');
     ov.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)';
-    ov.innerHTML = '<div style="background:var(--surf);border:1px solid var(--bdr2);border-radius:14px;padding:24px;max-width:380px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.6)">'
+    ov.innerHTML = '<div style="background:var(--surf);border:1px solid var(--bdr2);border-radius:8px;padding:24px;max-width:380px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.6)">'
       + '<div style="font-size:15px;font-weight:700;color:var(--txt);margin-bottom:16px">' + _fEsc(title) + '</div>'
-      + '<label style="font-size:11px;font-family:var(--m);color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px">' + _fEsc(label) + '</label>'
+      + '<label style="font-size:11px;font-family:var(--f);color:var(--muted);display:block;margin-bottom:6px;font-weight:500">' + _fEsc(label) + '</label>'
       + '<input id="_mp-inp" type="text" value="' + _fEsc(defaultVal||'') + '" style="width:100%;background:var(--surf2);border:1px solid var(--bdr2);color:var(--txt);font-size:13px;padding:9px 12px;border-radius:8px;outline:none;font-family:var(--f);box-sizing:border-box;margin-bottom:16px" />'
       + '<div style="display:flex;gap:8px;justify-content:flex-end">'
       + '<button id="_mp-cancel" style="background:var(--surf2);border:1px solid var(--bdr2);color:var(--txt2);font-size:12px;font-weight:600;padding:8px 16px;border-radius:8px;cursor:pointer;font-family:var(--f)">Annuler</button>'
@@ -16643,7 +16647,7 @@ function _buildRecapData(rows){
 
 function _renderRecapSection(title,icon,map,emptyMsg){
   var entries=Object.keys(map).sort(function(a,b){return map[b]-map[a];});
-  if(!entries.length) return '<div style="margin-bottom:18px"><div style="font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:5px"><i class="ti '+icon+'" style="color:var(--ora)"></i>'+title+'</div>'
+  if(!entries.length) return '<div style="margin-bottom:18px"><div style="font-family:var(--f);font-size:12px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:5px;font-weight:500"><i class="ti '+icon+'" style="color:var(--ora)"></i>'+title+'</div>'
     +'<div style="color:var(--muted2);font-size:11px;padding:8px 0">'+emptyMsg+'</div></div>';
   var total=entries.reduce(function(s,k){return s+map[k];},0);
   var max=entries[0]?map[entries[0]]:1;
@@ -16659,7 +16663,7 @@ function _renderRecapSection(title,icon,map,emptyMsg){
     +'</div>';
   }).join('');
   return '<div style="margin-bottom:22px">'
-    +'<div style="font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:5px">'
+    +'<div style="font-family:var(--f);font-size:12px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:5px;font-weight:500">'
       +'<i class="ti '+icon+'" style="color:var(--ora)"></i>'+title
       +'<span style="margin-left:auto;background:var(--ora-d);color:var(--ora);border:1px solid var(--ora-g);border-radius:8px;padding:1px 7px;font-size:9px">Total '+total+'</span>'
     +'</div>'
@@ -16703,7 +16707,7 @@ async function openRecapMatos(){
 
       // Combined total
       var combined=_buildRecapData(allChs);
-      html+='<div style="margin-bottom:20px;padding:10px 14px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px">'
+      html+='<div style="margin-bottom:20px;padding:10px 14px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px">'
         +'<div style="font-size:11px;font-weight:600;color:var(--txt2);margin-bottom:10px;display:flex;align-items:center;gap:6px">'
           +'<i class="ti ti-sum" style="color:var(--ora)"></i>Total tous patches'
           +'<span style="margin-left:auto;font-family:var(--m);font-size:9px;color:var(--muted)">'+allChs.length+' canaux</span>'
@@ -16713,14 +16717,14 @@ async function openRecapMatos(){
       +'</div>';
 
       // Per-patch breakdown
-      html+='<div style="font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-bottom:10px">Detaill par patch</div>';
+      html+='<div style="font-family:var(--f);font-size:12px;color:var(--muted);margin-bottom:10px;font-weight:500">Detaill par patch</div>';
       IL_PATCHES.forEach(function(p,i){
         var prows=byPatch[p.id]||[];
         var pdata=_buildRecapData(prows);
         var col=PATCH_COLORS[i%PATCH_COLORS.length];
         var hasMics=Object.keys(pdata.mics).length>0;
         var hasStands=Object.keys(pdata.stands).length>0;
-        html+='<details style="margin-bottom:10px;border:1px solid var(--bdr2);border-radius:9px;overflow:hidden">'
+        html+='<details style="margin-bottom:10px;border:1px solid var(--bdr2);border-radius:8px;overflow:hidden">'
           +'<summary style="padding:9px 14px;cursor:pointer;background:var(--surf2);display:flex;align-items:center;gap:8px;list-style:none;user-select:none">'
             +_renderPatchChip(p.name,col)
             +'<span style="font-size:11px;color:var(--txt2)">'+prows.length+' canaux</span>'
@@ -16860,13 +16864,13 @@ function _renderPrep(){
     var items=byCat[cat];
     var cdone=items.filter(function(r){return _prepState.checked[r.key];}).length;
     html+='<div style="margin-bottom:16px">'
-      +'<div style="font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-bottom:7px;display:flex;align-items:center;gap:6px">'
+      +'<div style="font-family:var(--f);font-size:12px;color:var(--muted);margin-bottom:7px;display:flex;align-items:center;gap:6px;font-weight:500">'
         +'<i class="ti '+(CAT_ICON[cat]||'ti-box')+'" style="color:var(--ora)"></i>'+_fEsc(cat)
         +'<span style="margin-left:auto;color:'+(cdone===items.length?'var(--grn)':'var(--muted2)')+'">'+cdone+'/'+items.length+'</span>'
       +'</div>';
     items.forEach(function(r){
       var on=!!_prepState.checked[r.key];
-      html+='<div onclick="togglePrepItem('+_fEsc(JSON.stringify(r.key))+')" style="display:flex;align-items:center;gap:11px;padding:9px 11px;margin-bottom:5px;border:1px solid '+(on?'rgba(34,214,160,.3)':'var(--bdr2)')+';border-radius:9px;cursor:pointer;background:'+(on?'rgba(34,214,160,.06)':'var(--surf2)')+';transition:background .12s,border-color .12s">'
+      html+='<div onclick="togglePrepItem('+_fEsc(JSON.stringify(r.key))+')" style="display:flex;align-items:center;gap:11px;padding:9px 11px;margin-bottom:5px;border:1px solid '+(on?'rgba(34,214,160,.3)':'var(--bdr2)')+';border-radius:8px;cursor:pointer;background:'+(on?'rgba(34,214,160,.06)':'var(--surf2)')+';transition:background .12s,border-color .12s">'
         +'<div style="width:22px;height:22px;border-radius:6px;border:2px solid '+(on?'var(--grn)':'var(--bdr3)')+';background:'+(on?'var(--grn)':'transparent')+';display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#04231a">'
           +(on?'<i class="ti ti-check" style="font-size:14px;font-weight:800"></i>':'')
         +'</div>'
@@ -17212,13 +17216,13 @@ function _svFs(imgId, title){
     +'</div>'
     /* ── Bandeau conversion : les destinataires du lien sont de futurs clients ── */
     +'<div style="position:relative;width:100%;max-width:1100px;margin:8px auto 0;padding:'+(isMobile?'0 10px 30px':'0 20px 48px')+'">'
-      +'<div style="background:linear-gradient(135deg,rgba(255,107,26,.1),rgba(255,107,26,.02) 45%,#0d1424 100%);border:1px solid rgba(255,107,26,.22);border-radius:16px;padding:'+(isMobile?'20px 18px':'26px 30px')+';display:flex;align-items:center;gap:'+(isMobile?'14':'22')+'px;flex-wrap:wrap">'
-        +'<div style="width:46px;height:46px;border-radius:12px;background:rgba(255,107,26,.1);border:1px solid rgba(255,107,26,.25);display:flex;align-items:center;justify-content:center;flex-shrink:0">'+SV_LOGO_SM+'</div>'
+      +'<div style="background:linear-gradient(135deg,rgba(255,107,26,.1),rgba(255,107,26,.02) 45%,#0d1424 100%);border:1px solid rgba(255,107,26,.22);border-radius:8px;padding:'+(isMobile?'20px 18px':'26px 30px')+';display:flex;align-items:center;gap:'+(isMobile?'14':'22')+'px;flex-wrap:wrap">'
+        +'<div style="width:46px;height:46px;border-radius:8px;background:rgba(255,107,26,.1);border:1px solid rgba(255,107,26,.25);display:flex;align-items:center;justify-content:center;flex-shrink:0">'+SV_LOGO_SM+'</div>'
         +'<div style="flex:1;min-width:200px">'
           +'<div style="font-size:'+(isMobile?'14':'16')+'px;font-weight:800;color:#f0f4ff;margin-bottom:5px">Ce rider est fait avec PatchFlow</div>'
           +'<div style="font-size:'+(isMobile?'11.5':'12.5')+'px;color:#8899aa;line-height:1.65">Input List, plans, synoptique et fichiers de prod — créés et partagés en un lien, à jour en temps réel pour toute l\'équipe. Gratuit pour commencer.</div>'
         +'</div>'
-        +'<a href="/" style="display:inline-flex;align-items:center;gap:8px;background:#ff6b1a;color:#000;font-size:13px;font-weight:700;padding:'+(isMobile?'11px 18px':'12px 22px')+';border-radius:10px;text-decoration:none;white-space:nowrap;font-family:Outfit,sans-serif;box-shadow:0 6px 24px rgba(255,107,26,.25);transition:background .15s" onmouseover="this.style.background=\'#ff8c42\'" onmouseout="this.style.background=\'#ff6b1a\'">Créer le mien — gratuit</a>'
+        +'<a href="/" style="display:inline-flex;align-items:center;gap:8px;background:#ff6b1a;color:#000;font-size:13px;font-weight:700;padding:'+(isMobile?'11px 18px':'12px 22px')+';border-radius:8px;text-decoration:none;white-space:nowrap;font-family:Outfit,sans-serif;box-shadow:0 6px 24px rgba(255,107,26,.25);transition:background .15s" onmouseover="this.style.background=\'#ff8c42\'" onmouseout="this.style.background=\'#ff6b1a\'">Créer le mien — gratuit</a>'
       +'</div>'
       +'<div style="text-align:center;margin-top:16px;font-size:10px;font-family:DM Mono,monospace;color:#3a4a5a;letter-spacing:.5px">PatchFlow — Par des techniciens, pour des techniciens</div>'
     +'</div>';
@@ -17465,7 +17469,7 @@ function _svFs(imgId, title){
     }
     /* Bouton « Voir le plan de scène » en un clic (si un plan est disponible). */
     if(_svPlanAvailable()){
-      h+='<button onclick="_svViewPlan()" style="margin-bottom:14px;display:inline-flex;align-items:center;gap:8px;background:#ff6b1a;border:none;color:#000;font-size:12px;font-weight:700;padding:10px 16px;border-radius:9px;cursor:pointer;font-family:var(--f);box-shadow:0 2px 10px rgba(255,107,26,.25)">'
+      h+='<button onclick="_svViewPlan()" style="margin-bottom:14px;display:inline-flex;align-items:center;gap:8px;background:#ff6b1a;border:none;color:#000;font-size:12px;font-weight:700;padding:10px 16px;border-radius:8px;cursor:pointer;font-family:var(--f);box-shadow:0 2px 10px rgba(255,107,26,.25)">'
         +'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg>'
         +'Voir le plan de scène</button>';
     }
@@ -17478,7 +17482,7 @@ function _svFs(imgId, title){
         if(r.foh)    tags+='<span style="background:rgba(34,214,160,.12);color:#22d6a0;border:1px solid rgba(34,214,160,.25);border-radius:4px;font-size:9px;padding:2px 6px;font-family:DM Mono,monospace">FOH</span> ';
         if(r.mon)    tags+='<span style="background:rgba(26,143,255,.12);color:#1a8fff;border:1px solid rgba(26,143,255,.25);border-radius:4px;font-size:9px;padding:2px 6px;font-family:DM Mono,monospace">MON</span> ';
         if(_hfOf(r)) tags+='<span style="background:rgba(155,106,255,.12);color:#9b6aff;border:1px solid rgba(155,106,255,.25);border-radius:4px;font-size:9px;padding:2px 6px;font-family:DM Mono,monospace">HF '+esc(_hfOf(r))+'</span> ';
-        h+='<div style="background:#0d1220;border:1px solid #1e2a3a;border-radius:10px;padding:10px 12px;display:flex;align-items:flex-start;gap:10px">'
+        h+='<div style="background:#0d1220;border:1px solid #1e2a3a;border-radius:8px;padding:10px 12px;display:flex;align-items:flex-start;gap:10px">'
           +'<span style="flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;background:#ff6b1a;color:#000;font-family:DM Mono,monospace;font-size:13px;font-weight:800;min-width:30px;height:30px;border-radius:6px;padding:0 5px;letter-spacing:-.3px">'+r.ch+'</span>'
           +'<div style="flex:1;min-width:0">'
             +'<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:2px">'
@@ -17556,15 +17560,15 @@ function _svFs(imgId, title){
             +'Plein écran'
           +'</button>'
         +'</div>';
-        h+='<div onclick="_svFs(\'_svStageImg\',\'Plan de scène\')" style="border-radius:10px;border:1px solid #1e2a3a;background:#fff;overflow:hidden;cursor:zoom-in">'
+        h+='<div onclick="_svFs(\'_svStageImg\',\'Plan de scène\')" style="border-radius:8px;border:1px solid #1e2a3a;background:#fff;overflow:hidden;cursor:zoom-in">'
           +'<img id="_svStageImg" src="'+safeSrc(dataUrl)+'" style="width:100%;height:auto;display:block"/>'
         +'</div>';
         h+='<div style="margin-top:14px;text-align:center;font-size:10px;color:#3a4a5a;font-family:DM Mono,monospace">PatchFlow · Plan de scene · '+now+'</div>';
         cb(h);
       } else {
         cb(_showMeta+_svSceneSelector('stage')
-          +'<div style="overflow:auto;border-radius:10px;border:1px solid #1e2a3a;background:#0a0f1c">'
-          +'<img src="'+safeSrc(dataUrl)+'" style="max-width:100%;display:block;border-radius:10px"/>'
+          +'<div style="overflow:auto;border-radius:8px;border:1px solid #1e2a3a;background:#0a0f1c">'
+          +'<img src="'+safeSrc(dataUrl)+'" style="max-width:100%;display:block;border-radius:8px"/>'
           +'</div>'
           +'<div style="margin-top:14px;text-align:center;font-size:10px;color:#3a4a5a;font-family:DM Mono,monospace">PatchFlow · Plan de scene · '+now+'</div>');
       }
@@ -17862,7 +17866,7 @@ function _svFs(imgId, title){
           +'Plein écran'
         +'</button>'
       +'</div>'
-      +'<div onclick="_svFs(\'_svSiteImg\',\'Plan de site\')" style="border-radius:10px;border:1px solid #1e2a3a;background:#fff;overflow:hidden;cursor:zoom-in">'
+      +'<div onclick="_svFs(\'_svSiteImg\',\'Plan de site\')" style="border-radius:8px;border:1px solid #1e2a3a;background:#fff;overflow:hidden;cursor:zoom-in">'
         +'<img id="_svSiteImg" src="'+safeSrc(dataUrl)+'" style="width:100%;height:auto;display:block"/>'
       +'</div>'
       +'<div style="margin-top:14px;text-align:center;font-size:10px;color:#3a4a5a;font-family:DM Mono,monospace">PatchFlow · Plan de site · '+now+'</div>';
@@ -17872,7 +17876,7 @@ function _svFs(imgId, title){
       var imgStyle = dispW
         ? 'width:'+dispW+'px;max-width:100%;height:auto;display:block;margin:0 auto;border-radius:8px'
         : 'max-width:100%;display:block;border-radius:8px';
-      return '<div style="overflow:auto;border-radius:10px;border:1px solid #1e2a3a;background:#ffffff;padding:18px">'
+      return '<div style="overflow:auto;border-radius:8px;border:1px solid #1e2a3a;background:#ffffff;padding:18px">'
         +'<img src="'+safeSrc(dataUrl)+'" style="'+imgStyle+'"/>'
         +'</div>'
         +'<div style="margin-top:14px;text-align:center;font-size:10px;color:#3a4a5a;font-family:DM Mono,monospace">PatchFlow · Plan de site · '+now+'</div>';
@@ -17919,7 +17923,7 @@ function _svFs(imgId, title){
       h+='<div style="display:flex;flex-direction:column;gap:8px">';
       allOuts.forEach(function(r,i){
         var col=OUT_COLORS[r.type]||OUT_COLORS.other;
-        h+='<div style="background:#0d1220;border:1px solid #1e2a3a;border-radius:10px;padding:10px 12px;display:flex;align-items:flex-start;gap:10px">'
+        h+='<div style="background:#0d1220;border:1px solid #1e2a3a;border-radius:8px;padding:10px 12px;display:flex;align-items:flex-start;gap:10px">'
           +'<span style="flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;background:'+col+'22;color:'+col+';border:1px solid '+col+'44;font-family:DM Mono,monospace;font-size:12px;font-weight:800;min-width:30px;height:30px;border-radius:6px;padding:0 5px">'+(r.ch||i+1)+'</span>'
           +'<div style="flex:1;min-width:0">'
             +'<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:2px">'
@@ -18118,7 +18122,7 @@ function _svFs(imgId, title){
         (_rot?' transform="rotate('+_rot+' '+(_bx+sbgW/2)+' '+(_by+sbgH/2)+')"':'')+'/>';
     }
     var fullH=vh+headH+footH;
-    var svgStr='<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100%" viewBox="0 0 '+vw+' '+fullH+'" style="max-width:100%;border-radius:10px;border:1px solid #1e2a3a;background:#fff;display:block">'+headSvg+bgSvg+edgeSvg+nodeSvg+footSvg+'</svg>';
+    var svgStr='<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100%" viewBox="0 0 '+vw+' '+fullH+'" style="max-width:100%;border-radius:8px;border:1px solid #1e2a3a;background:#fff;display:block">'+headSvg+bgSvg+edgeSvg+nodeSvg+footSvg+'</svg>';
     return _showMeta+_svSceneSelector('syno')+svgStr
       +'<div style="margin-top:14px;text-align:center;font-size:10px;color:#3a4a5a;font-family:DM Mono,monospace">PatchFlow &middot; Synoptique &middot; '+now+'</div>';
   }
@@ -18132,8 +18136,8 @@ function _svFs(imgId, title){
     /* Icône Tabler par type (cohérent avec la section Fichiers) */
     var info=(typeof _fichInfoOf==='function')?_fichInfoOf(disp):null;
     var icon=(info&&info.icon)||'<i class="ti ti-file" style="color:#8899aa;font-size:20px"></i>';
-    return '<div onclick="_svOpenFile('+i+')" style="cursor:pointer;display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid #1e2a3a;border-radius:10px;background:#0d1520;transition:border-color .15s,background .15s" onmouseover="this.style.borderColor=\'#ff6b1a\';this.style.background=\'#111c2e\'" onmouseout="this.style.borderColor=\'#1e2a3a\';this.style.background=\'#0d1520\'">'
-      +'<span style="flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:9px;background:#0a0f1c">'+icon+'</span>'
+    return '<div onclick="_svOpenFile('+i+')" style="cursor:pointer;display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid #1e2a3a;border-radius:8px;background:#0d1520;transition:border-color .15s,background .15s" onmouseover="this.style.borderColor=\'#ff6b1a\';this.style.background=\'#111c2e\'" onmouseout="this.style.borderColor=\'#1e2a3a\';this.style.background=\'#0d1520\'">'
+      +'<span style="flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:8px;background:#0a0f1c">'+icon+'</span>'
       +'<div style="flex:1;overflow:hidden"><div style="font-size:13px;font-weight:600;color:#e0eaf8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(disp)+'</div>'
       +'<div style="font-size:9px;font-family:DM Mono,monospace;color:#5a6a80;margin-top:2px">'+ext.toUpperCase()+((info&&info.label)?' · '+esc(info.label):'')+'</div></div>'
       +'<i class="ti ti-eye" style="color:#ff6b1a;font-size:17px;flex-shrink:0" title="Ouvrir"></i>'
@@ -18185,12 +18189,12 @@ function _svFs(imgId, title){
           +'</div>'
           +'<div style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:280px">'
             +'<a href="'+url+'" target="_blank" rel="noopener" '
-              +'style="display:flex;align-items:center;justify-content:center;gap:8px;padding:13px 20px;background:#ff6b1a;color:#000;font-weight:700;border-radius:10px;text-decoration:none;font-size:14px">'
+              +'style="display:flex;align-items:center;justify-content:center;gap:8px;padding:13px 20px;background:#ff6b1a;color:#000;font-weight:700;border-radius:8px;text-decoration:none;font-size:14px">'
               +'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>'
               +'Ouvrir le PDF'
             +'</a>'
             +'<button onclick="_svDownloadAttach('+_activeFile+')" '
-              +'style="display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 20px;background:#1e2a3a;border:1px solid #2d3d50;color:#a0b0c0;font-weight:600;border-radius:10px;font-size:13px;cursor:pointer">'
+              +'style="display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 20px;background:#1e2a3a;border:1px solid #2d3d50;color:#a0b0c0;font-weight:600;border-radius:8px;font-size:13px;cursor:pointer">'
               +'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'
               +'Telecharger'
             +'</button>'
@@ -18278,7 +18282,7 @@ function _svFs(imgId, title){
     };
     /* Pastille d'icône carrée (dossier/fichier) */
     var _icoBox=function(cls,color,bg){
-      return '<span style="display:inline-flex;width:36px;height:36px;border-radius:9px;background:'+bg+';align-items:center;justify-content:center;flex-shrink:0">'
+      return '<span style="display:inline-flex;width:36px;height:36px;border-radius:8px;background:'+bg+';align-items:center;justify-content:center;flex-shrink:0">'
         +'<i class="ti '+cls+'" style="color:'+color+';font-size:18px"></i></span>';
     };
     var folders=files.filter(function(f){return f.id===null;});
@@ -18310,7 +18314,7 @@ function _svFs(imgId, title){
     folders.forEach(function(f){
       var newPath=JSON.stringify(path.concat([f.name]));
       h+='<div class="_cloud_nav" data-path="'+_fEsc(newPath)+'" '
-        +'style="display:flex;align-items:center;gap:12px;padding:9px 14px;background:#0d1220;border:1px solid #1e2a3a;border-radius:11px;cursor:pointer;transition:border-color .12s,background .12s" '
+        +'style="display:flex;align-items:center;gap:12px;padding:9px 14px;background:#0d1220;border:1px solid #1e2a3a;border-radius:8px;cursor:pointer;transition:border-color .12s,background .12s" '
         +'onmouseover="this.style.borderColor=\'#ff6b1a\';this.style.background=\'#111a2c\'" onmouseout="this.style.borderColor=\'#1e2a3a\';this.style.background=\'#0d1220\'">'
         +_icoBox('ti-folder','#f5c542','rgba(245,197,66,.12)')
         +'<span style="font-size:13px;font-weight:600;color:#e2e8f0">'+esc(f.name)+'</span>'
@@ -18324,7 +18328,7 @@ function _svFs(imgId, title){
       var fp=_cloudPrefix(path)+f.name;
       var ft=FTYPE(name);
       h+='<div class="_cloud_open" data-fp="'+_fEsc(fp)+'" data-name="'+_fEsc(name)+'" '
-        +'style="display:flex;align-items:center;gap:12px;padding:9px 14px;background:#0d1220;border:1px solid #1e2a3a;border-radius:11px;cursor:pointer;transition:border-color .12s,background .12s" '
+        +'style="display:flex;align-items:center;gap:12px;padding:9px 14px;background:#0d1220;border:1px solid #1e2a3a;border-radius:8px;cursor:pointer;transition:border-color .12s,background .12s" '
         +'onmouseover="this.style.borderColor=\'#ff6b1a\';this.style.background=\'#111a2c\'" onmouseout="this.style.borderColor=\'#1e2a3a\';this.style.background=\'#0d1220\'">'
         +_icoBox(ft[0],ft[1],'rgba(255,255,255,.04)')
         +'<div style="min-width:0;flex:1">'

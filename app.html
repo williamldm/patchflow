@@ -45,7 +45,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=3.15">
+<link rel="stylesheet" href="pf-app.css?v=3.22">
 </head>
 <body>
 
@@ -225,7 +225,7 @@ html.rider-boot #rider-splash{display:flex}
             <option value="date">Date du show</option>
           </select>
           <button class="btn ghost" id="sess-trash-btn" onclick="openTrashModal()" title="Supprimés récemment" style="display:none"><i class="ti ti-trash"></i><span id="sess-trash-count" class="sess-trash-count" style="display:none"></span></button>
-          <button class="btn" onclick="newShow()"><i class="ti ti-plus"></i>Nouveau show</button>
+          <button class="btn pri" onclick="newShow()"><i class="ti ti-plus"></i>Nouveau show</button>
         </div>
       </div>
       <div id="sess-folder-bar" class="sess-folder-bar"></div>
@@ -240,10 +240,10 @@ html.rider-boot #rider-splash{display:flex}
         <span class="ptitle"><i class="ti ti-list-numbers" style="color:var(--ora)"></i><span id="il-pbar-title">Input List</span><span class="ptitle-sep">/</span><span id="sn-il" style="color:var(--txt2)">…</span></span>
         <!-- Boutons spécifiques IN -->
         <span id="il-in-btns" style="display:contents">
-          <button class="btn" onclick="addRow()"><i class="ti ti-plus"></i>Canal</button>
-          <button class="btn" style="background:var(--surf2);border-color:var(--bdr2)" onclick="openILAssist()"><i class="ti ti-wand"></i>Assistant</button>
+          <button class="btn pri" onclick="addRow()"><i class="ti ti-plus"></i>Canal</button>
+          <button class="btn" onclick="openILAssist()"><i class="ti ti-wand"></i>Assistant</button>
           <div class="tpl-dd-wrap" id="tpl-dd-wrap">
-            <button class="btn" style="background:var(--surf2);border-color:var(--bdr2)" onclick="toggleTplDd(event)"><i class="ti ti-template"></i>Template <i class="ti ti-chevron-down" style="font-size:10px;margin-left:1px"></i></button>
+            <button class="btn" onclick="toggleTplDd(event)"><i class="ti ti-template"></i>Template <i class="ti ti-chevron-down" style="font-size:10px;margin-left:1px"></i></button>
             <div class="tpl-dd-menu" id="tpl-dd-menu">
               <div class="tpl-dd-mode">
                 <button id="tpl-mode-replace" class="active" onclick="setTplMode('replace')">Remplacer</button>
@@ -253,8 +253,8 @@ html.rider-boot #rider-splash{display:flex}
             </div>
           </div>
           <button type="button" class="btn ghost sm" data-undo="il" onclick="undoSection('il')" title="Annuler (Ctrl/⌘+Z)" style="display:none"><i class="ti ti-arrow-back-up"></i></button>
-          <button class="btn" style="background:var(--surf2);border-color:var(--bdr2)" onclick="importCSVClick()"><i class="ti ti-upload"></i>Import CSV</button>
-          <button class="btn" id="col-btn" style="background:var(--surf2);border-color:var(--bdr2)" onclick="toggleColPanel()"><i class="ti ti-columns"></i>Colonnes</button>
+          <button class="btn" onclick="importCSVClick()"><i class="ti ti-upload"></i>Import CSV</button>
+          <button class="btn" id="col-btn" onclick="toggleColPanel()"><i class="ti ti-columns"></i>Colonnes</button>
           <!-- Hidden file inputs -->
           <input type="file" id="csv-import-input" accept=".csv,.txt" style="display:none" onchange="importCSVLoad(this)">
           <input type="file" id="il-ai-file" accept=".pdf,.csv,.txt,.doc,.docx,image/png,image/jpeg,image/webp,image/gif,application/pdf,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="display:none" onchange="ilAiHandleFile(this)">
@@ -289,42 +289,42 @@ html.rider-boot #rider-splash{display:flex}
         </span>
         <!-- Boutons spécifiques OUT -->
         <span id="il-out-btns" style="display:none">
-          <button class="btn" onclick="addOutRow()"><i class="ti ti-plus"></i>Sortie</button>
-          <button class="btn" style="background:var(--surf2);border-color:var(--bdr2)" onclick="openOLAssist()"><i class="ti ti-wand"></i>Assistant</button>
-          <button class="btn" style="background:var(--surf2);border-color:var(--bdr2)" onclick="importOutCSVClick()"><i class="ti ti-upload"></i>Import CSV</button>
+          <button class="btn pri" onclick="addOutRow()"><i class="ti ti-plus"></i>Sortie</button>
+          <button class="btn" onclick="openOLAssist()"><i class="ti ti-wand"></i>Assistant</button>
+          <button class="btn" onclick="importOutCSVClick()"><i class="ti ti-upload"></i>Import CSV</button>
           <button class="btn blu" onclick="exportOutCSV()"><i class="ti ti-download"></i>CSV</button>
-          <button class="btn" style="background:var(--surf2);border-color:var(--bdr2);color:var(--err)" onclick="clearAllOutRows()"><i class="ti ti-trash"></i>Tout effacer</button>
+          <button class="btn danger" onclick="clearAllOutRows()"><i class="ti ti-trash"></i>Tout effacer</button>
         </span>
       </div>
 
-      <div id="col-panel" style="display:none;background:var(--surf2);border:1px solid var(--bdr2);border-radius:9px;padding:13px;margin-bottom:13px">
+      <div id="col-panel" style="display:none;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;padding:13px;margin-bottom:13px">
         <div style="display:flex;align-items:center;gap:7px;margin-bottom:3px">
-          <span style="font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);display:flex;align-items:center;gap:7px;flex:1"><i class="ti ti-columns" style="color:var(--ora)"></i>Colonnes visibles</span>
-          <button class="btn sm ghost" style="padding:3px 9px;font-size:10px" onclick="_resetColOrder()" title="Remettre l'ordre par défaut"><i class="ti ti-arrow-back-up"></i>Réinitialiser l'ordre</button>
+          <span style="font-family:var(--f);font-size:12px;color:var(--muted);display:flex;align-items:center;gap:7px;flex:1;font-weight:500"><i class="ti ti-columns" style="color:var(--ora)"></i>Colonnes visibles</span>
+          <button class="btn sm ghost" onclick="_resetColOrder()" title="Remettre l'ordre par défaut"><i class="ti ti-arrow-back-up"></i>Réinitialiser l'ordre</button>
         </div>
         <div style="font-size:10px;color:var(--muted);margin-bottom:9px">Glissez une colonne par sa poignée <i class="ti ti-grip-vertical"></i> pour la réordonner.</div>
         <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:11px" id="col-chips"></div>
         <div style="display:flex;gap:7px;border-top:1px solid var(--bdr);padding-top:11px;flex-wrap:wrap;align-items:center">
-          <span style="font-family:var(--m);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px">Presets :</span>
+          <span style="font-family:var(--f);font-size:12px;color:var(--muted);font-weight:500">Presets :</span>
           <button class="btn sm ghost" onclick="colPreset('simple')">Simple</button>
           <button class="btn sm ghost" onclick="colPreset('foh')">FOH only</button>
           <button class="btn sm ghost" onclick="colPreset('broadcast')">Broadcast</button>
           <button class="btn sm ghost" onclick="colPreset('full')">Tout</button>
-          <button class="btn sm" style="margin-left:auto" onclick="toggleColPanel()"><i class="ti ti-check"></i>OK</button>
+          <button class="btn pri sm" style="margin-left:auto" onclick="toggleColPanel()"><i class="ti ti-check"></i>OK</button>
         </div>
 
         <!-- Taille du numéro de canal -->
         <div style="display:flex;gap:7px;border-top:1px solid var(--bdr);padding-top:11px;margin-top:11px;flex-wrap:wrap;align-items:center">
-          <span style="font-family:var(--m);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px"><i class="ti ti-number" style="color:var(--ora)"></i> Taille N° de canal :</span>
+          <span style="font-family:var(--f);font-size:12px;color:var(--muted);font-weight:500"><i class="ti ti-number" style="color:var(--ora)"></i> Taille N° de canal :</span>
           <div id="chnum-size-grp" style="display:flex;gap:5px"></div>
         </div>
 
         <!-- Colonnes personnalisées (Pro) -->
         <div style="border-top:1px solid var(--bdr2);margin-top:13px;padding-top:12px">
           <div style="display:flex;align-items:center;gap:7px;margin-bottom:9px">
-            <span style="font-family:var(--m);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted)"><i class="ti ti-plus-equal" style="color:var(--ora)"></i> Colonnes personnalisées</span>
+            <span style="font-family:var(--f);font-size:12px;color:var(--muted);font-weight:500"><i class="ti ti-plus-equal" style="color:var(--ora)"></i> Colonnes personnalisées</span>
             <span style="font-size:9px;font-family:var(--m);color:var(--ora);background:var(--ora-d);border:1px solid var(--ora-g);padding:1px 6px;border-radius:4px">Pro</span>
-            <button class="btn sm ghost" style="margin-left:auto;padding:3px 9px;font-size:10px" onclick="_openAddCustomCol()"><i class="ti ti-plus"></i>Ajouter</button>
+            <button class="btn sm ghost" style="margin-left:auto" onclick="_openAddCustomCol()"><i class="ti ti-plus"></i>Ajouter</button>
           </div>
           <div id="custom-col-list" style="margin-bottom:8px"></div>
           <!-- Formulaire d'ajout (caché par défaut) -->
@@ -337,7 +337,7 @@ html.rider-boot #rider-splash{display:flex}
                 <option value="number">Nombre</option>
                 <option value="bool">Case à cocher</option>
               </select>
-              <button class="btn sm" onclick="_submitAddCustomCol()"><i class="ti ti-check"></i>Créer</button>
+              <button class="btn pri sm" onclick="_submitAddCustomCol()"><i class="ti ti-check"></i>Créer</button>
               <button class="btn sm ghost" onclick="document.getElementById('custom-col-form').style.display='none'">Annuler</button>
             </div>
           </div>
@@ -414,10 +414,10 @@ html.rider-boot #rider-splash{display:flex}
         <button class="gen-btn univ" onclick="dlFile('univ')" style="width:auto;margin:0;padding:6px 12px;text-transform:none;letter-spacing:0"><i class="ti ti-file-spreadsheet"></i>CSV universel</button>
       </div>
       <!-- Bandeau Pro -->
-      <div id="sf-pro-banner" style="display:none;align-items:center;gap:10px;margin:0 0 14px;padding:11px 15px;background:linear-gradient(135deg,rgba(255,107,26,.1),rgba(255,107,26,.04));border:1px solid rgba(255,107,26,.28);border-radius:10px">
+      <div id="sf-pro-banner" style="display:none;align-items:center;gap:10px;margin:0 0 14px;padding:11px 15px;background:linear-gradient(135deg,rgba(255,107,26,.1),rgba(255,107,26,.04));border:1px solid rgba(255,107,26,.28);border-radius:8px">
         <i class="ti ti-device-floppy" style="font-size:20px;color:var(--ora);flex-shrink:0"></i>
         <div style="flex:1;font-size:11.5px;color:var(--txt2);line-height:1.5">Les <strong>exports console</strong> sont réservés au plan <strong style="color:var(--ora)">Pro</strong>. Chargez vos noms de voies, couleurs, gains et +48V directement dans votre console.</div>
-        <button class="btn sm" onclick="showUpgradeModal('console_export')" style="flex-shrink:0"><i class="ti ti-rocket"></i>Passer Pro</button>
+        <button class="btn pri sm" onclick="showUpgradeModal('console_export')" style="flex-shrink:0"><i class="ti ti-rocket"></i>Passer Pro</button>
       </div>
       <div class="sf-grid">
         <div class="sf-card"><div class="sf-head"><div class="sf-logo lg-x">X32<br>M32</div><div><div class="sf-name">Behringer X32 / Midas M32</div><div class="sf-sub">X32 · M32 · X32 Rack · M32R</div></div></div><div class="sf-body"><div class="fmt-tag real">Scène native .scn — noms, couleurs, gain, +48V</div><div class="ch-pills" id="pills-x32"></div><div class="sf-steps"><div class="sf-step"><div class="sf-snum">1</div>Télécharger <span class="cb2">patchflow.scn</span></div><div class="sf-step"><div class="sf-snum">2</div>USB → console → Scenes → Import</div></div><button class="gen-btn y" onclick="prevFile('x32')"><i class="ti ti-eye"></i>Prévisualiser</button><button class="gen-btn y" onclick="dlFile('x32')"><i class="ti ti-file-download"></i>patchflow.scn</button><div class="sf-stat"><span class="dp dg"></span><span id="st-x32">—</span></div></div></div>
@@ -444,7 +444,7 @@ html.rider-boot #rider-splash{display:flex}
             <button type="button" id="sp-zoom-in" title="Zoom +"><i class="ti ti-plus"></i></button>
             <button type="button" id="sp-fit" title="Ajuster"><i class="ti ti-arrows-maximize"></i></button>
           </div>
-          <button type="button" class="btn ghost sm" id="sp-conf"><i class="ti ti-settings"></i>Marque &amp; reseaux</button>
+          <button type="button" class="btn ghost sm" id="sp-conf"><i class="ti ti-settings"></i>Marque &amp; réseaux</button>
           <div style="position:relative;display:inline-block">
             <button type="button" class="btn sm" id="sp-export"><i class="ti ti-file-export"></i>Exporter <i class="ti ti-chevron-down" style="font-size:10px;margin-left:2px"></i></button>
             <div class="sp-export-menu" id="sp-export-menu">
@@ -463,10 +463,10 @@ html.rider-boot #rider-splash{display:flex}
         <div id="scene-tabs-syno" class="scene-tabs-bar hidden"></div>
         <div class="sp-body">
           <div class="sp-palette">
-            <div class="sp-pal-hd"><i class="ti ti-box"></i>Bibliotheque</div>
+            <div class="sp-pal-hd"><i class="ti ti-box"></i>Bibliothèque</div>
             <div class="sp-bg-box">
               <input type="file" id="sp-bg-file" accept="image/*,application/pdf" style="display:none" onchange="SynPro.loadBg(this)"/>
-              <button type="button" class="btn ghost sm" style="width:100%;justify-content:center;font-size:10.5px" onclick="document.getElementById('sp-bg-file').click()" title="Image ou PDF (1re page utilisée comme fond)"><i class="ti ti-photo"></i> Image ou PDF de fond</button>
+              <button type="button" class="btn ghost sm" style="width:100%;justify-content:center" onclick="document.getElementById('sp-bg-file').click()" title="Image ou PDF (1re page utilisée comme fond)"><i class="ti ti-photo"></i> Image ou PDF de fond</button>
               <div id="sp-bg-controls" style="display:none">
                 <div class="sp-bg-row">
                   <i class="ti ti-sun" title="Opacité"></i>
@@ -512,12 +512,12 @@ html.rider-boot #rider-splash{display:flex}
             </div>
           </div>
           <div class="sp-inspector" id="sp-inspector-wrap">
-            <div class="sp-insp-hd"><i class="ti ti-adjustments"></i>Proprietes</div>
-            <div id="sp-inspector" style="padding:12px;flex:1;overflow-y:auto"><p class="sp-insp-empty">Glissez un equipement depuis la palette sur le plan.<br><br>Pour relier : cliquez un type de liaison, puis cliquez deux equipements.</p></div>
+            <div class="sp-insp-hd"><i class="ti ti-adjustments"></i>Propriétés</div>
+            <div id="sp-inspector" style="padding:12px;flex:1;overflow-y:auto"><p class="sp-insp-empty">Glissez un équipement depuis la palette sur le plan.<br><br>Pour relier : cliquez un type de liaison, puis cliquez deux equipements.</p></div>
           </div>
         </div>
         <div class="sp-hintbar">
-          <i class="ti ti-info-circle"></i> Glissez un equipement &middot; Cliquez une liaison puis 2 equipements pour les relier &middot; Double-clic sur une liaison/equipement pour editer
+          <i class="ti ti-info-circle"></i> Glissez un équipement &middot; Cliquez une liaison puis 2 equipements pour les relier &middot; Double-clic sur une liaison/equipement pour editer
         </div>
       </div>
     </div>
@@ -606,13 +606,13 @@ html.rider-boot #rider-splash{display:flex}
       <!-- Plan de scene BandPlan -->
       <div id="plan-scene-wrap" class="bp-layout">
         <div class="bp-pal">
-          <div class="bp-pal-hd"><i class="ti ti-box"></i>Bibliotheque</div>
+          <div class="bp-pal-hd"><i class="ti ti-box"></i>Bibliothèque</div>
           <div style="padding:7px 8px 6px;border-bottom:1px solid var(--bdr2);flex-shrink:0;background:var(--surf2);display:flex;flex-direction:column;gap:5px">
             <input type="file" id="bp-bg-file" accept="image/*" style="display:none" onchange="BandPlan.loadBg(this)"/>
             <input type="file" id="bp-ai-file" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none" onchange="bpAiHandleFile(this)"/>
             <button class="btn sm" id="bp-ai-btn" style="width:100%;justify-content:center;font-size:10.5px;background:linear-gradient(135deg,var(--ora),#ff3d00);border-color:var(--ora);color:#fff" onclick="bpAiImport()"><i class="ti ti-sparkles"></i> Adapter un plan (IA)</button>
-            <button class="btn ghost sm" style="width:100%;justify-content:center;font-size:10.5px;margin-top:5px" onclick="document.getElementById('bp-bg-file').click()"><i class="ti ti-photo"></i> Image de fond</button>
-            <button class="btn ghost sm" id="bp-stage-toggle-btn" style="width:100%;justify-content:center;font-size:10.5px;margin-top:5px" onclick="BandPlan.toggleStageBg()"><i class="ti ti-eye-off"></i> Masquer la scène</button>
+            <button class="btn ghost sm" style="width:100%;justify-content:center;margin-top:5px" onclick="document.getElementById('bp-bg-file').click()"><i class="ti ti-photo"></i> Image de fond</button>
+            <button class="btn ghost sm" id="bp-stage-toggle-btn" style="width:100%;justify-content:center;margin-top:5px" onclick="BandPlan.toggleStageBg()"><i class="ti ti-eye-off"></i> Masquer la scène</button>
             <div id="bp-bg-controls" style="display:none">
               <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)" title="Opacité de l'image de fond">
                 <i class="ti ti-sun" style="font-size:11px;flex-shrink:0"></i>
@@ -645,9 +645,9 @@ html.rider-boot #rider-splash{display:flex}
           </div>
         </div>
         <div class="bp-insp" id="bp-insp">
-          <div class="bp-insp-hd"><i class="ti ti-adjustments"></i>Proprietes</div>
+          <div class="bp-insp-hd"><i class="ti ti-adjustments"></i>Propriétés</div>
           <div id="bp-insp-body">
-            <div class="bp-insp-empty"><i class="ti ti-cursor-text" style="font-size:28px;margin-bottom:9px;color:var(--muted2)"></i><span>Selectionnez un element</span></div>
+            <div class="bp-insp-empty"><i class="ti ti-cursor-text" style="font-size:28px;margin-bottom:9px;color:var(--muted2)"></i><span>Sélectionnez un élément</span></div>
           </div>
           <div class="bp-insp-footer">
             <div class="bp-insp-footer-row">
@@ -682,10 +682,10 @@ html.rider-boot #rider-splash{display:flex}
       <div id="plan-site-wrap" style="display:none" class="site-layout">
         <!-- Palette gauche -->
         <div class="site-pal-wrap">
-          <div class="site-pal-hd"><i class="ti ti-box"></i>Bibliotheque</div>
+          <div class="site-pal-hd"><i class="ti ti-box"></i>Bibliothèque</div>
           <div style="padding:7px 8px 6px;border-bottom:1px solid var(--bdr2);flex-shrink:0;display:flex;flex-direction:column;gap:5px;background:var(--surf2)">
             <input type="file" id="site-bg-file" accept="image/*,application/pdf" style="display:none" onchange="SitePlan.loadBg(this)"/>
-            <button class="btn ghost sm" style="width:100%;justify-content:center;font-size:10.5px" onclick="document.getElementById('site-bg-file').click()" title="Image ou PDF (1re page utilisée comme fond)"><i class="ti ti-photo"></i> Image ou PDF de fond</button>
+            <button class="btn ghost sm" style="width:100%;justify-content:center" onclick="document.getElementById('site-bg-file').click()" title="Image ou PDF (1re page utilisée comme fond)"><i class="ti ti-photo"></i> Image ou PDF de fond</button>
             <div id="site-bg-controls" style="display:none">
               <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)">
                 <i class="ti ti-sun" style="font-size:11px"></i>
@@ -702,7 +702,7 @@ html.rider-boot #rider-splash{display:flex}
           </div>
           <!-- Cable type picker -->
           <div style="padding:7px 8px 5px;border-bottom:1px solid var(--bdr2);flex-shrink:0;background:var(--surf2)">
-            <div style="font-size:9px;font-family:var(--m);text-transform:uppercase;letter-spacing:1.2px;color:var(--ora);margin-bottom:5px">Liaisons</div>
+            <div style="font-size:12px;font-family:var(--f);color:var(--txt);margin-bottom:5px;font-weight:500">Liaisons</div>
             <div id="site-cable-picker"></div>
           </div>
           <div id="site-pal-items" class="site-pal-items"></div>
@@ -727,7 +727,7 @@ html.rider-boot #rider-splash{display:flex}
         </div>
         <!-- Inspecteur droit -->
         <div class="site-insp-col">
-          <div class="site-insp-hd"><i class="ti ti-adjustments"></i>Proprietes</div>
+          <div class="site-insp-hd"><i class="ti ti-adjustments"></i>Propriétés</div>
           <div class="site-insp" id="site-inspector">
             <p class="syn-insp-empty" style="color:var(--muted);font-size:11px;text-align:center;padding:24px 16px;line-height:1.5">Cliquez un élément.<br/><br/>Pour relier : « Tracer une liaison » à gauche, ou survolez un élément et cliquez sa pastille <i class="ti ti-plug-connected"></i>.</p>
           </div>
@@ -741,7 +741,7 @@ html.rider-boot #rider-splash{display:flex}
               </div>
             </div>
             <div class="site-insp-footer-row">
-              <span>Legende</span>
+              <span>Légende</span>
               <div style="display:flex;gap:3px;align-items:center">
                 <button class="spl-ts-btn" onclick="SitePlan.setLegendScale(-1)">A−</button>
                 <span id="spl-leg-val" style="font-size:9px;font-family:var(--m);color:var(--muted);min-width:28px;text-align:center">100%</span>
@@ -749,7 +749,7 @@ html.rider-boot #rider-splash{display:flex}
               </div>
             </div>
             <div class="site-insp-footer-row">
-              <span>Texte cables</span>
+              <span>Texte câbles</span>
               <div style="display:flex;gap:3px;align-items:center">
                 <button class="spl-ts-btn" onclick="SitePlan.setCableTextScale(-1)">A−</button>
                 <span id="spl-cab-val" style="font-size:9px;font-family:var(--m);color:var(--muted);min-width:28px;text-align:center">100%</span>
@@ -775,15 +775,15 @@ html.rider-boot #rider-splash{display:flex}
           <option value="editor" selected>Éditeur</option>
           <option value="viewer">Lecture seule</option>
         </select>
-        <button class="btn" id="inv-btn" onclick="inviteMember()"><i class="ti ti-send"></i>Inviter</button>
+        <button class="btn pri" id="inv-btn" onclick="inviteMember()"><i class="ti ti-send"></i>Inviter</button>
       </div>
-      <div id="inv-msg" style="display:none;font-size:11px;padding:7px 12px;border-radius:7px;margin-top:8px;line-height:1.5"></div>
+      <div id="inv-msg" style="display:none;font-size:11px;padding:7px 12px;border-radius:6px;margin-top:8px;line-height:1.5"></div>
       <div id="contacts-bar" class="contacts-bar"></div>
       <div class="slink-box" id="rider-builder">
         <div class="slink-title"><i class="ti ti-link"></i>Lien rider — partage en lecture seule</div>
         <div id="rider-gate-msg" class="slink-pro-gate" style="display:none">
           <i class="ti ti-lock"></i>
-          <span>La creation de liens rider est reservee aux abonnes <strong>Pro</strong>.
+          <span>La création de liens rider est réservée aux abonnés <strong>Pro</strong>.
             <button onclick="showUpgradeModal('share_link')" style="background:none;border:none;color:var(--ora);cursor:pointer;font-size:11px;padding:0 0 0 4px;font-family:var(--f);text-decoration:underline">Passer Pro</button>
           </span>
         </div>
@@ -799,7 +799,7 @@ html.rider-boot #rider-splash{display:flex}
               <i class="ti ti-topology-star"></i>Synoptique
             </button>
             <button class="slink-check" id="sc-stage" onclick="selectRiderSection('stage')">
-              <i class="ti ti-map-2"></i>Plan de scene
+              <i class="ti ti-map-2"></i>Plan de scène
             </button>
             <button class="slink-check" id="sc-site" onclick="selectRiderSection('site')">
               <i class="ti ti-building-stadium"></i>Plan de site
@@ -813,14 +813,14 @@ html.rider-boot #rider-splash{display:flex}
             <div class="slink-sep"><i class="ti ti-pencil" style="font-size:10px"></i>Informations du rider</div>
             <div class="rider-meta-field">
               <label>Titre</label>
-              <input class="rider-meta-inp" id="rider-title" placeholder="ex: Rider FOH — Festival d'ete 2026">
+              <input class="rider-meta-inp" id="rider-title" placeholder="ex: Rider FOH — Festival d'été 2026">
             </div>
             <div class="rider-meta-field">
               <label>Note</label>
               <textarea class="rider-meta-ta" id="rider-note" rows="2" placeholder="Instructions, contacts, remarques…"></textarea>
             </div>
             <div class="rider-meta-field">
-              <label>Infos complementaires</label>
+              <label>Infos complémentaires</label>
               <input class="rider-meta-inp" id="rider-info" placeholder="ex: Son FOH: Yamaha CL5 — Mon: Avid SC48">
             </div>
           </div>
@@ -829,7 +829,7 @@ html.rider-boot #rider-splash{display:flex}
             <div class="slink-sep"><i class="ti ti-paperclip" style="font-size:10px"></i>Fichiers joints <span style="font-size:9px;color:var(--ora);font-family:var(--m);margin-left:4px">Pro</span></div>
             <div id="rider-studio-gate" class="rider-studio-gate" style="display:none">
               <i class="ti ti-sparkles"></i>
-              <span>La selection de fichiers est reservee aux abonnes <strong>Pro</strong>.
+              <span>La sélection de fichiers est réservée aux abonnés <strong>Pro</strong>.
                 <button onclick="showUpgradeModal('storage')" style="background:none;border:none;color:var(--ora);cursor:pointer;font-size:11px;padding:0 0 0 4px;font-family:var(--f);text-decoration:underline">Passer Pro</button>
               </span>
             </div>
@@ -837,7 +837,7 @@ html.rider-boot #rider-splash{display:flex}
           </div>
           <!-- Free : bouton unique + lien -->
           <div id="rider-free-link-block">
-            <button class="btn" id="rider-gen-btn" onclick="generateRiderLink()" style="width:100%;margin-top:14px"><i class="ti ti-link"></i>Générer le lien</button>
+            <button class="btn pri" id="rider-gen-btn" onclick="generateRiderLink()" style="width:100%;margin-top:14px"><i class="ti ti-link"></i>Générer le lien</button>
             <div id="rider-quota" style="display:none;font-size:10px;font-family:var(--m);color:var(--muted);text-align:center;margin-top:6px"></div>
             <div id="rider-link-row" style="display:none;margin-top:10px">
               <div class="slink-row">
@@ -860,7 +860,7 @@ html.rider-boot #rider-splash{display:flex}
               <div style="font-size:10px;color:var(--muted);margin-bottom:8px">Les sections et infos configurées ci-dessus seront incluses dans ce lien.</div>
               <input id="link-form-name" placeholder="ex: Lien FOH, Lien Backline, Lien Client…" maxlength="60"/>
               <div style="display:flex;gap:8px">
-                <button class="btn sm" onclick="_createLink()" style="flex:1;background:var(--ora);color:#000;border-color:var(--ora)"><i class="ti ti-check"></i>Créer le lien</button>
+                <button class="btn pri sm" onclick="_createLink()" style="flex:1;background:var(--ora);color:#000;border-color:var(--ora)"><i class="ti ti-check"></i>Créer le lien</button>
                 <button class="btn ghost sm" onclick="_closeNewLinkForm()" style="flex:1">Annuler</button>
               </div>
             </div>
@@ -945,7 +945,7 @@ html.rider-boot #rider-splash{display:flex}
         <button class="im-btn on" id="im-replace" onclick="setIM('replace')">Remplacer</button>
         <button class="im-btn" id="im-append" onclick="setIM('append')">Ajouter</button>
       </div>
-      <button class="btn sm" onclick="applySelTpl()"><i class="ti ti-player-play"></i>Appliquer</button>
+      <button class="btn pri sm" onclick="applySelTpl()"><i class="ti ti-player-play"></i>Appliquer</button>
       <button class="btn ghost sm" onclick="applySelTplNew()"><i class="ti ti-plus"></i>Nouveau show</button>
     </div>
     <div class="sp-preview-tbl" id="sp-prev-tbl"></div>
@@ -964,7 +964,7 @@ html.rider-boot #rider-splash{display:flex}
     <div class="modal-foot">
       <button class="btn ghost sm" onclick="closeILAssist()"><i class="ti ti-x"></i>Annuler</button>
       <button class="btn sm" id="ila-save-tpl-btn" onclick="saveILAAsTemplate()" style="display:none;background:var(--surf2);border-color:var(--bdr2)"><i class="ti ti-bookmark"></i>Sauvegarder template</button>
-      <button class="btn sm" id="ila-apply-btn" onclick="applyILAssist()" style="display:none"><i class="ti ti-check"></i>Créer les canaux</button>
+      <button class="btn pri sm" id="ila-apply-btn" onclick="applyILAssist()" style="display:none"><i class="ti ti-check"></i>Créer les canaux</button>
     </div>
   </div>
 </div>
@@ -995,7 +995,7 @@ html.rider-boot #rider-splash{display:flex}
     </div>
     <div class="modal-foot">
       <button class="btn ghost sm" onclick="closeOLAssist()"><i class="ti ti-x"></i>Annuler</button>
-      <button class="btn sm" id="ola-apply-btn" onclick="applyOLAssist()" style="display:none"><i class="ti ti-check"></i>Creer les sorties</button>
+      <button class="btn pri sm" id="ola-apply-btn" onclick="applyOLAssist()" style="display:none"><i class="ti ti-check"></i>Créer les sorties</button>
     </div>
   </div>
 </div>
@@ -1029,7 +1029,7 @@ html.rider-boot #rider-splash{display:flex}
     </div>
     <div class="modal-foot">
       <button class="btn ghost sm" onclick="closeCSVImport()"><i class="ti ti-x"></i>Annuler</button>
-      <button class="btn sm" id="csv-do-import-btn" onclick="doCSVImport()"><i class="ti ti-file-import"></i>Importer</button>
+      <button class="btn pri sm" id="csv-do-import-btn" onclick="doCSVImport()"><i class="ti ti-file-import"></i>Importer</button>
     </div>
   </div>
 </div>
@@ -1067,7 +1067,7 @@ html.rider-boot #rider-splash{display:flex}
           <button type="button" id="pdf-orient-port" class="pmb" onclick="setPdfOrient('portrait')" style="justify-content:center;font-size:10px"><i class="ti ti-rectangle-vertical" style="font-size:12px"></i>Portrait</button>
         </div>
       </div>
-      <div id="pdf-free-notice" style="display:none;align-items:center;gap:9px;background:rgba(255,107,26,.06);border:1px solid rgba(255,107,26,.22);border-radius:7px;padding:8px 12px;font-size:11px;color:var(--txt2);margin-bottom:12px"><i class="ti ti-droplet" style="color:var(--ora);flex-shrink:0;font-size:14px"></i><span>Plan Gratuit : l'export inclut un <strong>léger filigrane</strong> PatchFlow. <button onclick="closePDF();showUpgradeModal('export_pdf_pro')" style="background:none;border:none;color:var(--ora);cursor:pointer;font-size:11px;padding:0;font-family:var(--f);text-decoration:underline">Passer Pro</button> pour un PDF sans filigrane + champs complets.</span></div>
+      <div id="pdf-free-notice" style="display:none;align-items:center;gap:9px;background:rgba(255,107,26,.06);border:1px solid rgba(255,107,26,.22);border-radius:6px;padding:8px 12px;font-size:11px;color:var(--txt2);margin-bottom:12px"><i class="ti ti-droplet" style="color:var(--ora);flex-shrink:0;font-size:14px"></i><span>Plan Gratuit : l'export inclut un <strong>léger filigrane</strong> PatchFlow. <button onclick="closePDF();showUpgradeModal('export_pdf_pro')" style="background:none;border:none;color:var(--ora);cursor:pointer;font-size:11px;padding:0;font-family:var(--f);text-decoration:underline">Passer Pro</button> pour un PDF sans filigrane + champs complets.</span></div>
       <div class="pdf-sec"><div class="pdf-sec-title"><i class="ti ti-user" style="color:var(--ora)"></i>Ing&eacute;nieur</div>
         <div class="pdf-grid">
           <div class="pdf-fld"><label class="pdf-lbl">Nom</label><input class="pdf-inp" id="pdf-eng" placeholder="Jean-Marie Leclerc"/></div>
@@ -1221,7 +1221,7 @@ html.rider-boot #rider-splash{display:flex}
         </div>
         <div id="p-info-msg" class="prof-msg"></div>
         <div class="prof-action-row">
-          <button class="btn sm" onclick="saveProfile()"><i class="ti ti-check"></i>Sauvegarder</button>
+          <button class="btn pri sm" onclick="saveProfile()"><i class="ti ti-check"></i>Sauvegarder</button>
         </div>
       </div>
 
@@ -1296,7 +1296,7 @@ html.rider-boot #rider-splash{display:flex}
       </div>
       <div>
         <label class="syn-insp-lbl">Aperçu</label>
-        <div style="background:var(--surf2);border:1px solid var(--bdr2);border-radius:7px;padding:14px 16px;display:flex;align-items:center;gap:12px">
+        <div style="background:var(--surf2);border:1px solid var(--bdr2);border-radius:6px;padding:14px 16px;display:flex;align-items:center;gap:12px">
           <svg id="nct-preview-svg" width="120" height="16" style="flex-shrink:0">
             <line id="nct-preview-line" x1="4" y1="8" x2="116" y2="8" stroke="#ff6b1a" stroke-width="3" stroke-linecap="round"/>
           </svg>
@@ -1306,7 +1306,7 @@ html.rider-boot #rider-splash{display:flex}
     </div>
     <div style="padding:0 20px 18px;display:flex;gap:8px;justify-content:flex-end">
       <button class="btn ghost sm" onclick="closeCableTypeModal()">Annuler</button>
-      <button class="btn" id="nct-save-btn" onclick="saveNewCableType()"><i class="ti ti-check"></i>Ajouter</button>
+      <button class="btn pri" id="nct-save-btn" onclick="saveNewCableType()"><i class="ti ti-check"></i>Ajouter</button>
     </div>
   </div>
 </div>
@@ -1370,7 +1370,7 @@ html.rider-boot #rider-splash{display:flex}
     </div>
     <div class="modal-foot">
       <button class="btn ghost sm" onclick="closeGateModal()"><i class="ti ti-x"></i>Plus tard</button>
-      <button class="btn sm" onclick="closeGateModal();openPlanModal()"><i class="ti ti-rocket"></i>Voir les offres</button>
+      <button class="btn pri sm" onclick="closeGateModal();openPlanModal()"><i class="ti ti-rocket"></i>Voir les offres</button>
     </div>
   </div>
 </div>
@@ -1394,32 +1394,32 @@ html.rider-boot #rider-splash{display:flex}
         <div class="plan-billing-chip" id="plan-billing-chip">Gratuit</div>
       </div>
       <!-- Bloc abonnement actif (affiché uniquement pour les Pro) -->
-      <div id="sub-active-block" style="display:none;margin-bottom:16px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;overflow:hidden">
+      <div id="sub-active-block" style="display:none;margin-bottom:16px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;overflow:hidden">
         <div style="padding:12px 16px;border-bottom:1px solid var(--bdr)">
           <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
             <div style="display:flex;align-items:center;gap:8px">
               <i class="ti ti-bolt" style="color:var(--ora);font-size:15px"></i>
               <span style="font-size:12px;font-weight:700">Abonnement Pro actif</span>
-              <span id="sub-status-badge" style="font-size:9px;font-family:var(--m);padding:2px 8px;border-radius:10px;background:rgba(34,214,160,.12);color:var(--grn);border:1px solid rgba(34,214,160,.25)">Actif</span>
+              <span id="sub-status-badge" style="font-size:9px;font-family:var(--m);padding:2px 8px;border-radius:8px;background:rgba(34,214,160,.12);color:var(--grn);border:1px solid rgba(34,214,160,.25)">Actif</span>
             </div>
-            <button onclick="openPortal()" style="background:var(--surf3);border:1px solid var(--bdr2);color:var(--txt2);font-size:10px;font-weight:600;padding:5px 12px;border-radius:7px;cursor:pointer;font-family:var(--f);display:flex;align-items:center;gap:5px"><i class="ti ti-settings" style="font-size:11px"></i>Gérer</button>
+            <button onclick="openPortal()" style="background:var(--surf3);border:1px solid var(--bdr2);color:var(--txt2);font-size:10px;font-weight:600;padding:5px 12px;border-radius:6px;cursor:pointer;font-family:var(--f);display:flex;align-items:center;gap:5px"><i class="ti ti-settings" style="font-size:11px"></i>Gérer</button>
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
           <div style="padding:10px 16px;border-right:1px solid var(--bdr);border-bottom:1px solid var(--bdr)">
-            <div style="font-size:9px;font-family:var(--m);color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:3px">Renouvellement</div>
+            <div style="font-size:12px;font-family:var(--f);color:var(--muted);margin-bottom:3px;font-weight:500">Renouvellement</div>
             <div id="sub-renew-date" style="font-size:12px;font-weight:600;color:var(--txt)">—</div>
           </div>
           <div style="padding:10px 16px;border-bottom:1px solid var(--bdr)">
-            <div style="font-size:9px;font-family:var(--m);color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:3px">Moyen de paiement</div>
+            <div style="font-size:12px;font-family:var(--f);color:var(--muted);margin-bottom:3px;font-weight:500">Moyen de paiement</div>
             <div id="sub-card-info" style="font-size:12px;font-weight:600;color:var(--txt)">—</div>
           </div>
           <div style="padding:10px 16px">
-            <div style="font-size:9px;font-family:var(--m);color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:3px">Période</div>
+            <div style="font-size:12px;font-family:var(--f);color:var(--muted);margin-bottom:3px;font-weight:500">Période</div>
             <div id="sub-period-info" style="font-size:12px;font-weight:600;color:var(--txt)">—</div>
           </div>
           <div style="padding:10px 16px">
-            <div style="font-size:9px;font-family:var(--m);color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:3px">Prochaine facture</div>
+            <div style="font-size:12px;font-family:var(--f);color:var(--muted);margin-bottom:3px;font-weight:500">Prochaine facture</div>
             <div id="sub-next-invoice" style="font-size:12px;font-weight:600;color:var(--txt)">—</div>
           </div>
         </div>
@@ -1429,10 +1429,10 @@ html.rider-boot #rider-splash{display:flex}
         </div>
       </div>
       <!-- Option stockage supplémentaire (Pro uniquement) -->
-      <div id="sub-extra-storage-block" style="display:none;margin-bottom:16px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;padding:14px 16px">
+      <div id="sub-extra-storage-block" style="display:none;margin-bottom:16px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;padding:14px 16px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
           <div style="display:flex;align-items:center;gap:7px">
-            <i class="ti ti-database-plus" style="color:#a78bfa;font-size:15px"></i>
+            <i class="ti ti-database-plus" style="color:var(--muted);font-size:15px"></i>
             <span style="font-size:12px;font-weight:600">Stockage supplémentaire</span>
           </div>
           <span style="font-size:10px;font-family:var(--m);color:var(--muted)">En option · à partir de 1€/mois</span>
@@ -1442,24 +1442,23 @@ html.rider-boot #rider-splash{display:flex}
           <div class="sub-storage-opt" onclick="buyExtraStorage(50,'1')" data-gb="50">
             <div style="font-size:16px;font-weight:800;color:var(--txt)">+50 Go</div>
             <div style="font-size:10px;color:var(--muted);font-family:var(--m);margin:2px 0 8px">Riders, show files, plans</div>
-            <div style="font-size:13px;font-weight:700;color:#a78bfa">1€<span style="font-size:9px;color:var(--muted);font-weight:400">/mois</span></div>
+            <div style="font-size:13px;font-weight:700;color:var(--txt)">1€<span style="font-size:9px;color:var(--muted);font-weight:400">/mois</span></div>
           </div>
           <div class="sub-storage-opt popular" onclick="buyExtraStorage(500,'3.50')" data-gb="500">
-            <div style="font-size:9px;font-family:var(--m);color:#a78bfa;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Populaire</div>
-            <div style="font-size:16px;font-weight:800;color:var(--txt)">+500 Go</div>
+                        <div style="font-size:16px;font-weight:800;color:var(--txt)">+500 Go</div>
             <div style="font-size:10px;color:var(--muted);font-family:var(--m);margin:2px 0 8px">Sessions, multitracks, archives</div>
-            <div style="font-size:13px;font-weight:700;color:#a78bfa">3,50€<span style="font-size:9px;color:var(--muted);font-weight:400">/mois</span></div>
+            <div style="font-size:13px;font-weight:700;color:var(--txt)">3,50€<span style="font-size:9px;color:var(--muted);font-weight:400">/mois</span></div>
           </div>
           <div class="sub-storage-opt" onclick="buyExtraStorage(1000,'7.50')" data-gb="1000">
             <div style="font-size:16px;font-weight:800;color:var(--txt)">+1 To</div>
             <div style="font-size:10px;color:var(--muted);font-family:var(--m);margin:2px 0 8px">Tournées complètes, backline</div>
-            <div style="font-size:13px;font-weight:700;color:#a78bfa">7,50€<span style="font-size:9px;color:var(--muted);font-weight:400">/mois</span></div>
+            <div style="font-size:13px;font-weight:700;color:var(--txt)">7,50€<span style="font-size:9px;color:var(--muted);font-weight:400">/mois</span></div>
           </div>
         </div>
         <div style="font-size:10px;color:var(--muted2);margin-top:8px;text-align:center">Facturé sur votre abonnement existant · Annulable à tout moment</div>
       </div>
       <!-- Stockage -->
-      <div id="sub-storage-section" style="margin-bottom:16px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;padding:14px 16px">
+      <div id="sub-storage-section" style="margin-bottom:16px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;padding:14px 16px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
           <div style="display:flex;align-items:center;gap:7px">
             <i class="ti ti-cloud" style="color:var(--ora);font-size:15px"></i>
@@ -1484,7 +1483,7 @@ html.rider-boot #rider-splash{display:flex}
         </div>
       </div>
       <!-- Liens de partage (push abonnement) -->
-      <div id="sub-sharelinks-row" style="margin-bottom:16px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;padding:14px 16px">
+      <div id="sub-sharelinks-row" style="margin-bottom:16px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;padding:14px 16px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
           <div style="display:flex;align-items:center;gap:7px">
             <i class="ti ti-link" style="color:var(--ora);font-size:15px"></i>
@@ -1498,9 +1497,9 @@ html.rider-boot #rider-splash{display:flex}
         <div id="sub-sl-hint" style="font-size:10px;color:var(--muted)">Input list, output, synoptique, plans, rider — tout type de lien compte.</div>
       </div>
       <!-- Sélecteur période de facturation (masqué pour les abonnés Pro) -->
-      <div id="sub-billing-toggle" style="display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:14px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:9px;padding:3px;width:fit-content;margin-left:auto;margin-right:auto">
-        <button class="bp-toggle-btn on" data-bp="monthly" onclick="setBillingPeriod('monthly')" style="border:none;background:none;color:var(--txt2);font-size:11px;font-weight:600;padding:6px 16px;border-radius:7px;cursor:pointer;font-family:var(--f);transition:all .15s">Mensuel</button>
-        <button class="bp-toggle-btn" data-bp="yearly" onclick="setBillingPeriod('yearly')" style="border:none;background:none;color:var(--txt2);font-size:11px;font-weight:600;padding:6px 16px;border-radius:7px;cursor:pointer;font-family:var(--f);transition:all .15s">Annuel <span style="font-size:9px;color:var(--grn);background:var(--grn-d);border-radius:6px;padding:1px 5px;margin-left:3px">-17%</span></button>
+      <div id="sub-billing-toggle" style="display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:14px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;padding:3px;width:fit-content;margin-left:auto;margin-right:auto">
+        <button class="bp-toggle-btn on" data-bp="monthly" onclick="setBillingPeriod('monthly')" style="border:none;background:none;color:var(--txt2);font-size:11px;font-weight:600;padding:6px 16px;border-radius:6px;cursor:pointer;font-family:var(--f);transition:all .15s">Mensuel</button>
+        <button class="bp-toggle-btn" data-bp="yearly" onclick="setBillingPeriod('yearly')" style="border:none;background:none;color:var(--txt2);font-size:11px;font-weight:600;padding:6px 16px;border-radius:6px;cursor:pointer;font-family:var(--f);transition:all .15s">Annuel <span style="font-size:9px;color:var(--grn);background:var(--grn-d);border-radius:6px;padding:1px 5px;margin-left:3px">-17%</span></button>
       </div>
       <!-- Comparatif plans -->
       <div class="sub-plans-grid" id="sub-plans-grid"></div>
@@ -1574,7 +1573,7 @@ html.rider-boot #rider-splash{display:flex}
         <label>Message</label>
         <textarea class="support-txt" id="support-msg" placeholder="Decrivez votre probleme ou votre question..."></textarea>
       </div>
-      <button class="btn" style="width:100%" onclick="submitSupport()"><i class="ti ti-send"></i>Envoyer le message</button>
+      <button class="btn pri" style="width:100%" onclick="submitSupport()"><i class="ti ti-send"></i>Envoyer le message</button>
       <p class="support-note">Vous pouvez aussi nous ecrire directement a <a href="mailto:support@patchflow.fr">support@patchflow.fr</a></p>
     </div>
     <div class="modal-foot">
@@ -1588,7 +1587,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Supabase SDK : chargé juste avant le script principal qui l'utilise, plutôt
      qu'en <head>, pour ne pas bloquer le premier rendu (splash rider instantané). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="pf-app.js?v=3.24"></script>
+<script src="pf-app.js?v=3.28"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
   <div class="mob-plan-bar">
@@ -1616,7 +1615,7 @@ html.rider-boot #rider-splash{display:flex}
     <i class="ti ti-layout-board" style="color:var(--ora);font-size:16px;flex-shrink:0" id="mob-stage-icon"></i>
     <span class="mob-plan-title" id="mob-stage-title">Plan de scène</span>
     <span class="mob-plan-hint" style="flex:1"><i class="ti ti-lock" style="font-size:9px"></i> Lecture</span>
-    <button id="mob-plan-mode-btn" onclick="setPlanMode(PLAN_MODE==='site'?'scene':'site')" style="flex-shrink:0;background:var(--surf2);border:1px solid var(--bdr2);color:var(--txt2);font-size:10px;font-weight:600;padding:5px 9px;border-radius:7px;cursor:pointer;display:flex;align-items:center;gap:5px;font-family:var(--f)"><i class="ti ti-map-2" style="font-size:12px"></i><span id="mob-plan-mode-lbl">Site</span></button>
+    <button id="mob-plan-mode-btn" onclick="setPlanMode(PLAN_MODE==='site'?'scene':'site')" style="flex-shrink:0;background:var(--surf2);border:1px solid var(--bdr2);color:var(--txt2);font-size:10px;font-weight:600;padding:5px 9px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:5px;font-family:var(--f)"><i class="ti ti-map-2" style="font-size:12px"></i><span id="mob-plan-mode-lbl">Site</span></button>
     <button class="btn ghost sm" id="mob-stage-pdf-btn" onclick="openPDFModal('stage')" style="font-size:10px;padding:5px 9px;flex-shrink:0"><i class="ti ti-file-type-pdf"></i>PDF</button>
   </div>
   <div class="mob-scene-bar" id="mob-stage-scenes"></div>
