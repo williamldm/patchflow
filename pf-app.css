@@ -10,15 +10,30 @@
   /* --muted passe l'AA (4.5:1) sur --bg ; --muted2 reste décoratif. */
   --txt:#e7eaf0;--txt2:#aab3c3;--muted:#7a8497;--muted2:#4b5465;
   --r1:4px;--r2:6px;--r3:8px;
+  --surf-h:#10151e;--scroll-h:#2a3140;--overlay:rgba(4,6,10,.72);
   --f:'Outfit',system-ui,sans-serif;--m:'DM Mono','Courier New',monospace;
 }
+/* ── THÈME CLAIR ── mêmes variables, valeurs claires. Appliqué par
+   data-theme="light" sur <html> (choix mémorisé, ou thème du système). */
+:root[data-theme="light"]{
+  color-scheme:light;
+  --bg:#f4f5f7;--surf:#ffffff;--surf2:#f2f4f7;--surf3:#e7eaef;--surf-h:#fbfbfc;
+  --bdr:rgba(16,24,40,.08);--bdr2:rgba(16,24,40,.14);--bdr3:rgba(16,24,40,.24);
+  --ora:#e8590c;--ora2:#f4661a;--ora-d:rgba(232,89,12,.09);--ora-g:rgba(232,89,12,.35);
+  --blu:#1570ef;--blu2:#175cd3;--blu-d:rgba(21,112,239,.08);--blu-g:rgba(21,112,239,.3);
+  --grn:#067647;--grn-d:rgba(6,118,71,.08);
+  --warn:#b54708;--err:#d92d20;--pur:#6941c6;
+  --txt:#101828;--txt2:#344054;--muted:#667085;--muted2:#98a2b3;
+  --scroll-h:#c3c9d4;--overlay:rgba(16,24,40,.38);
+}
+
 html{color-scheme:dark}
 html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--f);-webkit-font-smoothing:antialiased}
 body{display:flex;flex-direction:column;min-height:100vh}
 ::-webkit-scrollbar{width:8px;height:8px}
 ::-webkit-scrollbar-track{background:var(--surf)}
 ::-webkit-scrollbar-thumb{background:var(--surf3);border-radius:4px;border:2px solid var(--bg)}
-::-webkit-scrollbar-thumb:hover{background:#2a3140}
+::-webkit-scrollbar-thumb:hover{background:var(--scroll-h)}
 @keyframes fadeIn{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:translateY(0)}}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
@@ -154,6 +169,24 @@ select:not([class]){background-color:var(--surf2);border:1px solid var(--bdr2);c
 select:not([class]):hover{border-color:var(--bdr3)}
 select option{background:var(--surf);color:var(--txt)}
 
+/* Ombres adoucies en clair (celles du sombre marquaient trop sur fond blanc). */
+:root[data-theme="light"] .modal-box{box-shadow:0 16px 40px rgba(16,24,40,.16)}
+:root[data-theme="light"] .user-dd{box-shadow:0 12px 28px rgba(16,24,40,.14)}
+:root[data-theme="light"] .side-panel.show{box-shadow:-8px 0 24px rgba(16,24,40,.12)}
+:root[data-theme="light"] #toast{box-shadow:0 8px 20px rgba(16,24,40,.14)}
+
+/* ── Bouton fermer des fenêtres ── */
+.modal-close{width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid transparent;border-radius:var(--r2);color:var(--muted);font-size:16px;cursor:pointer;flex-shrink:0;transition:background .12s,color .12s}
+.modal-close:hover{background:var(--surf2);color:var(--txt)}
+
+/* ── Sélecteur de thème (menu utilisateur) ── */
+.theme-seg{display:flex;gap:2px;padding:2px;background:var(--bg);border:1px solid var(--bdr2);border-radius:var(--r2);margin:2px 4px 4px}
+.theme-seg button{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;height:26px;border:none;border-radius:var(--r1);background:transparent;color:var(--muted);font-family:var(--f);font-size:12px;cursor:pointer}
+.theme-seg button:hover{color:var(--txt)}
+.theme-seg button.on{background:var(--surf3);color:var(--txt)}
+.theme-seg button i{font-size:14px}
+.user-dd-lbl{font-size:11.5px;color:var(--muted);padding:6px 9px 2px}
+
 /* ── NOTICES ── */
 .notice{background:transparent;border:1px solid var(--bdr);border-radius:var(--r2);padding:8px 12px;font-size:12px;color:var(--txt2);display:flex;align-items:flex-start;gap:8px;margin-bottom:14px;line-height:1.5}
 .notice i{font-size:15px;flex-shrink:0;margin-top:1px;color:var(--muted)}
@@ -216,7 +249,7 @@ select option{background:var(--surf);color:var(--txt)}
 /* Zoom HUD — sibling du canvas, positionné en absolu par rapport à l'overlay */
 .mob-zoom-hud{position:absolute;bottom:44px;right:12px;display:flex;flex-direction:column;gap:6px;z-index:20;pointer-events:auto}
 .mob-plan-ov.mob-fs .mob-zoom-hud{bottom:12px}
-.mob-zoom-btn{width:42px;height:42px;border-radius:50%;background:rgba(10,15,28,.9);border:1px solid rgba(255,255,255,.15);color:var(--txt);font-size:19px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 16px rgba(0,0,0,.6);-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.mob-zoom-btn{width:42px;height:42px;border-radius:50%;background:var(--surf);border:1px solid var(--bdr2);color:var(--txt);font-size:19px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 16px rgba(0,0,0,.6);-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .mob-zoom-btn:active{background:var(--ora);color:#000;transform:scale(.9)}
 .mob-plan-foot{padding:7px 14px;font-size:10px;color:var(--muted);font-family:var(--m);text-align:center;border-top:1px solid var(--bdr);flex-shrink:0;background:var(--surf)}
 .mob-plan-loading{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:48px 24px;color:var(--muted);font-size:13px;position:absolute;inset:0}
@@ -876,7 +909,7 @@ select option{background:var(--surf);color:var(--txt)}
 .sess-section-title{font-size:13px;font-weight:600;color:var(--txt);padding:2px 0 6px;display:flex;align-items:center;gap:8px;grid-column:1/-1}
 .sess-section-count{font-family:var(--m);font-size:11px;font-weight:400;color:var(--muted)}
 .sess-card{background:var(--surf);border:1px solid var(--bdr2);border-radius:var(--r3);cursor:pointer;transition:border-color .12s,background .12s;position:relative;overflow:hidden;display:flex;flex-direction:column}
-.sess-card:hover{border-color:var(--bdr3);background:#10151e}
+.sess-card:hover{border-color:var(--bdr3);background:var(--surf-h)}
 .sess-card.active{border-color:var(--ora-g)}
 .sess-card.active:hover{border-color:var(--ora)}
 .sess-stripe{display:none}
@@ -898,6 +931,13 @@ select option{background:var(--surf);color:var(--txt)}
 .sess-tag{display:inline-flex;align-items:center;gap:5px}
 .sess-tag+.sess-tag::before{content:"·";color:var(--muted2);margin:0 7px}
 .sess-tag.date{font-family:var(--m);font-size:11.5px;color:var(--txt)}
+.sess-nodate{color:var(--muted)}
+/* Contenu du show : toujours visible, une puce par section non vide. */
+.sess-content{display:flex;flex-wrap:wrap;gap:5px;margin:-4px 0 12px}
+.sess-c{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 7px;border:1px solid var(--bdr2);border-radius:var(--r1);font-size:11.5px;color:var(--txt2);white-space:nowrap}
+.sess-c i{font-size:13px;color:var(--muted)}
+.sess-c.zero{color:var(--muted);border-style:dashed}
+.sess-c-pending{color:var(--muted)}
 /* Membres : avatars qui se chevauchent, nom et offre au survol (title). */
 .sess-members-row{display:flex;align-items:center;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--bdr)}
 .sess-member-wrap{display:flex}
@@ -923,6 +963,7 @@ select option{background:var(--surf);color:var(--txt)}
 
 /* Monogramme pro (remplace les emojis) */
 .sess-mono{font-family:var(--f);font-weight:600;font-size:13px;letter-spacing:0}
+:root[data-theme="light"] .sess-mono,:root[data-theme="light"] .sp-show-ico,:root[data-theme="light"] .sf-logo{filter:saturate(1.4) brightness(.62)}
 /* Barre d'organisation des sessions */
 .sess-toolbar{display:flex;align-items:center;gap:9px;margin-left:auto;flex-wrap:wrap}
 .sess-search{display:flex;align-items:center;gap:7px;background:var(--bg);border:1px solid var(--bdr2);border-radius:var(--r2);padding:0 10px;height:30px;transition:border-color .12s,box-shadow .12s}
@@ -1034,8 +1075,9 @@ select option{background:var(--surf);color:var(--txt)}
 /* ── SIDE PANEL ── */
 .sp-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:150}
 .sp-overlay.show{display:block}
-.side-panel{position:fixed;top:0;right:0;bottom:0;width:360px;background:var(--surf);border-left:1px solid var(--bdr2);z-index:160;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s cubic-bezier(.4,0,.2,1);box-shadow:-8px 0 32px rgba(0,0,0,.4)}
-.side-panel.show{transform:translateX(0)}
+.side-panel{position:fixed;top:0;right:0;bottom:0;width:360px;background:var(--surf);border-left:1px solid var(--bdr2);z-index:160;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s cubic-bezier(.4,0,.2,1);}
+.side-panel.show{transform:translateX(0);box-shadow:-8px 0 32px rgba(0,0,0,.4)}
+/* Ombre seulement une fois ouvert : fermé (hors écran), elle débordait sur le bord droit. */
 .sp-head{display:flex;align-items:center;gap:9px;padding:14px;border-bottom:1px solid var(--bdr2);flex-shrink:0;background:var(--surf)}
 .sp-head-title{font-size:13px;font-weight:600;flex:1;display:flex;align-items:center;gap:7px}
 .sp-body{flex:1;overflow-y:auto}
@@ -1102,7 +1144,7 @@ select option{background:var(--surf);color:var(--txt)}
 .sp-preview-actions{display:flex;gap:7px;padding:10px 13px;border-top:1px solid var(--bdr);flex-shrink:0;flex-wrap:wrap}
 
 /* ── MODALS ── */
-.modal-ov{display:none;position:fixed;inset:0;background:rgba(4,6,10,.72);z-index:300;align-items:center;justify-content:center;padding:20px}
+.modal-ov{display:none;position:fixed;inset:0;background:var(--overlay);z-index:300;align-items:center;justify-content:center;padding:20px}
 .modal-ov.show{display:flex;animation:fadeIn .18s ease}
 .modal-box{background:var(--surf);border:1px solid var(--bdr2);border-radius:var(--r3);max-width:100%;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,.5)}
 .modal-head{display:flex;align-items:center;gap:10px;padding:15px 17px;border-bottom:1px solid var(--bdr2);flex-shrink:0;background:var(--surf)}

@@ -568,6 +568,65 @@ function _loadShowsFromCache(){
   }catch(e){return null;}
 }
 
+/* ── Résumé du contenu de chaque show (cartes Sessions) ───────────────────
+   Plans et synoptique « historiques » sont déjà dans SHOWS (select *). Restent
+   deux requêtes légères : le nombre d'entrées (table channels, un comptage
+   HEAD par show — un select de lignes serait tronqué à 1000) et la présence de
+   contenu dans les scènes multi-plans (1er élément seulement, jamais les
+   images de fond). */
+let SHOW_CH_COUNT={}, SHOW_SCENE_HAS={};
+async function loadShowSummaries(){
+  const ids=SHOWS.map(s=>s.id); if(!ids.length) return;
+  const counts={};
+  for(let i=0;i<ids.length;i+=8){
+    await Promise.all(ids.slice(i,i+8).map(async function(id){
+      try{
+        const {count,error}=await sb.from('channels').select('id',{count:'exact',head:true}).eq('show_id',id);
+        if(!error && typeof count==='number') counts[id]=count;
+      }catch(e){}
+    }));
+  }
+  SHOW_CH_COUNT=counts;
+  try{
+    const {data,error}=await sb.from('show_scenes')
+      .select('show_id,type,b:data->band->els->0,se:data->site->elements->0,sc:data->site->cables->0,n:data->nodes->0')
+      .in('show_id',ids);
+    if(!error){
+      const m={};
+      (data||[]).forEach(function(r){
+        const k=m[r.show_id]=m[r.show_id]||{};
+        if(r.type==='stage'&&r.b) k.stage=true;
+        if(r.type==='site'&&(r.se||r.sc)) k.site=true;
+        if(r.type==='syno'&&r.n) k.syno=true;
+      });
+      SHOW_SCENE_HAS=m;
+    } else console.warn('[summaries] scenes:',error.message);
+  }catch(e){}
+  try{ renderSessions(); }catch(e){}
+}
+function _showSummary(s){
+  const has=a=>Array.isArray(a)&&a.length>0;
+  const isActive=!!(CUR_SHOW&&CUR_SHOW.id===s.id);
+  const sd=s.stage_data||{}, sc=SHOW_SCENE_HAS[s.id]||{};
+  let syn=s.synoptique_data;
+  if(typeof syn==='string'){ try{ syn=JSON.parse(syn); }catch(e){ syn=null; } }
+  /* Show ouvert : données vivantes (ce qui vient d'être saisi, pas encore relu). */
+  const liveOut=isActive&&typeof OUT_DATA!=='undefined'&&OUT_DATA&&Object.keys(OUT_DATA).length?OUT_DATA:null;
+  const od=liveOut||s.out_data;
+  let outs=0;
+  if(od&&typeof od==='object') Object.keys(od).forEach(function(k){ if(Array.isArray(od[k])) outs+=od[k].length; });
+  let ins=SHOW_CH_COUNT[s.id];
+  if(isActive&&typeof ALL_CHS!=='undefined'&&ALL_CHS.length) ins=ALL_CHS.length;
+  else if(isActive&&typeof CHS!=='undefined'&&CHS.length&&ins==null) ins=CHS.length;
+  const liveScene=function(t,test){ return isActive&&SHOW_SCENES&&(SHOW_SCENES[t]||[]).some(function(x){ return x&&x.data&&test(x.data); }); };
+  return {
+    ins:ins, outs:outs,
+    stage: !!(sc.stage || has(sd.band&&sd.band.els) || liveScene('stage',function(d){return has(d.band&&d.band.els);})),
+    site:  !!(sc.site || has(sd.site&&sd.site.elements) || has(sd.site&&sd.site.cables) || (sd.site&&sd.site.bgImage) || liveScene('site',function(d){return has(d.site&&d.site.elements)||has(d.site&&d.site.cables);})),
+    syno:  !!(sc.syno || has(syn&&syn.nodes) || liveScene('syno',function(d){return has(d.nodes);}))
+  };
+}
+
 async function loadShows(){
   /* Étape 1 : afficher le cache local immédiatement si dispo (UX rapide) */
   const cached = _loadShowsFromCache();
@@ -615,6 +674,7 @@ async function loadShows(){
     /* On ne stocke pas stage_data (peut être très lourd à cause des base64 images) */
     const lite = SHOWS.map(s=>({
       id:s.id, name:s.name, owner_id:s.owner_id, created_at:s.created_at,
+      show_date:s.show_date, venue:s.venue,
       brand_color:s.brand_color, color:s.color
     }));
     localStorage.setItem(_showsCacheKey(), JSON.stringify({ts:Date.now(),shows:lite}));
@@ -623,6 +683,7 @@ async function loadShows(){
   renderSPShows();
   renderSessions();
   loadShowStorage(); // async, non-bloquant
+  loadShowSummaries(); // async, non-bloquant — contenu affiché sur les cartes
   if(SHOWS.length>0){
     /* Si un show est déjà actif ET toujours présent dans la liste, on le
        CONSERVE. loadShows() peut être rappelé (acceptation d'invitation,
@@ -1095,9 +1156,12 @@ async function switchShow(id, opts){
 
 async function newShow(){
   if(SHOWS.filter(s=>s.owner_id===ME?.id).length>=planLimit('max_shows')){showUpgradeModal('max_shows');return;}
-  const name=prompt('Nom du show :');if(!name?.trim())return;
-  const {data,error}=await sb.from('shows').insert({name:name.trim(),slug:name.trim().toLowerCase().replace(/[^a-z0-9]+/g,'-')+'-'+Date.now(),owner_id:ME.id}).select().single();
+  const v=await _openShowMeta(null);
+  if(!v) return;
+  const name=v.name;
+  const {data,error}=await sb.from('shows').insert({name:name,slug:name.toLowerCase().replace(/[^a-z0-9]+/g,'-')+'-'+Date.now(),owner_id:ME.id,venue:v.venue||null,show_date:v.date||null}).select().single();
   if(error){toast('Erreur : '+error.message);return;}
+  _checkSavedDate(data, v.date);
   SHOWS.unshift(data);renderSPShows();await switchShow(data.id);toast(`✓ "${name}" créé`);
 }
 
@@ -12447,19 +12511,26 @@ function renderSessions(){
     return '<span class="sess-plan-chip '+p+'">'+(labels[p]||p)+'</span>';
   }
 
-  /* Date lisible (12 juin 2026) au lieu de l'ISO brut */
-  function fmtShowDate(d){
-    if(!d) return '';
-    var dt=new Date(String(d).length===10?d+'T00:00:00':d);
-    if(isNaN(dt)) return String(d);
-    return dt.toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});
-  }
+  var fmtShowDate=_fmtShowDate;
   /* Jauge comparative : le show le plus lourd sert d'échelle */
   var _maxStorage=0;
   SHOWS.forEach(function(s){ var b=SHOW_STORAGE_MAP[s.id]; if(b>_maxStorage)_maxStorage=b; });
 
   function initials(name){
     return String(name||'?').split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase()||'?';
+  }
+
+  /* Contenu du show : entrées, sorties, plans, synoptique — sur toutes les
+     cartes, qu'elles soient ouvertes ou non. */
+  function _contentRow(show){
+    var sm=_showSummary(show), items=[];
+    var n=function(v,one,many){ return v==null?'<span class="sess-c-pending">…</span> '+many:(v+' '+(v===1?one:many)); };
+    items.push('<span class="sess-c'+(sm.ins?'':' zero')+'"><i class="ti ti-list-numbers"></i>'+n(sm.ins,'entrée','entrées')+'</span>');
+    items.push('<span class="sess-c'+(sm.outs?'':' zero')+'"><i class="ti ti-list-letters"></i>'+n(sm.outs,'sortie','sorties')+'</span>');
+    if(sm.stage) items.push('<span class="sess-c"><i class="ti ti-layout-board"></i>Plan de scène</span>');
+    if(sm.site)  items.push('<span class="sess-c"><i class="ti ti-map-2"></i>Plan de site</span>');
+    if(sm.syno)  items.push('<span class="sess-c"><i class="ti ti-topology-star"></i>Synoptique</span>');
+    return '<div class="sess-content">'+items.join('')+'</div>';
   }
 
   function renderMembersRow(show){
@@ -12499,7 +12570,6 @@ function renderSessions(){
     var members=SHOW_MEMBERS_MAP[s.id]||[];
     /* Total = owner + all members (owner is never in show_members table) */
     var totalMembers=members.length+1;
-    var chCount=isActive?CHS.length:'—';
     var mono=showMono(s.name);
     var _fid=_sessFolderOf(s.id); var _fold=_fid?_sessFolderById(_fid):null;
     /* Jauge de stockage cloud du show (échelle = show le plus lourd) */
@@ -12526,11 +12596,11 @@ function renderSessions(){
         '</div>'+
         /* Métadonnées en une ligne de texte, pas en pastilles. */
         '<div class="sess-tags">'+
-          (s.show_date?'<span class="sess-tag date">'+_e(fmtShowDate(s.show_date))+'</span>':'<span class="sess-tag" style="color:var(--muted2)">Sans date</span>')+
-          '<span class="sess-tag">'+chCount+' canaux</span>'+
+          (_showDateISO(s.show_date)?'<span class="sess-tag date">'+_e(fmtShowDate(s.show_date))+'</span>':'<span class="sess-tag sess-nodate" title="Ajoutez une date via le crayon « Modifier »">Sans date</span>')+
           '<span class="sess-tag">'+totalMembers+' membre'+(totalMembers!==1?'s':'')+'</span>'+
           (_fold?'<span class="sess-tag sess-folder-pill"><span class="sess-fdot" style="background:'+_fold.color+'"></span>'+_e(_fold.name)+'</span>':'')+
         '</div>'+
+        _contentRow(s)+
         _stRow+
         '<div class="sess-members-row">'+renderMembersRow(s)+'</div>'+
       '</div>'+
@@ -12560,7 +12630,7 @@ function renderSessions(){
   }
   function sortFn(a,b){
     if(sortBy==='az') return String(a.name||'').localeCompare(String(b.name||''),'fr');
-    if(sortBy==='date') return String(b.show_date||'').localeCompare(String(a.show_date||''));
+    if(sortBy==='date') return _showDateISO(b.show_date).localeCompare(_showDateISO(a.show_date));
     return String(b.created_at||b.id||'').localeCompare(String(a.created_at||a.id||'')); // récents
   }
 
@@ -12750,15 +12820,56 @@ function saveNewCableType() {
 
 async function editShowMeta(id){
   const show=SHOWS.find(s=>s.id===id);if(!show)return;
-  const name=prompt('Nom du show :',show.name);if(!name?.trim())return;
-  const venue=prompt('Venue :',show.venue||'');
-  const date=prompt('Date (ex: 15/05/2025) :',show.show_date||'');
-  const {error}=await sb.from('shows').update({name:name.trim(),venue:venue||null,show_date:date||null}).eq('id',id);
+  const v=await _openShowMeta(show);
+  if(!v) return;
+  /* select() : on relit la ligne enregistrée pour vérifier que la date est
+     bien passée (colonne text ou date, les deux acceptent l'ISO AAAA-MM-JJ). */
+  const {data,error}=await sb.from('shows').update({name:v.name,venue:v.venue||null,show_date:v.date||null}).eq('id',id).select('id,name,venue,show_date').single();
   if(error){toast('Erreur : '+error.message);return;}
-  const s=SHOWS.find(x=>x.id===id);if(s){s.name=name.trim();s.venue=venue;s.show_date=date;}
+  _checkSavedDate(data, v.date);
+  const s=SHOWS.find(x=>x.id===id);if(s){s.name=data.name;s.venue=data.venue;s.show_date=data.show_date;}
+  const name=data.name;
   renderSessions();renderSPShows();
-  if(CUR_SHOW?.id===id){CUR_SHOW.name=name.trim();document.getElementById('cur-show-name').textContent=name.trim();['il','sf','stage','team'].forEach(k=>{const el=document.getElementById('sn-'+k);if(el)el.textContent=name.trim();});}
+  if(CUR_SHOW?.id===id){CUR_SHOW.name=name;document.getElementById('cur-show-name').textContent=name;['il','sf','stage','team'].forEach(k=>{const el=document.getElementById('sn-'+k);if(el)el.textContent=name;});}
   toast('✓ Show mis à jour');
+}
+
+/* ── Fenêtre « Nouveau show / Modifier le show » ───────────────────────── */
+let _smmResolve=null;
+function _openShowMeta(show){
+  return new Promise(function(resolve){
+    _smmResolve=resolve;
+    document.getElementById('smm-title').textContent=show?'Modifier le show':'Nouveau show';
+    document.getElementById('smm-ok').textContent=show?'Enregistrer':'Créer le show';
+    document.getElementById('smm-name').value=show?show.name||'':'';
+    document.getElementById('smm-venue').value=show?show.venue||'':'';
+    /* Anciennes dates en saisie libre (« 15/05/2025 ») converties pour le sélecteur. */
+    document.getElementById('smm-date').value=show?_showDateISO(show.show_date):'';
+    const err=document.getElementById('smm-err'); err.style.display='none'; err.textContent='';
+    document.getElementById('show-meta-modal').className='modal-ov show';
+    setTimeout(function(){ document.getElementById('smm-name').focus(); },30);
+  });
+}
+function _submitShowMeta(){
+  const name=document.getElementById('smm-name').value.trim();
+  const rawDate=document.getElementById('smm-date').value;
+  const date=_showDateISO(rawDate);
+  const err=document.getElementById('smm-err');
+  if(!name){ err.textContent='Donnez un nom au show.'; err.style.display='block'; return; }
+  if(rawDate && !date){ err.textContent='Date invalide.'; err.style.display='block'; return; }
+  _closeShowMeta({name:name, date:date, venue:document.getElementById('smm-venue').value.trim()});
+}
+function _closeShowMeta(val){
+  document.getElementById('show-meta-modal').className='modal-ov';
+  if(_smmResolve){ const r=_smmResolve; _smmResolve=null; r(val); }
+}
+/* La base renvoie la ligne enregistrée : on compare la date relue à celle saisie. */
+function _checkSavedDate(row, wanted){
+  if(!wanted) return;
+  if(_showDateISO(row&&row.show_date)!==wanted){
+    console.warn('[show_date] attendu',wanted,'relu',row&&row.show_date);
+    toast("⚠ La date n'a pas été enregistrée correctement — réessayez depuis « Modifier ».");
+  }
 }
 
 // ══════════════════════════════════════
@@ -12869,12 +12980,27 @@ function openSP(){
   refreshNotifications().then(loadNotifications);
 }
 function closeSP(){document.getElementById('side-panel').classList.remove('show');document.getElementById('sp-ov').classList.remove('show');closePrev();}
-function _fmtShowDate(d){
-  if(!d)return '';
-  try{
-    var dt=new Date(d);
-    return dt.toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});
-  }catch(e){return d;}
+/* Dates de show : enregistrées en ISO AAAA-MM-JJ (accepté par une colonne
+   text comme date). Les anciennes saisies libres « 15/05/2025 » sont relues. */
+function _showDateISO(v){
+  if(!v) return '';
+  var s=String(v).trim(), m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(!m){
+    var f=s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2}|\d{4})$/);
+    if(!f) return '';
+    m=[null, f[3].length===2?'20'+f[3]:f[3], ('0'+f[2]).slice(-2), ('0'+f[1]).slice(-2)];
+  }
+  var y=+m[1], mo=+m[2], d=+m[3];
+  var dt=new Date(y, mo-1, d);
+  if(dt.getFullYear()!==y || dt.getMonth()!==mo-1 || dt.getDate()!==d) return '';
+  return m[1]+'-'+m[2]+'-'+m[3];
+}
+function _fmtShowDate(v){
+  var iso=_showDateISO(v);
+  if(!iso) return v?String(v):'';
+  var p=iso.split('-');
+  /* Date locale (pas new Date('AAAA-MM-JJ') : interprété en UTC, décalé d'un jour à l'ouest). */
+  return new Date(+p[0],+p[1]-1,+p[2]).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});
 }
 function renderSPShows(){
   const el=document.getElementById('sp-shows');if(!el)return;
@@ -14874,7 +15000,7 @@ function _openFileViewer(url, displayName, opts){
     return;
   } else if (info.preview === 'text') {
     modal.style.display = 'flex';
-    content.innerHTML = '<div style="flex:1;overflow:auto;padding:0"><textarea id="fich-txt-editor" style="width:100%;height:100%;background:#1a1a2e;color:#e2e8f0;font-family:\'DM Mono\',monospace;font-size:13px;padding:24px;border:none;outline:none;resize:none;line-height:1.6"></textarea></div>';
+    content.innerHTML = '<div style="flex:1;overflow:auto;padding:0"><textarea id="fich-txt-editor" style="width:100%;height:100%;background:var(--bg);color:var(--txt);font-family:\'DM Mono\',monospace;font-size:13px;padding:24px;border:none;outline:none;resize:none;line-height:1.6"></textarea></div>';
     fetch(url).then(function(r){ return r.text(); }).then(function(t){
       var ta = document.getElementById('fich-txt-editor');
       if(ta){ ta.value = t; ta.dataset.orig = t; }
@@ -15667,7 +15793,7 @@ function _renderXlsxSheet(container, wb, sheetIdx){
   }).join('');
 
   /* Construction du tableau HTML */
-  var tableHtml='<div class="fich-xlsx-table-wrap"><table class="fich-xlsx-table"><thead><tr><th style="width:36px;background:#111827">#</th>';
+  var tableHtml='<div class="fich-xlsx-table-wrap"><table class="fich-xlsx-table"><thead><tr><th style="width:36px;background:var(--surf2)">#</th>';
   for(var c=0;c<=maxCol;c++){
     tableHtml+='<th>'+XLSX.utils.encode_col(c)+'</th>';
   }
@@ -16610,6 +16736,35 @@ function _promptModal(title, label, defaultVal) {
     ov.addEventListener('keydown', function(e) { if(e.key==='Escape'){ done(null); } });
   });
 }
+
+/* ── Thème clair / sombre / auto ── préférence mémorisée ; « auto » suit le
+   système, y compris s'il change pendant la session. */
+function _themeResolved(pref){
+  if(pref==='auto') return (window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';
+  return pref==='light'?'light':'dark';
+}
+function _applyTheme(pref){
+  if(/[?&](link|rider|view)=/.test(location.search)) return; // lien partagé : rendu propre
+  if(_themeResolved(pref)==='light') document.documentElement.setAttribute('data-theme','light');
+  else document.documentElement.removeAttribute('data-theme');
+  document.querySelectorAll('[data-theme-opt]').forEach(function(b){
+    var on=b.getAttribute('data-theme-opt')===pref;
+    b.classList.toggle('on',on); b.setAttribute('aria-checked',on?'true':'false');
+  });
+}
+function setTheme(pref){
+  try{ localStorage.setItem('pf_theme',pref); }catch(e){}
+  _applyTheme(pref);
+}
+(function(){
+  var pref='dark'; try{ pref=localStorage.getItem('pf_theme')||'dark'; }catch(e){}
+  _applyTheme(pref);
+  if(window.matchMedia){
+    var mq=matchMedia('(prefers-color-scheme: light)');
+    var on=function(){ var p='dark'; try{ p=localStorage.getItem('pf_theme')||'dark'; }catch(e){} if(p==='auto') _applyTheme('auto'); };
+    if(mq.addEventListener) mq.addEventListener('change',on); else if(mq.addListener) mq.addListener(on);
+  }
+})();
 
 function toast(msg){
   const el=document.getElementById('toast');el.textContent=msg;

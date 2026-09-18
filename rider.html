@@ -11,6 +11,18 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://ofiiutcueoogmtdvaupg.supabase.co" crossorigin/>
 <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com"/>
+<!-- Thème : appliqué avant le premier rendu (pas de flash sombre en mode clair).
+     Les liens partagés gardent leur propre rendu, indépendant du thème. -->
+<script>
+(function(){
+  if(/[?&](link|rider|view)=/.test(location.search)) return;
+  try{
+    var t=localStorage.getItem('pf_theme')||'dark';
+    if(t==='auto') t=window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';
+    if(t==='light') document.documentElement.setAttribute('data-theme','light');
+  }catch(e){}
+})();
+</script>
 <!-- Lien rider partagé : dès le premier octet, on masque l'écran d'auth et on
      lance le chargement des données en parallèle du parsing. C'est la première
      impression d'un futur client : pas de flash de login, splash de marque. -->
@@ -48,7 +60,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=3.22">
+<link rel="stylesheet" href="pf-app.css?v=3.27">
 </head>
 <body>
 
@@ -110,6 +122,13 @@ html.rider-boot #rider-splash{display:flex}
           <div class="user-dd-item" onclick="closeUD();openPlanModal()"><i class="ti ti-credit-card"></i>Mon abonnement</div>
           <div class="user-dd-item" onclick="closeUD();openPortal()"><i class="ti ti-receipt"></i>Facturation</div>
           <div class="user-dd-item" onclick="closeUD();openSupport()"><i class="ti ti-headset"></i>Support</div>
+          <div class="user-dd-sep"></div>
+          <div class="user-dd-lbl">Thème</div>
+          <div class="theme-seg" role="radiogroup" aria-label="Thème de l'interface">
+            <button type="button" role="radio" data-theme-opt="dark" onclick="setTheme('dark')"><i class="ti ti-moon"></i>Sombre</button>
+            <button type="button" role="radio" data-theme-opt="light" onclick="setTheme('light')"><i class="ti ti-sun"></i>Clair</button>
+            <button type="button" role="radio" data-theme-opt="auto" onclick="setTheme('auto')"><i class="ti ti-device-desktop"></i>Auto</button>
+          </div>
           <div class="user-dd-sep"></div>
           <div class="user-dd-item danger" onclick="doLogout()"><i class="ti ti-logout"></i>Déconnexion</div>
         </div>
@@ -1452,6 +1471,35 @@ html.rider-boot #rider-splash{display:flex}
 </div>
 
 <!-- Support -->
+<!-- Création / modification d'un show : nom, date (sélecteur natif → ISO), lieu -->
+<div class="modal-ov" id="show-meta-modal" onclick="if(event.target===this)_closeShowMeta(null)">
+  <div class="modal-box" style="width:420px">
+    <div class="modal-head">
+      <span class="modal-title" id="smm-title">Nouveau show</span>
+      <button class="modal-close" onclick="_closeShowMeta(null)" aria-label="Fermer"><i class="ti ti-x"></i></button>
+    </div>
+    <form class="modal-body" id="smm-form" onsubmit="event.preventDefault();_submitShowMeta()" autocomplete="off">
+      <label class="pdf-lbl" for="smm-name">Nom du show</label>
+      <input class="pdf-inp" id="smm-name" maxlength="120" required placeholder="ex : Trio Marchand — Le Rocher" style="margin:5px 0 14px">
+      <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:10px">
+        <div>
+          <label class="pdf-lbl" for="smm-date">Date</label>
+          <input class="pdf-inp" id="smm-date" type="date" style="margin-top:5px">
+        </div>
+        <div>
+          <label class="pdf-lbl" for="smm-venue">Lieu</label>
+          <input class="pdf-inp" id="smm-venue" maxlength="120" placeholder="ex : Le Rocher, Nantes" style="margin-top:5px">
+        </div>
+      </div>
+      <div id="smm-err" style="display:none;margin-top:12px;font-size:12px;color:var(--err)"></div>
+    </form>
+    <div class="modal-foot">
+      <button class="btn" type="button" onclick="_closeShowMeta(null)">Annuler</button>
+      <button class="btn pri" type="submit" form="smm-form" id="smm-ok">Créer le show</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-ov" id="support-modal">
   <div class="modal-box support-box">
     <div class="modal-head">
@@ -1464,16 +1512,16 @@ html.rider-boot #rider-splash{display:flex}
         <select class="support-sel" id="support-subject">
           <option value="Question abonnement">Question abonnement</option>
           <option value="Bug technique">Bug technique</option>
-          <option value="Demande de fonctionnalite">Demande de fonctionnalite</option>
+          <option value="Demande de fonctionnalite">Demande de fonctionnalité</option>
           <option value="Autre">Autre</option>
         </select>
       </div>
       <div class="support-field">
         <label>Message</label>
-        <textarea class="support-txt" id="support-msg" placeholder="Decrivez votre probleme ou votre question..."></textarea>
+        <textarea class="support-txt" id="support-msg" placeholder="Décrivez votre problème ou votre question…"></textarea>
       </div>
       <button class="btn pri" style="width:100%" onclick="submitSupport()"><i class="ti ti-send"></i>Envoyer le message</button>
-      <p class="support-note">Vous pouvez aussi nous ecrire directement a <a href="mailto:support@patchflow.fr">support@patchflow.fr</a></p>
+      <p class="support-note">Vous pouvez aussi nous écrire directement à <a href="mailto:support@patchflow.fr">support@patchflow.fr</a></p>
     </div>
     <div class="modal-foot">
       <button class="btn ghost sm" onclick="closeSupport()">Fermer</button>
@@ -1486,7 +1534,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Supabase SDK : chargé juste avant le script principal qui l'utilise, plutôt
      qu'en <head>, pour ne pas bloquer le premier rendu (splash rider instantané). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="pf-app.js?v=3.28"></script>
+<script src="pf-app.js?v=3.31"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
   <div class="mob-plan-bar">
