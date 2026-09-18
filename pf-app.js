@@ -11154,7 +11154,7 @@ const SitePlan = (() => {
       if(dir==='backward'||dir==='both') paths += `<polygon points="${arrPoly(afx,afy,-bnx,-bny)}" fill="${c.color}" opacity="${op}"/>`;
       if(cable.label||cable.length) {
         const txt=[cable.label,cable.length].filter(Boolean).join(' · ');
-        const cts=state.cableTextScale||1;
+        const cts=(state.cableTextScale||1)*(cable.textScale||1);
         const fs=(14*cts), tw=_measureCableLbl(txt, fs), rh=18*cts;
         paths += `<rect x="${mxo-tw/2-5*cts}" y="${myo-rh-5}" width="${tw+10*cts}" height="${rh}" rx="${4*cts}" fill="rgba(8,8,20,0.82)"/>`;
         paths += `<text x="${mxo}" y="${myo-rh/2-5+fs*0.36}" fill="${c.color}" font-size="${fs.toFixed(1)}" font-family="var(--m)" text-anchor="middle" opacity="0.97" font-weight="700">${esc(txt)}</text>`;
@@ -11316,6 +11316,11 @@ const SitePlan = (() => {
         `<span id="si-wval" style="font-size:10px;color:var(--muted);min-width:18px;text-align:right">${w}</span></div>`+
         `<label class="syn-insp-lbl">Reference / label</label><input class="syn-insp-inp" id="si-cl" value="${esc(cable.label||'')}"/>`+
         `<label class="syn-insp-lbl">Longueur</label><input class="syn-insp-inp" id="si-clen" value="${esc(cable.length||'')}" placeholder="ex: 30m"/>`+
+        `<label class="syn-insp-lbl">Texte</label>`+
+        `<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">`+
+        `<button class="spl-ts-btn" id="si-ctminus">A−</button>`+
+        `<span id="si-ctval" style="flex:1;font-size:10px;color:var(--muted);text-align:center">${Math.round((cable.textScale||1)*100)}%</span>`+
+        `<button class="spl-ts-btn" id="si-ctplus">A+</button></div>`+
         `<label class="syn-insp-lbl" style="margin-top:11px">Routage</label>`+
         `<div style="display:flex;gap:6px"><button class="btn sm" style="flex:1" id="si-cwp"><i class="ti ti-vector-bezier-2"></i> + Point</button>`+
         (cable.waypoints&&cable.waypoints.length?`<button class="btn sm" style="flex:1" id="si-cwpc" title="Supprimer tous les points"><i class="ti ti-eraser"></i> Tout effacer (${cable.waypoints.length})</button>`:'')+`</div>`+
@@ -11324,6 +11329,16 @@ const SitePlan = (() => {
       $('si-ct')?.addEventListener('change',e=>{cable.type=e.target.value;saveSite();render();});
       $('si-cl')?.addEventListener('change',e=>{cable.label=e.target.value;saveSite();renderCables();});
       $('si-clen')?.addEventListener('change',e=>{cable.length=e.target.value;saveSite();renderCables();});
+      const CT_STEPS=[0.6,0.75,0.85,1,1.2,1.5,1.8,2.2];
+      const updCt=()=>{ const ctv=$('si-ctval'); if(ctv)ctv.textContent=Math.round((cable.textScale||1)*100)+'%'; };
+      $('si-ctminus')?.addEventListener('click',()=>{
+        let idx=CT_STEPS.findIndex(s=>Math.abs(s-(cable.textScale||1))<0.05); if(idx<0)idx=3;
+        cable.textScale=CT_STEPS[Math.max(0,idx-1)]; saveSite(); renderCables(); updCt();
+      });
+      $('si-ctplus')?.addEventListener('click',()=>{
+        let idx=CT_STEPS.findIndex(s=>Math.abs(s-(cable.textScale||1))<0.05); if(idx<0)idx=3;
+        cable.textScale=CT_STEPS[Math.min(CT_STEPS.length-1,idx+1)]; saveSite(); renderCables(); updCt();
+      });
       $('si-wminus')?.addEventListener('click',()=>{ cable.width=Math.max(1,((cable.width??4)-1)); saveSite(); render(); });
       $('si-wplus')?.addEventListener('click',()=>{ cable.width=Math.min(16,((cable.width??4)+1)); saveSite(); render(); });
       $('si-dirbar')?.querySelectorAll('.spl-dir-btn').forEach(btn=>{
@@ -12036,7 +12051,7 @@ const SitePlan = (() => {
         if(dir==='backward'||dir==='both') drawArrow(wx(afx),wy(afy),-bnx,-bny, c.color, ARR);
         if(cable.label||cable.length){
           const txt=[cable.label,cable.length].filter(Boolean).join(' · ');
-          const cts=state.cableTextScale||1;
+          const cts=(state.cableTextScale||1)*(cable.textScale||1);
           const fs=14*cts*SCALE;
           ctx.font=`700 ${fs}px sans-serif`;
           ctx.textAlign='center'; ctx.textBaseline='middle';
@@ -17684,7 +17699,7 @@ function _svFs(imgId, title){
           if(dir==='backward'||dir==='both') _arrow(wx(afx),wy(afy), -bnx, -bny, ct.color, ARR);
           if(c.label||c.length){
             var txt=[c.label,c.length].filter(Boolean).join(' · ');
-            var cts=siteData.cableTextScale||1;
+            var cts=(siteData.cableTextScale||1)*(c.textScale||1);
             var fs=14*cts*SCALE;
             ctx.font='700 '+fs+'px sans-serif';
             ctx.textAlign='center'; ctx.textBaseline='middle';
