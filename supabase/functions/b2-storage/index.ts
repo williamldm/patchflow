@@ -171,8 +171,10 @@ const canWrite = (a: Access) => a === 'owner' || a === 'admin' || a === 'editor'
    sont opaques, mais un navigateur normalise « .. » dans une URL signée). */
 function safePath(p: unknown): p is string {
   return typeof p === 'string' && p.length > 0 && p.length <= 1024
-    && !p.includes('..') && !p.includes('\\') && !p.includes('//')
-    && !/[\x00-\x1f\x7f]/.test(p);
+    && !p.includes('\\') && !p.includes('//')
+    && !/[\x00-\x1f\x7f]/.test(p)
+    // Seuls les SEGMENTS « .. » / « . » sont dangereux : un nom comme « Plan v2..final.pdf » reste valide.
+    && !p.split('/').some((seg) => seg === '..' || seg === '.');
 }
 
 /* Extrait le showId du début d'une clé B2 (format: "showId/...") */

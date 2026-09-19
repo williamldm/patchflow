@@ -150,7 +150,9 @@ serve(async (req) => {
       if (!isUuid && !/^[A-Za-z0-9]{4,32}$/.test(linkId)) {
         return json({ error: 'linkId invalide' }, 400);
       }
-      const ipK = isUuid ? '' : await ipKey(clientIp(req)).catch(() => '');
+      // Pas d'IP exploitable → pas de limite (sinon toutes les requêtes sans IP partageraient un même compteur).
+      const ip = clientIp(req);
+      const ipK = (isUuid || !ip) ? '' : await ipKey(ip).catch(() => '');
       if (await isBlocked(sbAdmin, ipK)) {
         return json({ error: 'Trop de tentatives. Réessayez dans une heure.' }, 429);
       }
