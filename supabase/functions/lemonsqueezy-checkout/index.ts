@@ -97,10 +97,11 @@ serve(async (req) => {
       return json({ data: sub || null, error: null });
     }
 
-    return json({ error: 'Unknown action: ' + action }, 400);
+    return json({ error: 'Action inconnue' }, 400);
 
   } catch (err) {
+    // Détail en logs uniquement : jamais de message interne renvoyé au client.
     console.error('[ls-checkout]', err);
-    return json({ error: err instanceof Error ? err.message : String(err) }, 500);
+    return json({ error: 'Erreur serveur' }, 500);
   }
 });

@@ -73,13 +73,21 @@ async function deleteObjects(keys: string[]) {
   }
 }
 
+/* Comparaison à temps constant (le secret ne fuit pas via le temps de réponse) */
+function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let r = 0;
+  for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return r === 0;
+}
+
 serve(async (req) => {
   // Sécurité : cron secret pour éviter les appels non autorisés
   // Sécurité : CRON_SECRET OBLIGATOIRE. Sans secret configuré ou en cas de
   // mismatch, on refuse — cet endpoint supprime des fichiers, il ne doit
   // JAMAIS être appelable sans authentification.
   const auth = req.headers.get('Authorization') ?? '';
-  if (!CRON_SECRET || auth !== `Bearer ${CRON_SECRET}`) {
+  if (!CRON_SECRET || !safeEqual(auth, `Bearer ${CRON_SECRET}`)) {
     return new Response('Unauthorized', { status: 401 });
   }
 

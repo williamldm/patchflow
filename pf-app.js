@@ -827,12 +827,12 @@ function _renderSceneTabs(type){
   const scenes=SHOW_SCENES[type]||[];
   el.innerHTML=scenes.map(function(s){
     const active=s.id===CUR_SCENES[type];
-    return `<div class="il-ptab${active?' active':''}" onclick="switchScene('${type}','${s.id}')" ondblclick="renameScene('${type}','${s.id}')" title="Double-clic pour renommer">
-      ${s.name}
-      <button class="il-ptab-dup" onclick="event.stopPropagation();duplicateScene('${type}','${s.id}')" title="Dupliquer cette version"><i class="ti ti-copy"></i></button>
-      ${scenes.length>1?`<button class="il-ptab-del" onclick="event.stopPropagation();deleteScene('${type}','${s.id}')" title="Supprimer">×</button>`:''}
+    return `<div class="il-ptab${active?' active':''}" onclick="switchScene('${_jsq(type)}','${_jsq(s.id)}')" ondblclick="renameScene('${_jsq(type)}','${_jsq(s.id)}')" title="Double-clic pour renommer">
+      ${_h(s.name)}
+      <button class="il-ptab-dup" onclick="event.stopPropagation();duplicateScene('${_jsq(type)}','${_jsq(s.id)}')" title="Dupliquer cette version"><i class="ti ti-copy"></i></button>
+      ${scenes.length>1?`<button class="il-ptab-del" onclick="event.stopPropagation();deleteScene('${_jsq(type)}','${_jsq(s.id)}')" title="Supprimer">×</button>`:''}
     </div>`;
-  }).join('')+'<button class="il-ptab-add" onclick="addScene(\''+type+'\')" title="Nouvelle version (vide)">+</button>';
+  }).join('')+'<button class="il-ptab-add" onclick="addScene(\''+_jsq(type)+'\')" title="Nouvelle version (vide)">+</button>';
 }
 
 async function switchScene(type,sceneId){
@@ -1169,6 +1169,8 @@ async function delShow(id,e){
   e?.stopPropagation();
   const s=SHOWS.find(x=>x.id===id);
   if(!s) return;
+  /* Seul le propriétaire supprime un show (la base le refuse aussi). */
+  if(s.owner_id && s.owner_id!==ME?.id){ toast('Seul le propriétaire peut supprimer ce show.'); return; }
   const pro = userPlan()==='pro';
 
   if(pro){
@@ -1248,8 +1250,8 @@ function renderTrashList(){
           +'<span style="color:'+(danger?'var(--err)':'var(--muted)')+'">suppression définitive dans '+days+' j</span></div>'
       +'</div>'
       +'<div class="trash-actions">'
-        +'<button class="btn sm" onclick="restoreShow(\''+s.id+'\')"><i class="ti ti-arrow-back-up"></i>Restaurer</button>'
-        +'<button class="btn ghost sm" title="Supprimer définitivement" style="color:var(--err);border-color:rgba(255,77,106,.3)" onclick="purgeShowForever(\''+s.id+'\')"><i class="ti ti-trash-x"></i></button>'
+        +'<button class="btn sm" onclick="restoreShow(\''+_jsq(s.id)+'\')"><i class="ti ti-arrow-back-up"></i>Restaurer</button>'
+        +'<button class="btn ghost sm" title="Supprimer définitivement" style="color:var(--err);border-color:rgba(255,77,106,.3)" onclick="purgeShowForever(\''+_jsq(s.id)+'\')"><i class="ti ti-trash-x"></i></button>'
       +'</div>'
     +'</div>';
   }).join('');
@@ -1366,8 +1368,8 @@ async function moveRow(id,dir){
 // IL PATCHES
 // ══════════════════════════════════════
 function loadPatchMeta(){
-  if(CUR_SHOW.il_patches?.length) return JSON.parse(JSON.stringify(CUR_SHOW.il_patches));
-  try{const s=localStorage.getItem('il_patches_'+CUR_SHOW.id);if(s){const p=JSON.parse(s);if(p?.length)return p;}}catch(e){}
+  if(CUR_SHOW.il_patches?.length) return _sanitizePlanJSON(JSON.parse(JSON.stringify(CUR_SHOW.il_patches)));
+  try{const s=localStorage.getItem('il_patches_'+CUR_SHOW.id);if(s){const p=JSON.parse(s);if(p?.length)return _sanitizePlanJSON(p);}}catch(e){}
   return [{id:'main',name:'Patch 1',pos:0}];
 }
 
@@ -1394,10 +1396,10 @@ function renderPatchTabs(){
   }
   el.innerHTML=IL_PATCHES.map(p=>{
     const active=p.id===CUR_PATCH_ID;
-    return `<div class="il-ptab${active?' active':''}" onclick="switchPatch('${p.id}')" ondblclick="renamePatch('${p.id}')" title="Double-clic pour renommer">
+    return `<div class="il-ptab${active?' active':''}" onclick="switchPatch('${_jsq(p.id)}')" ondblclick="renamePatch('${_jsq(p.id)}')" title="Double-clic pour renommer">
       ${p.name.replace(/</g,'&lt;')}
-      <button class="il-ptab-dup" onclick="event.stopPropagation();duplicatePatch('${p.id}')" title="Dupliquer ce patch (avec ses canaux)"><i class="ti ti-copy"></i></button>
-      ${IL_PATCHES.length>1?`<button class="il-ptab-del" onclick="event.stopPropagation();deletePatch('${p.id}')" title="Supprimer">×</button>`:''}
+      <button class="il-ptab-dup" onclick="event.stopPropagation();duplicatePatch('${_jsq(p.id)}')" title="Dupliquer ce patch (avec ses canaux)"><i class="ti ti-copy"></i></button>
+      ${IL_PATCHES.length>1?`<button class="il-ptab-del" onclick="event.stopPropagation();deletePatch('${_jsq(p.id)}')" title="Supprimer">×</button>`:''}
     </div>`;
   }).join('')+'<button class="il-ptab-add" onclick="addPatch()" title="Nouveau patch (vide)">+</button>';
 }
@@ -1531,7 +1533,7 @@ function loadOutData() {
   if(!raw || (typeof raw==='object' && !Object.keys(raw).length)) {
     try { var s=localStorage.getItem('out_data_'+CUR_SHOW.id); if(s){ raw=JSON.parse(s); fromLocal=true; } } catch(e){}
   }
-  OUT_DATA = raw || {};
+  OUT_DATA = _sanitizePlanJSON(raw || {});
   OUT_CHS  = (OUT_DATA[CUR_PATCH_ID] || []).slice();
   _rebuildAllOut(OUT_DATA);
   /* Auto-réparation : si les sorties ne venaient que du cache local (la base
@@ -1580,16 +1582,16 @@ function renderOutTable() {
     }).join('');
     return '<tr data-outid="'+r.id+'">'
       +'<td class="ch-num">'+r.ch+'</td>'
-      +'<td data-label="Court"><input class="ilinp sh" maxlength="8" value="'+_oh(r.short_name||'')+'" onchange="updateOutField(\''+r.id+'\',\'short_name\',this.value.toUpperCase().slice(0,8))"/></td>'
-      +'<td data-label="Nom long"><input class="ilinp" style="min-width:100px" value="'+_oh(r.long_name||'')+'" onchange="updateOutField(\''+r.id+'\',\'long_name\',this.value)"/></td>'
-      +'<td data-label="Type"><select class="out-type-sel" style="color:'+t.color+'" onchange="updateOutField(\''+r.id+'\',\'type\',this.value)">'+opts+'</select></td>'
-      +'<td data-label="Destination"><input class="ilinp" value="'+_oh(r.dest||'')+'" onchange="updateOutField(\''+r.id+'\',\'dest\',this.value)" placeholder="Ampli, zone, room..."/></td>'
-      +'<td data-label="Fréq. HF"><input class="ilinp m" style="color:var(--grn);width:74px" value="'+_oh(r.hf||'')+'" onchange="updateOutField(\''+r.id+'\',\'hf\',this.value)" placeholder="MHz"/></td>'
-      +'<td data-label="Note"><input class="ilinp" value="'+_oh(r.note||'')+'" onchange="updateOutField(\''+r.id+'\',\'note\',this.value)"/></td>'
+      +'<td data-label="Court"><input class="ilinp sh" maxlength="8" value="'+_oh(r.short_name||'')+'" onchange="updateOutField(\''+_jsq(r.id)+'\',\'short_name\',this.value.toUpperCase().slice(0,8))"/></td>'
+      +'<td data-label="Nom long"><input class="ilinp" style="min-width:100px" value="'+_oh(r.long_name||'')+'" onchange="updateOutField(\''+_jsq(r.id)+'\',\'long_name\',this.value)"/></td>'
+      +'<td data-label="Type"><select class="out-type-sel" style="color:'+t.color+'" onchange="updateOutField(\''+_jsq(r.id)+'\',\'type\',this.value)">'+opts+'</select></td>'
+      +'<td data-label="Destination"><input class="ilinp" value="'+_oh(r.dest||'')+'" onchange="updateOutField(\''+_jsq(r.id)+'\',\'dest\',this.value)" placeholder="Ampli, zone, room..."/></td>'
+      +'<td data-label="Fréq. HF"><input class="ilinp m" style="color:var(--grn);width:74px" value="'+_oh(r.hf||'')+'" onchange="updateOutField(\''+_jsq(r.id)+'\',\'hf\',this.value)" placeholder="MHz"/></td>'
+      +'<td data-label="Note"><input class="ilinp" value="'+_oh(r.note||'')+'" onchange="updateOutField(\''+_jsq(r.id)+'\',\'note\',this.value)"/></td>'
       +'<td class="il-actions-cell" style="white-space:nowrap">'
-      +'<button class="move-btn" onclick="moveOutRow(\''+r.id+'\',-1)"'+(i===0?' disabled':'')+' ><i class="ti ti-chevron-up"></i></button>'
-      +'<button class="move-btn" onclick="moveOutRow(\''+r.id+'\',1)"'+(i===OUT_CHS.length-1?' disabled':'')+' ><i class="ti ti-chevron-down"></i></button>'
-      +'<button class="del-btn" onclick="deleteOutRow(\''+r.id+'\')"><i class="ti ti-trash"></i></button>'
+      +'<button class="move-btn" onclick="moveOutRow(\''+_jsq(r.id)+'\',-1)"'+(i===0?' disabled':'')+' ><i class="ti ti-chevron-up"></i></button>'
+      +'<button class="move-btn" onclick="moveOutRow(\''+_jsq(r.id)+'\',1)"'+(i===OUT_CHS.length-1?' disabled':'')+' ><i class="ti ti-chevron-down"></i></button>'
+      +'<button class="del-btn" onclick="deleteOutRow(\''+_jsq(r.id)+'\')"><i class="ti ti-trash"></i></button>'
       +'</td></tr>';
   }).join('');
 }
@@ -1705,9 +1707,9 @@ function _olaRender() {
         +(preview?'<div class="ola-cat-sub">'+preview+'</div>':'')
       +'</div>'
       +'<div class="ola-spinner">'
-        +'<button class="ola-spin-btn" onclick="olaAdj(\''+cat.id+'\',-1)"'+(n<=0?' disabled':'')+'>&#8722;</button>'
+        +'<button class="ola-spin-btn" onclick="olaAdj(\''+_jsq(cat.id)+'\',-1)"'+(n<=0?' disabled':'')+'>&#8722;</button>'
         +'<span class="ola-spin-val">'+n+'</span>'
-        +'<button class="ola-spin-btn" onclick="olaAdj(\''+cat.id+'\',1)"'+(n>=cat.max?' disabled':'')+'>+</button>'
+        +'<button class="ola-spin-btn" onclick="olaAdj(\''+_jsq(cat.id)+'\',1)"'+(n>=cat.max?' disabled':'')+'>+</button>'
       +'</div>'
     +'</div>';
   });
@@ -2037,18 +2039,18 @@ function ilaRemoveCat(catId) {
 /* ---- render helpers ---- */
 function _ilaItemRow(item, isCustom, catId) {
   var n = _ilaCount[item.id]||0, sl = _ILA_STAND_S[item.stand]||'';
-  var r = '<div class="ila-cb-row'+(n>0?' checked':'')+'" data-id="'+item.id+'" onclick="ilaRowClick(\''+item.id+'\')">';
+  var r = '<div class="ila-cb-row'+(n>0?' checked':'')+'" data-id="'+item.id+'" onclick="ilaRowClick(\''+_jsq(item.id)+'\')">';
   r += '<div class="ila-cb-box"><div class="ila-cb-box-chk"></div></div>';
   r += '<span class="ila-cb-lbl">'+item.label+'</span>';
   if (item.mic) r += '<span class="ila-cb-mic">'+item.mic+'</span>';
   if (sl)       r += '<span class="ila-cb-stand">'+sl+'</span>';
   r += '<div class="ila-cb-spinner" onclick="event.stopPropagation()">';
-  r += '<button type="button" class="ila-sp-btn" onclick="ilaAdj(\''+item.id+'\',-1)"'+(n===0?' disabled':'')+'>&#8722;</button>';
+  r += '<button type="button" class="ila-sp-btn" onclick="ilaAdj(\''+_jsq(item.id)+'\',-1)"'+(n===0?' disabled':'')+'>&#8722;</button>';
   r += '<span class="ila-sp-val">'+n+'</span>';
-  r += '<button type="button" class="ila-sp-btn" onclick="ilaAdj(\''+item.id+'\',1)">+</button>';
+  r += '<button type="button" class="ila-sp-btn" onclick="ilaAdj(\''+_jsq(item.id)+'\',1)">+</button>';
   r += '</div>';
   if (isCustom)
-    r += '<button type="button" class="ila-item-del" onclick="event.stopPropagation();ilaRemoveItem(\''+catId+'\',\''+item.id+'\')" title="Supprimer"><i class="ti ti-x"></i></button>';
+    r += '<button type="button" class="ila-item-del" onclick="event.stopPropagation();ilaRemoveItem(\''+_jsq(catId)+'\',\''+_jsq(item.id)+'\')" title="Supprimer"><i class="ti ti-x"></i></button>';
   return r + '</div>';
 }
 
@@ -2068,7 +2070,7 @@ function _ilaAddItemForm(catId) {
     '</select>'+
     '</div>'+
     '<div style="display:flex;gap:6px;margin-top:8px">'+
-    '<button type="button" class="ila-af-ok" onclick="ilaAddItem(\''+catId+'\')"><i class="ti ti-plus"></i>Ajouter</button>'+
+    '<button type="button" class="ila-af-ok" onclick="ilaAddItem(\''+_jsq(catId)+'\')"><i class="ti ti-plus"></i>Ajouter</button>'+
     '<button type="button" class="ila-af-cancel" onclick="ilaHideForm()"><i class="ti ti-x"></i></button>'+
     '</div></div>';
 }
@@ -2078,19 +2080,19 @@ function _ilaRender() {
   function renderBlock(catId, label, icon, builtinItems, isCustomCat) {
     var open = !!_ilaCatOpen[catId], total = _ilaCatTotal(catId);
     h += '<div class="ila-cat'+(open?' open':'')+'" data-cat="'+catId+'">';
-    h += '<div class="ila-cat-hd" data-cat="'+catId+'" onclick="ilaToggleCat(\''+catId+'\')">';
+    h += '<div class="ila-cat-hd" data-cat="'+catId+'" onclick="ilaToggleCat(\''+_jsq(catId)+'\')">';
     h += '<i class="ti '+icon+' ila-cat-hd-icon"></i>';
     h += '<span class="ila-cat-hd-label">'+label+'</span>';
     h += '<span class="ila-cat-hd-badge'+(total>0?' show':'')+'" id="ila-cat-cnt-'+catId+'">'+total+'</span>';
     if (isCustomCat)
-      h += '<button type="button" class="ila-cat-del" onclick="event.stopPropagation();ilaRemoveCat(\''+catId+'\')" title="Supprimer"><i class="ti ti-trash"></i></button>';
+      h += '<button type="button" class="ila-cat-del" onclick="event.stopPropagation();ilaRemoveCat(\''+_jsq(catId)+'\')" title="Supprimer"><i class="ti ti-trash"></i></button>';
     h += '<i class="ti ti-chevron-right ila-cat-hd-arr" style="'+(open?'transform:rotate(90deg)':'')+'"></i>';
     h += '</div>';
     h += '<div class="ila-cat-body" data-cat="'+catId+'" style="'+(open?'':'display:none')+'">';
     builtinItems.forEach(function(it){ h += _ilaItemRow(it, false, catId); });
     (_ilaCustomItems[catId]||[]).forEach(function(it){ h += _ilaItemRow(it, true, catId); });
     if (_ilaFormCat === catId) h += _ilaAddItemForm(catId);
-    else h += '<div class="ila-add-item-btn" onclick="ilaShowItemForm(\''+catId+'\')"><i class="ti ti-plus"></i>Ajouter un instrument</div>';
+    else h += '<div class="ila-add-item-btn" onclick="ilaShowItemForm(\''+_jsq(catId)+'\')"><i class="ti ti-plus"></i>Ajouter un instrument</div>';
     h += '</div></div>';
   }
   ILA_CATS.forEach(function(cat){ renderBlock(cat.id, cat.label, cat.icon, cat.items, false); });
@@ -2248,18 +2250,18 @@ function _expandNoteAbbr(inp){
    colOrder pour permettre à l'utilisateur de réordonner les colonnes
    (ex: "Nom court" après "Nom long"). */
 const _IL_CELL_RENDERERS={
-  short:  r=>`<td data-col="short" data-label="Court"><input class="ilinp sh" maxlength="4" value="${_oh((r.short_name||'').trim())}" onchange="scheduleSave('${r.id}','short_name',this.value.toUpperCase().slice(0,4));renderPills()"/></td>`,
-  long:   r=>`<td data-col="long" data-label="Nom long"><input class="ilinp" value="${_oh(r.long_name||'')}" onchange="scheduleSave('${r.id}','long_name',this.value);renderPills()"/></td>`,
-  src:    r=>`<td data-col="src" data-label="Source"><input class="ilinp" style="color:var(--txt2)" value="${_oh(r.source||'')}" onchange="scheduleSave('${r.id}','source',this.value)"/></td>`,
-  mic:    r=>`<td data-col="mic" data-label="Micro/DI"><input class="ilinp m" value="${_oh(r.mic||'')}" onchange="scheduleSave('${r.id}','mic',this.value)"/></td>`,
-  gain:   r=>`<td data-col="gain" data-label="Gain"><input class="ilinp m" type="number" style="width:42px" value="${r.gain||0}" min="-60" max="60" step="1" onchange="scheduleSave('${r.id}','gain',parseInt(this.value)||0)"/></td>`,
-  phantom:r=>`<td data-col="phantom" data-label="+48V" style="text-align:center"><input type="checkbox" class="cb" ${r.phantom?'checked':''} onchange="scheduleSave('${r.id}','phantom',this.checked)"/></td>`,
-  iem:    r=>`<td data-col="iem" data-label="IEM"><input class="ilinp m" style="color:var(--grn);width:46px" value="${_oh(r.iem_group||'')}" onchange="scheduleSave('${r.id}','iem_group',this.value)" placeholder="GR1"/></td>`,
-  hf:     r=>`<td data-col="hf" data-label="Fréq. HF"><input class="ilinp m" style="color:var(--accent2,#9b6aff);width:74px" value="${_oh((r.custom_data&&r.custom_data._hf)||'')}" onchange="saveCustomCell('${r.id}','_hf',this.value)" placeholder="MHz"/></td>`,
-  foh:    r=>`<td data-col="foh" data-label="FOH" style="text-align:center"><input type="checkbox" class="cb blu" ${r.foh?'checked':''} onchange="scheduleSave('${r.id}','foh',this.checked)"/></td>`,
-  mon:    r=>`<td data-col="mon" data-label="MON" style="text-align:center"><input type="checkbox" class="cb warn" ${r.mon?'checked':''} onchange="scheduleSave('${r.id}','mon',this.checked)"/></td>`,
-  bc:     r=>`<td data-col="bc" data-label="BC" style="text-align:center"><input type="checkbox" class="cb grn" ${r.bc?'checked':''} onchange="scheduleSave('${r.id}','bc',this.checked)"/></td>`,
-  note:   r=>`<td data-col="note" data-label="Note"><input class="ilinp" list="il-note-list" style="color:var(--txt2)" value="${_oh(r.note||'')}" placeholder="—" onchange="scheduleSave('${r.id}','note',_expandNoteAbbr(this))" onblur="_expandNoteAbbr(this)"/></td>`,
+  short:  r=>`<td data-col="short" data-label="Court"><input class="ilinp sh" maxlength="4" value="${_oh((r.short_name||'').trim())}" onchange="scheduleSave('${_jsq(r.id)}','short_name',this.value.toUpperCase().slice(0,4));renderPills()"/></td>`,
+  long:   r=>`<td data-col="long" data-label="Nom long"><input class="ilinp" value="${_oh(r.long_name||'')}" onchange="scheduleSave('${_jsq(r.id)}','long_name',this.value);renderPills()"/></td>`,
+  src:    r=>`<td data-col="src" data-label="Source"><input class="ilinp" style="color:var(--txt2)" value="${_oh(r.source||'')}" onchange="scheduleSave('${_jsq(r.id)}','source',this.value)"/></td>`,
+  mic:    r=>`<td data-col="mic" data-label="Micro/DI"><input class="ilinp m" value="${_oh(r.mic||'')}" onchange="scheduleSave('${_jsq(r.id)}','mic',this.value)"/></td>`,
+  gain:   r=>`<td data-col="gain" data-label="Gain"><input class="ilinp m" type="number" style="width:42px" value="${r.gain||0}" min="-60" max="60" step="1" onchange="scheduleSave('${_jsq(r.id)}','gain',parseInt(this.value)||0)"/></td>`,
+  phantom:r=>`<td data-col="phantom" data-label="+48V" style="text-align:center"><input type="checkbox" class="cb" ${r.phantom?'checked':''} onchange="scheduleSave('${_jsq(r.id)}','phantom',this.checked)"/></td>`,
+  iem:    r=>`<td data-col="iem" data-label="IEM"><input class="ilinp m" style="color:var(--grn);width:46px" value="${_oh(r.iem_group||'')}" onchange="scheduleSave('${_jsq(r.id)}','iem_group',this.value)" placeholder="GR1"/></td>`,
+  hf:     r=>`<td data-col="hf" data-label="Fréq. HF"><input class="ilinp m" style="color:var(--accent2,#9b6aff);width:74px" value="${_oh((r.custom_data&&r.custom_data._hf)||'')}" onchange="saveCustomCell('${_jsq(r.id)}','_hf',this.value)" placeholder="MHz"/></td>`,
+  foh:    r=>`<td data-col="foh" data-label="FOH" style="text-align:center"><input type="checkbox" class="cb blu" ${r.foh?'checked':''} onchange="scheduleSave('${_jsq(r.id)}','foh',this.checked)"/></td>`,
+  mon:    r=>`<td data-col="mon" data-label="MON" style="text-align:center"><input type="checkbox" class="cb warn" ${r.mon?'checked':''} onchange="scheduleSave('${_jsq(r.id)}','mon',this.checked)"/></td>`,
+  bc:     r=>`<td data-col="bc" data-label="BC" style="text-align:center"><input type="checkbox" class="cb grn" ${r.bc?'checked':''} onchange="scheduleSave('${_jsq(r.id)}','bc',this.checked)"/></td>`,
+  note:   r=>`<td data-col="note" data-label="Note"><input class="ilinp" list="il-note-list" style="color:var(--txt2)" value="${_oh(r.note||'')}" placeholder="—" onchange="scheduleSave('${_jsq(r.id)}','note',_expandNoteAbbr(this))" onblur="_expandNoteAbbr(this)"/></td>`,
 };
 const _IL_COL_LABELS={short:'Court',long:'Nom long',src:'Source',mic:'Micro/DI',gain:'Gain',phantom:'+48V',iem:'IEM',hf:'Fréq. HF',foh:'FOH',mon:'MON',bc:'BC',note:'Note'};
 /* Reconstruit le thead selon l'ordre effectif (colonnes natives ET
@@ -2337,9 +2339,9 @@ function renderTable(){
       ${_orderedColIds().map(function(id){return _ilCellFor(id,r);}).join('')}
       <td class="il-actions-cell" style="white-space:nowrap">
         <i class="ti ti-grip-vertical drag-handle"></i>
-        <button class="move-btn" onclick="moveRow('${r.id}',-1)" ${r.ch===1?'disabled':''}><i class="ti ti-chevron-up"></i></button>
-        <button class="move-btn" onclick="moveRow('${r.id}',1)" ${r.ch===CHS.length?'disabled':''}><i class="ti ti-chevron-down"></i></button>
-        <button class="del-btn" onclick="delRow('${r.id}')"><i class="ti ti-trash"></i></button>
+        <button class="move-btn" onclick="moveRow('${_jsq(r.id)}',-1)" ${r.ch===1?'disabled':''}><i class="ti ti-chevron-up"></i></button>
+        <button class="move-btn" onclick="moveRow('${_jsq(r.id)}',1)" ${r.ch===CHS.length?'disabled':''}><i class="ti ti-chevron-down"></i></button>
+        <button class="del-btn" onclick="delRow('${_jsq(r.id)}')"><i class="ti ti-trash"></i></button>
       </td>
     </tr>`).join('');
   }
@@ -2471,7 +2473,7 @@ async function loadMembers(){
     const ci=(i+1)%COLS.length;
     const mPlan=isSelf?PROFILE?.plan:m.profiles?.plan;
     const mAvatar=isSelf?PROFILE?.avatar_url:m.profiles?.avatar_url;
-    const delBtn=isOwner&&!isSelf?`<button onclick="removeMember('${_es(m.id)}')" title="Retirer du show" style="margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 5px;border-radius:4px;transition:color .15s" onmouseover="this.style.color='var(--err)'" onmouseout="this.style.color='var(--muted)'"><i class="ti ti-user-minus"></i></button>`:'';
+    const delBtn=isOwner&&!isSelf?`<button onclick="removeMember('${_jsq(m.id)}')" title="Retirer du show" style="margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 5px;border-radius:4px;transition:color .15s" onmouseover="this.style.color='var(--err)'" onmouseout="this.style.color='var(--muted)'"><i class="ti ti-user-minus"></i></button>`:'';
     const status=isSelf?`<span class="on-dot"></span>En ligne · toi`:`<span class="off-dot"></span>Membre`;
     html+=`<div class="tc"><div class="tc-head">${mkAv(n,COLS[ci],TC[ci],mAvatar,mPlan)}<div><div class="tc-name">${_es(n)}</div><div class="tc-role" style="font-size:9px;color:var(--muted)">${_es(m.profiles?.email||'')}</div></div>${delBtn}</div><div class="tc-perms">${roleBadge(m.role||'editor')}${planPill(mPlan)}</div><div class="tc-status">${status}</div></div>`;
   });
@@ -2906,10 +2908,9 @@ td{padding:4px 7px;border-bottom:1px solid #f0eee8;vertical-align:middle}
   /* Lien partagé du rider + QR (le plus important — repris du style Input List) */
   const _riderShareUrl = _riderBase()+'?rider='+(CUR_SHOW?.id||'');
   function _riderQrBlock(){
-    const qr='https://api.qrserver.com/v1/create-qr-code/?size=130x130&data='
-      +encodeURIComponent(_riderShareUrl)+'&color=1a8fff&bgcolor=f4faff&margin=0&qzone=1';
+    const qr=_qrDataUrlSync(_riderShareUrl,{px:260,fg:'#1a8fff',bg:'#f4faff',quiet:1});
     return '<div style="display:flex;align-items:center;gap:14px;padding:10px 16px;background:#f4faff;border-top:2px solid #1a8fff">'
-      +'<img src="'+qr+'" width="58" height="58" style="flex-shrink:0;border-radius:5px"/>'
+      +(qr?'<img src="'+qr+'" width="58" height="58" style="flex-shrink:0;border-radius:5px"/>':'')
       +'<div style="min-width:0">'
         +'<div style="font-family:\'DM Mono\',monospace;font-size:8px;text-transform:uppercase;letter-spacing:1px;color:#1a8fff;font-weight:600;margin-bottom:2px">Fiche à jour en ligne</div>'
         +'<a href="'+_riderShareUrl+'" style="font-size:10px;color:#1a4fff;font-family:\'DM Mono\',monospace;word-break:break-all;text-decoration:none;font-weight:600">'+_riderShareUrl+'</a>'
@@ -3077,6 +3078,7 @@ td{padding:4px 7px;border-bottom:1px solid #f0eee8;vertical-align:middle}
   if(!pages.length){toast('Aucune section à exporter.');return;}
 
   /* Insérer le bloc QR + lien à la fin de la dernière page (avant son footer) */
+  await _loadQrLib();
   if(pages.length){
     var last=pages[pages.length-1];
     var fi=last.lastIndexOf('<div class="ft">');
@@ -3222,13 +3224,13 @@ function _renderLinksManager(){
       +'<div class="link-card-head">'
         +'<i class="ti ti-link" style="font-size:13px;color:var(--muted);flex-shrink:0"></i>'
         +'<span class="link-card-name">'+_fEsc(lnk.name)+'</span>'
-        +'<button class="link-card-btn del" onclick="_deleteLink(\''+lnk.id+'\')" title="Supprimer"><i class="ti ti-trash" style="font-size:11px"></i></button>'
+        +'<button class="link-card-btn del" onclick="_deleteLink(\''+_jsq(lnk.id)+'\')" title="Supprimer"><i class="ti ti-trash" style="font-size:11px"></i></button>'
       +'</div>'
       +(secs?'<div class="link-card-secs">'+secs+'</div>':'')
       +'<div class="link-card-url">'
         +'<span class="link-card-url-text">'+_fEsc(url)+'</span>'
-        +'<button class="link-card-btn wa" onclick="_waShareLink(\''+_fEsc(code)+'\')"><i class="ti ti-brand-whatsapp" style="font-size:11px"></i>WhatsApp</button>'
-        +'<button class="link-card-btn" onclick="_copyProLink(\''+_fEsc(url)+'\')"><i class="ti ti-copy" style="font-size:10px"></i>Copier</button>'
+        +'<button class="link-card-btn wa" onclick="_waShareLink(\''+_jsq(code)+'\')"><i class="ti ti-brand-whatsapp" style="font-size:11px"></i>WhatsApp</button>'
+        +'<button class="link-card-btn" onclick="_copyProLink(\''+_jsq(url)+'\')"><i class="ti ti-copy" style="font-size:10px"></i>Copier</button>'
       +'</div>'
     +'</div>';
   }).join('');
@@ -3342,8 +3344,10 @@ async function _deleteLink(id){
    caractères ambigus (pas de 0/O/1/l/I). */
 function _genLinkCode(){
   var A='23456789abcdefghjkmnpqrstuvwxyz',s='';
-  try{var arr=new Uint32Array(7);crypto.getRandomValues(arr);for(var i=0;i<7;i++)s+=A[arr[i]%A.length];}
-  catch(e){for(var j=0;j<7;j++)s+=A[Math.floor(Math.random()*A.length)];}
+  /* 12 caractères sur 31 symboles ≈ 59 bits : impossible à deviner par force brute
+     (le code vaut clé d'accès au show). Tirage par rejet pour éviter le biais du modulo. */
+  var arr=new Uint8Array(1);
+  while(s.length<12){ crypto.getRandomValues(arr); if(arr[0]<248) s+=A[arr[0]%31]; }
   return s;
 }
 
@@ -3399,10 +3403,10 @@ async function _loadRiderFiles(){
     var picked=_riderPickedFiles.has(path);
     var isPdf = f.name.toLowerCase().endsWith('.pdf');
     var previewBtn = isPdf
-      ? '<button class="btn ghost sm" style="padding:3px 7px;font-size:10px;flex-shrink:0;margin-left:auto" onclick="event.stopPropagation();_riderPreviewPdf(\''+encodeURIComponent(path)+'\',\''+disp+'\')" title="Ouvrir le PDF"><i class="ti ti-eye"></i></button>'
+      ? '<button class="btn ghost sm" style="padding:3px 7px;font-size:10px;flex-shrink:0;margin-left:auto" onclick="event.stopPropagation();_riderPreviewPdf(\''+_encA(path)+'\',\''+_jsq(disp)+'\')" title="Ouvrir le PDF"><i class="ti ti-eye"></i></button>'
       : '';
-    return '<div class="rider-file-item'+(picked?' picked':'')+'" onclick="_toggleRiderFile(\''+encodeURIComponent(path)+'\')" id="rfi-'+encodeURIComponent(path)+'">'
-      +info.icon+'<span class="rfi-name">'+disp+'</span><span class="rfi-size">'+sz+'</span>'
+    return '<div class="rider-file-item'+(picked?' picked':'')+'" onclick="_toggleRiderFile(\''+_encA(path)+'\')" id="rfi-'+_encA(path)+'">'
+      +info.icon+'<span class="rfi-name">'+_h(disp)+'</span><span class="rfi-size">'+sz+'</span>'
       +previewBtn
       +'<i class="ti ti-'+(picked?'check':'plus')+' rfi-chk" style="font-size:12px;color:'+(picked?'var(--ora)':'var(--muted)')+'"></i>'
       +'</div>';
@@ -3580,7 +3584,7 @@ function loadColChips(){
   var wrap=document.getElementById('col-chips'); if(!wrap) return;
   wrap.innerHTML=_orderedColIds().map(function(id){
     var c=_colDefById(id); if(!c) return '';
-    return `<div class="col-chip ${visCol.has(c.id)?'on':''}" draggable="true" data-col="${c.id}" onclick="toggleCol('${c.id}')">
+    return `<div class="col-chip ${visCol.has(c.id)?'on':''}" draggable="true" data-col="${c.id}" onclick="toggleCol('${_jsq(c.id)}')">
       <i class="ti ti-grip-vertical col-chip-grip" title="Glisser pour réordonner" onclick="event.stopPropagation()"></i>
       <span class="pip"></span><i class="ti ${c.icon||'ti-square-rounded-plus'}" style="font-size:11px"></i>${_oh(c.label)}
     </div>`;
@@ -3742,7 +3746,7 @@ function _renderCustomColList(){
       <span class="col-chip on" style="cursor:default;flex:1;margin:0">${c.label}
         <span style="font-size:9px;font-family:var(--m);color:var(--muted);margin-left:4px">${c.type==='number'?'#':c.type==='bool'?'☑':'A'}</span>
       </span>
-      ${isPro?`<button class="btn ghost sm" style="padding:2px 7px;font-size:10px" onclick="_deleteCustomCol('${c.id}')"><i class="ti ti-trash"></i></button>`:''}
+      ${isPro?`<button class="btn ghost sm" style="padding:2px 7px;font-size:10px" onclick="_deleteCustomCol('${_jsq(c.id)}')"><i class="ti ti-trash"></i></button>`:''}
     </div>`).join('');
 }
 
@@ -3772,12 +3776,12 @@ function _addCustomColToTable(col){
 function _customCellHTML(col,chId,val){
   const eId=_fEsc(chId); const eVal=_fEsc(String(val));
   if(col.type==='bool'){
-    return `<input type="checkbox" class="cb" ${val?'checked':''} onchange="saveCustomCell('${eId}','${col.id}',this.checked)"/>`;
+    return `<input type="checkbox" class="cb" ${val?'checked':''} onchange="saveCustomCell('${_jsq(eId)}','${_jsq(col.id)}',this.checked)"/>`;
   }
   if(col.type==='number'){
-    return `<input class="ilinp m" type="number" style="width:54px" value="${eVal}" onchange="saveCustomCell('${eId}','${col.id}',parseFloat(this.value)||0)"/>`;
+    return `<input class="ilinp m" type="number" style="width:54px" value="${eVal}" onchange="saveCustomCell('${_jsq(eId)}','${_jsq(col.id)}',parseFloat(this.value)||0)"/>`;
   }
-  return `<input class="ilinp" value="${eVal}" onchange="saveCustomCell('${eId}','${col.id}',this.value)"/>`;
+  return `<input class="ilinp" value="${eVal}" onchange="saveCustomCell('${_jsq(eId)}','${_jsq(col.id)}',this.value)"/>`;
 }
 
 /* Charge les colonnes custom au démarrage (après loadIL) */
@@ -4152,7 +4156,7 @@ function _renderCSVModal(){
   _csvFields().forEach(function(f){
     mapHtml+='<div class="csv-map-field">';
     mapHtml+='<span class="csv-map-lbl">'+f.label+'</span>';
-    mapHtml+='<select class="csv-map-sel" onchange="csvMapChange(\''+f.id+'\',this)">';
+    mapHtml+='<select class="csv-map-sel" onchange="csvMapChange(\''+_jsq(f.id)+'\',this)">';
     mapHtml+='<option value="-1">-- Ignorer --</option>';
     _csvHeaders.forEach(function(h,i){
       var sel=_csvColMap[f.id]===i?' selected':'';
@@ -4435,6 +4439,92 @@ function _safeBrandStr(s){
 var _CAT_DISPLAY={'Reseau':'Réseau','Controle':'Contrôle','Energie':'Énergie','Video':'Vidéo','Eclairage':'Éclairage','Scene':'Scène'};
 function _catLabel(c){ return _CAT_DISPLAY[c]||c; }
 
+/* ── Sécurité : échappement selon le contexte d'injection ──
+   _h   : texte ou valeur d'attribut HTML.
+   _jsq : chaîne JS placée entre apostrophes DANS un attribut HTML
+          (onclick="f('…')") : antislash, apostrophe, puis entités HTML.
+   _encA: identifiant/chemin passé à un onclick : encodeURIComponent laisse
+          passer l'apostrophe, qui refermerait la chaîne JS.
+   _safeHref : lien sûr (http, https, mailto) — bloque javascript:, data:… */
+function _h(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function _jsq(s){ return _h(String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\r?\n/g,' ')); }
+function _encA(s){ return encodeURIComponent(String(s==null?'':s)).replace(/'/g,'%27').replace(/\(/g,'%28').replace(/\)/g,'%29'); }
+function _safeHref(u){
+  u=String(u==null?'':u).trim();
+  if(!u) return '';
+  if(/^(https?:|mailto:)/i.test(u)) return u;
+  if(/^[#\/]/.test(u) && !/^\/\//.test(u)) return u; // ancre ou chemin relatif au site
+  return '';
+}
+/* Neutralise les liens et médias dangereux d'un HTML produit par un
+   convertisseur de document (docx/odt) : href javascript:/data:, src non image. */
+function _sanitizeRendered(root){
+  if(!root||!root.querySelectorAll) return;
+  root.querySelectorAll('[href]').forEach(function(a){ var v=_safeHref(a.getAttribute('href')); if(v) a.setAttribute('href',v); else a.removeAttribute('href'); });
+  root.querySelectorAll('[src]').forEach(function(e){ var v=e.getAttribute('src')||''; if(!/^(data:image\/(png|jpe?g|gif|webp|bmp);|https:|blob:)/i.test(v)) e.removeAttribute('src'); });
+  root.querySelectorAll('*').forEach(function(e){ for(var i=e.attributes.length-1;i>=0;i--){ var n=e.attributes[i].name; if(/^on/i.test(n)||n==='srcdoc'||n==='formaction') e.removeAttribute(n); } });
+  root.querySelectorAll('script,iframe,object,embed,form,base,meta,link,style').forEach(function(e){ e.remove(); });
+}
+
+/* HTML d'un convertisseur (mammoth…) nettoyé dans un document INERTE
+   (DOMParser : ni script, ni chargement d'image, ni onerror) avant affichage. */
+function _sanitizeHtmlString(html){
+  try{
+    var doc=new DOMParser().parseFromString('<!doctype html><body>'+String(html||''),'text/html');
+    _sanitizeRendered(doc.body);
+    return doc.body.innerHTML;
+  }catch(e){ return _h(String(html||'')); }
+}
+
+/* ── Données de plans (JSON écrit par n'importe quel membre via l'API) ──
+   Avant tout rendu HTML/SVG, chaque champ connu est ramené à son type :
+   identifiant, nombre, couleur, trait, image, icône SVG. Les champs inconnus
+   sont conservés ; les types d'origine aussi (ids numériques du plan de
+   scène), pour ne pas casser les comparaisons ===. */
+var _PLAN_ID_KEYS={id:1,fromId:1,toId:1,from:1,to:1,network:1,type:1,direction:1,activeCableType:1,kind:1,patch_id:1,catId:1};
+var _PLAN_NUM_KEYS={x:1,y:1,w:1,h:1,x2:1,y2:1,elSize:1,imgPx:1,imgAspect:1,width:1,height:1,rotation:1,rot:1,opacity:1,zoom:1,panX:1,panY:1,
+  textScale:1,elTextScale:1,legendScale:1,cableTextScale:1,nodeScale:1,stageScale:1,bgOpacity:1,bgRotation:1,bgX:1,bgY:1,bgScale:1,
+  wrapWidth:1,aspect:1,w0:1,riserW:1,riserH:1,size:1,fontSize:1,fs:1,ch:1,num:1,position:1,nid:1,v:1,imgW:1,imgH:1,scale:1};
+var _PLAN_IMG_KEYS={iconImg:1,bgImage:1,img:1,site_snapshot:1,stage_snapshot:1,avatar_url:1};
+function _sid(v){ return String(v==null?'':v).replace(/[^A-Za-z0-9_.:\-]/g,'').slice(0,96); }
+function _sanitizeSvgMarkup(str){
+  if(typeof str!=='string'||!str||str.length>200000) return '';
+  try{
+    var doc=new DOMParser().parseFromString(str,'image/svg+xml');
+    if(doc.getElementsByTagName('parsererror').length) return '';
+    var root=doc.documentElement; if(!root||root.localName!=='svg') return '';
+    root.querySelectorAll('script,foreignObject,iframe,object,embed,a,animate,set,animateTransform,animateMotion,handler,listener,style').forEach(function(e){ e.remove(); });
+    [root].concat([].slice.call(root.querySelectorAll('*'))).forEach(function(e){
+      for(var i=e.attributes.length-1;i>=0;i--){
+        var a=e.attributes[i], n=a.name.toLowerCase(), v=(a.value||'').trim();
+        if(n.indexOf('on')===0) e.removeAttribute(a.name);
+        else if((n==='href'||n==='xlink:href'||n==='src') && !(v.charAt(0)==='#'||/^data:image\/(png|jpe?g|gif|webp);/i.test(v))) e.removeAttribute(a.name);
+        else if(/url\s*\(|expression|javascript:/i.test(v) && n!=='d') e.removeAttribute(a.name);
+      }
+    });
+    return new XMLSerializer().serializeToString(root);
+  }catch(e){ return ''; }
+}
+function _sanitizePlanJSON(o, depth){
+  depth=depth||0;
+  if(!o||typeof o!=='object'||depth>12) return o;
+  if(Array.isArray(o)){ for(var i=0;i<o.length;i++){ if(o[i]&&typeof o[i]==='object') _sanitizePlanJSON(o[i],depth+1); } return o; }
+  Object.keys(o).forEach(function(k){
+    var v=o[k];
+    if(v&&typeof v==='object'){
+      if(k==='chs'&&Array.isArray(v)){ o[k]=v.map(function(x){ return (x&&typeof x==='object')?_sanitizePlanJSON(x,depth+1):(typeof x==='number'?x:_sid(x)); }); return; }
+      _sanitizePlanJSON(v,depth+1); return;
+    }
+    if(_PLAN_ID_KEYS[k]){ o[k]=(typeof v==='number')?(isFinite(v)?v:0):(v==null?v:_sid(v)); return; }
+    if(_PLAN_NUM_KEYS[k]){ if(typeof v!=='number'&&typeof v!=='boolean'&&v!=null){ var n=+v; o[k]=isFinite(n)?n:0; } else if(typeof v==='number'&&!isFinite(v)) o[k]=0; return; }
+    if(/colou?r$/i.test(k)||k==='fill'||k==='stroke'){ if(typeof v==='string'&&!_safeColor(v)) delete o[k]; return; }
+    if(k==='dash'){ o[k]=String(v==null?'':v).replace(/[^0-9. ]/g,'').slice(0,40); return; }
+    if(_PLAN_IMG_KEYS[k]){ if(typeof v==='string'&&v&&!_safeImgSrc(v)) o[k]=null; return; }
+    if(k==='iconSvg'){ o[k]=_sanitizeSvgMarkup(v); return; }
+  });
+  return o;
+}
+
 function _safeColor(c){
   if(!c) return '';
   return /^#[0-9a-fA-F]{3,8}$/.test(c) ? c : '';
@@ -4537,7 +4627,7 @@ ${_pdfWatermarkHtml(brand)}
 </div>
 ${meta.recapHtml||''}
 ${meta.notes?`<div class="ns"><div class="nl">Notes techniques</div>${meta.notes}</div>`:''}
-${meta.shareLink?`<div style="display:flex;align-items:center;gap:14px;padding:7px 16px;background:#f4faff;border-top:2px solid #1a8fff;border-bottom:1px solid #d0e8ff"><img src="https://api.qrserver.com/v1/create-qr-code/?size=72x72&data=${encodeURIComponent(meta.shareLink)}&color=1a8fff&bgcolor=f4faff" width="54" height="54" style="flex-shrink:0;border-radius:4px"/><div><div style="font-family:'DM Mono',monospace;font-size:7.5px;text-transform:uppercase;letter-spacing:1px;color:#1a8fff;margin-bottom:3px">Fiche a jour en ligne</div><a href="${meta.shareLink}" style="font-size:9px;color:#1a4fff;font-family:'DM Mono',monospace;word-break:break-all;text-decoration:none">${meta.shareLink}</a><div style="font-size:7.5px;color:#888;margin-top:3px;font-family:'DM Mono',monospace">Scannez le QR code ou visitez le lien pour retrouver cette fiche a jour a tout moment.</div></div></div>`:''}
+${meta.shareLink?`<div style="display:flex;align-items:center;gap:14px;padding:7px 16px;background:#f4faff;border-top:2px solid #1a8fff;border-bottom:1px solid #d0e8ff"><img src="${_qrDataUrlSync(meta.shareLink,{px:150,fg:'#1a8fff',bg:'#f4faff'})}" width="54" height="54" style="flex-shrink:0;border-radius:4px"/><div><div style="font-family:'DM Mono',monospace;font-size:7.5px;text-transform:uppercase;letter-spacing:1px;color:#1a8fff;margin-bottom:3px">Fiche a jour en ligne</div><a href="${_h(_safeHref(meta.shareLink))}" style="font-size:9px;color:#1a4fff;font-family:'DM Mono',monospace;word-break:break-all;text-decoration:none">${_h(meta.shareLink)}</a><div style="font-size:7.5px;color:#888;margin-top:3px;font-family:'DM Mono',monospace">Scannez le QR code ou visitez le lien pour retrouver cette fiche a jour a tout moment.</div></div></div>`:''}
 <div class="ft"><span class="fl">${brand.co.toUpperCase()}</span><span>${engLine||show} · ${now}</span><span>${brand.site} · ${meta.rev||''}</span></div>
 <script>window.onload=()=>window.print();<\/script>
 </body></html>`;
@@ -4604,7 +4694,7 @@ ${_pdfWatermarkHtml(brand)}
 <div class="tw">${body}</div>
 <div class="sb"><div class="si">Total <span class="sv">${OUT_CHS.length}</span> sorties</div>${typeSummary}</div>
 ${meta.notes?`<div class="ns"><div class="nl">Notes techniques</div>${meta.notes}</div>`:''}
-${meta.shareLink?`<div style="display:flex;align-items:center;gap:14px;padding:7px 16px;background:#f4faff;border-top:2px solid #1a8fff;border-bottom:1px solid #d0e8ff"><img src="https://api.qrserver.com/v1/create-qr-code/?size=72x72&data=${encodeURIComponent(meta.shareLink)}&color=1a8fff&bgcolor=f4faff" width="54" height="54" style="flex-shrink:0;border-radius:4px"/><div><div style="font-family:'DM Mono',monospace;font-size:7.5px;text-transform:uppercase;letter-spacing:1px;color:#1a8fff;margin-bottom:3px">Fiche a jour en ligne</div><a href="${meta.shareLink}" style="font-size:9px;color:#1a4fff;font-family:'DM Mono',monospace;word-break:break-all;text-decoration:none">${meta.shareLink}</a><div style="font-size:7.5px;color:#888;margin-top:3px;font-family:'DM Mono',monospace">Scannez le QR code ou visitez le lien pour retrouver cette fiche a jour a tout moment.</div></div></div>`:''}
+${meta.shareLink?`<div style="display:flex;align-items:center;gap:14px;padding:7px 16px;background:#f4faff;border-top:2px solid #1a8fff;border-bottom:1px solid #d0e8ff"><img src="${_qrDataUrlSync(meta.shareLink,{px:150,fg:'#1a8fff',bg:'#f4faff'})}" width="54" height="54" style="flex-shrink:0;border-radius:4px"/><div><div style="font-family:'DM Mono',monospace;font-size:7.5px;text-transform:uppercase;letter-spacing:1px;color:#1a8fff;margin-bottom:3px">Fiche a jour en ligne</div><a href="${_h(_safeHref(meta.shareLink))}" style="font-size:9px;color:#1a4fff;font-family:'DM Mono',monospace;word-break:break-all;text-decoration:none">${_h(meta.shareLink)}</a><div style="font-size:7.5px;color:#888;margin-top:3px;font-family:'DM Mono',monospace">Scannez le QR code ou visitez le lien pour retrouver cette fiche a jour a tout moment.</div></div></div>`:''}
 <div class="ft"><span class="fl">${brand.co.toUpperCase()}</span><span>${engLine||show} · ${now}</span><span>${brand.site} · ${meta.rev||''}</span></div>
 <script>window.onload=()=>window.print();<\/script>
 </body></html>`;
@@ -5059,7 +5149,7 @@ async function openStagePlanPicker(){
   document.body.appendChild(ov);
 }
 function _spOptHtml(kind, val, icon, title, sub, active){
-  return '<button onclick="_setStagePlan(\''+kind+'\',\''+encodeURIComponent(val)+'\')" '
+  return '<button onclick="_setStagePlan(\''+_jsq(kind)+'\',\''+_encA(val)+'\')" '
     +'style="display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:11px 13px;border:1px solid '+(active?'var(--ora)':'var(--bdr2)')+';'
     +'background:'+(active?'var(--ora-d)':'var(--surf2)')+';border-radius:8px;cursor:pointer;font-family:var(--f)">'
     +icon
@@ -5479,6 +5569,7 @@ function _bpLoadJsPDF(){
   return new Promise(function(resolve,reject){
     var s=document.createElement('script');
     s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    s.integrity='sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk'; s.crossOrigin='anonymous';
     s.onload=function(){resolve(window.jspdf.jsPDF);};
     s.onerror=function(){reject(new Error('jsPDF indisponible'));};
     document.head.appendChild(s);
@@ -5534,6 +5625,11 @@ function doSitePlanPDF(){
     contact: ($i('sppdf-contact')?.value||'').trim()
   };
   closeSitePDF();
+  /* Ces champs sont pré-remplis avec les données du show (lieu, nom…), donc
+     modifiables par n'importe quel membre : échappés avant d'être écrits dans
+     la fenêtre d'impression (même origine que l'app → accès à la session). */
+  const _linkHref=_safeHref(meta.link);
+  Object.keys(meta).forEach(function(k){ meta[k]=_h(meta[k]); });
   SitePlan.exportCanvas(canvas=>{
     const dataUrl=canvas.toDataURL('image/png');
     const now=new Date().toLocaleString('fr-FR');
@@ -5549,7 +5645,7 @@ function doSitePlanPDF(){
         +'<div style="width:6mm;height:6mm;border-radius:50%;background:#ff6b1a;display:flex;align-items:center;justify-content:center;color:#fff;font-size:3.5mm;flex-shrink:0">&#x1F517;</div>'
         +'<div style="flex:1">'
           +'<div style="font-size:2.2mm;text-transform:uppercase;letter-spacing:1px;color:#999;font-family:\'DM Mono\',monospace;margin-bottom:0.8mm">Lien</div>'
-          +'<a href="'+meta.link+'" style="font-size:2.8mm;color:#1a6fff;font-family:\'DM Mono\',monospace;word-break:break-all;text-decoration:none">'+meta.link+'</a>'
+          +'<a href="'+_h(_linkHref)+'" style="font-size:2.8mm;color:#1a6fff;font-family:\'DM Mono\',monospace;word-break:break-all;text-decoration:none">'+meta.link+'</a>'
         +'</div>'
       +'</div>' : '';
     const notesBlock=meta.notes
@@ -5773,13 +5869,12 @@ function _planExpPdfToFiles(){
    Reprend le style de l'Input List : QR code bleu + lien + sous-texte. */
 function _pdfQrFooterHtml(shareUrl){
   if(!shareUrl) return '';
-  const qr = 'https://api.qrserver.com/v1/create-qr-code/?size=120x120&data='
-    + encodeURIComponent(shareUrl) + '&color=1a8fff&bgcolor=f4faff&margin=0&qzone=1';
+  const qr = _qrDataUrlSync(shareUrl,{px:240,fg:'#1a8fff',bg:'#f4faff',quiet:1});
   return '<div class="qrft">'
-    + '<img class="qrimg" src="' + qr + '" alt="QR"/>'
+    + (qr ? '<img class="qrimg" src="' + qr + '" alt="QR"/>' : '')
     + '<div class="qrtx">'
       + '<div class="qrlbl">Fiche à jour en ligne</div>'
-      + '<a class="qrlink" href="' + shareUrl + '">' + shareUrl + '</a>'
+      + '<a class="qrlink" href="' + _h(_safeHref(shareUrl)) + '">' + _h(shareUrl) + '</a>'
       + '<div class="qrsub">Scannez le QR code ou ouvrez le lien pour retrouver cette fiche à jour à tout moment.</div>'
     + '</div>'
   + '</div>';
@@ -5801,7 +5896,54 @@ function _hex2rgb(hex){
   if(isNaN(n)||hex.length!==6) return [255,107,26];
   return [(n>>16)&255,(n>>8)&255,n&255];
 }
-/* Charge une URL image (ex. QR distant) en data URL PNG. null si échec/CORS. */
+/* ── QR codes générés localement ──
+   Auparavant les QR passaient par api.qrserver.com : l'URL de partage (qui vaut
+   clé d'accès au show) partait chez un tiers. Désormais tout reste dans le
+   navigateur (qrcode-generator, version figée + SRI). */
+var _qrLibP=null;
+function _loadQrLib(){
+  if(window.qrcode) return Promise.resolve(true);
+  if(_qrLibP) return _qrLibP;
+  _qrLibP=new Promise(function(resolve){
+    var s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js';
+    s.integrity='sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k';
+    s.crossOrigin='anonymous';
+    s.onload=function(){ resolve(!!window.qrcode); };
+    s.onerror=function(){ _qrLibP=null; resolve(false); };
+    document.head.appendChild(s);
+  });
+  return _qrLibP;
+}
+/* Canvas du QR (null si la librairie n'est pas chargée). opts : px, fg, bg, quiet (modules) */
+function _qrCanvas(text, opts){
+  opts=opts||{};
+  if(!window.qrcode||!text) return null;
+  try{
+    if(qrcode.stringToBytesFuncs&&qrcode.stringToBytesFuncs['UTF-8']) qrcode.stringToBytes=qrcode.stringToBytesFuncs['UTF-8'];
+    var q=qrcode(0,'M'); q.addData(String(text)); q.make();
+    var n=q.getModuleCount(), quiet=(opts.quiet==null?1:opts.quiet);
+    var cell=Math.max(2,Math.ceil((opts.px||240)/(n+quiet*2))), size=(n+quiet*2)*cell;
+    var cv=document.createElement('canvas'); cv.width=cv.height=size;
+    var cx=cv.getContext('2d');
+    cx.fillStyle=opts.bg||'#ffffff'; cx.fillRect(0,0,size,size);
+    cx.fillStyle=opts.fg||'#000000';
+    for(var r=0;r<n;r++) for(var c=0;c<n;c++) if(q.isDark(r,c)) cx.fillRect((c+quiet)*cell,(r+quiet)*cell,cell,cell);
+    return cv;
+  }catch(e){ return null; }
+}
+/* Data URL PNG synchrone ('' si la librairie n'est pas encore chargée) */
+function _qrDataUrlSync(text, opts){
+  var cv=_qrCanvas(text, opts);
+  return cv?cv.toDataURL('image/png'):'';
+}
+/* Version asynchrone pour jsPDF : {dataUrl,w,h} ou null */
+async function _qrImage(text, opts){
+  await _loadQrLib();
+  var cv=_qrCanvas(text, opts);
+  return cv?{dataUrl:cv.toDataURL('image/png'),w:cv.width,h:cv.height}:null;
+}
+/* Charge une URL image en data URL PNG. null si échec/CORS. */
 function _loadImgDataUrl(url){
   return new Promise(function(resolve){
     var img=new Image();
@@ -5989,8 +6131,7 @@ async function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand, opts){
       const fy=PH-QRH;
       doc.setFillColor(244,250,255); doc.rect(0,fy,PW,QRH,'F');
       doc.setFillColor(26,143,255); doc.rect(0,fy,PW,0.5,'F');
-      const qrUrl='https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=0&data='+encodeURIComponent(shareUrl);
-      const qr=await _loadImgDataUrl(qrUrl);
+      const qr=await _qrImage(shareUrl,{px:320});
       let tx=10;
       /* QR centré verticalement dans le pied → plus de débordement/crop */
       const qrSize=13, qy=fy+(QRH-qrSize)/2;
@@ -6079,6 +6220,7 @@ function _loadAutoTable(){
     return new Promise(function(resolve,reject){
       var s=document.createElement('script');
       s.src=_AUTOTABLE_CDN;
+      s.integrity='sha384-fCAW/rDWORTbQXSiB7mOg0QtQ5c+r0f544y6XoKjuVva0nMBlCpNUjiFeG5iMdS3'; s.crossOrigin='anonymous';
       s.onload=function(){ resolve(window.jspdf.jsPDF); };
       s.onerror=function(){ reject(new Error('jspdf-autotable indisponible')); };
       document.head.appendChild(s);
@@ -6287,7 +6429,7 @@ async function _openTablePdf(type, meta, brand, shareUrl){
       doc.setDrawColor(26,143,255); doc.setLineWidth(0.5); doc.line(M,footY,PW-M,footY);
       footY+=3;
       var qr=null;
-      try{ qr=await _loadImgDataUrl('https://api.qrserver.com/v1/create-qr-code/?size=140x140&margin=0&data='+encodeURIComponent(shareUrl)); }catch(e){}
+      try{ qr=await _qrImage(shareUrl,{px:320}); }catch(e){}
       var tx=M;
       if(qr&&qr.dataUrl){ try{ doc.addImage(qr.dataUrl,'PNG',M,footY,13,13); tx=M+16; }catch(e){} }
       doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(26,143,255);
@@ -6943,7 +7085,7 @@ const SynPro = (() => {
     if (_injectedSceneData !== undefined) {
       var sd = _injectedSceneData;
       _injectedSceneData = undefined;
-      state = (sd && sd.v === 1) ? sd : _defaultState();
+      state = _sanitizePlanJSON((sd && sd.v === 1) ? sd : _defaultState());
       if (CUR_SHOW && CUR_SHOW.name && state.title === 'Diagramme reseau') state.title = CUR_SHOW.name;
       loaded = true;
       if(typeof SectionUndo!=='undefined') SectionUndo.reset('syno', state);
@@ -6970,7 +7112,7 @@ const SynPro = (() => {
         sb.from('shows').update({ synoptique_data: saved }).eq('id', CUR_SHOW.id).then(function(){});
       }
     }
-    state = saved && saved.v === 1 ? saved : _defaultState();
+    state = _sanitizePlanJSON(saved && saved.v === 1 ? saved : _defaultState());
     if (CUR_SHOW.name && state.title === 'Diagramme reseau') state.title = CUR_SHOW.name;
     loaded = true;
     if(typeof SectionUndo!=='undefined') SectionUndo.reset('syno', state);
@@ -7556,7 +7698,7 @@ const SynPro = (() => {
         ? '<img src="' + _safeImgSrc(n.iconImg) + '" style="width:'+ifW+'px;height:'+ifH+'px;object-fit:fill;border-radius:6px;display:block;pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.15)"/>'
           + (label ? '<div class="sp-node-label" style="margin-top:4px">'+esc(label)+'</div>' : '')
           + spHandles
-        : '<div style="width:'+ifW+'px;height:'+ifW+'px;border:2px dashed var(--bdr2);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-direction:column;gap:6px" onclick="SynPro.uploadNodeIcon(\''+n.id+'\')">'
+        : '<div style="width:'+ifW+'px;height:'+ifW+'px;border:2px dashed var(--bdr2);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-direction:column;gap:6px" onclick="SynPro.uploadNodeIcon(\''+_jsq(n.id)+'\')">'
           + '<i class="ti ti-photo" style="font-size:28px;color:var(--muted)"></i>'
           + '<span style="font-size:10px;color:var(--muted);font-family:var(--m)">Ajouter une image</span></div>';
     } else if (n.iconImg) {
@@ -8732,6 +8874,7 @@ const SynPro = (() => {
     return new Promise(function(resolve, reject) {
       var s = document.createElement('script');
       s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      s.integrity='sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk'; s.crossOrigin='anonymous';
       s.onload = function(){ resolve(window.jspdf.jsPDF); };
       s.onerror = function(){ reject(new Error('jsPDF load failed')); };
       document.head.appendChild(s);
@@ -8927,7 +9070,7 @@ const SynPro = (() => {
   function loadSceneDirect(data){
     init();
     loaded = false;
-    state = (data && data.v === 1) ? data : _defaultState();
+    state = _sanitizePlanJSON((data && data.v === 1) ? data : _defaultState());
     bgEdit = false;
     if (CUR_SHOW && CUR_SHOW.name && state.title === 'Diagramme reseau') state.title = CUR_SHOW.name;
     selected = { kind:null, id:null };
@@ -8941,7 +9084,7 @@ const SynPro = (() => {
   }
   function getIconByType(type){ var s=spec(type); return (s&&s.icon)?s.icon:''; }
   /* Restaure un instantané (undo) sans réinitialiser la vue. */
-  function setData(d){ if(!d) return; state=d; loaded=true; bgEdit=false; selected={kind:null,id:null}; render(); }
+  function setData(d){ if(!d) return; state=_sanitizePlanJSON(d); loaded=true; bgEdit=false; selected={kind:null,id:null}; render(); }
   return { init, show, render, resetLoaded, isLoaded, getData, setData, cancelCable, _saveNow, buildExportSvg: _buildExportSvg, setSceneId, setSceneData, loadSceneDirect, getIconByType, uploadNodeIcon, clearNodeIcon, adjImgPx,
            loadBg, setBgOpacity, setBgRotation, rotateBg, scaleBg, toggleBgEdit, clearBg };
 })();
@@ -9242,7 +9385,7 @@ const BandPlan=(()=>{
       const open=st.cats[cat.id]!==false;
       const total=items.length+customs.length;
       h+='<div class="bp-cat'+(open?'':' collapsed')+'">'
-        +'<div class="bp-cat-hd" onclick="BandPlan.toggleCat(\''+cat.id+'\')">'
+        +'<div class="bp-cat-hd" onclick="BandPlan.toggleCat(\''+_jsq(cat.id)+'\')">'
         +'<i class="ti ti-chevron-down" style="font-size:9px;color:var(--ora);transition:transform .15s ease;width:8px;display:inline-block;'+(open?'':'transform:rotate(-90deg)')+'"></i>'
         +'<div class="bp-cat-dot" style="background:'+cat.color+'"></div>'
         +'<span>'+cat.label+'</span>'
@@ -9255,20 +9398,20 @@ const BandPlan=(()=>{
           /* Use the same vintage SVG as the canvas so palette icons match
              exactly what users will see when they drop them. */
           const svgInner=_vSVG(it.t,c);
-          h+='<div class="bp-item" draggable="true" ondragstart="BandPlan._pdrag(event,\''+it.t+'\')" ondblclick="BandPlan._pdblclick(\''+it.t+'\')">'
+          h+='<div class="bp-item" draggable="true" ondragstart="BandPlan._pdrag(event,\''+_jsq(it.t)+'\')" ondblclick="BandPlan._pdblclick(\''+_jsq(it.t)+'\')">'
             +'<div class="bp-item-ic" style="background:#fff;border-color:'+c+'55;padding:3px"><svg viewBox="0 0 72 72" style="width:100%;height:100%;display:block">'+svgInner+'</svg></div>'
             +'<div class="bp-item-nm">'+it.n+'</div>'
             +'</div>';
         });
         customs.forEach(it=>{
           const c=it.c||cat.color;
-          h+='<div class="bp-item bp-item-custom" draggable="true" ondragstart="BandPlan._pdrag(event,\''+it.t+'\')" ondblclick="BandPlan._pdblclick(\''+it.t+'\')">'
-            +'<button class="bp-item-del-ci" onclick="event.stopPropagation();BandPlan.removeCustomItem(\''+it.t+'\')" title="Supprimer">\xd7</button>'
+          h+='<div class="bp-item bp-item-custom" draggable="true" ondragstart="BandPlan._pdrag(event,\''+_jsq(it.t)+'\')" ondblclick="BandPlan._pdblclick(\''+_jsq(it.t)+'\')">'
+            +'<button class="bp-item-del-ci" onclick="event.stopPropagation();BandPlan.removeCustomItem(\''+_jsq(it.t)+'\')" title="Supprimer">\xd7</button>'
             +'<div class="bp-item-ic" style="background:#fff;border-color:'+c+'66;border-style:dashed;color:'+c+';font-size:20px;font-family:var(--m);font-weight:700;display:flex;align-items:center;justify-content:center">'+(it.e||'?')+'</div>'
             +'<div class="bp-item-nm">'+it.n+'</div>'
             +'</div>';
         });
-        if(!q)h+='<button class="bp-item-add" onclick="BandPlan.addCustomItem(\''+cat.id+'\')"><i class="ti ti-plus" style="font-size:10px"></i>Ajouter</button>';
+        if(!q)h+='<button class="bp-item-add" onclick="BandPlan.addCustomItem(\''+_jsq(cat.id)+'\')"><i class="ti ti-plus" style="font-size:10px"></i>Ajouter</button>';
         h+='</div>';
       }
       h+='</div>';
@@ -9894,7 +10037,7 @@ const BandPlan=(()=>{
           return '<div class="bp-insp-sec">'
             +'<div class="bp-insp-title"><i class="ti ti-list-numbers" style="color:var(--ora)"></i>Input List — Kit</div>'
             +_listSel
-            +linkedRows.map(r=>'<div class="bp-kit-ch-row"><i class="ti ti-plug-connected" style="color:var(--ora);font-size:11px"></i><span>CH '+r.ch+' — '+(r.long_name||r.short_name||'—')+'</span><button class="bp-kit-ch-del" onclick="BandPlan.unlinkKitCh(\''+r.id+'\')" title="Dissocier">\xd7</button></div>').join('')
+            +linkedRows.map(r=>'<div class="bp-kit-ch-row"><i class="ti ti-plug-connected" style="color:var(--ora);font-size:11px"></i><span>CH '+r.ch+' — '+(r.long_name||r.short_name||'—')+'</span><button class="bp-kit-ch-del" onclick="BandPlan.unlinkKitCh(\''+_jsq(r.id)+'\')" title="Dissocier">\xd7</button></div>').join('')
             +multiBlock
             +'<button class="bp-il-create" onclick="BandPlan.createKitCh()"><i class="ti ti-plus"></i>Creer un canal</button>'
             +'</div>';
@@ -9936,9 +10079,9 @@ const BandPlan=(()=>{
               +'<div class="bp-insp-title"><i class="ti ti-photo" style="color:var(--ora)"></i>Image</div>'
               +'<div style="font-size:9px;font-family:var(--m);color:var(--muted);margin-bottom:5px">Taille</div>'
               +'<div style="display:flex;align-items:center;gap:7px;margin-bottom:9px">'
-              +'<button class="spl-ts-btn" onclick="BandPlan.adjImgPx(\''+sel.id+'\',-40)">-</button>'
+              +'<button class="spl-ts-btn" onclick="BandPlan.adjImgPx(\''+_jsq(sel.id)+'\',-40)">-</button>'
               +'<span style="flex:1;text-align:center;font-size:10px;color:var(--muted)">'+(sel.imgPx||240)+'px</span>'
-              +'<button class="spl-ts-btn" onclick="BandPlan.adjImgPx(\''+sel.id+'\',40)">+</button>'
+              +'<button class="spl-ts-btn" onclick="BandPlan.adjImgPx(\''+_jsq(sel.id)+'\',40)">+</button>'
               +'</div>'
               +_iconImgInspHtml(sel.id, !!sel.iconImg, sel.iconImg||'', "BandPlan.uploadElementIcon('"+sel.id+"')", "BandPlan.clearElementIcon('"+sel.id+"')")
               +'</div>')
@@ -10243,6 +10386,7 @@ const BandPlan=(()=>{
   // ---- save/load ----
   function getData(){return {els:st.els.map(e=>({...e})),nid:st.nid,view:{...st.view},textScale:st.textScale,nodeScale:st.nodeScale,stageScale:st.stageScale,viewMode:st.viewMode,bgImage:st.bgImage||null,bgOpacity:st.bgOpacity??100,bgX:st.bgX||0,bgY:st.bgY||0,bgScale:st.bgScale??1,hideStage:!!st.hideStage};}
   function load(data){
+    _sanitizePlanJSON(data);
     st.els=[];st.nid=1;
     _cv()?.querySelectorAll('.bp-node').forEach(n=>n.remove());
     st.bgImage=null;st.bgOpacity=100;st.bgX=0;st.bgY=0;st.bgScale=1;_bgEdit=false;st.hideStage=false;
@@ -11017,11 +11161,11 @@ const SitePlan = (() => {
       const isCur = ct2.id === state.activeCableType;
       const _isPro = (typeof userPlan==='function') && userPlan()==='pro';
       const editBtn = _isPro ?
-        `<button class="spl-cable-del" data-edit="${ct2.id}" title="Renommer / couleur" onclick="event.stopPropagation();editCableType('${ct2.id}')" style="opacity:.6"><i class="ti ti-pencil" style="font-size:10px"></i></button>` : '';
+        `<button class="spl-cable-del" data-edit="${ct2.id}" title="Renommer / couleur" onclick="event.stopPropagation();editCableType('${_jsq(ct2.id)}')" style="opacity:.6"><i class="ti ti-pencil" style="font-size:10px"></i></button>` : '';
       const delBtn = ct2.builtin ? '' :
-        `<button class="spl-cable-del" data-del="${ct2.id}" title="Supprimer" onclick="event.stopPropagation();SitePlan.deleteCustomCableType('${ct2.id}')">✕</button>`;
+        `<button class="spl-cable-del" data-del="${ct2.id}" title="Supprimer" onclick="event.stopPropagation();SitePlan.deleteCustomCableType('${_jsq(ct2.id)}')">✕</button>`;
       return `<div style="display:flex;align-items:center;gap:2px">` +
-        `<button class="spl-cable-btn${isCur?' active':''}" style="--c:${_c2};flex:1" onclick="SitePlan.setActiveCableType('${ct2.id}')">` +
+        `<button class="spl-cable-btn${isCur?' active':''}" style="--c:${_c2};flex:1" onclick="SitePlan.setActiveCableType('${_jsq(ct2.id)}')">` +
         `<div class="spl-cable-dot-sm" style="${ds}"></div>${esc(ct2.label)}</button>${editBtn}${delBtn}</div>`;
     }).join('');
     const addBtn =
@@ -11124,7 +11268,7 @@ const SitePlan = (() => {
               handles+
               `<button class="spl-conn" data-conn="${el.id}" title="Tirer une liaison"><i class="ti ti-plug-connected" style="font-size:11px"></i></button>`
             : `<button class="spl-del" data-del="${el.id}">×</button>`+
-              `<div style="width:${ifW}px;height:${ifW}px;border:2px dashed var(--bdr2);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;cursor:pointer" onclick="SitePlan.uploadElementIcon('${el.id}')">`+
+              `<div style="width:${ifW}px;height:${ifW}px;border:2px dashed var(--bdr2);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;cursor:pointer" onclick="SitePlan.uploadElementIcon('${_jsq(el.id)}')">`+
               `<i class="ti ti-photo" style="font-size:28px;color:var(--muted)"></i><span style="font-size:10px;color:var(--muted);font-family:var(--m)">Ajouter une image</span></div>`+
               `<button class="spl-conn" data-conn="${el.id}" title="Tirer une liaison"><i class="ti ti-plug-connected" style="font-size:11px"></i></button>`;
         } else {
@@ -11348,7 +11492,7 @@ const SitePlan = (() => {
       const connList = state.cables.filter(c=>c.fromId===el.id||c.toId===el.id).map(c=>{
         const other=state.elements.find(e=>e.id===(c.fromId===el.id?c.toId:c.fromId));
         const cc=ct(c.type);
-        return `<div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--txt2);margin-bottom:3px;cursor:pointer" onclick="SitePlan.selectCable('${c.id}')"><div style="width:18px;height:2px;background:${cc.color};border-radius:1px;flex-shrink:0"></div><span>${other?esc(other.label):'?'}</span><span style="color:var(--muted)">(${cc.label})</span></div>`;
+        return `<div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--txt2);margin-bottom:3px;cursor:pointer" onclick="SitePlan.selectCable('${_jsq(c.id)}')"><div style="width:18px;height:2px;background:${cc.color};border-radius:1px;flex-shrink:0"></div><span>${other?esc(other.label):'?'}</span><span style="color:var(--muted)">(${cc.label})</span></div>`;
       }).join('');
       const WRAP_MIN=60, WRAP_MAX=600;
       const textBlock = el.type==='text_lbl'
@@ -11380,7 +11524,7 @@ const SitePlan = (() => {
         `<span id="si-etval" style="flex:1;font-size:10px;color:var(--muted);text-align:center">${Math.round(elTs*100)}%</span>`+
         `<button class="spl-ts-btn" id="si-etplus">A+</button></div>`+
         (connList?`<div style="padding-top:8px;border-top:1px solid var(--bdr2);margin-bottom:6px"><div style="font-size:9px;color:var(--muted);font-family:var(--m);margin-bottom:5px">CONNEXIONS</div>${connList}</div>`:``) +
-        ((el.iconImg || el.type==='image_frame') ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr2)"><div style="font-size:12px;font-family:var(--f);color:var(--muted);margin-bottom:5px;font-weight:500">Taille de l'image</div><div style="display:flex;align-items:center;gap:7px"><button class="spl-ts-btn" onclick="SitePlan.adjImgPx('${el.id}',-16)">−</button><span id="si-img-px-lbl" style="flex:1;text-align:center;font-size:10px;color:var(--muted)">${el.imgPx||el.elSize||72}px</span><button class="spl-ts-btn" onclick="SitePlan.adjImgPx('${el.id}',16)">+</button></div></div>` : '') +
+        ((el.iconImg || el.type==='image_frame') ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr2)"><div style="font-size:12px;font-family:var(--f);color:var(--muted);margin-bottom:5px;font-weight:500">Taille de l'image</div><div style="display:flex;align-items:center;gap:7px"><button class="spl-ts-btn" onclick="SitePlan.adjImgPx('${_jsq(el.id)}',-16)">−</button><span id="si-img-px-lbl" style="flex:1;text-align:center;font-size:10px;color:var(--muted)">${el.imgPx||el.elSize||72}px</span><button class="spl-ts-btn" onclick="SitePlan.adjImgPx('${_jsq(el.id)}',16)">+</button></div></div>` : '') +
         (el.type!=='text_lbl' ? _iconImgInspHtml(el.id, !!el.iconImg, el.iconImg||'', `SitePlan.uploadElementIcon('${el.id}')`, `SitePlan.clearElementIcon('${el.id}')`) : '') +
         (el.type!=='image_frame' ? `<label style="display:flex;align-items:center;gap:8px;margin-top:11px;cursor:pointer;font-size:11px;color:var(--txt2);user-select:none"><input type="checkbox" class="cb" id="si-nobg" ${el.noBg?'checked':''}/> Fond transparent</label>` : '') +
         `<button class="btn sm" style="width:100%;margin-top:10px" id="si-dup"><i class="ti ti-copy"></i> Dupliquer <span style="font-size:8px;color:var(--muted);font-family:var(--m);margin-left:3px">Ctrl/⌘ D</span></button>`+
@@ -11931,6 +12075,7 @@ const SitePlan = (() => {
   function clearBg() { state.bgImage=null; state.bgRotation=0; const sl=$('site-bg-rotation'); if(sl)sl.value=0; const lbl=$('site-bg-rot-val'); if(lbl)lbl.textContent='0°'; applyBg(); saveSite(); }
 
   function load(data) {
+    _sanitizePlanJSON(data);
     if(data){
       state.elements=data.elements||[];
       state.cables=data.cables||[];
@@ -11944,7 +12089,7 @@ const SitePlan = (() => {
     if(Array.isArray(data?.cableTypes)){
       data.cableTypes.forEach(t=>{
         if(t&&t.id&&!CABLE_TYPES.find(x=>x.id===t.id))
-          CABLE_TYPES.push({id:t.id,label:t.label||t.id,color:_safeColor(t.color)||'#888888',dash:t.dash||'',builtin:false});
+          CABLE_TYPES.push({id:String(t.id).slice(0,64),label:String(t.label||t.id).slice(0,80),color:_safeColor(t.color)||'#888888',dash:String(t.dash||'').replace(/[^0-9. ]/g,'').slice(0,40),builtin:false});
       });
     }
     if(data?.activeCableType) state.activeCableType=data.activeCableType;
@@ -12433,9 +12578,9 @@ function openSessMoveMenu(showId,btn,ev){
   var cur=_sessFolderOf(showId);
   var _e=function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
   var items='<div class="sess-mm-hd">Déplacer vers…</div>';
-  items+='<button class="sess-mm-item'+(!cur?' on':'')+'" onclick="moveShowToFolder(\''+showId+'\',\'\')"><i class="ti ti-inbox"></i>Sans dossier'+(!cur?'<i class="ti ti-check sess-mm-ck"></i>':'')+'</button>';
+  items+='<button class="sess-mm-item'+(!cur?' on':'')+'" onclick="moveShowToFolder(\''+_jsq(showId)+'\',\'\')"><i class="ti ti-inbox"></i>Sans dossier'+(!cur?'<i class="ti ti-check sess-mm-ck"></i>':'')+'</button>';
   SESS_FOLDERS.forEach(function(f){
-    items+='<button class="sess-mm-item'+(cur===f.id?' on':'')+'" onclick="moveShowToFolder(\''+showId+'\',\''+f.id+'\')"><span class="sess-fdot" style="background:'+f.color+'"></span>'+_e(f.name)+(cur===f.id?'<i class="ti ti-check sess-mm-ck"></i>':'')+'</button>';
+    items+='<button class="sess-mm-item'+(cur===f.id?' on':'')+'" onclick="moveShowToFolder(\''+_jsq(showId)+'\',\''+_jsq(f.id)+'\')"><span class="sess-fdot" style="background:'+f.color+'"></span>'+_e(f.name)+(cur===f.id?'<i class="ti ti-check sess-mm-ck"></i>':'')+'</button>';
   });
   items+='<div class="sess-mm-sep"></div><button class="sess-mm-item" onclick="_closeSessMoveMenu();createSessFolder()"><i class="ti ti-folder-plus" style="color:var(--ora)"></i>Nouveau dossier…</button>';
   var menu=document.createElement('div');
@@ -12584,7 +12729,7 @@ function renderSessions(){
         +'<span class="sess-storage-lbl">'+(_bytes>0?_fmtSize(_bytes):'0 o')+(_files?' <span class="sess-storage-fc">· '+_files+' fichier'+(_files>1?'s':'')+'</span>':'')+'</span>'
       +'</div>';
     }
-    return '<div class="sess-card'+(isActive?' active':'')+'" draggable="true" ondragstart="_sessDragStart(event,\''+s.id+'\')" ondragend="_sessDragEnd(event)" onclick="sessionSwitch(\''+s.id+'\')">'+
+    return '<div class="sess-card'+(isActive?' active':'')+'" draggable="true" ondragstart="_sessDragStart(event,\''+_jsq(s.id)+'\')" ondragend="_sessDragEnd(event)" onclick="sessionSwitch(\''+_jsq(s.id)+'\')">'+
       '<div class="sess-body">'+
         '<div class="sess-top">'+
           '<div class="sess-icon-wrap sess-mono" style="background:'+mono.c.bg+';border-color:'+mono.c.bd+';color:'+mono.c.fg+'">'+_e(mono.ini)+'</div>'+
@@ -12605,11 +12750,11 @@ function renderSessions(){
         '<div class="sess-members-row">'+renderMembersRow(s)+'</div>'+
       '</div>'+
       '<div class="sess-footer">'+
-        '<button class="sess-open-btn" onclick="event.stopPropagation();sessionSwitch(\''+s.id+'\')">'+(isActive?'<i class="ti ti-check"></i> Show ouvert':'Ouvrir')+'</button>'+
-        '<button class="sess-icon-btn'+(_fold?' has-folder':'')+'" onclick="event.stopPropagation();openSessMoveMenu(\''+s.id+'\',this,event)" title="Classer dans un dossier"'+(_fold?' style="color:'+_fold.color+';border-color:'+_fold.color+'55"':'')+'><i class="ti ti-folder"></i></button>'+
-        (isOwn?'<button class="sess-icon-btn" onclick="event.stopPropagation();editShowMeta(\''+s.id+'\')" title="Modifier"><i class="ti ti-pencil"></i></button>':'')+
-        (isOwn?'<button class="sess-icon-btn danger" onclick="event.stopPropagation();delShow(\''+s.id+'\')" title="Supprimer"><i class="ti ti-trash"></i></button>':'')+
-        (!isOwn?'<button class="sess-icon-btn" onclick="leaveShow(\''+s.id+'\',event)" title="Quitter ce show" style="color:var(--muted)" onmouseover="this.style.color=\'var(--err)\';this.style.borderColor=\'rgba(255,77,106,.3)\'" onmouseout="this.style.color=\'var(--muted)\';this.style.borderColor=\'\'"><i class="ti ti-door-exit"></i></button>':'')+
+        '<button class="sess-open-btn" onclick="event.stopPropagation();sessionSwitch(\''+_jsq(s.id)+'\')">'+(isActive?'<i class="ti ti-check"></i> Show ouvert':'Ouvrir')+'</button>'+
+        '<button class="sess-icon-btn'+(_fold?' has-folder':'')+'" onclick="event.stopPropagation();openSessMoveMenu(\''+_jsq(s.id)+'\',this,event)" title="Classer dans un dossier"'+(_fold?' style="color:'+_fold.color+';border-color:'+_fold.color+'55"':'')+'><i class="ti ti-folder"></i></button>'+
+        (isOwn?'<button class="sess-icon-btn" onclick="event.stopPropagation();editShowMeta(\''+_jsq(s.id)+'\')" title="Modifier"><i class="ti ti-pencil"></i></button>':'')+
+        (isOwn?'<button class="sess-icon-btn danger" onclick="event.stopPropagation();delShow(\''+_jsq(s.id)+'\')" title="Supprimer"><i class="ti ti-trash"></i></button>':'')+
+        (!isOwn?'<button class="sess-icon-btn" onclick="leaveShow(\''+_jsq(s.id)+'\',event)" title="Quitter ce show" style="color:var(--muted)" onmouseover="this.style.color=\'var(--err)\';this.style.borderColor=\'rgba(255,77,106,.3)\'" onmouseout="this.style.color=\'var(--muted)\';this.style.borderColor=\'\'"><i class="ti ti-door-exit"></i></button>':'')+
       '</div>'+
     '</div>';
   }
@@ -12652,7 +12797,7 @@ function renderSessions(){
     var bar='';
     bar+='<button class="sess-fchip'+(SESS_FOLDER_VIEW==='all'?' on':'')+'" onclick="setSessFolderView(\'all\')"><i class="ti ti-stack-2" style="font-size:13px"></i>Toutes<span class="sess-fcount">'+allCount+'</span></button>';
     SESS_FOLDERS.forEach(function(f){
-      bar+='<button class="sess-fchip'+(SESS_FOLDER_VIEW===f.id?' on':'')+'" data-folder="'+f.id+'" ondragover="_sessChipDragOver(event)" ondragleave="_sessChipDragLeave(event)" ondrop="_sessChipDrop(event,\''+f.id+'\')" onclick="setSessFolderView(\''+f.id+'\')"><span class="sess-fdot" style="background:'+f.color+'"></span>'+_e(f.name)+'<span class="sess-fcount">'+_sessFolderCount(f.id)+'</span></button>';
+      bar+='<button class="sess-fchip'+(SESS_FOLDER_VIEW===f.id?' on':'')+'" data-folder="'+f.id+'" ondragover="_sessChipDragOver(event)" ondragleave="_sessChipDragLeave(event)" ondrop="_sessChipDrop(event,\''+_jsq(f.id)+'\')" onclick="setSessFolderView(\''+_jsq(f.id)+'\')"><span class="sess-fdot" style="background:'+f.color+'"></span>'+_e(f.name)+'<span class="sess-fcount">'+_sessFolderCount(f.id)+'</span></button>';
     });
     if(SESS_FOLDERS.length){
       bar+='<button class="sess-fchip'+(SESS_FOLDER_VIEW==='none'?' on':'')+'" data-folder="" ondragover="_sessChipDragOver(event)" ondragleave="_sessChipDragLeave(event)" ondrop="_sessChipDrop(event,\'\')" onclick="setSessFolderView(\'none\')"><i class="ti ti-inbox" style="font-size:12px"></i>Sans dossier<span class="sess-fcount">'+noneCount+'</span></button>';
@@ -12660,8 +12805,8 @@ function renderSessions(){
     bar+='<button class="sess-fchip-new" onclick="createSessFolder()"><i class="ti ti-folder-plus" style="font-size:13px"></i>Dossier</button>';
     var curF=(SESS_FOLDER_VIEW!=='all'&&SESS_FOLDER_VIEW!=='none')?_sessFolderById(SESS_FOLDER_VIEW):null;
     if(curF){
-      bar+='<span class="sess-fbar-colors">'+_SESS_FOLDER_COLORS.map(function(c){return '<span class="sess-fcolor" style="background:'+c+(curF.color===c?';border-color:#fff':'')+'" title="Couleur du dossier" onclick="recolorSessFolder(\''+curF.id+'\',\''+c+'\')"></span>';}).join('')+'</span>';
-      bar+='<span class="sess-fbar-tools"><button onclick="renameSessFolder(\''+curF.id+'\')" title="Renommer le dossier"><i class="ti ti-pencil"></i></button><button class="danger" onclick="deleteSessFolder(\''+curF.id+'\')" title="Supprimer le dossier"><i class="ti ti-trash"></i></button></span>';
+      bar+='<span class="sess-fbar-colors">'+_SESS_FOLDER_COLORS.map(function(c){return '<span class="sess-fcolor" style="background:'+c+(curF.color===c?';border-color:#fff':'')+'" title="Couleur du dossier" onclick="recolorSessFolder(\''+_jsq(curF.id)+'\',\''+_jsq(c)+'\')"></span>';}).join('')+'</span>';
+      bar+='<span class="sess-fbar-tools"><button onclick="renameSessFolder(\''+_jsq(curF.id)+'\')" title="Renommer le dossier"><i class="ti ti-pencil"></i></button><button class="danger" onclick="deleteSessFolder(\''+_jsq(curF.id)+'\')" title="Supprimer le dossier"><i class="ti ti-trash"></i></button></span>';
     }
     fb.innerHTML=bar;
   })();
@@ -12898,7 +13043,7 @@ function renderTplQuickBar(){
   if(!all.length){el.innerHTML='<div style="font-size:11px;color:var(--muted);padding:4px 2px">Aucun template</div>';return;}
   const _et=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   el.innerHTML=all.map(t=>`
-    <button class="tpl-dd-item" onclick="applyTemplate('${_et(t.id)}');closeTplDd()">
+    <button class="tpl-dd-item" onclick="applyTemplate('${_jsq(t.id)}');closeTplDd()">
       <span style="font-size:14px">${/^\p{Emoji}/u.test(t.icon||'')?_et(t.icon):'📋'}</span>${_et(t.name)}<span style="font-family:var(--m);font-size:9px;color:var(--muted);margin-left:auto">${(t.channels||[]).length} CH</span>
     </button>`).join('');
 }
@@ -13013,13 +13158,13 @@ function renderSPShows(){
     var meta=[s.venue,_fmtShowDate(s.show_date)].filter(Boolean).join(' · ')||'Pas de lieu';
     var chCount=isCur&&CHS.length?`<span style="font-size:9px;font-family:var(--m);background:var(--ora-d);color:var(--ora);border:1px solid rgba(255,107,26,.2);border-radius:4px;padding:0 5px;margin-left:4px">${CHS.length} CH</span>`:'';
     var mo=_mono(s.name);
-    return `<div class="sp-show ${isCur?'active':''}" onclick="spSwitch('${_e2(s.id)}')" style="${isCur?'border-left:2px solid var(--ora);padding-left:10px':''}">
+    return `<div class="sp-show ${isCur?'active':''}" onclick="spSwitch('${_jsq(s.id)}')" style="${isCur?'border-left:2px solid var(--ora);padding-left:10px':''}">
       <div class="sp-show-ico" style="background:${mo.c[0]};border-color:${mo.c[2]};color:${mo.c[1]};font-family:var(--m);font-weight:700;font-size:11px;letter-spacing:.3px">${_e2(mo.ini)}</div>
       <div style="flex:1;min-width:0">
         <div class="sp-show-name" style="display:flex;align-items:center;gap:3px">${_e2(s.name)}${chCount}</div>
         <div class="sp-show-meta">${_e2(meta)}</div>
       </div>
-      <button class="sp-show-del" onclick="delShow('${_e2(s.id)}',event)"><i class="ti ti-trash"></i></button>
+      ${(!s.owner_id||s.owner_id===ME?.id)?`<button class="sp-show-del" onclick="delShow('${_jsq(s.id)}',event)"><i class="ti ti-trash"></i></button>`:''}
     </div>`;
   }).join('');
 }
@@ -13164,7 +13309,7 @@ function getAllTpls(){return[...BLTPLS,...USER_TPLS];}
 function renderSPTpls(){
   const _et=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   document.getElementById('sp-tpls-builtin').innerHTML=BLTPLS.map(t=>`
-    <div class="sp-tpl ${SEL_TPL===t.id?'active':''}" onclick="selTpl('${_et(t.id)}')">
+    <div class="sp-tpl ${SEL_TPL===t.id?'active':''}" onclick="selTpl('${_jsq(t.id)}')">
       <span style="font-size:16px;width:20px;text-align:center">${/^\p{Emoji}/u.test(t.icon||'')?_et(t.icon):'📋'}</span>
       <span style="flex:1">${_et(t.name)}</span>
       <span style="font-family:var(--m);font-size:9px;color:var(--muted)">${t.channels.length} CH</span>
@@ -13176,11 +13321,11 @@ function renderSPTplsUser(){
   const el=document.getElementById('sp-tpls-user');if(!el)return;
   if(USER_TPLS.length===0){el.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px 0">Aucun template.</div>';return;}
   el.innerHTML=USER_TPLS.map(t=>`
-    <div class="sp-tpl usr ${SEL_TPL===t.id?'active':''}" onclick="selTpl('${_et(t.id)}')">
+    <div class="sp-tpl usr ${SEL_TPL===t.id?'active':''}" onclick="selTpl('${_jsq(t.id)}')">
       <span style="font-size:16px;width:20px;text-align:center">${/^\p{Emoji}/u.test(t.icon||'')?_et(t.icon):'📋'}</span>
       <span style="flex:1">${_et(t.name)}</span>
       <span style="font-family:var(--m);font-size:9px;color:var(--muted)">${(t.channels||[]).length} CH</span>
-      <button class="sp-tpl-del" onclick="event.stopPropagation();delUserTpl('${_et(t.id)}')"><i class="ti ti-trash"></i></button>
+      <button class="sp-tpl-del" onclick="event.stopPropagation();delUserTpl('${_jsq(t.id)}')"><i class="ti ti-trash"></i></button>
     </div>`).join('');
 }
 
@@ -13280,8 +13425,8 @@ function loadNotifications(){
         +'</div>'
       +'</div>'
       +'<div class="sp-notif-acts">'
-        +'<button class="btn pri sm" onclick="acceptShowInvite(\''+inv.id+'\')"><i class="ti ti-check"></i>Accepter</button>'
-        +'<button class="btn-decline" onclick="declineShowInvite(\''+inv.id+'\')"><i class="ti ti-x"></i>Refuser</button>'
+        +'<button class="btn pri sm" onclick="acceptShowInvite(\''+_jsq(inv.id)+'\')"><i class="ti ti-check"></i>Accepter</button>'
+        +'<button class="btn-decline" onclick="declineShowInvite(\''+_jsq(inv.id)+'\')"><i class="ti ti-x"></i>Refuser</button>'
       +'</div>'
     +'</div>';
   }).join('');
@@ -13426,7 +13571,8 @@ function _avHtml(name, avatarUrl, plan, sizePx, bgColor, textColor){
   const sz=sizePx||38;
   const ring=_planRingClass(plan);
   const fs=Math.round(sz*0.37);
-  const init=(name||'?').split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
+  const init=_h((name||'?').split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase());
+  avatarUrl=_safeImgSrc(avatarUrl);
   const inner=avatarUrl
     ? `<img src="${avatarUrl}" style="width:${sz}px;height:${sz}px;object-fit:cover;border-radius:50%;display:block" onerror="this.style.display='none';this.nextSibling.style.display='flex'">`
       +`<span style="display:none;width:${sz}px;height:${sz}px;border-radius:50%;background:${bgColor||'var(--surf3)'};color:${textColor||'var(--txt)'};font-size:${fs}px;font-weight:700;align-items:center;justify-content:center;flex-shrink:0">${init}</span>`
@@ -13640,7 +13786,7 @@ async function _compressImageToB64(file, maxDim, capBytes){
 async function _pdfFirstPageToB64(file, maxDim, capBytes){
   const pdfjs = await _loadPdfJs();
   const buf   = await file.arrayBuffer();
-  const pdf   = await pdfjs.getDocument({ data: buf }).promise;
+  const pdf   = await pdfjs.getDocument({ data: buf, isEvalSupported: false }).promise;
   const pg    = await pdf.getPage(1);
   const vp1   = pg.getViewport({ scale: 1 });
   // Plafond à 6x : un PDF au format carte de visite ne doit pas produire un canvas énorme.
@@ -14981,9 +15127,9 @@ function _openFileViewer(url, displayName, opts){
     _openPdfJs(url, content);
     return;
   } else if (info.preview === 'video') {
-    content.innerHTML = '<video controls autoplay src="' + url + '"></video>';
+    content.innerHTML = '<video controls autoplay src="' + _h(url) + '"></video>';
   } else if (info.preview === 'audio') {
-    content.innerHTML = '<div class="fich-audio-wrap"><audio controls autoplay src="' + url + '"></audio></div>';
+    content.innerHTML = '<div class="fich-audio-wrap"><audio controls autoplay src="' + _h(url) + '"></audio></div>';
   } else if (info.preview === 'image') {
     content.innerHTML = '<img src="' + url + '" alt="' + _fEsc(displayName) + '" style="max-width:100%;max-height:80vh;object-fit:contain;border-radius:8px;display:block;margin:0 auto"/>';
   } else if (info.preview === 'docx') {
@@ -15022,6 +15168,7 @@ function _loadPdfJs(){
   return new Promise(function(resolve, reject){
     var s = document.createElement('script');
     s.src = PDFJS_CDN;
+    s.integrity='sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e'; s.crossOrigin='anonymous';
     s.onload = function(){
       window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
       resolve(window.pdfjsLib);
@@ -15035,7 +15182,9 @@ async function _openPdfJs(url, container){
   container.innerHTML = '<div class="fich-pdf-loading"><div class="spinner"></div><span>Chargement du PDF…</span></div>';
   try {
     const pdfjs = await _loadPdfJs();
-    const pdf   = await pdfjs.getDocument({ url }).promise;
+    /* isEvalSupported:false — parade officielle à la CVE-2024-4367 : sans elle,
+       un PDF piégé déposé par un membre exécute du JS dans l'app à l'ouverture. */
+    const pdf   = await pdfjs.getDocument({ url, isEvalSupported: false }).promise;
     container.innerHTML = '';
 
     /* Barre de navigation */
@@ -15541,6 +15690,7 @@ function _loadMammoth(){
   return new Promise(function(resolve,reject){
     var s=document.createElement('script');
     s.src='https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js';
+    s.integrity='sha384-/cXAMbzovUIKbBERjPmR3SnPTh8siWr5lsvFYj1Uq4XP0yaJUZJmsh0YXyGv5P0y'; s.crossOrigin='anonymous';
     s.onload=function(){ resolve(window.mammoth); };
     s.onerror=reject;
     document.head.appendChild(s);
@@ -15558,13 +15708,13 @@ async function _openDocxViewer(url, displayName, b2Path, container){
     container.innerHTML=
       '<div class="fich-docx-bar">'
         +'<span class="fich-docx-status" id="docx-status">Lecture seule — cliquez dans le document pour modifier</span>'
-        +'<button class="btn pri sm" id="docx-save-btn" onclick="_saveDocxEdits(\''+_fEsc(b2Path)+'\',\''+_fEsc(displayName)+'\')" style="display:none"><i class="ti ti-device-floppy"></i>Enregistrer</button>'
+        +'<button class="btn pri sm" id="docx-save-btn" onclick="_saveDocxEdits(\''+_jsq(b2Path)+'\',\''+_jsq(displayName)+'\')" style="display:none"><i class="ti ti-device-floppy"></i>Enregistrer</button>'
         +'<a class="btn ghost sm" href="'+url+'" download="'+_fEsc(displayName)+'" target="_blank"><i class="ti ti-download"></i>Télécharger</a>'
       +'</div>'
       +'<div class="fich-docx-wrap">'
         +'<div class="fich-docx-body" id="docx-body" contenteditable="true" '
           +'oninput="document.getElementById(\'docx-status\').textContent=\'Modifié — pensez à enregistrer\';document.getElementById(\'docx-save-btn\').style.display=\'\';">'
-          +result.value
+          +_sanitizeHtmlString(result.value)
         +'</div>'
       +'</div>';
 
@@ -15624,6 +15774,7 @@ function _loadJSZip(){
   return new Promise(function(resolve,reject){
     var s=document.createElement('script');
     s.src='https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
+    s.integrity='sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG'; s.crossOrigin='anonymous';
     s.onload=function(){ resolve(window.JSZip); };
     s.onerror=reject;
     document.head.appendChild(s);
@@ -15703,8 +15854,8 @@ async function _openOdtViewer(url, displayName, b2Path, container){
           return css ? '<span style="'+css+'">'+convertChildren(node)+'</span>' : convertChildren(node);
         }
         case 'a': {
-          const href = node.getAttribute('xlink:href')||'#';
-          return '<a href="'+_fEsc(href)+'" target="_blank" rel="noopener">'+convertChildren(node)+'</a>';
+          const href = _safeHref(node.getAttribute('xlink:href'));
+          return href ? '<a href="'+_fEsc(href)+'" target="_blank" rel="noopener noreferrer">'+convertChildren(node)+'</a>' : convertChildren(node);
         }
         case 'line-break': return '<br>';
         case 'tab': return '&emsp;';
@@ -15757,7 +15908,11 @@ function _loadSheetJS(){
   if(window.XLSX) return Promise.resolve(window.XLSX);
   return new Promise(function(resolve,reject){
     var s=document.createElement('script');
-    s.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    /* SheetJS 0.20.3 (CDN officiel) : corrige la pollution de prototype
+       CVE-2023-30533 et le ReDoS CVE-2024-22363 de la 0.18.5 — un .xlsx piégé
+       déposé par un membre pouvait l'exploiter à l'ouverture. */
+    s.src='https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+    s.integrity='sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT'; s.crossOrigin='anonymous';
     s.onload=function(){ resolve(window.XLSX); };
     s.onerror=reject;
     document.head.appendChild(s);
@@ -15808,7 +15963,7 @@ function _renderXlsxSheet(container, wb, sheetIdx){
       var isNum=cell&&(cell.t==='n');
       var align=isNum?'text-align:right':'';
       tableHtml+='<td contenteditable="true" data-r="'+r+'" data-c="'+c2+'" style="'+align+'" '
-        +'oninput="_xlsxCellEdit(this,\''+sheetName+'\')" '
+        +'oninput="_xlsxCellEdit(this,\''+_jsq(sheetName)+'\')" '
         +'onfocus="this.dataset.before=this.textContent">'+_fEsc(val)+'</td>';
     }
     tableHtml+='</tr>';
@@ -16134,8 +16289,8 @@ function _renderMobSceneBar(type){
   if(!scenes.length){ bar.style.display='none'; return; }
   bar.innerHTML = scenes.map(function(s){
     const active = s.id===CUR_SCENES[type];
-    return '<button class="mob-scene-chip'+(active?' active':'')+'" onclick="switchScene(\''+type+'\',\''+s.id+'\')">'+_oh(s.name)+'</button>';
-  }).join('') + '<button class="mob-scene-chip add" onclick="addScene(\''+type+'\')" title="Nouvelle version">+</button>';
+    return '<button class="mob-scene-chip'+(active?' active':'')+'" onclick="switchScene(\''+_jsq(type)+'\',\''+_jsq(s.id)+'\')">'+_oh(s.name)+'</button>';
+  }).join('') + '<button class="mob-scene-chip add" onclick="addScene(\''+_jsq(type)+'\')" title="Nouvelle version">+</button>';
   bar.style.display = 'flex';
 }
 
@@ -16312,16 +16467,18 @@ async function openPortal() {
         else if(data.renews_at) info.push('Renouvelé le '+new Date(data.renews_at).toLocaleDateString('fr-FR'));
         cd.textContent = info.join(' · ') || 'Actif';
       }
-      var portalUrl = data.customer_portal_url || data.update_payment_url;
+      /* URL du portail Lemon Squeezy : https uniquement, jamais injectée telle quelle */
+      var portalUrl = _safeHref(data.customer_portal_url || data.update_payment_url);
+      if(!/^https:\/\//i.test(portalUrl)) portalUrl = '';
       if(payBtn && portalUrl){
-        payBtn.onclick = function(){ window.open(portalUrl, '_blank'); };
+        payBtn.onclick = function(){ window.open(portalUrl, '_blank', 'noopener'); };
         payBtn.querySelector('span').textContent = 'Gérer mon abonnement / paiement';
       }
       if(invList && portalUrl){
         invList.innerHTML = '<div style="padding:14px;text-align:center;font-size:12px;color:var(--muted)">'
           +'<i class="ti ti-external-link" style="font-size:24px;color:var(--ora);display:block;margin-bottom:8px"></i>'
           +'Vos factures et reçus sont disponibles dans le portail client sécurisé Lemon Squeezy.'
-          +'<br><a href="'+portalUrl+'" target="_blank" style="color:var(--ora);text-decoration:underline;font-family:var(--m);font-size:11px;display:inline-block;margin-top:8px">Ouvrir le portail →</a></div>';
+          +'<br><a href="'+_h(portalUrl)+'" target="_blank" rel="noopener noreferrer" style="color:var(--ora);text-decoration:underline;font-family:var(--m);font-size:11px;display:inline-block;margin-top:8px">Ouvrir le portail →</a></div>';
       }
     }
   }catch(e){ console.warn('portal:',e); }
@@ -16415,7 +16572,8 @@ async function _loadSubDetails() {
     }
 
     // Période (mensuel / annuel)
-    var portalUrl = data.customer_portal_url || data.update_payment_url;
+    var portalUrl = _safeHref(data.customer_portal_url || data.update_payment_url);
+    if (!/^https:\/\//i.test(portalUrl)) portalUrl = '';
     set('sub-period-info', data.renews_at ? 'Mensuel' : 'Annuel');
 
     // Prochaine facture (estimation)
@@ -16426,7 +16584,8 @@ async function _loadSubDetails() {
     // Bouton Gérer → portail LS
     var manageBtn = document.querySelector('#sub-active-block button[onclick="openPortal()"]');
     if (manageBtn && portalUrl) {
-      manageBtn.setAttribute('onclick', 'window.open("' + portalUrl + '","_blank")');
+      manageBtn.removeAttribute('onclick');
+      manageBtn.onclick = function(){ window.open(portalUrl, '_blank', 'noopener'); };
     }
 
   } catch(e) { console.warn('[_loadSubDetails]', e); }
@@ -17248,12 +17407,21 @@ function _svFs(imgId, title){
     try{
       var _prj=await _getShared();
       _sharedResp=_prj; // réutilisé au rendu (pas de 2e fetch identique)
+      /* Données publiques issues de la base : types forcés avant tout rendu. */
+      if(_prj&&_prj.data){
+        _sanitizePlanJSON(_prj.data.show);
+        (_prj.data.scenes||[]).forEach(function(sc){ _sanitizePlanJSON(sc); });
+        (_prj.data.channels||[]).forEach(function(ch){ _sanitizePlanJSON(ch); });
+        _sanitizePlanJSON(_prj.data.overrideRider);
+      }
       if(_prj&&!_prj.error&&_prj.data){
         preShow=_prj.data.show;
         /* Pour un ?link=, les sections/config viennent de overrideRider */
         if(linkId&&_prj.data.overrideRider){
           var or=_prj.data.overrideRider;
-          sections=or.sections&&or.sections.length>1?or.sections:or.sections&&or.sections.length===1&&or.sections[0]!=='il'?or.sections:['il','out','syno','stage','site'];
+          /* La sélection du propriétaire est respectée telle quelle : un lien
+             « Input List seule » (['il']) affichait auparavant TOUTES les sections. */
+          sections=(Array.isArray(or.sections)&&or.sections.length)?or.sections.filter(function(x){return ['il','out','syno','stage','site','cloud'].indexOf(x)>=0;}):['il','out','syno','stage','site'];
           rTitle=or.title||'';rNote=or.note||'';rInfo=or.info||'';
           rFiles=or.files||[];
           /* Injecter les snapshots dans le preShow.stage_data.rider pour que
@@ -17330,7 +17498,7 @@ function _svFs(imgId, title){
     tabsHtml='<div id="sv-tabs" style="position:relative;flex-shrink:0;display:flex;border-bottom:1px solid #1e2a3a;margin-bottom:0;overflow-x:auto;background:#080e1a;padding:0 '+(isMobile?'4px':'14px')+'">';
     allSections.filter(function(s){return _VALID_SEC_SET.has(s);}).forEach(function(s,i){
       var active=i===0;
-      tabsHtml+='<button id="svt-'+s+'" style="'+(active?SV_TABCSS_ON:SV_TABCSS)+'" onclick="_svSwitch(\''+esc(s)+'\')">'
+      tabsHtml+='<button id="svt-'+s+'" style="'+(active?SV_TABCSS_ON:SV_TABCSS)+'" onclick="_svSwitch(\''+_jsq(s)+'\')">'
         +(secIcons[s]||'')+'<span>'+(secLabels[s]||'')+'</span></button>';
     });
     tabsHtml+='</div>';
@@ -17557,7 +17725,7 @@ function _svFs(imgId, title){
     var html='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">';
     scenes.forEach(function(s){
       var active=s.id===cur;
-      html+='<button onclick="_svSelectScene(\''+jsq(sceneType)+'\',\''+jsq(s.id)+'\')" '
+      html+='<button onclick="_svSelectScene(\''+_jsq(jsq(sceneType))+'\',\''+_jsq(jsq(s.id))+'\')" '
         +'style="padding:6px 12px;border:1px solid '+(active?'#ff6b1a':'#1e2a3a')+';'
         +'background:'+(active?'rgba(255,107,26,.12)':'transparent')+';'
         +'color:'+(active?'#ff6b1a':'#5a6a80')+';border-radius:6px;font-size:11px;'
@@ -17618,7 +17786,7 @@ function _svFs(imgId, title){
       h+='<div style="margin-bottom:12px;display:flex;gap:6px;flex-wrap:wrap">';
       IL_PATCHES.forEach(function(p){
         var active=p.id===CUR_PATCH_ID;
-        h+='<button onclick="_svSelectPatch(\''+jsq(p.id)+'\')" style="padding:6px 12px;border:1px solid '+(active?'#ff6b1a':'#1e2a3a')+';background:'+(active?'var(--ora-d)':'transparent')+';color:'+(active?'#ff6b1a':'#5a6a80')+';border-radius:6px;font-size:11px;font-weight:'+(active?'700':'500')+';cursor:pointer;font-family:var(--f);transition:all .1s">'+esc(p.name)+'</button>';
+        h+='<button onclick="_svSelectPatch(\''+_jsq(jsq(p.id))+'\')" style="padding:6px 12px;border:1px solid '+(active?'#ff6b1a':'#1e2a3a')+';background:'+(active?'var(--ora-d)':'transparent')+';color:'+(active?'#ff6b1a':'#5a6a80')+';border-radius:6px;font-size:11px;font-weight:'+(active?'700':'500')+';cursor:pointer;font-family:var(--f);transition:all .1s">'+esc(p.name)+'</button>';
       });
       h+='</div>';
     }
@@ -18057,7 +18225,7 @@ function _svFs(imgId, title){
       _selOut='<div style="margin-bottom:12px;display:flex;gap:6px;flex-wrap:wrap">';
       IL_PATCHES.forEach(function(p){
         var active=p.id===CUR_PATCH_ID;
-        _selOut+='<button onclick="_svSelectOutPatch(\''+jsq(p.id)+'\')" style="padding:6px 12px;border:1px solid '+(active?'#ff6b1a':'#1e2a3a')+';background:'+(active?'var(--ora-d)':'transparent')+';color:'+(active?'#ff6b1a':'#5a6a80')+';border-radius:6px;font-size:11px;font-weight:'+(active?'700':'500')+';cursor:pointer;font-family:var(--f);transition:all .1s">'+esc(p.name)+'</button>';
+        _selOut+='<button onclick="_svSelectOutPatch(\''+_jsq(jsq(p.id))+'\')" style="padding:6px 12px;border:1px solid '+(active?'#ff6b1a':'#1e2a3a')+';background:'+(active?'var(--ora-d)':'transparent')+';color:'+(active?'#ff6b1a':'#5a6a80')+';border-radius:6px;font-size:11px;font-weight:'+(active?'700':'500')+';cursor:pointer;font-family:var(--f);transition:all .1s">'+esc(p.name)+'</button>';
       });
       _selOut+='</div>';
     }
@@ -18343,7 +18511,7 @@ function _svFs(imgId, title){
             +'<div style="font-size:11px;color:#5a6a80">Appuyez pour ouvrir dans votre navigateur</div>'
           +'</div>'
           +'<div style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:280px">'
-            +'<a href="'+url+'" target="_blank" rel="noopener" '
+            +'<a href="'+esc(url)+'" target="_blank" rel="noopener" '
               +'style="display:flex;align-items:center;justify-content:center;gap:8px;padding:13px 20px;background:#ff6b1a;color:#000;font-weight:700;border-radius:8px;text-decoration:none;font-size:14px">'
               +'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>'
               +'Ouvrir le PDF'
@@ -18356,17 +18524,17 @@ function _svFs(imgId, title){
           +'</div>'
         +'</div>';
       }
-      return '<iframe src="'+url+'" style="width:100%;height:100%;min-height:70vh;flex:1;border:none;border-radius:8px;background:#111;display:block" allowfullscreen></iframe>';
+      return '<iframe src="'+esc(url)+'" style="width:100%;height:100%;min-height:70vh;flex:1;border:none;border-radius:8px;background:#111;display:block" allowfullscreen></iframe>';
     }
     if(['mp4','mov','webm','avi'].includes(ext)){
-      return '<video src="'+url+'" controls style="width:100%;max-height:70vh;border-radius:8px;background:#000;display:block"></video>';
+      return '<video src="'+esc(url)+'" controls style="width:100%;max-height:70vh;border-radius:8px;background:#000;display:block"></video>';
     }
     if(['mp3','wav','m4a','aac','flac','ogg'].includes(ext)){
       var fname=fpath.split('/').pop().replace(/^[a-z0-9]+_/i,'');
       return '<div style="padding:40px 20px;text-align:center">'
         +'<div style="font-size:48px;margin-bottom:16px">&#127925;</div>'
         +'<div style="font-size:14px;font-weight:600;color:#c8d4e0;margin-bottom:20px">'+esc(fname)+'</div>'
-        +'<audio src="'+url+'" controls style="width:100%;max-width:480px;accent-color:#ff6b1a"></audio>'
+        +'<audio src="'+esc(url)+'" controls style="width:100%;max-width:480px;accent-color:#ff6b1a"></audio>'
         +'</div>';
     }
     // Other formats: download card
@@ -18375,7 +18543,7 @@ function _svFs(imgId, title){
     return '<div style="text-align:center;padding:60px 20px">'
       +'<div style="font-size:52px;margin-bottom:16px">&#128196;</div>'
       +'<div style="font-size:15px;font-weight:700;color:#c8d4e0;margin-bottom:6px">'+esc(fname)+'</div>'
-      +'<div style="font-size:10px;font-family:DM Mono,monospace;color:#5a6a80;margin-bottom:24px">'+ext2+'</div>'
+      +'<div style="font-size:10px;font-family:DM Mono,monospace;color:#5a6a80;margin-bottom:24px">'+esc(ext2)+'</div>'
       +'<button onclick="_svDownloadAttach('+_activeFile+')" style="display:inline-flex;align-items:center;gap:8px;padding:10px 22px;background:#ff6b1a;color:#000;font-weight:700;border-radius:8px;font-size:13px;cursor:pointer;border:none">&#11123; Telecharger</button>'
       +'</div>';
   }

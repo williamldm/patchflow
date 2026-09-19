@@ -20,7 +20,10 @@ const NAVY = '#1d3a5f', ORANGE = '#ff6b1a';
 const transporter = nodemailer.createTransport({
   host: SMTP_HOST, port: 465, secure: true,
   auth: { user: SMTP_USER, pass: SMTP_PASS },
-  tls: { rejectUnauthorized: false },
+  /* Certificat vérifié (Let's Encrypt, valide pour mail.patchflow.fr et
+     patchflow.fr) : sans vérification, une interception pouvait récupérer
+     le mot de passe SMTP et le contenu des emails (liens de connexion…). */
+  tls: { minVersion: 'TLSv1.2' },
 });
 
 function roleLabel(role: string) {
@@ -77,7 +80,13 @@ serve(async (req) => {
     const { showId, email, role } = await req.json();
     if (!showId || !email || !role) return json(400, { error: 'showId, email et role requis' });
     if (!VALID_ROLES.has(role)) return json(400, { error: 'Rôle invalide (admin|editor|viewer)' });
-    const normalEmail = email.trim().toLowerCase();
+    if (typeof showId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(showId)) {
+      return json(400, { error: 'Show invalide' });
+    }
+    const normalEmail = String(email).trim().toLowerCase();
+    if (normalEmail.length > 254 || !/^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/.test(normalEmail)) {
+      return json(400, { error: 'Adresse email invalide' });
+    }
 
     /* ── 3. Verify caller owns the show ── */
     const { data: show } = await sbAdmin.from('shows').select('id,name,owner_id').eq('id', showId).maybeSingle();
@@ -86,6 +95,23 @@ serve(async (req) => {
 
     /* ── 4. Cannot invite yourself ── */
     if (normalEmail === caller.email?.toLowerCase()) return json(400, { error: 'Vous ne pouvez pas vous inviter vous-même' });
+
+    /* ── 4b. Anti-abus ── sans plafond, un compte gratuit pouvait envoyer des
+       emails en masse depuis le domaine PatchFlow avec un nom de show piégé
+       (hameçonnage), ou bombarder une même adresse (le renvoi mettait à jour
+       la même ligne, donc rien n'était compté). */
+    const dayAgo = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    const { count: sentToday } = await sbAdmin.from('show_invites')
+      .select('id', { count: 'exact', head: true })
+      .eq('invited_by', caller.id).gte('created_at', dayAgo);
+    if ((sentToday ?? 0) >= 30) {
+      return json(429, { error: "Limite atteinte : 30 invitations en 24 h. Réessayez plus tard." });
+    }
+    const { data: prevInv } = await sbAdmin.from('show_invites')
+      .select('created_at').eq('show_id', showId).eq('invited_email', normalEmail).maybeSingle();
+    if (prevInv?.created_at && Date.now() - new Date(prevInv.created_at).getTime() < 3600 * 1000) {
+      return json(429, { error: 'Invitation déjà envoyée à cette adresse il y a moins d\'une heure.' });
+    }
 
     // Échappement HTML pour les valeurs injectées dans les emails (anti-phishing/XSS)
     const esc = (s: string) => String(s ?? '')
@@ -122,6 +148,7 @@ serve(async (req) => {
         invited_by: caller.id,
         show_name: showNameRaw,
         inviter_name: inviterNameRaw,
+        created_at: new Date().toISOString(),
       }, { onConflict: 'show_id,invited_email' }).select('id').maybeSingle();
       if (invErr) throw invErr;
       const inviteId = invRow?.id || '';
@@ -158,6 +185,7 @@ serve(async (req) => {
         invited_by: caller.id,
         show_name: showNameRaw,
         inviter_name: inviterNameRaw,
+        created_at: new Date().toISOString(),
       }, { onConflict: 'show_id,invited_email' }).select('id').maybeSingle();
       if (invErr) throw invErr;
       const inviteId = invRow?.id || '';
@@ -182,7 +210,7 @@ serve(async (req) => {
 
   } catch (e) {
     console.error('invite-member error:', e);
-    return json(500, { error: String((e as Error).message || e) });
+    return json(500, { error: "Erreur lors de l'envoi de l'invitation" });
   }
 });
 

@@ -11,7 +11,10 @@ const SITE_URL = Deno.env.get('SITE_URL') ?? 'https://patchflow.fr';
 const transporter = nodemailer.createTransport({
   host: SMTP_HOST, port: 465, secure: true,
   auth: { user: SMTP_USER, pass: SMTP_PASS },
-  tls: { rejectUnauthorized: false },
+  /* Certificat vérifié (Let's Encrypt, valide pour mail.patchflow.fr et
+     patchflow.fr) : sans vérification, une interception pouvait récupérer
+     le mot de passe SMTP et le contenu des emails (liens de connexion…). */
+  tls: { minVersion: 'TLSv1.2' },
 });
 
 const ORANGE = '#ff6b1a', NAVY = '#1d3a5f';
@@ -70,13 +73,16 @@ serve(async (req) => {
 
     /* Validate redirect_to to prevent open-redirect phishing attacks */
     const rawRedirect = ed.redirect_to || '';
-    const safeRedirect = rawRedirect.startsWith(SITE_URL)
-      ? rawRedirect
-      : SITE_URL + '/app.html';
+    /* Origine EXACTE : startsWith(SITE_URL) laissait passer
+       « https://patchflow.fr.site-pirate.com » (redirection ouverte). */
+    let safeRedirect = SITE_URL + '/app.html';
+    try {
+      if (rawRedirect && new URL(rawRedirect).origin === new URL(SITE_URL).origin) safeRedirect = rawRedirect;
+    } catch (_) { /* URL invalide → page par défaut */ }
 
     const verifyUrl =
       `${Deno.env.get('SUPABASE_URL')}/auth/v1/verify` +
-      `?token=${ed.token_hash}&type=${type}` +
+      `?token=${encodeURIComponent(ed.token_hash)}&type=${encodeURIComponent(type)}` +
       `&redirect_to=${encodeURIComponent(safeRedirect)}`;
 
     let subject: string, html: string;

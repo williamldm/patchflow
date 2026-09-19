@@ -196,7 +196,7 @@ serve(async (req) => {
       console.error('[inputlist-ai] Anthropic error', aiResp.status, txt);
       const friendly = (aiResp.status === 429 || aiResp.status === 529)
         ? 'Service IA momentanément surchargé, réessayez dans un instant.'
-        : `IA ${aiResp.status}: ${txt.slice(0, 200)}`;
+        : `Le service IA n'a pas pu traiter la demande (${aiResp.status}).`;
       return json({ error: friendly }, 502);
     }
 
@@ -239,6 +239,6 @@ serve(async (req) => {
 
   } catch (e) {
     console.error('[inputlist-ai]', e);
-    return json({ error: e instanceof Error ? e.message : String(e) }, 500);
+    return json({ error: 'Erreur serveur' }, 500);
   }
 });

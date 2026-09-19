@@ -19,7 +19,10 @@ const transporter = nodemailer.createTransport({
   port: SMTP_PORT,
   secure: SMTP_PORT === 465,
   auth: { user: SMTP_USER, pass: SMTP_PASS },
-  tls: { rejectUnauthorized: false },
+  /* Certificat vérifié (Let's Encrypt, valide pour mail.patchflow.fr et
+     patchflow.fr) : sans vérification, une interception pouvait récupérer
+     le mot de passe SMTP et le contenu des emails (liens de connexion…). */
+  tls: { minVersion: 'TLSv1.2' },
 });
 
 const DAYS_BEFORE_PURGE = 20;

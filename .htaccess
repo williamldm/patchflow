@@ -1,4 +1,51 @@
 # ════════════════════════════════════════════════════════════════════
+#  Sécurité
+# ════════════════════════════════════════════════════════════════════
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # HTTPS obligatoire (la session de connexion ne doit jamais transiter en
+  # clair). La 2e condition évite une boucle si un proxy termine le TLS.
+  RewriteCond %{HTTPS} !=on
+  RewriteCond %{HTTP:X-Forwarded-Proto} !=https [NC]
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+  # Le dépôt est déployé tel quel : le code des edge functions, les
+  # migrations SQL et le serveur de dev n'ont rien à faire en ligne → 404.
+  RewriteRule ^supabase(/|$) - [R=404,NC,L]
+  RewriteRule \.(py|ts|sql|md|ya?ml|toml|sh|lock|log|bak|env|ini|conf)$ - [R=404,NC,L]
+</IfModule>
+
+# Filet de sécurité si mod_rewrite était indisponible.
+<FilesMatch "\.(py|ts|sql|md|ya?ml|toml|sh|lock|log|bak|env|ini|conf)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+</FilesMatch>
+
+<IfModule mod_headers.c>
+  # Le navigateur retient le HTTPS pendant un an.
+  Header always set Strict-Transport-Security "max-age=31536000"
+  # Pas d'interprétation « créative » des types de fichiers.
+  Header always set X-Content-Type-Options "nosniff"
+  # Anti-clickjacking : le site ne peut pas être affiché dans un cadre tiers.
+  Header always set X-Frame-Options "SAMEORIGIN"
+  # Les liens de partage (?link=…) valent clé d'accès : jamais d'URL
+  # complète envoyée aux sites tiers.
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()"
+  Header always set Cross-Origin-Opener-Policy "same-origin-allow-popups"
+
+  # Content-Security-Policy : seules nos sources connues peuvent fournir du
+  # script, des styles, des polices ou recevoir des données.
+  # 'unsafe-inline' reste nécessaire (gestionnaires onclick="…" dans le HTML).
+  <FilesMatch "\.html?$">
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.sheetjs.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; connect-src 'self' data: blob: https://ofiiutcueoogmtdvaupg.supabase.co wss://ofiiutcueoogmtdvaupg.supabase.co https://*.backblazeb2.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.sheetjs.com; frame-src 'self' blob: https://*.backblazeb2.com; worker-src 'self' blob: https://cdnjs.cloudflare.com; child-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests"
+  </FilesMatch>
+</IfModule>
+
+# ════════════════════════════════════════════════════════════════════
 #  Cache — objectif : un déploiement est visible IMMÉDIATEMENT après un
 #  simple rechargement, sans avoir à ouvrir une fenêtre privée.
 #

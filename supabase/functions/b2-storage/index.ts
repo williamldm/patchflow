@@ -133,28 +133,46 @@ async function getUser(req: Request) {
   return error ? null : user;
 }
 
-/* Vérifie que l'utilisateur a accès à ce show (propriétaire OU membre).
-   Cache le résultat dans une Map pour éviter de re-requêter à chaque appel. */
-async function userCanAccessShow(userId: string, showId: string, _cache: Map<string, boolean>): Promise<boolean> {
-  if (!showId || typeof showId !== 'string') return false;
-  // Validation UUID basique (évite injection SQL via showId malformé)
-  if (!UUID_RE.test(showId)) return false;
+/* Niveau d'accès de l'utilisateur sur un show : 'owner' | 'admin' | 'editor'
+   | 'viewer' | null. Mis en cache pour les actions multi-chemins.
+   Le rôle compte : un membre « Lecture seule » (viewer) peut lister et
+   télécharger, mais ni envoyer, ni déplacer, ni supprimer — la clé service
+   role utilisée ici contourne la RLS, c'est donc à cette fonction de
+   l'appliquer (comme can_edit_show côté base). */
+type Access = 'owner' | 'admin' | 'editor' | 'viewer' | null;
+async function userAccess(userId: string, showId: string, _cache: Map<string, Access>): Promise<Access> {
+  if (!showId || typeof showId !== 'string' || !UUID_RE.test(showId)) return null;
   const key = userId + ':' + showId;
   if (_cache.has(key)) return _cache.get(key)!;
   const sbAdmin = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   );
-  // Propriétaire ?
+  let level: Access = null;
   const { data: ownerRow } = await sbAdmin
     .from('shows').select('id').eq('id', showId).eq('owner_id', userId).maybeSingle();
-  if (ownerRow) { _cache.set(key, true); return true; }
-  // Membre ?
-  const { data: memberRow } = await sbAdmin
-    .from('show_members').select('show_id').eq('show_id', showId).eq('user_id', userId).maybeSingle();
-  const ok = !!memberRow;
-  _cache.set(key, ok);
-  return ok;
+  if (ownerRow) level = 'owner';
+  else {
+    const { data: memberRow } = await sbAdmin
+      .from('show_members').select('role').eq('show_id', showId).eq('user_id', userId).maybeSingle();
+    if (memberRow) {
+      const r = String(memberRow.role || 'viewer');
+      level = (r === 'admin' || r === 'editor') ? r : 'viewer';
+    }
+  }
+  _cache.set(key, level);
+  return level;
+}
+const canRead  = (a: Access) => a !== null;
+const canWrite = (a: Access) => a === 'owner' || a === 'admin' || a === 'editor';
+
+/* Chemin d'objet sûr : pas de remontée, pas de double séparateur, pas de
+   caractère de contrôle ni d'antislash (défense en profondeur : les clés S3
+   sont opaques, mais un navigateur normalise « .. » dans une URL signée). */
+function safePath(p: unknown): p is string {
+  return typeof p === 'string' && p.length > 0 && p.length <= 1024
+    && !p.includes('..') && !p.includes('\\') && !p.includes('//')
+    && !/[\x00-\x1f\x7f]/.test(p);
 }
 
 /* Extrait le showId du début d'une clé B2 (format: "showId/...") */
@@ -186,7 +204,7 @@ serve(async (req) => {
        les pièces jointes sans avoir de compte. */
     if (action === 'public-rider-file') {
       const { path, showId, linkId, downloadName } = body as { path: string; showId: string; linkId?: string; downloadName?: string };
-      if (!path || !showId || !UUID_RE.test(showId)) {
+      if (!safePath(path) || !showId || !UUID_RE.test(showId)) {
         return json({ error: 'Paramètres invalides' }, 400);
       }
       // Vérifier que le path commence bien par showId/
@@ -202,6 +220,9 @@ serve(async (req) => {
       // le fichier est autorisé si la section "cloud" est partagée OU si le path
       // figure explicitement dans la liste des fichiers du lien.
       let fileAllowed = false;
+      // Sections effectivement partagées par CE lien (sert aussi à l'image de plan).
+      let sharedSections: string[] = [];
+      let shareActive = false;
       // linkId = code court (?link=k7m3p9q) ou UUID legacy : on accepte les deux.
       const linkIsUuid = !!linkId && UUID_RE.test(linkId);
       const linkIsCode = !!linkId && !linkIsUuid && /^[A-Za-z0-9]{4,32}$/.test(linkId);
@@ -210,6 +231,8 @@ serve(async (req) => {
         rq = linkIsUuid ? rq.eq('id', linkId) : rq.eq('code', linkId);
         const { data: rider } = await rq.maybeSingle();
         if (rider && rider.show_id === showId) {
+          shareActive = true;
+          sharedSections = rider.sections || [];
           const cloudShared = (rider.sections || []).includes('cloud');
           const allowedFiles: string[] = rider.config?.files || [];
           const stageImg: string = rider.config?.stage_image || '';
@@ -220,13 +243,17 @@ serve(async (req) => {
           .from('shows').select('stage_data').eq('id', showId).maybeSingle();
         const rider = showRow?.stage_data?.rider;
         if (rider) {
+          shareActive = true;
+          sharedSections = Array.isArray(rider.sections) && rider.sections.length ? rider.sections : ['il', 'out', 'syno', 'stage', 'site'];
           const cloudShared = (rider.sections || []).includes('cloud');
           fileAllowed = cloudShared || (rider.files || []).includes(path) || rider.stage_image === path;
         }
       }
       // Plan de scène assigné à une input list : l'image liée à un patch
-      // (shows.il_patches[].stageImage) est exposable via les liens partagés.
-      if (!fileAllowed) {
+      // (shows.il_patches[].stageImage) est exposable via les liens partagés —
+      // UNIQUEMENT si un partage actif inclut l'Input List ou le plan de scène.
+      // (Avant, elle était téléchargeable même sans aucun lien de partage.)
+      if (!fileAllowed && shareActive && (sharedSections.includes('il') || sharedSections.includes('stage'))) {
         const { data: showRow2 } = await sbAdmin
           .from('shows').select('il_patches').eq('id', showId).maybeSingle();
         const patches = showRow2?.il_patches;
@@ -248,7 +275,7 @@ serve(async (req) => {
     if (action === 'public-cloud-list') {
       const { prefix, showId, linkId } = body as { prefix: string; showId: string; linkId?: string };
       if (!showId || !UUID_RE.test(showId)) return json({ error: 'showId invalide' }, 400);
-      if (!prefix.startsWith(showId + '/')) return json({ error: 'Préfixe non autorisé' }, 403);
+      if (!safePath(prefix) || !prefix.startsWith(showId + '/')) return json({ error: 'Préfixe non autorisé' }, 403);
       const sbAdmin = createClient(
         Deno.env.get('SUPABASE_URL')!,
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
@@ -311,12 +338,14 @@ serve(async (req) => {
     if (!user) return json({ error: 'Unauthorized — session token invalid or missing' }, 401);
 
     // Cache de validation d'accès pour réduire les requêtes DB sur les actions multi-paths
-    const accessCache = new Map<string, boolean>();
-    const deny = () => json({ error: 'Forbidden — access denied to this show' }, 403);
-    const checkPath = async (p: string): Promise<boolean> => {
+    const accessCache = new Map<string, Access>();
+    const deny = () => json({ error: 'Accès refusé' }, 403);
+    const checkPath = async (p: unknown, needWrite = false): Promise<boolean> => {
+      if (!safePath(p)) return false;
       const sid = extractShowId(p);
       if (!sid) return false;
-      return userCanAccessShow(user.id, sid, accessCache);
+      const a = await userAccess(user.id, sid, accessCache);
+      return needWrite ? canWrite(a) : canRead(a);
     };
 
     /* ── purge-old-versions : supprime les versions obsolètes d'un fichier ──
@@ -325,7 +354,7 @@ serve(async (req) => {
        versions de cette clé et on supprime tout sauf la version courante. */
     if (action === 'purge-old-versions') {
       const { path } = body as { path: string };
-      if (!path || !(await checkPath(path))) return deny();
+      if (!(await checkPath(path, true))) return deny();
       const res = await s3.send(new ListObjectVersionsCommand({ Bucket: B2_BUCKET, Prefix: path }));
       // Prefix peut matcher des clés voisines → on ne garde QUE la clé exacte.
       const versions = (res.Versions || []).filter((v) => v.Key === path);
@@ -405,7 +434,7 @@ serve(async (req) => {
     // ── upload-presigned : return a presigned PUT URL ──
     if (action === 'upload-presigned') {
       const { path, size } = body as { path: string; contentType?: string; size?: number };
-      if (!path || !(await checkPath(path))) return deny();
+      if (!(await checkPath(path, true))) return deny();
       // Validation chemin / nom de fichier (anti-traversal, anti caractères de contrôle)
       if (path.includes('..') || path.includes('\\') || path.includes('//')) {
         return json({ error: 'Chemin invalide' }, 400);
@@ -448,12 +477,14 @@ serve(async (req) => {
     // ── move (copy + delete) ──
     if (action === 'move') {
       const { fromPath, toPath } = body as { fromPath: string; toPath: string };
-      if (!fromPath || !toPath) return deny();
-      // Le from ET le to doivent appartenir au même show et au user
+      if (!safePath(fromPath) || !safePath(toPath)) return deny();
+      // Le from ET le to doivent appartenir au même show, avec droit d'écriture
       const fromSid = extractShowId(fromPath);
       const toSid = extractShowId(toPath);
       if (!fromSid || fromSid !== toSid) return deny();
-      if (!(await userCanAccessShow(user.id, fromSid, accessCache))) return deny();
+      if (!canWrite(await userAccess(user.id, fromSid, accessCache))) return deny();
+      const toName = baseName(toPath);
+      if (!safeFilename(toName) || BLOCKED_EXT.has(extOf(toName))) return json({ error: 'Nom de fichier invalide' }, 400);
       await s3.send(new CopyObjectCommand({
         Bucket: B2_BUCKET,
         CopySource: encodeURIComponent(B2_BUCKET + '/' + fromPath),
@@ -466,10 +497,11 @@ serve(async (req) => {
     // ── delete one or many objects ──
     if (action === 'delete') {
       const { paths } = body as { paths: string[] };
-      if (!paths?.length) return json({ data: {}, error: null });
-      // Vérifier que chaque path appartient à un show auquel l'user a accès
+      if (!Array.isArray(paths) || !paths.length) return json({ data: {}, error: null });
+      if (paths.length > 1000) return json({ error: 'Trop de fichiers' }, 400);
+      // Chaque path doit appartenir à un show où l'user a le droit d'écriture
       for (const p of paths) {
-        if (!(await checkPath(p))) return deny();
+        if (!(await checkPath(p, true))) return deny();
       }
       if (paths.length === 1) {
         await s3.send(new DeleteObjectCommand({ Bucket: B2_BUCKET, Key: paths[0] }));
@@ -485,7 +517,7 @@ serve(async (req) => {
     // ── storage-used : total bytes for a show (for storage bar) ──
     if (action === 'storage-used') {
       const { showId } = body as { showId: string };
-      if (!showId || !(await userCanAccessShow(user.id, showId, accessCache))) return deny();
+      if (!showId || !canRead(await userAccess(user.id, showId, accessCache))) return deny();
       let total = 0;
       let continuationToken: string | undefined;
       do {
@@ -574,6 +606,6 @@ serve(async (req) => {
 
   } catch (err) {
     console.error('[b2-storage]', err);
-    return json({ error: err instanceof Error ? err.message : String(err) }, 500);
+    return json({ error: 'Erreur serveur' }, 500);  // détail dans les logs uniquement
   }
 });
