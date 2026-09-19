@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<script>/* iOS zoome automatiquement sur tout champ < 16px et ne dézoome pas : on
+   l'en empêche (iOS laisse quand même zoomer au pincement). Android n'est pas concerné. */
+(function(){var m=document.querySelector('meta[name=viewport]');if(m&&(/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)))m.setAttribute('content','width=device-width,initial-scale=1,maximum-scale=1');})();</script>
 <title>PatchFlow</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
 <!-- Preconnect aux CDN critiques pour réduire la latence sur connexion lente -->
@@ -57,7 +60,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=3.27">
+<link rel="stylesheet" href="pf-app.css?v=3.29">
 </head>
 <body>
 
@@ -260,7 +263,7 @@ html.rider-boot #rider-splash{display:flex}
         <!-- Boutons spécifiques IN -->
         <span id="il-in-btns" style="display:contents">
           <button class="btn pri" onclick="addRow()"><i class="ti ti-plus"></i>Canal</button>
-          <button class="btn" onclick="openILAssist()"><i class="ti ti-wand"></i>Assistant</button>
+          <button class="btn mob-hide" onclick="openILAssist()"><i class="ti ti-wand"></i>Assistant</button>
           <div class="tpl-dd-wrap" id="tpl-dd-wrap">
             <button class="btn" onclick="toggleTplDd(event)"><i class="ti ti-template"></i>Template <i class="ti ti-chevron-down" style="font-size:10px;margin-left:1px"></i></button>
             <div class="tpl-dd-menu" id="tpl-dd-menu">
@@ -272,8 +275,8 @@ html.rider-boot #rider-splash{display:flex}
             </div>
           </div>
           <button type="button" class="btn ghost sm" data-undo="il" onclick="undoSection('il')" title="Annuler (Ctrl/⌘+Z)" style="display:none"><i class="ti ti-arrow-back-up"></i></button>
-          <button class="btn" onclick="importCSVClick()"><i class="ti ti-upload"></i>Import CSV</button>
-          <button class="btn" id="col-btn" onclick="toggleColPanel()"><i class="ti ti-columns"></i>Colonnes</button>
+          <button class="btn mob-hide" onclick="importCSVClick()"><i class="ti ti-upload"></i>Import CSV</button>
+          <button class="btn mob-hide" id="col-btn" onclick="toggleColPanel()"><i class="ti ti-columns"></i>Colonnes</button>
           <!-- Hidden file inputs -->
           <input type="file" id="csv-import-input" accept=".csv,.txt" style="display:none" onchange="importCSVLoad(this)">
           <input type="file" id="il-ai-file" accept=".pdf,.csv,.txt,.doc,.docx,image/png,image/jpeg,image/webp,image/gif,application/pdf,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="display:none" onchange="ilAiHandleFile(this)">
@@ -281,6 +284,10 @@ html.rider-boot #rider-splash{display:flex}
           <div class="exp-wrap">
             <button class="btn ghost" id="il-more-btn" onclick="toggleExpMenu('il-more-menu','il-more-btn')"><i class="ti ti-dots"></i>Plus</button>
             <div class="exp-menu" id="il-more-menu">
+              <button class="exp-item mob-only" onclick="openILAssist();closeExpMenu('il-more-menu')"><i class="ti ti-wand"></i>Assistant de saisie</button>
+              <button class="exp-item mob-only" onclick="importCSVClick();closeExpMenu('il-more-menu')"><i class="ti ti-upload"></i>Importer un CSV</button>
+              <button class="exp-item mob-only" onclick="closeExpMenu('il-more-menu');toggleColPanel()"><i class="ti ti-columns"></i>Colonnes affichées</button>
+              <div class="exp-sep mob-only"></div>
               <button class="exp-item" id="il-ai-btn" onclick="ilAiImport();closeExpMenu('il-more-menu')"><i class="ti ti-sparkles" style="color:var(--ora)"></i>Adapter une liste (IA)</button>
               <button class="exp-item" id="il-stageplan-btn" onclick="openStagePlanPicker();closeExpMenu('il-more-menu')"><i class="ti ti-map-2"></i>Plan de scène</button>
               <div class="exp-sep"></div>
@@ -551,7 +558,7 @@ html.rider-boot #rider-splash{display:flex}
       <input type="file" id="fich-replace-input" style="display:none">
       <div id="fich-breadcrumb" class="fich-breadcrumb" style="display:none"></div>
       <!-- Actions + search + sort -->
-      <div class="fich-filter-bar" style="border-bottom:none;padding-bottom:4px">
+      <div class="fich-filter-bar fich-actions-bar" style="border-bottom:none;padding-bottom:4px">
         <button class="fich-action-btn upload" onclick="fichImportClick()"><i class="ti ti-upload"></i> Envoyer</button>
         <button class="fich-action-btn folder" onclick="createFichierFolder()"><i class="ti ti-folder-plus"></i> Dossier</button>
         <div class="fich-search">
@@ -581,7 +588,7 @@ html.rider-boot #rider-splash{display:flex}
       </div>
       <div id="fichiers-list" style="flex:1;overflow-y:auto"></div>
       <div id="fich-storage-row" class="fich-storage-row" style="display:none">
-        <span class="fich-storage-lbl" id="fich-storage-lbl">0 Mo utilises</span>
+        <span class="fich-storage-lbl" id="fich-storage-lbl">0 Mo utilisés</span>
         <div class="fich-storage-track"><div class="fich-storage-fill" id="fich-storage-fill" style="width:0%"></div></div>
       </div>
       <div id="fichiers-drop-zone" class="fich-dropzone" style="display:none"></div>
@@ -1637,7 +1644,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=3.35"></script>
+<script src="pf-app.js?v=3.39"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
   <div class="mob-plan-bar">
@@ -1664,7 +1671,7 @@ html.rider-boot #rider-splash{display:flex}
   <div class="mob-plan-bar">
     <i class="ti ti-layout-board" style="color:var(--ora);font-size:16px;flex-shrink:0" id="mob-stage-icon"></i>
     <span class="mob-plan-title" id="mob-stage-title">Plan de scène</span>
-    <span class="mob-plan-hint" style="flex:1"><i class="ti ti-lock" style="font-size:9px"></i> Lecture</span>
+    <span class="mob-plan-hint"><i class="ti ti-lock" style="font-size:9px"></i> Lecture</span>
     <button id="mob-plan-mode-btn" onclick="setPlanMode(PLAN_MODE==='site'?'scene':'site')" style="flex-shrink:0;background:var(--surf2);border:1px solid var(--bdr2);color:var(--txt2);font-size:10px;font-weight:600;padding:5px 9px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:5px;font-family:var(--f)"><i class="ti ti-map-2" style="font-size:12px"></i><span id="mob-plan-mode-lbl">Site</span></button>
     <button class="btn ghost sm" id="mob-stage-pdf-btn" onclick="openPDFModal('stage')" style="font-size:10px;padding:5px 9px;flex-shrink:0"><i class="ti ti-file-type-pdf"></i>PDF</button>
   </div>

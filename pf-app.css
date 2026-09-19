@@ -941,7 +941,7 @@ select option{background:var(--surf);color:var(--txt)}
 /* Membres : avatars qui se chevauchent, nom et offre au survol (title). */
 .sess-members-row{display:flex;align-items:center;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--bdr)}
 .sess-member-wrap{display:flex}
-.sess-member-wrap+.sess-member-wrap{margin-left:-6px}
+.sess-member-wrap+.sess-member-wrap{margin-left:-2px}
 .sess-av{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:10px;flex-shrink:0;box-shadow:0 0 0 2px var(--surf)}
 .sess-member-name,.sess-members-row .sess-plan-chip{display:none}
 .sess-plan-chip{font-family:var(--m);font-size:10px;font-weight:500;padding:1px 5px;border-radius:var(--r1);white-space:nowrap}
@@ -1465,7 +1465,9 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
      overlays position:fixed (non impactés), la topbar est sticky, la nav fixe. */
   html,body{height:auto}
   body{display:block;min-height:100vh}
-  #app,#app.show{display:block;min-height:100vh;min-height:100dvh}
+  /* #app seul reste masqué (écran de connexion) : sinon la barre du bas et
+     l'app s'affichaient sous le formulaire de connexion. */
+  #app.show{display:block;min-height:100vh;min-height:100dvh}
   .content{overflow:visible;flex:none}
 
   /* Stack pbar vertically on very small screens.
@@ -1559,6 +1561,74 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
   /* Bigger touch targets for checkboxes */
   .cb{width:18px;height:18px}
 
-  /* User dropdown left-aligned on mobile */
-  .user-dd{right:auto;left:-100px}
+  /* Message de confirmation au-dessus de la barre du bas (et non par-dessus) */
+  #toast{bottom:calc(62px + 14px);max-width:calc(100vw - 32px)}
+  /* Menu utilisateur : calé sur le bord droit (le bouton est tout à droite de
+     la barre) — l'ancien décalage à gauche le faisait sortir de l'écran. */
+  .user-dd{right:0;left:auto;max-width:calc(100vw - 16px)}
 }
+
+/* ── Téléphone : revue ergonomique ── */
+/* Éléments réservés au téléphone (ex. entrées du menu « Plus » de l'Input List) */
+.mob-only{display:none}
+/* Vue partagée : onglets défilants sans barre de défilement visible */
+#sv-tabs::-webkit-scrollbar{display:none}
+/* Pile d'avatars : fond opaque sous la teinte translucide et chevauchement
+   léger — avant, l'avatar suivant masquait la fin des initiales (« AM » lu « AN »). */
+.sess-member-wrap{border-radius:50%;background:var(--surf)}
+
+@media(max-width:640px){
+  .mob-hide{display:none!important}
+  .exp-item.mob-only{display:flex}
+  .exp-sep.mob-only{display:block}
+
+  /* Menus déroulants : cibles tactiles confortables */
+  .exp-item,.sp-exp-item{padding:11px 12px;font-size:13.5px}
+  .exp-menu,.sp-export-menu{min-width:220px}
+
+  /* Sessions : recherche pleine largeur, tri + nouveau show sur la ligne suivante */
+  .sess-toolbar{width:100%;margin-left:0;gap:8px}
+  .sess-search{flex:1 1 100%;height:40px}
+  .sess-search input{width:100%;min-width:0;font-size:14px}
+  #sess-sort{flex:1 1 0;min-width:0;height:40px}
+  .sess-toolbar .btn{min-height:40px}
+
+  /* Fichiers : Envoyer / Dossier / tri sur une ligne, recherche dessous */
+  .fich-actions-bar{flex-wrap:wrap;overflow:visible;padding:10px 12px 4px}
+  .fich-actions-bar .fich-action-btn{min-height:38px}
+  .fich-actions-bar .fich-sort{margin-left:auto;height:38px}
+  .fich-actions-bar .fich-search{order:3;flex:1 1 100%;height:40px}
+  .fich-actions-bar .fich-search input{font-size:14px}
+  .fich-filter-bar{padding-left:12px;padding-right:12px}
+  .fich-filter-chip{padding:7px 12px}
+  /* Carte fichier : nom en entier, actions regroupées sur une 2e ligne */
+  .fich-file-card:not(.is-folder){flex-wrap:wrap;row-gap:4px}
+  .fich-file-card:not(.is-folder) .fich-file-info{flex:1 1 calc(100% - 50px)}
+  .fich-file-card:not(.is-folder) .fich-file-name{white-space:normal;word-break:break-word}
+  .fich-file-card:not(.is-folder) .fich-file-actions{flex:1 1 100%;justify-content:flex-end;gap:2px}
+  .fich-file-name{font-size:13px}
+  .fich-file-btn{width:38px;height:36px;font-size:16px}
+
+  /* Équipe : sections du lien de partage — deux colonnes qui ne débordent pas
+     (minmax(0,1fr) : un libellé long passe à la ligne au lieu d'élargir la grille) */
+  .slink-sections{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .slink-check{min-width:0;padding:6px 10px;text-align:left;line-height:1.25}
+  /* Équipe : le formulaire d'invitation ne déborde plus de l'écran */
+  .invite-box{flex-wrap:wrap;row-gap:10px;padding:10px 12px}
+  .invite-box .inv-inp{flex:1 1 calc(100% - 30px);min-width:0;font-size:15px;height:32px}
+  .invite-box #inv-role{flex:1 1 0;width:auto!important;min-width:0;height:40px}
+  .invite-box #inv-btn{min-height:40px}
+
+  /* Input / Output List : nom court lisible en entier, type de sortie lisible */
+  .iltable td .ilinp.sh{width:76px}
+  .iltable td .out-type-sel{min-width:92px}
+  /* Bouton principal (+ Canal / + Sortie) : libellé conservé */
+  #panel-inputlist .pbar .btn.pri{font-size:13px;gap:6px;padding:8px 13px}
+  #panel-inputlist .pbar .btn.pri>i{font-size:15px}
+}
+/* Très petits écrans (iPhone SE 1re gén., petits Android) : barre du bas plus compacte */
+@media(max-width:350px){
+  .bn-tab{font-size:9.5px;gap:2px}
+  .bn-tab i{font-size:18px}
+}
+

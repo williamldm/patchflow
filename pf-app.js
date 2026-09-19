@@ -14721,7 +14721,7 @@ function _renderFichiersGrid() {
     html += '<div class="fich-section-lbl"><i class="ti ti-folder" style="color:#f5c542;font-size:10px"></i>Dossiers</div>';
     _fichSortFiles(foldersShown).forEach(function(f) {
       const fnJ = _fEsc(JSON.stringify(f.name)); // HTML-escape so quotes survive inside onclick="..."
-      html += '<div class="fich-file-card" onclick="_fichEnterFolder(' + fnJ + ')">' +
+      html += '<div class="fich-file-card is-folder" onclick="_fichEnterFolder(' + fnJ + ')">' +
         '<div class="fich-file-ico ico-folder"><i class="ti ti-folder-filled fich-folder-ico"></i></div>' +
         '<div class="fich-file-info"><div class="fich-file-name">' + _fEsc(f.name) + '</div><div class="fich-file-meta">Dossier</div></div>' +
         '<div class="fich-file-actions">' +
@@ -14753,7 +14753,7 @@ function _renderFichiersGrid() {
           const info = _fichInfoOf(name);
           const size = _fmtSize(f.metadata?.size);
           const date = f.created_at ? new Date(f.created_at).toLocaleDateString('fr-FR') : '';
-          const meta = [size, date ? 'Ajoute ' + date : ''].filter(Boolean).join(' · ');
+          const meta = [size, date ? 'Ajouté le ' + date : ''].filter(Boolean).join(' · ');
           const fpJ  = _fEsc(JSON.stringify(_fichPathStr() + f.name)); // HTML-escape so quotes survive inside onclick="..."
           const isVerified = !!f.verified_at;
           const vDate = isVerified ? new Date(f.verified_at).toLocaleDateString('fr-FR') : '';
@@ -14772,7 +14772,7 @@ function _renderFichiersGrid() {
               '<button class="fich-file-btn" onclick="event.stopPropagation();replaceFichier(' + fpJ + ')" title="Remplacer par une nouvelle version (même nom)"><i class="ti ti-refresh"></i></button>' +
               '<button class="fich-file-btn" onclick="event.stopPropagation();renameFichier(' + fpJ + ')" title="Renommer"><i class="ti ti-pencil"></i></button>' +
               '<button class="fich-file-btn mv" onclick="event.stopPropagation();openMoveFichier(event,' + fpJ + ')" title="Déplacer dans un dossier"><i class="ti ti-folder-share"></i></button>' +
-              '<button class="fich-file-btn dl" onclick="event.stopPropagation();_fichDownload(' + fpJ + ')" title="Telecharger"><i class="ti ti-download"></i></button>' +
+              '<button class="fich-file-btn dl" onclick="event.stopPropagation();_fichDownload(' + fpJ + ')" title="Télécharger"><i class="ti ti-download"></i></button>' +
               '<button class="fich-file-btn del" onclick="event.stopPropagation();deleteFichier(' + fpJ + ')" title="Supprimer"><i class="ti ti-trash"></i></button>' +
             '</div>' +
             '</div>';
@@ -14801,7 +14801,7 @@ function _renderFichiersGrid() {
       const totalMo = (totalBytes / 1048576).toFixed(1);
       const quotaBytes = quotaGo * 1073741824;
       const fillPct = Math.min(100, totalBytes / quotaBytes * 100).toFixed(1);
-      if (lblEl)  lblEl.textContent  = totalMo + ' Mo utilises / ' + quotaGo + ' Go';
+      if (lblEl)  lblEl.textContent  = totalMo + ' Mo utilisés / ' + quotaGo + ' Go';
       if (fillEl) fillEl.style.width = fillPct + '%';
       stor.style.display = '';
     }
@@ -16242,8 +16242,12 @@ function _mobInitGestures(cid){
     }
   });
 }
+function _mobClearLoaders(canvas){
+  canvas.querySelectorAll('.mob-plan-loading').forEach(function(el){ el.remove(); });
+}
 function _mobSetImage(cid, img){
   const canvas=document.getElementById(cid); if(!canvas)return;
+  _mobClearLoaders(canvas);
   img.className='mob-img';
   img.style.cssText='position:absolute;top:0;left:0;transform-origin:0 0;user-select:none;-webkit-user-drag:none;display:block;max-width:none';
   const old=canvas.querySelector('.mob-img'); if(old)old.remove();
@@ -16255,12 +16259,13 @@ function _mobSetImage(cid, img){
 function _mobClearCanvas(cid){
   const canvas=document.getElementById(cid); if(!canvas)return;
   const old=canvas.querySelector('.mob-img'); if(old)old.remove();
+  _mobClearLoaders(canvas);
   canvas.insertAdjacentHTML('afterbegin','<div class="mob-plan-loading"><div class="spinner"></div>Génération…</div>');
 }
 function _mobShowEmpty(cid,icon,label){
   const canvas=document.getElementById(cid); if(!canvas)return;
   const old=canvas.querySelector('.mob-img'); if(old)old.remove();
-  const ld=canvas.querySelector('.mob-plan-loading'); if(ld)ld.remove();
+  _mobClearLoaders(canvas);
   canvas.insertAdjacentHTML('afterbegin',`<div class="mob-plan-loading" style="flex-direction:column;gap:12px"><i class="ti ${icon}" style="font-size:40px;opacity:.25"></i><div>${label}</div><div style="font-size:10px;font-family:var(--m);color:var(--muted2)">Créez du contenu sur ordinateur</div></div>`);
 }
 
@@ -17468,7 +17473,7 @@ function _svFs(imgId, title){
   var SV_TABCSS='display:inline-flex;align-items:center;gap:'+(isMobile?'4':'6')+'px;padding:'+(isMobile?'10px 12px':'12px 18px')+';background:none;border:none;border-bottom:2px solid transparent;color:#5a6a80;font-family:DM Mono,monospace;font-size:'+(isMobile?'10':'11')+'px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;transition:all .15s;margin-bottom:-1px;white-space:nowrap;border-radius:8px 8px 0 0';
   var SV_TABCSS_ON='display:inline-flex;align-items:center;gap:'+(isMobile?'4':'6')+'px;padding:'+(isMobile?'10px 12px':'12px 18px')+';background:linear-gradient(180deg,rgba(255,107,26,.1),transparent);border:none;border-bottom:2px solid #ff6b1a;color:#ff6b1a;font-family:DM Mono,monospace;font-size:'+(isMobile?'10':'11')+'px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;margin-bottom:-1px;white-space:nowrap;border-radius:8px 8px 0 0';
 
-  var secLabels={il:'Input List',out:'Output List',syno:'Synoptique',stage:'Plan de scene',site:'Plan de site',cloud:'Fichiers',files:'Pieces jointes'};
+  var secLabels={il:'Input List',out:'Output List',syno:'Synoptique',stage:'Plan de scène',site:'Plan de site',cloud:'Fichiers',files:'Pièces jointes'};
   /* Icônes Tabler (même jeu que le builder) — plus pro que les symboles Unicode */
   var secIcons={
     il:'<i class="ti ti-list-numbers" style="font-size:15px"></i>',
@@ -17495,7 +17500,7 @@ function _svFs(imgId, title){
   if(!rFiles.length) allSections=allSections.filter(function(s){return s!=='files';});
   var tabsHtml='';
   if(allSections.length>1){
-    tabsHtml='<div id="sv-tabs" style="position:relative;flex-shrink:0;display:flex;border-bottom:1px solid #1e2a3a;margin-bottom:0;overflow-x:auto;background:#080e1a;padding:0 '+(isMobile?'4px':'14px')+'">';
+    tabsHtml='<div id="sv-tabs" style="position:relative;flex-shrink:0;display:flex;border-bottom:1px solid #1e2a3a;margin-bottom:0;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;background:#080e1a;padding:0 '+(isMobile?'4px':'14px')+'">';
     allSections.filter(function(s){return _VALID_SEC_SET.has(s);}).forEach(function(s,i){
       var active=i===0;
       tabsHtml+='<button id="svt-'+s+'" style="'+(active?SV_TABCSS_ON:SV_TABCSS)+'" onclick="_svSwitch(\''+_jsq(s)+'\')">'
@@ -17638,7 +17643,7 @@ function _svFs(imgId, title){
     +'</div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
     +(show.venue?'<span style="'+_chipCss+'"><i class="ti ti-map-pin" style="color:#ff8c42;font-size:13px"></i>'+esc(show.venue)+'</span>':'')
-    +(show.show_date?'<span style="'+_chipCss+'"><i class="ti ti-calendar" style="color:#1a8fff;font-size:13px"></i>'+show.show_date+'</span>':'')
+    +(show.show_date?'<span style="'+_chipCss+'"><i class="ti ti-calendar" style="color:#1a8fff;font-size:13px"></i>'+esc(_fmtShowDate(show.show_date))+'</span>':'')
     +'<span style="'+_chipCss+';color:#22d6a0;background:rgba(34,214,160,.07);border-color:rgba(34,214,160,.2)"><i class="ti ti-refresh" style="font-size:13px"></i>'+now+'</span>'
     +'</div></div>';
 
@@ -17746,6 +17751,10 @@ function _svFs(imgId, title){
     if(!curId) return null;
     var scene=(SHOW_SCENES[sceneType]||[]).find(function(s){return s.id===curId;});
     if(!scene||!scene.data) return null;
+    /* L'app enregistre le synoptique d'une scène tel quel ({v:1,nodes,…}), sans
+       clé « syno » : on accepte les deux formes (sinon le lien partagé affichait
+       « Synoptique non disponible » ou l'ancienne version globale). */
+    if(sceneType==='syno') return (scene.data.v===1 ? scene.data : scene.data.syno) || null;
     var dataKey=sceneType==='stage'?'band':sceneType;
     return scene.data[dataKey]||null;
   }
@@ -17886,14 +17895,14 @@ function _svFs(imgId, title){
         h+='<div onclick="_svFs(\'_svStageImg\',\'Plan de scène\')" style="border-radius:8px;border:1px solid #1e2a3a;background:#fff;overflow:hidden;cursor:zoom-in">'
           +'<img id="_svStageImg" src="'+safeSrc(dataUrl)+'" style="width:100%;height:auto;display:block"/>'
         +'</div>';
-        h+='<div style="margin-top:14px;text-align:center;font-size:10px;color:#3a4a5a;font-family:DM Mono,monospace">PatchFlow · Plan de scene · '+now+'</div>';
+        h+='<div style="margin-top:14px;text-align:center;font-size:10px;color:#3a4a5a;font-family:DM Mono,monospace">PatchFlow · Plan de scène · '+now+'</div>';
         cb(h);
       } else {
         cb(_showMeta+_svSceneSelector('stage')
           +'<div style="overflow:auto;border-radius:8px;border:1px solid #1e2a3a;background:#0a0f1c">'
           +'<img src="'+safeSrc(dataUrl)+'" style="max-width:100%;display:block;border-radius:8px"/>'
           +'</div>'
-          +'<div style="margin-top:14px;text-align:center;font-size:10px;color:#3a4a5a;font-family:DM Mono,monospace">PatchFlow · Plan de scene · '+now+'</div>');
+          +'<div style="margin-top:14px;text-align:center;font-size:10px;color:#3a4a5a;font-family:DM Mono,monospace">PatchFlow · Plan de scène · '+now+'</div>');
       }
     });
   }
@@ -18254,7 +18263,7 @@ function _svFs(imgId, title){
               +(r.long_name?'<span style="font-size:12px;color:#8899aa">'+esc(r.long_name)+'</span>':'')
             +'</div>'
             +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:3px">'
-              +'<span style="background:'+col+'22;color:'+col+';border:1px solid '+col+'44;border-radius:4px;font-size:9px;padding:2px 7px;font-family:DM Mono,monospace;text-transform:uppercase">'+esc(r.type||'')+'</span>'
+              +'<span style="background:'+col+'22;color:'+col+';border:1px solid '+col+'44;border-radius:4px;font-size:9px;padding:2px 7px;font-family:DM Mono,monospace;text-transform:uppercase">'+esc((OUT_TYPES[r.type]&&OUT_TYPES[r.type].label)||r.type||'')+'</span>'
               +(r.dest?'<span style="font-size:10px;color:#5a7a9a;font-family:DM Mono,monospace">'+esc(r.dest)+'</span>':'')
               +(r.hf?'<span style="background:rgba(155,106,255,.12);color:#9b6aff;border:1px solid rgba(155,106,255,.25);border-radius:4px;font-size:9px;padding:2px 7px;font-family:DM Mono,monospace">HF '+esc(r.hf)+'</span>':'')
             +'</div>'
@@ -18281,7 +18290,7 @@ function _svFs(imgId, title){
           +'<td style="padding:8px 16px;text-align:center;font-family:DM Mono,monospace;font-weight:700;color:#5a6a80">'+(r.ch||i+1)+'</td>'
           +'<td style="padding:8px 12px;font-weight:700;font-size:13px;color:#f0f4ff">'+esc(r.short_name||'')+'</td>'
           +'<td style="padding:8px 12px;color:#c8d4e0">'+esc(r.long_name||'')+'</td>'
-          +'<td style="padding:8px 12px"><span style="background:'+col+'22;color:'+col+';border:1px solid '+col+'44;border-radius:4px;font-size:9px;padding:2px 7px;font-family:DM Mono,monospace;text-transform:uppercase">'+esc(r.type||'')+'</span></td>'
+          +'<td style="padding:8px 12px"><span style="background:'+col+'22;color:'+col+';border:1px solid '+col+'44;border-radius:4px;font-size:9px;padding:2px 7px;font-family:DM Mono,monospace;text-transform:uppercase">'+esc((OUT_TYPES[r.type]&&OUT_TYPES[r.type].label)||r.type||'')+'</span></td>'
           +'<td style="padding:8px 12px;color:#7a8a9a;font-family:DM Mono,monospace;font-size:10px">'+esc(r.dest||'')+'</td>'
           +(hasOutHf?'<td style="padding:8px 12px;color:#9b6aff;font-family:DM Mono,monospace;font-size:10px">'+esc(r.hf||'')+'</td>':'')
           +'<td style="padding:8px 12px;color:#5a6a80;font-size:11px">'+esc(r.note||'')+'</td>'
@@ -18446,7 +18455,23 @@ function _svFs(imgId, title){
     }
     var fullH=vh+headH+footH;
     var svgStr='<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100%" viewBox="0 0 '+vw+' '+fullH+'" style="max-width:100%;border-radius:8px;border:1px solid #1e2a3a;background:#fff;display:block">'+headSvg+bgSvg+edgeSvg+nodeSvg+footSvg+'</svg>';
-    return _showMeta+_svSceneSelector('syno')+svgStr
+    /* Téléphone : même plein écran (pincer / glisser) que les plans. L'image
+       plein écran est le même SVG avec des dimensions explicites. */
+    var fsHtml='', tapAttr='';
+    if(isMobile){
+      var svgFs=svgStr.replace('width="100%"','width="'+vw+'" height="'+fullH+'"');
+      fsHtml='<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px">'
+        +'<div style="font-size:10px;color:#5a6a80;font-family:DM Mono,monospace"><span style="font-size:12px">&#128269;</span> Touchez le synoptique pour le plein écran</div>'
+        +'<button onclick="_svFs(\'_svSynoImg\',\'Synoptique\')" '
+          +'style="flex-shrink:0;background:#ff6b1a;border:none;color:#000;font-size:11px;font-weight:700;padding:8px 14px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit">'
+          +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>'
+          +'Plein écran'
+        +'</button>'
+      +'</div>'
+      +'<img id="_svSynoImg" alt="" style="display:none" src="data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svgFs)+'"/>';
+      tapAttr=' onclick="_svFs(\'_svSynoImg\',\'Synoptique\')" style="cursor:zoom-in"';
+    }
+    return _showMeta+_svSceneSelector('syno')+fsHtml+'<div'+tapAttr+'>'+svgStr+'</div>'
       +'<div style="margin-top:14px;text-align:center;font-size:10px;color:#3a4a5a;font-family:DM Mono,monospace">PatchFlow &middot; Synoptique &middot; '+now+'</div>';
   }
 
