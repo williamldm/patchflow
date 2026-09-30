@@ -4481,10 +4481,13 @@ function _sanitizeHtmlString(html){
    identifiant, nombre, couleur, trait, image, icône SVG. Les champs inconnus
    sont conservés ; les types d'origine aussi (ids numériques du plan de
    scène), pour ne pas casser les comparaisons ===. */
-var _PLAN_ID_KEYS={id:1,fromId:1,toId:1,from:1,to:1,network:1,type:1,direction:1,activeCableType:1,kind:1,patch_id:1,catId:1};
+/* ch / chR / outCh / outChR : liaison d'un élément de plan vers un canal ou une sortie. Sur le plan de
+   scène c'est l'identifiant (UUID) du canal, pas un numéro : le traiter comme un nombre le remettait à 0
+   et la liaison était perdue à la sauvegarde suivante. Nombre conservé tel quel, texte assaini. */
+var _PLAN_ID_KEYS={id:1,fromId:1,toId:1,from:1,to:1,network:1,type:1,direction:1,activeCableType:1,kind:1,patch_id:1,catId:1,ch:1,chR:1,outCh:1,outChR:1};
 var _PLAN_NUM_KEYS={x:1,y:1,w:1,h:1,x2:1,y2:1,elSize:1,imgPx:1,imgAspect:1,width:1,height:1,rotation:1,rot:1,opacity:1,zoom:1,panX:1,panY:1,
   textScale:1,elTextScale:1,legendScale:1,cableTextScale:1,nodeScale:1,stageScale:1,bgOpacity:1,bgRotation:1,bgX:1,bgY:1,bgScale:1,
-  wrapWidth:1,aspect:1,w0:1,riserW:1,riserH:1,size:1,fontSize:1,fs:1,ch:1,num:1,position:1,nid:1,v:1,imgW:1,imgH:1,scale:1};
+  wrapWidth:1,aspect:1,w0:1,riserW:1,riserH:1,size:1,fontSize:1,fs:1,num:1,position:1,nid:1,v:1,imgW:1,imgH:1,scale:1};
 var _PLAN_IMG_KEYS={iconImg:1,bgImage:1,img:1,site_snapshot:1,stage_snapshot:1,avatar_url:1};
 function _sid(v){ return String(v==null?'':v).replace(/[^A-Za-z0-9_.:\-]/g,'').slice(0,96); }
 function _sanitizeSvgMarkup(str){
@@ -7499,7 +7502,7 @@ const SynPro = (() => {
     el.querySelectorAll('.sp-pal-item-rem').forEach(function(b){
       b.addEventListener('click', function(ev){
         ev.stopPropagation();
-        if (confirm('Supprimer cet equipement personnalise ?')) {
+        if (confirm('Supprimer cet équipement personnalisé ?')) {
           _removeCustomItem(b.dataset.rem);
           _renderPalette();
         }
@@ -7583,7 +7586,7 @@ const SynPro = (() => {
         '<div class="sp-pal-cat-items">' +
           '<button class="sp-pal-cat-add" id="sp-cable-add" style="width:100%"><i class="ti ti-plus"></i> Nouveau type de liaison</button>' +
           items +
-          '<div style="margin-top:6px;font-size:9px;color:var(--muted);text-align:center;font-family:var(--m);line-height:1.5;padding:4px">Cliquez un type puis 2 equipements pour relier.<br/>Double-cliquez une liaison pour ajouter un point de guidage.</div>' +
+          '<div style="margin-top:6px;font-size:9px;color:var(--muted);text-align:center;font-family:var(--m);line-height:1.5;padding:4px">Cliquez un type puis 2 équipements pour relier.<br/>Double-cliquez une liaison pour ajouter un point de guidage.</div>' +
         '</div>' +
       '</div>';
     el.querySelector('[data-toggle]').addEventListener('click', function(){
@@ -7653,7 +7656,7 @@ const SynPro = (() => {
     if (!b) return;
     if (activeCable) {
       var n = netById(activeCable);
-      b.innerHTML = '<i class="ti ti-cable"></i>Liaison <b>' + esc(n ? n.name : activeCable) + '</b> &mdash; ' + (cableFrom ? 'cliquez la 2eme equipement' : 'cliquez la 1ere equipement') + ' <button onclick="SynPro.cancelCable()">Esc</button>';
+      b.innerHTML = '<i class="ti ti-cable"></i>Liaison <b>' + esc(n ? n.name : activeCable) + '</b> &mdash; ' + (cableFrom ? 'cliquez le 2e équipement' : 'cliquez le 1er équipement') + ' <button onclick="SynPro.cancelCable()">Esc</button>';
       b.classList.add('show');
     } else {
       b.classList.remove('show');
@@ -7948,7 +7951,7 @@ const SynPro = (() => {
         });
       });
     } else {
-      el.innerHTML = '<p class="sp-insp-empty">Glissez un équipement depuis la palette sur le plan.<br><br>Pour relier : cliquez un type de liaison, puis cliquez deux equipements.</p>';
+      el.innerHTML = '<p class="sp-insp-empty">Glissez un équipement depuis la palette sur le plan.<br><br>Pour relier : cliquez un type de liaison, puis cliquez deux équipements.</p>';
     }
   }
 
