@@ -67,6 +67,17 @@
   <FilesMatch "\.(js|css)$">
     Header set Cache-Control "public, max-age=31536000, immutable"
   </FilesMatch>
+
+  # Images (captures de la page d'accueil, icônes) : non versionnées → une
+  # semaine seulement. Pour remplacer une image tout de suite, changer son nom.
+  <FilesMatch "\.(avif|jpe?g|png|svg|webp)$">
+    Header set Cache-Control "public, max-age=604800"
+  </FilesMatch>
+</IfModule>
+
+# Type MIME des images AVIF (absent des configurations Apache anciennes)
+<IfModule mod_mime.c>
+  AddType image/avif .avif
 </IfModule>
 
 # mod_pagespeed (o2switch) : ne pas réécrire nos en-têtes de cache, pour
