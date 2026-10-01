@@ -23,8 +23,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet"/>
-<link rel="preload" as="image" href="img/lp-hero-il.avif?v=2" type="image/avif" media="(min-width:761px)" fetchpriority="high"/>
-<link rel="preload" as="image" href="img/lp-hero-il-m.avif?v=2" type="image/avif" media="(max-width:760px)" fetchpriority="high"/>
+<link rel="preload" as="image" href="img/lp-hero-il.avif?v=2" type="image/avif" fetchpriority="high"/>
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"SoftwareApplication","name":"PatchFlow","applicationCategory":"BusinessApplication","operatingSystem":"Web","inLanguage":"fr",
 "description":"Input list, output list, plans de scène, de site et synoptique de signal pour les ingés son, avec partage par lien en lecture seule.",
@@ -123,6 +122,8 @@ p{text-wrap:pretty}
    ombre portée longue et douce. */
 .shot{position:relative;border-radius:14px;background:var(--night);
   box-shadow:0 0 0 1px rgba(18,19,23,.10),0 2px 6px rgba(18,19,23,.05),0 30px 60px -20px rgba(18,19,23,.22),0 90px 140px -50px rgba(18,19,23,.32)}
+.shot-in{position:relative}
+.swipe{display:none}
 .shot picture{display:block;border-radius:14px;overflow:hidden}
 .shot img{width:100%}
 /* Repères numérotés posés sur l'interface */
@@ -335,9 +336,11 @@ p{text-wrap:pretty}
   .cards{grid-template-columns:minmax(0,1fr)}
   .card{flex-direction:row}
   .card-img{flex:0 0 46%;aspect-ratio:auto;min-height:230px}
-  .share{overflow:hidden}
-  .link-shot .shot{width:1100px;max-width:none}
-  .link-shot .shot,.link-shot .shot picture{border-radius:14px 0 0 14px}
+  /* Liens de partage : affichés assez grands pour être lus, on fait glisser pour voir la suite */
+  .link-shot .shot{overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none}
+  .link-shot .shot::-webkit-scrollbar{display:none}
+  .link-shot .shot-in{width:1100px}
+  .link-shot .shot picture{border-radius:0}
   .aussi{grid-template-columns:minmax(0,1fr);gap:18px}
   .aussi ul{columns:2}
   .faq-grid{grid-template-columns:minmax(0,1fr);gap:24px}
@@ -351,17 +354,21 @@ p{text-wrap:pretty}
   .card{flex-direction:column}
   .card-img{flex:none;aspect-ratio:16/10;min-height:0}
   .aussi ul{columns:1}
-  /* Les captures sont des recadrages lisibles (sources *-m) : les repères n'y ont plus leur place */
-  .shot .pin,.notes .n{display:none}
-  .notes li{grid-template-columns:minmax(0,1fr)}
-  .notes h3{margin-top:0}
+  /* Captures : l'écran entier, à une taille lisible ; on le fait glisser du doigt pour tout voir.
+     Les repères défilent avec l'image. */
+  .shot{overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .shot::-webkit-scrollbar{display:none}
+  .shot-in{width:1100px}
+  .shot picture{border-radius:0}
+  .swipe{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;font-size:13px;font-weight:550;color:var(--ink3);
+    transition:opacity .4s}
+  .swipe svg{width:16px;height:16px;flex-shrink:0}
+  .night .swipe{color:var(--nt2)}
+  .swipe.done{opacity:0}
   .seg{display:flex;width:100%}
   .seg button{flex:1;padding:10px 8px;font-size:14.5px}
-  /* Liens de partage : on garde la partie lisible (nom, sections, adresse), le reste sort de l'écran */
-  .link-shot .shot{width:900px}
-  .link-shot .shot,.link-shot .shot picture{border-radius:10px 0 0 10px}
   .foot nav{margin-left:0;width:100%;gap:20px}
-  .shot,.shot picture{border-radius:10px}
+  .shot{border-radius:10px}
   .bleed{width:100%}
   .js .bleed{translate:0 26px}
   .ctas .btn{width:100%}
@@ -427,17 +434,17 @@ p{text-wrap:pretty}
       </div>
     </div>
 
-    <figure class="shot">
-      <picture>
-        <source media="(max-width:760px)" type="image/avif" srcset="img/lp-hero-il-m.avif?v=2" width="880" height="1100"/>
-        <source media="(max-width:760px)" srcset="img/lp-hero-il-m.jpg?v=2" width="880" height="1100"/>
-        <source type="image/avif" srcset="img/lp-hero-il.avif?v=2"/>
-        <img src="img/lp-hero-il.jpg?v=2" width="2880" height="1640" fetchpriority="high" decoding="async"
-          alt="L'input list de PatchFlow&nbsp;: 24 canaux avec nom court, nom long, source, micro, gain, +48V, envois façade et retours, pied de micro."/>
-      </picture>
-      <span class="pin" style="left:80.9%;top:14.6%" aria-hidden="true">1</span>
-      <span class="pin" style="left:62.4%;top:25%" aria-hidden="true">2</span>
-      <span class="pin" style="left:73.6%;top:3.1%" aria-hidden="true">3</span>
+    <figure class="shot" data-x="0">
+      <div class="shot-in">
+        <picture>
+          <source type="image/avif" srcset="img/lp-hero-il.avif?v=2"/>
+          <img src="img/lp-hero-il.jpg?v=2" width="2880" height="1640" fetchpriority="high" decoding="async"
+            alt="L'input list de PatchFlow&nbsp;: 24 canaux avec nom court, nom long, source, micro, gain, +48V, envois façade et retours, pied de micro."/>
+        </picture>
+        <span class="pin" style="left:80.9%;top:14.6%" aria-hidden="true">1</span>
+        <span class="pin" style="left:62.4%;top:25%" aria-hidden="true">2</span>
+        <span class="pin" style="left:73.6%;top:3.1%" aria-hidden="true">3</span>
+      </div>
     </figure>
     <ol class="notes" aria-label="Sur cette capture">
       <li><span class="n" aria-hidden="true">1</span><div><h3>Colonnes à la carte</h3><p>Ajoutez vos colonnes, masquez celles qui ne servent pas, réordonnez-les d'un glisser.</p></div></li>
@@ -460,14 +467,14 @@ p{text-wrap:pretty}
         <li><h3>Assistant</h3><p>Les départs courants posés en quelques clics, puis ajustés à la main.</p></li>
       </ul>
     </div>
-    <figure class="shot bleed">
-      <picture>
-        <source media="(max-width:760px)" type="image/avif" srcset="img/lp-output-m.avif?v=2" width="1120" height="960"/>
-        <source media="(max-width:760px)" srcset="img/lp-output-m.jpg?v=2" width="1120" height="960"/>
-        <source type="image/avif" srcset="img/lp-output.avif?v=2"/>
-        <img src="img/lp-output.jpg?v=2" width="2360" height="1280" loading="lazy" decoding="async"
-          alt="L'output list&nbsp;: wedges, départs in-ear avec fréquence HF, side fills en matrice, sub batteur et effet."/>
-      </picture>
+    <figure class="shot bleed" data-x="0">
+      <div class="shot-in">
+        <picture>
+          <source type="image/avif" srcset="img/lp-output.avif?v=2"/>
+          <img src="img/lp-output.jpg?v=2" width="2360" height="1280" loading="lazy" decoding="async"
+            alt="L'output list&nbsp;: wedges, départs in-ear avec fréquence HF, side fills en matrice, sub batteur et effet."/>
+        </picture>
+      </div>
     </figure>
   </div>
 </section>
@@ -490,17 +497,17 @@ p{text-wrap:pretty}
     </div>
 
     <div class="panel" id="p-scene" role="tabpanel" aria-labelledby="tab-scene">
-      <figure class="shot">
-        <picture>
-          <source media="(max-width:760px)" type="image/avif" srcset="img/lp-plan-scene-m.avif?v=2" width="880" height="1100"/>
-        <source media="(max-width:760px)" srcset="img/lp-plan-scene-m.jpg?v=2" width="880" height="1100"/>
-        <source type="image/avif" srcset="img/lp-plan-scene.avif?v=2"/>
-          <img src="img/lp-plan-scene.jpg?v=2" width="2880" height="1760" loading="lazy" decoding="async"
-            alt="Le plan de scène&nbsp;: batterie, amplis, claviers, micros et wedges, chacun avec son numéro de canal ou de sortie&nbsp;; le chant lead est sélectionné et relié au canal 19."/>
-        </picture>
-        <span class="pin" style="left:55%;top:62.6%" aria-hidden="true">1</span>
-        <span class="pin" style="left:70.1%;top:75.7%" aria-hidden="true">2</span>
-        <span class="pin" style="left:27.3%;top:13.9%" aria-hidden="true">3</span>
+      <figure class="shot" data-x="0.42">
+        <div class="shot-in">
+          <picture>
+          <source type="image/avif" srcset="img/lp-plan-scene.avif?v=2"/>
+            <img src="img/lp-plan-scene.jpg?v=2" width="2880" height="1760" loading="lazy" decoding="async"
+              alt="Le plan de scène&nbsp;: batterie, amplis, claviers, micros et wedges, chacun avec son numéro de canal ou de sortie&nbsp;; le chant lead est sélectionné et relié au canal 19."/>
+          </picture>
+          <span class="pin" style="left:55%;top:62.6%" aria-hidden="true">1</span>
+          <span class="pin" style="left:70.1%;top:75.7%" aria-hidden="true">2</span>
+          <span class="pin" style="left:27.3%;top:13.9%" aria-hidden="true">3</span>
+        </div>
       </figure>
       <ol class="notes" aria-label="Sur cette capture">
         <li><span class="n" aria-hidden="true">1</span><div><h3>Canaux sur le plateau</h3><p>Chaque instrument et chaque micro affiche son numéro de canal, tiré de l'input list.</p></div></li>
@@ -510,17 +517,17 @@ p{text-wrap:pretty}
     </div>
 
     <div class="panel" id="p-site" role="tabpanel" aria-labelledby="tab-site" hidden>
-      <figure class="shot">
-        <picture>
-          <source media="(max-width:760px)" type="image/avif" srcset="img/lp-plan-site-m.avif?v=2" width="880" height="1100"/>
-        <source media="(max-width:760px)" srcset="img/lp-plan-site-m.jpg?v=2" width="880" height="1100"/>
-        <source type="image/avif" srcset="img/lp-plan-site.avif?v=2"/>
-          <img src="img/lp-plan-site.jpg?v=2" width="2880" height="1760" loading="lazy" decoding="async"
-            alt="Le plan de site&nbsp;: line arrays, subs, front fill, délais et régie façade, reliés par des câbles Dante, Speakon et XLR avec leur métrage&nbsp;; la liaison Dante est sélectionnée."/>
-        </picture>
-        <span class="pin" style="left:49.6%;top:58.2%" aria-hidden="true">1</span>
-        <span class="pin" style="left:27.4%;top:86.6%" aria-hidden="true">2</span>
-        <span class="pin" style="left:13.9%;top:22.3%" aria-hidden="true">3</span>
+      <figure class="shot" data-x="0.3">
+        <div class="shot-in">
+          <picture>
+          <source type="image/avif" srcset="img/lp-plan-site.avif?v=2"/>
+            <img src="img/lp-plan-site.jpg?v=2" width="2880" height="1760" loading="lazy" decoding="async"
+              alt="Le plan de site&nbsp;: line arrays, subs, front fill, délais et régie façade, reliés par des câbles Dante, Speakon et XLR avec leur métrage&nbsp;; la liaison Dante est sélectionnée."/>
+          </picture>
+          <span class="pin" style="left:49.6%;top:58.2%" aria-hidden="true">1</span>
+          <span class="pin" style="left:27.4%;top:86.6%" aria-hidden="true">2</span>
+          <span class="pin" style="left:13.9%;top:22.3%" aria-hidden="true">3</span>
+        </div>
       </figure>
       <ol class="notes" aria-label="Sur cette capture">
         <li><span class="n" aria-hidden="true">1</span><div><h3>Tirages de câbles</h3><p>Chaque liaison avec son type — Dante, Speakon, XLR, secteur — et son métrage.</p></div></li>
@@ -530,17 +537,17 @@ p{text-wrap:pretty}
     </div>
 
     <div class="panel" id="p-syno" role="tabpanel" aria-labelledby="tab-syno" hidden>
-      <figure class="shot">
-        <picture>
-          <source media="(max-width:760px)" type="image/avif" srcset="img/lp-plan-syno-m.avif?v=2" width="880" height="780"/>
-        <source media="(max-width:760px)" srcset="img/lp-plan-syno-m.jpg?v=2" width="880" height="780"/>
-        <source type="image/avif" srcset="img/lp-plan-syno.avif?v=2"/>
-          <img src="img/lp-plan-syno.jpg?v=2" width="2880" height="1760" loading="lazy" decoding="async"
-            alt="Le synoptique&nbsp;: deux stageboxes, consoles façade et retours, amplis et enceintes, reliés par des liaisons Dante, AES, gigaACE et Speakon."/>
-        </picture>
-        <span class="pin" style="left:11.9%;top:69.5%" aria-hidden="true">1</span>
-        <span class="pin" style="left:50.8%;top:36.1%" aria-hidden="true">2</span>
-        <span class="pin" style="left:89.9%;top:11.8%" aria-hidden="true">3</span>
+      <figure class="shot" data-x="0.3">
+        <div class="shot-in">
+          <picture>
+          <source type="image/avif" srcset="img/lp-plan-syno.avif?v=2"/>
+            <img src="img/lp-plan-syno.jpg?v=2" width="2880" height="1760" loading="lazy" decoding="async"
+              alt="Le synoptique&nbsp;: deux stageboxes, consoles façade et retours, amplis et enceintes, reliés par des liaisons Dante, AES, gigaACE et Speakon."/>
+          </picture>
+          <span class="pin" style="left:11.9%;top:69.5%" aria-hidden="true">1</span>
+          <span class="pin" style="left:50.8%;top:36.1%" aria-hidden="true">2</span>
+          <span class="pin" style="left:89.9%;top:11.8%" aria-hidden="true">3</span>
+        </div>
       </figure>
       <ol class="notes" aria-label="Sur cette capture">
         <li><span class="n" aria-hidden="true">1</span><div><h3>Plus de 110 équipements</h3><p>Consoles, stageboxes, amplis et enceintes des grandes marques, prêts à poser.</p></div></li>
@@ -585,12 +592,14 @@ p{text-wrap:pretty}
     </div>
 
     <div class="link-shot">
-      <figure class="shot">
-        <picture>
-          <source type="image/avif" srcset="img/lp-link.avif?v=2"/>
-          <img src="img/lp-link.jpg?v=2" width="2760" height="512" loading="lazy" decoding="async"
-            alt="Deux liens de partage&nbsp;: la régie du Rocher voit l'input list, l'output list et les plans&nbsp;; le loueur backline voit l'input list et le plan de scène."/>
-        </picture>
+      <figure class="shot" data-x="0">
+        <div class="shot-in">
+          <picture>
+            <source type="image/avif" srcset="img/lp-link.avif?v=2"/>
+            <img src="img/lp-link.jpg?v=2" width="2760" height="512" loading="lazy" decoding="async"
+              alt="Deux liens de partage&nbsp;: la régie du Rocher voit l'input list, l'output list et les plans&nbsp;; le loueur backline voit l'input list et le plan de scène."/>
+          </picture>
+        </div>
       </figure>
       <p class="caption">Dans l'onglet Équipe&nbsp;: un lien par destinataire, avec ses propres sections, à copier ou à envoyer par WhatsApp.</p>
     </div>
@@ -880,6 +889,31 @@ p{text-wrap:pretty}
     });
   }
 
+
+  /* Captures sur téléphone : position de départ du défilement et indication « faites glisser » */
+  var shots=[].slice.call(document.querySelectorAll('figure.shot[data-x]'));
+  var ARROWS='<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 6l-4 4 4 4M13 6l4 4-4 4"/></svg>';
+  shots.forEach(function(f){
+    var hint=document.createElement('p'); hint.className='swipe'; hint.setAttribute('aria-hidden','true');
+    hint.innerHTML=ARROWS+'<span>Faites glisser pour voir tout l\u2019écran</span>';
+    f.parentNode.insertBefore(hint,f.nextSibling);
+    var touched=false;
+    f.addEventListener('scroll',function(){ if(touched) hint.classList.add('done'); },{passive:true});
+    f.addEventListener('touchstart',function(){ touched=true; },{passive:true});
+    f.addEventListener('pointerdown',function(){ touched=true; });
+  });
+  function placeShots(){
+    shots.forEach(function(f){
+      var range=f.scrollWidth-f.clientWidth;
+      if(range>0&&!f.__placed&&f.getClientRects().length){ f.scrollLeft=Math.round(range*parseFloat(f.getAttribute('data-x')||0)); f.__placed=true; }
+    });
+  }
+  placeShots();
+  window.addEventListener('load',placeShots);
+  window.addEventListener('resize',function(){ shots.forEach(function(f){ f.__placed=false; }); placeShots(); });
+  /* Après l'affichage du panneau (ce gestionnaire passe après celui des onglets) */
+  tabs.forEach(function(t){ t.addEventListener('click',placeShots); t.addEventListener('keydown',function(){ setTimeout(placeShots,0); }); });
+
   /* ── Mouvement ─────────────────────────────────────────────────── */
   window.__rv=1;
   var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -940,7 +974,7 @@ p{text-wrap:pretty}
 
   /* Survol d'une note : son repère s'allume sur la capture */
   [].forEach.call(document.querySelectorAll('.notes'),function(ol){
-    var fig=ol.previousElementSibling; if(!fig||!fig.classList.contains('shot')) return;
+    var fig=ol.previousElementSibling; while(fig&&!fig.classList.contains('shot')) fig=fig.previousElementSibling; if(!fig) return;
     var pins=fig.querySelectorAll('.pin');
     [].forEach.call(ol.children,function(li,i){
       var pin=pins[i]; if(!pin) return;
