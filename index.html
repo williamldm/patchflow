@@ -14,21 +14,21 @@
 <meta property="og:url" content="https://patchflow.fr/"/>
 <meta property="og:title" content="PatchFlow — Le patch au propre, avant la balance"/>
 <meta property="og:description" content="Input list, plans et fichiers d'une date au même endroit, et un lien toujours à jour pour toute l'équipe."/>
-<meta property="og:image" content="https://patchflow.fr/img/lp-hero-il.jpg"/>
+<meta property="og:image" content="https://patchflow.fr/img/lp-hero-il.jpg?v=2"/>
 <meta name="twitter:card" content="summary_large_image"/>
 <meta name="twitter:title" content="PatchFlow — Le patch au propre, avant la balance"/>
 <meta name="twitter:description" content="Input list, plans de scène et rider partagé pour les ingés son."/>
-<meta name="twitter:image" content="https://patchflow.fr/img/lp-hero-il.jpg"/>
+<meta name="twitter:image" content="https://patchflow.fr/img/lp-hero-il.jpg?v=2"/>
 <script>document.documentElement.classList.add('js');setTimeout(function(){if(!window.__rv)document.documentElement.classList.remove('js')},2500);</script>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet"/>
-<link rel="preload" as="image" href="img/lp-hero-il.avif" type="image/avif" media="(min-width:761px)" fetchpriority="high"/>
-<link rel="preload" as="image" href="img/lp-hero-il-m.avif" type="image/avif" media="(max-width:760px)" fetchpriority="high"/>
+<link rel="preload" as="image" href="img/lp-hero-il.avif?v=2" type="image/avif" media="(min-width:761px)" fetchpriority="high"/>
+<link rel="preload" as="image" href="img/lp-hero-il-m.avif?v=2" type="image/avif" media="(max-width:760px)" fetchpriority="high"/>
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"SoftwareApplication","name":"PatchFlow","applicationCategory":"BusinessApplication","operatingSystem":"Web","inLanguage":"fr",
 "description":"Input list, output list, plans de scène, de site et synoptique de signal pour les ingés son, avec partage par lien en lecture seule.",
-"url":"https://patchflow.fr/","image":"https://patchflow.fr/img/lp-hero-il.jpg",
+"url":"https://patchflow.fr/","image":"https://patchflow.fr/img/lp-hero-il.jpg?v=2",
 "offers":[{"@type":"Offer","name":"Gratuit","price":"0","priceCurrency":"EUR"},{"@type":"Offer","name":"Pro mensuel","price":"11.99","priceCurrency":"EUR"},{"@type":"Offer","name":"Pro annuel","price":"119","priceCurrency":"EUR"}]}
 </script>
 <style>
@@ -126,9 +126,9 @@ p{text-wrap:pretty}
 .shot picture{display:block;border-radius:14px;overflow:hidden}
 .shot img{width:100%}
 /* Repères numérotés posés sur l'interface */
-.pin{position:absolute;transform:translate(-50%,-50%);width:28px;height:28px;border-radius:50%;background:var(--acc);color:#1a0a02;
-  font-size:13.5px;font-weight:700;display:flex;align-items:center;justify-content:center;
-  box-shadow:0 0 0 4px rgba(255,107,26,.28),0 6px 16px rgba(0,0,0,.4);pointer-events:none}
+.pin{position:absolute;transform:translate(-50%,-50%);width:24px;height:24px;border-radius:50%;background:#fff;color:var(--ink);
+  font-size:12.5px;font-weight:700;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 0 1px rgba(18,19,23,.10),0 6px 18px rgba(0,0,0,.45);pointer-events:none}
 .notes{list-style:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:40px;margin-top:44px}
 .notes li{display:grid;grid-template-columns:30px minmax(0,1fr);gap:16px;align-items:start}
 .notes .n{width:30px;height:30px;border-radius:50%;background:var(--ink);color:var(--bg);font-size:14px;font-weight:700;
@@ -292,18 +292,15 @@ p{text-wrap:pretty}
 .js .wd>span{display:inline-block;translate:0 110%;transition:translate 1.1s var(--ease);transition-delay:calc(var(--w,0) * 65ms)}
 .split-h.in .wd>span{translate:none}
 
-/* Repères : ils éclosent une fois la capture en place, puis pulsent doucement */
+/* Repères : discrets, ils apparaissent une fois la capture en place */
 .js .shot .pin{scale:0}
 .pin{transition:scale .25s var(--ease)}
-.shot.in .pin{scale:1;animation:pin-pop .6s cubic-bezier(.34,1.56,.64,1) backwards;animation-delay:calc(.8s + var(--i,0) * .15s)}
-.shot .pin.hot{scale:1.3}
-.pin::after{content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;
-  animation:pin-ping 3.2s ease-out infinite;animation-delay:calc(1.8s + var(--i,0) * .45s)}
-@keyframes pin-pop{from{scale:0}to{scale:1}}
-@keyframes pin-ping{0%{box-shadow:0 0 0 0 rgba(255,107,26,.55)}55%,100%{box-shadow:0 0 0 16px rgba(255,107,26,0)}}
+.shot.in .pin{scale:1;animation:pin-pop .7s var(--ease) backwards;animation-delay:calc(.8s + var(--i,0) * .12s)}
+.shot .pin.hot{scale:1.25}
+@keyframes pin-pop{from{scale:.4;opacity:0}to{scale:1;opacity:1}}
 /* Survol d'une note : son repère grossit sur la capture */
-.notes .n{transition:background .2s,color .2s}
-.notes li.hot .n{background:var(--acc);color:#1a0a02}
+.notes .n{transition:box-shadow .2s}
+.notes li.hot .n{box-shadow:0 0 0 4px rgba(18,19,23,.12)}
 
 /* Capture du haut : légèrement couchée, elle se redresse au défilement (piloté en JS) */
 .hero .shot{transform-origin:50% 0}
@@ -432,10 +429,10 @@ p{text-wrap:pretty}
 
     <figure class="shot">
       <picture>
-        <source media="(max-width:760px)" type="image/avif" srcset="img/lp-hero-il-m.avif" width="880" height="1100"/>
-        <source media="(max-width:760px)" srcset="img/lp-hero-il-m.jpg" width="880" height="1100"/>
-        <source type="image/avif" srcset="img/lp-hero-il.avif"/>
-        <img src="img/lp-hero-il.jpg" width="2880" height="1640" fetchpriority="high" decoding="async"
+        <source media="(max-width:760px)" type="image/avif" srcset="img/lp-hero-il-m.avif?v=2" width="880" height="1100"/>
+        <source media="(max-width:760px)" srcset="img/lp-hero-il-m.jpg?v=2" width="880" height="1100"/>
+        <source type="image/avif" srcset="img/lp-hero-il.avif?v=2"/>
+        <img src="img/lp-hero-il.jpg?v=2" width="2880" height="1640" fetchpriority="high" decoding="async"
           alt="L'input list de PatchFlow&nbsp;: 24 canaux avec nom court, nom long, source, micro, gain, +48V, envois façade et retours, pied de micro."/>
       </picture>
       <span class="pin" style="left:80.9%;top:14.6%" aria-hidden="true">1</span>
@@ -465,10 +462,10 @@ p{text-wrap:pretty}
     </div>
     <figure class="shot bleed">
       <picture>
-        <source media="(max-width:760px)" type="image/avif" srcset="img/lp-output-m.avif" width="1120" height="960"/>
-        <source media="(max-width:760px)" srcset="img/lp-output-m.jpg" width="1120" height="960"/>
-        <source type="image/avif" srcset="img/lp-output.avif"/>
-        <img src="img/lp-output.jpg" width="2360" height="1280" loading="lazy" decoding="async"
+        <source media="(max-width:760px)" type="image/avif" srcset="img/lp-output-m.avif?v=2" width="1120" height="960"/>
+        <source media="(max-width:760px)" srcset="img/lp-output-m.jpg?v=2" width="1120" height="960"/>
+        <source type="image/avif" srcset="img/lp-output.avif?v=2"/>
+        <img src="img/lp-output.jpg?v=2" width="2360" height="1280" loading="lazy" decoding="async"
           alt="L'output list&nbsp;: wedges, départs in-ear avec fréquence HF, side fills en matrice, sub batteur et effet."/>
       </picture>
     </figure>
@@ -495,10 +492,10 @@ p{text-wrap:pretty}
     <div class="panel" id="p-scene" role="tabpanel" aria-labelledby="tab-scene">
       <figure class="shot">
         <picture>
-          <source media="(max-width:760px)" type="image/avif" srcset="img/lp-plan-scene-m.avif" width="880" height="1100"/>
-        <source media="(max-width:760px)" srcset="img/lp-plan-scene-m.jpg" width="880" height="1100"/>
-        <source type="image/avif" srcset="img/lp-plan-scene.avif"/>
-          <img src="img/lp-plan-scene.jpg" width="2880" height="1760" loading="lazy" decoding="async"
+          <source media="(max-width:760px)" type="image/avif" srcset="img/lp-plan-scene-m.avif?v=2" width="880" height="1100"/>
+        <source media="(max-width:760px)" srcset="img/lp-plan-scene-m.jpg?v=2" width="880" height="1100"/>
+        <source type="image/avif" srcset="img/lp-plan-scene.avif?v=2"/>
+          <img src="img/lp-plan-scene.jpg?v=2" width="2880" height="1760" loading="lazy" decoding="async"
             alt="Le plan de scène&nbsp;: batterie, amplis, claviers, micros et wedges, chacun avec son numéro de canal ou de sortie&nbsp;; le chant lead est sélectionné et relié au canal 19."/>
         </picture>
         <span class="pin" style="left:55%;top:62.6%" aria-hidden="true">1</span>
@@ -515,10 +512,10 @@ p{text-wrap:pretty}
     <div class="panel" id="p-site" role="tabpanel" aria-labelledby="tab-site" hidden>
       <figure class="shot">
         <picture>
-          <source media="(max-width:760px)" type="image/avif" srcset="img/lp-plan-site-m.avif" width="880" height="1100"/>
-        <source media="(max-width:760px)" srcset="img/lp-plan-site-m.jpg" width="880" height="1100"/>
-        <source type="image/avif" srcset="img/lp-plan-site.avif"/>
-          <img src="img/lp-plan-site.jpg" width="2880" height="1760" loading="lazy" decoding="async"
+          <source media="(max-width:760px)" type="image/avif" srcset="img/lp-plan-site-m.avif?v=2" width="880" height="1100"/>
+        <source media="(max-width:760px)" srcset="img/lp-plan-site-m.jpg?v=2" width="880" height="1100"/>
+        <source type="image/avif" srcset="img/lp-plan-site.avif?v=2"/>
+          <img src="img/lp-plan-site.jpg?v=2" width="2880" height="1760" loading="lazy" decoding="async"
             alt="Le plan de site&nbsp;: line arrays, subs, front fill, délais et régie façade, reliés par des câbles Dante, Speakon et XLR avec leur métrage&nbsp;; la liaison Dante est sélectionnée."/>
         </picture>
         <span class="pin" style="left:49.6%;top:58.2%" aria-hidden="true">1</span>
@@ -535,10 +532,10 @@ p{text-wrap:pretty}
     <div class="panel" id="p-syno" role="tabpanel" aria-labelledby="tab-syno" hidden>
       <figure class="shot">
         <picture>
-          <source media="(max-width:760px)" type="image/avif" srcset="img/lp-plan-syno-m.avif" width="880" height="780"/>
-        <source media="(max-width:760px)" srcset="img/lp-plan-syno-m.jpg" width="880" height="780"/>
-        <source type="image/avif" srcset="img/lp-plan-syno.avif"/>
-          <img src="img/lp-plan-syno.jpg" width="2880" height="1760" loading="lazy" decoding="async"
+          <source media="(max-width:760px)" type="image/avif" srcset="img/lp-plan-syno-m.avif?v=2" width="880" height="780"/>
+        <source media="(max-width:760px)" srcset="img/lp-plan-syno-m.jpg?v=2" width="880" height="780"/>
+        <source type="image/avif" srcset="img/lp-plan-syno.avif?v=2"/>
+          <img src="img/lp-plan-syno.jpg?v=2" width="2880" height="1760" loading="lazy" decoding="async"
             alt="Le synoptique&nbsp;: deux stageboxes, consoles façade et retours, amplis et enceintes, reliés par des liaisons Dante, AES, gigaACE et Speakon."/>
         </picture>
         <span class="pin" style="left:11.9%;top:69.5%" aria-hidden="true">1</span>
@@ -572,15 +569,15 @@ p{text-wrap:pretty}
       <div class="phones">
         <div class="phone">
           <picture>
-            <source type="image/avif" srcset="img/lp-share-il.avif"/>
-            <img src="img/lp-share-il.jpg" width="1170" height="2532" loading="lazy" decoding="async"
+            <source type="image/avif" srcset="img/lp-share-il.avif?v=2"/>
+            <img src="img/lp-share-il.jpg?v=2" width="1170" height="2531" loading="lazy" decoding="async"
               alt="Le rider partagé sur téléphone&nbsp;: l'input list en cartes, avec micro, +48V, façade et retours."/>
           </picture>
         </div>
         <div class="phone">
           <picture>
-            <source type="image/avif" srcset="img/lp-share-stage.avif"/>
-            <img src="img/lp-share-stage.jpg" width="1170" height="2532" loading="lazy" decoding="async"
+            <source type="image/avif" srcset="img/lp-share-stage.avif?v=2"/>
+            <img src="img/lp-share-stage.jpg?v=2" width="1170" height="2531" loading="lazy" decoding="async"
               alt="Le rider partagé sur téléphone&nbsp;: le plan de scène, consultable en plein écran."/>
           </picture>
         </div>
@@ -590,8 +587,8 @@ p{text-wrap:pretty}
     <div class="link-shot">
       <figure class="shot">
         <picture>
-          <source type="image/avif" srcset="img/lp-link.avif"/>
-          <img src="img/lp-link.jpg" width="2760" height="526" loading="lazy" decoding="async"
+          <source type="image/avif" srcset="img/lp-link.avif?v=2"/>
+          <img src="img/lp-link.jpg?v=2" width="2760" height="512" loading="lazy" decoding="async"
             alt="Deux liens de partage&nbsp;: la régie du Rocher voit l'input list, l'output list et les plans&nbsp;; le loueur backline voit l'input list et le plan de scène."/>
         </picture>
       </figure>
@@ -614,8 +611,8 @@ p{text-wrap:pretty}
       <article class="card">
         <div class="card-img">
           <picture>
-            <source type="image/avif" srcset="img/lp-card-files.avif"/>
-            <img src="img/lp-card-files.jpg" width="880" height="550" loading="lazy" decoding="async"
+            <source type="image/avif" srcset="img/lp-card-files.avif?v=2"/>
+            <img src="img/lp-card-files.jpg?v=2" width="880" height="550" loading="lazy" decoding="async"
               alt="Les fichiers du show&nbsp;: plan de scène en PDF, rider technique vérifié par un membre de l'équipe, show file dLive."/>
           </picture>
         </div>
@@ -628,8 +625,8 @@ p{text-wrap:pretty}
       <article class="card">
         <div class="card-img">
           <picture>
-            <source type="image/avif" srcset="img/lp-card-export.avif"/>
-            <img src="img/lp-card-export.jpg" width="666" height="416" loading="lazy" decoding="async"
+            <source type="image/avif" srcset="img/lp-card-export.avif?v=2"/>
+            <img src="img/lp-card-export.jpg?v=2" width="666" height="416" loading="lazy" decoding="async"
               alt="L'export console&nbsp;: scène native .scn pour Behringer X32 et Midas M32, avec noms, couleurs, gains et +48V."/>
           </picture>
         </div>
@@ -642,8 +639,8 @@ p{text-wrap:pretty}
       <article class="card">
         <div class="card-img">
           <picture>
-            <source type="image/avif" srcset="img/lp-card-team.avif"/>
-            <img src="img/lp-card-team.jpg" width="880" height="562" loading="lazy" decoding="async"
+            <source type="image/avif" srcset="img/lp-card-team.avif?v=2"/>
+            <img src="img/lp-card-team.jpg?v=2" width="880" height="562" loading="lazy" decoding="async"
               alt="L'équipe du show&nbsp;: l'administrateur propriétaire et un membre en lecture seule."/>
           </picture>
         </div>
