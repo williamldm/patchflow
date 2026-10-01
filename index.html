@@ -23,7 +23,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet"/>
-<link rel="preload" as="image" href="img/lp-hero-il.avif" type="image/avif" fetchpriority="high"/>
+<link rel="preload" as="image" href="img/lp-hero-il.avif" type="image/avif" media="(min-width:761px)" fetchpriority="high"/>
+<link rel="preload" as="image" href="img/lp-hero-il-m.avif" type="image/avif" media="(max-width:760px)" fetchpriority="high"/>
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"SoftwareApplication","name":"PatchFlow","applicationCategory":"BusinessApplication","operatingSystem":"Web","inLanguage":"fr",
 "description":"Input list, output list, plans de scène, de site et synoptique de signal pour les ingés son, avec partage par lien en lecture seule.",
@@ -326,7 +327,10 @@ p{text-wrap:pretty}
   .card{flex-direction:column}
   .card-img{flex:none;aspect-ratio:16/10;min-height:0}
   .aussi ul{columns:1}
-  .pin{width:20px;height:20px;font-size:10.5px;box-shadow:0 0 0 3px rgba(255,107,26,.3),0 4px 10px rgba(0,0,0,.3)}
+  /* Les captures sont des recadrages lisibles (sources *-m) : les repères n'y ont plus leur place */
+  .shot .pin,.notes .n{display:none}
+  .notes li{grid-template-columns:minmax(0,1fr)}
+  .notes h3{margin-top:0}
   .seg{display:flex;width:100%}
   .seg button{flex:1;padding:10px 8px;font-size:14.5px}
   /* Liens de partage : on garde la partie lisible (nom, sections, adresse), le reste sort de l'écran */
@@ -334,7 +338,8 @@ p{text-wrap:pretty}
   .link-shot .shot,.link-shot .shot picture{border-radius:10px 0 0 10px}
   .foot nav{margin-left:0;width:100%;gap:20px}
   .shot,.shot picture{border-radius:10px}
-  .bleed,.bleed picture{border-radius:10px 0 0 10px}
+  .bleed{width:100%}
+  .js .bleed{translate:0 26px}
   .ctas .btn{width:100%}
   .phone{border-radius:34px;padding:7px}
   .phone img{border-radius:28px}
@@ -400,6 +405,8 @@ p{text-wrap:pretty}
 
     <figure class="shot">
       <picture>
+        <source media="(max-width:760px)" type="image/avif" srcset="img/lp-hero-il-m.avif" width="880" height="1100"/>
+        <source media="(max-width:760px)" srcset="img/lp-hero-il-m.jpg" width="880" height="1100"/>
         <source type="image/avif" srcset="img/lp-hero-il.avif"/>
         <img src="img/lp-hero-il.jpg" width="2880" height="1640" fetchpriority="high" decoding="async"
           alt="L'input list de PatchFlow&nbsp;: 24 canaux avec nom court, nom long, source, micro, gain, +48V, envois façade et retours, pied de micro."/>
@@ -431,6 +438,8 @@ p{text-wrap:pretty}
     </div>
     <figure class="shot bleed">
       <picture>
+        <source media="(max-width:760px)" type="image/avif" srcset="img/lp-output-m.avif" width="1120" height="960"/>
+        <source media="(max-width:760px)" srcset="img/lp-output-m.jpg" width="1120" height="960"/>
         <source type="image/avif" srcset="img/lp-output.avif"/>
         <img src="img/lp-output.jpg" width="2360" height="1280" loading="lazy" decoding="async"
           alt="L'output list&nbsp;: wedges, départs in-ear avec fréquence HF, side fills en matrice, sub batteur et effet."/>
@@ -459,7 +468,9 @@ p{text-wrap:pretty}
     <div class="panel" id="p-scene" role="tabpanel" aria-labelledby="tab-scene">
       <figure class="shot">
         <picture>
-          <source type="image/avif" srcset="img/lp-plan-scene.avif"/>
+          <source media="(max-width:760px)" type="image/avif" srcset="img/lp-plan-scene-m.avif" width="880" height="1100"/>
+        <source media="(max-width:760px)" srcset="img/lp-plan-scene-m.jpg" width="880" height="1100"/>
+        <source type="image/avif" srcset="img/lp-plan-scene.avif"/>
           <img src="img/lp-plan-scene.jpg" width="2880" height="1760" loading="lazy" decoding="async"
             alt="Le plan de scène&nbsp;: batterie, amplis, claviers, micros et wedges, chacun avec son numéro de canal ou de sortie&nbsp;; le chant lead est sélectionné et relié au canal 19."/>
         </picture>
@@ -477,7 +488,9 @@ p{text-wrap:pretty}
     <div class="panel" id="p-site" role="tabpanel" aria-labelledby="tab-site" hidden>
       <figure class="shot">
         <picture>
-          <source type="image/avif" srcset="img/lp-plan-site.avif"/>
+          <source media="(max-width:760px)" type="image/avif" srcset="img/lp-plan-site-m.avif" width="880" height="1100"/>
+        <source media="(max-width:760px)" srcset="img/lp-plan-site-m.jpg" width="880" height="1100"/>
+        <source type="image/avif" srcset="img/lp-plan-site.avif"/>
           <img src="img/lp-plan-site.jpg" width="2880" height="1760" loading="lazy" decoding="async"
             alt="Le plan de site&nbsp;: line arrays, subs, front fill, délais et régie façade, reliés par des câbles Dante, Speakon et XLR avec leur métrage&nbsp;; la liaison Dante est sélectionnée."/>
         </picture>
@@ -495,7 +508,9 @@ p{text-wrap:pretty}
     <div class="panel" id="p-syno" role="tabpanel" aria-labelledby="tab-syno" hidden>
       <figure class="shot">
         <picture>
-          <source type="image/avif" srcset="img/lp-plan-syno.avif"/>
+          <source media="(max-width:760px)" type="image/avif" srcset="img/lp-plan-syno-m.avif" width="880" height="780"/>
+        <source media="(max-width:760px)" srcset="img/lp-plan-syno-m.jpg" width="880" height="780"/>
+        <source type="image/avif" srcset="img/lp-plan-syno.avif"/>
           <img src="img/lp-plan-syno.jpg" width="2880" height="1760" loading="lazy" decoding="async"
             alt="Le synoptique&nbsp;: deux stageboxes, consoles façade et retours, amplis et enceintes, reliés par des liaisons Dante, AES, gigaACE et Speakon."/>
         </picture>
