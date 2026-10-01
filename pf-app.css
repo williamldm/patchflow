@@ -574,11 +574,58 @@ select option{background:var(--surf);color:var(--txt)}
 .sp-edge{cursor:pointer;pointer-events:stroke}
 .sp-edge-hit{pointer-events:stroke;opacity:0;cursor:pointer}
 .sp-edge.sel{filter:drop-shadow(0 0 4px rgba(255,107,26,.6))}
+.sp-edge-hit:hover + .sp-edge{stroke-width:4px}
+.sp-elabel{pointer-events:all;cursor:grab}
+.sp-elabel *{pointer-events:all}
+/* ── Synoptique : liaisons ──────────────────────────────────────────
+   Points d'accroche sur les équipements, calque des poignées (au-dessus
+   des équipements), barre d'outils flottante de la liaison sélectionnée. */
+.sp-port{position:absolute;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:#fff;border:2px solid #ff6b1a;
+  box-shadow:0 1px 4px rgba(0,0,0,.25);opacity:0;transform:scale(.5);transition:opacity .12s,transform .12s,background .12s;cursor:crosshair;z-index:4;pointer-events:auto}
+.sp-port[data-side="n"]{left:50%;top:0}
+.sp-port[data-side="s"]{left:50%;top:100%}
+.sp-port[data-side="e"]{left:100%;top:50%}
+.sp-port[data-side="w"]{left:0;top:50%}
+.sp-node:hover .sp-port,.sp-viewport.sp-linking .sp-port{opacity:1;transform:scale(1)}
+.sp-node .sp-port,.sp-node-card .sp-port{pointer-events:auto}
+.sp-node-card{position:relative}
+.sp-port:hover{background:#ff6b1a;transform:scale(1.4)!important}
+.sp-viewport.sp-linking,.sp-viewport.sp-linking .sp-node{cursor:crosshair}
+.sp-viewport.sp-bg-editing .sp-port{display:none}
+#sp-hov{position:absolute;left:0;top:0;pointer-events:none;z-index:3;overflow:visible}
+#sp-hov .sp-h-wp,#sp-hov .sp-h-add,#sp-hov .sp-h-end{pointer-events:all}
+.sp-h-wp{cursor:move}
+.sp-h-add{fill:#fff;cursor:copy;opacity:.9}
+.sp-h-add:hover{opacity:1;fill:#fff7f0}
+.sp-h-end{cursor:grab}
+#sp-ctool{position:absolute;width:0;height:0;z-index:6;transform:scale(calc(1 / var(--z, 1)));transform-origin:0 0}
+.sp-ct{position:absolute;left:0;bottom:14px;transform:translateX(-50%);display:flex;align-items:center;gap:2px;padding:4px;
+  background:var(--surf);border:1px solid var(--bdr2);border-radius:10px;box-shadow:0 10px 28px rgba(0,0,0,.28);white-space:nowrap;cursor:default}
+.sp-ct button{width:30px;height:28px;display:flex;align-items:center;justify-content:center;border:0;border-radius:7px;background:transparent;color:var(--txt2);cursor:pointer;font-size:15px}
+.sp-ct button:hover{background:var(--surf2);color:var(--txt)}
+.sp-ct button.on{background:var(--ora);color:#160b03}
+.sp-ct button.del:hover{background:rgba(255,77,106,.14);color:var(--err)}
+.sp-ct svg,.sp-dir-btn svg,.sp-ctx-ico svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.sp-ct-sep{width:1px;height:18px;background:var(--bdr2);margin:0 3px}
+.sp-ct-net{display:flex;align-items:center;gap:6px;padding:0 4px 0 8px;height:28px;border-radius:7px;cursor:pointer}
+.sp-ct-net:hover{background:var(--surf2)}
+.sp-ct-sw{width:12px;height:4px;border-radius:2px;flex-shrink:0}
+.sp-ct-net select{background:transparent;border:0;color:var(--txt);font-family:var(--f);font-size:12px;font-weight:600;max-width:150px;cursor:pointer;outline:none;padding:0}
+.sp-ct-net select option{background:var(--surf);color:var(--txt)}
+.sp-route-grp .sp-dir-btn{flex-direction:column;gap:2px;height:44px;font-size:10px;font-family:var(--f);font-weight:600}
+.sp-insp-help{font-size:10.5px;line-height:1.5;color:var(--muted);background:var(--surf2);border:1px solid var(--bdr);border-radius:var(--r2);padding:8px 10px;margin-top:10px}
+.sp-insp-help b{color:var(--txt2);font-weight:600}
+.sp-cable-help{margin-top:6px;font-size:10px;color:var(--muted);text-align:center;line-height:1.5;padding:4px}
+.sp-cable-help b{color:var(--txt2);font-weight:600}
+.sp-ban-sw{display:inline-block;width:14px;height:4px;border-radius:2px;margin-right:2px;vertical-align:middle;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
+.sp-ctx-ico{display:inline-flex;width:14px;height:14px;color:var(--muted)}
+.sp-exp-item:hover .sp-ctx-ico{color:var(--ora)}
+.sp-exp-item.on{color:var(--txt)}
 #sp-nodes{position:absolute;left:0;top:0;z-index:2;pointer-events:none}
 .sp-node{position:absolute;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-drag:none;cursor:grab;display:flex;flex-direction:column;align-items:center;text-align:center}
 .sp-node:active{cursor:grabbing}
 .sp-node.sel .sp-node-card{outline:2px solid #ff6b1a;outline-offset:2px}
-.sp-node.target-hint .sp-node-card{outline:2px dashed rgba(255,107,26,.7);outline-offset:2px}
+.sp-node.target-hint .sp-node-card{outline:2px solid #ff6b1a;outline-offset:3px;box-shadow:0 0 0 6px rgba(255,107,26,.15),0 2px 10px rgba(0,0,0,.07)}
 /* Inner content does not intercept pointer events ; only the .sp-node itself
    and the explicit delete button receive clicks. This guarantees drag works
    no matter where inside the card the user grabs. */
