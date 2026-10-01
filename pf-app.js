@@ -6715,8 +6715,8 @@ const SynRoute = (function(){
   var ROUTES = { straight:1, ortho:1, curve:1 };
   var SIDES = { n:1, e:1, s:1, w:1 };
   var NORM = { n:{x:0,y:-1}, e:{x:1,y:0}, s:{x:0,y:1}, w:{x:-1,y:0} };
-  var STUB = 18;      /* sortie perpendiculaire avant le premier coude */
-  var RADIUS = 9;     /* arrondi des coudes */
+  var STUB = 12;      /* sortie perpendiculaire avant le premier coude (courte : le câble colle à l'équipement) */
+  var RADIUS = 16;    /* arrondi des coudes (réduit automatiquement sur les tronçons courts) */
   var PORT_GAP = 14;  /* écart entre deux liaisons sur un même côté */
 
   function routeOf(c, def){ return (c && ROUTES[c.route]) ? c.route : (ROUTES[def] ? def : 'straight'); }
@@ -6903,7 +6903,20 @@ const SynRoute = (function(){
     }
     return bestT;
   }
-  /* Milieu du plus long tronçon : l'étiquette tombe sur une partie droite */
+  /* Place de l'étiquette : de préférence au milieu d'un tronçon horizontal assez long
+     (le texte s'y lit sans chevaucher le trait), jamais sur un équipement */
+  function labelSpot(pts, w, bA, bB){
+    var best = null, bs = -1;
+    for (var i = 0; i < pts.length - 1; i++) {
+      var a = pts[i], b = pts[i+1], L = dist(a, b);
+      var horiz = Math.abs(a.y - b.y) < 0.5, m = { x:(a.x + b.x)/2, y:(a.y + b.y)/2 };
+      var inBox = [bA, bB].some(function(bx){ return bx && bx.w && m.x > bx.x - 4 && m.x < bx.x + bx.w + 4 && m.y > bx.y - 4 && m.y < bx.y + bx.h + 4; });
+      var sc = L * (horiz && L >= w + 16 ? 3 : 1) * (inBox ? 0.01 : 1);
+      if (sc > bs) { bs = sc; best = m; }
+    }
+    return best || longestMid(pts);
+  }
+  /* Milieu du plus long tronçon */
   function longestMid(pts){
     var bi = 0, bl = -1;
     for (var i = 0; i < pts.length - 1; i++) { var L = dist(pts[i], pts[i+1]); if (L > bl) { bl = L; bi = i; } }
@@ -6941,8 +6954,9 @@ const SynRoute = (function(){
       }
     }
     var lt = it.c.labelT;
+    var lw = Math.min(190, String(it.c.label || '').split('\n').reduce(function(m, l){ return Math.max(m, l.length); }, 0) * 6.6 + 16);
     var label = (typeof lt === 'number' && isFinite(lt) && lt >= 0 && lt <= 1) ? atT(pts, lt)
-              : (route === 'curve' ? atT(pts, 0.5) : longestMid(pts));
+              : (route === 'curve' ? atT(pts, 0.5) : labelSpot(pts, lw, it.bA, it.bB));
     return { route:route, d:d, pts:pts, ctrl:ctrl, start:S0, end:E0, sA:it.sA, sB:it.sB, adds:adds, label:label };
   }
 
@@ -8084,13 +8098,13 @@ const SynPro = (() => {
   }
   /* Étiquette d'une liaison : cartouche blanc centré sur pt */
   function _labelSvg(label, pt, color, attrs) {
-    var lines = String(label).split('\n'), lh = 12, totalH = lines.length * lh, maxW = 0;
+    var lines = String(label).split('\n'), lh = 13, totalH = lines.length * lh, maxW = 0;
     lines.forEach(function(ln){ maxW = Math.max(maxW, ln.length); });
-    var bw = Math.min(180, maxW * 6.2 + 14);
+    var bw = Math.min(190, maxW * 6.6 + 16);
     var h = '<g' + (attrs || '') + '>';
-    h += '<rect x="' + (pt.x - bw/2) + '" y="' + (pt.y - totalH/2 - 3) + '" width="' + bw + '" height="' + (totalH + 6) + '" rx="4" fill="#ffffff" stroke="' + color + '" stroke-opacity=".45" stroke-width=".8"/>';
+    h += '<rect x="' + (pt.x - bw/2) + '" y="' + (pt.y - totalH/2 - 3) + '" width="' + bw + '" height="' + (totalH + 6) + '" rx="5" fill="#ffffff" stroke="' + color + '" stroke-opacity=".5" stroke-width=".9"/>';
     lines.forEach(function(ln, i){
-      h += '<text x="' + pt.x + '" y="' + (pt.y - totalH/2 + lh/2 + 3 + i*lh) + '" text-anchor="middle" font-family="Archivo,sans-serif" font-size="10" font-weight="600" fill="' + color + '">' + esc(ln) + '</text>';
+      h += '<text x="' + pt.x + '" y="' + (pt.y - totalH/2 + lh/2 + 3 + i*lh) + '" text-anchor="middle" font-family="Archivo,sans-serif" font-size="11" font-weight="600" fill="' + color + '">' + esc(ln) + '</text>';
     });
     return h + '</g>';
   }
@@ -18916,13 +18930,13 @@ function _svFs(imgId, title){
       var mStart=(dir==='backward'||dir==='both')?' marker-start="url(#'+cid+'-bwd)"':'';
       edgeSvg+='<path d="'+g.d+'" fill="none" stroke="'+col+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"'+mEnd+mStart+'/>';
       if(c.label&&String(c.label).trim()){
-        var lines=String(c.label).split('\n');var lh=12,maxLen=0;
+        var lines=String(c.label).split('\n');var lh=13,maxLen=0;
         lines.forEach(function(l){maxLen=Math.max(maxLen,l.length);});
-        var bw=Math.min(180,maxLen*6.2+14);var totalH=lines.length*lh;
+        var bw=Math.min(190,maxLen*6.6+16);var totalH=lines.length*lh;
         var lx=g.label.x,ly=g.label.y;
         edgeSvg+='<rect x="'+(lx-bw/2)+'" y="'+(ly-totalH/2-3)+'" width="'+bw+'" height="'+(totalH+6)+'" rx="4" fill="#fff" stroke="'+col+'" stroke-opacity=".45" stroke-width=".8"/>';
         lines.forEach(function(l,i){
-          edgeSvg+='<text x="'+lx+'" y="'+(ly-totalH/2+lh/2+3+i*lh)+'" text-anchor="middle" font-family="Archivo,sans-serif" font-size="10" font-weight="600" fill="'+col+'">'+esc(l)+'</text>';
+          edgeSvg+='<text x="'+lx+'" y="'+(ly-totalH/2+lh/2+3+i*lh)+'" text-anchor="middle" font-family="Archivo,sans-serif" font-size="11" font-weight="600" fill="'+col+'">'+esc(l)+'</text>';
         });
       }
     });
