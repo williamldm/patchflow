@@ -2856,7 +2856,7 @@ async function exportRiderPdf(){
 
   /* ── CSS partagé ── */
   var css=`*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Outfit',sans-serif;background:#fff;color:#1a1a2e;font-size:9.5px}
+body{font-family:'Archivo',sans-serif;background:#fff;color:#1a1a2e;font-size:9.5px}
 @page{size:A4 portrait;margin:10mm 12mm}
 @page landscape{size:A4 landscape;margin:8mm 10mm}
 .page{page-break-after:always}
@@ -3087,7 +3087,7 @@ td{padding:4px 7px;border-bottom:1px solid #f0eee8;vertical-align:middle}
   }
 
   var html='<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/><title>'+_fEsc(rTitle)+'</title>'
-    +'<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet"/>'
+    +'<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Archivo:wght@400;600;700&display=swap" rel="stylesheet"/>'
     +'<style>'+css+'</style></head><body>'
     +pages.join('')
     +'<script>window.onload=()=>window.print();<\/script>'
@@ -4550,7 +4550,7 @@ function _pdfBrand(){
 function _pdfWatermarkHtml(brand){
   if(!brand.watermark) return '';
   return '<div style="position:fixed;inset:0;z-index:9999;pointer-events:none;overflow:hidden;opacity:.06">'
-    +'<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-32deg);white-space:nowrap;font-family:Outfit,sans-serif;font-weight:800;font-size:54px;line-height:2.4;color:#1a1a2e;letter-spacing:4px;text-align:center">'
+    +'<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-32deg);white-space:nowrap;font-family:Archivo,sans-serif;font-weight:800;font-size:54px;line-height:2.4;color:#1a1a2e;letter-spacing:4px;text-align:center">'
     +('PATCHFLOW · GRATUIT &nbsp; ').repeat(60)
     +'</div></div>';
 }
@@ -4583,10 +4583,10 @@ function _buildPdfInHTML(meta,brand){
   body+='</tbody></table>';
   const engLine=[meta.eng,meta.role].filter(Boolean).join(' — ');
   return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/><title>${brand.co} — ${show}</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Archivo:wght@400;600;700&display=swap" rel="stylesheet"/>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}:root{--o:${accentColor};--b:#1a8fff;--g:#22d6a0;--w:#f5c542}
-body{font-family:'Outfit',sans-serif;background:#fff;color:#1a1a2e;font-size:9.5px}@page{size:A4 landscape;margin:10mm 12mm}
+body{font-family:'Archivo',sans-serif;background:#fff;color:#1a1a2e;font-size:9.5px}@page{size:A4 landscape;margin:10mm 12mm}
 .hd{display:flex;align-items:flex-start;justify-content:space-between;padding:12px 16px 10px;border-bottom:3px solid var(--o)}
 .hl{display:flex;align-items:center;gap:11px}.logo{width:34px;height:34px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .ht{font-size:16px;font-weight:700}.hs{font-size:9px;color:#888;font-family:'DM Mono',monospace;letter-spacing:.5px}
@@ -4659,10 +4659,10 @@ function _buildPdfOutHTML(meta,brand){
     if(count>0){var t=OUT_TYPES[k];typeSummary+='<div class="si"><span style="color:'+t.color+'">'+t.label+'</span> <span class="sv" style="color:'+t.color+'">'+count+'</span></div>';}
   });
   return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/><title>${brand.co} — ${show} — Output List</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Archivo:wght@400;600;700&display=swap" rel="stylesheet"/>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}:root{--o:${accentColor};--b:#1a8fff;--g:#22d6a0;--w:#f5c542}
-body{font-family:'Outfit',sans-serif;background:#fff;color:#1a1a2e;font-size:9.5px}@page{size:A4 landscape;margin:10mm 12mm}
+body{font-family:'Archivo',sans-serif;background:#fff;color:#1a1a2e;font-size:9.5px}@page{size:A4 landscape;margin:10mm 12mm}
 .hd{display:flex;align-items:flex-start;justify-content:space-between;padding:12px 16px 10px;border-bottom:3px solid var(--o)}
 .hl{display:flex;align-items:center;gap:11px}.logo{width:34px;height:34px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .ht{font-size:16px;font-weight:700}.hs{font-size:9px;color:#888;font-family:'DM Mono',monospace;letter-spacing:.5px}
@@ -4750,7 +4750,7 @@ function _buildPdfBothHTML(meta,brand){
     if(count>0){var t=OUT_TYPES[k];typeSummary+='<div class="si"><span style="color:'+t.color+'">'+t.label+'</span> <span class="sv" style="color:'+t.color+'">'+count+'</span></div>';}
   });
   const sharedCSS=`*{box-sizing:border-box;margin:0;padding:0}:root{--o:${accentColor};--b:#1a8fff;--g:#22d6a0;--w:#f5c542}
-body{font-family:'Outfit',sans-serif;background:#fff;color:#1a1a2e;font-size:9.5px}@page{size:A4 landscape;margin:10mm 12mm}
+body{font-family:'Archivo',sans-serif;background:#fff;color:#1a1a2e;font-size:9.5px}@page{size:A4 landscape;margin:10mm 12mm}
 .hd{display:flex;align-items:flex-start;justify-content:space-between;padding:12px 16px 10px;border-bottom:3px solid var(--o)}
 .hl{display:flex;align-items:center;gap:11px}.logo{width:34px;height:34px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .ht{font-size:16px;font-weight:700}.hs{font-size:9px;color:#888;font-family:'DM Mono',monospace;letter-spacing:.5px}
@@ -4784,7 +4784,7 @@ td{padding:4px 7px;border-bottom:1px solid #f0eee8;vertical-align:middle}
   ${meta.tel?'<div class="ic"><div class="il">Contact</div><div class="iv">'+meta.tel+'</div></div>':''}
 </div>`;
   return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/><title>${brand.co} — ${show}</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Archivo:wght@400;600;700&display=swap" rel="stylesheet"/>
 <style>${sharedCSS}</style></head><body>
 ${_pdfWatermarkHtml(brand)}
 <div class="hd"><div class="hl"><div class="logo">${logoHtml}</div><div><div class="ht">${show}</div><div class="hs">${docTitle} · INPUT LIST</div></div></div><div class="hr"><div class="hdt">Input List</div><div class="hdm">${meta.rev?`Rev. ${meta.rev}<br/>`:''}${now}</div></div></div>
@@ -5655,12 +5655,12 @@ function doSitePlanPDF(){
       ? '<div class="ns"><div class="nl">Notes</div><div class="nt">'+meta.notes+'</div></div>' : '';
     const html='<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/>'
       +'<title>'+meta.title+'</title>'
-      +'<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet"/>'
+      +'<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Archivo:wght@400;600;700&display=swap" rel="stylesheet"/>'
       +'<style>'
       +'*{box-sizing:border-box;margin:0;padding:0}'
       +':root{--o:#ff6b1a}'
       +'html,body{width:100%;height:100%}'
-      +'body{font-family:Outfit,sans-serif;background:#fff;color:#1a1a2e;display:flex;flex-direction:column;height:100%}'
+      +'body{font-family:Archivo,sans-serif;background:#fff;color:#1a1a2e;display:flex;flex-direction:column;height:100%}'
       +'@page{size:A4 landscape;margin:0}'
       +'.hd{background:#0a0f1c;color:#fff;padding:8mm 10mm 6mm;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}'
       +'.hl{display:flex;align-items:center;gap:8mm}'
@@ -6912,7 +6912,7 @@ const SynPro = (() => {
     return '<svg viewBox="0 0 32 56" fill="none" stroke="#1d3a5f" stroke-width="1.4"><rect x="11" y="6" width="10" height="22" rx="5" fill="#2c3f5f"/><path d="M7 26 Q7 36 16 36 Q25 36 25 26" fill="none"/><line x1="16" y1="36" x2="16" y2="46" stroke-linecap="round"/><line x1="10" y1="50" x2="22" y2="50" stroke-linecap="round"/></svg>';
   }
   function _iconDI() {
-    return '<svg viewBox="0 0 48 56" fill="none"><rect x="8" y="8" width="32" height="40" rx="2" fill="#16243d" stroke="#2c3f5f" stroke-width="1.2"/><text x="24" y="28" text-anchor="middle" font-family="Outfit" font-size="10" font-weight="700" fill="#1d9bf0">DI</text><circle cx="16" cy="42" r="2" fill="#1a2840" stroke="#3a5378"/><circle cx="24" cy="42" r="2" fill="#1a2840" stroke="#3a5378"/><circle cx="32" cy="42" r="2" fill="#1a2840" stroke="#3a5378"/></svg>';
+    return '<svg viewBox="0 0 48 56" fill="none"><rect x="8" y="8" width="32" height="40" rx="2" fill="#16243d" stroke="#2c3f5f" stroke-width="1.2"/><text x="24" y="28" text-anchor="middle" font-family="Archivo" font-size="10" font-weight="700" fill="#1d9bf0">DI</text><circle cx="16" cy="42" r="2" fill="#1a2840" stroke="#3a5378"/><circle cx="24" cy="42" r="2" fill="#1a2840" stroke="#3a5378"/><circle cx="32" cy="42" r="2" fill="#1a2840" stroke="#3a5378"/></svg>';
   }
   function _iconIEM() {
     return '<svg viewBox="0 0 48 48" fill="none" stroke="#1d3a5f" stroke-width="1.4"><rect x="8" y="14" width="32" height="20" rx="2" fill="#2c3f5f"/><circle cx="16" cy="24" r="3" fill="#ff6b1a"/><line x1="22" y1="24" x2="34" y2="24"/><path d="M40 24 Q44 16 40 8" fill="none" stroke-linecap="round"/></svg>';
@@ -6924,7 +6924,7 @@ const SynPro = (() => {
     return '<svg viewBox="0 0 56 40" fill="none" stroke="#fbbf24" stroke-width="1.4"><rect x="4" y="4" width="48" height="32" rx="2" fill="#fef3c7"/><line x1="10" y1="14" x2="46" y2="14" stroke="#fbbf24" stroke-width="1"/><line x1="10" y1="20" x2="46" y2="20" stroke="#fbbf24" stroke-width="1"/><line x1="10" y1="26" x2="36" y2="26" stroke="#fbbf24" stroke-width="1"/></svg>';
   }
   function _iconTextLabel() {
-    return '<svg viewBox="0 0 56 32" fill="none"><text x="4" y="22" font-family="Outfit,sans-serif" font-size="16" font-weight="700" fill="#e8edf8">Aa</text></svg>';
+    return '<svg viewBox="0 0 56 32" fill="none"><text x="4" y="22" font-family="Archivo,sans-serif" font-size="16" font-weight="700" fill="#e8edf8">Aa</text></svg>';
   }
   function _iconImageFrame() {
     return '<svg viewBox="0 0 56 48" fill="none"><rect x="4" y="4" width="48" height="40" rx="5" fill="#1a2840" stroke="#3a5378" stroke-width="1.2"/><path d="M4 32 L16 20 L26 28 L34 18 L52 36 L52 44 L4 44 Z" fill="#2c4060"/><circle cx="40" cy="16" r="6" fill="#f5c542" opacity=".8"/><line x1="14" y1="14" x2="14" y2="10" stroke="#3a5378" stroke-width="1"/><line x1="14" y1="14" x2="18" y2="14" stroke="#3a5378" stroke-width="1"/></svg>';
@@ -7678,7 +7678,7 @@ const SynPro = (() => {
     if (n.type === 'note') {
       iconHtml = '<div class="sp-node-card" style="background:#fef3c7;border-color:#fbbf24;min-width:180px;padding:10px 14px"><div style="font-size:12px;color:#92400e;line-height:1.4;font-weight:600;white-space:pre-wrap">' + esc(label || 'Note') + '</div>' + (sub ? '<div style="font-size:10px;color:#a16207;margin-top:4px;white-space:pre-wrap">' + esc(sub) + '</div>' : '') + '</div>';
     } else if (n.type === 'text_label') {
-      iconHtml = '<div style="font-family:Outfit,sans-serif;font-size:14px;font-weight:700;color:var(--txt);white-space:pre-wrap;min-width:80px;padding:4px 2px;cursor:grab;user-select:none">' + esc(label || 'Texte') + '</div>';
+      iconHtml = '<div style="font-family:Archivo,sans-serif;font-size:14px;font-weight:700;color:var(--txt);white-space:pre-wrap;min-width:80px;padding:4px 2px;cursor:grab;user-select:none">' + esc(label || 'Texte') + '</div>';
     } else if (n.type === 'image_frame') {
       /* Image flottante indépendante — au RATIO de l'image (pas de carré). */
       var ifAsp = n.imgAspect || 1;
@@ -7844,7 +7844,7 @@ const SynPro = (() => {
         var lx = midX + perpX * labelGap, ly = midY + perpY * labelGap;
         html += '<rect x="' + (lx - bw/2) + '" y="' + (ly - totalH/2 - 3) + '" width="' + bw + '" height="' + (totalH + 6) + '" rx="3" fill="#fff" opacity=".94"/>';
         lines.forEach(function(ln, i){
-          html += '<text x="' + lx + '" y="' + (ly - totalH/2 + lh/2 + 3 + i*lh) + '" text-anchor="middle" font-family="Outfit,sans-serif" font-size="10" font-weight="500" fill="' + net.color + '">' + esc(ln) + '</text>';
+          html += '<text x="' + lx + '" y="' + (ly - totalH/2 + lh/2 + 3 + i*lh) + '" text-anchor="middle" font-family="Archivo,sans-serif" font-size="10" font-weight="500" fill="' + net.color + '">' + esc(ln) + '</text>';
         });
       }
 
@@ -8627,7 +8627,7 @@ const SynPro = (() => {
     if (!skipHeader) {
       /* Header band */
       svg += '<rect x="0" y="0" width="' + fullW + '" height="' + headH + '" fill="' + esc(state.headerColor || '#1d3a5f') + '"/>';
-      svg += '<text x="' + (fullW/2) + '" y="' + (headH/2+8) + '" text-anchor="middle" font-family="Outfit,sans-serif" font-weight="700" font-size="22" fill="#ffffff">' + esc(state.title) + '</text>';
+      svg += '<text x="' + (fullW/2) + '" y="' + (headH/2+8) + '" text-anchor="middle" font-family="Archivo,sans-serif" font-weight="700" font-size="22" fill="#ffffff">' + esc(state.title) + '</text>';
       /* Thin separator line between header and canvas */
       svg += '<line x1="0" y1="' + headH + '" x2="' + fullW + '" y2="' + headH + '" stroke="#e2e8f0" stroke-width="1"/>';
     }
@@ -8736,7 +8736,7 @@ const SynPro = (() => {
         var lx = midX + perpX * labelGap, ly = midY + perpY * labelGap;
         svg += '<rect x="' + (lx-bw/2) + '" y="' + (ly-totalH/2-3) + '" width="' + bw + '" height="' + (totalH+6) + '" rx="3" fill="#ffffff" stroke="' + net.color + '" stroke-width="0.5"/>';
         lines.forEach(function(ln, i){
-          svg += '<text x="' + lx + '" y="' + (ly-totalH/2+lh/2+3+i*lh) + '" text-anchor="middle" font-family="Outfit,sans-serif" font-size="10" font-weight="500" fill="' + net.color + '">' + esc(ln) + '</text>';
+          svg += '<text x="' + lx + '" y="' + (ly-totalH/2+lh/2+3+i*lh) + '" text-anchor="middle" font-family="Archivo,sans-serif" font-size="10" font-weight="500" fill="' + net.color + '">' + esc(ln) + '</text>';
         });
       }
     });
@@ -8753,7 +8753,7 @@ const SynPro = (() => {
         svg += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="6" fill="#fef3c7" stroke="#fbbf24" stroke-width="1.5"/>';
         var noteLines = (label + (sub ? '\n' + sub : '')).split('\n');
         noteLines.forEach(function(nl, i){
-          svg += '<text x="' + (x+10) + '" y="' + (y+18+i*14) + '" font-family="Outfit,sans-serif" font-size="11" font-weight="600" fill="#92400e">' + esc(nl) + '</text>';
+          svg += '<text x="' + (x+10) + '" y="' + (y+18+i*14) + '" font-family="Archivo,sans-serif" font-size="11" font-weight="600" fill="#92400e">' + esc(nl) + '</text>';
         });
         return;
       }
@@ -8761,7 +8761,7 @@ const SynPro = (() => {
       if (n.type === 'text_label') {
         var txtLines = label.split('\n');
         txtLines.forEach(function(tl, i){
-          svg += '<text x="' + x + '" y="' + (y+16+i*18) + '" font-family="Outfit,sans-serif" font-size="14" font-weight="700" fill="#1d3a5f">' + esc(tl) + '</text>';
+          svg += '<text x="' + x + '" y="' + (y+16+i*18) + '" font-family="Archivo,sans-serif" font-size="14" font-weight="700" fill="#1d3a5f">' + esc(tl) + '</text>';
         });
         return;
       }
@@ -8771,7 +8771,7 @@ const SynPro = (() => {
         var ifH = Math.max(1, Math.round(ifW / (n.imgAspect || 1)));
         if (n.iconImg) {
           svg += '<image x="' + x + '" y="' + y + '" width="' + ifW + '" height="' + ifH + '" href="' + _safeImgSrc(n.iconImg) + '" xlink:href="' + _safeImgSrc(n.iconImg) + '" preserveAspectRatio="none"/>';
-          if (label) svg += '<text x="' + (x+ifW/2) + '" y="' + (y+ifH+14) + '" text-anchor="middle" font-family="Outfit,sans-serif" font-size="11" fill="#1d3a5f">' + esc(label) + '</text>';
+          if (label) svg += '<text x="' + (x+ifW/2) + '" y="' + (y+ifH+14) + '" text-anchor="middle" font-family="Archivo,sans-serif" font-size="11" fill="#1d3a5f">' + esc(label) + '</text>';
         }
         return;
       }
@@ -8795,13 +8795,13 @@ const SynPro = (() => {
 
       /* Label — centered, just above subtitle area */
       var labelY = y + h - (sub ? 18 : 10);
-      svg += '<text x="' + (x+w/2) + '" y="' + labelY + '" text-anchor="middle" font-family="Outfit,sans-serif" font-weight="700" font-size="11" fill="#1d3a5f">' + esc(label) + '</text>';
+      svg += '<text x="' + (x+w/2) + '" y="' + labelY + '" text-anchor="middle" font-family="Archivo,sans-serif" font-weight="700" font-size="11" fill="#1d3a5f">' + esc(label) + '</text>';
 
       /* Subtitle — one or two lines, clipped inside card */
       if (sub) {
         var subLines = sub.split('\n').slice(0,2);
         subLines.forEach(function(sl, i){
-          svg += '<text x="' + (x+w/2) + '" y="' + (y+h-6+i*10) + '" text-anchor="middle" font-family="Outfit,sans-serif" font-size="8.5" fill="#64748b">' + esc(sl) + '</text>';
+          svg += '<text x="' + (x+w/2) + '" y="' + (y+h-6+i*10) + '" text-anchor="middle" font-family="Archivo,sans-serif" font-size="8.5" fill="#64748b">' + esc(sl) + '</text>';
         });
       }
     });
@@ -8811,14 +8811,14 @@ const SynPro = (() => {
     var legends = state.networks.filter(function(n){ return state.cables.some(function(c){ return c.network===n.id; }); });
     legends.forEach(function(n, i){
       svg += '<rect x="' + (14+i*140) + '" y="' + (legY-4) + '" width="20" height="4" rx="2" fill="' + n.color + '"/>';
-      svg += '<text x="' + (38+i*140) + '" y="' + legY + '" font-family="Outfit,sans-serif" font-size="10" fill="#64748b">' + esc(n.name) + '</text>';
+      svg += '<text x="' + (38+i*140) + '" y="' + legY + '" font-family="Archivo,sans-serif" font-size="10" fill="#64748b">' + esc(n.name) + '</text>';
     });
 
     /* Footer — uniquement si l'utilisateur a défini un texte personnalisé
        (on n'affiche plus la marque "www.patchflow.fr" par défaut) */
     var ftxt = (state.footer || '').trim();
     if (ftxt && ftxt.toLowerCase() !== 'www.patchflow.fr' && ftxt.toLowerCase() !== 'patchflow.fr') {
-      svg += '<text x="' + (fullW-14) + '" y="' + (fullH-12) + '" text-anchor="end" font-family="Outfit,sans-serif" font-size="10" font-weight="600" fill="#94a3b8">' + esc(ftxt) + '</text>';
+      svg += '<text x="' + (fullW-14) + '" y="' + (fullH-12) + '" text-anchor="end" font-family="Archivo,sans-serif" font-size="10" font-weight="600" fill="#94a3b8">' + esc(ftxt) + '</text>';
     }
     svg += '</svg>';
     return { svg: svg, w: fullW, h: fullH };
@@ -9494,7 +9494,7 @@ const BandPlan=(()=>{
         return '<circle cx="36" cy="36" r="31" fill="#f4f6fb" stroke="#1d3a5f" stroke-width="1.5"/>'
           +'<circle cx="36" cy="36" r="23" fill="#ffffff" stroke="#1d3a5f" stroke-width="1"/>'
           +'<circle cx="36" cy="36" r="10" fill="#1d3a5f" fill-opacity=".08" stroke="#1d3a5f" stroke-width="1" stroke-opacity=".35"/>'
-          +'<text x="36" y="40" text-anchor="middle" font-family="Outfit" font-size="7" font-weight="700" fill="#1d3a5f">KICK</text>'
+          +'<text x="36" y="40" text-anchor="middle" font-family="Archivo" font-size="7" font-weight="700" fill="#1d3a5f">KICK</text>'
           +[0,45,90,135,180,225,270,315].map(function(a){return _lug(a,29);}).join('');
       case 'snare':
         return '<circle cx="36" cy="36" r="26" fill="#ffe4b5" stroke="#1d3a5f" stroke-width="1.5"/>'
@@ -9512,7 +9512,7 @@ const BandPlan=(()=>{
         return '<circle cx="36" cy="36" r="24" fill="#f4f6fb" stroke="#1d3a5f" stroke-width="1.5"/>'
           +'<circle cx="36" cy="36" r="17" fill="#ffffff" stroke="#1d3a5f" stroke-width=".7"/>'
           +'<circle cx="36" cy="36" r="7" fill="#1d3a5f" fill-opacity=".18"/>'
-          +'<text x="36" y="40" text-anchor="middle" font-family="Outfit" font-size="7" font-weight="700" fill="#1d3a5f">TOM</text>'
+          +'<text x="36" y="40" text-anchor="middle" font-family="Archivo" font-size="7" font-weight="700" fill="#1d3a5f">TOM</text>'
           +[0,60,120,180,240,300].map(function(a){return _lug(a,22);}).join('');
       case 'cymbal':
         return '<circle cx="36" cy="36" r="30" fill="#fbbf24" fill-opacity=".25"/>'
@@ -9641,7 +9641,7 @@ const BandPlan=(()=>{
           +[0,1,2,3].map(function(i){return '<rect x="'+(12+i*14)+'" y="40" width="6" height="6" rx="1" fill="#ff6b1a" stroke="#1d3a5f" stroke-width=".5"/>';}).join('');
       case 'di':
         return '<rect x="14" y="14" width="44" height="44" rx="5" fill="#ffffff" stroke="#1d3a5f" stroke-width="1.5"/>'
-          +'<text x="36" y="32" text-anchor="middle" font-family="Outfit" font-size="11" font-weight="700" fill="#1d3a5f">DI</text>'
+          +'<text x="36" y="32" text-anchor="middle" font-family="Archivo" font-size="11" font-weight="700" fill="#1d3a5f">DI</text>'
           +'<circle cx="25" cy="44" r="4" fill="#1d3a5f" fill-opacity=".15" stroke="#1d3a5f" stroke-width="0.8"/>'
           +'<rect x="37" y="40" width="11" height="7" rx="1" fill="#1d3a5f" fill-opacity=".15" stroke="#1d3a5f" stroke-width="0.7"/>';
       case 'iem_r':
@@ -9681,7 +9681,7 @@ const BandPlan=(()=>{
       default:{
         var L=(t||'?').charAt(0).toUpperCase();
         return '<circle cx="36" cy="36" r="30" fill="#ffffff" stroke="'+c+'" stroke-width="2"/>'
-          +'<text x="36" y="43" text-anchor="middle" font-family="Outfit" font-size="22" fill="'+c+'" font-weight="700">'+L+'</text>';
+          +'<text x="36" y="43" text-anchor="middle" font-family="Archivo" font-size="22" fill="'+c+'" font-weight="700">'+L+'</text>';
       }
     }
   }
@@ -10459,9 +10459,9 @@ const BandPlan=(()=>{
       +'<rect width="2400" height="1600" fill="url(#bp_grid)"/>'
       +'<rect x="'+d.x+'" y="'+d.y+'" width="'+d.w+'" height="'+d.h+'" rx="18" fill="rgba(255,107,26,0.035)" stroke="rgba(255,107,26,0.30)" stroke-width="2" stroke-dasharray="14,7"/>'
       +'<rect x="'+d.x+'" y="'+(d.sepY-55)+'" width="'+d.w+'" height="55" fill="url(#bp_foot)"/>'
-      +'<text x="1200" y="'+d.cy+'" text-anchor="middle" font-family="Outfit,sans-serif" font-weight="700" font-size="22" fill="rgba(255,107,26,0.18)" letter-spacing="12">SCENE</text>'
+      +'<text x="1200" y="'+d.cy+'" text-anchor="middle" font-family="Archivo,sans-serif" font-weight="700" font-size="22" fill="rgba(255,107,26,0.18)" letter-spacing="12">SCENE</text>'
       +'<line x1="'+d.x+'" y1="'+d.sepY+'" x2="'+(d.x+d.w)+'" y2="'+d.sepY+'" stroke="rgba(255,107,26,0.30)" stroke-width="1.5" stroke-dasharray="6,4"/>'
-      +'<text x="1200" y="'+d.pubY+'" text-anchor="middle" font-family="Outfit,sans-serif" font-weight="600" font-size="14" fill="rgba(100,116,139,0.45)" letter-spacing="8">PUBLIC</text>'
+      +'<text x="1200" y="'+d.pubY+'" text-anchor="middle" font-family="Archivo,sans-serif" font-weight="600" font-size="14" fill="rgba(100,116,139,0.45)" letter-spacing="8">PUBLIC</text>'
       +'</svg>';
   }
 
@@ -10858,30 +10858,30 @@ const SitePlan = (() => {
     delay: '<svg viewBox="0 0 48 56" fill="none"><path d="M24 4 L42 14 L42 38 L24 48 L6 38 L6 14 Z" fill="#9b6aff" stroke="#1d3a5f" stroke-width="1.4"/><circle cx="24" cy="26" r="9" fill="#0d1828" stroke="#fff"/><circle cx="24" cy="26" r="3.5" fill="#9b6aff"/></svg>',
     wedge: '<svg viewBox="0 0 64 40" fill="none"><path d="M4 32 L60 32 L52 6 L18 6 Z" fill="#f5c542" stroke="#1d3a5f" stroke-width="1.4"/><ellipse cx="32" cy="18" rx="10" ry="5" fill="#0d1828" stroke="#fff"/><circle cx="32" cy="18" r="2.5" fill="#f5c542"/></svg>',
     iem_tx: '<svg viewBox="0 0 48 48" fill="none"><rect x="6" y="14" width="36" height="22" rx="2" fill="#c4a0ff" stroke="#1d3a5f" stroke-width="1.2"/><circle cx="15" cy="25" r="3.5" fill="#0d1828" stroke="#fff"/><line x1="22" y1="25" x2="36" y2="25" stroke="#1d3a5f" stroke-width="1.5"/><path d="M40 8 Q46 18 40 28" fill="none" stroke="#c4a0ff" stroke-width="1.5" stroke-linecap="round"/><path d="M44 4 Q52 18 44 32" fill="none" stroke="#c4a0ff" stroke-width="1.3" stroke-linecap="round" opacity=".6"/></svg>',
-    linus14: '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="6" width="56" height="24" rx="1.5" fill="#0d1828" stroke="#22d6a0" stroke-width="1"/><rect x="4" y="6" width="56" height="4" fill="#22d6a0"/><g fill="#16243d" stroke="#3a5378" stroke-width=".3"><rect x="7" y="13" width="22" height="14" rx="1"/><rect x="32" y="13" width="22" height="14" rx="1"/></g><g fill="#22d6a0"><circle cx="11" cy="20" r=".8"/><circle cx="14" cy="20" r=".8"/></g><text x="42" y="22" font-family="Outfit" font-size="7" font-weight="700" fill="#22d6a0">14</text></svg>',
-    linus12: '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="6" width="56" height="24" rx="1.5" fill="#0d1828" stroke="#22d6a0" stroke-width="1"/><rect x="4" y="6" width="56" height="4" fill="#22d6a0"/><g fill="#16243d" stroke="#3a5378" stroke-width=".3"><rect x="7" y="13" width="22" height="14" rx="1"/><rect x="32" y="13" width="22" height="14" rx="1"/></g><g fill="#22d6a0"><circle cx="11" cy="20" r=".8"/><circle cx="14" cy="20" r=".8"/></g><text x="42" y="22" font-family="Outfit" font-size="7" font-weight="700" fill="#22d6a0">12</text></svg>',
-    linus14d: '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="6" width="56" height="24" rx="1.5" fill="#0d1828" stroke="#22d6a0" stroke-width="1"/><rect x="4" y="6" width="56" height="4" fill="#22d6a0"/><g fill="#16243d" stroke="#3a5378" stroke-width=".3"><rect x="7" y="13" width="22" height="14" rx="1"/><rect x="32" y="13" width="22" height="14" rx="1"/></g><g fill="#22d6a0"><circle cx="11" cy="20" r=".8"/><circle cx="14" cy="20" r=".8"/></g><text x="40" y="22" font-family="Outfit" font-size="6.5" font-weight="700" fill="#22d6a0">14D</text></svg>',
-    linus12c: '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="6" width="56" height="24" rx="1.5" fill="#0d1828" stroke="#1affd5" stroke-width="1"/><rect x="4" y="6" width="56" height="4" fill="#1affd5"/><g fill="#16243d" stroke="#3a5378" stroke-width=".3"><rect x="7" y="13" width="22" height="14" rx="1"/><rect x="32" y="13" width="22" height="14" rx="1"/></g><text x="40" y="22" font-family="Outfit" font-size="6.5" font-weight="700" fill="#1affd5">12C</text></svg>',
-    linus10: '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="6" width="56" height="24" rx="1.5" fill="#0d1828" stroke="#22d6a0" stroke-width="1"/><rect x="4" y="6" width="56" height="4" fill="#22d6a0"/><g fill="#16243d" stroke="#3a5378" stroke-width=".3"><rect x="7" y="13" width="22" height="14" rx="1"/><rect x="32" y="13" width="22" height="14" rx="1"/></g><g fill="#22d6a0"><circle cx="11" cy="20" r=".8"/></g><text x="42" y="22" font-family="Outfit" font-size="7" font-weight="700" fill="#22d6a0">10</text></svg>',
+    linus14: '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="6" width="56" height="24" rx="1.5" fill="#0d1828" stroke="#22d6a0" stroke-width="1"/><rect x="4" y="6" width="56" height="4" fill="#22d6a0"/><g fill="#16243d" stroke="#3a5378" stroke-width=".3"><rect x="7" y="13" width="22" height="14" rx="1"/><rect x="32" y="13" width="22" height="14" rx="1"/></g><g fill="#22d6a0"><circle cx="11" cy="20" r=".8"/><circle cx="14" cy="20" r=".8"/></g><text x="42" y="22" font-family="Archivo" font-size="7" font-weight="700" fill="#22d6a0">14</text></svg>',
+    linus12: '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="6" width="56" height="24" rx="1.5" fill="#0d1828" stroke="#22d6a0" stroke-width="1"/><rect x="4" y="6" width="56" height="4" fill="#22d6a0"/><g fill="#16243d" stroke="#3a5378" stroke-width=".3"><rect x="7" y="13" width="22" height="14" rx="1"/><rect x="32" y="13" width="22" height="14" rx="1"/></g><g fill="#22d6a0"><circle cx="11" cy="20" r=".8"/><circle cx="14" cy="20" r=".8"/></g><text x="42" y="22" font-family="Archivo" font-size="7" font-weight="700" fill="#22d6a0">12</text></svg>',
+    linus14d: '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="6" width="56" height="24" rx="1.5" fill="#0d1828" stroke="#22d6a0" stroke-width="1"/><rect x="4" y="6" width="56" height="4" fill="#22d6a0"/><g fill="#16243d" stroke="#3a5378" stroke-width=".3"><rect x="7" y="13" width="22" height="14" rx="1"/><rect x="32" y="13" width="22" height="14" rx="1"/></g><g fill="#22d6a0"><circle cx="11" cy="20" r=".8"/><circle cx="14" cy="20" r=".8"/></g><text x="40" y="22" font-family="Archivo" font-size="6.5" font-weight="700" fill="#22d6a0">14D</text></svg>',
+    linus12c: '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="6" width="56" height="24" rx="1.5" fill="#0d1828" stroke="#1affd5" stroke-width="1"/><rect x="4" y="6" width="56" height="4" fill="#1affd5"/><g fill="#16243d" stroke="#3a5378" stroke-width=".3"><rect x="7" y="13" width="22" height="14" rx="1"/><rect x="32" y="13" width="22" height="14" rx="1"/></g><text x="40" y="22" font-family="Archivo" font-size="6.5" font-weight="700" fill="#1affd5">12C</text></svg>',
+    linus10: '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="6" width="56" height="24" rx="1.5" fill="#0d1828" stroke="#22d6a0" stroke-width="1"/><rect x="4" y="6" width="56" height="4" fill="#22d6a0"/><g fill="#16243d" stroke="#3a5378" stroke-width=".3"><rect x="7" y="13" width="22" height="14" rx="1"/><rect x="32" y="13" width="22" height="14" rx="1"/></g><g fill="#22d6a0"><circle cx="11" cy="20" r=".8"/></g><text x="42" y="22" font-family="Archivo" font-size="7" font-weight="700" fill="#22d6a0">10</text></svg>',
     linuscon: '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="6" width="56" height="24" rx="2" fill="#0d1828" stroke="#5ab0ff" stroke-width="1"/><circle cx="20" cy="18" r="5" fill="#16243d" stroke="#5ab0ff"/><circle cx="20" cy="18" r="2" fill="#5ab0ff"/><g fill="#5ab0ff"><rect x="32" y="13" width="3" height="10" rx="1"/><rect x="38" y="13" width="3" height="10" rx="1"/><rect x="44" y="13" width="3" height="10" rx="1"/><rect x="50" y="13" width="3" height="10" rx="1"/></g></svg>',
     lmx14r: '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="10" width="56" height="20" rx="2" fill="#0d1828" stroke="#9b6aff" stroke-width="1"/><g fill="#16243d" stroke="#3a5378" stroke-width=".4"><rect x="8" y="14" width="6" height="6" rx=".5"/><rect x="16" y="14" width="6" height="6" rx=".5"/><rect x="24" y="14" width="6" height="6" rx=".5"/><rect x="32" y="14" width="6" height="6" rx=".5"/><rect x="40" y="14" width="6" height="6" rx=".5"/><rect x="48" y="14" width="6" height="6" rx=".5"/></g><g fill="#9b6aff"><rect x="9" y="22" width="4" height="2" rx=".3"/><rect x="17" y="22" width="4" height="2" rx=".3"/><rect x="25" y="22" width="4" height="2" rx=".3"/></g></svg>',
-    lmx10p: '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="10" width="56" height="20" rx="2" fill="#0d1828" stroke="#9b6aff" stroke-width="1"/><g fill="#16243d" stroke="#3a5378" stroke-width=".4"><rect x="10" y="14" width="6" height="6" rx=".5"/><rect x="18" y="14" width="6" height="6" rx=".5"/><rect x="26" y="14" width="6" height="6" rx=".5"/><rect x="34" y="14" width="6" height="6" rx=".5"/><rect x="42" y="14" width="6" height="6" rx=".5"/></g><text x="32" y="27" text-anchor="middle" font-family="Outfit" font-size="5.5" font-weight="700" fill="#9b6aff">PoE</text></svg>',
-    lmx25g: '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="10" width="56" height="20" rx="2" fill="#0d1828" stroke="#b48aff" stroke-width="1"/><g fill="#16243d" stroke="#3a5378" stroke-width=".4"><rect x="8" y="14" width="6" height="6" rx=".5"/><rect x="16" y="14" width="6" height="6" rx=".5"/><rect x="24" y="14" width="6" height="6" rx=".5"/><rect x="32" y="14" width="6" height="6" rx=".5"/></g><text x="46" y="20" font-family="Outfit" font-size="6" font-weight="700" fill="#b48aff">25G</text></svg>',
-    sw_dante: '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="10" width="56" height="20" rx="2" fill="#0d1828" stroke="#5ab0ff" stroke-width="1"/><g fill="#16243d" stroke="#3a5378" stroke-width=".4"><rect x="8" y="14" width="6" height="6" rx=".5"/><rect x="16" y="14" width="6" height="6" rx=".5"/><rect x="24" y="14" width="6" height="6" rx=".5"/><rect x="32" y="14" width="6" height="6" rx=".5"/></g><text x="48" y="20" font-family="Outfit" font-size="5" font-weight="700" fill="#5ab0ff">DANTE</text></svg>',
+    lmx10p: '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="10" width="56" height="20" rx="2" fill="#0d1828" stroke="#9b6aff" stroke-width="1"/><g fill="#16243d" stroke="#3a5378" stroke-width=".4"><rect x="10" y="14" width="6" height="6" rx=".5"/><rect x="18" y="14" width="6" height="6" rx=".5"/><rect x="26" y="14" width="6" height="6" rx=".5"/><rect x="34" y="14" width="6" height="6" rx=".5"/><rect x="42" y="14" width="6" height="6" rx=".5"/></g><text x="32" y="27" text-anchor="middle" font-family="Archivo" font-size="5.5" font-weight="700" fill="#9b6aff">PoE</text></svg>',
+    lmx25g: '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="10" width="56" height="20" rx="2" fill="#0d1828" stroke="#b48aff" stroke-width="1"/><g fill="#16243d" stroke="#3a5378" stroke-width=".4"><rect x="8" y="14" width="6" height="6" rx=".5"/><rect x="16" y="14" width="6" height="6" rx=".5"/><rect x="24" y="14" width="6" height="6" rx=".5"/><rect x="32" y="14" width="6" height="6" rx=".5"/></g><text x="46" y="20" font-family="Archivo" font-size="6" font-weight="700" fill="#b48aff">25G</text></svg>',
+    sw_dante: '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="10" width="56" height="20" rx="2" fill="#0d1828" stroke="#5ab0ff" stroke-width="1"/><g fill="#16243d" stroke="#3a5378" stroke-width=".4"><rect x="8" y="14" width="6" height="6" rx=".5"/><rect x="16" y="14" width="6" height="6" rx=".5"/><rect x="24" y="14" width="6" height="6" rx=".5"/><rect x="32" y="14" width="6" height="6" rx=".5"/></g><text x="48" y="20" font-family="Archivo" font-size="5" font-weight="700" fill="#5ab0ff">DANTE</text></svg>',
     wifi_ap: '<svg viewBox="0 0 48 40" fill="none" stroke="#5ab0ff" stroke-width="2" stroke-linecap="round"><path d="M8 22 Q24 6 40 22"/><path d="M14 26 Q24 16 34 26"/><path d="M20 30 Q24 26 28 30"/><circle cx="24" cy="34" r="2" fill="#5ab0ff"/></svg>',
-    console_foh: '<svg viewBox="0 0 64 48" fill="none"><rect x="3" y="6" width="58" height="36" rx="2" fill="#1a8fff"/><rect x="3" y="6" width="58" height="9" rx="2" fill="#0d1828"/><rect x="6" y="18" width="16" height="22" rx="1" fill="#16243d" stroke="#fff" stroke-width=".4"/><rect x="24" y="18" width="16" height="22" rx="1" fill="#16243d" stroke="#fff" stroke-width=".4"/><g fill="#fff"><rect x="42" y="20" width="2" height="9"/><rect x="46" y="20" width="2" height="9"/><rect x="50" y="20" width="2" height="9"/><rect x="54" y="20" width="2" height="9"/></g><text x="32" y="11" text-anchor="middle" font-family="Outfit" font-size="4.5" font-weight="700" fill="#1a8fff">FOH</text></svg>',
-    console_mon: '<svg viewBox="0 0 64 48" fill="none"><rect x="3" y="6" width="58" height="36" rx="2" fill="#f5c542"/><rect x="3" y="6" width="58" height="9" rx="2" fill="#0d1828"/><rect x="6" y="18" width="16" height="22" rx="1" fill="#16243d" stroke="#fff" stroke-width=".4"/><rect x="24" y="18" width="16" height="22" rx="1" fill="#16243d" stroke="#fff" stroke-width=".4"/><g fill="#fff"><rect x="42" y="20" width="2" height="9"/><rect x="46" y="20" width="2" height="9"/><rect x="50" y="20" width="2" height="9"/><rect x="54" y="20" width="2" height="9"/></g><text x="32" y="11" text-anchor="middle" font-family="Outfit" font-size="4.5" font-weight="700" fill="#f5c542">MON</text></svg>',
+    console_foh: '<svg viewBox="0 0 64 48" fill="none"><rect x="3" y="6" width="58" height="36" rx="2" fill="#1a8fff"/><rect x="3" y="6" width="58" height="9" rx="2" fill="#0d1828"/><rect x="6" y="18" width="16" height="22" rx="1" fill="#16243d" stroke="#fff" stroke-width=".4"/><rect x="24" y="18" width="16" height="22" rx="1" fill="#16243d" stroke="#fff" stroke-width=".4"/><g fill="#fff"><rect x="42" y="20" width="2" height="9"/><rect x="46" y="20" width="2" height="9"/><rect x="50" y="20" width="2" height="9"/><rect x="54" y="20" width="2" height="9"/></g><text x="32" y="11" text-anchor="middle" font-family="Archivo" font-size="4.5" font-weight="700" fill="#1a8fff">FOH</text></svg>',
+    console_mon: '<svg viewBox="0 0 64 48" fill="none"><rect x="3" y="6" width="58" height="36" rx="2" fill="#f5c542"/><rect x="3" y="6" width="58" height="9" rx="2" fill="#0d1828"/><rect x="6" y="18" width="16" height="22" rx="1" fill="#16243d" stroke="#fff" stroke-width=".4"/><rect x="24" y="18" width="16" height="22" rx="1" fill="#16243d" stroke="#fff" stroke-width=".4"/><g fill="#fff"><rect x="42" y="20" width="2" height="9"/><rect x="46" y="20" width="2" height="9"/><rect x="50" y="20" width="2" height="9"/><rect x="54" y="20" width="2" height="9"/></g><text x="32" y="11" text-anchor="middle" font-family="Archivo" font-size="4.5" font-weight="700" fill="#f5c542">MON</text></svg>',
     processor: '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="6" width="56" height="24" rx="2" fill="#0d1828" stroke="#22d6a0"/><rect x="4" y="6" width="56" height="4" fill="#22d6a0"/><circle cx="14" cy="20" r="5" fill="#16243d" stroke="#22d6a0"/><circle cx="14" cy="20" r="1.5" fill="#22d6a0"/><circle cx="30" cy="20" r="5" fill="#16243d" stroke="#22d6a0"/><circle cx="30" cy="20" r="1.5" fill="#22d6a0"/><g fill="#22d6a0"><rect x="42" y="16" width="3" height="8" rx="1"/><rect x="48" y="16" width="3" height="8" rx="1"/><rect x="54" y="16" width="3" height="8" rx="1"/></g></svg>',
     cdj: '<svg viewBox="0 0 64 48" fill="none"><rect x="4" y="4" width="56" height="40" rx="3" fill="#16243d" stroke="#1d3a5f"/><circle cx="32" cy="26" r="16" fill="#0d1828" stroke="#e8edf8" stroke-width="1.2"/><circle cx="32" cy="26" r="10" fill="#16243d" stroke="#3a5378"/><circle cx="32" cy="26" r="2" fill="#e8edf8"/><rect x="9" y="9" width="14" height="4" rx="1" fill="#e8edf8"/></svg>',
     laptop: '<svg viewBox="0 0 56 48" fill="none"><rect x="4" y="6" width="48" height="28" rx="1.5" fill="#16243d" stroke="#1d3a5f" stroke-width="1.2"/><rect x="6" y="8" width="44" height="24" fill="#0d1828" stroke="#5ab0ff" stroke-width=".3"/><line x1="14" y1="42" x2="42" y2="42" stroke="#1d3a5f" stroke-linecap="round" stroke-width="2.5"/></svg>',
-    regie_foh: '<svg viewBox="0 0 56 56" fill="none"><path d="M4 26 L28 6 L52 26 L52 50 L4 50 Z" fill="#ff6b1a" stroke="#1d3a5f" stroke-width="1.4"/><rect x="20" y="32" width="16" height="18" rx="1" fill="#fff" stroke="#1d3a5f"/><rect x="8" y="30" width="8" height="10" rx=".5" fill="#fff" stroke="#1d3a5f" stroke-width=".5"/><rect x="40" y="30" width="8" height="10" rx=".5" fill="#fff" stroke="#1d3a5f" stroke-width=".5"/><text x="28" y="45" text-anchor="middle" font-family="Outfit" font-size="5.5" font-weight="700" fill="#1d3a5f">FOH</text></svg>',
-    regie_mon: '<svg viewBox="0 0 56 56" fill="none"><path d="M4 26 L28 6 L52 26 L52 50 L4 50 Z" fill="#f5c542" stroke="#1d3a5f" stroke-width="1.4"/><rect x="20" y="32" width="16" height="18" rx="1" fill="#fff" stroke="#1d3a5f"/><rect x="8" y="30" width="8" height="10" rx=".5" fill="#fff" stroke="#1d3a5f" stroke-width=".5"/><rect x="40" y="30" width="8" height="10" rx=".5" fill="#fff" stroke="#1d3a5f" stroke-width=".5"/><text x="28" y="45" text-anchor="middle" font-family="Outfit" font-size="5.5" font-weight="700" fill="#1d3a5f">MON</text></svg>',
+    regie_foh: '<svg viewBox="0 0 56 56" fill="none"><path d="M4 26 L28 6 L52 26 L52 50 L4 50 Z" fill="#ff6b1a" stroke="#1d3a5f" stroke-width="1.4"/><rect x="20" y="32" width="16" height="18" rx="1" fill="#fff" stroke="#1d3a5f"/><rect x="8" y="30" width="8" height="10" rx=".5" fill="#fff" stroke="#1d3a5f" stroke-width=".5"/><rect x="40" y="30" width="8" height="10" rx=".5" fill="#fff" stroke="#1d3a5f" stroke-width=".5"/><text x="28" y="45" text-anchor="middle" font-family="Archivo" font-size="5.5" font-weight="700" fill="#1d3a5f">FOH</text></svg>',
+    regie_mon: '<svg viewBox="0 0 56 56" fill="none"><path d="M4 26 L28 6 L52 26 L52 50 L4 50 Z" fill="#f5c542" stroke="#1d3a5f" stroke-width="1.4"/><rect x="20" y="32" width="16" height="18" rx="1" fill="#fff" stroke="#1d3a5f"/><rect x="8" y="30" width="8" height="10" rx=".5" fill="#fff" stroke="#1d3a5f" stroke-width=".5"/><rect x="40" y="30" width="8" height="10" rx=".5" fill="#fff" stroke="#1d3a5f" stroke-width=".5"/><text x="28" y="45" text-anchor="middle" font-family="Archivo" font-size="5.5" font-weight="700" fill="#1d3a5f">MON</text></svg>',
     rack: '<svg viewBox="0 0 64 48" fill="none"><rect x="4" y="4" width="56" height="42" rx="2" fill="#0d1828" stroke="#5a6580" stroke-width="1"/><rect x="4" y="44" width="56" height="2" fill="#5a6580"/><rect x="8" y="7" width="48" height="6" rx=".5" fill="#16243d" stroke="#3a5378" stroke-width=".3"/><rect x="8" y="15" width="48" height="6" rx=".5" fill="#16243d" stroke="#3a5378" stroke-width=".3"/><rect x="8" y="23" width="48" height="6" rx=".5" fill="#16243d" stroke="#3a5378" stroke-width=".3"/><rect x="8" y="31" width="48" height="6" rx=".5" fill="#16243d" stroke="#3a5378" stroke-width=".3"/><circle cx="14" cy="10" r=".8" fill="#ff6b1a"/><circle cx="14" cy="26" r=".8" fill="#ff6b1a"/></svg>',
     stagebox: '<svg viewBox="0 0 64 36" fill="none"><rect x="3" y="6" width="58" height="24" rx="2" fill="#5a6580" stroke="#1d3a5f" stroke-width="1"/><g fill="#16243d" stroke="#fff" stroke-width=".3"><circle cx="10" cy="14" r="2"/><circle cx="16" cy="14" r="2"/><circle cx="22" cy="14" r="2"/><circle cx="28" cy="14" r="2"/><circle cx="34" cy="14" r="2"/><circle cx="40" cy="14" r="2"/><circle cx="46" cy="14" r="2"/><circle cx="52" cy="14" r="2"/></g><g fill="#ff6b1a"><rect x="10" y="22" width="3" height="5" rx=".5"/><rect x="16" y="22" width="3" height="5" rx=".5"/><rect x="22" y="22" width="3" height="5" rx=".5"/><rect x="28" y="22" width="3" height="5" rx=".5"/></g></svg>',
     splitter: '<svg viewBox="0 0 64 48" fill="none" stroke="#1d3a5f" stroke-width="1.5"><circle cx="14" cy="24" r="5" fill="#5a6580"/><circle cx="50" cy="10" r="4" fill="#5a6580"/><circle cx="50" cy="24" r="4" fill="#5a6580"/><circle cx="50" cy="38" r="4" fill="#5a6580"/><line x1="19" y1="24" x2="46" y2="10"/><line x1="19" y1="24" x2="46" y2="24"/><line x1="19" y1="24" x2="46" y2="38"/></svg>',
     distrib: '<svg viewBox="0 0 56 56" fill="none"><rect x="6" y="6" width="44" height="44" rx="3" fill="#ff4d6a" stroke="#1d3a5f" stroke-width="1.4"/><path d="M22 14 L30 14 L26 26 L34 26 L22 44 L26 32 L18 32 Z" fill="#fff" stroke="#1d3a5f" stroke-width=".4" stroke-linejoin="round"/></svg>',
     zone_lbl: '<svg viewBox="0 0 56 36" fill="none"><path d="M6 8 L40 8 L50 18 L40 28 L6 28 Z" fill="#3d4a62" stroke="#1d3a5f" stroke-width="1.2"/><circle cx="42" cy="18" r="2" fill="#fff"/></svg>',
-    text_lbl: '<svg viewBox="0 0 56 40" fill="none"><rect x="4" y="6" width="48" height="28" rx="3" fill="#aabbdd" stroke="#1d3a5f" stroke-width="1.2"/><text x="28" y="26" text-anchor="middle" font-family="Outfit" font-size="16" font-weight="700" fill="#1d3a5f">T</text></svg>',
+    text_lbl: '<svg viewBox="0 0 56 40" fill="none"><rect x="4" y="6" width="48" height="28" rx="3" fill="#aabbdd" stroke="#1d3a5f" stroke-width="1.2"/><text x="28" y="26" text-anchor="middle" font-family="Archivo" font-size="16" font-weight="700" fill="#1d3a5f">T</text></svg>',
   };
 
   const PALETTE = [
@@ -17514,7 +17514,7 @@ function _svFs(imgId, title){
 
   var wrap=document.createElement('div');
   wrap.id='share-view';
-  wrap.style.cssText='min-height:100vh;background:#0a0f1c;color:#e8edf8;font-family:Outfit,sans-serif;position:relative;display:flex;flex-direction:column';
+  wrap.style.cssText='min-height:100vh;background:#0a0f1c;color:#e8edf8;font-family:Archivo,sans-serif;position:relative;display:flex;flex-direction:column';
   /* Petit logo réutilisé (header mobile + bandeau bas de page) */
   var SV_LOGO_SM='<svg width="22" height="22" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M70 60 C100 60 100 140 130 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round"/><path d="M130 60 C100 60 100 140 70 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round" opacity=".45"/><circle cx="60" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="60" r="5" fill="#FF6B2B"/><circle cx="140" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="60" r="5" fill="#FF6B2B"/><circle cx="60" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="140" r="5" fill="#FF6B2B"/><circle cx="140" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="140" r="5" fill="#FF6B2B"/></svg>';
   /* Anti-doublon : si le titre du rider est identique au nom du show (déjà
@@ -17532,7 +17532,7 @@ function _svFs(imgId, title){
     +'<div style="font-size:9px;font-family:DM Mono,monospace;color:#ff8c42;background:rgba(255,107,26,.1);border:1px solid rgba(255,107,26,.25);border-radius:5px;padding:2px 8px;letter-spacing:1.5px;text-transform:uppercase">Rider</div>'
     +'<div style="flex:1"></div>'
     +'<div style="display:inline-flex;align-items:center;gap:6px;font-size:'+(isMobile?'9':'10')+'px;font-family:DM Mono,monospace;background:rgba(34,214,160,.1);color:#22d6a0;border:1px solid rgba(34,214,160,.25);border-radius:20px;padding:'+(isMobile?'3px 9px':'4px 12px')+'"><span style="width:6px;height:6px;border-radius:50%;background:#22d6a0;animation:svPulse 2s infinite;flex-shrink:0"></span>'+(isMobile?'Live':'À jour en temps réel')+'</div>'
-    +(isMobile?'':'<a href="/" style="display:inline-flex;align-items:center;gap:6px;background:#ff6b1a;color:#000;font-size:11.5px;font-weight:700;padding:7px 16px;border-radius:8px;text-decoration:none;font-family:Outfit,sans-serif;transition:background .15s" onmouseover="this.style.background=\'#ff8c42\'" onmouseout="this.style.background=\'#ff6b1a\'">Créer mon rider</a>')
+    +(isMobile?'':'<a href="/" style="display:inline-flex;align-items:center;gap:6px;background:#ff6b1a;color:#000;font-size:11.5px;font-weight:700;padding:7px 16px;border-radius:8px;text-decoration:none;font-family:Archivo,sans-serif;transition:background .15s" onmouseover="this.style.background=\'#ff8c42\'" onmouseout="this.style.background=\'#ff6b1a\'">Créer mon rider</a>')
     +'</div>'
     +(_bannerTitle||rNote||rInfo?
       '<div style="position:relative;background:linear-gradient(180deg,#0a1322,#080e1a);border-bottom:1px solid #1e2a3a;padding:'+(isMobile?'14px 14px':'18px 28px')+'">'
@@ -17553,7 +17553,7 @@ function _svFs(imgId, title){
           +'<div style="font-size:'+(isMobile?'14':'16')+'px;font-weight:800;color:#f0f4ff;margin-bottom:5px">Ce rider est fait avec PatchFlow</div>'
           +'<div style="font-size:'+(isMobile?'11.5':'12.5')+'px;color:#8899aa;line-height:1.65">Input List, plans, synoptique et fichiers de prod — créés et partagés en un lien, à jour en temps réel pour toute l\'équipe. Gratuit pour commencer.</div>'
         +'</div>'
-        +'<a href="/" style="display:inline-flex;align-items:center;gap:8px;background:#ff6b1a;color:#000;font-size:13px;font-weight:700;padding:'+(isMobile?'11px 18px':'12px 22px')+';border-radius:8px;text-decoration:none;white-space:nowrap;font-family:Outfit,sans-serif;box-shadow:0 6px 24px rgba(255,107,26,.25);transition:background .15s" onmouseover="this.style.background=\'#ff8c42\'" onmouseout="this.style.background=\'#ff6b1a\'">Créer le mien — gratuit</a>'
+        +'<a href="/" style="display:inline-flex;align-items:center;gap:8px;background:#ff6b1a;color:#000;font-size:13px;font-weight:700;padding:'+(isMobile?'11px 18px':'12px 22px')+';border-radius:8px;text-decoration:none;white-space:nowrap;font-family:Archivo,sans-serif;box-shadow:0 6px 24px rgba(255,107,26,.25);transition:background .15s" onmouseover="this.style.background=\'#ff8c42\'" onmouseout="this.style.background=\'#ff6b1a\'">Créer le mien — gratuit</a>'
       +'</div>'
       +'<div style="text-align:center;margin-top:16px;font-size:10px;font-family:DM Mono,monospace;color:#3a4a5a;letter-spacing:.5px">PatchFlow — Par des techniciens, pour des techniciens</div>'
     +'</div>';
@@ -18390,7 +18390,7 @@ function _svFs(imgId, title){
         var lx=midX+perpX*labelGap,ly=midY+perpY*labelGap;
         edgeSvg+='<rect x="'+(lx-bw/2)+'" y="'+(ly-totalH/2-3)+'" width="'+bw+'" height="'+(totalH+6)+'" rx="3" fill="#fff"/>';
         lines.forEach(function(l,i){
-          edgeSvg+='<text x="'+lx+'" y="'+(ly-totalH/2+lh/2+3+i*lh)+'" text-anchor="middle" font-family="Outfit,sans-serif" font-size="10" font-weight="500" fill="'+col+'">'+esc(l)+'</text>';
+          edgeSvg+='<text x="'+lx+'" y="'+(ly-totalH/2+lh/2+3+i*lh)+'" text-anchor="middle" font-family="Archivo,sans-serif" font-size="10" font-weight="500" fill="'+col+'">'+esc(l)+'</text>';
         });
       }
     });
@@ -18400,14 +18400,14 @@ function _svFs(imgId, title){
       var s=sz(n);var x=(n.x||0)+ox,y=(n.y||0)+oy+headH;var w=s.w,h=s.h;
       if(n.type==='note'){
         nodeSvg+='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="6" fill="#fef3c7" stroke="#fbbf24"/>';
-        nodeSvg+='<foreignObject x="'+(x+8)+'" y="'+(y+8)+'" width="'+(w-16)+'" height="'+(h-16)+'"><div xmlns="http://www.w3.org/1999/xhtml" style="font-family:Outfit,sans-serif;font-size:11px;color:#92400e;line-height:1.4;font-weight:600">'+esc(n.label||'')+'<br>'+esc(n.sub||'')+'</div></foreignObject>';
+        nodeSvg+='<foreignObject x="'+(x+8)+'" y="'+(y+8)+'" width="'+(w-16)+'" height="'+(h-16)+'"><div xmlns="http://www.w3.org/1999/xhtml" style="font-family:Archivo,sans-serif;font-size:11px;color:#92400e;line-height:1.4;font-weight:600">'+esc(n.label||'')+'<br>'+esc(n.sub||'')+'</div></foreignObject>';
       } else if(n.type==='text_label'){
         var tls=(n.label||'').split('\n');
-        tls.forEach(function(tl,i){nodeSvg+='<text x="'+x+'" y="'+(y+16+i*18)+'" font-family="Outfit,sans-serif" font-size="14" font-weight="700" fill="#1d3a5f">'+esc(tl)+'</text>';});
+        tls.forEach(function(tl,i){nodeSvg+='<text x="'+x+'" y="'+(y+16+i*18)+'" font-family="Archivo,sans-serif" font-size="14" font-weight="700" fill="#1d3a5f">'+esc(tl)+'</text>';});
       } else if(n.type==='image_frame'){
         if(n.iconImg){
           nodeSvg+='<image x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" href="'+safeSrc(n.iconImg)+'" xlink:href="'+safeSrc(n.iconImg)+'" preserveAspectRatio="xMidYMid meet"/>';
-          if(n.label)nodeSvg+='<text x="'+(x+w/2)+'" y="'+(y+h+14)+'" text-anchor="middle" font-family="Outfit,sans-serif" font-size="11" fill="#1d3a5f">'+esc(n.label)+'</text>';
+          if(n.label)nodeSvg+='<text x="'+(x+w/2)+'" y="'+(y+h+14)+'" text-anchor="middle" font-family="Archivo,sans-serif" font-size="11" fill="#1d3a5f">'+esc(n.label)+'</text>';
         }
       } else {
         nodeSvg+='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="9" fill="#fff" stroke="#c8d4e0"/>';
@@ -18434,8 +18434,8 @@ function _svFs(imgId, title){
         } else {
           nodeSvg+='<rect x="'+(x+w/2-26)+'" y="'+(iconAreaY)+'" width="52" height="'+(iconAreaH)+'" rx="4" fill="#e8eef5" stroke="#c8d4e0" stroke-width=".5"/>';
         }
-        nodeSvg+='<text x="'+(x+w/2)+'" y="'+(y+h-22)+'" text-anchor="middle" font-family="Outfit,sans-serif" font-weight="700" font-size="12" fill="#1d3a5f">'+esc(n.label||'')+'</text>';
-        if(n.sub){var sublines=n.sub.split('\n');sublines.forEach(function(s2,i){nodeSvg+='<text x="'+(x+w/2)+'" y="'+(y+h-8+i*11)+'" text-anchor="middle" font-family="Outfit,sans-serif" font-size="9" fill="#5a6a80">'+esc(s2)+'</text>';});}
+        nodeSvg+='<text x="'+(x+w/2)+'" y="'+(y+h-22)+'" text-anchor="middle" font-family="Archivo,sans-serif" font-weight="700" font-size="12" fill="#1d3a5f">'+esc(n.label||'')+'</text>';
+        if(n.sub){var sublines=n.sub.split('\n');sublines.forEach(function(s2,i){nodeSvg+='<text x="'+(x+w/2)+'" y="'+(y+h-8+i*11)+'" text-anchor="middle" font-family="Archivo,sans-serif" font-size="9" fill="#5a6a80">'+esc(s2)+'</text>';});}
       }
     });
     /* Plus de bandeau titre */
@@ -18446,7 +18446,7 @@ function _svFs(imgId, title){
     var used=nets.filter(function(n){return cables.some(function(c){return c.network===n.id;});});
     used.forEach(function(n,i){
       footSvg+='<rect x="'+(legX+i*150)+'" y="'+(legY-3)+'" width="22" height="3" rx="1.5" fill="'+n.color+'"/>';
-      footSvg+='<text x="'+(legX+i*150+28)+'" y="'+legY+'" font-family="Outfit,sans-serif" font-size="11" fill="#5a6a80">'+esc(n.name)+'</text>';
+      footSvg+='<text x="'+(legX+i*150+28)+'" y="'+legY+'" font-family="Archivo,sans-serif" font-size="11" fill="#5a6a80">'+esc(n.name)+'</text>';
     });
     /* Canvas bg */
     var bgSvg='<rect x="0" y="'+headH+'" width="'+vw+'" height="'+vh+'" fill="#f7f9fc"/>';

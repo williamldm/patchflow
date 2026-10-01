@@ -11,7 +11,7 @@
   --txt:#e7eaf0;--txt2:#aab3c3;--muted:#7a8497;--muted2:#4b5465;
   --r1:4px;--r2:6px;--r3:8px;
   --surf-h:#10151e;--scroll-h:#2a3140;--overlay:rgba(4,6,10,.72);
-  --f:'Outfit',system-ui,sans-serif;--m:'DM Mono','Courier New',monospace;
+  --f:'Archivo',system-ui,sans-serif;--m:'DM Mono','Courier New',monospace;
 }
 /* ── THÈME CLAIR ── mêmes variables, valeurs claires. Appliqué par
    data-theme="light" sur <html> (choix mémorisé, ou thème du système). */
@@ -462,7 +462,7 @@ select option{background:var(--surf);color:var(--txt)}
 /* Word viewer */
 .fich-docx-wrap{flex:1;overflow:auto;padding:32px;background:#f8fafc;min-height:0}
 .fich-docx-body{max-width:780px;margin:0 auto;background:#fff;border-radius:var(--r3);padding:40px 52px;box-shadow:0 2px 12px rgba(0,0,0,.08);font-family:Georgia,serif;font-size:14px;line-height:1.7;color:#1a1a2e}
-.fich-docx-body h1,.fich-docx-body h2,.fich-docx-body h3{font-family:'Outfit',sans-serif;color:#1a1a2e;margin:1.2em 0 .4em}
+.fich-docx-body h1,.fich-docx-body h2,.fich-docx-body h3{font-family:'Archivo',sans-serif;color:#1a1a2e;margin:1.2em 0 .4em}
 .fich-docx-body h1{font-size:22px}.fich-docx-body h2{font-size:18px}.fich-docx-body h3{font-size:15px}
 .fich-docx-body p{margin:0 0 .8em}
 .fich-docx-body ul,.fich-docx-body ol{margin:0 0 .8em 1.4em;padding:0}
@@ -565,7 +565,7 @@ select option{background:var(--surf);color:var(--txt)}
 
 .sp-canvas-wrap{background:#fff;border:1px solid var(--bdr2);border-radius:var(--r3);display:flex;flex-direction:column;overflow:hidden;min-height:540px}
 .sp-doc-head{display:flex;align-items:center;justify-content:center;padding:12px 18px;background:#1d9bf0;color:#fff;border-bottom:1px solid rgba(0,0,0,.1)}
-.sp-doc-title-h{font-family:Outfit,sans-serif;font-weight:700;font-size:19px;letter-spacing:.3px;text-align:center;cursor:text;width:100%;outline:none}
+.sp-doc-title-h{font-family:Archivo,sans-serif;font-weight:700;font-size:19px;letter-spacing:.3px;text-align:center;cursor:text;width:100%;outline:none}
 .sp-doc-title-h:hover{text-decoration:underline;text-decoration-style:dotted;text-underline-offset:4px}
 .sp-viewport{position:relative;flex:1;background:#f7f9fc;overflow:hidden;cursor:grab;touch-action:none;min-height:440px}
 .sp-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(0,0,0,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,.05) 1px,transparent 1px);background-size:24px 24px;pointer-events:none}
@@ -587,8 +587,8 @@ select option{background:var(--surf);color:var(--txt)}
 .sp-node-icon{width:64px;height:64px;display:flex;align-items:center;justify-content:center;color:#1d3a5f}
 .sp-node-icon.img{width:var(--sp-img-sz,90px);height:var(--sp-img-sz,90px)}
 .sp-node-icon svg{width:100%;height:100%;-webkit-user-drag:none}
-.sp-node-label{font-family:Outfit,sans-serif;font-weight:700;font-size:12.5px;color:#1d3a5f;line-height:1.2;margin-top:2px}
-.sp-node-sub{font-family:Outfit,sans-serif;font-size:10px;color:#5a6a80;line-height:1.3;font-weight:400}
+.sp-node-label{font-family:Archivo,sans-serif;font-weight:700;font-size:12.5px;color:#1d3a5f;line-height:1.2;margin-top:2px}
+.sp-node-sub{font-family:Archivo,sans-serif;font-size:10px;color:#5a6a80;line-height:1.3;font-weight:400}
 /* Delete button INSIDE the card corner ; only visible when node is selected */
 .sp-node-del{position:absolute;top:4px;right:4px;width:20px;height:20px;border:none;border-radius:50%;background:rgba(255,77,106,.92);color:#fff;cursor:pointer;display:none;align-items:center;justify-content:center;font-size:12px;line-height:1;box-shadow:0 1px 4px rgba(0,0,0,.3);z-index:5;pointer-events:auto}
 .sp-node.sel .sp-node-del{display:flex}
@@ -599,7 +599,7 @@ select option{background:var(--surf);color:var(--txt)}
 .sp-rsz-ne,.sp-rsz-sw{cursor:nesw-resize}
 .sp-node[data-type="image_frame"] .sp-node-del{top:-10px;right:auto;left:50%;transform:translateX(-50%);z-index:31}
 
-.sp-doc-foot{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:8px 18px;background:#fff;border-top:1px solid #e1e8f0;font-family:Outfit,sans-serif;font-size:11px;color:#5a6a80;min-height:36px}
+.sp-doc-foot{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:8px 18px;background:#fff;border-top:1px solid #e1e8f0;font-family:Archivo,sans-serif;font-size:11px;color:#5a6a80;min-height:36px}
 .sp-legend{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
 .sp-legend-item{display:flex;align-items:center;gap:6px;font-size:11px}
 .sp-legend-line{width:24px;height:3px;border-radius:2px}
