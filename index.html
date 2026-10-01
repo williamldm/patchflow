@@ -23,7 +23,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet"/>
-<link rel="preload" as="image" href="img/lp-hero-il.avif?v=2" type="image/avif" fetchpriority="high"/>
+<link rel="preload" as="image" href="img/lp-hero-il.avif?v=2" type="image/avif" media="(min-width:761px)" fetchpriority="high"/>
+<link rel="preload" as="image" href="img/lp-m-il.avif?v=1" type="image/avif" media="(max-width:760px)" fetchpriority="high"/>
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"SoftwareApplication","name":"PatchFlow","applicationCategory":"BusinessApplication","operatingSystem":"Web","inLanguage":"fr",
 "description":"Input list, output list, plans de scène, de site et synoptique de signal pour les ingés son, avec partage par lien en lecture seule.",
@@ -273,6 +274,30 @@ p{text-wrap:pretty}
 .foot nav a:hover{color:#fff}
 .foot small{display:block;width:100%;font-size:13.5px;color:#8a93a5}
 
+/* ── Format de l'app : ordinateur ou mobile ───────────────────────────
+   Sans JavaScript, le format suit l'écran ; le sélecteur l'impose ensuite
+   à toute la page (attribut data-view sur <html>). */
+.view-sw{display:inline-flex;gap:2px;padding:3px;border-radius:12px;background:var(--bg);box-shadow:inset 0 0 0 1px var(--rule2)}
+.view-sw button{display:inline-flex;align-items:center;gap:7px;border:0;background:transparent;font-family:var(--f);font-size:14px;font-weight:600;
+  color:var(--ink2);padding:8px 14px;border-radius:9px;cursor:pointer;transition:color .15s,background .15s}
+.view-sw button:hover{color:var(--ink)}
+.view-sw svg{width:17px;height:17px;flex-shrink:0}
+.view-sw button[aria-pressed=true]{background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(18,19,23,.10),0 0 0 1px rgba(18,19,23,.06)}
+.band .view-sw{background:var(--bg2)}
+.shot-bar{display:flex;justify-content:flex-end;margin-bottom:16px}
+.view-sw.in-split{margin-top:28px}
+.plan-bar{display:flex;align-items:center;justify-content:space-between;gap:12px 16px;flex-wrap:wrap;margin-bottom:28px}
+.plan-bar .seg{margin-bottom:0}
+.mshot{display:none;justify-content:center}
+.mphone{width:min(100%,320px);border-radius:46px;padding:9px;background:#1b212c;
+  box-shadow:inset 0 0 0 1px #2f3745,0 50px 90px -40px rgba(18,19,23,.55),0 20px 40px -24px rgba(18,19,23,.35)}
+.mphone picture,.mphone img{display:block;border-radius:37px;overflow:hidden}
+html[data-view=mobile] .dsk,html[data-view=mobile] .dsk+.swipe{display:none!important}
+html[data-view=mobile] .mshot{display:flex}
+html[data-view=mobile] .notes .n{display:none}
+html[data-view=mobile] .notes li{grid-template-columns:minmax(0,1fr)}
+html[data-view=mobile] .notes h3{margin-top:0}
+
 /* ── Mouvement ─────────────────────────────────────────────────────
    Apparitions au défilement, titres mot à mot, repères qui s'allument,
    capture du haut qui se redresse. Uniquement opacity, translate, scale et
@@ -281,7 +306,7 @@ p{text-wrap:pretty}
 :root{--ease:cubic-bezier(.16,1,.3,1)}
 .js :is(.kicker,.chapter h2,.share h2,.head .lede,.split .lede,.share .lede,.hero .lede,.hero .ctas,.hero .fine,
   .shot,.notes li,.facts li,.share-list li,.phone,.card,.aussi h3,.aussi li,.plan,.addon,.faq-side .note,.faq details,
-  .seg,.billing,.caption,.final .lede,.final .ctas,.final .fine){
+  .seg,.billing,.view-sw,.mshot,.caption,.final .lede,.final .ctas,.final .fine){
   opacity:0;translate:0 26px;transition:opacity .9s var(--ease),translate 1s var(--ease);transition-delay:calc(var(--d,0) * 80ms)}
 .js .bleed{translate:64px 0}
 .js .head .lede{--d:2}
@@ -365,6 +390,13 @@ p{text-wrap:pretty}
   .swipe svg{width:16px;height:16px;flex-shrink:0}
   .night .swipe{color:var(--nt2)}
   .swipe.done{opacity:0}
+  /* Sans choix explicite, un téléphone voit l'app au format mobile */
+  html:not([data-view]) .dsk,html:not([data-view]) .dsk+.swipe{display:none!important}
+  html:not([data-view]) .mshot{display:flex}
+  html:not([data-view]) .notes .n{display:none}
+  html:not([data-view]) .notes li{grid-template-columns:minmax(0,1fr)}
+  .mphone{width:min(86%,300px);border-radius:38px;padding:7px}
+  .mphone picture,.mphone img{border-radius:31px}
   .seg{display:flex;width:100%}
   .seg button{flex:1;padding:10px 8px;font-size:14.5px}
   .foot nav{margin-left:0;width:100%;gap:20px}
@@ -434,16 +466,26 @@ p{text-wrap:pretty}
       </div>
     </div>
 
-    <figure class="shot" data-x="0">
+    <div class="shot-bar"><div class="view-sw" role="group" aria-label="Format d'affichage de l'app"><button type="button" data-view="desktop" aria-pressed="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="10" rx="1.5"/><path d="M7 16.5h6M10 13.5v3"/></svg>Ordinateur</button><button type="button" data-view="mobile" aria-pressed="false"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="2" width="9" height="16" rx="2"/><path d="M9 15h2"/></svg>Mobile</button></div></div>
+    <figure class="dsk shot" data-x="0">
       <div class="shot-in">
         <picture>
           <source type="image/avif" srcset="img/lp-hero-il.avif?v=2"/>
-          <img src="img/lp-hero-il.jpg?v=2" width="2880" height="1640" fetchpriority="high" decoding="async"
+          <img src="img/lp-hero-il.jpg?v=2" width="2880" height="1640" loading="lazy" decoding="async"
             alt="L'input list de PatchFlow&nbsp;: 24 canaux avec nom court, nom long, source, micro, gain, +48V, envois façade et retours, pied de micro."/>
         </picture>
         <span class="pin" style="left:80.9%;top:14.6%" aria-hidden="true">1</span>
         <span class="pin" style="left:62.4%;top:25%" aria-hidden="true">2</span>
         <span class="pin" style="left:73.6%;top:3.1%" aria-hidden="true">3</span>
+      </div>
+    </figure>
+    <figure class="mshot">
+      <div class="mphone">
+        <picture>
+          <source type="image/avif" srcset="img/lp-m-il.avif?v=1"/>
+          <img src="img/lp-m-il.jpg?v=1" width="1170" height="2532" loading="lazy" decoding="async"
+            alt="L'input list sur téléphone&nbsp;: canaux, noms, sources, avec la barre d'onglets en bas de l'écran."/>
+        </picture>
       </div>
     </figure>
     <ol class="notes" aria-label="Sur cette capture">
@@ -466,13 +508,23 @@ p{text-wrap:pretty}
         <li><h3>Fréquences HF</h3><p>Notées sur chaque départ in-ear, prêtes pour la coordination.</p></li>
         <li><h3>Assistant</h3><p>Les départs courants posés en quelques clics, puis ajustés à la main.</p></li>
       </ul>
+      <div class="view-sw in-split" role="group" aria-label="Format d'affichage de l'app"><button type="button" data-view="desktop" aria-pressed="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="10" rx="1.5"/><path d="M7 16.5h6M10 13.5v3"/></svg>Ordinateur</button><button type="button" data-view="mobile" aria-pressed="false"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="2" width="9" height="16" rx="2"/><path d="M9 15h2"/></svg>Mobile</button></div>
     </div>
-    <figure class="shot bleed" data-x="0">
+    <figure class="dsk shot bleed" data-x="0">
       <div class="shot-in">
         <picture>
           <source type="image/avif" srcset="img/lp-output.avif?v=2"/>
           <img src="img/lp-output.jpg?v=2" width="2360" height="1280" loading="lazy" decoding="async"
             alt="L'output list&nbsp;: wedges, départs in-ear avec fréquence HF, side fills en matrice, sub batteur et effet."/>
+        </picture>
+      </div>
+    </figure>
+    <figure class="mshot">
+      <div class="mphone">
+        <picture>
+          <source type="image/avif" srcset="img/lp-m-output.avif?v=1"/>
+          <img src="img/lp-m-output.jpg?v=1" width="1170" height="2532" loading="lazy" decoding="async"
+            alt="L'output list sur téléphone&nbsp;: sorties, noms et types en couleur."/>
         </picture>
       </div>
     </figure>
@@ -490,14 +542,17 @@ p{text-wrap:pretty}
       <p class="lede">Le plan de scène pour le backline, le plan de site pour la salle, le synoptique pour le presta. Tous tirés de la même input list.</p>
     </div>
 
-    <div class="seg" role="tablist" aria-label="Choisir un plan">
-      <button type="button" role="tab" id="tab-scene" aria-selected="true" aria-controls="p-scene">Plan de scène</button>
-      <button type="button" role="tab" id="tab-site" aria-selected="false" aria-controls="p-site" tabindex="-1">Plan de site</button>
-      <button type="button" role="tab" id="tab-syno" aria-selected="false" aria-controls="p-syno" tabindex="-1">Synoptique</button>
+    <div class="plan-bar">
+      <div class="seg" role="tablist" aria-label="Choisir un plan">
+        <button type="button" role="tab" id="tab-scene" aria-selected="true" aria-controls="p-scene">Plan de scène</button>
+        <button type="button" role="tab" id="tab-site" aria-selected="false" aria-controls="p-site" tabindex="-1">Plan de site</button>
+        <button type="button" role="tab" id="tab-syno" aria-selected="false" aria-controls="p-syno" tabindex="-1">Synoptique</button>
+      </div>
+      <div class="view-sw" role="group" aria-label="Format d'affichage de l'app"><button type="button" data-view="desktop" aria-pressed="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="10" rx="1.5"/><path d="M7 16.5h6M10 13.5v3"/></svg>Ordinateur</button><button type="button" data-view="mobile" aria-pressed="false"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="2" width="9" height="16" rx="2"/><path d="M9 15h2"/></svg>Mobile</button></div>
     </div>
 
     <div class="panel" id="p-scene" role="tabpanel" aria-labelledby="tab-scene">
-      <figure class="shot" data-x="0.42">
+      <figure class="dsk shot" data-x="0.42">
         <div class="shot-in">
           <picture>
           <source type="image/avif" srcset="img/lp-plan-scene.avif?v=2"/>
@@ -509,6 +564,15 @@ p{text-wrap:pretty}
           <span class="pin" style="left:27.3%;top:13.9%" aria-hidden="true">3</span>
         </div>
       </figure>
+      <figure class="mshot">
+        <div class="mphone">
+          <picture>
+            <source type="image/avif" srcset="img/lp-m-plan-scene.avif?v=1"/>
+            <img src="img/lp-m-plan-scene.jpg?v=1" width="1170" height="2532" loading="lazy" decoding="async"
+              alt="Le plan de scène sur téléphone, en lecture, avec zoom au doigt."/>
+          </picture>
+        </div>
+      </figure>
       <ol class="notes" aria-label="Sur cette capture">
         <li><span class="n" aria-hidden="true">1</span><div><h3>Canaux sur le plateau</h3><p>Chaque instrument et chaque micro affiche son numéro de canal, tiré de l'input list.</p></div></li>
         <li><span class="n" aria-hidden="true">2</span><div><h3>Retours placés</h3><p>Wedges et IEM portent leur numéro de sortie&nbsp;: le plan de retours se lit sur le plateau.</p></div></li>
@@ -517,7 +581,7 @@ p{text-wrap:pretty}
     </div>
 
     <div class="panel" id="p-site" role="tabpanel" aria-labelledby="tab-site" hidden>
-      <figure class="shot" data-x="0.3">
+      <figure class="dsk shot" data-x="0.3">
         <div class="shot-in">
           <picture>
           <source type="image/avif" srcset="img/lp-plan-site.avif?v=2"/>
@@ -529,6 +593,15 @@ p{text-wrap:pretty}
           <span class="pin" style="left:13.9%;top:22.3%" aria-hidden="true">3</span>
         </div>
       </figure>
+      <figure class="mshot">
+        <div class="mphone">
+          <picture>
+            <source type="image/avif" srcset="img/lp-m-plan-site.avif?v=1"/>
+            <img src="img/lp-m-plan-site.jpg?v=1" width="1170" height="2532" loading="lazy" decoding="async"
+              alt="Le plan de site sur téléphone, en lecture, avec zoom au doigt."/>
+          </picture>
+        </div>
+      </figure>
       <ol class="notes" aria-label="Sur cette capture">
         <li><span class="n" aria-hidden="true">1</span><div><h3>Tirages de câbles</h3><p>Chaque liaison avec son type — Dante, Speakon, XLR, secteur — et son métrage.</p></div></li>
         <li><span class="n" aria-hidden="true">2</span><div><h3>Légende automatique</h3><p>Les types de câbles utilisés s'ajoutent d'eux-mêmes à la légende.</p></div></li>
@@ -537,7 +610,7 @@ p{text-wrap:pretty}
     </div>
 
     <div class="panel" id="p-syno" role="tabpanel" aria-labelledby="tab-syno" hidden>
-      <figure class="shot" data-x="0.3">
+      <figure class="dsk shot" data-x="0.3">
         <div class="shot-in">
           <picture>
           <source type="image/avif" srcset="img/lp-plan-syno.avif?v=2"/>
@@ -547,6 +620,15 @@ p{text-wrap:pretty}
           <span class="pin" style="left:11.9%;top:69.5%" aria-hidden="true">1</span>
           <span class="pin" style="left:50.8%;top:36.1%" aria-hidden="true">2</span>
           <span class="pin" style="left:89.9%;top:11.8%" aria-hidden="true">3</span>
+        </div>
+      </figure>
+      <figure class="mshot">
+        <div class="mphone">
+          <picture>
+            <source type="image/avif" srcset="img/lp-m-plan-syno.avif?v=1"/>
+            <img src="img/lp-m-plan-syno.jpg?v=1" width="1170" height="2532" loading="lazy" decoding="async"
+              alt="Le synoptique sur téléphone, en lecture, avec zoom au doigt."/>
+          </picture>
         </div>
       </figure>
       <ol class="notes" aria-label="Sur cette capture">
@@ -933,7 +1015,7 @@ p{text-wrap:pretty}
   /* Éléments qui apparaissent au défilement : décalage selon leur rang parmi leurs voisins */
   var SEL='.kicker,.chapter h2,.share h2,.head .lede,.split .lede,.share .lede,.hero .lede,.hero .ctas,.hero .fine,'+
     '.shot,.notes li,.facts li,.share-list li,.phone,.card,.aussi h3,.aussi li,.plan,.addon,.faq-side .note,.faq details,'+
-    '.seg,.billing,.caption,.final .lede,.final .ctas,.final .fine,.split-h';
+    '.seg,.billing,.view-sw,.mshot,.caption,.final .lede,.final .ctas,.final .fine,.split-h';
   var targets=[].slice.call(document.querySelectorAll(SEL));
   targets.forEach(function(el){
     var sib=[].filter.call(el.parentNode.children,function(c){ return targets.indexOf(c)>=0; });
@@ -1003,6 +1085,18 @@ p{text-wrap:pretty}
   }
   function req(){ if(!ticking){ ticking=true; window.requestAnimationFrame(motion); } }
   if(!reduce){ window.addEventListener('scroll',req,{passive:true}); window.addEventListener('resize',req); motion(); }
+
+  /* Format de l'app montré dans les captures : ordinateur ou mobile, réglé d'après l'écran */
+  var viewSw=[].slice.call(document.querySelectorAll('.view-sw'));
+  function setView(v){
+    document.documentElement.setAttribute('data-view',v);
+    viewSw.forEach(function(g){ [].forEach.call(g.querySelectorAll('button'),function(b){ b.setAttribute('aria-pressed',b.getAttribute('data-view')===v?'true':'false'); }); });
+    placeShots(); sweep(); motion();
+  }
+  viewSw.forEach(function(g){
+    [].forEach.call(g.querySelectorAll('button'),function(b){ b.addEventListener('click',function(){ setView(b.getAttribute('data-view')); }); });
+  });
+  setView(window.matchMedia('(max-width: 760px)').matches?'mobile':'desktop');
 })();
 </script>
 </body>
