@@ -29,7 +29,7 @@
 {"@context":"https://schema.org","@type":"SoftwareApplication","name":"PatchFlow","applicationCategory":"BusinessApplication","operatingSystem":"Web","inLanguage":"fr",
 "description":"Input list, output list, plans de scène, de site et synoptique de signal pour les ingés son, avec partage par lien en lecture seule.",
 "url":"https://patchflow.fr/","image":"https://patchflow.fr/img/lp-hero-il.jpg",
-"offers":[{"@type":"Offer","name":"Gratuit","price":"0","priceCurrency":"EUR"},{"@type":"Offer","name":"Pro","price":"11.99","priceCurrency":"EUR"}]}
+"offers":[{"@type":"Offer","name":"Gratuit","price":"0","priceCurrency":"EUR"},{"@type":"Offer","name":"Pro mensuel","price":"11.99","priceCurrency":"EUR"},{"@type":"Offer","name":"Pro annuel","price":"119","priceCurrency":"EUR"}]}
 </script>
 <style>
 /* ══════════════════════════════════════════════════════════════════
@@ -218,6 +218,32 @@ p{text-wrap:pretty}
 .addon p{font-size:15px;color:var(--ink2)}
 .addon b{margin-left:auto;font-size:18px;font-weight:700;white-space:nowrap}
 
+/* Facturation mensuelle / annuelle */
+.billing{display:inline-flex;gap:2px;padding:4px;border-radius:14px;background:var(--bg);box-shadow:inset 0 0 0 1px var(--rule2);margin-bottom:24px}
+.billing button{border:0;background:transparent;font-family:var(--f);font-size:15px;font-weight:600;color:var(--ink2);padding:10px 18px;border-radius:10px;cursor:pointer;
+  display:inline-flex;align-items:center;gap:8px;transition:color .15s,background .15s}
+.billing button:hover{color:var(--ink)}
+.billing button[aria-pressed=true]{background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(18,19,23,.10),0 0 0 1px rgba(18,19,23,.06)}
+.billing em{font-style:normal;font-size:12px;font-weight:700;letter-spacing:.02em;padding:2px 8px;border-radius:99px;background:rgba(255,107,26,.14);color:var(--acc-ink)}
+/* Carte Pro : sombre, filet orange en tête */
+.plan.pro{position:relative;overflow:hidden;background:var(--night);color:var(--nt);
+  box-shadow:0 0 0 1px #1f2633,0 40px 80px -40px rgba(18,19,23,.6)}
+.plan.pro::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,var(--acc),#ffb27a)}
+.plan-top{display:flex;align-items:center;gap:12px}
+.plan.pro .plan-nm{color:#fff}
+.deal{font-size:12px;font-weight:700;letter-spacing:.02em;padding:3px 10px;border-radius:99px;background:rgba(255,107,26,.16);color:var(--acc2)}
+.price .was{font-size:22px;font-weight:600;color:var(--nt2);text-decoration-thickness:2px;text-decoration-color:rgba(255,129,56,.8);margin-right:2px}
+.plan.pro .price b{color:#fff}
+.plan.pro .price span,.plan.pro .fine{color:var(--nt2)}
+.plan.pro .plus{margin-top:24px;padding-top:22px;border-top:1px solid var(--nrule);font-size:14px;font-weight:650;color:#fff}
+.plan.pro ul{margin-top:14px;padding-top:0;border-top:0;gap:11px}
+.plan.pro li{color:#c9cfdb}
+.plan.pro li svg{color:var(--acc2)}
+.plan .after{text-align:center;margin-top:12px}
+.price.swap b,.price.swap .was{animation:price-in .45s var(--ease)}
+@keyframes price-in{from{opacity:0;translate:0 8px}}
+.billing[data-bp=monthly]~.plans [data-yearly]{display:none}
+
 /* ── Questions ───────────────────────────────────────────────────── */
 .faq-grid{display:grid;grid-template-columns:minmax(0,4fr) minmax(0,8fr);gap:48px}
 .faq-side .note{margin-top:18px;color:var(--ink2);font-size:16px}
@@ -254,7 +280,7 @@ p{text-wrap:pretty}
 :root{--ease:cubic-bezier(.16,1,.3,1)}
 .js :is(.kicker,.chapter h2,.share h2,.head .lede,.split .lede,.share .lede,.hero .lede,.hero .ctas,.hero .fine,
   .shot,.notes li,.facts li,.share-list li,.phone,.card,.aussi h3,.aussi li,.plan,.addon,.faq-side .note,.faq details,
-  .seg,.caption,.final .lede,.final .ctas,.final .fine){
+  .seg,.billing,.caption,.final .lede,.final .ctas,.final .fine){
   opacity:0;translate:0 26px;transition:opacity .9s var(--ease),translate 1s var(--ease);transition-delay:calc(var(--d,0) * 80ms)}
 .js .bleed{translate:64px 0}
 .js .head .lede{--d:2}
@@ -654,7 +680,11 @@ p{text-wrap:pretty}
         <p class="kicker">Tarifs</p>
         <h2>Gratuit pour commencer. Pro quand ça tourne.</h2>
       </div>
-      <p class="lede">Sans engagement, résiliable en deux clics. L'abonnement Pro est une charge professionnelle déductible.</p>
+      <p class="lede">Le plan Gratuit suffit pour vos premières dates. Le Pro lève toutes les limites et ajoute les exports console, l'IA et vos fichiers&nbsp;; c'est une charge professionnelle déductible.</p>
+    </div>
+    <div class="billing" role="group" aria-label="Période de facturation">
+      <button type="button" data-bp="monthly" aria-pressed="false">Mensuel</button>
+      <button type="button" data-bp="yearly" aria-pressed="true">Annuel <em>2 mois offerts</em></button>
     </div>
     <div class="plans">
       <div class="plan">
@@ -672,18 +702,28 @@ p{text-wrap:pretty}
         <a class="btn btn-lg btn-ghost" href="app.html">Commencer gratuitement</a>
       </div>
       <div class="plan pro">
-        <div class="plan-nm">Pro</div>
-        <div class="price"><b>11,99 €</b><span>par mois</span></div>
-        <p class="fine">Ou 119 € par an, soit deux mois offerts.</p>
+        <div class="plan-top">
+          <div class="plan-nm">Pro</div>
+          <span class="deal" data-yearly>2 mois offerts</span>
+        </div>
+        <div class="price" aria-live="polite">
+          <s class="was" data-yearly aria-label="au lieu de 11,99 €">11,99&nbsp;€</s>
+          <b id="pro-price">9,92&nbsp;€</b><span>par mois</span>
+        </div>
+        <p class="fine" id="pro-bill">Facturé 119&nbsp;€ par an au lieu de 143,88&nbsp;€.</p>
+        <p class="plus">Tout le plan Gratuit, et&nbsp;:</p>
         <ul>
           <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>Shows et canaux illimités</li>
-          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>Exports console natifs</li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>Exports console natifs&nbsp;: Yamaha, DiGiCo, Avid, Allen&nbsp;&amp;&nbsp;Heath…</li>
           <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>PDF sans filigrane, à votre logo</li>
           <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>Multi-patches et plusieurs versions de plans</li>
-          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>Équipe illimitée, rôles et recap matériel</li>
-          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>50 Go de fichiers · support prioritaire</li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>Reprise d'une input list par IA (PDF, photo, Word)</li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>Équipe illimitée, rôles et recap micros et pieds</li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>50 Go de fichiers, joignables aux riders partagés</li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>Corbeille de 30 jours · support prioritaire</li>
         </ul>
         <a class="btn btn-lg" href="app.html">Passer Pro</a>
+        <p class="fine after">Sans engagement · résiliable en deux clics</p>
       </div>
     </div>
     <div class="addon">
@@ -824,6 +864,25 @@ p{text-wrap:pretty}
     });
   });
 
+
+  /* Tarifs : bascule mensuel / annuel */
+  var billing=document.querySelector('.billing');
+  if(billing){
+    var price=document.getElementById('pro-price'), bill=document.getElementById('pro-bill');
+    billing.setAttribute('data-bp','yearly');
+    [].forEach.call(billing.querySelectorAll('button'),function(b){
+      b.addEventListener('click',function(){
+        var bp=b.getAttribute('data-bp');
+        if(billing.getAttribute('data-bp')===bp) return;
+        billing.setAttribute('data-bp',bp);
+        [].forEach.call(billing.querySelectorAll('button'),function(x){ x.setAttribute('aria-pressed',x===b?'true':'false'); });
+        price.textContent=bp==='yearly'?'9,92\u00a0€':'11,99\u00a0€';
+        bill.textContent=bp==='yearly'?'Facturé 119\u00a0€ par an au lieu de 143,88\u00a0€.':'Facturé chaque mois. Passez à l\u2019annuel\u00a0: 2 mois offerts.';
+        var pr=price.parentNode; pr.classList.remove('swap'); void pr.offsetWidth; pr.classList.add('swap');
+      });
+    });
+  }
+
   /* ── Mouvement ─────────────────────────────────────────────────── */
   window.__rv=1;
   var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -843,7 +902,7 @@ p{text-wrap:pretty}
   /* Éléments qui apparaissent au défilement : décalage selon leur rang parmi leurs voisins */
   var SEL='.kicker,.chapter h2,.share h2,.head .lede,.split .lede,.share .lede,.hero .lede,.hero .ctas,.hero .fine,'+
     '.shot,.notes li,.facts li,.share-list li,.phone,.card,.aussi h3,.aussi li,.plan,.addon,.faq-side .note,.faq details,'+
-    '.seg,.caption,.final .lede,.final .ctas,.final .fine,.split-h';
+    '.seg,.billing,.caption,.final .lede,.final .ctas,.final .fine,.split-h';
   var targets=[].slice.call(document.querySelectorAll(SEL));
   targets.forEach(function(el){
     var sib=[].filter.call(el.parentNode.children,function(c){ return targets.indexOf(c)>=0; });
