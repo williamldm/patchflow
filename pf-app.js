@@ -4484,7 +4484,7 @@ function _sanitizeHtmlString(html){
 /* ch / chR / outCh / outChR : liaison d'un élément de plan vers un canal ou une sortie. Sur le plan de
    scène c'est l'identifiant (UUID) du canal, pas un numéro : le traiter comme un nombre le remettait à 0
    et la liaison était perdue à la sauvegarde suivante. Nombre conservé tel quel, texte assaini. */
-var _PLAN_ID_KEYS={id:1,fromId:1,toId:1,from:1,to:1,network:1,type:1,direction:1,activeCableType:1,kind:1,patch_id:1,catId:1,ch:1,chR:1,outCh:1,outChR:1};
+var _PLAN_ID_KEYS={id:1,fromId:1,toId:1,fromPort:1,toPort:1,from:1,to:1,network:1,type:1,direction:1,activeCableType:1,kind:1,patch_id:1,catId:1,ch:1,chR:1,outCh:1,outChR:1};
 var _PLAN_NUM_KEYS={x:1,y:1,w:1,h:1,x2:1,y2:1,elSize:1,imgPx:1,imgAspect:1,width:1,height:1,rotation:1,rot:1,opacity:1,zoom:1,panX:1,panY:1,
   textScale:1,elTextScale:1,legendScale:1,cableTextScale:1,nodeScale:1,stageScale:1,bgOpacity:1,bgRotation:1,bgX:1,bgY:1,bgScale:1,
   wrapWidth:1,aspect:1,w0:1,riserW:1,riserH:1,size:1,fontSize:1,fs:1,num:1,position:1,nid:1,v:1,imgW:1,imgH:1,scale:1};
@@ -6926,7 +6926,8 @@ const SynRoute = (function(){
 
   function build(it, route){
     var nA = NORM[it.sA], nB = NORM[it.sB];
-    var S0 = port(it.bA, it.sA, it.offA), E0 = port(it.bB, it.sB, it.offB);
+    var S0 = it.pA ? { x:it.pA.x, y:it.pA.y } : port(it.bA, it.sA, it.offA);
+    var E0 = it.pB ? { x:it.pB.x, y:it.pB.y } : port(it.bB, it.sB, it.offB);
     var stA = (it.bA.w || it.bA.h) ? STUB : 0, stB = (it.bB.w || it.bB.h) ? STUB : 0;
     var ctrl = [S0].concat(it.wps).concat([E0]);
     var pts, d, adds = [];
@@ -6972,11 +6973,15 @@ const SynRoute = (function(){
       var wps = Array.isArray(c.waypoints) ? c.waypoints.filter(function(p){ return p && isFinite(+p.x) && isFinite(+p.y); }).map(function(p){ return { x:+p.x, y:+p.y }; }) : [];
       var tA = wps.length ? wps[0] : center(bB);
       var tB = wps.length ? wps[wps.length - 1] : center(bA);
-      var it = { c:c, i:i, bA:bA, bB:bB, wps:wps, offA:0, offB:0,
-                 sA: SIDES[c.fromSide] ? c.fromSide : sideToward(bA, tA),
-                 sB: SIDES[c.toSide]   ? c.toSide   : sideToward(bB, tB) };
+      /* Liaison branchée sur une entrée / sortie précise : point et côté imposés */
+      var pA = (c.fromPort && opts.portOf) ? opts.portOf(c.from, c.fromPort, tA) : null;
+      var pB = (c.toPort && opts.portOf) ? opts.portOf(c.to, c.toPort, tB) : null;
+      var it = { c:c, i:i, bA:bA, bB:bB, wps:wps, offA:0, offB:0, pA:pA, pB:pB,
+                 sA: pA ? pA.side : (SIDES[c.fromSide] ? c.fromSide : sideToward(bA, tA)),
+                 sB: pB ? pB.side : (SIDES[c.toSide]   ? c.toSide   : sideToward(bB, tB)) };
       info.push(it);
-      ends.push({ it:it, a:true, node:c.from, side:it.sA, t:tA, b:bA }, { it:it, a:false, node:c.to, side:it.sB, t:tB, b:bB });
+      if (!pA) ends.push({ it:it, a:true, node:c.from, side:it.sA, t:tA, b:bA });
+      if (!pB) ends.push({ it:it, a:false, node:c.to, side:it.sB, t:tB, b:bB });
     });
     var groups = {};
     ends.forEach(function(e){ if (!e.b.w && !e.b.h) return; var k = e.node + '|' + e.side; (groups[k] = groups[k] || []).push(e); });
@@ -6994,6 +6999,90 @@ const SynRoute = (function(){
   }
 
   return { layout:layout, project:project, atT:atT, routeOf:routeOf, sideToward:sideToward, NORM:NORM };
+})();
+
+// ══════════════════════════════════════
+// SYNIO — entrées / sorties des équipements du synoptique
+// Chaque équipement peut afficher ses entrées (à gauche), ses sorties (à
+// droite) et ses ports réseau (en bas, accessibles des deux côtés). Une
+// liaison peut partir d'une sortie précise et arriver sur une entrée précise.
+// Port : { id, dir:'in'|'out'|'net', name, conn }
+// Partagé par l'éditeur, l'export et le rider partagé.
+// ══════════════════════════════════════
+const SynIO = (function(){
+  var ROW = 18, PAD = 6, MINW = 264;
+  var DIRS = { in:1, out:1, net:1 };
+  /* « in:A1|XLR; out:CH A|NL4; net:ETH 1|etherCON » → liste de ports */
+  function parse(str){
+    var out = [], cnt = { in:0, out:0, net:0 };
+    String(str || '').split(';').forEach(function(t){
+      t = t.trim();
+      var m = t.match(/^(in|out|net):(.*)$/);
+      if (!m) return;
+      var parts = m[2].split('|');
+      cnt[m[1]]++;
+      out.push({ id:m[1] + cnt[m[1]], dir:m[1], name:parts[0].trim(), conn:(parts[1] || '').trim() });
+    });
+    return out;
+  }
+  function clean(list){
+    return (Array.isArray(list) ? list : []).filter(function(p){ return p && DIRS[p.dir] && p.id != null; }).map(function(p){
+      return { id:String(p.id), dir:p.dir, name:String(p.name == null ? '' : p.name).slice(0, 48), conn:String(p.conn == null ? '' : p.conn).slice(0, 24) };
+    });
+  }
+  /* Ports d'un équipement : les siens s'il en a, sinon ceux du modèle */
+  function ports(n, specIo){ return Array.isArray(n && n.io) ? clean(n.io) : clean(specIo); }
+  function split(ps){
+    return { ins:ps.filter(function(p){ return p.dir === 'in'; }), outs:ps.filter(function(p){ return p.dir === 'out'; }), nets:ps.filter(function(p){ return p.dir === 'net'; }) };
+  }
+  function metrics(ps){
+    var s = split(ps), cols = Math.max(s.ins.length, s.outs.length), rows = cols + s.nets.length;
+    return { s:s, cols:cols, rows:rows, h: rows ? PAD * 2 + rows * ROW : 0 };
+  }
+  /* Couleur d'un point selon la connectique */
+  var COL = [[/CA-?COM/i,'#a855f7'],[/NL8/i,'#f97316'],[/NL4|speakon/i,'#ef4444'],[/AES/i,'#14b8a6'],[/XLR/i,'#22c55e'],
+             [/optical|fibre|fiber|twinlan/i,'#06b6d4'],[/etherCON|RJ45|dante|AVB|ethernet|LAN/i,'#3b82f6'],[/BNC/i,'#eab308'],
+             [/jack|TRS/i,'#84cc16'],[/USB/i,'#64748b'],[/powerCON|secteur/i,'#f59e0b']];
+  function color(conn){ for (var i = 0; i < COL.length; i++) if (COL[i][0].test(conn || '')) return COL[i][1]; return '#94a3b8'; }
+  /* Position d'un point (export, rider) — box : carte entière, headH : hauteur de l'en-tête.
+     Un port réseau s'accroche du côté tourné vers « toward ». */
+  function portPos(ps, portId, box, headH, toward){
+    var m = metrics(ps), s = m.s, top = box.y + headH + PAD, i;
+    for (i = 0; i < s.ins.length; i++) if (s.ins[i].id === portId) return { x:box.x, y:top + i*ROW + ROW/2, side:'w' };
+    for (i = 0; i < s.outs.length; i++) if (s.outs[i].id === portId) return { x:box.x + box.w, y:top + i*ROW + ROW/2, side:'e' };
+    for (i = 0; i < s.nets.length; i++) if (s.nets[i].id === portId) {
+      var left = !toward || toward.x < box.x + box.w/2;
+      return { x:left ? box.x : box.x + box.w, y:top + (m.cols + i)*ROW + ROW/2, side:left ? 'w' : 'e' };
+    }
+    return null;
+  }
+  /* Lignes d'entrées / sorties en SVG (export, rider) */
+  function svg(ps, box, headH, esc){
+    var m = metrics(ps), s = m.s, x0 = box.x, x1 = box.x + box.w, top = box.y + headH, y0 = top + PAD, h = '';
+    var F = 'font-family="Archivo,sans-serif"';
+    function dot(x, y, c){ return '<circle cx="' + x + '" cy="' + y + '" r="3.8" fill="' + c + '" stroke="#ffffff" stroke-width="1.3"/>'; }
+    h += '<line x1="' + x0 + '" y1="' + top + '" x2="' + x1 + '" y2="' + top + '" stroke="#e2e8f0" stroke-width="1"/>';
+    if (m.cols) h += '<line x1="' + ((x0 + x1)/2) + '" y1="' + (y0 + 2) + '" x2="' + ((x0 + x1)/2) + '" y2="' + (y0 + m.cols*ROW - 2) + '" stroke="#eef2f6" stroke-width="1"/>';
+    s.ins.forEach(function(p, i){
+      var y = y0 + i*ROW + ROW/2;
+      h += dot(x0, y, color(p.conn)) + '<text x="' + (x0 + 9) + '" y="' + (y + 3.2) + '" ' + F + ' font-size="9.5" font-weight="600" fill="#1d3a5f">' + esc(p.name) +
+           (p.conn ? '<tspan font-size="7.5" font-weight="500" fill="#7b8a9e" dx="4">' + esc(p.conn) + '</tspan>' : '') + '</text>';
+    });
+    s.outs.forEach(function(p, i){
+      var y = y0 + i*ROW + ROW/2;
+      h += dot(x1, y, color(p.conn)) + '<text x="' + (x1 - 9) + '" y="' + (y + 3.2) + '" text-anchor="end" ' + F + ' font-size="9.5" font-weight="600" fill="#1d3a5f">' +
+           (p.conn ? '<tspan font-size="7.5" font-weight="500" fill="#7b8a9e">' + esc(p.conn) + '</tspan><tspan dx="4">' : '<tspan>') + esc(p.name) + '</tspan></text>';
+    });
+    if (s.nets.length && m.cols) h += '<line x1="' + (x0 + 8) + '" y1="' + (y0 + m.cols*ROW) + '" x2="' + (x1 - 8) + '" y2="' + (y0 + m.cols*ROW) + '" stroke="#eef2f6" stroke-width="1"/>';
+    s.nets.forEach(function(p, j){
+      var y = y0 + (m.cols + j)*ROW + ROW/2, c = color(p.conn);
+      h += dot(x0, y, c) + dot(x1, y, c);
+      h += '<text x="' + ((x0 + x1)/2) + '" y="' + (y + 3.2) + '" text-anchor="middle" ' + F + ' font-size="9.5" font-weight="600" fill="#1d3a5f">' + esc(p.name) +
+           (p.conn ? '<tspan font-size="7.5" font-weight="500" fill="#7b8a9e" dx="4">' + esc(p.conn) + '</tspan>' : '') + '</text>';
+    });
+    return h;
+  }
+  return { ROW:ROW, PAD:PAD, MINW:MINW, parse:parse, clean:clean, ports:ports, split:split, metrics:metrics, color:color, portPos:portPos, svg:svg };
 })();
 
 // ══════════════════════════════════════
@@ -7120,16 +7209,24 @@ const SynPro = (() => {
     { type:'rack.generic',         cat:'Stageboxes', subcat:'Generique', label:'Rack vide',  defaultSub:'',                       w:160, h:140, icon:_iconRack(4) },
     { type:'io.stagebox',          cat:'Stageboxes', subcat:'Generique', label:'Stagebox',   defaultSub:'Generique',              w:150, h:80,  icon:_iconStagebox() },
 
-    /* ══════════════ AMPLIS ══════════════ */
-    { type:'amp.linus14',          cat:'Amplis',     label:'Coda Linus 14D', defaultSub:'4 ch DSP',                   w:170, h:100, icon:_iconAmp() },
-    { type:'amp.linus12',          cat:'Amplis',     label:'Coda Linus 12',  defaultSub:'4 ch · 4 x 3000W',           w:170, h:100, icon:_iconAmp() },
-    { type:'amp.linus10',          cat:'Amplis',     label:'Coda Linus 10',  defaultSub:'4 ch · 4 x 2500W',           w:170, h:100, icon:_iconAmp() },
-    { type:'amp.lacoustics',       cat:'Amplis',     label:'L-Acoustics LA', defaultSub:'LA4X / LA12X',               w:170, h:100, icon:_iconAmp() },
-    { type:'amp.dnd',              cat:'Amplis',     label:'d&b D80 / D40',  defaultSub:'4 ch · controle d&b',        w:170, h:100, icon:_iconAmp() },
-    { type:'amp.powersoft',        cat:'Amplis',     label:'Powersoft X4/X8',defaultSub:'4-8 ch DSP',                 w:170, h:100, icon:_iconAmp() },
-    { type:'amp.lab-gruppen',      cat:'Amplis',     label:'Lab Gruppen',    defaultSub:'4 ch · jusque 5000W',        w:170, h:100, icon:_iconAmp() },
-    { type:'amp.crown',            cat:'Amplis',     label:'Crown ITech',    defaultSub:'4 ch DSP',                   w:170, h:100, icon:_iconAmp() },
-    { type:'amp.generic',          cat:'Amplis',     label:'Ampli generique',defaultSub:'',                           w:160, h:95,  icon:_iconAmp() },
+    /* ══════════════ AMPLIS ══════════════
+       Connectique relevée sur les fiches constructeur (voir IO_DEFS). Les anciennes
+       entrées regroupant deux modèles restent pour les synoptiques existants (hidden). */
+    { type:'amp.la12x',            cat:'Amplis', subcat:'L-Acoustics',       label:'LA12X',          defaultSub:'4 ch · Milan-AVB',            w:170, h:100, icon:_iconAmp() },
+    { type:'amp.la4x',             cat:'Amplis', subcat:'L-Acoustics',       label:'LA4X',           defaultSub:'4 ch · 4 x 1000W',            w:170, h:100, icon:_iconAmp() },
+    { type:'amp.lacoustics',       cat:'Amplis', subcat:'L-Acoustics',       label:'L-Acoustics LA', defaultSub:'LA4X / LA12X',                w:170, h:100, icon:_iconAmp(), hidden:true },
+    { type:'amp.db-d80',           cat:'Amplis', subcat:'d&b audiotechnik',  label:'D80',            defaultSub:'4 ch · 4 x 4000W',            w:170, h:100, icon:_iconAmp() },
+    { type:'amp.db-d40',           cat:'Amplis', subcat:'d&b audiotechnik',  label:'D40',            defaultSub:'4 ch · 4 x 1600W',            w:170, h:100, icon:_iconAmp() },
+    { type:'amp.dnd',              cat:'Amplis', subcat:'d&b audiotechnik',  label:'d&b D80 / D40',  defaultSub:'4 ch · controle d&b',         w:170, h:100, icon:_iconAmp(), hidden:true },
+    { type:'amp.ps-x8',            cat:'Amplis', subcat:'Powersoft',         label:'X8',             defaultSub:'8 ch · Dante',                w:170, h:100, icon:_iconAmp() },
+    { type:'amp.ps-x4',            cat:'Amplis', subcat:'Powersoft',         label:'X4',             defaultSub:'4 ch · Dante',                w:170, h:100, icon:_iconAmp() },
+    { type:'amp.powersoft',        cat:'Amplis', subcat:'Powersoft',         label:'Powersoft X4/X8',defaultSub:'4-8 ch DSP',                  w:170, h:100, icon:_iconAmp(), hidden:true },
+    { type:'amp.lab-gruppen',      cat:'Amplis', subcat:'Lab Gruppen',       label:'PLM 20K44',      defaultSub:'4 ch · 4 x 5000W · Dante',    w:170, h:100, icon:_iconAmp() },
+    { type:'amp.crown',            cat:'Amplis', subcat:'Crown',             label:'I-Tech 4x3500HD',defaultSub:'4 ch DSP',                    w:170, h:100, icon:_iconAmp() },
+    { type:'amp.linus14',          cat:'Amplis', subcat:'Coda Audio',        label:'LINUS14D',       defaultSub:'4 ch · 4 x 3500W · Dante',    w:170, h:100, icon:_iconAmp() },
+    { type:'amp.linus12',          cat:'Amplis', subcat:'Coda Audio',        label:'LINUS12',        defaultSub:'4 ch · 4 x 3000W',            w:170, h:100, icon:_iconAmp() },
+    { type:'amp.linus10',          cat:'Amplis', subcat:'Coda Audio',        label:'LINUS10',        defaultSub:'2 ch DSP',                    w:170, h:100, icon:_iconAmp() },
+    { type:'amp.generic',          cat:'Amplis', subcat:'Generique',         label:'Ampli generique',defaultSub:'',                            w:160, h:95,  icon:_iconAmp() },
 
     /* ══════════════ ENCEINTES ══════════════ */
     { type:'spk.line-top',         cat:'Enceintes',  label:'Top',            defaultSub:'Line array',                 w:130, h:115, icon:_iconLineArray() },
@@ -7157,6 +7254,96 @@ const SynPro = (() => {
     { type:'text_label',           cat:'Annotations',label:'Texte simple',   defaultSub:'',                           w:160, h:50,  icon:_iconTextLabel() },
     { type:'image_frame',          cat:'Annotations',label:'Image',          defaultSub:'',                           w:120, h:120, icon:_iconImageFrame() },
   ];
+
+  /* ── Entrées / sorties par modèle ──────────────────────────────────
+     in: entrée (gauche) · out: sortie (droite) · net: réseau (les deux côtés).
+     Amplis : connectique des fiches constructeur. Consoles et stageboxes : leurs
+     liaisons numériques et leurs entrées / sorties locales regroupées.
+     Tout reste modifiable équipement par équipement dans l'inspecteur. */
+  var IO_DEFS = {
+    'amp.la12x':   'in:A · analog/AES|XLR; in:B · analog|XLR; in:C · analog/AES|XLR; in:D · analog|XLR; out:CH 1–2|NL4; out:CH 3–4|NL4; out:CH 1–4|CA-COM; out:Link A–D|XLR ×4; net:Milan-AVB 1|etherCON; net:Milan-AVB 2|etherCON',
+    'amp.la4x':    'in:A · analog/AES|XLR; in:B · analog|XLR; in:C · analog/AES|XLR; in:D · analog|XLR; out:CH 1|NL4; out:CH 2|NL4; out:CH 3|NL4; out:CH 4|NL4; net:L-NET 1|etherCON; net:L-NET 2|etherCON',
+    'amp.db-d80':  'in:A1 · analog|XLR; in:A2 · analog|XLR; in:A3 · analog|XLR; in:A4 · analog|XLR; in:D1/2 · AES|XLR AES; in:D3/4 · AES|XLR AES; out:CH A|NL4; out:CH B|NL4; out:CH C|NL4; out:CH D|NL4; out:CH A–D|NL8; out:Link A1–A4|XLR ×4; net:ETH 1|etherCON; net:ETH 2|etherCON',
+    'amp.db-d40':  'in:A1 · analog|XLR; in:A2 · analog|XLR; in:A3 · analog|XLR; in:A4 · analog|XLR; in:D1/2 · AES|XLR AES; in:D3/4 · AES|XLR AES; out:CH A|NL4; out:CH B|NL4; out:CH C|NL4; out:CH D|NL4; out:A/B mix · 2 voies|NL4; out:C/D mix · 2 voies|NL4; out:CH A–D|NL8; net:ETH 1|etherCON; net:ETH 2|etherCON',
+    'amp.ps-x4':   'in:Analog 1|XLR; in:Analog 2|XLR; in:Analog 3|XLR; in:Analog 4|XLR; in:AES 1–2|XLR AES; in:AES 3–4|XLR AES; out:CH 1–2|NL4; out:CH 3–4|NL4; net:Dante pri|etherCON; net:Dante sec|etherCON',
+    'amp.ps-x8':   'in:Analog 1–8|XLR ×8; in:AES 1–8|XLR AES ×4; out:CH 1–2|NL4; out:CH 3–4|NL4; out:CH 5–6|NL4; out:CH 7–8|NL4; net:Dante pri|etherCON; net:Dante sec|etherCON',
+    'amp.lab-gruppen': 'in:Analog 1|XLR; in:Analog 2|XLR; in:Analog 3|XLR; in:Analog 4|XLR; in:AES 1–2|XLR AES; in:AES 3–4|XLR AES; out:CH 1–2|NL4; out:CH 3–4|NL4; out:CH 1–4|NL8; net:Dante pri|etherCON; net:Dante sec|etherCON',
+    'amp.crown':   'in:Analog 1|XLR; in:Analog 2|XLR; in:Analog 3|XLR; in:Analog 4|XLR; in:AES 1–2|XLR AES; in:AES 3–4|XLR AES; out:CH 1–2|NL4; out:CH 3–4|NL4; out:CH 1–4|NL8; net:Ethernet · CobraNet|etherCON',
+    'amp.linus14': 'in:Analog 1|XLR; in:Analog 2|XLR; in:Analog 3|XLR; in:Analog 4|XLR; in:AES / LiNET|RJ45; out:CH 1–2|NL4; out:CH 3–4|NL4; out:CH 1–4|NL8; out:AES / LiNET link|RJ45; net:Dante pri|etherCON; net:Dante sec|etherCON',
+    'amp.linus12': 'in:Analog 1|XLR; in:Analog 2|XLR; in:Analog 3|XLR; in:Analog 4|XLR; in:LiNET|RJ45; out:CH 1–2|NL4; out:CH 3–4|NL4; out:CH 1–4|NL8; out:LiNET link|RJ45',
+    'amp.linus10': 'in:Analog A|XLR; in:Analog B|XLR; in:LiNET|RJ45; out:Sortie 1 · A+B|NL4; out:Sortie 2 · A+B|NL4; out:Link A–B|XLR ×2; out:LiNET link|RJ45',
+    /* anciens modèles regroupés (synoptiques existants) */
+    'amp.lacoustics': 'in:A|XLR; in:B|XLR; in:C|XLR; in:D|XLR; out:CH 1|NL4; out:CH 2|NL4; out:CH 3|NL4; out:CH 4|NL4; net:Réseau 1|etherCON; net:Réseau 2|etherCON',
+    'amp.dnd':     'in:A1|XLR; in:A2|XLR; in:A3|XLR; in:A4|XLR; in:D1/2 · AES|XLR AES; in:D3/4 · AES|XLR AES; out:CH A|NL4; out:CH B|NL4; out:CH C|NL4; out:CH D|NL4; out:CH A–D|NL8; net:ETH 1|etherCON; net:ETH 2|etherCON',
+    'amp.powersoft': 'in:Analog 1|XLR; in:Analog 2|XLR; in:Analog 3|XLR; in:Analog 4|XLR; in:AES 1–2|XLR AES; in:AES 3–4|XLR AES; out:CH 1–2|NL4; out:CH 3–4|NL4; net:Dante pri|etherCON; net:Dante sec|etherCON',
+    'amp.generic': 'in:Entrée 1|XLR; in:Entrée 2|XLR; in:Entrée 3|XLR; in:Entrée 4|XLR; out:Sortie 1|NL4; out:Sortie 2|NL4; out:Sortie 3|NL4; out:Sortie 4|NL4',
+    /* Stageboxes */
+    'rack.dlive-dm0':  'net:gigaACE|etherCON; net:DX 1–2|etherCON; net:DX 3–4|etherCON; net:I/O Port|Option',
+    'rack.dlive-dm64': 'in:Entrées 1–64|XLR ×64; out:Sorties 1–32|XLR ×32; net:gigaACE|etherCON; net:DX 1–2|etherCON; net:I/O Port|Option',
+    'rack.dlive-dm48': 'in:Entrées 1–48|XLR ×48; out:Sorties 1–24|XLR ×24; out:AES 1–5|XLR AES ×5; net:gigaACE|etherCON; net:DX 1–2|etherCON; net:I/O Port|Option',
+    'rack.dlive-dm32': 'in:Entrées 1–32|XLR ×32; out:Sorties 1–16|XLR ×16; net:gigaACE|etherCON; net:DX 1–2|etherCON; net:I/O Port|Option',
+    'io.dx168':        'in:Entrées 1–16|XLR ×16; out:Sorties 1–8|XLR ×8; net:DX A|etherCON; net:DX B|etherCON',
+    'io.dx32':         'in:Modules · 4 slots|Option; net:DX A|etherCON; net:DX B|etherCON',
+    'io.ar2412':       'in:Entrées 1–24|XLR ×24; out:Sorties 1–12|XLR ×12; net:dSNAKE|etherCON; net:Expansion|etherCON',
+    'io.ar84':         'in:Entrées 1–8|XLR ×8; out:Sorties 1–4|XLR ×4; net:dSNAKE|etherCON; net:Link|etherCON',
+    'rack.yam-rpio':   'in:Cartes RY|Option; net:TWINLANe A|opticalCON; net:TWINLANe B|opticalCON',
+    'rack.yam-rio3224':'in:Entrées 1–32|XLR ×32; out:Sorties 1–16|XLR ×16; out:AES/EBU|XLR AES; net:Dante pri|etherCON; net:Dante sec|etherCON',
+    'rack.yam-rio1608':'in:Entrées 1–16|XLR ×16; out:Sorties 1–8|XLR ×8; net:Dante pri|etherCON; net:Dante sec|etherCON',
+    'rack.yam-tio1608':'in:Entrées 1–16|XLR ×16; out:Sorties 1–8|XLR ×8; net:Dante pri|etherCON; net:Dante sec|etherCON',
+    'rack.dig-sdrack': 'in:Entrées 1–56|XLR ×56; out:Sorties 1–56|XLR ×56; net:MADI A|BNC; net:MADI B|BNC; net:Optocore|opticalCON',
+    'rack.dig-sdmini': 'in:Entrées 1–24|XLR ×24; out:Sorties 1–16|XLR ×16; net:MADI A|BNC; net:MADI B|BNC',
+    'rack.dig-sdnano': 'in:Entrées 1–24|XLR ×24; out:Sorties 1–12|XLR ×12; net:MADI A|BNC; net:MADI B|BNC',
+    'rack.mid-dl251':  'in:Entrées 1–48|XLR ×48; out:Sorties 1–16|XLR ×16; net:AES50 A|etherCON; net:AES50 B|etherCON',
+    'rack.mid-dl32':   'in:Entrées 1–32|XLR ×32; out:Sorties 1–16|XLR ×16; net:AES50 A|etherCON; net:AES50 B|etherCON',
+    'rack.mid-dl151':  'in:Entrées 1–24|XLR ×24; net:AES50 A|etherCON; net:AES50 B|etherCON',
+    'rack.mid-dl16':   'in:Entrées 1–16|XLR ×16; out:Sorties 1–8|XLR ×8; net:AES50 A|etherCON; net:AES50 B|etherCON',
+    'rack.beh-s32':    'in:Entrées 1–32|XLR ×32; out:Sorties 1–16|XLR ×16; net:AES50 A|etherCON; net:AES50 B|etherCON',
+    'rack.beh-s16':    'in:Entrées 1–16|XLR ×16; out:Sorties 1–8|XLR ×8; net:AES50 A|etherCON; net:AES50 B|etherCON',
+    'rack.beh-sd16':   'in:Entrées 1–16|XLR ×16; out:Sorties 1–8|XLR ×8; net:AES50 A|etherCON; net:AES50 B|etherCON',
+    'rack.beh-sd8':    'in:Entrées 1–8|XLR ×8; out:Sorties 1–4|XLR ×4; net:AES50 A|etherCON; net:AES50 B|etherCON',
+    'rack.sc-stage64': 'in:Entrées 1–64|XLR ×64; out:Sorties 1–32|XLR ×32; net:MADI A|opticalCON; net:MADI B|opticalCON',
+    'rack.sc-stage32': 'in:Entrées 1–32|XLR ×32; out:Sorties 1–16|XLR ×16; net:MADI A|opticalCON; net:MADI B|opticalCON',
+    'rack.av-stage64': 'in:Entrées 1–64|XLR ×64; out:Sorties 1–32|XLR ×32; net:AVB 1|etherCON; net:AVB 2|etherCON',
+    'rack.av-stage48': 'in:Entrées 1–48|XLR ×48; out:Sorties 1–24|XLR ×24; net:AVB 1|etherCON; net:AVB 2|etherCON',
+    'rack.av-stage16': 'in:Entrées 1–16|XLR ×16; out:Sorties 1–8|XLR ×8; net:AVB 1|etherCON; net:AVB 2|etherCON',
+    'rack.ssl-stagebox':'in:Entrées 1–32|XLR ×32; out:Sorties 1–16|XLR ×16; net:MADI A|opticalCON; net:MADI B|opticalCON',
+    'rack.generic':    'in:Entrées|XLR; out:Sorties|XLR; net:Réseau|etherCON',
+    'io.stagebox':     'in:Entrées|XLR; out:Sorties|XLR; net:Réseau|etherCON',
+    /* Enceintes, sources, réseau */
+    'src.mic':      'out:Sortie|XLR',
+    'src.di':       'in:Entrée|Jack; out:Link|Jack; out:Sortie|XLR',
+    'src.iem':      'in:Entrée L|XLR; in:Entrée R|XLR; out:Antenne|BNC',
+    'src.computer': 'out:USB|USB; net:Dante|RJ45',
+    'net.switch':   'net:Port 1|etherCON; net:Port 2|etherCON; net:Port 3|etherCON; net:Port 4|etherCON; net:Port 5|etherCON; net:Port 6|etherCON; net:Port 7|etherCON; net:Port 8|etherCON',
+    'net.wireless': 'net:LAN|RJ45',
+    'net.reel':     'in:Entrée|etherCON; out:Sortie|etherCON',
+    'net.fiber':    'in:Entrée|opticalCON; out:Sortie|opticalCON'
+  };
+  /* Consoles : liaisons numériques selon la famille */
+  function _consoleIo(t){
+    if (/dlive/.test(t)) return 'net:gigaACE|etherCON; net:DX|etherCON; net:Réseau|RJ45';
+    if (/avantis/.test(t)) return 'net:SLink|etherCON; net:I/O Port A|Option; net:I/O Port B|Option; net:Réseau|RJ45';
+    if (/\.sq\d/.test(t)) return 'net:SLink|etherCON; net:I/O Port|Option; net:Réseau|RJ45';
+    if (/\.qu\d/.test(t)) return 'net:dSNAKE|etherCON; net:Réseau|RJ45';
+    if (/rivage/.test(t)) return 'net:TWINLANe A|opticalCON; net:TWINLANe B|opticalCON; net:Dante pri|etherCON; net:Dante sec|etherCON';
+    if (/yam-|console\.cl5/.test(t)) return 'net:Dante pri|etherCON; net:Dante sec|etherCON; net:Réseau|RJ45';
+    if (/dig-s(21|31)/.test(t)) return 'net:MADI|BNC; net:DMI|Option; net:Réseau|RJ45';
+    if (/dig-/.test(t)) return 'net:MADI A|BNC; net:MADI B|BNC; net:Optocore|opticalCON';
+    if (/wing/.test(t)) return 'net:AES50 A|etherCON; net:AES50 B|etherCON; net:AES50 C|etherCON; net:StageConnect|XLR; net:Réseau|RJ45';
+    if (/mid-|beh-|console\.m32/.test(t)) return 'net:AES50 A|etherCON; net:AES50 B|etherCON; net:Réseau|RJ45';
+    if (/sc-vi/.test(t)) return 'net:Stagebox A|opticalCON; net:Stagebox B|opticalCON; net:MADI|BNC';
+    if (/sc-/.test(t)) return 'net:MADI|Option; net:Réseau|RJ45';
+    if (/av-s(6|3)l/.test(t)) return 'net:AVB 1|etherCON; net:AVB 2|etherCON';
+    if (/av-/.test(t)) return 'net:Snake|Option; net:Réseau|RJ45';
+    if (/ssl-/.test(t)) return 'net:MADI A|opticalCON; net:MADI B|opticalCON; net:Dante|etherCON';
+    return 'net:Liaison stagebox|etherCON; net:Réseau|RJ45';
+  }
+  LIB.forEach(function(it){
+    var d = IO_DEFS[it.type];
+    if (!d && it.type.indexOf('console.') === 0) d = _consoleIo(it.type);
+    if (!d && it.type.indexOf('spk.') === 0) d = 'in:Entrée|NL4; out:Link|NL4';
+    if (d) it.io = SynIO.parse(d);
+  });
 
   /* ── SVG icon builders — stylized, neutral grey/blue, scalable ── */
   function _iconConsoleLarge() {
@@ -7571,6 +7758,14 @@ const SynPro = (() => {
   /* Bounding box of all current nodes in world coords, with optional padding.
      Always covers at least (0, 0, 1100, 600) so empty diagrams have a default
      canvas. Includes negative coords if any node was placed there. */
+  /* Taille d'un équipement tel qu'il est dessiné à l'export et dans le rider :
+     en-tête du modèle + lignes d'entrées / sorties si elles sont affichées. */
+  function _nodeSize(n) {
+    var sp = spec(n.type) || { w:140, h:100 };
+    if (n.type === 'image_frame') { var iw = n.imgPx || 120; var ih = Math.max(1, Math.round(iw / (n.imgAspect || 1))); return { w:iw, h:ih, head:ih, io:[] }; }
+    var ps = SynIO.ports(n, sp.io), on = !!n.showIo && ps.length > 0;
+    return { w: on ? Math.max(sp.w, SynIO.MINW) : sp.w, h: sp.h + (on ? SynIO.metrics(ps).h : 0), head: sp.h, io: on ? ps : [] };
+  }
   function _worldBounds(pad) {
     pad = pad || 0;
     var minX = 0, minY = 0, maxX = 1100, maxY = 600;
@@ -7580,7 +7775,7 @@ const SynPro = (() => {
       maxX = Math.max(maxX, bgr.maxX); maxY = Math.max(maxY, bgr.maxY);
     }
     state.nodes.forEach(function(n){
-      var sp = spec(n.type) || { w:140, h:100 };
+      var sp = _nodeSize(n);
       if (n.x - pad < minX) minX = n.x - pad;
       if (n.y - pad < minY) minY = n.y - pad;
       if (n.x + sp.w + pad > maxX) maxX = n.x + sp.w + pad;
@@ -7620,7 +7815,7 @@ const SynPro = (() => {
     var c = nodeCenter(n);
     return { x:c.x - c.w/2, y:c.y - c.h/2, w:c.w, h:c.h };
   }
-  function _layoutAll() { _geo = SynRoute.layout(state.cables, _boxDom, { defRoute:'straight' }); return _geo; }
+  function _layoutAll() { _geo = SynRoute.layout(state.cables, _boxDom, { defRoute:'straight', portOf:_portDom }); return _geo; }
   /* Distance d'un point à un segment (pour insérer un angle au bon endroit). */
   function _distToSegSyn(p, a, b) {
     var vx=b.x-a.x, vy=b.y-a.y, wx=p.x-a.x, wy=p.y-a.y;
@@ -7758,7 +7953,7 @@ const SynPro = (() => {
       (tree[c][key] = tree[c][key] || []).push(html);
     }
 
-    LIB.forEach(function(it){ _addItem(it, _palItemHtml(it, false)); });
+    LIB.forEach(function(it){ if (!it.hidden) _addItem(it, _palItemHtml(it, false)); });
     /* Custom items always flat under their cat */
     _getCustomItems().forEach(function(it){
       var sp = _customSpec(it);
@@ -8059,10 +8254,52 @@ const SynPro = (() => {
     /* Points d'accroche : on tire une liaison depuis l'un d'eux */
     var ports = '<span class="sp-port" data-side="n" title="Tirer une liaison"></span><span class="sp-port" data-side="e" title="Tirer une liaison"></span>' +
                 '<span class="sp-port" data-side="s" title="Tirer une liaison"></span><span class="sp-port" data-side="w" title="Tirer une liaison"></span>';
+    /* Entrées / sorties sous l'en-tête de la carte */
+    var ioPs = (n.showIo && sp) ? SynIO.ports(n, sp.io) : (n.showIo ? SynIO.ports(n, null) : []);
+    if (ioPs.length && /^<div class="sp-node-card"/.test(iconHtml)) {
+      iconHtml = iconHtml.replace('<div class="sp-node-card"', '<div class="sp-node-card has-io"');
+      iconHtml = iconHtml.slice(0, -6) + _ioHtml(ioPs) + '</div>';
+    }
     /* Sur la carte quand il y en a une (c'est elle qui reçoit les liaisons), sinon sur l'élément */
-    var hasCard = /<div class="sp-node-card"/.test(iconHtml);
-    if (hasCard) iconHtml = iconHtml.replace(/(<div class="sp-node-card"[^>]*>)/, '$1' + ports);
+    var hasCard = /<div class="sp-node-card/.test(iconHtml);
+    if (hasCard) iconHtml = iconHtml.replace(/(<div class="sp-node-card[^"]*"[^>]*>)/, '$1' + ports);
     return '<div class="sp-node' + sel + target + '" data-id="' + n.id + '" data-type="' + esc(n.type) + '" style="left:' + n.x + 'px;top:' + n.y + 'px;min-width:' + nodeMinW + '">' + iconHtml + (hasCard ? '' : ports) + '<button type="button" class="sp-node-del" data-del="' + n.id + '" title="Supprimer">&times;</button></div>';
+  }
+
+  /* Lignes d'entrées / sorties d'une carte : points colorés selon la prise */
+  function _ioHtml(ps) {
+    var m = SynIO.metrics(ps), sx = m.s;
+    function row(p, side) {
+      var c = SynIO.color(p.conn), id = esc(p.id);
+      var dw = '<i class="sp-io-dot" data-port="' + id + '" data-side="w" style="background:' + c + '" title="' + esc(p.name) + (p.conn ? ' · ' + esc(p.conn) : '') + '"></i>';
+      var de = '<i class="sp-io-dot" data-port="' + id + '" data-side="e" style="background:' + c + '" title="' + esc(p.name) + (p.conn ? ' · ' + esc(p.conn) : '') + '"></i>';
+      var cn = p.conn ? '<span class="sp-io-c">' + esc(p.conn) + '</span>' : '', nm = '<span class="sp-io-n">' + esc(p.name) + '</span>';
+      return '<div class="sp-io-row" data-port="' + id + '">' + (side !== 'e' ? dw : '') +
+        (side === 'e' ? cn + nm : nm + cn) + (side !== 'w' ? de : '') + '</div>';
+    }
+    var h = '<div class="sp-io">';
+    if (m.cols) h += '<div class="sp-io-cols"><div class="sp-io-col sp-io-in">' + sx.ins.map(function(p){ return row(p, 'w'); }).join('') +
+                     '</div><div class="sp-io-col sp-io-out">' + sx.outs.map(function(p){ return row(p, 'e'); }).join('') + '</div></div>';
+    if (sx.nets.length) h += '<div class="sp-io-nets">' + sx.nets.map(function(p){ return row(p, 'both'); }).join('') + '</div>';
+    return h + '</div>';
+  }
+  /* Position (monde) d'un point d'entrée / sortie dans l'éditeur ; un port réseau
+     s'accroche du côté tourné vers « toward » */
+  function _portDom(nodeId, portId, toward) {
+    var q = function(v){ return (window.CSS && CSS.escape) ? CSS.escape(String(v)) : String(v).replace(/"/g, ''); };
+    var el = document.querySelector('.sp-node[data-id="' + q(nodeId) + '"]');
+    var vp = $('sp-viewport');
+    if (!el || !vp) return null;
+    var dots = el.querySelectorAll('.sp-io-dot[data-port="' + q(portId) + '"]');
+    if (!dots.length) return null;
+    var vr = vp.getBoundingClientRect(), best = null;
+    dots.forEach(function(d){
+      var r = d.getBoundingClientRect();
+      if (!r.width) return;
+      var p = { x:(r.left + r.width/2 - vr.left - view.panX) / view.zoom, y:(r.top + r.height/2 - vr.top - view.panY) / view.zoom, side:d.dataset.side };
+      if (!best || (toward && Math.abs(toward.x - p.x) < Math.abs(toward.x - best.x))) best = p;
+    });
+    return best;
   }
 
   function _renderNodes() {
@@ -8154,7 +8391,7 @@ const SynPro = (() => {
   function _previewGeom(tmp) {
     var ptr = (linkDraw && linkDraw.cur) || (endDrag && endDrag.cur);
     _tmpBoxes = ptr ? { __ptr:{ x:ptr.x, y:ptr.y, w:0, h:0 } } : {};
-    var g = SynRoute.layout([tmp], _boxDom, { defRoute:'straight' })[tmp.id];
+    var g = SynRoute.layout([tmp], _boxDom, { defRoute:'straight', portOf:_portDom })[tmp.id];
     _tmpBoxes = {};
     return g;
   }
@@ -8168,7 +8405,8 @@ const SynPro = (() => {
     if (linkDraw && linkDraw.cur) {
       var lc = (netById(_lastNet()) || {}).color || '#ff6b1a';
       var pg = _previewGeom({ id:'__draw', from:linkDraw.from, to:linkDraw.target || '__ptr', waypoints:linkDraw.pts,
-                              route:_lastRoute(), fromSide:linkDraw.fromSide, toSide:linkDraw.target ? linkDraw.targetSide : null });
+                              route:_lastRoute(), fromSide:linkDraw.fromSide, toSide:linkDraw.target ? linkDraw.targetSide : null,
+                              fromPort:linkDraw.fromPort, toPort:linkDraw.target ? linkDraw.targetPort : null });
       if (pg) html += '<path d="' + pg.d + '" fill="none" stroke="' + lc + '" stroke-width="' + (2.5 / Math.max(z, .6)) + '" stroke-dasharray="' + (7/z) + ' ' + (5/z) + '" stroke-linecap="round" stroke-linejoin="round"/>';
       linkDraw.pts.forEach(function(p){ html += '<circle cx="' + p.x + '" cy="' + p.y + '" r="' + (R * .8) + '" fill="#fff" stroke="' + lc + '" stroke-width="' + sw + '"/>'; });
     } else if (endDrag && endDrag.cur) {
@@ -8179,6 +8417,7 @@ const SynPro = (() => {
         var key = endDrag.end === 'from' ? 'from' : 'to', sk = key === 'from' ? 'fromSide' : 'toSide';
         t[key] = endDrag.target || '__ptr';
         if (endDrag.target && endDrag.targetSide) t[sk] = endDrag.targetSide; else delete t[sk];
+        if (endDrag.target && endDrag.targetPort) t[key + 'Port'] = endDrag.targetPort; else delete t[key + 'Port'];
         var eg = _previewGeom(t), enet = netById(ec.network) || { color:'#5a6a80' };
         if (eg) html += '<path d="' + eg.d + '" fill="none" stroke="' + enet.color + '" stroke-width="' + (2.5 / Math.max(z, .6)) + '" stroke-dasharray="' + (7/z) + ' ' + (5/z) + '" stroke-linecap="round" stroke-linejoin="round"/>';
       }
@@ -8306,6 +8545,90 @@ const SynPro = (() => {
     if (head) head.style.background = state.headerColor || '#1d9bf0';
   }
 
+  /* ── Entrées / sorties d'un équipement (inspecteur) ── */
+  var IO_DIR_TXT = { in:'Entrée', out:'Sortie', net:'Réseau' };
+  var IO_CONNS = ['XLR','XLR AES','NL4','NL8','CA-COM','etherCON','RJ45','opticalCON','BNC','Jack','USB','powerCON'];
+  function _ownIo(n) {
+    if (!Array.isArray(n.io)) { var sp = spec(n.type); n.io = SynIO.ports(n, sp && sp.io); }
+    return n.io;
+  }
+  function _dropPortRefs(nid, pid) {
+    state.cables.forEach(function(c){
+      if (c.from === nid && c.fromPort === pid) delete c.fromPort;
+      if (c.to === nid && c.toPort === pid) delete c.toPort;
+    });
+  }
+  function _ioInspHtml(n) {
+    if (n.type === 'note' || n.type === 'text_label' || n.type === 'image_frame') return '';
+    var sp = spec(n.type), ps = SynIO.ports(n, sp && sp.io);
+    var grp = function(d, title){
+      var rows = ps.map(function(p, i){ return { p:p, i:i }; }).filter(function(x){ return x.p.dir === d; }).map(function(x){
+        return '<div class="sp-io-er" data-i="' + x.i + '"><span class="sp-io-ed-dot" style="background:' + SynIO.color(x.p.conn) + '"></span>' +
+          '<input class="sp-io-name" value="' + esc(x.p.name) + '" placeholder="Nom">' +
+          '<input class="sp-io-conn" list="sp-io-conns" value="' + esc(x.p.conn) + '" placeholder="Prise">' +
+          '<button type="button" class="sp-io-del" title="Retirer">&times;</button></div>';
+      }).join('');
+      return '<div class="sp-io-grp"><div class="sp-io-gh"><span>' + title + '</span><button type="button" class="sp-io-gadd" data-add="' + d + '" title="Ajouter">+ Ajouter</button></div>' + rows + '</div>';
+    };
+    return '<div class="sp-io-insp"><div class="sp-insp-title" style="margin-top:14px"><i class="ti ti-plug-connected"></i>Entrées / sorties</div>' +
+      '<label class="sp-io-show"><input type="checkbox" id="sp-io-show"' + (n.showIo ? ' checked' : '') + '> Afficher sur la carte</label>' +
+      grp('in', 'Entrées') + grp('out', 'Sorties') + grp('net', 'Réseau') +
+      ((Array.isArray(n.io) && sp && sp.io && sp.io.length) ? '<button type="button" class="btn ghost sm" id="sp-io-reset" style="width:100%;margin-top:8px"><i class="ti ti-restore"></i>Revenir à celles du modèle</button>' : '') +
+      '<div class="sp-insp-sub" style="margin-top:6px">Tirez une liaison depuis un point coloré de la carte pour partir de cette entrée ou sortie.</div>' +
+      '<datalist id="sp-io-conns">' + IO_CONNS.map(function(c){ return '<option value="' + c + '">'; }).join('') + '</datalist></div>';
+  }
+  function _bindIoInsp(n, el) {
+    var refresh = function(){ _refreshNodeDom(n.id); _renderEdges(); scheduleSave(); };
+    var show = el.querySelector('#sp-io-show');
+    if (show) show.addEventListener('change', function(){ n.showIo = show.checked; refresh(); });
+    el.querySelectorAll('.sp-io-er').forEach(function(r){
+      var i = +r.dataset.i;
+      r.querySelector('.sp-io-name').addEventListener('input', function(e){ _ownIo(n)[i].name = e.target.value; refresh(); });
+      r.querySelector('.sp-io-conn').addEventListener('input', function(e){
+        _ownIo(n)[i].conn = e.target.value;
+        r.querySelector('.sp-io-ed-dot').style.background = SynIO.color(e.target.value);
+        refresh();
+      });
+      r.querySelector('.sp-io-del').addEventListener('click', function(){
+        var io = _ownIo(n), pid = io[i].id;
+        io.splice(i, 1); _dropPortRefs(n.id, pid); refresh(); _renderInspector();
+      });
+    });
+    el.querySelectorAll('.sp-io-gadd[data-add]').forEach(function(b){
+      b.addEventListener('click', function(){
+        var d = b.dataset.add, io = _ownIo(n), k = io.filter(function(p){ return p.dir === d; }).length + 1;
+        var spk = /^(amp|spk)\./.test(n.type);
+        io.push({ id:'p' + Date.now().toString(36).slice(-4) + Math.random().toString(36).slice(2, 5), dir:d,
+                  name:({ in:'Entrée ', out:'Sortie ', net:'Réseau ' })[d] + k, conn:({ in:spk ? 'XLR' : 'XLR', out:spk ? 'NL4' : 'XLR', net:'etherCON' })[d] });
+        n.showIo = true;
+        refresh(); _renderInspector();
+        var rowsD = el.querySelectorAll('.sp-io-er'), last = rowsD.length ? rowsD[rowsD.length - 1] : null;
+        el.querySelectorAll('.sp-io-er').forEach(function(r){ if (+r.dataset.i === io.length - 1) last = r; });
+        if (last) { var inp = last.querySelector('.sp-io-name'); inp.focus(); inp.select(); }
+      });
+    });
+    var rs = el.querySelector('#sp-io-reset');
+    if (rs) rs.addEventListener('click', function(){
+      var sp = spec(n.type), keep = {};
+      SynIO.clean(sp && sp.io).forEach(function(p){ keep[p.id] = 1; });
+      (n.io || []).forEach(function(p){ if (!keep[p.id]) _dropPortRefs(n.id, p.id); });
+      delete n.io; refresh(); _renderInspector();
+    });
+  }
+  /* Choix du point de départ / d'arrivée d'une liaison */
+  function _portSelHtml(c, end) {
+    var nid = end === 'from' ? c.from : c.to, nd = nodeById(nid);
+    if (!nd) return '';
+    var ns = _nodeSize(nd);
+    var lbl = (nd.label || (spec(nd.type) || {}).label || 'Équipement');
+    if (!ns.io.length) return '<label class="sp-insp-lbl">' + (end === 'from' ? 'Départ' : 'Arrivée') + ' · ' + esc(lbl) + '</label><div class="sp-insp-sub">Bord de la carte. Affichez les entrées / sorties de l\'équipement pour choisir un point précis.</div>';
+    var cur = end === 'from' ? c.fromPort : c.toPort;
+    return '<label class="sp-insp-lbl">' + (end === 'from' ? 'Départ' : 'Arrivée') + ' · ' + esc(lbl) + '</label>' +
+      '<select class="sp-insp-inp" id="sp-ins-' + end + 'port"><option value="">Bord de la carte (automatique)</option>' +
+      ns.io.map(function(p){ return '<option value="' + esc(p.id) + '"' + (p.id === cur ? ' selected' : '') + '>' + IO_DIR_TXT[p.dir] + ' · ' + esc(p.name) + (p.conn ? ' (' + esc(p.conn) + ')' : '') + '</option>'; }).join('') +
+      '</select>';
+  }
+
   /* ── Render inspector ── */
   function _renderInspector() {
     var el = $('sp-inspector');
@@ -8323,6 +8646,7 @@ const SynPro = (() => {
         '<textarea class="sp-insp-tx" id="sp-ins-sub" rows="2">' + esc(n.sub != null ? n.sub : (sp ? sp.defaultSub : '')) + '</textarea>' +
         ((n.iconImg || n.type==='image_frame') ? '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr2)"><div style="font-size:12px;font-family:var(--f);color:var(--muted);margin-bottom:5px;font-weight:500">Taille de l\'image</div><div style="display:flex;align-items:center;gap:7px"><button class="spl-ts-btn" onclick="SynPro.adjImgPx(\''+ nId +'\',-20)">−</button><span id="sp-img-px-lbl" style="flex:1;text-align:center;font-size:10px;color:var(--muted)">'+(n.imgPx||90)+'px</span><button class="spl-ts-btn" onclick="SynPro.adjImgPx(\''+ nId +'\',20)">+</button></div></div>' : '') +
         (n.type !== 'note' && n.type !== 'text_label' ? _iconImgInspHtml(nId, !!n.iconImg, n.iconImg||'', "SynPro.uploadNodeIcon('"+nId+"')", "SynPro.clearNodeIcon('"+nId+"')") : '') +
+        _ioInspHtml(n) +
         '<button class="btn sm" id="sp-ins-dup" style="width:100%;margin-top:12px"><i class="ti ti-copy"></i> Dupliquer <span style="font-size:8px;color:var(--muted);font-family:var(--m);margin-left:3px">Ctrl/⌘ D</span></button>' +
         '<button class="btn ghost sm" id="sp-ins-del" style="margin-top:8px;width:100%;color:var(--err)"><i class="ti ti-trash"></i>Supprimer</button>';
       /* Re-rendu complet du nœud à chaque frappe (au lieu de patcher un enfant
@@ -8332,6 +8656,7 @@ const SynPro = (() => {
          moment du rendu initial. */
       $('sp-ins-label').addEventListener('input', function(e){ n.label = e.target.value; _refreshNodeDom(n.id); scheduleSave(); });
       $('sp-ins-sub').addEventListener('input', function(e){ n.sub = e.target.value; _refreshNodeDom(n.id); scheduleSave(); });
+      _bindIoInsp(n, el);
       $('sp-ins-dup').addEventListener('click', function(){ duplicateSelectedNode(); });
       $('sp-ins-del').addEventListener('click', function(){ deleteNode(n.id); });
     } else if (selected.kind === 'cable') {
@@ -8346,6 +8671,7 @@ const SynPro = (() => {
         '<div class="sp-insp-title"><i class="ti ti-cable"></i>Liaison</div>' +
         '<label class="sp-insp-lbl">Type</label>' +
         '<select class="sp-insp-inp" id="sp-ins-net">' + netOpts + '</select>' +
+        _portSelHtml(c, 'from') + _portSelHtml(c, 'to') +
         '<label class="sp-insp-lbl">Tracé</label>' +
         '<div class="sp-dir-grp sp-route-grp" id="sp-ins-route">' +
           ['straight','ortho','curve'].map(function(r){ return '<button class="sp-dir-btn' + (route === r ? ' active' : '') + '" data-route="' + r + '" title="' + ROUTE_TXT[r] + '">' + ICO[r] + '<span>' + ({ straight:'Droit', ortho:'Angles', curve:'Courbe' })[r] + '</span></button>'; }).join('') +
@@ -8365,6 +8691,14 @@ const SynPro = (() => {
         '<button class="btn ghost sm" id="sp-ins-cdel" style="margin-top:12px;width:100%;color:var(--err)"><i class="ti ti-trash"></i>Supprimer la liaison</button>';
       $('sp-ins-net').addEventListener('change', function(e){ c.network = e.target.value; _setLastNet(c.network); _renderEdges(); _renderLegend(); _renderCablePalette(); scheduleSave(); });
       $('sp-ins-clbl').addEventListener('input', function(e){ c.label = e.target.value; _renderEdges(); scheduleSave(); });
+      ['from','to'].forEach(function(end){
+        var ps = $('sp-ins-' + end + 'port');
+        if (ps) ps.addEventListener('change', function(){
+          var pk = end + 'Port', sk = end + 'Side';
+          if (ps.value) { c[pk] = ps.value; delete c[sk]; } else delete c[pk];
+          scheduleSave(); render();
+        });
+      });
       $('sp-ins-cwpc')?.addEventListener('click', function(){ delete c.waypoints; selWp = null; _renderEdges(); scheduleSave(); _renderInspector(); });
       $('sp-ins-sides')?.addEventListener('click', function(){ delete c.fromSide; delete c.toSide; _renderEdges(); scheduleSave(); _renderInspector(); });
       $('sp-ins-allroute')?.addEventListener('click', function(){
@@ -8409,6 +8743,7 @@ const SynPro = (() => {
     var n = { id: uid(), type:type, x: Math.round(x), y: Math.round(y), label: sp.label, sub: sp.defaultSub || '',
               iconSvg: sp && sp.icon ? sp.icon : '' };
     if(type === 'image_frame') { n.imgPx = 120; n.label = ''; }
+    if (sp.io && sp.io.length) n.showIo = true;
     state.nodes.push(n);
     selected = { kind:'node', id: n.id };
     scheduleSave();
@@ -8516,8 +8851,8 @@ const SynPro = (() => {
     var net = netById(_lastNet()) || state.networks[0];
     if (!net) return null;
     var c = { id: uid(), from: fromId, to: toId, network: net.id, label: '', dir: 'none', route: _lastRoute() };
-    if (o.fromSide) c.fromSide = o.fromSide;
-    if (o.toSide) c.toSide = o.toSide;
+    if (o.fromPort) c.fromPort = o.fromPort; else if (o.fromSide) c.fromSide = o.fromSide;
+    if (o.toPort) c.toPort = o.toPort; else if (o.toSide) c.toSide = o.toSide;
     if (o.pts && o.pts.length) c.waypoints = o.pts.map(function(p){ return { x:Math.round(p.x), y:Math.round(p.y) }; });
     state.cables.push(c);
     selected = { kind:'cable', id:c.id };
@@ -8533,14 +8868,14 @@ const SynPro = (() => {
     if (vp) vp.classList.remove('sp-linking');
     document.querySelectorAll('.sp-node.target-hint').forEach(function(el){ el.classList.remove('target-hint'); });
   }
-  function _finishLink(toId, toSide) {
+  function _finishLink(toId, toSide, toPort) {
     var L = linkDraw;
     if (!L) return;
     _clearLinkUi();
     activeCable = null; cableFrom = null;
     _renderCablePalette(); _updateBanner();
     if (!toId || toId === L.from) { render(); return; }
-    _createLink(L.from, toId, { fromSide:L.fromSide, toSide:toSide || null, pts:L.pts });
+    _createLink(L.from, toId, { fromSide:L.fromSide, toSide:toSide || null, fromPort:L.fromPort || null, toPort:toPort || null, pts:L.pts });
   }
   function cancelCable() {
     _clearLinkUi();
@@ -8631,16 +8966,24 @@ const SynPro = (() => {
       if (!el || !el.closest) return null;
       var ne = el.closest('.sp-node');
       if (!ne || !vp.contains(ne)) return null;
-      var port = el.closest('.sp-port');
-      return { id: ne.dataset.id, side: port ? port.dataset.side : null };
+      var port = el.closest('.sp-port'), iod = el.closest('.sp-io-dot');
+      return { id: ne.dataset.id, side: port ? port.dataset.side : null, port: iod ? iod.dataset.port : null };
     }
-    function _setTargetHint(id) {
+    function _setTargetHint(id, port) {
       document.querySelectorAll('.sp-node.target-hint').forEach(function(el){ if (el.dataset.id !== id) el.classList.remove('target-hint'); });
-      if (id) { var t = document.querySelector('.sp-node[data-id="' + id + '"]'); if (t) t.classList.add('target-hint'); }
+      document.querySelectorAll('.sp-io-dot.hot').forEach(function(d){ d.classList.remove('hot'); });
+      if (id) {
+        var t = document.querySelector('.sp-node[data-id="' + id + '"]');
+        if (t) {
+          t.classList.add('target-hint');
+          if (port) t.querySelectorAll('.sp-io-dot[data-port="' + port + '"]').forEach(function(d){ d.classList.add('hot'); });
+        }
+      }
     }
-    function _startLink(from, side, mode, e) {
+    function _startLink(from, side, mode, e, fromPort) {
       _closeNodeCtxMenu();
-      linkDraw = { from:from, fromSide:side || null, pts:[], mode:mode, cur:_evWorld(e), target:null, targetSide:null, moved:false, sx:e.clientX, sy:e.clientY };
+      linkDraw = { from:from, fromSide:fromPort ? null : (side || null), fromPort:fromPort || null, pts:[], mode:mode, cur:_evWorld(e),
+                   target:null, targetSide:null, targetPort:null, moved:false, sx:e.clientX, sy:e.clientY };
       selected = { kind:null, id:null }; selWp = null;
       vp.classList.add('sp-linking');
       document.querySelectorAll('.sp-node.sel').forEach(function(el){ el.classList.remove('sel'); });
@@ -8664,7 +9007,7 @@ const SynPro = (() => {
         e.preventDefault(); e.stopPropagation();
         if (e.button !== 0) return;
         var hn = _hitNode(e);
-        if (hn && hn.id !== linkDraw.from) { _finishLink(hn.id, hn.side); return; }
+        if (hn && hn.id !== linkDraw.from) { _finishLink(hn.id, hn.side, hn.port); return; }
         if (hn) return;
         var np = _snapFree(_evWorld(e), e), lp = linkDraw.pts[linkDraw.pts.length - 1];
         if (!lp || Math.hypot(np.x - lp.x, np.y - lp.y) > 4) linkDraw.pts.push(np);
@@ -8683,6 +9026,15 @@ const SynPro = (() => {
         resizing = { id:rsz.dataset.id, corner:rsz.dataset.corner, x0:rn.x, y0:rn.y, right:rn.x+rw0, bottom:rn.y+rw0/rasp, asp:rasp };
         vp.setPointerCapture(e.pointerId);
         e.preventDefault(); e.stopPropagation(); return;
+      }
+
+      /* Entrée / sortie d'un équipement : la liaison part de ce point précis */
+      var iod = e.target.closest('.sp-io-dot');
+      if (iod && e.button === 0) {
+        _startLink(iod.closest('.sp-node').dataset.id, iod.dataset.side, 'drag', e, iod.dataset.port);
+        vp.setPointerCapture(e.pointerId);
+        e.preventDefault(); e.stopPropagation();
+        return;
       }
 
       /* Point d'accroche : tirer une nouvelle liaison */
@@ -8790,7 +9142,8 @@ const SynPro = (() => {
         var hn = _hitNode(e);
         linkDraw.target = (hn && hn.id !== linkDraw.from) ? hn.id : null;
         linkDraw.targetSide = linkDraw.target ? hn.side : null;
-        _setTargetHint(linkDraw.target);
+        linkDraw.targetPort = linkDraw.target ? hn.port : null;
+        _setTargetHint(linkDraw.target, linkDraw.targetPort);
         _renderOverlay();
         return;
       }
@@ -8800,7 +9153,8 @@ const SynPro = (() => {
         var other = ec ? (endDrag.end === 'from' ? ec.to : ec.from) : null;
         endDrag.target = (en && en.id !== other) ? en.id : null;
         endDrag.targetSide = endDrag.target ? en.side : null;
-        _setTargetHint(endDrag.target);
+        endDrag.targetPort = endDrag.target ? en.port : null;
+        _setTargetHint(endDrag.target, endDrag.targetPort);
         _renderOverlay();
         return;
       }
@@ -8868,7 +9222,7 @@ const SynPro = (() => {
       if (linkDraw) {
         if (linkDraw.mode === 'drag') {
           var hn = _hitNode(e);
-          if (linkDraw.moved && hn && hn.id !== linkDraw.from) { _finishLink(hn.id, hn.side); return; }
+          if (linkDraw.moved && hn && hn.id !== linkDraw.from) { _finishLink(hn.id, hn.side, hn.port); return; }
           /* Relâché dans le vide : un angle est posé là et le tracé continue au clic */
           if (linkDraw.moved && !hn) linkDraw.pts.push(_snapFree(_evWorld(e), e));
           linkDraw.mode = 'click';
@@ -8879,9 +9233,11 @@ const SynPro = (() => {
       if (endDrag) {
         var c = cableById(endDrag.cid);
         if (c && endDrag.moved && endDrag.target) {
-          var sk = endDrag.end === 'from' ? 'fromSide' : 'toSide';
+          var sk = endDrag.end === 'from' ? 'fromSide' : 'toSide', pk = endDrag.end + 'Port';
           c[endDrag.end] = endDrag.target;
-          if (endDrag.targetSide) c[sk] = endDrag.targetSide; else delete c[sk];
+          delete c[sk]; delete c[pk];
+          if (endDrag.targetPort) c[pk] = endDrag.targetPort;
+          else if (endDrag.targetSide) c[sk] = endDrag.targetSide;
           scheduleSave();
         }
         endDrag = null;
@@ -9281,12 +9637,17 @@ const SynPro = (() => {
     function boxExport(id) {
       var n = nodeById(id);
       if (!n) return null;
-      if (n.type === 'image_frame') { var iw = n.imgPx || 120; return { x:n.x, y:n.y, w:iw, h:Math.max(1, Math.round(iw / (n.imgAspect || 1))) }; }
-      var sp2 = spec(n.type) || { w:140, h:100 };
-      return { x:n.x, y:n.y, w:sp2.w, h:sp2.h };
+      var ns = _nodeSize(n);
+      return { x:n.x, y:n.y, w:ns.w, h:ns.h };
+    }
+    function portExport(id, pid, toward) {
+      var n = nodeById(id);
+      if (!n) return null;
+      var ns = _nodeSize(n);
+      return ns.io.length ? SynIO.portPos(ns.io, pid, { x:n.x, y:n.y, w:ns.w, h:ns.h }, ns.head, toward) : null;
     }
     /* ── Liaisons : même moteur de tracé que l'éditeur ── */
-    var geoE = SynRoute.layout(state.cables, boxExport, { defRoute:'straight' });
+    var geoE = SynRoute.layout(state.cables, boxExport, { defRoute:'straight', portOf:portExport });
     svg += '<g transform="translate(' + ox + ',' + (oy + headH) + ')">';
     state.cables.forEach(function(c){
       var g = geoE[c.id];
@@ -9335,8 +9696,11 @@ const SynPro = (() => {
         return;
       }
 
-      /* Equipment card — white box with border */
-      svg += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="8" fill="#ffffff" stroke="#c8d4e0" stroke-width="1.5"/>';
+      /* Equipment card — white box with border (plus haute si ses entrées / sorties sont affichées) */
+      var nsE = _nodeSize(n);
+      if (nsE.io.length) w = nsE.w;
+      svg += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + nsE.h + '" rx="8" fill="#ffffff" stroke="#c8d4e0" stroke-width="1.5"/>';
+      if (nsE.io.length) svg += SynIO.svg(nsE.io, { x:x, y:y, w:w, h:nsE.h }, h, esc);
 
       /* Icon — proportional, centred in top area */
       var textAreaH = 32; /* reserved height at bottom for label + sub */
@@ -9651,7 +10015,8 @@ const SynPro = (() => {
   function setData(d){ if(!d) return; state=_sanitizePlanJSON(d); loaded=true; bgEdit=false; selected={kind:null,id:null}; selWp=null; linkDraw=null; endDrag=null; render(); }
   /* Taille d'un équipement de la bibliothèque (rider partagé : même tracé que l'export) */
   function specSize(type){ var sp2 = spec(type); return sp2 ? { w:sp2.w, h:sp2.h } : null; }
-  return { init, show, render, resetLoaded, isLoaded, getData, setData, cancelCable, _saveNow, buildExportSvg: _buildExportSvg, specSize, setSceneId, setSceneData, loadSceneDirect, getIconByType, uploadNodeIcon, clearNodeIcon, adjImgPx,
+  function specIo(type){ var sp2 = spec(type); return (sp2 && sp2.io) ? sp2.io : null; }
+  return { init, show, render, resetLoaded, isLoaded, getData, setData, cancelCable, _saveNow, buildExportSvg: _buildExportSvg, specSize, specIo, setSceneId, setSceneData, loadSceneDirect, getIconByType, uploadNodeIcon, clearNodeIcon, adjImgPx,
            loadBg, setBgOpacity, setBgRotation, rotateBg, scaleBg, toggleBgEdit, clearBg };
 })();
 
@@ -18887,8 +19252,11 @@ function _svFs(imgId, title){
       if(n.type==='image_frame'){var p=n.imgPx||120;return{w:p,h:Math.max(1,Math.round(p/(n.imgAspect||1)))};}
       /* Tailles de la bibliothèque du synoptique quand elle est chargée (même rendu que l'export) */
       var ls=(window.SynPro&&typeof SynPro.specSize==='function')?SynPro.specSize(n.type):null;
-      if(ls&&ls.w&&ls.h) return ls;
-      return DEF[n.type]||DEF[(n.type||'').split('.')[0]]||{w:140,h:100};
+      var base=(ls&&ls.w&&ls.h)?ls:(DEF[n.type]||DEF[(n.type||'').split('.')[0]]||{w:140,h:100});
+      /* Entrées / sorties affichées : carte plus large et plus haute (comme l'export) */
+      var sio=(window.SynPro&&typeof SynPro.specIo==='function')?SynPro.specIo(n.type):null;
+      var ps=SynIO.ports(n,sio),on=!!n.showIo&&ps.length>0;
+      return {w:on?Math.max(base.w,SynIO.MINW):base.w,h:base.h+(on?SynIO.metrics(ps).h:0),head:base.h,io:on?ps:[]};
     }
     var minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
     nodes.forEach(function(n){var s=sz(n);minX=Math.min(minX,n.x||0);minY=Math.min(minY,n.y||0);maxX=Math.max(maxX,(n.x||0)+s.w);maxY=Math.max(maxY,(n.y||0)+s.h);});
@@ -18920,7 +19288,8 @@ function _svFs(imgId, title){
       edgeDefs+='<marker id="'+id+'-bwd" markerWidth="'+ARR+'" markerHeight="'+ARR+'" refX="'+(ARR-1)+'" refY="'+(ARR/2)+'" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M1,'+(ARR*0.18)+' L'+(ARR-1)+','+(ARR/2)+' L1,'+(ARR*0.82)+' Z" fill="'+co+'"/></marker>';
     });
     edgeDefs+='</defs>';
-    var sGeo=SynRoute.layout(cables,function(id){var n=nodeMap[id];if(!n)return null;var s2=sz(n);return{x:+n.x||0,y:+n.y||0,w:s2.w,h:s2.h};},{defRoute:'straight'});
+    var sGeo=SynRoute.layout(cables,function(id){var n=nodeMap[id];if(!n)return null;var s2=sz(n);return{x:+n.x||0,y:+n.y||0,w:s2.w,h:s2.h};},
+      {defRoute:'straight',portOf:function(id,pid,toward){var n=nodeMap[id];if(!n)return null;var s2=sz(n);return(s2.io&&s2.io.length)?SynIO.portPos(s2.io,pid,{x:+n.x||0,y:+n.y||0,w:s2.w,h:s2.h},s2.head,toward):null;}});
     var edgeSvg=edgeDefs+'<g transform="translate('+ox+','+(oy+headH)+')">';
     cables.forEach(function(c){
       var g=sGeo[c.id];if(!g)return;
@@ -18944,7 +19313,7 @@ function _svFs(imgId, title){
     /* Nodes (simple rectangular cards — no icons in share view to keep payload small) */
     var nodeSvg='';
     nodes.forEach(function(n){
-      var s=sz(n);var x=(n.x||0)+ox,y=(n.y||0)+oy+headH;var w=s.w,h=s.h;
+      var s=sz(n);var x=(n.x||0)+ox,y=(n.y||0)+oy+headH;var w=s.w,h=(s.head||s.h);
       if(n.type==='note'){
         nodeSvg+='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="6" fill="#fef3c7" stroke="#fbbf24"/>';
         nodeSvg+='<foreignObject x="'+(x+8)+'" y="'+(y+8)+'" width="'+(w-16)+'" height="'+(h-16)+'"><div xmlns="http://www.w3.org/1999/xhtml" style="font-family:Archivo,sans-serif;font-size:11px;color:#92400e;line-height:1.4;font-weight:600">'+esc(n.label||'')+'<br>'+esc(n.sub||'')+'</div></foreignObject>';
@@ -18957,7 +19326,7 @@ function _svFs(imgId, title){
           if(n.label)nodeSvg+='<text x="'+(x+w/2)+'" y="'+(y+h+14)+'" text-anchor="middle" font-family="Archivo,sans-serif" font-size="11" fill="#1d3a5f">'+esc(n.label)+'</text>';
         }
       } else {
-        nodeSvg+='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="9" fill="#fff" stroke="#c8d4e0"/>';
+        nodeSvg+='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+s.h+'" rx="9" fill="#fff" stroke="#c8d4e0"/>';
         /* Icon area */
         var iconAreaH=h-46, iconAreaY=y+10;
         /* Custom image takes priority over SVG icon */
@@ -18983,6 +19352,7 @@ function _svFs(imgId, title){
         }
         nodeSvg+='<text x="'+(x+w/2)+'" y="'+(y+h-22)+'" text-anchor="middle" font-family="Archivo,sans-serif" font-weight="700" font-size="12" fill="#1d3a5f">'+esc(n.label||'')+'</text>';
         if(n.sub){var sublines=n.sub.split('\n');sublines.forEach(function(s2,i){nodeSvg+='<text x="'+(x+w/2)+'" y="'+(y+h-8+i*11)+'" text-anchor="middle" font-family="Archivo,sans-serif" font-size="9" fill="#5a6a80">'+esc(s2)+'</text>';});}
+        if(s.io&&s.io.length) nodeSvg+=SynIO.svg(s.io,{x:x,y:y,w:w,h:s.h},h,esc);
       }
     });
     /* Plus de bandeau titre */
