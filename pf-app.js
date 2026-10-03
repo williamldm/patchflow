@@ -498,6 +498,7 @@ async function initApp(){
     ]);
     _handleCheckoutReturn(); // retour de paiement Lemon Squeezy
     _initSharedLinks(); // suivi des liens de partage (limite Gratuit)
+    _syncToursFromServer(); // tournées enregistrées sur le compte
     processShowInvites(); // charge les invitations en attente (notifications)
     /* Rafraîchir les notifications périodiquement (badge en quasi temps réel) */
     if(!window._notifPoll){
@@ -13424,9 +13425,8 @@ const SitePlan = (() => {
 // ══════════════════════════════════════
 /* ══════════════════════════════════════
    DOSSIERS DE SESSIONS
-   Organisation personnelle de la grille des sessions (ex. archiver les
-   anciennes tournées). Stockée localement par utilisateur — les sessions
-   elles-mêmes restent dans la base ; les dossiers ne sont qu'une vue.
+   Tournées : organisation personnelle des dates. Enregistrées sur le compte
+   (profiles.tours), avec une copie locale ; les shows restent dans la base.
    ══════════════════════════════════════ */
 const _SESS_FOLDER_COLORS=['#ff8c42','#4ca5ff','#22d6a0','#b48bff','#f5c542','#ff6b85','#2ad6c0'];
 let SESS_FOLDERS=[];        // [{id,name,color}]
@@ -13442,8 +13442,48 @@ function _loadSessFolders(){
   if(!Array.isArray(SESS_FOLDERS)) SESS_FOLDERS=[];
   _sessFoldersLoadedFor=(ME&&ME.id)||null;
 }
-function _saveSessFolders(){ try{ localStorage.setItem(_sessKey('folders'),JSON.stringify(SESS_FOLDERS)); }catch(e){} }
-function _saveSessAssign(){ try{ localStorage.setItem(_sessKey('assign'),JSON.stringify(SESS_ASSIGN)); }catch(e){} }
+function _saveSessFolders(){ try{ localStorage.setItem(_sessKey('folders'),JSON.stringify(SESS_FOLDERS)); }catch(e){} _pushToursSoon(); }
+function _saveSessAssign(){ try{ localStorage.setItem(_sessKey('assign'),JSON.stringify(SESS_ASSIGN)); }catch(e){} _pushToursSoon(); }
+/* ── Tournées sur le compte (profiles.tours) ──────────────────────────
+   Le serveur fait foi : les tournées suivent l'utilisateur sur tous ses
+   appareils. Le navigateur ne garde qu'une copie pour l'affichage immédiat
+   et le hors-ligne. Tant que la colonne n'existe pas en base, on reste en
+   local sans erreur (_toursServer=false). */
+var _toursServer=null, _toursPushT=null;
+function _pushToursSoon(){
+  if(_toursServer===false || !ME) return;
+  clearTimeout(_toursPushT);
+  _toursPushT=setTimeout(_pushTours,400);
+}
+async function _pushTours(){
+  if(_toursServer===false || !ME) return;
+  try{
+    var res=await sb.from('profiles').update({tours:{folders:SESS_FOLDERS,assign:SESS_ASSIGN}}).eq('id',ME.id);
+    if(res&&res.error){ console.warn('[tournées] enregistrement :',res.error.message); if(/tours|column|schema/i.test(res.error.message||'')) _toursServer=false; }
+    else _toursServer=true;
+  }catch(e){ console.warn('[tournées]',e); }
+}
+async function _syncToursFromServer(){
+  if(!ME) return;
+  _loadSessFolders();
+  try{
+    var res=await sb.from('profiles').select('tours').eq('id',ME.id).maybeSingle();
+    if(!res || res.error){ _toursServer=false; if(res&&res.error) console.warn('[tournées] colonne profiles.tours absente — stockage local :',res.error.message); return; }
+    _toursServer=true;
+    var t=res.data&&res.data.tours;
+    var has=t&&Array.isArray(t.folders)&&t.folders.length;
+    if(has){
+      SESS_FOLDERS=t.folders.filter(function(f){return f&&f.id&&f.name;}).map(function(f){ return {id:String(f.id),name:String(f.name).slice(0,40),color:(typeof _safeColor==='function'&&_safeColor(f.color))||_SESS_FOLDER_COLORS[0]}; });
+      SESS_ASSIGN=(t.assign&&typeof t.assign==='object')?t.assign:{};
+      try{ localStorage.setItem(_sessKey('folders'),JSON.stringify(SESS_FOLDERS)); localStorage.setItem(_sessKey('assign'),JSON.stringify(SESS_ASSIGN)); }catch(e){}
+      if(SESS_FOLDER_VIEW!=='all'&&!_sessFolderById(SESS_FOLDER_VIEW)){ SESS_FOLDER_VIEW='all'; _saveSessView(); }
+      try{ renderSessions(); }catch(e){}
+    } else if(SESS_FOLDERS.length){
+      /* Première synchronisation : les tournées créées sur cet appareil montent sur le compte */
+      _pushTours();
+    }
+  }catch(e){ _toursServer=false; }
+}
 function _saveSessView(){ try{ localStorage.setItem(_sessKey('view'),SESS_FOLDER_VIEW); }catch(e){} }
 function _sessFolderById(id){ return SESS_FOLDERS.find(function(f){return f.id===id;})||null; }
 function _sessFolderOf(showId){ return SESS_ASSIGN[showId]||''; }
@@ -13511,7 +13551,7 @@ function openTourModal(id, preselectShowId){
       +'<div class="tour-colors" id="tour-colors">'+_SESS_FOLDER_COLORS.map(function(c){ return '<button type="button" class="tour-color'+(c===_tourEdit.color?' on':'')+'" data-c="'+c+'" style="background:'+c+'" aria-label="Couleur '+c+'" onclick="_tourPickColor(this)"></button>'; }).join('')+'</div>'
       +'<div class="pdf-lbl" style="margin-top:16px">Dates de la tournée</div>'
       +(rows?'<div class="tour-list">'+rows+'</div>':'<div class="tour-none">Aucun show pour l\'instant. Vous pourrez y ajouter des dates plus tard.</div>')
-      +'<div class="tour-hint">Une date appartient à une seule tournée. Les tournées sont enregistrées dans ce navigateur.</div>'
+      +'<div class="tour-hint">Une date appartient à une seule tournée.'+(_toursServer===false?' Les tournées sont pour l\'instant enregistrées dans ce navigateur.':' Vos tournées vous suivent sur tous vos appareils.')+'</div>'
     +'</form>'
     +'<div class="modal-foot">'
       +(f?'<button class="btn danger" type="button" style="margin-right:auto" onclick="if(deleteSessFolder(\''+_jsq(f.id)+'\'))closeTourModal()"><i class="ti ti-trash"></i>Supprimer</button>':'')
