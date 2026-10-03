@@ -3128,6 +3128,8 @@ function _initRiderBuilder(){
   var inner=document.getElementById('rider-builder-inner');
   if(gate)  gate.style.display=isPro?'none':'flex';
   if(inner) inner.style.display=isPro?'block':'none';
+  var linksCard=document.getElementById('rider-links-card');
+  if(linksCard) linksCard.style.display=isPro?'':'none';
   if(!isPro)return;
   _loadRiderConfig();
   _syncRiderBtns();
@@ -13870,7 +13872,10 @@ function navFolder(id){ setSessFolderView(SESS_FOLDER_VIEW===id?'all':id); goTab
 function _navAuto(){
   var min=false;
   try{ min=localStorage.getItem('pf_nav_min')==='1'; }catch(e){}
-  document.documentElement.classList.toggle('pf-nav-min', min || window.innerWidth<1100);
+  var on=min || window.innerWidth<1100;
+  document.documentElement.classList.toggle('pf-nav-min', on);
+  var b=document.querySelector('.nav-min-btn');
+  if(b) b.title=on?'Garder le menu ouvert':'Réduire le menu (il se déplie au survol)';
 }
 function toggleNavMin(){
   var cur=document.documentElement.classList.contains('pf-nav-min');

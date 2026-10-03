@@ -1783,16 +1783,19 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
   .user-name{flex:1;max-width:none;font-size:13px;font-weight:600}
   .user-dd{top:auto;bottom:calc(100% + 6px);left:0;right:auto;min-width:216px}
 
-  /* Menu réduit : icônes seules */
-  .pf-nav-min .topbar{padding:14px 8px 10px}
-  .pf-nav-min .tb-logo{padding:4px 0 14px;justify-content:center}
-  .pf-nav-min .tb-logo>div:last-child,.pf-nav-min .tab-l,.pf-nav-min .tab-n,.pf-nav-min .nav-sec,.pf-nav-min .nav-folders,.pf-nav-min .nav-show-hd,
-  .pf-nav-min .sp-trigger-lbl,.pf-nav-min .user-name,.pf-nav-min .user-btn>.ti-chevron-down,.pf-nav-min .rt-pip #rt-lbl{display:none}
-  .pf-nav-min .tab{justify-content:center;padding:0;height:38px}
-  .pf-nav-min .nav-show{margin-top:8px;padding-top:8px}
-  .pf-nav-min .nav-min-btn{position:static;margin:0 auto 6px;transform:scaleX(-1)}
-  .pf-nav-min .rt-pip,.pf-nav-min .sp-trigger,.pf-nav-min .user-btn{justify-content:center;padding:0}
-  .pf-nav-min .tb-notif-dot{position:absolute!important;margin:0}
+  /* Menu réduit : icônes seules. Il se déplie au survol, par-dessus la page,
+     et se range dès qu'on le quitte : la page garde toute sa largeur. */
+  .topbar{transition:width .16s ease,box-shadow .16s ease}
+  .pf-nav-min .topbar:hover{width:236px;margin-right:-176px;box-shadow:16px 0 40px rgba(0,0,0,.35)}
+  .pf-nav-min .topbar:not(:hover){padding:14px 8px 10px}
+  .pf-nav-min .topbar:not(:hover) .tb-logo{padding:4px 0 14px;justify-content:center}
+  .pf-nav-min .topbar:not(:hover) :is(.tb-logo>div:last-child,.tab-l,.tab-n,.nav-sec,.nav-folders,.nav-show-hd,.sp-trigger-lbl,.user-name,.user-btn>.ti-chevron-down,.rt-pip #rt-lbl){display:none}
+  .pf-nav-min .topbar:not(:hover) .tab{justify-content:center;padding:0;height:38px}
+  .pf-nav-min .topbar:not(:hover) .nav-show{margin-top:8px;padding-top:8px}
+  .pf-nav-min .topbar:not(:hover) .nav-min-btn{position:static;margin:0 auto 6px}
+  .pf-nav-min .topbar:not(:hover) :is(.rt-pip,.sp-trigger,.user-btn){justify-content:center;padding:0}
+  .pf-nav-min .topbar:not(:hover) .tb-notif-dot{position:absolute!important;margin:0}
+  .pf-nav-min .nav-min-btn{transform:scaleX(-1)}
   .panel{padding:26px 32px}
 }
 @media(min-width:641px) and (max-width:1099px){ .nav-min-btn{display:none!important} }
@@ -1952,6 +1955,60 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 .il-stats b{font-family:var(--m);font-weight:500;color:var(--txt);margin-right:2px}
 .il-stats-sep{width:1px;height:16px;background:var(--bdr2)}
 .il-stats-mics{flex:1;min-width:200px;font-family:var(--m);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* ── PARTAGE & ÉQUIPE ── le rider à gauche, les liens et l'équipe à droite */
+.sh-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,430px);gap:20px;align-items:start}
+.sh-side{display:flex;flex-direction:column;gap:20px;min-width:0}
+.sh-card{padding:22px 24px;border-radius:14px;background:var(--surf);border:0;box-shadow:inset 0 0 0 1px var(--bdr);min-width:0;margin:0}
+.sh-card-hd{margin-bottom:16px}
+.sh-card-hd h2{font-size:15px;font-weight:650}
+.sh-card-hd p{margin-top:4px;font-size:12.5px;line-height:1.5;color:var(--muted)}
+.sh-card .slink-sep{margin:22px 0 10px;font-size:12px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--txt2)}
+.sh-card .slink-sep.sh-first{margin-top:0}
+.sh-card .slink-sections{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.sh-card .slink-check{min-height:40px;border-radius:9px;font-size:13px}
+.sh-card .rider-meta-inp,.sh-card .rider-meta-ta{font-size:13px;padding:9px 11px;border-radius:9px}
+.sh-foot{margin-top:20px;padding-top:16px;border-top:1px solid var(--bdr)}
+.sh-foot .btn{min-height:38px;border-radius:9px}
+/* Liens */
+.sh-card .links-mgr{gap:10px}
+.sh-card .link-card{border-radius:12px;background:var(--surf2);border-color:var(--bdr)}
+.sh-card .link-card-head{padding:12px 14px 8px;cursor:default}
+.sh-card .link-card-name{font-size:14px;font-weight:650}
+.sh-card .link-card-secs{padding:0 14px 12px;gap:5px}
+.sh-card .link-sec-badge{font-family:var(--f);font-size:11.5px;padding:2px 8px;border-radius:99px;border:0;color:var(--txt2)}
+.sh-card .link-card-url{padding:9px 10px 9px 14px;flex-wrap:wrap}
+.sh-card .link-card-url-text{font-size:11px;min-width:120px;color:var(--txt2)}
+.sh-card .link-card-btn{font-size:12px;padding:5px 10px;border-radius:7px}
+.sh-card .link-new-btn{width:100%;font-size:13px;padding:11px;border-radius:10px;color:var(--txt2)}
+.sh-card .link-form{border-radius:12px;padding:14px}
+.sh-card .link-form-title{font-size:13px;color:var(--txt)}
+.sh-card .link-form input{font-size:13px;padding:9px 11px;background:var(--bg)}
+.sh-card .slink-row{margin-top:0}
+/* Équipe : liste compacte */
+.sh-card .team-grid{grid-template-columns:minmax(0,1fr);gap:0;border-bottom:1px solid var(--bdr)}
+.sh-card .tc{background:transparent;border:0;border-top:1px solid var(--bdr);border-radius:0;padding:12px 0}
+.sh-card .tc-head{margin-bottom:6px}
+.sh-card .tc-head>div:nth-child(2){min-width:0}
+.sh-card .tc-name{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sh-card .tc-role{font-size:11.5px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sh-card .tc-perms{padding-left:48px;gap:6px}
+.sh-card .tc-status{display:none}
+.sh-card .team-quota{border:0;padding:12px 0 0;margin:0;font-size:12.5px}
+.sh-card .invite-box{flex-wrap:wrap;margin-top:12px;padding:10px 12px;border-radius:12px;background:var(--surf2);border-color:var(--bdr);box-shadow:none}
+.sh-card .invite-box>i{display:none}
+.sh-card .inv-inp{flex:1 1 100%;height:38px;padding:0 11px;border:1px solid var(--bdr2);border-radius:9px;background:var(--bg);font-size:13.5px}
+.sh-card .inv-inp:focus{border-color:var(--ora);box-shadow:0 0 0 3px var(--ora-d)}
+.sh-card #inv-role{flex:1;width:auto!important;min-height:36px}
+.sh-card #inv-btn{min-height:36px;border-radius:9px}
+@media(max-width:1180px){
+  .sh-grid{grid-template-columns:minmax(0,1fr)}
+  .sh-card .slink-sections{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:640px){
+  .sh-grid,.sh-side{gap:12px}
+  .sh-card{padding:18px 16px}
+}
+
 @media(max-width:1180px){
   .dt-wrap{grid-template-columns:minmax(0,1fr)}
   .dt-detail{display:none}

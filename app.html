@@ -60,7 +60,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=3.42">
+<link rel="stylesheet" href="pf-app.css?v=3.43">
 </head>
 <body>
 
@@ -814,24 +814,11 @@ html.rider-boot #rider-splash{display:flex}
 
     <!-- TEAM -->
     <div class="panel" id="panel-team">
-      <div class="pbar"><span class="ptitle"><i class="ti ti-users" style="color:var(--ora)"></i>Équipe<span class="ptitle-sep">/</span><span id="sn-team" style="color:var(--txt2)">…</span></span></div>
-      <div id="team-grid" class="team-grid"><div class="loading"><div class="spinner"></div>Chargement…</div></div>
-      <div id="team-quota" class="team-quota"></div>
-      <div class="invite-box">
-        <i class="ti ti-mail" style="color:var(--muted);font-size:15px;flex-shrink:0"></i>
-        <input class="inv-inp" id="inv-email" type="email" placeholder="Inviter par e-mail…" list="inv-email-list" autocomplete="off" onkeydown="if(event.key==='Enter'&&!window._inviting)inviteMember()"/>
-        <datalist id="inv-email-list"></datalist>
-        <select class="pdf-inp" id="inv-role" style="width:148px;padding:4px 7px;flex-shrink:0">
-          <option value="admin">Administrateur</option>
-          <option value="editor" selected>Éditeur</option>
-          <option value="viewer">Lecture seule</option>
-        </select>
-        <button class="btn pri" id="inv-btn" onclick="inviteMember()"><i class="ti ti-send"></i>Inviter</button>
-      </div>
-      <div id="inv-msg" style="display:none;font-size:11px;padding:7px 12px;border-radius:6px;margin-top:8px;line-height:1.5"></div>
-      <div id="contacts-bar" class="contacts-bar"></div>
-      <div class="slink-box" id="rider-builder">
-        <div class="slink-title"><i class="ti ti-link"></i>Lien rider — partage en lecture seule</div>
+      <div class="pbar"><span class="ptitle"><i class="ti ti-link" style="color:var(--ora)"></i>Partage &amp; équipe<span class="ptitle-sep">/</span><span id="sn-team" style="color:var(--txt2)">…</span></span></div>
+      <div class="sh-grid">
+        <!-- Le rider : ce que verront les destinataires -->
+        <section class="slink-box sh-card" id="rider-builder">
+          <div class="sh-card-hd"><h2>Rider à partager</h2><p>Choisissez ce que verront vos destinataires. Ils ouvrent le lien sans compte, en lecture seule, toujours à jour.</p></div>
         <div id="rider-gate-msg" class="slink-pro-gate" style="display:none">
           <i class="ti ti-lock"></i>
           <span>La création de liens rider est réservée aux abonnés <strong>Pro</strong>.
@@ -839,6 +826,7 @@ html.rider-boot #rider-splash{display:flex}
           </span>
         </div>
         <div id="rider-builder-inner">
+          <div class="slink-sep sh-first">Sections</div>
           <div class="slink-sections" id="rider-sections">
             <button class="slink-check checked" id="sc-il" onclick="selectRiderSection('il')">
               <i class="ti ti-list-numbers"></i>Input List
@@ -886,9 +874,24 @@ html.rider-boot #rider-splash{display:flex}
             </div>
             <div id="rider-file-list" style="display:none;max-height:180px;overflow-y:auto"></div>
           </div>
+          <!-- Export PDF rider complet -->
+          <div class="sh-foot">
+            <button class="btn ghost" id="rider-pdf-btn" onclick="exportRiderPdf()" style="width:100%;justify-content:center;gap:7px">
+              <i class="ti ti-file-type-pdf" style="color:#ef4444;font-size:14px"></i>Exporter PDF rider
+            </button>
+            <div style="font-size:9.5px;color:var(--muted);font-family:var(--m);text-align:center;margin-top:5px;line-height:1.4">
+              Génère un PDF imprimable avec toutes les sections cochées ci-dessus
+            </div>
+          </div>
+        </div>
+        </section>
+        <div class="sh-side">
+          <!-- Les liens : un par destinataire -->
+          <section class="sh-card" id="rider-links-card">
+            <div class="sh-card-hd"><h2>Liens de partage</h2><p>Un lien par destinataire : régie, backline, groupe…</p></div>
           <!-- Free : bouton unique + lien -->
           <div id="rider-free-link-block">
-            <button class="btn pri" id="rider-gen-btn" onclick="generateRiderLink()" style="width:100%;margin-top:14px"><i class="ti ti-link"></i>Générer le lien</button>
+            <button class="btn pri" id="rider-gen-btn" onclick="generateRiderLink()" style="width:100%"><i class="ti ti-link"></i>Générer le lien</button>
             <div id="rider-quota" style="display:none;font-size:10px;font-family:var(--m);color:var(--muted);text-align:center;margin-top:6px"></div>
             <div id="rider-link-row" style="display:none;margin-top:10px">
               <div class="slink-row">
@@ -900,15 +903,14 @@ html.rider-boot #rider-splash{display:flex}
             </div>
           </div>
           <!-- Pro : gestionnaire de liens multiples -->
-          <div id="rider-pro-links-block" style="display:none;margin-top:14px">
-            <div class="slink-sep" style="margin-top:0"><i class="ti ti-link" style="font-size:10px"></i>Liens de partage</div>
+          <div id="rider-pro-links-block" style="display:none">
             <div class="links-mgr" id="links-mgr-list"></div>
             <button class="link-new-btn" onclick="_openNewLinkForm()" id="link-new-btn" style="margin-top:6px">
               <i class="ti ti-plus"></i>Nouveau lien
             </button>
             <div id="link-new-form" class="link-form" style="display:none">
               <div class="link-form-title"><i class="ti ti-link"></i>Nommer ce lien</div>
-              <div style="font-size:10px;color:var(--muted);margin-bottom:8px">Les sections et infos configurées ci-dessus seront incluses dans ce lien.</div>
+              <div style="font-size:10px;color:var(--muted);margin-bottom:8px">Le lien reprend les sections et les informations choisies dans « Rider à partager ».</div>
               <input id="link-form-name" placeholder="ex: Lien FOH, Lien Backline, Lien Client…" maxlength="60"/>
               <div style="display:flex;gap:8px">
                 <button class="btn pri sm" onclick="_createLink()" style="flex:1;background:var(--ora);color:#000;border-color:var(--ora)"><i class="ti ti-check"></i>Créer le lien</button>
@@ -916,15 +918,26 @@ html.rider-boot #rider-splash{display:flex}
               </div>
             </div>
           </div>
-          <!-- Export PDF rider complet -->
-          <div style="margin-top:8px;padding-top:10px;border-top:1px solid var(--bdr2)">
-            <button class="btn ghost" id="rider-pdf-btn" onclick="exportRiderPdf()" style="width:100%;justify-content:center;gap:7px">
-              <i class="ti ti-file-type-pdf" style="color:#ef4444;font-size:14px"></i>Exporter PDF rider
-            </button>
-            <div style="font-size:9.5px;color:var(--muted);font-family:var(--m);text-align:center;margin-top:5px;line-height:1.4">
-              Génère un PDF imprimable avec toutes les sections cochées ci-dessus
-            </div>
-          </div>
+          </section>
+          <!-- L'équipe : qui travaille sur le show -->
+          <section class="sh-card" id="team-card">
+            <div class="sh-card-hd"><h2>Équipe</h2><p>Les membres modifient le show avec vous, en direct.</p></div>
+      <div id="team-grid" class="team-grid"><div class="loading"><div class="spinner"></div>Chargement…</div></div>
+      <div id="team-quota" class="team-quota"></div>
+      <div class="invite-box">
+        <i class="ti ti-mail" style="color:var(--muted);font-size:15px;flex-shrink:0"></i>
+        <input class="inv-inp" id="inv-email" type="email" placeholder="Inviter par e-mail…" list="inv-email-list" autocomplete="off" onkeydown="if(event.key==='Enter'&&!window._inviting)inviteMember()"/>
+        <datalist id="inv-email-list"></datalist>
+        <select class="pdf-inp" id="inv-role" style="width:148px;padding:4px 7px;flex-shrink:0">
+          <option value="admin">Administrateur</option>
+          <option value="editor" selected>Éditeur</option>
+          <option value="viewer">Lecture seule</option>
+        </select>
+        <button class="btn pri" id="inv-btn" onclick="inviteMember()"><i class="ti ti-send"></i>Inviter</button>
+      </div>
+      <div id="inv-msg" style="display:none;font-size:11px;padding:7px 12px;border-radius:6px;margin-top:8px;line-height:1.5"></div>
+      <div id="contacts-bar" class="contacts-bar"></div>
+          </section>
         </div>
       </div>
     </div>
@@ -1669,7 +1682,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=3.61"></script>
+<script src="pf-app.js?v=3.62"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
   <div class="mob-plan-bar">
