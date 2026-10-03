@@ -1751,12 +1751,13 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
   .tab-l{display:block;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
   .tab-n{display:block;font-family:var(--m);font-size:11.5px;color:var(--muted);font-weight:400}
   .nav-sec{display:block;margin:14px 10px 5px;font-size:10.5px;font-weight:650;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-  .nav-sec-row{display:flex;align-items:center;justify-content:space-between;margin-right:4px}
-  .nav-sec-row button{width:22px;height:22px;border:0;border-radius:6px;background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px}
-  .nav-sec-row button:hover{background:var(--surf2);color:var(--txt)}
-  .nav-folders{display:flex;flex-direction:column;gap:2px}
+  .nav-folders{display:flex;flex-direction:column;gap:1px;margin-top:1px}
+  /* Tournées : sous-entrées de « Dates » */
+  .nav-folders .nav-folder{height:30px;padding:0 10px 0 15px;font-size:13px;gap:12px}
+  .nav-folders .nav-folder .sess-fdot{width:7px;height:7px;border-radius:2px}
+  .nav-folder-add{width:100%;border:0;background:transparent;font-family:var(--f);text-align:left;color:var(--muted)!important}
+  .nav-folder-add i{font-size:12px;width:7px;display:inline-flex;justify-content:center}
   .nav-folder.drag-over{background:var(--ora-d);box-shadow:inset 0 0 0 1px var(--ora-g)}
-  .nav-folder-empty{padding:2px 10px 4px;font-size:11.5px;line-height:1.45;color:var(--muted)}
   .nav-show{display:flex;flex-direction:column;gap:2px;margin-top:14px;padding-top:12px;border-top:1px solid var(--bdr)}
   .nav-show[style*="none"]{display:none!important}
   .nav-show-hd{display:flex;align-items:center;gap:8px;padding:8px 10px 10px;margin-bottom:2px;border:0;border-radius:8px;background:transparent;color:var(--txt);font-family:var(--f);text-align:left;cursor:pointer;min-width:0}

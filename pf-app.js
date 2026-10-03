@@ -13454,7 +13454,7 @@ function _sessFolderCount(fid){
 
 function createSessFolder(){
   _loadSessFolders();
-  var name=prompt('Nom de la tournée ou du dossier (ex. « Tournée d\'hiver 2026 », « Archives ») :','');
+  var name=prompt('Nom de la tournée (ex. « Hiver 2026 ») :','');
   if(name===null) return;
   name=name.trim();
   if(!name){ toast('Nom de dossier vide.'); return; }
@@ -13727,7 +13727,7 @@ function renderSessions(){
       +'<div class="dt-info">'
         +'<div class="dt-name-row"><span class="dt-name">'+_e(s.name)+'</span>'
           +(isActive?'<span class="dt-tag live"><span class="on-dot"></span>Ouvert</span>':'')
-          +(fold?'<span class="dt-tag"><span class="sess-fdot" style="background:'+fold.color+'"></span>'+_e(fold.name)+'</span>':'')
+          +((fold&&SESS_FOLDER_VIEW!==fold.id)?'<span class="dt-tag"><span class="sess-fdot" style="background:'+fold.color+'"></span>'+_e(fold.name)+'</span>':'')
           +(isShared(s)?'<span class="dt-tag">Partagé avec vous</span>':'')
         +'</div>'
         +'<div class="dt-sub"><span>'+sub.join('</span><span>')+'</span></div>'
@@ -13831,6 +13831,8 @@ function _navSync(){
       if(id==='inputlist') ok=(m===CUR_IL_MODE);
       else if(id==='stage') ok=(m===(PLAN_MODE==='site'?'site':'scene'));
     }
+    /* « Dates » cède la surbrillance à la tournée affichée */
+    if(ok && id==='sessions' && typeof SESS_FOLDER_VIEW!=='undefined' && SESS_FOLDER_VIEW!=='all') ok=false;
     t.classList.toggle('on',ok);
   });
   var set=function(elId,v){ var el=document.getElementById(elId); if(el) el.textContent=(v||v===0)?v:''; };
@@ -13848,17 +13850,17 @@ function _navSync(){
     set('nav-n-out',sm.outs||'');
     set('nav-n-files',SHOW_FILECOUNT_MAP[CUR_SHOW.id]||'');
   }
-  /* Dossiers (tournées) */
+  /* Tournées : rangées directement sous « Dates », sans rubrique à part */
   var nf=document.getElementById('nav-folders');
   if(nf){
     _loadSessFolders();
     var _e=function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
-    var h='<div class="nav-sec nav-sec-row"><span>Tournées</span><button type="button" onclick="createSessFolder()" title="Nouvelle tournée ou nouveau dossier" aria-label="Nouvelle tournée"><i class="ti ti-plus"></i></button></div>';
+    var h='';
     SESS_FOLDERS.forEach(function(f){
-      h+='<div class="nav-folder'+(SESS_FOLDER_VIEW===f.id?' on':'')+'" role="button" tabindex="0" title="'+_e(f.name)+'" ondragover="_sessChipDragOver(event)" ondragleave="_sessChipDragLeave(event)" ondrop="_sessChipDrop(event,\''+_jsq(f.id)+'\')" onclick="navFolder(\''+_jsq(f.id)+'\')">'
+      h+='<div class="nav-folder'+((id==='sessions'&&SESS_FOLDER_VIEW===f.id)?' on':'')+'" role="button" tabindex="0" title="'+_e(f.name)+'" ondragover="_sessChipDragOver(event)" ondragleave="_sessChipDragLeave(event)" ondrop="_sessChipDrop(event,\''+_jsq(f.id)+'\')" onclick="navFolder(\''+_jsq(f.id)+'\')">'
         +'<span class="sess-fdot" style="background:'+f.color+'"></span><span class="tab-l">'+_e(f.name)+'</span><span class="tab-n">'+_sessFolderCount(f.id)+'</span></div>';
     });
-    if(!SESS_FOLDERS.length) h+='<div class="nav-folder-empty">Regroupez les dates d\'une tournée dans un dossier.</div>';
+    h+='<button type="button" class="nav-folder nav-folder-add" onclick="createSessFolder()" title="Regrouper des dates dans une tournée"><i class="ti ti-plus"></i><span class="tab-l">Tournée</span></button>';
     nf.innerHTML=h;
   }
   if(id==='overview') renderOverview();
@@ -13868,6 +13870,8 @@ function _navSyncSoon(){ clearTimeout(_navSyncT); _navSyncT=setTimeout(_navSync,
 function navIL(mode){ goTab('inputlist',null); if(CUR_IL_MODE!==mode) setILMode(mode); _navSync(); }
 function navPlan(mode){ goTab('stage',null); if((PLAN_MODE==='site'?'site':'scene')!==mode) setPlanMode(mode); _navSync(); }
 function navFolder(id){ setSessFolderView(SESS_FOLDER_VIEW===id?'all':id); goTab('sessions',null); }
+/* « Dates » : toutes les dates (retire le filtre d'une tournée) */
+function navDates(){ if(SESS_FOLDER_VIEW!=='all') setSessFolderView('all'); goTab('sessions',null); }
 /* Menu réduit (icônes seules) : choix mémorisé, forcé sur les écrans étroits */
 function _navAuto(){
   var min=false;
