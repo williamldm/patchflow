@@ -709,7 +709,7 @@ async function loadShows(){
   /* Restore last active tab after everything is loaded */
   try{
     const lastTab=localStorage.getItem(TAB_PERSIST_KEY);
-    const validTabs=['sessions','fichiers','inputlist','showfiles','synoptique','stage','team'];
+    const validTabs=['sessions','overview','fichiers','inputlist','showfiles','synoptique','stage','team'];
     if(lastTab&&validTabs.includes(lastTab)&&lastTab!=='sessions'){
       goTab(lastTab,null);
     }
@@ -1152,6 +1152,7 @@ async function switchShow(id, opts){
   _fichPath = [];
   if(document.getElementById('panel-fichiers')?.classList.contains('on')) renderFichiers();
   if(document.getElementById('panel-showfiles')?.classList.contains('on')){ renderPills(); updateStats(); }
+  if(typeof _navSync==='function') _navSync();
 }
 
 async function newShow(){
@@ -1523,6 +1524,7 @@ function setILMode(mode) {
   var titleEl = document.getElementById('il-pbar-title');
   if(titleEl) titleEl.textContent = isIn ? 'Input List' : 'Output List';
   if(!isIn) { loadOutData(); renderOutTable(); }
+  if(typeof _navSync==='function') _navSync();
 }
 
 // ── OUT DATA (stocke dans shows.out_data, cache local)
@@ -1566,6 +1568,7 @@ function saveOutData() {
 function _oh(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 function renderOutTable() {
+  if(typeof _navSyncSoon==='function') _navSyncSoon();
   var body = document.getElementById('out-body');
   if(!body) return;
   if(OUT_CHS.length === 0){
@@ -2328,6 +2331,8 @@ function _initColHeadDnd(){
   });
 }
 function renderTable(){
+  if(typeof _navSyncSoon==='function') _navSyncSoon();
+  if(typeof _ilStats==='function') setTimeout(_ilStats,0);
   if(typeof SectionUndo!=='undefined') SectionUndo.record('il', function(){ return CHS; });
   initDragDrop();
   _renderColHead();
@@ -11561,6 +11566,7 @@ function setPlanMode(mode,save=true){
     _showMobilePlanView(mode==='site'?'site':'stage');
   } else if(!_isMobile() && mode==='scene') setTimeout(()=>BandPlan.fitView(),50);
   if(save)saveStage();
+  if(typeof _navSync==='function') _navSync();
 }
 
 // ══════════════════════════════════════
@@ -13446,7 +13452,7 @@ function _sessFolderCount(fid){
 
 function createSessFolder(){
   _loadSessFolders();
-  var name=prompt('Nom du dossier (ex. « Tournée 2024 », « Archives ») :','');
+  var name=prompt('Nom de la tournée ou du dossier (ex. « Tournée d\'hiver 2026 », « Archives ») :','');
   if(name===null) return;
   name=name.trim();
   if(!name){ toast('Nom de dossier vide.'); return; }
@@ -13530,12 +13536,12 @@ let _sessDragShowId=null;
 function _sessDragStart(ev,showId){
   _sessDragShowId=showId;
   try{ ev.dataTransfer.effectAllowed='move'; ev.dataTransfer.setData('text/plain',showId); }catch(e){}
-  var card=ev.target.closest&&ev.target.closest('.sess-card'); if(card) card.classList.add('sess-dragging');
+  var card=ev.target.closest&&ev.target.closest('.dt-row,.sess-card'); if(card) card.classList.add('sess-dragging');
 }
 function _sessDragEnd(ev){
   _sessDragShowId=null;
-  var card=ev.target.closest&&ev.target.closest('.sess-card'); if(card) card.classList.remove('sess-dragging');
-  document.querySelectorAll('.sess-fchip.drag-over').forEach(function(c){c.classList.remove('drag-over');});
+  var card=ev.target.closest&&ev.target.closest('.dt-row,.sess-card'); if(card) card.classList.remove('sess-dragging');
+  document.querySelectorAll('.drag-over').forEach(function(c){c.classList.remove('drag-over');});
 }
 function _sessChipDragOver(ev){ ev.preventDefault(); try{ev.dataTransfer.dropEffect='move';}catch(e){} ev.currentTarget.classList.add('drag-over'); }
 function _sessChipDragLeave(ev){ ev.currentTarget.classList.remove('drag-over'); }
@@ -13545,253 +13551,472 @@ function _sessChipDrop(ev,folderId){
   if(sid) moveShowToFolder(sid,folderId);
 }
 
+/* ══════════════════════════════════════════════════════════════════
+   DATES — l'organisateur des sessions
+   Les shows sont classés par mois (à venir, passés, partagés). Chaque ligne
+   montre où en est la préparation ; la fiche de droite détaille le show
+   sélectionné. Les dossiers (« tournées ») se choisissent dans le menu.
+   ══════════════════════════════════════════════════════════════════ */
+let SESS_TAB='up';   // 'up' | 'past' | 'shared'
+let SESS_SEL=null;   // show affiché dans la fiche de droite
+let SESS_SEL_USER=false; // true dès que l'utilisateur a choisi une ligne (sinon la fiche suit le show ouvert)
+function _todayISO(){ var d=new Date(); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
+function _isoToDate(iso){ var p=String(iso).split('-'); return new Date(+p[0],+p[1]-1,+p[2]); }
+function _cap(s){ s=String(s||''); return s.charAt(0).toUpperCase()+s.slice(1); }
+function _countdownTxt(iso){
+  if(!iso) return '';
+  var n=Math.round((_isoToDate(iso)-_isoToDate(_todayISO()))/86400000);
+  if(n===0) return 'aujourd\'hui';
+  if(n===1) return 'demain';
+  if(n===-1) return 'hier';
+  return n>0?('dans '+n+' jours'):('il y a '+(-n)+' jours');
+}
+/* Un lien de partage existe-t-il pour ce show ? */
+function _showHasLink(s){
+  if(s.stage_data&&s.stage_data.rider) return true;
+  var pre=s.id+':', hit=false;
+  try{ SHARED_LINKS.forEach(function(k){ if(String(k).indexOf(pre)===0) hit=true; }); }catch(e){}
+  if(!hit && typeof _proLinks!=='undefined' && _lastLinksShowId===s.id && _proLinks.length) hit=true;
+  return hit;
+}
+/* Les six étapes de préparation d'un show (ligne, fiche, vue d'ensemble) */
+function _showSteps(s){
+  var sm=_showSummary(s);
+  var n=function(v,one,many){ return v?(v+' '+(v===1?one:many)):''; };
+  return [
+    {label:'Input list',    done:!!sm.ins,  info:n(sm.ins,'canal','canaux'),   tab:'inputlist', mode:'in'},
+    {label:'Output list',   done:!!sm.outs, info:n(sm.outs,'sortie','sorties'), tab:'inputlist', mode:'out'},
+    {label:'Plan de scène', done:!!sm.stage, info:'', tab:'stage', mode:'scene'},
+    {label:'Plan de site',  done:!!sm.site,  info:'', tab:'stage', mode:'site'},
+    {label:'Synoptique',    done:!!sm.syno,  info:'', tab:'synoptique', mode:''},
+    {label:'Rider partagé', done:_showHasLink(s), info:'', tab:'team', mode:''}
+  ];
+}
+/* Équipe d'un show : propriétaire puis membres */
+function _showTeam(show){
+  var ini=function(name){ return String(name||'?').split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase()||'?'; };
+  var COLS=[{bg:'rgba(26,143,255,.15)',fg:'var(--blu2)'},{bg:'rgba(245,197,66,.14)',fg:'var(--warn)'},{bg:'rgba(155,106,255,.13)',fg:'#c084fc'},{bg:'rgba(34,214,160,.13)',fg:'var(--grn)'}];
+  var list=[], own={bg:'var(--ora-d)',fg:'var(--ora)'};
+  if(show.owner_id===ME?.id){
+    list.push({init:ini(PROFILE?.full_name||ME?.email),name:PROFILE?.full_name||'Moi',role:'Propriétaire',col:own});
+  } else {
+    var oc=SHOW_OWNERS_CACHE[show.owner_id];
+    var on=oc?.full_name||oc?.email||'Propriétaire';
+    list.push({init:ini(on),name:on,role:'Propriétaire',col:own});
+  }
+  (SHOW_MEMBERS_MAP[show.id]||[]).forEach(function(m,i){
+    var nm=m.profiles?.full_name||m.profiles?.email||'Membre';
+    list.push({init:ini(nm),name:nm,role:(typeof ROLE_LABELS!=='undefined'&&ROLE_LABELS[m.role])||m.role||'Membre',col:COLS[i%COLS.length]});
+  });
+  return list;
+}
+
 function renderSessions(){
   const grid=document.getElementById('sessions-grid');
-  if(!grid){ var _fb0=document.getElementById('sess-folder-bar'); if(_fb0)_fb0.innerHTML=''; return; }
+  const fbar=document.getElementById('sess-folder-bar');
+  const tabsEl=document.getElementById('dt-tabs');
+  const detail=document.getElementById('dt-detail');
+  if(!grid){ if(fbar) fbar.innerHTML=''; return; }
   _loadSessFolders();
-
   const _e=function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
-  const AV_COLS=[
-    {bg:'rgba(255,107,26,.15)',fg:'var(--ora)'},
-    {bg:'rgba(26,143,255,.15)',fg:'var(--blu2)'},
-    {bg:'rgba(245,197,66,.14)',fg:'var(--warn)'},
-    {bg:'rgba(155,106,255,.13)',fg:'#c084fc'},
-    {bg:'rgba(34,214,160,.13)',fg:'var(--grn)'},
-  ];
-  /* Monogramme déterministe (couleur + initiales) à partir du nom du show */
-  const _MONO_PAL=[
-    {bg:'rgba(255,107,26,.14)',fg:'#ff8c42',bd:'rgba(255,107,26,.32)'},
-    {bg:'rgba(26,143,255,.14)',fg:'#4ca5ff',bd:'rgba(26,143,255,.32)'},
-    {bg:'rgba(34,214,160,.13)',fg:'#22d6a0',bd:'rgba(34,214,160,.30)'},
-    {bg:'rgba(155,106,255,.14)',fg:'#b48bff',bd:'rgba(155,106,255,.32)'},
-    {bg:'rgba(245,197,66,.14)',fg:'#f5c542',bd:'rgba(245,197,66,.32)'},
-    {bg:'rgba(255,77,106,.12)',fg:'#ff6b85',bd:'rgba(255,77,106,.30)'},
-    {bg:'rgba(0,200,180,.12)',fg:'#2ad6c0',bd:'rgba(0,200,180,.30)'},
-  ];
-  function showMono(name){
-    var s=String(name||'?').trim();
-    var fa=function(w){var m=w.match(/[a-zA-ZÀ-ÿ]/);return m?m[0]:'';};
-    var words=s.split(/\s+/).filter(function(w){return /[a-zA-ZÀ-ÿ]/.test(w);});
-    var ini;
-    if(words.length>=2) ini=fa(words[0])+fa(words[1]);
-    else if(words.length===1) ini=(words[0].replace(/[^a-zA-ZÀ-ÿ]/g,'').slice(0,2))||words[0].slice(0,2);
-    else ini=s.slice(0,2);
-    ini=(ini||'?').toUpperCase();
-    var h=0; for(var i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0;
-    return {ini:ini, c:_MONO_PAL[h%_MONO_PAL.length]};
-  }
-
-  function planChip(plan){
-    var p=plan||'free';
-    var labels={free:'Gratuit',pro:'Pro'};
-    return '<span class="sess-plan-chip '+p+'">'+(labels[p]||p)+'</span>';
-  }
-
-  var fmtShowDate=_fmtShowDate;
-  /* Jauge comparative : le show le plus lourd sert d'échelle */
-  var _maxStorage=0;
-  SHOWS.forEach(function(s){ var b=SHOW_STORAGE_MAP[s.id]; if(b>_maxStorage)_maxStorage=b; });
-
-  function initials(name){
-    return String(name||'?').split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase()||'?';
-  }
-
-  /* Contenu du show : entrées, sorties, plans, synoptique — sur toutes les
-     cartes, qu'elles soient ouvertes ou non. */
-  function _contentRow(show){
-    var sm=_showSummary(show), items=[];
-    var n=function(v,one,many){ return v==null?'<span class="sess-c-pending">…</span> '+many:(v+' '+(v===1?one:many)); };
-    items.push('<span class="sess-c'+(sm.ins?'':' zero')+'"><i class="ti ti-list-numbers"></i>'+n(sm.ins,'entrée','entrées')+'</span>');
-    items.push('<span class="sess-c'+(sm.outs?'':' zero')+'"><i class="ti ti-list-letters"></i>'+n(sm.outs,'sortie','sorties')+'</span>');
-    if(sm.stage) items.push('<span class="sess-c"><i class="ti ti-layout-board"></i>Plan de scène</span>');
-    if(sm.site)  items.push('<span class="sess-c"><i class="ti ti-map-2"></i>Plan de site</span>');
-    if(sm.syno)  items.push('<span class="sess-c"><i class="ti ti-topology-star"></i>Synoptique</span>');
-    return '<div class="sess-content">'+items.join('')+'</div>';
-  }
-
-  function renderMembersRow(show){
-    var members=SHOW_MEMBERS_MAP[show.id]||[];
-    var list=[];
-    // Owner entry — toujours affiché, qu'on soit owner ou invité
-    if(show.owner_id===ME?.id){
-      list.push({init:initials(PROFILE?.full_name||ME.email),plan:PROFILE?.plan||'free',name:PROFILE?.full_name||'Moi',role:'Propriétaire',col:{bg:'var(--ora-d)',fg:'var(--ora)'}});
-    } else {
-      /* On est invité — chercher l'owner dans le cache si présent, sinon placeholder */
-      var ownerCached=SHOW_OWNERS_CACHE[show.owner_id];
-      var ownerName=ownerCached?.full_name||ownerCached?.email||'Propriétaire';
-      list.push({init:initials(ownerName),plan:ownerCached?.plan||'free',name:ownerName,role:'Propriétaire',col:{bg:'var(--ora-d)',fg:'var(--ora)'}});
-    }
-    members.forEach(function(m,i){
-      var n=m.profiles?.full_name||m.profiles?.email||'Membre';
-      list.push({init:initials(n),plan:m.profiles?.plan||'free',name:n,role:m.role||'Membre',col:AV_COLS[i%AV_COLS.length]});
-    });
-    if(list.length===0) return '<span class="sess-no-members"><i class="ti ti-user" style="font-size:11px"></i> Solo</span>';
-    var MAX=4;
-    var visible=list.slice(0,MAX);
-    var extra=list.length-MAX;
-    var html=visible.map(function(m){
-      return '<div class="sess-member-wrap" title="'+_e(m.name)+' · '+_e(m.role)+'">'+
-        '<div class="sess-av" style="background:'+m.col.bg+';color:'+m.col.fg+'">'+_e(m.init)+'</div>'+
-        '<div class="sess-member-name">'+_e(m.name.split(' ')[0])+'</div>'+
-        planChip(m.plan)+
-        '</div>';
-    }).join('');
-    if(extra>0) html+='<div class="sess-member-wrap"><div class="sess-more-av">+'+extra+'</div></div>';
-    return html;
-  }
-
-  function renderCard(s, idx){
-    var isActive=s.id===CUR_SHOW?.id;
-    var isOwn=s.owner_id===ME?.id;
-    var members=SHOW_MEMBERS_MAP[s.id]||[];
-    /* Total = owner + all members (owner is never in show_members table) */
-    var totalMembers=members.length+1;
-    var mono=showMono(s.name);
-    var _fid=_sessFolderOf(s.id); var _fold=_fid?_sessFolderById(_fid):null;
-    /* Jauge de stockage cloud du show (échelle = show le plus lourd) */
-    var _bytes=SHOW_STORAGE_MAP[s.id];
-    var _files=SHOW_FILECOUNT_MAP[s.id];
-    var _stRow='';
-    if(_bytes!=null){
-      var _pct=_bytes>0?Math.max(5,Math.round(_bytes/(_maxStorage||1)*100)):0;
-      _stRow='<div class="sess-storage" title="Stockage cloud de ce show">'
-        +'<i class="ti ti-cloud"></i>'
-        +'<div class="sess-storage-track"><div class="sess-storage-fill" style="width:'+_pct+'%"></div></div>'
-        +'<span class="sess-storage-lbl">'+(_bytes>0?_fmtSize(_bytes):'0 o')+(_files?' <span class="sess-storage-fc">· '+_files+' fichier'+(_files>1?'s':'')+'</span>':'')+'</span>'
-      +'</div>';
-    }
-    return '<div class="sess-card'+(isActive?' active':'')+'" draggable="true" ondragstart="_sessDragStart(event,\''+_jsq(s.id)+'\')" ondragend="_sessDragEnd(event)" onclick="sessionSwitch(\''+_jsq(s.id)+'\')">'+
-      '<div class="sess-body">'+
-        '<div class="sess-top">'+
-          '<div class="sess-icon-wrap sess-mono" style="background:'+mono.c.bg+';border-color:'+mono.c.bd+';color:'+mono.c.fg+'">'+_e(mono.ini)+'</div>'+
-          '<div class="sess-title-wrap">'+
-            '<div class="sess-name">'+_e(s.name)+'</div>'+
-            '<div class="sess-venue">'+(s.venue?_e(s.venue):'<span style="color:var(--muted2)">Lieu non renseigné</span>')+'</div>'+
-          '</div>'+
-          (isActive?'<span class="sess-live-pill"><span class="on-dot"></span>Ouvert</span>':'')+
-        '</div>'+
-        /* Métadonnées en une ligne de texte, pas en pastilles. */
-        '<div class="sess-tags">'+
-          (_showDateISO(s.show_date)?'<span class="sess-tag date">'+_e(fmtShowDate(s.show_date))+'</span>':'<span class="sess-tag sess-nodate" title="Ajoutez une date via le crayon « Modifier »">Sans date</span>')+
-          '<span class="sess-tag">'+totalMembers+' membre'+(totalMembers!==1?'s':'')+'</span>'+
-          (_fold?'<span class="sess-tag sess-folder-pill"><span class="sess-fdot" style="background:'+_fold.color+'"></span>'+_e(_fold.name)+'</span>':'')+
-        '</div>'+
-        _contentRow(s)+
-        _stRow+
-        '<div class="sess-members-row">'+renderMembersRow(s)+'</div>'+
-      '</div>'+
-      '<div class="sess-footer">'+
-        '<button class="sess-open-btn" onclick="event.stopPropagation();sessionSwitch(\''+_jsq(s.id)+'\')">'+(isActive?'<i class="ti ti-check"></i> Show ouvert':'Ouvrir')+'</button>'+
-        '<button class="sess-icon-btn'+(_fold?' has-folder':'')+'" onclick="event.stopPropagation();openSessMoveMenu(\''+_jsq(s.id)+'\',this,event)" title="Classer dans un dossier"'+(_fold?' style="color:'+_fold.color+';border-color:'+_fold.color+'55"':'')+'><i class="ti ti-folder"></i></button>'+
-        (isOwn?'<button class="sess-icon-btn" onclick="event.stopPropagation();editShowMeta(\''+_jsq(s.id)+'\')" title="Modifier"><i class="ti ti-pencil"></i></button>':'')+
-        (isOwn?'<button class="sess-icon-btn danger" onclick="event.stopPropagation();delShow(\''+_jsq(s.id)+'\')" title="Supprimer"><i class="ti ti-trash"></i></button>':'')+
-        (!isOwn?'<button class="sess-icon-btn" onclick="leaveShow(\''+_jsq(s.id)+'\',event)" title="Quitter ce show" style="color:var(--muted)" onmouseover="this.style.color=\'var(--err)\';this.style.borderColor=\'rgba(255,77,106,.3)\'" onmouseout="this.style.color=\'var(--muted)\';this.style.borderColor=\'\'"><i class="ti ti-door-exit"></i></button>':'')+
-      '</div>'+
-    '</div>';
-  }
+  const today=_todayISO();
+  const td=document.getElementById('dt-today');
+  if(td) td.textContent=_cap(new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}));
+  if(typeof _navSyncSoon==='function') _navSyncSoon();
 
   if(SHOWS.length===0){
-    var _fbe=document.getElementById('sess-folder-bar'); if(_fbe)_fbe.innerHTML='';
-    grid.innerHTML='<div style="grid-column:1/-1;padding:48px 20px;text-align:center;color:var(--muted)"><i class="ti ti-folder-plus" style="font-size:36px;display:block;margin-bottom:12px;opacity:.4"></i><div style="font-size:13px;margin-bottom:14px">Aucune session — commencez ici</div><button class="btn pri" onclick="newShow()"><i class="ti ti-plus"></i>Créer un show</button></div>';
+    if(fbar) fbar.innerHTML='';
+    if(tabsEl) tabsEl.innerHTML='';
+    if(detail) detail.innerHTML='';
+    grid.innerHTML='<div class="dt-empty"><i class="ti ti-calendar-plus"></i><div class="dt-empty-t">Aucune date pour l\'instant</div><div class="dt-empty-s">Créez votre premier show : son patch, ses plans et ses fichiers y seront rangés.</div><button class="btn pri" onclick="newShow()"><i class="ti ti-plus"></i>Créer un show</button></div>';
     return;
   }
 
-  /* ── Recherche + tri ── */
+  /* ── Recherche, onglet, dossier ── */
   var q=(document.getElementById('sess-search-inp')?.value||'').trim().toLowerCase();
-  var sortBy=document.getElementById('sess-sort')?.value||'recent';
-  function matches(s){
-    if(!q) return true;
-    return String(s.name||'').toLowerCase().indexOf(q)>=0
-        || String(s.venue||'').toLowerCase().indexOf(q)>=0;
-  }
-  function sortFn(a,b){
-    if(sortBy==='az') return String(a.name||'').localeCompare(String(b.name||''),'fr');
-    if(sortBy==='date') return _showDateISO(b.show_date).localeCompare(_showDateISO(a.show_date));
-    return String(b.created_at||b.id||'').localeCompare(String(a.created_at||a.id||'')); // récents
-  }
-
-  /* Filtre par dossier (ignoré pendant une recherche : la recherche est globale). */
+  var isoOf=function(s){ return _showDateISO(s.show_date); };
+  var isPast=function(s){ var i=isoOf(s); return !!i && i<today; };
+  var isShared=function(s){ return s.owner_id!==ME?.id; };
+  var matches=function(s){ return !q || String(s.name||'').toLowerCase().indexOf(q)>=0 || String(s.venue||'').toLowerCase().indexOf(q)>=0; };
   var inFolder=function(s){
-    if(q) return true;
-    if(SESS_FOLDER_VIEW==='all') return true;
+    if(q||SESS_FOLDER_VIEW==='all') return true;
     if(SESS_FOLDER_VIEW==='none') return !_sessFolderOf(s.id);
     return _sessFolderOf(s.id)===SESS_FOLDER_VIEW;
   };
-  var myShows=SHOWS.filter(function(s){return s.owner_id===ME?.id;}).filter(matches).filter(inFolder).sort(sortFn);
-  var sharedShows=SHOWS.filter(function(s){return s.owner_id!==ME?.id;}).filter(matches).filter(inFolder).sort(sortFn);
+  var pool=SHOWS.filter(inFolder);
+  var counts={ up:pool.filter(function(s){return !isPast(s);}).length, past:pool.filter(isPast).length, shared:pool.filter(isShared).length };
+  var list=q ? SHOWS.filter(matches)
+             : pool.filter(function(s){ return SESS_TAB==='past'?isPast(s):(SESS_TAB==='shared'?isShared(s):!isPast(s)); });
+  /* Chronologique : à venir du plus proche au plus lointain, passées de la plus récente à la plus ancienne ; sans date à la fin */
+  var desc=(SESS_TAB==='past'&&!q);
+  list.sort(function(a,b){
+    var ia=isoOf(a), ib=isoOf(b);
+    if(!ia&&!ib) return String(b.created_at||b.id||'').localeCompare(String(a.created_at||a.id||''));
+    if(!ia) return 1; if(!ib) return -1;
+    return desc?ib.localeCompare(ia):ia.localeCompare(ib);
+  });
 
-  /* ── Barre des dossiers (puces) ── */
-  (function(){
-    var fb=document.getElementById('sess-folder-bar'); if(!fb) return;
-    var allCount=SHOWS.length;
-    var noneCount=SHOWS.filter(function(s){return !_sessFolderOf(s.id);}).length;
-    var bar='';
-    bar+='<button class="sess-fchip'+(SESS_FOLDER_VIEW==='all'?' on':'')+'" onclick="setSessFolderView(\'all\')"><i class="ti ti-stack-2" style="font-size:13px"></i>Toutes<span class="sess-fcount">'+allCount+'</span></button>';
-    SESS_FOLDERS.forEach(function(f){
-      bar+='<button class="sess-fchip'+(SESS_FOLDER_VIEW===f.id?' on':'')+'" data-folder="'+f.id+'" ondragover="_sessChipDragOver(event)" ondragleave="_sessChipDragLeave(event)" ondrop="_sessChipDrop(event,\''+_jsq(f.id)+'\')" onclick="setSessFolderView(\''+_jsq(f.id)+'\')"><span class="sess-fdot" style="background:'+f.color+'"></span>'+_e(f.name)+'<span class="sess-fcount">'+_sessFolderCount(f.id)+'</span></button>';
-    });
-    if(SESS_FOLDERS.length){
-      bar+='<button class="sess-fchip'+(SESS_FOLDER_VIEW==='none'?' on':'')+'" data-folder="" ondragover="_sessChipDragOver(event)" ondragleave="_sessChipDragLeave(event)" ondrop="_sessChipDrop(event,\'\')" onclick="setSessFolderView(\'none\')"><i class="ti ti-inbox" style="font-size:12px"></i>Sans dossier<span class="sess-fcount">'+noneCount+'</span></button>';
-    }
-    bar+='<button class="sess-fchip-new" onclick="createSessFolder()"><i class="ti ti-folder-plus" style="font-size:13px"></i>Dossier</button>';
+  /* ── Onglets ── */
+  if(tabsEl){
+    tabsEl.innerHTML=[['up','À venir'],['past','Passées'],['shared','Partagés avec moi']].map(function(t){
+      var on=(SESS_TAB===t[0]&&!q);
+      return '<button type="button" role="tab" aria-selected="'+(on?'true':'false')+'" class="dt-tab'+(on?' on':'')+'" onclick="setSessTab(\''+t[0]+'\')">'+t[1]+'<span class="dt-tab-n">'+counts[t[0]]+'</span></button>';
+    }).join('');
+  }
+
+  /* ── Dossier affiché : nom, couleur, renommer, supprimer ── */
+  if(fbar){
     var curF=(SESS_FOLDER_VIEW!=='all'&&SESS_FOLDER_VIEW!=='none')?_sessFolderById(SESS_FOLDER_VIEW):null;
-    if(curF){
-      bar+='<span class="sess-fbar-colors">'+_SESS_FOLDER_COLORS.map(function(c){return '<span class="sess-fcolor" style="background:'+c+(curF.color===c?';border-color:#fff':'')+'" title="Couleur du dossier" onclick="recolorSessFolder(\''+_jsq(curF.id)+'\',\''+_jsq(c)+'\')"></span>';}).join('')+'</span>';
-      bar+='<span class="sess-fbar-tools"><button onclick="renameSessFolder(\''+_jsq(curF.id)+'\')" title="Renommer le dossier"><i class="ti ti-pencil"></i></button><button class="danger" onclick="deleteSessFolder(\''+_jsq(curF.id)+'\')" title="Supprimer le dossier"><i class="ti ti-trash"></i></button></span>';
+    if(SESS_FOLDER_VIEW==='all' || q){ fbar.innerHTML=''; }
+    else {
+      var bar='<span class="dt-fbar-name">'+(curF?'<span class="sess-fdot" style="background:'+curF.color+'"></span>'+_e(curF.name):'<i class="ti ti-inbox"></i>Sans dossier')+'</span>';
+      if(curF){
+        bar+='<span class="sess-fbar-colors">'+_SESS_FOLDER_COLORS.map(function(c){return '<span class="sess-fcolor" style="background:'+c+(curF.color===c?';border-color:var(--txt)':'')+'" title="Couleur" onclick="recolorSessFolder(\''+_jsq(curF.id)+'\',\''+_jsq(c)+'\')"></span>';}).join('')+'</span>';
+        bar+='<span class="sess-fbar-tools"><button onclick="renameSessFolder(\''+_jsq(curF.id)+'\')" title="Renommer"><i class="ti ti-pencil"></i></button><button class="danger" onclick="deleteSessFolder(\''+_jsq(curF.id)+'\')" title="Supprimer le dossier"><i class="ti ti-trash"></i></button></span>';
+      }
+      bar+='<button class="dt-fbar-all" onclick="setSessFolderView(\'all\')"><i class="ti ti-x"></i>Toutes les dates</button>';
+      fbar.innerHTML=bar;
     }
-    fb.innerHTML=bar;
-  })();
+  }
 
-  /* Aucun résultat de recherche */
-  if(q && myShows.length===0 && sharedShows.length===0){
-    grid.innerHTML='<div class="sess-empty-search"><i class="ti ti-search-off" style="font-size:30px;display:block;margin-bottom:10px;opacity:.4"></i>Aucun show ne correspond à « '+_e(q)+' »</div>';
+  /* ── Liste vide ── */
+  if(!list.length){
+    if(detail) detail.innerHTML='';
+    var msg;
+    if(q) msg=['ti-search-off','Aucun show ne correspond à « '+_e(q)+' »',''];
+    else if(SESS_TAB==='past') msg=['ti-calendar-check','Aucune date passée','Une fois la date jouée, le show se range ici avec son patch, ses plans et ses fichiers.'];
+    else if(SESS_TAB==='shared') msg=['ti-users','Aucun show partagé avec vous','Les shows auxquels on vous invite apparaissent ici.'];
+    else msg=['ti-calendar-plus','Aucune date à venir','<button class="btn pri" onclick="newShow()" style="margin:6px auto 0"><i class="ti ti-plus"></i>Nouveau show</button>'];
+    grid.innerHTML='<div class="dt-empty"><i class="ti '+msg[0]+'"></i><div class="dt-empty-t">'+msg[1]+'</div><div class="dt-empty-s">'+msg[2]+'</div></div>';
     return;
   }
 
-  function sectionCount(n){
-    return '<span class="sess-section-count">'+n+'</span>';
+  /* ── Sélection (fiche de droite) ── */
+  if(!SESS_SEL_USER || !SESS_SEL || !list.some(function(s){return s.id===SESS_SEL;})){
+    SESS_SEL=(CUR_SHOW&&list.some(function(s){return s.id===CUR_SHOW.id;}))?CUR_SHOW.id:list[0].id;
   }
 
-  var html='';
-  var curF2=(SESS_FOLDER_VIEW!=='all'&&SESS_FOLDER_VIEW!=='none')?_sessFolderById(SESS_FOLDER_VIEW):null;
-  var folderMode=!q && SESS_FOLDER_VIEW!=='all';
-
-  if(folderMode){
-    /* Vue d'un dossier précis (ou « Sans dossier ») : grille unique. */
-    var combined=myShows.concat(sharedShows);
-    var ftitle=curF2
-      ?'<span class="sess-fdot" style="background:'+curF2.color+'"></span>'+_e(curF2.name)
-      :'<i class="ti ti-inbox" style="color:var(--muted);font-size:11px"></i>Sans dossier';
-    html+='<div class="sess-section-title">'+ftitle+sectionCount(combined.length)+'</div>';
-    if(combined.length===0){
-      html+='<div style="grid-column:1/-1;color:var(--muted2);font-size:12px;padding:30px 6px;text-align:center"><i class="ti ti-folder-open" style="font-size:30px;display:block;margin-bottom:10px;opacity:.4"></i>'+(curF2?'Dossier vide — glissez des sessions ici, ou via le bouton <i class="ti ti-folder"></i> d\'une carte.':'Toutes vos sessions sont classées dans un dossier.')+'</div>';
-    } else {
-      combined.forEach(function(s,i){ html+=renderCard(s,i); });
-    }
-  } else {
-    // ── Mes sessions
-    html+='<div class="sess-section-title">Mes shows'+sectionCount(myShows.length)+'</div>';
-    if(myShows.length===0){
-      html+='<div style="grid-column:1/-1;color:var(--muted2);font-size:11px;font-family:var(--m);padding:6px 2px">'+(q?'Aucun résultat ici.':'Aucun show. <button class="btn pri sm" onclick="newShow()" style="margin-left:6px"><i class="ti ti-plus"></i>Créer</button>')+'</div>';
-    } else {
-      myShows.forEach(function(s,i){ html+=renderCard(s,i); });
-    }
-    // ── Partagées avec moi
-    if(sharedShows.length>0){
-      html+='<div class="sess-section-title" style="margin-top:14px">Partagés avec moi'+sectionCount(sharedShows.length)+'</div>';
-      sharedShows.forEach(function(s,i){ html+=renderCard(s,myShows.length+i); });
-    }
+  function avatars(team,max){
+    var h=team.slice(0,max).map(function(m){ return '<span class="dt-av" style="background:'+m.col.bg+';color:'+m.col.fg+'" title="'+_e(m.name)+' · '+_e(m.role)+'">'+_e(m.init)+'</span>'; }).join('');
+    if(team.length>max) h+='<span class="dt-av more">+'+(team.length-max)+'</span>';
+    return h;
+  }
+  function readyHtml(steps){
+    var n=steps.filter(function(x){return x.done;}).length, full=n===steps.length;
+    return { n:n, full:full,
+      pips:'<span class="dt-pips'+(full?' full':'')+'">'+steps.map(function(x){ return '<i'+(x.done?' class="on"':'')+'></i>'; }).join('')+'</span>',
+      label: full?'Prêt pour la date':(n+' / '+steps.length+' prêts') };
+  }
+  function rowHtml(s){
+    var iso=isoOf(s), d=iso?_isoToDate(iso):null, steps=_showSteps(s), r=readyHtml(steps), team=_showTeam(s);
+    var fid=_sessFolderOf(s.id), fold=fid?_sessFolderById(fid):null;
+    var isActive=s.id===CUR_SHOW?.id, sel=s.id===SESS_SEL;
+    var dateCol=d
+      ?'<span class="dt-d">'+d.getDate()+'</span><span class="dt-m">'+_e(d.toLocaleDateString('fr-FR',{month:'short'}).replace('.','').toUpperCase())+'</span><span class="dt-w">'+_e(d.toLocaleDateString('fr-FR',{weekday:'short'}))+'</span>'
+      :'<i class="ti ti-calendar-off"></i><span class="dt-w">sans date</span>';
+    var sub=[];
+    sub.push(s.venue?_e(s.venue):'<span class="dt-dim">Lieu non renseigné</span>');
+    if(iso) sub.push(_countdownTxt(iso));
+    return '<div class="dt-row'+(sel?' sel':'')+(isActive?' active':'')+'" role="button" tabindex="0" draggable="true"'
+      +' ondragstart="_sessDragStart(event,\''+_jsq(s.id)+'\')" ondragend="_sessDragEnd(event)"'
+      +' onclick="sessRowClick(\''+_jsq(s.id)+'\')" ondblclick="sessionSwitch(\''+_jsq(s.id)+'\')"'
+      +' onkeydown="if(event.key===\'Enter\'){sessionSwitch(\''+_jsq(s.id)+'\');}">'
+      +'<div class="dt-date">'+dateCol+'</div>'
+      +'<div class="dt-info">'
+        +'<div class="dt-name-row"><span class="dt-name">'+_e(s.name)+'</span>'
+          +(isActive?'<span class="dt-tag live"><span class="on-dot"></span>Ouvert</span>':'')
+          +(fold?'<span class="dt-tag"><span class="sess-fdot" style="background:'+fold.color+'"></span>'+_e(fold.name)+'</span>':'')
+          +(isShared(s)?'<span class="dt-tag">Partagé avec vous</span>':'')
+        +'</div>'
+        +'<div class="dt-sub"><span>'+sub.join('</span><span>')+'</span></div>'
+      +'</div>'
+      +'<div class="dt-ready">'+r.pips+'<span class="dt-ready-l'+(r.full?' full':'')+'">'+r.label+'</span></div>'
+      +'<div class="dt-avs">'+avatars(team,4)+'</div>'
+      +'<i class="ti ti-chevron-right dt-chev"></i>'
+    +'</div>';
   }
 
+  /* ── Liste groupée par mois ── */
+  var html='', curKey=null, buf='', bufN=0;
+  var flush=function(){
+    if(curKey===null) return;
+    html+='<section class="dt-group"><div class="dt-group-hd"><h2>'+_e(curKey)+'</h2><span>'+bufN+(bufN>1?' dates':' date')+'</span></div>'+buf+'</section>';
+    buf=''; bufN=0;
+  };
+  list.forEach(function(s){
+    var iso=isoOf(s);
+    var key=iso?_cap(_isoToDate(iso).toLocaleDateString('fr-FR',{month:'long',year:'numeric'})):'Sans date';
+    if(key!==curKey){ flush(); curKey=key; }
+    buf+=rowHtml(s); bufN++;
+  });
+  flush();
   grid.innerHTML=html;
+
+  /* ── Fiche du show sélectionné ── */
+  if(detail){
+    var s=SHOWS.find(function(x){return x.id===SESS_SEL;});
+    if(!s){ detail.innerHTML=''; return; }
+    var iso=isoOf(s), steps=_showSteps(s), r=readyHtml(steps), team=_showTeam(s);
+    var isOwn=s.owner_id===ME?.id, isActive=s.id===CUR_SHOW?.id;
+    var fid=_sessFolderOf(s.id), fold=fid?_sessFolderById(fid):null;
+    var bytes=SHOW_STORAGE_MAP[s.id], files=SHOW_FILECOUNT_MAP[s.id];
+    var h='<div class="dt-dt-top">'
+      +'<div class="dt-dt-date">'+(iso?'<span>'+_e(_cap(_isoToDate(iso).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})))+'</span><span class="dt-dt-cd">'+_countdownTxt(iso)+'</span>':'<span>Sans date</span>')+'</div>'
+      +'<h2 class="dt-dt-name">'+_e(s.name)+'</h2>'
+      +'<div class="dt-dt-venue">'+(s.venue?_e(s.venue):'Lieu non renseigné')+'</div>'
+      +'</div>';
+    h+='<div class="dt-dt-actions">'
+      +'<button class="dt-open" onclick="sessionSwitch(\''+_jsq(s.id)+'\')">'+(isActive?'Continuer':'Ouvrir le show')+'<i class="ti ti-arrow-right"></i></button>'
+      +'<button class="dt-ib" onclick="openSessMoveMenu(\''+_jsq(s.id)+'\',this,event)" title="Classer dans un dossier"'+(fold?' style="color:'+fold.color+'"':'')+'><i class="ti ti-folder"></i></button>'
+      +(isOwn?'<button class="dt-ib" onclick="editShowMeta(\''+_jsq(s.id)+'\')" title="Modifier le nom, la salle, la date"><i class="ti ti-pencil"></i></button>':'')
+      +(isOwn?'<button class="dt-ib danger" onclick="delShow(\''+_jsq(s.id)+'\')" title="Supprimer"><i class="ti ti-trash"></i></button>'
+             :'<button class="dt-ib danger" onclick="leaveShow(\''+_jsq(s.id)+'\',event)" title="Quitter ce show"><i class="ti ti-door-exit"></i></button>')
+      +'</div>';
+    h+='<section class="dt-sec"><div class="dt-sec-hd"><h3>Préparation</h3><span class="dt-ready-l'+(r.full?' full':'')+'">'+(r.full?'Prêt':r.n+' / '+steps.length)+'</span></div><div class="dt-steps">'
+      +steps.map(function(st){
+        return '<button type="button" class="dt-step'+(st.done?' done':'')+'" onclick="sessOpenAt(\''+_jsq(s.id)+'\',\''+st.tab+'\',\''+st.mode+'\')">'
+          +'<span class="dt-mark">'+(st.done?'<i class="ti ti-check"></i>':'')+'</span>'
+          +'<span class="dt-step-l">'+st.label+'</span>'
+          +'<span class="dt-step-i">'+(st.done?(st.info||'Prêt'):'À faire')+'</span></button>';
+      }).join('')+'</div></section>';
+    h+='<section class="dt-sec"><div class="dt-sec-hd"><h3>Équipe</h3><span class="dt-sec-n">'+team.length+'</span></div><div class="dt-team">'
+      +team.slice(0,6).map(function(m){ return '<div class="dt-member"><span class="dt-av" style="background:'+m.col.bg+';color:'+m.col.fg+'">'+_e(m.init)+'</span><span class="dt-member-n">'+_e(m.name)+'</span><span class="dt-member-r">'+_e(m.role)+'</span></div>'; }).join('')
+      +(team.length>6?'<div class="dt-member"><span class="dt-member-r">+ '+(team.length-6)+' autres</span></div>':'')
+      +'</div></section>';
+    if(bytes!=null){
+      h+='<section class="dt-sec"><div class="dt-sec-hd"><h3>Fichiers</h3><span class="dt-sec-n">'+(bytes>0?_fmtSize(bytes):'0 o')+(files?' · '+files+' fichier'+(files>1?'s':''):'')+'</span></div></section>';
+    }
+    detail.innerHTML=h;
+  }
+}
+
+function setSessTab(t){ SESS_TAB=t; SESS_SEL_USER=false; var inp=document.getElementById('sess-search-inp'); if(inp&&inp.value){ inp.value=''; } renderSessions(); }
+/* Clic sur une ligne : la sélectionne (fiche de droite) ; sans fiche visible (écran étroit), ouvre le show. */
+function sessRowClick(id){
+  var d=document.getElementById('dt-detail');
+  var hasDetail=d && getComputedStyle(d).display!=='none';
+  if(!hasDetail){ sessionSwitch(id); return; }
+  SESS_SEL=id; SESS_SEL_USER=true; renderSessions();
+}
+/* Ouvre un show directement sur l'une de ses sections */
+async function sessOpenAt(id,tab,mode){
+  if(!CUR_SHOW||CUR_SHOW.id!==id){ await switchShow(id); renderSessions(); }
+  ovGo(tab,mode);
+}
+function ovGo(tab,mode){
+  if(tab==='inputlist') navIL(mode||'in');
+  else if(tab==='stage') navPlan(mode||'scene');
+  else goTab(tab,null);
 }
 
 async function sessionSwitch(id){
-  await switchShow(id);
+  if(!CUR_SHOW||CUR_SHOW.id!==id) await switchShow(id);
+  SESS_SEL=id; SESS_SEL_USER=false;
   renderSessions();
-  // Switch to Input List
-  goTab('inputlist',[...document.querySelectorAll('.tab')].find(t=>t.getAttribute('onclick')?.includes("'inputlist'")));
+  goTab('overview',null);
   toast(`✓ Show chargé`);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   MENU DE GAUCHE — état actif, compteurs, dossiers
+   ══════════════════════════════════════════════════════════════════ */
+function _navSync(){
+  var onP=document.querySelector('.panel.on');
+  var id=onP?onP.id.replace('panel-',''):'sessions';
+  document.querySelectorAll('.tab').forEach(function(t){
+    var ok=t.dataset.tab===id, m=t.dataset.mode;
+    if(ok&&m){
+      if(id==='inputlist') ok=(m===CUR_IL_MODE);
+      else if(id==='stage') ok=(m===(PLAN_MODE==='site'?'site':'scene'));
+    }
+    t.classList.toggle('on',ok);
+  });
+  var set=function(elId,v){ var el=document.getElementById(elId); if(el) el.textContent=(v||v===0)?v:''; };
+  var ns=document.getElementById('nav-show');
+  if(ns) ns.style.display=CUR_SHOW?'':'none';
+  set('nav-n-sessions',(SHOWS&&SHOWS.length)||'');
+  if(CUR_SHOW){
+    set('nav-show-name',CUR_SHOW.name||'—');
+    var iso=_showDateISO(CUR_SHOW.show_date), meta=[];
+    if(iso) meta.push(_isoToDate(iso).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'}));
+    if(CUR_SHOW.venue) meta.push(CUR_SHOW.venue);
+    set('nav-show-meta',meta.join(' · '));
+    var sm=_showSummary(CUR_SHOW);
+    set('nav-n-in',sm.ins||'');
+    set('nav-n-out',sm.outs||'');
+    set('nav-n-files',SHOW_FILECOUNT_MAP[CUR_SHOW.id]||'');
+  }
+  /* Dossiers (tournées) */
+  var nf=document.getElementById('nav-folders');
+  if(nf){
+    _loadSessFolders();
+    var _e=function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
+    var h='<div class="nav-sec nav-sec-row"><span>Tournées</span><button type="button" onclick="createSessFolder()" title="Nouvelle tournée ou nouveau dossier" aria-label="Nouvelle tournée"><i class="ti ti-plus"></i></button></div>';
+    SESS_FOLDERS.forEach(function(f){
+      h+='<div class="nav-folder'+(SESS_FOLDER_VIEW===f.id?' on':'')+'" role="button" tabindex="0" title="'+_e(f.name)+'" ondragover="_sessChipDragOver(event)" ondragleave="_sessChipDragLeave(event)" ondrop="_sessChipDrop(event,\''+_jsq(f.id)+'\')" onclick="navFolder(\''+_jsq(f.id)+'\')">'
+        +'<span class="sess-fdot" style="background:'+f.color+'"></span><span class="tab-l">'+_e(f.name)+'</span><span class="tab-n">'+_sessFolderCount(f.id)+'</span></div>';
+    });
+    if(!SESS_FOLDERS.length) h+='<div class="nav-folder-empty">Regroupez les dates d\'une tournée dans un dossier.</div>';
+    nf.innerHTML=h;
+  }
+  if(id==='overview') renderOverview();
+}
+var _navSyncT=null;
+function _navSyncSoon(){ clearTimeout(_navSyncT); _navSyncT=setTimeout(_navSync,120); }
+function navIL(mode){ goTab('inputlist',null); if(CUR_IL_MODE!==mode) setILMode(mode); _navSync(); }
+function navPlan(mode){ goTab('stage',null); if((PLAN_MODE==='site'?'site':'scene')!==mode) setPlanMode(mode); _navSync(); }
+function navFolder(id){ setSessFolderView(SESS_FOLDER_VIEW===id?'all':id); goTab('sessions',null); }
+/* Menu réduit (icônes seules) : choix mémorisé, forcé sur les écrans étroits */
+function _navAuto(){
+  var min=false;
+  try{ min=localStorage.getItem('pf_nav_min')==='1'; }catch(e){}
+  document.documentElement.classList.toggle('pf-nav-min', min || window.innerWidth<1100);
+}
+function toggleNavMin(){
+  var cur=document.documentElement.classList.contains('pf-nav-min');
+  try{ localStorage.setItem('pf_nav_min',cur?'0':'1'); }catch(e){}
+  _navAuto();
+  window.dispatchEvent(new Event('resize'));
+}
+window.addEventListener('resize',_navAuto);
+_navAuto();
+
+/* Bandeau de chiffres sous l'input list : canaux, 48V, retours, puis récap micros (Pro) */
+function _ilStats(){
+  var wrap=document.getElementById('il-table-wrap'); if(!wrap) return;
+  var el=document.getElementById('il-stats');
+  if(!el){
+    el=document.createElement('div'); el.id='il-stats'; el.className='il-stats';
+    wrap.appendChild(el);
+    wrap.addEventListener('change',function(){ setTimeout(_ilStats,120); });
+  }
+  var chs=(typeof CHS!=='undefined'&&CHS)?CHS:[];
+  if(!chs.length){ el.style.display='none'; return; }
+  el.style.display='';
+  var _e=function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+  var h='<span><b>'+chs.length+'</b> '+(chs.length>1?'canaux':'canal')+'</span><span><b>'+chs.filter(function(c){return c.phantom;}).length+'</b> en 48V</span><span><b>'+chs.filter(function(c){return c.mon;}).length+'</b> aux retours</span>';
+  if(canDo('recap_matos')){
+    var mics={};
+    chs.forEach(function(c){ var m=String(c.mic||'').trim(); if(m) mics[m]=(mics[m]||0)+1; });
+    var list=Object.keys(mics).sort(function(a,b){ return mics[b]-mics[a]||a.localeCompare(b); });
+    if(list.length) h+='<span class="il-stats-sep"></span><span class="il-stats-mics" title="Récapitulatif des micros et DI">'+list.map(function(m){ return _e(m)+' ×'+mics[m]; }).join('  ·  ')+'</span>';
+  }
+  el.innerHTML=h;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   VUE D'ENSEMBLE DU SHOW
+   ══════════════════════════════════════════════════════════════════ */
+var _ovCache={id:null,files:null,linksAsked:false};
+function renderOverview(){
+  var root=document.getElementById('ov-root'); if(!root) return;
+  var _e=function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
+  if(!CUR_SHOW){
+    root.innerHTML='<div class="dt-empty"><i class="ti ti-calendar-event"></i><div class="dt-empty-t">Aucun show ouvert</div><div class="dt-empty-s">Choisissez une date pour voir sa préparation.</div><button class="btn pri" onclick="goTab(\'sessions\',null)">Voir les dates</button></div>';
+    return;
+  }
+  var s=CUR_SHOW, iso=_showDateISO(s.show_date), d=iso?_isoToDate(iso):null;
+  var steps=_showSteps(s), nDone=steps.filter(function(x){return x.done;}).length, full=nDone===steps.length;
+  var team=_showTeam(s), isOwn=s.owner_id===ME?.id;
+  var fid=_sessFolderOf(s.id), fold=fid?_sessFolderById(fid):null;
+  if(_ovCache.id!==s.id){ _ovCache={id:s.id,files:null,linksAsked:false}; }
+  _ovLoad();
+
+  var h='<header class="ov-head">'
+    +'<div class="ov-date">'+(d?'<span class="dt-m">'+_e(d.toLocaleDateString('fr-FR',{month:'short'}).replace('.','').toUpperCase())+'</span><span class="ov-d">'+d.getDate()+'</span><span class="dt-w">'+_e(d.toLocaleDateString('fr-FR',{weekday:'long'}))+'</span>':'<i class="ti ti-calendar-off"></i><span class="dt-w">sans date</span>')+'</div>'
+    +'<div class="ov-head-t">'
+      +'<div class="ov-head-meta">'+(fold?'<span class="dt-tag"><span class="sess-fdot" style="background:'+fold.color+'"></span>'+_e(fold.name)+'</span>':'')+(iso?'<span class="dt-dt-cd">'+_countdownTxt(iso)+'</span>':'')+(isOwn?'':'<span class="dt-tag">Partagé avec vous</span>')+'</div>'
+      +'<h1 class="ov-title">'+_e(s.name)+'</h1>'
+      +'<div class="ov-sub">'+(s.venue?_e(s.venue):'Lieu non renseigné')+'</div>'
+    +'</div>'
+    +'<div class="ov-actions">'
+      +(isOwn?'<button class="btn" onclick="editShowMeta(\''+_jsq(s.id)+'\').then(function(){ _navSync(); })"><i class="ti ti-pencil"></i>Modifier</button>':'')
+      +'<button class="btn pri" onclick="goTab(\'team\',null)"><i class="ti ti-link"></i>Envoyer le rider</button>'
+    +'</div></header>';
+
+  /* Préparation */
+  h+='<div class="ov-grid"><section class="ov-card ov-span2">'
+    +'<div class="ov-card-hd"><h2>Préparation</h2><span class="dt-ready-l'+(full?' full':'')+'">'+(full?'Prêt pour la date':nDone+' / '+steps.length+' prêts')+'</span></div>'
+    +'<div class="dt-pips ov-pips'+(full?' full':'')+'">'+steps.map(function(x){return '<i'+(x.done?' class="on"':'')+'></i>';}).join('')+'</div>'
+    +'<div class="ov-steps">'+steps.map(function(st){
+      return '<button type="button" class="ov-step'+(st.done?' done':'')+'" onclick="ovGo(\''+st.tab+'\',\''+st.mode+'\')">'
+        +'<span class="dt-mark">'+(st.done?'<i class="ti ti-check"></i>':'')+'</span>'
+        +'<span class="ov-step-t"><b>'+st.label+'</b><span>'+(st.done?(st.info||'Prêt'):'À faire')+'</span></span>'
+        +'<i class="ti ti-chevron-right"></i></button>';
+    }).join('')+'</div></section>';
+
+  /* Patch : chiffres clés et récap micros */
+  var chs=(typeof CHS!=='undefined'&&CHS)?CHS:[], mics={};
+  chs.forEach(function(c){ var m=String(c.mic||'').trim(); if(m) mics[m]=(mics[m]||0)+1; });
+  var micList=Object.keys(mics).sort(function(a,b){ return mics[b]-mics[a]||a.localeCompare(b); });
+  h+='<section class="ov-card"><div class="ov-card-hd"><h2>Patch</h2><button class="ov-link" onclick="navIL(\'in\')">Ouvrir</button></div>'
+    +'<div class="ov-stats"><div><b>'+chs.length+'</b><span>canaux</span></div><div><b>'+chs.filter(function(c){return c.phantom;}).length+'</b><span>en 48V</span></div><div><b>'+chs.filter(function(c){return c.mon;}).length+'</b><span>aux retours</span></div></div>'
+    +(!canDo('recap_matos')?'<button type="button" class="ov-none ov-upsell" onclick="showUpgradeModal(\'recap_matos\')"><i class="ti ti-clipboard-list"></i>Récapitulatif des micros et des pieds<span class="plan-badge-pill pro">Pro</span></button>'
+      :(micList.length?'<div class="ov-mics">'+micList.slice(0,8).map(function(m){ return '<span><b>'+_e(m)+'</b> ×'+mics[m]+'</span>'; }).join('')+(micList.length>8?'<span>+ '+(micList.length-8)+' autres</span>':'')+'</div>'
+                    :'<div class="ov-none">Renseignez les micros dans l\'input list pour obtenir le récapitulatif du matériel.</div>'))
+    +'</section>';
+
+  /* Riders envoyés */
+  var links=(typeof _proLinks!=='undefined'&&_lastLinksShowId===s.id)?_proLinks:null;
+  var SEC={il:'Input list',out:'Output list',syno:'Synoptique',stage:'Scène',site:'Site',cloud:'Fichiers',files:'Pièces jointes'};
+  h+='<section class="ov-card"><div class="ov-card-hd"><h2>Riders envoyés</h2><button class="ov-link" onclick="goTab(\'team\',null)">Gérer</button></div>';
+  if(links&&links.length){
+    h+=links.slice(0,4).map(function(l){
+      var url=_riderBase()+'?link='+(l.code||l.id);
+      return '<div class="ov-line"><span class="ov-line-t"><b>'+_e(l.name)+'</b><span>'+(l.sections||[]).map(function(k){return SEC[k]||k;}).join(' · ')+'</span></span>'
+        +'<button class="dt-ib" onclick="_copyProLink(\''+_jsq(url)+'\')" title="Copier le lien"><i class="ti ti-copy"></i></button></div>';
+    }).join('')+(links.length>4?'<div class="ov-none">+ '+(links.length-4)+' autres</div>':'');
+  } else if(_showHasLink(s)){
+    h+='<div class="ov-none">Un lien de partage est actif pour ce show.</div>';
+  } else {
+    h+='<div class="ov-none">Aucun lien pour l\'instant. Envoyez le rider au régisseur, au backline ou au groupe : ils l\'ouvrent sans compte.</div>';
+  }
+  h+='</section>';
+
+  /* Fichiers */
+  if(canDo('storage')){
+    var files=_ovCache.files;
+    h+='<section class="ov-card"><div class="ov-card-hd"><h2>Fichiers récents</h2><button class="ov-link" onclick="goTab(\'fichiers\',null)">Tout voir</button></div>';
+    if(files&&files.length){
+      h+=files.slice(0,4).map(function(f){
+        var ext=(String(f.name||'').split('.').pop()||'').slice(0,4).toUpperCase();
+        var ver=f.verified_at?'<span class="ov-ok"><i class="ti ti-rosette-discount-check"></i>Vérifié par '+_e(f.verified_by_name||'—')+'</span>':'<span>'+_fmtSize(f.size||0)+(f.created_at?' · '+new Date(f.created_at).toLocaleDateString('fr-FR'):'')+'</span>';
+        return '<div class="ov-line"><span class="ov-ext">'+_e(ext)+'</span><span class="ov-line-t"><b>'+_e(f.name)+'</b>'+ver+'</span></div>';
+      }).join('');
+    } else {
+      h+='<div class="ov-none">'+(files?'Aucun fichier. Déposez ici riders, show files et plans de salle.':'Chargement…')+'</div>';
+    }
+    h+='</section>';
+  }
+
+  /* Équipe */
+  h+='<section class="ov-card"><div class="ov-card-hd"><h2>Équipe</h2><button class="ov-link" onclick="goTab(\'team\',null)">'+(isOwn?'Inviter':'Voir')+'</button></div>'
+    +team.slice(0,6).map(function(m){ return '<div class="ov-line"><span class="dt-av" style="background:'+m.col.bg+';color:'+m.col.fg+'">'+_e(m.init)+'</span><span class="ov-line-t"><b>'+_e(m.name)+'</b><span>'+_e(m.role)+'</span></span></div>'; }).join('')
+    +(team.length>6?'<div class="ov-none">+ '+(team.length-6)+' autres</div>':'')
+    +'</section></div>';
+  root.innerHTML=h;
+}
+/* Données annexes de la vue d'ensemble (fichiers récents, liens) : chargées une fois par show */
+async function _ovLoad(){
+  var c=_ovCache, id=c.id;
+  if(!id) return;
+  var again=false;
+  if(c.files===null && canDo('storage') && !c._busyF){
+    c._busyF=true;
+    try{
+      var res=await sb.from('show_files').select('name,path,size,created_at,verified_at,verified_by_name').eq('show_id',id).eq('is_folder',false).order('created_at',{ascending:false}).limit(12);
+      if(_ovCache.id===id){
+        _ovCache.files=((res&&res.data)||[]).filter(function(f){ return !/(^|\/)node-icons\//.test(f.path||''); });
+        again=true;
+      }
+    }catch(e){ if(_ovCache.id===id) _ovCache.files=[]; again=true; }
+    c._busyF=false;
+  }
+  if(!c.linksAsked && canDo('multi_scenes') && typeof _loadLinksManager==='function' && _lastLinksShowId!==id){
+    c.linksAsked=true;
+    try{ await _loadLinksManager(); again=true; }catch(e){}
+  }
+  if(again && _ovCache.id===id && document.getElementById('panel-overview')?.classList.contains('on')) renderOverview();
 }
 
 // ══════════════════════════════════════
@@ -16985,10 +17210,8 @@ function goTab(id,el){
   });
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   document.getElementById('panel-'+id)?.classList.add('on');
-  // Desktop tabs
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
-  if(el) el.classList.add('on');
-  else document.querySelectorAll('.tab').forEach(t=>{if(t.getAttribute('onclick')?.includes("'"+id+"'"))t.classList.add('on');});
+  // Menu : l'entrée active dépend du panneau et du mode (input/output, scène/site)
+  if(typeof _navSync==='function') _navSync();
   // Bottom nav sync
   document.querySelectorAll('.bn-tab').forEach(b=>b.classList.remove('on'));
   const bn=document.getElementById('bn-'+id);if(bn)bn.classList.add('on');
@@ -17000,6 +17223,7 @@ function goTab(id,el){
     else { SynPro.show(); }
   }
   if(id==='sessions')renderSessions();
+  if(id==='overview')renderOverview();
   if(id==='stage'){
     SitePlan.init(); BandPlan.init();
     if(window.innerWidth<=768){ _showMobilePlanView(PLAN_MODE==='site'?'site':'stage'); }
@@ -17757,7 +17981,7 @@ function _refreshPlanBadge() {
 }
 document.addEventListener('click',e=>{
   if(!e.target.closest('.user-wrap'))closeUD();
-  if(!e.target.closest('.side-panel')&&!e.target.closest('.sp-trigger')&&document.getElementById('side-panel').classList.contains('show'))closeSP();
+  if(!e.target.closest('.side-panel')&&!e.target.closest('.sp-trigger')&&!e.target.closest('.nav-show-hd')&&document.getElementById('side-panel').classList.contains('show'))closeSP();
 });
 
 // ══════════════════════════════════════

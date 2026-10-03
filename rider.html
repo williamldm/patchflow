@@ -63,7 +63,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=3.36">
+<link rel="stylesheet" href="pf-app.css?v=3.42">
 </head>
 <body>
 
@@ -93,21 +93,37 @@ html.rider-boot #rider-splash{display:flex}
       </div>
       <div><div class="tb-logo-text">Patch<span>Flow</span></div><div class="tb-logo-sub">Live Patch</div></div>
     </div>
-    <span class="tb-show-name" id="tb-show-name">—</span>
-    <div class="tabs">
-      <div class="tab on" onclick="goTab('sessions',this)"><i class="ti ti-calendar-event"></i>Sessions</div>
-      <div class="tab" onclick="goTab('fichiers',this)"><i class="ti ti-cloud"></i>Fichiers</div>
-      <div class="tab" onclick="goTab('inputlist',this)"><i class="ti ti-list-numbers"></i>Input List</div>
-      <div class="tab" onclick="goTab('showfiles',this)"><i class="ti ti-device-floppy"></i>Show Files</div>
-      <div class="tab" onclick="goTab('synoptique',this)"><i class="ti ti-topology-star"></i>Synoptique</div>
-      <div class="tab" onclick="goTab('stage',this)"><i class="ti ti-map-2"></i>Plans</div>
-      <div class="tab" onclick="goTab('team',this)"><i class="ti ti-users"></i>Équipe</div>
+    <button type="button" class="nav-min-btn" onclick="toggleNavMin()" title="Réduire le menu" aria-label="Réduire ou déplier le menu"><i class="ti ti-layout-sidebar-left-collapse"></i></button>
+    <span class="tb-show-name" id="tb-show-name" onclick="if(CUR_SHOW)goTab('overview')">—</span>
+    <!-- Navigation : colonne de gauche sur ordinateur ; sur téléphone, la barre du bas la remplace -->
+    <div class="tabs" id="pf-nav">
+      <div class="tab on" data-tab="sessions" onclick="goTab('sessions',this)" title="Dates"><i class="ti ti-calendar-event"></i><span class="tab-l">Dates</span><span class="tab-n" id="nav-n-sessions"></span></div>
+      <div class="nav-folders" id="nav-folders"></div>
+      <div class="nav-show" id="nav-show" style="display:none">
+        <button type="button" class="nav-show-hd" onclick="toggleSP()" title="Changer de show">
+          <span class="nav-show-txt"><span class="nav-show-name" id="nav-show-name">—</span><span class="nav-show-meta" id="nav-show-meta"></span></span>
+          <i class="ti ti-selector"></i>
+        </button>
+        <div class="tab" data-tab="overview" onclick="goTab('overview',this)" title="Vue d'ensemble"><i class="ti ti-layout-dashboard"></i><span class="tab-l">Vue d'ensemble</span></div>
+        <div class="nav-sec">Patch</div>
+        <div class="tab" data-tab="inputlist" data-mode="in" onclick="navIL('in')" title="Input list"><i class="ti ti-list-numbers"></i><span class="tab-l">Input list</span><span class="tab-n" id="nav-n-in"></span></div>
+        <div class="tab" data-tab="inputlist" data-mode="out" onclick="navIL('out')" title="Output list"><i class="ti ti-arrow-bar-to-right"></i><span class="tab-l">Output list</span><span class="tab-n" id="nav-n-out"></span></div>
+        <div class="nav-sec">Plans</div>
+        <div class="tab" data-tab="stage" data-mode="scene" onclick="navPlan('scene')" title="Plan de scène"><i class="ti ti-layout-board"></i><span class="tab-l">Plan de scène</span></div>
+        <div class="tab" data-tab="stage" data-mode="site" onclick="navPlan('site')" title="Plan de site"><i class="ti ti-map-2"></i><span class="tab-l">Plan de site</span></div>
+        <div class="tab" data-tab="synoptique" onclick="goTab('synoptique',this)" title="Synoptique"><i class="ti ti-topology-star"></i><span class="tab-l">Synoptique</span></div>
+        <div class="nav-sec">Production</div>
+        <div class="tab" data-tab="fichiers" onclick="goTab('fichiers',this)" title="Fichiers"><i class="ti ti-cloud"></i><span class="tab-l">Fichiers</span><span class="tab-n" id="nav-n-files"></span></div>
+        <div class="tab" data-tab="showfiles" onclick="goTab('showfiles',this)" title="Exports console"><i class="ti ti-adjustments-alt"></i><span class="tab-l">Exports console</span></div>
+        <div class="tab" data-tab="team" onclick="goTab('team',this)" title="Partage et équipe"><i class="ti ti-link"></i><span class="tab-l">Partage &amp; équipe</span></div>
+      </div>
     </div>
     <div class="tb-right">
       <div class="rt-pip"><div class="rt-dot" id="rt-dot"></div><span id="rt-lbl" style="font-size:9px;font-family:var(--m)">—</span></div>
       <button class="sp-trigger" onclick="toggleSP()" style="position:relative">
         <i class="ti ti-layout-sidebar-right" style="font-size:14px;flex-shrink:0"></i>
         <span id="cur-show-name">—</span>
+        <span class="sp-trigger-lbl">Notifications</span>
         <i class="ti ti-chevron-down" style="font-size:11px;color:var(--muted);flex-shrink:0"></i>
         <span id="tb-notif-dot" class="tb-notif-dot" style="display:none"></span>
       </button>
@@ -141,28 +157,37 @@ html.rider-boot #rider-splash{display:flex}
 
   <div class="content">
 
-    <!-- SESSIONS -->
+    <!-- DATES (organisateur des sessions) -->
     <div class="panel on" id="panel-sessions">
-      <div class="pbar">
-        <span class="ptitle"><i class="ti ti-folders" style="color:var(--ora)"></i>Sessions</span>
-        <div class="sess-toolbar">
-          <div class="sess-search">
-            <i class="ti ti-search"></i>
-            <input id="sess-search-inp" placeholder="Rechercher un show…" oninput="renderSessions()" autocomplete="off"/>
+      <div class="dt-wrap">
+        <div class="dt-main">
+          <div class="dt-head">
+            <div class="dt-head-t">
+              <div class="dt-today" id="dt-today"></div>
+              <h1 class="dt-title">Dates</h1>
+            </div>
+            <div class="sess-toolbar">
+              <div class="sess-search">
+                <i class="ti ti-search"></i>
+                <input id="sess-search-inp" placeholder="Show, salle…" oninput="renderSessions()" autocomplete="off"/>
+              </div>
+              <button class="btn ghost" id="sess-trash-btn" onclick="openTrashModal()" title="Supprimés récemment" style="display:none"><i class="ti ti-trash"></i><span id="sess-trash-count" class="sess-trash-count" style="display:none"></span></button>
+              <button class="btn pri" onclick="newShow()"><i class="ti ti-plus"></i>Nouveau show</button>
+            </div>
           </div>
-          <select id="sess-sort" onchange="renderSessions()" title="Trier">
-            <option value="recent">Récents</option>
-            <option value="az">A → Z</option>
-            <option value="date">Date du show</option>
-          </select>
-          <button class="btn ghost" id="sess-trash-btn" onclick="openTrashModal()" title="Supprimés récemment" style="display:none"><i class="ti ti-trash"></i><span id="sess-trash-count" class="sess-trash-count" style="display:none"></span></button>
-          <button class="btn pri" onclick="newShow()"><i class="ti ti-plus"></i>Nouveau show</button>
+          <div class="dt-tabs" id="dt-tabs" role="tablist" aria-label="Filtrer les dates"></div>
+          <div id="sess-folder-bar" class="sess-folder-bar"></div>
+          <div id="sessions-grid" class="dt-list">
+            <div class="loading"><div class="spinner"></div>Chargement…</div>
+          </div>
         </div>
+        <aside class="dt-detail" id="dt-detail" aria-label="Show sélectionné"></aside>
       </div>
-      <div id="sess-folder-bar" class="sess-folder-bar"></div>
-      <div id="sessions-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px;padding:2px 0 4px">
-        <div class="loading" style="grid-column:1/-1"><div class="spinner"></div>Chargement…</div>
-      </div>
+    </div>
+
+    <!-- VUE D'ENSEMBLE DU SHOW -->
+    <div class="panel" id="panel-overview">
+      <div id="ov-root"></div>
     </div>
 
     <!-- INPUT LIST -->
@@ -808,7 +833,7 @@ html.rider-boot #rider-splash{display:flex}
   <nav class="bottom-nav">
     <div class="bottom-nav-inner">
       <button class="bn-tab on" id="bn-sessions" onclick="goTab('sessions',null)">
-        <i class="ti ti-calendar-event"></i><span>Sessions</span>
+        <i class="ti ti-calendar-event"></i><span>Dates</span>
       </button>
       <button class="bn-tab" id="bn-fichiers" onclick="goTab('fichiers',null)">
         <i class="ti ti-cloud"></i><span>Fichiers</span>
@@ -1543,7 +1568,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=3.53"></script>
+<script src="pf-app.js?v=3.61"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
   <div class="mob-plan-bar">
