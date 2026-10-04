@@ -1786,7 +1786,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 
   /* Menu réduit : icônes seules. Il se déplie au survol, par-dessus la page,
      et se range dès qu'on le quitte : la page garde toute sa largeur. */
-  .topbar{transition:width .24s ease,box-shadow .24s ease}
+  .topbar{transition:width .16s ease,box-shadow .16s ease}
   .pf-nav-min .topbar.nav-open{width:236px;margin-right:-176px;box-shadow:16px 0 40px rgba(0,0,0,.35)}
   .pf-nav-min .topbar:not(.nav-open){padding:14px 8px 10px}
   .pf-nav-min .topbar:not(.nav-open) .tb-logo{padding:4px 0 14px;justify-content:center}

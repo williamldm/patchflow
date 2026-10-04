@@ -14046,13 +14046,13 @@ function toggleNavMin(){
 }
 window.addEventListener('resize',_navAuto);
 _navAuto();
-/* Menu réduit : il se déplie dès qu'on le survole et ne se replie que ~0,6 s après avoir quitté la souris.
+/* Menu réduit : il se déplie dès qu'on le survole et ne se replie que ~0,2 s après avoir quitté la souris.
    Un clic sur une entrée le replie tout de suite ; il se redéplie quand on y revient. */
 (function(){
   var tb=document.querySelector('.topbar'), t=null; if(!tb) return;
   var mini=function(){ return window.innerWidth>=641 && document.documentElement.classList.contains('pf-nav-min'); };
   tb.addEventListener('mouseenter',function(){ if(!mini()) return; clearTimeout(t); tb.classList.add('nav-open'); });
-  tb.addEventListener('mouseleave',function(){ clearTimeout(t); t=setTimeout(function(){ tb.classList.remove('nav-open'); },600); });
+  tb.addEventListener('mouseleave',function(){ clearTimeout(t); t=setTimeout(function(){ tb.classList.remove('nav-open'); },200); });
   tb.addEventListener('click',function(e){
     if(!mini()||!e.target.closest('.tab,.nav-show-hd,.nav-folder')) return;
     clearTimeout(t); tb.classList.remove('nav-open');
