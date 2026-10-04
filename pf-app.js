@@ -14030,9 +14030,9 @@ function navFolder(id){ setSessFolderView(SESS_FOLDER_VIEW===id?'all':id); goTab
 function navDates(){ if(SESS_FOLDER_VIEW!=='all') setSessFolderView('all'); goTab('sessions',null); }
 /* Menu réduit (icônes seules) : choix mémorisé, forcé sur les écrans étroits */
 function _navAuto(){
-  /* Réduit par défaut (il se déplie au survol) ; « Garder le menu ouvert » l'épingle (pf_nav_min = 0) */
+  /* Réduit par défaut (il se déplie au survol) ; « Garder le menu ouvert » l'épingle (pf_nav_pin = 1) */
   var min=true;
-  try{ min=localStorage.getItem('pf_nav_min')!=='0'; }catch(e){}
+  try{ min=localStorage.getItem('pf_nav_pin')!=='1'; }catch(e){}
   var on=min || window.innerWidth<1100;
   document.documentElement.classList.toggle('pf-nav-min', on);
   var b=document.querySelector('.nav-min-btn');
@@ -14040,12 +14040,26 @@ function _navAuto(){
 }
 function toggleNavMin(){
   var cur=document.documentElement.classList.contains('pf-nav-min');
-  try{ localStorage.setItem('pf_nav_min',cur?'0':'1'); }catch(e){}
+  try{ localStorage.setItem('pf_nav_pin',cur?'1':'0'); }catch(e){}
   _navAuto();
   window.dispatchEvent(new Event('resize'));
 }
 window.addEventListener('resize',_navAuto);
 _navAuto();
+/* Après un clic dans le menu réduit, il se replie tout de suite (même si la souris est encore dessus) ;
+   il se redéplie dès que la souris en est sortie puis y revient. */
+document.addEventListener('click',function(e){
+  var tb=document.querySelector('.topbar');
+  if(!tb||!document.documentElement.classList.contains('pf-nav-min')) return;
+  if(!e.target.closest||!e.target.closest('.topbar .tab,.topbar .nav-show-hd,.topbar .nav-folder')) return;
+  if(window.innerWidth<641) return;
+  tb.classList.add('nav-shut');
+  var off=function(ev){
+    var r=tb.getBoundingClientRect();
+    if(ev.clientX>r.right+8||ev.clientX<r.left||ev.clientY<r.top||ev.clientY>r.bottom){ tb.classList.remove('nav-shut'); document.removeEventListener('mousemove',off); }
+  };
+  document.addEventListener('mousemove',off);
+},true);
 
 /* Bandeau de chiffres sous l'input list : canaux, 48V, retours, puis récap micros (Pro) */
 function _ilStats(){

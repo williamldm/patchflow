@@ -1797,6 +1797,8 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
   .pf-nav-min .topbar:not(:hover) :is(.rt-pip,.sp-trigger,.user-btn){justify-content:center;padding:0}
   .pf-nav-min .topbar:not(:hover) .tb-notif-dot{position:absolute!important;margin:0}
   .pf-nav-min .nav-min-btn{transform:scaleX(-1)}
+  .pf-nav-min .topbar.nav-shut{pointer-events:none}
+  .pf-nav-min .topbar.nav-shut:hover{width:var(--nav-w);margin-right:0;box-shadow:none}
   .panel{padding:26px 32px}
 }
 @media(min-width:641px) and (max-width:1099px){ .nav-min-btn{display:none!important} }
