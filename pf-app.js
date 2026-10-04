@@ -14030,8 +14030,9 @@ function navFolder(id){ setSessFolderView(SESS_FOLDER_VIEW===id?'all':id); goTab
 function navDates(){ if(SESS_FOLDER_VIEW!=='all') setSessFolderView('all'); goTab('sessions',null); }
 /* Menu réduit (icônes seules) : choix mémorisé, forcé sur les écrans étroits */
 function _navAuto(){
-  var min=false;
-  try{ min=localStorage.getItem('pf_nav_min')==='1'; }catch(e){}
+  /* Réduit par défaut (il se déplie au survol) ; « Garder le menu ouvert » l'épingle (pf_nav_min = 0) */
+  var min=true;
+  try{ min=localStorage.getItem('pf_nav_min')!=='0'; }catch(e){}
   var on=min || window.innerWidth<1100;
   document.documentElement.classList.toggle('pf-nav-min', on);
   var b=document.querySelector('.nav-min-btn');
