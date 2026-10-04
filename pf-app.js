@@ -14046,20 +14046,18 @@ function toggleNavMin(){
 }
 window.addEventListener('resize',_navAuto);
 _navAuto();
-/* Après un clic dans le menu réduit, il se replie tout de suite (même si la souris est encore dessus) ;
-   il se redéplie dès que la souris en est sortie puis y revient. */
-document.addEventListener('click',function(e){
-  var tb=document.querySelector('.topbar');
-  if(!tb||!document.documentElement.classList.contains('pf-nav-min')) return;
-  if(!e.target.closest||!e.target.closest('.topbar .tab,.topbar .nav-show-hd,.topbar .nav-folder')) return;
-  if(window.innerWidth<641) return;
-  tb.classList.add('nav-shut');
-  var off=function(ev){
-    var r=tb.getBoundingClientRect();
-    if(ev.clientX>r.right+8||ev.clientX<r.left||ev.clientY<r.top||ev.clientY>r.bottom){ tb.classList.remove('nav-shut'); document.removeEventListener('mousemove',off); }
-  };
-  document.addEventListener('mousemove',off);
-},true);
+/* Menu réduit : il se déplie dès qu'on le survole et ne se replie que ~0,6 s après avoir quitté la souris.
+   Un clic sur une entrée le replie tout de suite ; il se redéplie quand on y revient. */
+(function(){
+  var tb=document.querySelector('.topbar'), t=null; if(!tb) return;
+  var mini=function(){ return window.innerWidth>=641 && document.documentElement.classList.contains('pf-nav-min'); };
+  tb.addEventListener('mouseenter',function(){ if(!mini()) return; clearTimeout(t); tb.classList.add('nav-open'); });
+  tb.addEventListener('mouseleave',function(){ clearTimeout(t); t=setTimeout(function(){ tb.classList.remove('nav-open'); },600); });
+  tb.addEventListener('click',function(e){
+    if(!mini()||!e.target.closest('.tab,.nav-show-hd,.nav-folder')) return;
+    clearTimeout(t); tb.classList.remove('nav-open');
+  });
+})();
 
 /* Bandeau de chiffres sous l'input list : canaux, 48V, retours, puis récap micros (Pro) */
 function _ilStats(){

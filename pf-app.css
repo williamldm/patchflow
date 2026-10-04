@@ -1786,19 +1786,17 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 
   /* Menu réduit : icônes seules. Il se déplie au survol, par-dessus la page,
      et se range dès qu'on le quitte : la page garde toute sa largeur. */
-  .topbar{transition:width .16s ease,box-shadow .16s ease}
-  .pf-nav-min .topbar:hover{width:236px;margin-right:-176px;box-shadow:16px 0 40px rgba(0,0,0,.35)}
-  .pf-nav-min .topbar:not(:hover){padding:14px 8px 10px}
-  .pf-nav-min .topbar:not(:hover) .tb-logo{padding:4px 0 14px;justify-content:center}
-  .pf-nav-min .topbar:not(:hover) :is(.tb-logo>div:last-child,.tab-l,.tab-n,.nav-sec,.nav-folders,.nav-show-hd,.sp-trigger-lbl,.user-name,.user-btn>.ti-chevron-down,.rt-pip #rt-lbl){display:none}
-  .pf-nav-min .topbar:not(:hover) .tab{justify-content:center;padding:0;height:38px}
-  .pf-nav-min .topbar:not(:hover) .nav-show{margin-top:8px;padding-top:8px}
-  .pf-nav-min .topbar:not(:hover) .nav-min-btn{position:static;margin:0 auto 6px}
-  .pf-nav-min .topbar:not(:hover) :is(.rt-pip,.sp-trigger,.user-btn){justify-content:center;padding:0}
-  .pf-nav-min .topbar:not(:hover) .tb-notif-dot{position:absolute!important;margin:0}
+  .topbar{transition:width .24s ease,box-shadow .24s ease}
+  .pf-nav-min .topbar.nav-open{width:236px;margin-right:-176px;box-shadow:16px 0 40px rgba(0,0,0,.35)}
+  .pf-nav-min .topbar:not(.nav-open){padding:14px 8px 10px}
+  .pf-nav-min .topbar:not(.nav-open) .tb-logo{padding:4px 0 14px;justify-content:center}
+  .pf-nav-min .topbar:not(.nav-open) :is(.tb-logo>div:last-child,.tab-l,.tab-n,.nav-sec,.nav-folders,.nav-show-hd,.sp-trigger-lbl,.user-name,.user-btn>.ti-chevron-down,.rt-pip #rt-lbl){display:none}
+  .pf-nav-min .topbar:not(.nav-open) .tab{justify-content:center;padding:0;height:38px}
+  .pf-nav-min .topbar:not(.nav-open) .nav-show{margin-top:8px;padding-top:8px}
+  .pf-nav-min .topbar:not(.nav-open) .nav-min-btn{position:static;margin:0 auto 6px}
+  .pf-nav-min .topbar:not(.nav-open) :is(.rt-pip,.sp-trigger,.user-btn){justify-content:center;padding:0}
+  .pf-nav-min .topbar:not(.nav-open) .tb-notif-dot{position:absolute!important;margin:0}
   .pf-nav-min .nav-min-btn{transform:scaleX(-1)}
-  .pf-nav-min .topbar.nav-shut{pointer-events:none}
-  .pf-nav-min .topbar.nav-shut:hover{width:var(--nav-w);margin-right:0;box-shadow:none}
   .panel{padding:26px 32px}
 }
 @media(min-width:641px) and (max-width:1099px){ .nav-min-btn{display:none!important} }
