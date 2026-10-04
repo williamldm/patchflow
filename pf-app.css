@@ -1829,6 +1829,11 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 .dt-head .btn{min-height:38px;border-radius:9px;font-size:13.5px;padding:0 14px}
 .dt-tabs{display:flex;gap:24px;border-bottom:1px solid var(--bdr)}
 .dt-tabs:empty{display:none}
+.dt-sort{margin-left:auto;display:flex;align-items:center;gap:4px;align-self:center;flex-shrink:0}
+.dt-sort-b,.dt-sort-d{display:inline-flex;align-items:center;gap:6px;height:32px;border:0;border-radius:8px;background:transparent;color:var(--txt2);font:500 13px var(--f);cursor:pointer;white-space:nowrap}
+.dt-sort-b{padding:0 10px}.dt-sort-d{width:32px;justify-content:center}
+.dt-sort-b:hover,.dt-sort-d:hover{background:var(--surf2);color:var(--txt)}
+.dt-sort i{font-size:16px}
 .dt-tab{height:44px;padding:0;border:0;background:transparent;font:600 14px var(--f);color:var(--txt2);cursor:pointer;white-space:nowrap}
 .dt-tab:hover{color:var(--txt)}
 .dt-tab.on{color:var(--txt);box-shadow:inset 0 -2px 0 var(--ora)}
@@ -2061,6 +2066,7 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
   .dt-head{align-items:stretch}
   .dt-tabs{gap:18px;overflow-x:auto;scrollbar-width:none}
   .dt-tabs::-webkit-scrollbar{display:none}
+  .dt-sort{position:sticky;right:0;padding-left:10px;background:var(--bg)}
   .dt-row{flex-wrap:wrap;gap:6px 14px;padding:14px 12px;margin-top:8px;background:var(--surf);box-shadow:inset 0 0 0 1px var(--bdr);border-radius:14px}
   .dt-row.sel{background:var(--surf);box-shadow:inset 0 0 0 1px var(--bdr)}
   .dt-date{width:46px}

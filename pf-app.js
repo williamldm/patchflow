@@ -13746,13 +13746,25 @@ function renderSessions(){
   /* Dans une tournée : toutes ses dates, dans l'ordre (pas d'onglets) */
   var list=q ? SHOWS.filter(matches)
              : (inTour ? pool.slice() : pool.filter(function(s){ return SESS_TAB==='past'?isPast(s):(SESS_TAB==='shared'?isShared(s):!isPast(s)); }));
-  /* Chronologique : à venir du plus proche au plus lointain, passées de la plus récente à la plus ancienne ; sans date à la fin */
-  var desc=(SESS_TAB==='past'&&!q&&!inTour);
+  /* Tri choisi par l'utilisateur. Par date : à venir du plus proche au plus lointain, passées de la plus récente à la plus ancienne, sans date à la fin. */
+  var sortKey=SESS_SORT.key, desc=_sessSortDesc(), dir=desc?-1:1;
+  var txt=function(v){ return String(v||'').toLocaleLowerCase('fr'); };
+  var prepOf=function(s){ return _showSteps(s).filter(function(x){return x.done;}).length; };
   list.sort(function(a,b){
+    var c=0;
+    if(sortKey==='name') c=txt(a.name).localeCompare(txt(b.name),'fr',{numeric:true});
+    else if(sortKey==='venue'){
+      /* Sans lieu à la fin, quel que soit le sens */
+      if(!a.venue&&b.venue) return 1; if(a.venue&&!b.venue) return -1;
+      c=txt(a.venue).localeCompare(txt(b.venue),'fr',{numeric:true});
+    }
+    else if(sortKey==='prep') c=prepOf(a)-prepOf(b);
+    if(c) return c*dir;
     var ia=isoOf(a), ib=isoOf(b);
     if(!ia&&!ib) return String(b.created_at||b.id||'').localeCompare(String(a.created_at||a.id||''));
     if(!ia) return 1; if(!ib) return -1;
-    return desc?ib.localeCompare(ia):ia.localeCompare(ib);
+    /* Hors tri par date, les égalités restent dans l'ordre chronologique */
+    return (sortKey==='date'?dir:1)*ia.localeCompare(ib);
   });
 
   /* ── Onglets ── */
@@ -13760,7 +13772,9 @@ function renderSessions(){
     tabsEl.innerHTML=[['up','À venir'],['past','Passées'],['shared','Partagés avec moi']].map(function(t){
       var on=(SESS_TAB===t[0]&&!q);
       return '<button type="button" role="tab" aria-selected="'+(on?'true':'false')+'" class="dt-tab'+(on?' on':'')+'" onclick="setSessTab(\''+t[0]+'\')">'+t[1]+'<span class="dt-tab-n">'+counts[t[0]]+'</span></button>';
-    }).join('');
+    }).join('')
+      +'<span class="dt-sort"><button type="button" class="dt-sort-b" onclick="openSessSortMenu(this,event)" title="Choisir le tri"><i class="ti ti-arrows-sort"></i><span>'+_SESS_SORT_LBL[sortKey]+'</span></button>'
+      +'<button type="button" class="dt-sort-d" onclick="toggleSessSortDir()" title="'+(desc?'Ordre décroissant : cliquer pour inverser':'Ordre croissant : cliquer pour inverser')+'" aria-label="Inverser le tri"><i class="ti ti-'+(desc?'sort-descending':'sort-ascending')+'"></i></button></span>';
   }
 
   var ttl=document.querySelector('#panel-sessions .dt-title');
@@ -13829,6 +13843,10 @@ function renderSessions(){
         tout est à plat. ── */
   var html='';
   var monthGroups=function(arr){
+    if(sortKey!=='date'){
+      if(!arr.length) return '';
+      return '<section class="dt-group"><div class="dt-group-hd"><h2>'+(SESS_FOLDERS.length&&!q?'Hors dossier':_SESS_SORT_LBL[sortKey])+'</h2><span>'+arr.length+(arr.length>1?' sessions':' session')+'</span></div>'+arr.map(rowHtml).join('')+'</section>';
+    }
     var out='', curKey=null, buf='', bufN=0;
     var flush=function(){
       if(curKey===null) return;
@@ -13865,7 +13883,7 @@ function renderSessions(){
       +'</section>';
     });
     var loose=list.filter(function(s){ return !_sessFolderOf(s.id) || !_sessFolderById(_sessFolderOf(s.id)); });
-    if(SESS_FOLDERS.length && loose.length) html+='<div class="dt-loose-hd">Hors dossier</div>';
+    if(SESS_FOLDERS.length && loose.length && sortKey==='date') html+='<div class="dt-loose-hd">Hors dossier</div>';
     html+=monthGroups(loose);
   }
   grid.innerHTML=html;
@@ -13915,6 +13933,35 @@ var _sessOpen={};
 try{ _sessOpen=JSON.parse(localStorage.getItem('pf_sess_open')||'{}')||{}; }catch(e){ _sessOpen={}; }
 function _saveSessOpen(){ try{ localStorage.setItem('pf_sess_open',JSON.stringify(_sessOpen)); }catch(e){} }
 function toggleSessFolder(id){ _sessOpen[id]=(_sessOpen[id]===false); _saveSessOpen(); renderSessions(); }
+/* Tri de la liste : date (par défaut), nom, lieu ou préparation ; sens inversable. Mémorisé sur l'appareil. */
+var SESS_SORT={key:'date',dir:'auto'};
+try{ var _ss=JSON.parse(localStorage.getItem('pf_sess_sort')||'null'); if(_ss&&/^(date|name|venue|prep)$/.test(_ss.key)) SESS_SORT={key:_ss.key,dir:(_ss.dir==='asc'||_ss.dir==='desc')?_ss.dir:'auto'}; }catch(e){}
+var _SESS_SORT_LBL={date:'Date',name:'Nom',venue:'Lieu',prep:'Préparation'};
+function _saveSessSort(){ try{ localStorage.setItem('pf_sess_sort',JSON.stringify(SESS_SORT)); }catch(e){} }
+function _sessSortDesc(){
+  if(SESS_SORT.dir!=='auto') return SESS_SORT.dir==='desc';
+  /* Par défaut : date et nom croissants, préparation la plus avancée d'abord, passées de la plus récente à la plus ancienne */
+  if(SESS_SORT.key==='prep') return true;
+  return SESS_SORT.key==='date' && SESS_TAB==='past';
+}
+function setSessSort(k){ SESS_SORT.key=k; SESS_SORT.dir='auto'; _saveSessSort(); _closeSessMoveMenu(); renderSessions(); }
+function toggleSessSortDir(){ SESS_SORT.dir=_sessSortDesc()?'asc':'desc'; _saveSessSort(); renderSessions(); }
+function openSessSortMenu(btn,ev){
+  if(ev){ ev.stopPropagation(); ev.preventDefault(); }
+  if(document.getElementById('sess-move-menu')){ _closeSessMoveMenu(); return; }
+  var items='<div class="sess-mm-hd">Trier par</div>';
+  [['date','ti-calendar-event'],['name','ti-abc'],['venue','ti-map-pin'],['prep','ti-checklist']].forEach(function(o){
+    var on=SESS_SORT.key===o[0];
+    items+='<button class="sess-mm-item'+(on?' on':'')+'" onclick="setSessSort(\''+o[0]+'\')"><i class="ti '+o[1]+'"></i>'+_SESS_SORT_LBL[o[0]]+(on?'<i class="ti ti-check sess-mm-ck"></i>':'')+'</button>';
+  });
+  var menu=document.createElement('div');
+  menu.id='sess-move-menu'; menu.className='sess-move-menu'; menu.innerHTML=items;
+  document.body.appendChild(menu);
+  var r=btn.getBoundingClientRect(), mw=210;
+  menu.style.left=Math.max(10,Math.min(r.left,window.innerWidth-mw-10))+'px';
+  menu.style.top=(r.bottom+6)+'px';
+  setTimeout(function(){ document.addEventListener('click',_sessMoveMenuOutside,true); },0);
+}
 function setSessTab(t){ SESS_TAB=t; SESS_SEL_USER=false; var inp=document.getElementById('sess-search-inp'); if(inp&&inp.value){ inp.value=''; } renderSessions(); }
 /* Clic sur une ligne : la sélectionne (fiche de droite) ; sans fiche visible (écran étroit), ouvre le show. */
 function sessRowClick(id){
