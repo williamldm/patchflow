@@ -14054,7 +14054,7 @@ _navAuto();
   tb.addEventListener('mouseenter',function(){ if(!mini()) return; clearTimeout(t); tb.classList.add('nav-open'); });
   tb.addEventListener('mouseleave',function(){ clearTimeout(t); t=setTimeout(function(){ tb.classList.remove('nav-open'); },200); });
   tb.addEventListener('click',function(e){
-    if(!mini()||!e.target.closest('.tab,.nav-show-hd,.nav-folder')) return;
+    if(!mini()||!e.target.closest('.tab,.nav-show-hd,.nav-folder,.nf-trigger')) return;
     clearTimeout(t); tb.classList.remove('nav-open');
   });
 })();
@@ -14453,10 +14453,6 @@ function openSP(){
   document.getElementById('side-panel').classList.add('show');
   document.getElementById('sp-ov').classList.add('show');
   renderSPShows();
-  /* État loading pendant le refresh, puis rendu unique avec data fraîche */
-  var el=document.getElementById('sp-notif');
-  if(el) el.innerHTML='<div style="font-size:10px;color:var(--muted);padding:8px 2px;display:flex;align-items:center;gap:7px"><i class="ti ti-loader-2" style="animation:spin .7s linear infinite;font-size:13px"></i>Chargement…</div>';
-  refreshNotifications().then(loadNotifications);
 }
 function closeSP(){document.getElementById('side-panel').classList.remove('show');document.getElementById('sp-ov').classList.remove('show');closePrev();}
 /* Dates de show : enregistrées en ISO AAAA-MM-JJ (accepté par une colonne
@@ -14731,36 +14727,57 @@ function _updateNotifBadge(){
   if(cnt){ cnt.style.display=n>0?'inline-flex':'none'; cnt.textContent=String(n); }
 }
 
-/* Affiche les notifications dans le panneau latéral */
+/* Fenêtre des notifications : ouverte par la cloche du menu, à côté de lui (en haut de l'écran sur téléphone) */
+function _nfMsg(icon,txt,extra){ return '<div class="nf-empty"><i class="ti '+icon+'"></i><span>'+txt+'</span>'+(extra||'')+'</div>'; }
+function _nfOutside(e){ if(!e.target.closest('#nf-pop,#nf-btn')) closeNotifs(); }
+function _nfKey(e){ if(e.key==='Escape') closeNotifs(); }
+function _nfReload(){
+  var el=document.getElementById('sp-notif');
+  if(el&&!_PENDING_INVITES.length) el.innerHTML=_nfMsg('ti-loader-2 nf-spin','Chargement…');
+  refreshNotifications().then(loadNotifications);
+}
+function openNotifs(){
+  var p=document.getElementById('nf-pop'), b=document.getElementById('nf-btn'); if(!p) return;
+  try{ closeSP(); }catch(e){}
+  p.classList.add('show'); if(b) b.setAttribute('aria-expanded','true');
+  loadNotifications(); _nfReload();
+  setTimeout(function(){ document.addEventListener('click',_nfOutside,true); document.addEventListener('keydown',_nfKey); },0);
+}
+function closeNotifs(){
+  var p=document.getElementById('nf-pop'), b=document.getElementById('nf-btn');
+  if(p) p.classList.remove('show'); if(b) b.setAttribute('aria-expanded','false');
+  document.removeEventListener('click',_nfOutside,true); document.removeEventListener('keydown',_nfKey);
+}
+function toggleNotifs(ev){
+  if(ev) ev.stopPropagation();
+  var p=document.getElementById('nf-pop');
+  if(p&&p.classList.contains('show')) closeNotifs(); else openNotifs();
+}
 function loadNotifications(){
   var el=document.getElementById('sp-notif');
   if(!el)return;
   var _es=function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
   if(!_PENDING_INVITES.length){
-    if(_notifFetchError){
-      /* Le fetch a échoué et on n'a aucune invit en cache : ne pas mentir avec
-         « Aucune notification » → proposer de réessayer. */
-      el.innerHTML='<div style="font-size:10px;color:var(--muted);padding:8px 2px;display:flex;align-items:center;gap:7px;flex-wrap:wrap"><i class="ti ti-wifi-off" style="color:var(--warn);font-size:13px"></i>Impossible de charger les notifications.<button class="btn ghost sm" style="margin-left:auto" onclick="this.parentNode.innerHTML=\'\';refreshNotifications().then(loadNotifications)"><i class="ti ti-refresh"></i>Réessayer</button></div>';
-      return;
-    }
-    el.innerHTML='<div style="font-size:10px;color:var(--muted);padding:8px 2px;display:flex;align-items:center;gap:7px"><i class="ti ti-check" style="color:var(--grn);font-size:13px"></i>Aucune notification.</div>';
+    /* Le chargement a échoué et rien n'est en mémoire : ne pas afficher « à jour », proposer de réessayer */
+    if(_notifFetchError) el.innerHTML=_nfMsg('ti-wifi-off','Impossible de charger les notifications.','<button type="button" class="btn sm" onclick="_nfReload()">Réessayer</button>');
+    else el.innerHTML=_nfMsg('ti-bell-off','Vous êtes à jour.');
     return;
   }
   el.innerHTML=_PENDING_INVITES.map(function(inv){
     var showName=inv.show_name||'un show';
     var inviter=inv.inviter_name||'Un technicien';
-    var role=(window.ROLE_LABELS&&ROLE_LABELS[inv.role])||inv.role||'Membre';
-    return '<div class="sp-notif-card invite" data-inv="'+inv.id+'">'
-      +'<div class="sp-notif-top">'
-        +'<div class="sp-notif-ic"><i class="ti ti-user-plus"></i></div>'
-        +'<div class="sp-notif-txt">'
-          +'<div class="sp-notif-title">Invitation à rejoindre <strong>'+_es(showName)+'</strong></div>'
-          +'<div class="sp-notif-sub">'+_es(inviter)+' · rôle '+_es(role)+'</div>'
+    var role=(typeof ROLE_LABELS!=='undefined'&&ROLE_LABELS[inv.role])||inv.role||'Membre';
+    var ini=inviter.split(/\s+/).map(function(w){return w.charAt(0);}).join('').slice(0,2).toUpperCase();
+    var when=inv.created_at?_timeAgo(inv.created_at):'';
+    return '<div class="sp-notif-card nf-item" data-inv="'+_es(inv.id)+'">'
+      +'<span class="nf-av">'+_es(ini)+'</span>'
+      +'<div class="nf-body">'
+        +'<div class="nf-txt"><b>'+_es(inviter)+'</b> vous invite sur <b>'+_es(showName)+'</b></div>'
+        +'<div class="nf-meta">'+_es(role)+(when?' · '+_es(when):'')+'</div>'
+        +'<div class="sp-notif-acts nf-acts">'
+          +'<button type="button" class="btn pri sm" onclick="acceptShowInvite(\''+_jsq(inv.id)+'\')">Accepter</button>'
+          +'<button type="button" class="btn sm" onclick="declineShowInvite(\''+_jsq(inv.id)+'\')">Refuser</button>'
         +'</div>'
-      +'</div>'
-      +'<div class="sp-notif-acts">'
-        +'<button class="btn pri sm" onclick="acceptShowInvite(\''+_jsq(inv.id)+'\')"><i class="ti ti-check"></i>Accepter</button>'
-        +'<button class="btn-decline" onclick="declineShowInvite(\''+_jsq(inv.id)+'\')"><i class="ti ti-x"></i>Refuser</button>'
       +'</div>'
     +'</div>';
   }).join('');
@@ -14774,7 +14791,7 @@ async function acceptShowInvite(inviteId){
   window._acceptingInvite=true;
   /* Feedback immédiat sur le bouton cliqué */
   var card=document.querySelector('.sp-notif-card[data-inv="'+inviteId+'"]');
-  if(card){ var acts=card.querySelector('.sp-notif-acts'); if(acts) acts.innerHTML='<span style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px"><i class="ti ti-loader-2" style="animation:spin .7s linear infinite"></i>Acceptation…</span>'; }
+  if(card){ var acts=card.querySelector('.sp-notif-acts'); if(acts) acts.innerHTML='<span class="nf-wait"><i class="ti ti-loader-2 nf-spin"></i>Acceptation…</span>'; }
   var showName=inv.show_name||'le show';
   try{
     var {data,error}=await sb.rpc('accept_show_invite',{p_invite_id:inviteId});
@@ -14796,7 +14813,7 @@ async function acceptShowInvite(inviteId){
     var el=document.getElementById('sp-notif');
     if(el && !_PENDING_INVITES.length){
       var _es2=function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
-      el.innerHTML='<div style="font-size:11px;color:var(--grn);padding:9px 10px;display:flex;align-items:center;gap:8px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);border-radius:8px;line-height:1.4"><i class="ti ti-circle-check" style="font-size:15px;flex-shrink:0"></i><span>Vous avez rejoint <strong>'+_es2(showName)+'</strong>. Il apparaît dans « Mes shows ».</span></div>';
+      el.innerHTML='<div class="nf-empty ok"><i class="ti ti-circle-check"></i><span>Vous avez rejoint <b>'+_es2(showName)+'</b>. Il apparaît dans vos sessions.</span></div>';
     }else{
       loadNotifications();
     }

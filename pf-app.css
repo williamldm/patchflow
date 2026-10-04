@@ -1177,17 +1177,7 @@ select option{background:var(--surf);color:var(--txt)}
 .sp-div{height:1px;background:var(--bdr);margin:0 13px}
 /* Notifications */
 .tb-notif-dot{position:absolute;top:-6px;right:-6px;min-width:16px;height:16px;border-radius:var(--r3);background:var(--err);color:#fff;font-size:9px;font-weight:700;font-family:var(--m);display:flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid #0a0f1c;z-index:2}
-.sp-notif-count{font-size:9px;font-family:var(--m);font-weight:700;background:var(--err);color:#fff;min-width:16px;height:16px;border-radius:var(--r3);display:inline-flex;align-items:center;justify-content:center;padding:0 5px}
-.sp-notif-card{background:var(--surf2);border:1px solid var(--bdr2);border-radius:var(--r3);padding:11px 12px;margin-bottom:8px;position:relative;overflow:hidden}
-.sp-notif-card.invite{border-color:rgba(255,107,26,.25)}
-.sp-notif-card.invite::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--ora)}
-.sp-notif-top{display:flex;align-items:flex-start;gap:9px;margin-bottom:9px}
-.sp-notif-ic{width:30px;height:30px;border-radius:var(--r3);background:var(--ora-d);border:1px solid var(--ora-g);color:var(--ora);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
-.sp-notif-txt{flex:1;min-width:0}
-.sp-notif-title{font-size:12px;font-weight:600;color:var(--txt);line-height:1.3}
-.sp-notif-sub{font-size:10px;color:var(--muted);font-family:var(--m);margin-top:2px}
-.sp-notif-acts{display:flex;gap:6px}
-.sp-notif-acts .btn,.sp-notif-acts .btn-decline{flex:1;justify-content:center}
+.btn-decline{flex:1;justify-content:center}
 .btn-decline{background:var(--surf3);border:1px solid var(--bdr2);color:var(--muted);font-size:11px;font-weight:600;padding:7px;border-radius:var(--r2);cursor:pointer;font-family:var(--f);display:flex;align-items:center;justify-content:center;gap:5px;transition:all .15s}
 .btn-decline:hover{border-color:rgba(255,77,106,.3);color:var(--err)}
 /* show cards */
@@ -2085,4 +2075,34 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
   .ov-card{padding:18px 16px}
   .ov-steps{grid-template-columns:minmax(0,1fr)}
   .ptitle{font-size:17px}
+}
+
+/* ── Notifications : fenêtre sobre ouverte par la cloche ── */
+.nf-pop{position:fixed;z-index:170;top:calc(var(--tb-h) + 6px);left:8px;right:8px;max-height:min(520px,calc(100vh - var(--tb-h) - 90px));display:none;flex-direction:column;background:var(--surf);border-radius:12px;box-shadow:0 0 0 1px var(--bdr2),0 18px 48px rgba(0,0,0,.38);overflow:hidden}
+.nf-pop.show{display:flex}
+.nf-head{display:flex;align-items:center;gap:8px;height:46px;padding:0 8px 0 16px;border-bottom:1px solid var(--bdr);flex-shrink:0}
+.nf-title{font-size:14px;font-weight:650;letter-spacing:-.01em}
+.nf-count{font:500 12px var(--m);color:var(--muted)}
+.nf-x{margin-left:auto;width:30px;height:30px;border:0;border-radius:8px;background:transparent;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:15px}
+.nf-x:hover{background:var(--surf2);color:var(--txt)}
+.nf-list{overflow-y:auto;padding:6px}
+.nf-item{display:flex;gap:12px;padding:12px 10px}
+.nf-item+.nf-item{border-top:1px solid var(--bdr)}
+.nf-av{width:32px;height:32px;border-radius:50%;flex-shrink:0;background:var(--surf3);color:var(--txt2);font-size:11.5px;font-weight:650;display:flex;align-items:center;justify-content:center}
+.nf-body{flex:1;min-width:0}
+.nf-txt{font-size:13.5px;line-height:1.4;color:var(--txt2);overflow-wrap:anywhere}
+.nf-txt b{font-weight:600;color:var(--txt)}
+.nf-meta{margin-top:3px;font-size:12px;color:var(--muted)}
+.nf-acts{display:flex;gap:6px;margin-top:10px}
+.nf-wait{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
+.nf-spin{animation:spin .7s linear infinite}
+.nf-empty{display:flex;flex-direction:column;align-items:center;gap:8px;padding:30px 20px 32px;text-align:center;font-size:13px;line-height:1.45;color:var(--muted)}
+.nf-empty>i{font-size:22px;opacity:.7}
+.nf-empty.ok>i{color:var(--grn);opacity:1}
+.nf-empty b{color:var(--txt);font-weight:600}
+.nf-empty .btn{margin-top:4px}
+.nf-trigger[aria-expanded="true"]{background:var(--surf2);color:var(--txt)}
+@media(min-width:641px){
+  .sp-show-trigger{display:none}
+  .nf-pop{top:auto;right:auto;bottom:14px;left:calc(var(--nav-w) + 10px);width:340px;max-height:min(520px,calc(100vh - 28px))}
 }
