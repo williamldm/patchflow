@@ -63,7 +63,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=3.45">
+<link rel="stylesheet" href="pf-app.css?v=3.46">
 </head>
 <body>
 
@@ -97,7 +97,7 @@ html.rider-boot #rider-splash{display:flex}
     <span class="tb-show-name" id="tb-show-name" onclick="if(CUR_SHOW)goTab('overview')">—</span>
     <!-- Navigation : colonne de gauche sur ordinateur ; sur téléphone, la barre du bas la remplace -->
     <div class="tabs" id="pf-nav">
-      <div class="tab on" data-tab="sessions" onclick="navDates()" title="Dates"><i class="ti ti-calendar-event"></i><span class="tab-l">Dates</span><span class="tab-n" id="nav-n-sessions"></span></div>
+      <div class="tab on" data-tab="sessions" onclick="navDates()" title="Sessions"><i class="ti ti-calendar-event"></i><span class="tab-l">Sessions</span><span class="tab-n" id="nav-n-sessions"></span></div>
       <div class="nav-folders" id="nav-folders"></div>
       <div class="nav-show" id="nav-show" style="display:none">
         <button type="button" class="nav-show-hd" onclick="toggleSP()" title="Changer de show">
@@ -157,14 +157,14 @@ html.rider-boot #rider-splash{display:flex}
 
   <div class="content">
 
-    <!-- DATES (organisateur des sessions) -->
+    <!-- SESSIONS -->
     <div class="panel on" id="panel-sessions">
       <div class="dt-wrap">
         <div class="dt-main">
           <div class="dt-head">
             <div class="dt-head-t">
               <div class="dt-today" id="dt-today"></div>
-              <h1 class="dt-title">Dates</h1>
+              <h1 class="dt-title">Sessions</h1>
             </div>
             <div class="sess-toolbar">
               <div class="sess-search">
@@ -172,10 +172,11 @@ html.rider-boot #rider-splash{display:flex}
                 <input id="sess-search-inp" placeholder="Show, salle…" oninput="renderSessions()" autocomplete="off"/>
               </div>
               <button class="btn ghost" id="sess-trash-btn" onclick="openTrashModal()" title="Supprimés récemment" style="display:none"><i class="ti ti-trash"></i><span id="sess-trash-count" class="sess-trash-count" style="display:none"></span></button>
+              <button class="btn" onclick="createSessFolder()" title="Créer un dossier pour regrouper des sessions"><i class="ti ti-folder-plus"></i>Dossier</button>
               <button class="btn pri" onclick="newShow()"><i class="ti ti-plus"></i>Nouveau show</button>
             </div>
           </div>
-          <div class="dt-tabs" id="dt-tabs" role="tablist" aria-label="Filtrer les dates"></div>
+          <div class="dt-tabs" id="dt-tabs" role="tablist" aria-label="Filtrer les sessions"></div>
           <div id="sess-folder-bar" class="sess-folder-bar"></div>
           <div id="sessions-grid" class="dt-list">
             <div class="loading"><div class="spinner"></div>Chargement…</div>
@@ -846,7 +847,7 @@ html.rider-boot #rider-splash{display:flex}
   <nav class="bottom-nav">
     <div class="bottom-nav-inner">
       <button class="bn-tab on" id="bn-sessions" onclick="goTab('sessions',null)">
-        <i class="ti ti-calendar-event"></i><span>Dates</span>
+        <i class="ti ti-calendar-event"></i><span>Sessions</span>
       </button>
       <button class="bn-tab" id="bn-fichiers" onclick="goTab('fichiers',null)">
         <i class="ti ti-cloud"></i><span>Fichiers</span>
@@ -1581,7 +1582,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=3.65"></script>
+<script src="pf-app.js?v=3.66"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
   <div class="mob-plan-bar">

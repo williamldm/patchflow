@@ -13504,13 +13504,13 @@ function recolorSessFolder(id,color){
 function deleteSessFolder(id){
   var f=_sessFolderById(id); if(!f) return false;
   var n=_sessFolderCount(id);
-  if(!confirm('Supprimer la tournée « '+f.name+' » ?'+(n?'\n\nSes '+n+' date'+(n>1?'s':'')+' ne sont pas supprimées : elles restent dans « Dates ».':''))) return false;
+  if(!confirm('Supprimer le dossier « '+f.name+' » ?'+(n?'\n\nSes '+n+' session'+(n>1?'s':'')+' ne sont pas supprimées : elles reviennent dans la liste.':''))) return false;
   SESS_FOLDERS=SESS_FOLDERS.filter(function(x){return x.id!==id;});
   Object.keys(SESS_ASSIGN).forEach(function(sid){ if(SESS_ASSIGN[sid]===id) delete SESS_ASSIGN[sid]; });
   _saveSessFolders(); _saveSessAssign();
   if(SESS_FOLDER_VIEW===id){ SESS_FOLDER_VIEW='all'; _saveSessView(); }
   renderSessions();
-  toast('Tournée supprimée');
+  toast('Dossier supprimé');
   return true;
 }
 var _tourEdit=null; // { id|null, color }
@@ -13539,24 +13539,24 @@ function openTourModal(id, preselectShowId){
     return '<label class="tour-row"><input type="checkbox" class="cb" value="'+_e(sh.id)+'"'+(on?' checked':'')+'>'
       +'<span class="tour-row-d">'+(iso?_e(_isoToDate(iso).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'})):'Sans date')+'</span>'
       +'<span class="tour-row-n">'+_e(sh.name)+(sh.venue?'<span> · '+_e(sh.venue)+'</span>':'')+'</span>'
-      +(other?'<span class="tour-row-o" title="Cocher la déplace dans cette tournée"><span class="sess-fdot" style="background:'+other.color+'"></span>'+_e(other.name)+'</span>':'')
+      +(other?'<span class="tour-row-o" title="Cocher la déplace dans ce dossier"><span class="sess-fdot" style="background:'+other.color+'"></span>'+_e(other.name)+'</span>':'')
       +'</label>';
   }).join('');
   m.innerHTML='<div class="modal-box" style="width:500px">'
-    +'<div class="modal-head"><span class="modal-title">'+(f?'Modifier la tournée':'Nouvelle tournée')+'</span><button class="modal-close" onclick="closeTourModal()" aria-label="Fermer"><i class="ti ti-x"></i></button></div>'
+    +'<div class="modal-head"><span class="modal-title">'+(f?'Modifier le dossier':'Nouveau dossier')+'</span><button class="modal-close" onclick="closeTourModal()" aria-label="Fermer"><i class="ti ti-x"></i></button></div>'
     +'<form class="modal-body" id="tour-form" onsubmit="event.preventDefault();saveTourModal()" autocomplete="off">'
-      +'<label class="pdf-lbl" for="tour-name">Nom de la tournée</label>'
-      +'<input class="pdf-inp" id="tour-name" maxlength="40" required placeholder="ex : Hiver 2026" value="'+_e(f?f.name:'')+'" style="margin:5px 0 14px">'
+      +'<label class="pdf-lbl" for="tour-name">Nom du dossier</label>'
+      +'<input class="pdf-inp" id="tour-name" maxlength="40" required placeholder="ex : Tournée d\'hiver 2026, Archives…" value="'+_e(f?f.name:'')+'" style="margin:5px 0 14px">'
       +'<div class="pdf-lbl">Couleur</div>'
       +'<div class="tour-colors" id="tour-colors">'+_SESS_FOLDER_COLORS.map(function(c){ return '<button type="button" class="tour-color'+(c===_tourEdit.color?' on':'')+'" data-c="'+c+'" style="background:'+c+'" aria-label="Couleur '+c+'" onclick="_tourPickColor(this)"></button>'; }).join('')+'</div>'
-      +'<div class="pdf-lbl" style="margin-top:16px">Dates de la tournée</div>'
-      +(rows?'<div class="tour-list">'+rows+'</div>':'<div class="tour-none">Aucun show pour l\'instant. Vous pourrez y ajouter des dates plus tard.</div>')
-      +'<div class="tour-hint">Une date appartient à une seule tournée.'+(_toursServer===false?' Les tournées sont pour l\'instant enregistrées dans ce navigateur.':' Vos tournées vous suivent sur tous vos appareils.')+'</div>'
+      +'<div class="pdf-lbl" style="margin-top:16px">Sessions à ranger dans ce dossier</div>'
+      +(rows?'<div class="tour-list">'+rows+'</div>':'<div class="tour-none">Aucune session pour l\'instant. Vous pourrez en ranger ici plus tard.</div>')
+      +'<div class="tour-hint">Une session se range dans un seul dossier.'+(_toursServer===false?' Les dossiers sont pour l\'instant enregistrés dans ce navigateur.':' Vos dossiers vous suivent sur tous vos appareils.')+'</div>'
     +'</form>'
     +'<div class="modal-foot">'
       +(f?'<button class="btn danger" type="button" style="margin-right:auto" onclick="if(deleteSessFolder(\''+_jsq(f.id)+'\'))closeTourModal()"><i class="ti ti-trash"></i>Supprimer</button>':'')
       +'<button class="btn" type="button" onclick="closeTourModal()">Annuler</button>'
-      +'<button class="btn pri" type="submit" form="tour-form">'+(f?'Enregistrer':'Créer la tournée')+'</button>'
+      +'<button class="btn pri" type="submit" form="tour-form">'+(f?'Enregistrer':'Créer le dossier')+'</button>'
     +'</div></div>';
   m.classList.add('show');
   setTimeout(function(){ var n=document.getElementById('tour-name'); if(n){ n.focus(); if(!f) n.select(); } },60);
@@ -13569,7 +13569,7 @@ function _tourPickColor(btn){
 function saveTourModal(){
   if(!_tourEdit) return;
   var name=(document.getElementById('tour-name')?.value||'').trim().slice(0,40);
-  if(!name){ toast('Donnez un nom à la tournée.'); return; }
+  if(!name){ toast('Donnez un nom au dossier.'); return; }
   var f=_tourEdit.id?_sessFolderById(_tourEdit.id):null, created=!f;
   if(!f){ f={ id:'f_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5), name:name, color:_tourEdit.color }; SESS_FOLDERS.push(f); }
   f.name=name; f.color=_tourEdit.color;
@@ -13580,11 +13580,10 @@ function saveTourModal(){
     else if(SESS_ASSIGN[sh.id]===f.id) delete SESS_ASSIGN[sh.id];
   });
   _saveSessFolders(); _saveSessAssign();
-  SESS_FOLDER_VIEW=f.id; _saveSessView();
+  _sessOpen[f.id]=true; _saveSessOpen();
   closeTourModal();
-  if(typeof goTab==='function' && !document.getElementById('panel-sessions')?.classList.contains('on')) goTab('sessions',null);
-  else renderSessions();
-  toast(created?('Tournée « '+name+' » créée'):'Tournée enregistrée');
+  renderSessions();
+  toast(created?('Dossier « '+name+' » créé'):'Dossier enregistré');
 }
 function setSessFolderView(v){
   SESS_FOLDER_VIEW=v; _saveSessView(); _closeSessMoveMenu(); renderSessions();
@@ -13594,7 +13593,7 @@ function moveShowToFolder(showId,folderId){
   if(folderId){ SESS_ASSIGN[showId]=folderId; } else { delete SESS_ASSIGN[showId]; }
   _saveSessAssign(); _closeSessMoveMenu(); renderSessions();
   var f=folderId?_sessFolderById(folderId):null;
-  toast(f?('Ajouté à la tournée « '+f.name+' »'):'Retiré de la tournée');
+  toast(f?('Rangé dans « '+f.name+' »'):'Retiré du dossier');
 }
 
 /* Popover « Déplacer vers un dossier » ancré sur un bouton de carte. */
@@ -13613,12 +13612,12 @@ function openSessMoveMenu(showId,btn,ev){
   if(existing){ _closeSessMoveMenu(); return; }
   var cur=_sessFolderOf(showId);
   var _e=function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
-  var items='<div class="sess-mm-hd">Tournée de cette date</div>';
-  items+='<button class="sess-mm-item'+(!cur?' on':'')+'" onclick="moveShowToFolder(\''+_jsq(showId)+'\',\'\')"><i class="ti ti-minus"></i>Aucune tournée'+(!cur?'<i class="ti ti-check sess-mm-ck"></i>':'')+'</button>';
+  var items='<div class="sess-mm-hd">Ranger dans un dossier</div>';
+  items+='<button class="sess-mm-item'+(!cur?' on':'')+'" onclick="moveShowToFolder(\''+_jsq(showId)+'\',\'\')"><i class="ti ti-minus"></i>Aucun dossier'+(!cur?'<i class="ti ti-check sess-mm-ck"></i>':'')+'</button>';
   SESS_FOLDERS.forEach(function(f){
     items+='<button class="sess-mm-item'+(cur===f.id?' on':'')+'" onclick="moveShowToFolder(\''+_jsq(showId)+'\',\''+_jsq(f.id)+'\')"><span class="sess-fdot" style="background:'+f.color+'"></span>'+_e(f.name)+(cur===f.id?'<i class="ti ti-check sess-mm-ck"></i>':'')+'</button>';
   });
-  items+='<div class="sess-mm-sep"></div><button class="sess-mm-item" onclick="_closeSessMoveMenu();createSessFolder(\''+_jsq(showId)+'\')"><i class="ti ti-plus" style="color:var(--ora)"></i>Nouvelle tournée…</button>';
+  items+='<div class="sess-mm-sep"></div><button class="sess-mm-item" onclick="_closeSessMoveMenu();createSessFolder(\''+_jsq(showId)+'\')"><i class="ti ti-folder-plus" style="color:var(--ora)"></i>Nouveau dossier…</button>';
   var menu=document.createElement('div');
   menu.id='sess-move-menu'; menu.className='sess-move-menu'; menu.innerHTML=items;
   document.body.appendChild(menu);
@@ -13727,7 +13726,7 @@ function renderSessions(){
     if(fbar) fbar.innerHTML='';
     if(tabsEl) tabsEl.innerHTML='';
     if(detail) detail.innerHTML='';
-    grid.innerHTML='<div class="dt-empty"><i class="ti ti-calendar-plus"></i><div class="dt-empty-t">Aucune date pour l\'instant</div><div class="dt-empty-s">Créez votre premier show : son patch, ses plans et ses fichiers y seront rangés.</div><button class="btn pri" onclick="newShow()"><i class="ti ti-plus"></i>Créer un show</button></div>';
+    grid.innerHTML='<div class="dt-empty"><i class="ti ti-calendar-plus"></i><div class="dt-empty-t">Aucune session pour l\'instant</div><div class="dt-empty-s">Créez votre premier show : son patch, ses plans et ses fichiers y seront rangés.</div><button class="btn pri" onclick="newShow()"><i class="ti ti-plus"></i>Créer un show</button></div>';
     return;
   }
 
@@ -13738,8 +13737,8 @@ function renderSessions(){
   var isShared=function(s){ return s.owner_id!==ME?.id; };
   var matches=function(s){ return !q || String(s.name||'').toLowerCase().indexOf(q)>=0 || String(s.venue||'').toLowerCase().indexOf(q)>=0; };
   /* Tournée affichée (une tournée supprimée ailleurs, ou l'ancienne vue « sans dossier », revient à toutes les dates) */
-  var tour=(SESS_FOLDER_VIEW!=='all')?_sessFolderById(SESS_FOLDER_VIEW):null;
-  if(!tour && SESS_FOLDER_VIEW!=='all'){ SESS_FOLDER_VIEW='all'; _saveSessView(); }
+  var tour=null;
+  if(SESS_FOLDER_VIEW!=='all'){ SESS_FOLDER_VIEW='all'; _saveSessView(); }
   var inTour=!!tour && !q;
   var inFolder=function(s){ return !inTour || _sessFolderOf(s.id)===tour.id; };
   var pool=SHOWS.filter(inFolder);
@@ -13757,47 +13756,32 @@ function renderSessions(){
   });
 
   /* ── Onglets ── */
-  if(tabsEl&&inTour) tabsEl.innerHTML='';
-  else if(tabsEl){
+  if(tabsEl){
     tabsEl.innerHTML=[['up','À venir'],['past','Passées'],['shared','Partagés avec moi']].map(function(t){
       var on=(SESS_TAB===t[0]&&!q);
       return '<button type="button" role="tab" aria-selected="'+(on?'true':'false')+'" class="dt-tab'+(on?' on':'')+'" onclick="setSessTab(\''+t[0]+'\')">'+t[1]+'<span class="dt-tab-n">'+counts[t[0]]+'</span></button>';
     }).join('');
   }
 
-  /* ── Titre de la page : « Dates », ou la tournée affichée ── */
   var ttl=document.querySelector('#panel-sessions .dt-title');
-  if(inTour){
-    if(td) td.innerHTML='<button type="button" class="dt-back" onclick="navDates()"><i class="ti ti-arrow-left"></i>Toutes les dates</button>';
-    if(ttl) ttl.innerHTML='<span class="sess-fdot dt-title-dot" style="background:'+tour.color+'"></span>'+_e(tour.name);
-    if(fbar){
-      var dated=pool.map(isoOf).filter(Boolean).sort();
-      var fmt=function(i){ return _isoToDate(i).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}); };
-      var span=dated.length>1?(' · du '+fmt(dated[0])+' au '+fmt(dated[dated.length-1])):(dated.length===1?' · '+fmt(dated[0]):'');
-      fbar.innerHTML='<span class="dt-tour-meta">Tournée · '+pool.length+' date'+(pool.length>1?'s':'')+_e(span)+'</span>'
-        +'<button class="btn sm" onclick="openTourModal(\''+_jsq(tour.id)+'\')"><i class="ti ti-pencil"></i>Modifier la tournée</button>';
-    }
-  } else {
-    if(ttl) ttl.textContent='Dates';
-    if(fbar) fbar.innerHTML='';
-  }
+  if(ttl) ttl.textContent='Sessions';
+  if(fbar) fbar.innerHTML='';
 
   /* ── Liste vide ── */
-  if(!list.length){
+  if(!list.length && !(SESS_FOLDERS.length && SESS_TAB==='up' && !q)){
     if(detail) detail.innerHTML='';
     var msg;
     if(q) msg=['ti-search-off','Aucun show ne correspond à « '+_e(q)+' »',''];
-    else if(inTour) msg=['ti-route','Cette tournée n\'a pas encore de date','<button class="btn pri" onclick="openTourModal(\''+_jsq(tour.id)+'\')" style="margin:6px auto 0"><i class="ti ti-checklist"></i>Choisir les dates</button>'];
-    else if(SESS_TAB==='past') msg=['ti-calendar-check','Aucune date passée','Une fois la date jouée, le show se range ici avec son patch, ses plans et ses fichiers.'];
+    else if(SESS_TAB==='past') msg=['ti-calendar-check','Aucune session passée','Une fois la date jouée, la session se range ici avec son patch, ses plans et ses fichiers.'];
     else if(SESS_TAB==='shared') msg=['ti-users','Aucun show partagé avec vous','Les shows auxquels on vous invite apparaissent ici.'];
-    else msg=['ti-calendar-plus','Aucune date à venir','<button class="btn pri" onclick="newShow()" style="margin:6px auto 0"><i class="ti ti-plus"></i>Nouveau show</button>'];
+    else msg=['ti-calendar-plus','Aucune session à venir','<button class="btn pri" onclick="newShow()" style="margin:6px auto 0"><i class="ti ti-plus"></i>Nouveau show</button>'];
     grid.innerHTML='<div class="dt-empty"><i class="ti '+msg[0]+'"></i><div class="dt-empty-t">'+msg[1]+'</div><div class="dt-empty-s">'+msg[2]+'</div></div>';
     return;
   }
 
   /* ── Sélection (fiche de droite) ── */
   if(!SESS_SEL_USER || !SESS_SEL || !list.some(function(s){return s.id===SESS_SEL;})){
-    SESS_SEL=(CUR_SHOW&&list.some(function(s){return s.id===CUR_SHOW.id;}))?CUR_SHOW.id:list[0].id;
+    SESS_SEL=(CUR_SHOW&&list.some(function(s){return s.id===CUR_SHOW.id;}))?CUR_SHOW.id:(list[0]?list[0].id:null);
   }
 
   function avatars(team,max){
@@ -13829,7 +13813,7 @@ function renderSessions(){
       +'<div class="dt-info">'
         +'<div class="dt-name-row"><span class="dt-name">'+_e(s.name)+'</span>'
           +(isActive?'<span class="dt-tag live"><span class="on-dot"></span>Ouvert</span>':'')
-          +((fold&&!(inTour&&tour.id===fold.id))?'<span class="dt-tag"><span class="sess-fdot" style="background:'+fold.color+'"></span>'+_e(fold.name)+'</span>':'')
+          +((fold&&q)?'<span class="dt-tag"><span class="sess-fdot" style="background:'+fold.color+'"></span>'+_e(fold.name)+'</span>':'')
           +(isShared(s)?'<span class="dt-tag">Partagé avec vous</span>':'')
         +'</div>'
         +'<div class="dt-sub"><span>'+sub.join('</span><span>')+'</span></div>'
@@ -13840,20 +13824,50 @@ function renderSessions(){
     +'</div>';
   }
 
-  /* ── Liste groupée par mois ── */
-  var html='', curKey=null, buf='', bufN=0;
-  var flush=function(){
-    if(curKey===null) return;
-    html+='<section class="dt-group"><div class="dt-group-hd"><h2>'+_e(curKey)+'</h2><span>'+bufN+(bufN>1?' dates':' date')+'</span></div>'+buf+'</section>';
-    buf=''; bufN=0;
+  /* ── Dossiers : des blocs qu'on ouvre ou ferme, avec leurs sessions dedans.
+        Puis les sessions hors dossier, groupées par mois. Pendant une recherche,
+        tout est à plat. ── */
+  var html='';
+  var monthGroups=function(arr){
+    var out='', curKey=null, buf='', bufN=0;
+    var flush=function(){
+      if(curKey===null) return;
+      out+='<section class="dt-group"><div class="dt-group-hd"><h2>'+_e(curKey)+'</h2><span>'+bufN+(bufN>1?' sessions':' session')+'</span></div>'+buf+'</section>';
+      buf=''; bufN=0;
+    };
+    arr.forEach(function(s){
+      var iso=isoOf(s);
+      var key=iso?_cap(_isoToDate(iso).toLocaleDateString('fr-FR',{month:'long',year:'numeric'})):'Sans date';
+      if(key!==curKey){ flush(); curKey=key; }
+      buf+=rowHtml(s); bufN++;
+    });
+    flush();
+    return out;
   };
-  list.forEach(function(s){
-    var iso=isoOf(s);
-    var key=iso?_cap(_isoToDate(iso).toLocaleDateString('fr-FR',{month:'long',year:'numeric'})):'Sans date';
-    if(key!==curKey){ flush(); curKey=key; }
-    buf+=rowHtml(s); bufN++;
-  });
-  flush();
+  if(q){ html=monthGroups(list); }
+  else {
+    var inList={}; list.forEach(function(s){ inList[s.id]=1; });
+    SESS_FOLDERS.forEach(function(f){
+      var mine=list.filter(function(s){ return _sessFolderOf(s.id)===f.id; });
+      var total=_sessFolderCount(f.id);
+      /* Un dossier dont aucune session n'est dans l'onglet affiché reste visible (replié) dans « À venir » */
+      if(!mine.length && SESS_TAB!=='up') return;
+      var open=_sessOpen[f.id]!==false;
+      html+='<section class="dt-folder'+(open?' open':'')+'" ondragover="_sessChipDragOver(event)" ondragleave="_sessChipDragLeave(event)" ondrop="_sessChipDrop(event,\''+_jsq(f.id)+'\')">'
+        +'<div class="dt-folder-hd" role="button" tabindex="0" aria-expanded="'+(open?'true':'false')+'" onclick="toggleSessFolder(\''+_jsq(f.id)+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleSessFolder(\''+_jsq(f.id)+'\');}">'
+          +'<i class="ti ti-chevron-right dt-folder-chev"></i>'
+          +'<i class="ti ti-folder'+(open?'-open':'')+' dt-folder-ic" style="color:'+f.color+'"></i>'
+          +'<span class="dt-folder-n">'+_e(f.name)+'</span>'
+          +'<span class="dt-folder-c">'+mine.length+(mine.length>1?' sessions':' session')+(total>mine.length?' · '+(total-mine.length)+' dans les autres onglets':'')+'</span>'
+          +'<button type="button" class="dt-folder-b" onclick="event.stopPropagation();openTourModal(\''+_jsq(f.id)+'\')" title="Renommer, changer la couleur, choisir les sessions"><i class="ti ti-pencil"></i>Modifier</button>'
+        +'</div>'
+        +(open?'<div class="dt-folder-body">'+(mine.length?mine.map(rowHtml).join(''):'<div class="dt-folder-empty">Dossier vide. Glissez une session ici, ou cliquez « Modifier » pour en choisir.</div>')+'</div>':'')
+      +'</section>';
+    });
+    var loose=list.filter(function(s){ return !_sessFolderOf(s.id) || !_sessFolderById(_sessFolderOf(s.id)); });
+    if(SESS_FOLDERS.length && loose.length) html+='<div class="dt-loose-hd">Hors dossier</div>';
+    html+=monthGroups(loose);
+  }
   grid.innerHTML=html;
 
   /* ── Fiche du show sélectionné ── */
@@ -13869,7 +13883,7 @@ function renderSessions(){
       +'<h2 class="dt-dt-name">'+_e(s.name)+'</h2>'
       +'<div class="dt-dt-venue">'+(s.venue?_e(s.venue):'Lieu non renseigné')+'</div>'
       +'<button type="button" class="dt-tour-pick" onclick="openSessMoveMenu(\''+_jsq(s.id)+'\',this,event)">'
-        +(fold?'<span class="sess-fdot" style="background:'+fold.color+'"></span><span>Tournée · <b>'+_e(fold.name)+'</b></span>':'<i class="ti ti-plus"></i><span>Ajouter à une tournée</span>')
+        +(fold?'<i class="ti ti-folder" style="color:'+fold.color+'"></i><span>Dossier · <b>'+_e(fold.name)+'</b></span>':'<i class="ti ti-folder-plus"></i><span>Ranger dans un dossier</span>')
         +'<i class="ti ti-chevron-down"></i></button>'
       +'</div>';
     h+='<div class="dt-dt-actions">'
@@ -13896,6 +13910,11 @@ function renderSessions(){
   }
 }
 
+/* Dossiers ouverts ou fermés dans la liste (mémorisé sur l'appareil) */
+var _sessOpen={};
+try{ _sessOpen=JSON.parse(localStorage.getItem('pf_sess_open')||'{}')||{}; }catch(e){ _sessOpen={}; }
+function _saveSessOpen(){ try{ localStorage.setItem('pf_sess_open',JSON.stringify(_sessOpen)); }catch(e){} }
+function toggleSessFolder(id){ _sessOpen[id]=(_sessOpen[id]===false); _saveSessOpen(); renderSessions(); }
 function setSessTab(t){ SESS_TAB=t; SESS_SEL_USER=false; var inp=document.getElementById('sess-search-inp'); if(inp&&inp.value){ inp.value=''; } renderSessions(); }
 /* Clic sur une ligne : la sélectionne (fiche de droite) ; sans fiche visible (écran étroit), ouvre le show. */
 function sessRowClick(id){
@@ -13935,8 +13954,6 @@ function _navSync(){
       if(id==='inputlist') ok=(m===CUR_IL_MODE);
       else if(id==='stage') ok=(m===(PLAN_MODE==='site'?'site':'scene'));
     }
-    /* « Dates » cède la surbrillance à la tournée affichée */
-    if(ok && id==='sessions' && typeof SESS_FOLDER_VIEW!=='undefined' && SESS_FOLDER_VIEW!=='all') ok=false;
     t.classList.toggle('on',ok);
   });
   var set=function(elId,v){ var el=document.getElementById(elId); if(el) el.textContent=(v||v===0)?v:''; };
@@ -13954,19 +13971,7 @@ function _navSync(){
     set('nav-n-out',sm.outs||'');
     set('nav-n-files',SHOW_FILECOUNT_MAP[CUR_SHOW.id]||'');
   }
-  /* Tournées : rangées directement sous « Dates », sans rubrique à part */
-  var nf=document.getElementById('nav-folders');
-  if(nf){
-    _loadSessFolders();
-    var _e=function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
-    var h='';
-    SESS_FOLDERS.forEach(function(f){
-      h+='<div class="nav-folder'+((id==='sessions'&&SESS_FOLDER_VIEW===f.id)?' on':'')+'" role="button" tabindex="0" title="'+_e(f.name)+'" ondragover="_sessChipDragOver(event)" ondragleave="_sessChipDragLeave(event)" ondrop="_sessChipDrop(event,\''+_jsq(f.id)+'\')" onclick="navFolder(\''+_jsq(f.id)+'\')">'
-        +'<span class="sess-fdot" style="background:'+f.color+'"></span><span class="tab-l">'+_e(f.name)+'</span><span class="tab-n">'+_sessFolderCount(f.id)+'</span></div>';
-    });
-    h+='<button type="button" class="nav-folder nav-folder-add" onclick="createSessFolder()" title="Regrouper plusieurs dates dans une tournée"><i class="ti ti-plus"></i><span class="tab-l">Nouvelle tournée</span></button>';
-    nf.innerHTML=h;
-  }
+  var nf=document.getElementById('nav-folders'); if(nf) nf.innerHTML='';
   if(id==='overview') renderOverview();
 }
 var _navSyncT=null;
@@ -14025,7 +14030,7 @@ function renderOverview(){
   var root=document.getElementById('ov-root'); if(!root) return;
   var _e=function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
   if(!CUR_SHOW){
-    root.innerHTML='<div class="dt-empty"><i class="ti ti-calendar-event"></i><div class="dt-empty-t">Aucun show ouvert</div><div class="dt-empty-s">Choisissez une date pour voir sa préparation.</div><button class="btn pri" onclick="goTab(\'sessions\',null)">Voir les dates</button></div>';
+    root.innerHTML='<div class="dt-empty"><i class="ti ti-calendar-event"></i><div class="dt-empty-t">Aucun show ouvert</div><div class="dt-empty-s">Choisissez une session pour voir sa préparation.</div><button class="btn pri" onclick="goTab(\'sessions\',null)">Voir les sessions</button></div>';
     return;
   }
   var s=CUR_SHOW, iso=_showDateISO(s.show_date), d=iso?_isoToDate(iso):null;
