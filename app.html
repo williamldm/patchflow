@@ -60,7 +60,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=3.53">
+<link rel="stylesheet" href="pf-app.css?v=3.56">
 </head>
 <body>
 
@@ -287,14 +287,31 @@ html.rider-boot #rider-splash{display:flex}
 
     <!-- INPUT LIST -->
     <div class="panel" id="panel-inputlist">
-      <div class="pbar">
-        <span class="ptitle"><i class="ti ti-list-numbers" style="color:var(--ora)"></i><span id="il-pbar-title">Input List</span><span class="ptitle-sep">/</span><span id="sn-il" style="color:var(--txt2)">…</span></span>
+      <header class="il-head">
+        <div class="il-head-t">
+          <div class="il-eyebrow" id="sn-il">…</div>
+          <h1 class="il-title" id="il-pbar-title">Input list</h1>
+        </div>
+        <div class="plan-mode-bar il-mode" role="group" aria-label="Entrées ou sorties">
+          <button class="pmb on" id="pmb-il-in" onclick="setILMode('in')" title="Input list (entrées)">IN</button>
+          <button class="pmb" id="pmb-il-out" onclick="setILMode('out')" title="Output list (sorties)">OUT</button>
+        </div>
+        <div class="il-patch-tabs" id="il-patch-tabs"></div>
+        <span class="il-save" id="il-notice" title="Sauvegarde automatique : les membres voient les changements en temps réel"><i class="ti ti-cloud-check"></i><span>Enregistré</span></span>
+        <span class="il-save busy" id="il-saving" style="display:none"><i class="ti ti-loader-2"></i><span>Sauvegarde…</span></span>
+      </header>
+
+      <div class="pbar il-bar">
+        <label class="il-filter"><i class="ti ti-search"></i><input id="il-q" placeholder="Filtrer les canaux" oninput="_ilFilter()" autocomplete="off" aria-label="Filtrer la liste"/></label>
         <!-- Boutons spécifiques IN -->
         <span id="il-in-btns" style="display:contents">
-          <button class="btn pri" onclick="addRow()"><i class="ti ti-plus"></i>Canal</button>
-          <button class="btn mob-hide" onclick="openILAssist()"><i class="ti ti-wand"></i>Assistant</button>
+          <button class="btn ghost mob-hide" id="col-btn" onclick="toggleColPanel()"><i class="ti ti-columns"></i>Colonnes</button>
+          <button class="btn ghost" id="il-group-btn" onclick="toggleILGroup()" aria-pressed="true" title="Regrouper les canaux qui se suivent par source"><i class="ti ti-list-tree"></i>Grouper par source</button>
+          <span class="il-bar-sp"></span>
+          <button type="button" class="btn ghost sm" data-undo="il" onclick="undoSection('il')" title="Annuler (Ctrl/⌘+Z)" style="display:none"><i class="ti ti-arrow-back-up"></i></button>
+          <button class="btn ghost mob-hide" onclick="openILAssist()"><i class="ti ti-wand"></i>Assistant</button>
           <div class="tpl-dd-wrap" id="tpl-dd-wrap">
-            <button class="btn" onclick="toggleTplDd(event)"><i class="ti ti-template"></i>Template <i class="ti ti-chevron-down" style="font-size:10px;margin-left:1px"></i></button>
+            <button class="btn ghost" onclick="toggleTplDd(event)"><i class="ti ti-template"></i>Template <i class="ti ti-chevron-down" style="font-size:10px;margin-left:1px"></i></button>
             <div class="tpl-dd-menu" id="tpl-dd-menu">
               <div class="tpl-dd-mode">
                 <button id="tpl-mode-replace" class="active" onclick="setTplMode('replace')">Remplacer</button>
@@ -303,9 +320,6 @@ html.rider-boot #rider-splash{display:flex}
               <div class="tpl-dd-list" id="tpl-quick-list"></div>
             </div>
           </div>
-          <button type="button" class="btn ghost sm" data-undo="il" onclick="undoSection('il')" title="Annuler (Ctrl/⌘+Z)" style="display:none"><i class="ti ti-arrow-back-up"></i></button>
-          <button class="btn mob-hide" onclick="importCSVClick()"><i class="ti ti-upload"></i>Import CSV</button>
-          <button class="btn mob-hide" id="col-btn" onclick="toggleColPanel()"><i class="ti ti-columns"></i>Colonnes</button>
           <!-- Hidden file inputs -->
           <input type="file" id="csv-import-input" accept=".csv,.txt" style="display:none" onchange="importCSVLoad(this)">
           <input type="file" id="il-ai-file" accept=".pdf,.csv,.txt,.doc,.docx,image/png,image/jpeg,image/webp,image/gif,application/pdf,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="display:none" onchange="ilAiHandleFile(this)">
@@ -314,17 +328,16 @@ html.rider-boot #rider-splash{display:flex}
             <button class="btn ghost" id="il-more-btn" onclick="toggleExpMenu('il-more-menu','il-more-btn')"><i class="ti ti-dots"></i>Plus</button>
             <div class="exp-menu" id="il-more-menu">
               <button class="exp-item mob-only" onclick="openILAssist();closeExpMenu('il-more-menu')"><i class="ti ti-wand"></i>Assistant de saisie</button>
-              <button class="exp-item mob-only" onclick="importCSVClick();closeExpMenu('il-more-menu')"><i class="ti ti-upload"></i>Importer un CSV</button>
-              <button class="exp-item mob-only" onclick="closeExpMenu('il-more-menu');toggleColPanel()"><i class="ti ti-columns"></i>Colonnes affichées</button>
-              <div class="exp-sep mob-only"></div>
+              <button class="exp-item" onclick="importCSVClick();closeExpMenu('il-more-menu')"><i class="ti ti-upload"></i>Importer un CSV</button>
               <button class="exp-item" id="il-ai-btn" onclick="ilAiImport();closeExpMenu('il-more-menu')"><i class="ti ti-sparkles" style="color:var(--ora)"></i>Adapter une liste (IA)</button>
+              <button class="exp-item mob-only" onclick="closeExpMenu('il-more-menu');toggleColPanel()"><i class="ti ti-columns"></i>Colonnes affichées</button>
               <button class="exp-item" id="il-stageplan-btn" onclick="openStagePlanPicker();closeExpMenu('il-more-menu')"><i class="ti ti-map-2"></i>Plan de scène</button>
               <div class="exp-sep"></div>
               <button class="exp-item" style="color:var(--err)" onclick="clearAllRows();closeExpMenu('il-more-menu')"><i class="ti ti-trash"></i>Tout supprimer</button>
             </div>
           </div>
           <div class="exp-wrap">
-            <button class="btn sm" id="il-exp-btn" onclick="toggleExpMenu('il-exp-menu','il-exp-btn')"><i class="ti ti-file-export"></i>Exporter <i class="ti ti-chevron-down" style="font-size:10px;margin-left:2px"></i></button>
+            <button class="btn ghost" id="il-exp-btn" onclick="toggleExpMenu('il-exp-menu','il-exp-btn')"><i class="ti ti-file-export"></i>Exporter <i class="ti ti-chevron-down" style="font-size:10px;margin-left:2px"></i></button>
             <div class="exp-menu" id="il-exp-menu">
               <button class="exp-item" onclick="exportCSV();closeExpMenu('il-exp-menu')"><i class="ti ti-file-type-csv"></i>Input List CSV</button>
               <button class="exp-item" onclick="openPDFModal('in');closeExpMenu('il-exp-menu')"><i class="ti ti-file-type-pdf"></i>Input List PDF</button>
@@ -341,14 +354,29 @@ html.rider-boot #rider-splash{display:flex}
               <button class="exp-item" onclick="window.print();closeExpMenu('il-exp-menu')"><i class="ti ti-printer"></i>Imprimer</button>
             </div>
           </div>
+          <button class="btn pri" onclick="addRow()"><i class="ti ti-plus"></i>Canal</button>
         </span>
         <!-- Boutons spécifiques OUT -->
         <span id="il-out-btns" style="display:none">
+          <span class="il-bar-sp"></span>
+          <button class="btn ghost" onclick="openOLAssist()"><i class="ti ti-wand"></i>Assistant</button>
+          <div class="exp-wrap">
+            <button class="btn ghost" id="out-more-btn" onclick="toggleExpMenu('out-more-menu','out-more-btn')"><i class="ti ti-dots"></i>Plus</button>
+            <div class="exp-menu" id="out-more-menu">
+              <button class="exp-item" onclick="importOutCSVClick();closeExpMenu('out-more-menu')"><i class="ti ti-upload"></i>Importer un CSV</button>
+              <div class="exp-sep"></div>
+              <button class="exp-item" style="color:var(--err)" onclick="clearAllOutRows();closeExpMenu('out-more-menu')"><i class="ti ti-trash"></i>Tout supprimer</button>
+            </div>
+          </div>
+          <div class="exp-wrap">
+            <button class="btn ghost" id="out-exp-btn" onclick="toggleExpMenu('out-exp-menu','out-exp-btn')"><i class="ti ti-file-export"></i>Exporter <i class="ti ti-chevron-down" style="font-size:10px;margin-left:2px"></i></button>
+            <div class="exp-menu" id="out-exp-menu">
+              <button class="exp-item" onclick="exportOutCSV();closeExpMenu('out-exp-menu')"><i class="ti ti-file-type-csv"></i>Output List CSV</button>
+              <button class="exp-item" onclick="openPDFModal('out');closeExpMenu('out-exp-menu')"><i class="ti ti-file-type-pdf"></i>Output List PDF</button>
+              <button class="exp-item" onclick="quickPdfToFiles('out');closeExpMenu('out-exp-menu')"><i class="ti ti-cloud-upload"></i>Output List → Fichiers<span class="exp-pro">Pro</span></button>
+            </div>
+          </div>
           <button class="btn pri" onclick="addOutRow()"><i class="ti ti-plus"></i>Sortie</button>
-          <button class="btn" onclick="openOLAssist()"><i class="ti ti-wand"></i>Assistant</button>
-          <button class="btn" onclick="importOutCSVClick()"><i class="ti ti-upload"></i>Import CSV</button>
-          <button class="btn blu" onclick="exportOutCSV()"><i class="ti ti-download"></i>CSV</button>
-          <button class="btn danger" onclick="clearAllOutRows()"><i class="ti ti-trash"></i>Tout effacer</button>
         </span>
       </div>
 
@@ -398,15 +426,6 @@ html.rider-boot #rider-splash{display:flex}
           </div>
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-        <div class="il-patch-tabs" id="il-patch-tabs" style="margin-bottom:0;flex:1"></div>
-        <div class="plan-mode-bar" style="flex-shrink:0">
-          <button class="pmb on" id="pmb-il-in" onclick="setILMode('in')"><i class="ti ti-arrow-down-circle"></i> IN</button>
-          <button class="pmb" id="pmb-il-out" onclick="setILMode('out')"><i class="ti ti-arrow-up-circle"></i> OUT</button>
-        </div>
-      </div>
-      <div class="notice" id="il-notice"><i class="ti ti-info-circle"></i><span>Sauvegarde automatique · les membres voient les changements en temps réel.</span></div>
-      <div class="notice warn" id="il-saving" style="display:none"><i class="ti ti-cloud-upload"></i><span>Sauvegarde…</span></div>
 
       <!-- Table IN -->
       <div id="il-table-wrap">
@@ -461,6 +480,7 @@ html.rider-boot #rider-splash{display:flex}
         </div>
         <button class="add-row" onclick="addOutRow()"><i class="ti ti-plus"></i>Nouvelle sortie</button>
       </div>
+      <div class="il-nores" id="il-nores" style="display:none"><i class="ti ti-search-off"></i>Rien ne correspond à ce filtre.</div>
     </div>
 
     <!-- SHOW FILES -->
@@ -1684,7 +1704,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=3.73"></script>
+<script src="pf-app.js?v=3.74"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
   <div class="mob-plan-bar">

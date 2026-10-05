@@ -1314,7 +1314,7 @@ async function loadChs(){
   if(typeof SectionUndo!=='undefined') SectionUndo.reset('il', CHS);
 }
 function setILBody(html,wrap){
-  document.getElementById('il-body').innerHTML=wrap?`<tr><td colspan="13">${html}</td></tr>`:html;
+  document.getElementById('il-body').innerHTML=wrap?`<tr class="il-msg"><td colspan="99">${html}</td></tr>`:html;
 }
 
 async function addRow(){
@@ -1517,13 +1517,15 @@ function setILMode(mode) {
   var outWrap = document.getElementById('out-table-wrap');
   var colPnl  = document.getElementById('col-panel');
   if(inBtns)  inBtns.style.display  = isIn ? 'contents' : 'none';
-  if(outBtns) outBtns.style.display = isIn ? 'none' : 'inline-flex';
-  if(outBtns && !isIn) { outBtns.style.gap='6px'; outBtns.style.alignItems='center'; }
+  if(outBtns) outBtns.style.display = isIn ? 'none' : 'contents';
   if(inWrap)  inWrap.style.display  = isIn ? '' : 'none';
   if(outWrap) outWrap.style.display = isIn ? 'none' : '';
   if(colPnl && !isIn)  colPnl.style.display = 'none';
   var titleEl = document.getElementById('il-pbar-title');
-  if(titleEl) titleEl.textContent = isIn ? 'Input List' : 'Output List';
+  if(titleEl) titleEl.textContent = isIn ? 'Input list' : 'Output list';
+  var fq = document.getElementById('il-q');
+  if(fq){ fq.value=''; fq.placeholder = isIn ? 'Filtrer les canaux' : 'Filtrer les sorties'; }
+  if(isIn && typeof _ilFilter==='function') _ilFilter();
   if(!isIn) { loadOutData(); renderOutTable(); }
   if(typeof _navSync==='function') _navSync();
 }
@@ -1573,7 +1575,8 @@ function renderOutTable() {
   var body = document.getElementById('out-body');
   if(!body) return;
   if(OUT_CHS.length === 0){
-    body.innerHTML = '<tr><td colspan="8"><div class="loading" style="color:var(--muted);padding:28px 20px"><i class="ti ti-inbox" style="font-size:22px;margin-right:8px"></i>Aucune sortie — cliquez "+ Sortie" ou utilisez l\'Assistant</div></td></tr>';
+    body.innerHTML = '<tr class="il-msg"><td colspan="8"><div class="il-empty"><i class="ti ti-arrow-bar-to-right"></i><div class="il-empty-t">Aucune sortie pour l\'instant</div><div class="il-empty-s">Retours, in-ears, sides, matrices : listez ce qui sort de la console.</div><div class="il-empty-a"><button class="btn pri" onclick="addOutRow()"><i class="ti ti-plus"></i>Ajouter une sortie</button><button class="btn" onclick="openOLAssist()"><i class="ti ti-wand"></i>Assistant</button></div></div></td></tr>';
+    _outStats(); _ilFilter();
     return;
   }
   var selOpts = Object.keys(OUT_TYPES).map(function(k){
@@ -1588,16 +1591,32 @@ function renderOutTable() {
       +'<td class="ch-num">'+r.ch+'</td>'
       +'<td data-label="Court"><input class="ilinp sh" maxlength="8" value="'+_oh(r.short_name||'')+'" onchange="updateOutField(\''+_jsq(r.id)+'\',\'short_name\',this.value.toUpperCase().slice(0,8))"/></td>'
       +'<td data-label="Nom long"><input class="ilinp" style="min-width:100px" value="'+_oh(r.long_name||'')+'" onchange="updateOutField(\''+_jsq(r.id)+'\',\'long_name\',this.value)"/></td>'
-      +'<td data-label="Type"><select class="out-type-sel" style="color:'+t.color+'" onchange="updateOutField(\''+_jsq(r.id)+'\',\'type\',this.value)">'+opts+'</select></td>'
+      +'<td data-label="Type"><span class="out-type"><i style="background:'+t.color+'"></i><select class="out-type-sel" onchange="updateOutField(\''+_jsq(r.id)+'\',\'type\',this.value)">'+opts+'</select></span></td>'
       +'<td data-label="Destination"><input class="ilinp" value="'+_oh(r.dest||'')+'" onchange="updateOutField(\''+_jsq(r.id)+'\',\'dest\',this.value)" placeholder="Ampli, zone, room..."/></td>'
       +'<td data-label="Fréq. HF"><input class="ilinp m" style="color:var(--grn);width:74px" value="'+_oh(r.hf||'')+'" onchange="updateOutField(\''+_jsq(r.id)+'\',\'hf\',this.value)" placeholder="MHz"/></td>'
       +'<td data-label="Note"><input class="ilinp" value="'+_oh(r.note||'')+'" onchange="updateOutField(\''+_jsq(r.id)+'\',\'note\',this.value)"/></td>'
       +'<td class="il-actions-cell" style="white-space:nowrap">'
-      +'<button class="move-btn" onclick="moveOutRow(\''+_jsq(r.id)+'\',-1)"'+(i===0?' disabled':'')+' ><i class="ti ti-chevron-up"></i></button>'
-      +'<button class="move-btn" onclick="moveOutRow(\''+_jsq(r.id)+'\',1)"'+(i===OUT_CHS.length-1?' disabled':'')+' ><i class="ti ti-chevron-down"></i></button>'
-      +'<button class="del-btn" onclick="deleteOutRow(\''+_jsq(r.id)+'\')"><i class="ti ti-trash"></i></button>'
+      +'<button class="move-btn" onclick="moveOutRow(\''+_jsq(r.id)+'\',-1)"'+(i===0?' disabled':'')+' title="Monter"><i class="ti ti-chevron-up"></i></button>'
+      +'<button class="move-btn" onclick="moveOutRow(\''+_jsq(r.id)+'\',1)"'+(i===OUT_CHS.length-1?' disabled':'')+' title="Descendre"><i class="ti ti-chevron-down"></i></button>'
+      +'<button class="del-btn" onclick="deleteOutRow(\''+_jsq(r.id)+'\')" title="Supprimer la sortie"><i class="ti ti-trash"></i></button>'
       +'</td></tr>';
   }).join('');
+  _outStats(); _ilFilter();
+}
+/* Bandeau de chiffres sous l'output list : nombre de sorties, puis répartition par type */
+function _outStats(){
+  var wrap=document.getElementById('out-table-wrap'); if(!wrap) return;
+  var el=document.getElementById('out-stats');
+  if(!el){ el=document.createElement('div'); el.id='out-stats'; el.className='il-stats'; wrap.appendChild(el); }
+  if(!OUT_CHS.length){ el.style.display='none'; return; }
+  el.style.display='';
+  var by={};
+  OUT_CHS.forEach(function(r){ var k=OUT_TYPES[r.type]?r.type:'other'; by[k]=(by[k]||0)+1; });
+  var h='<span><b>'+OUT_CHS.length+'</b> '+(OUT_CHS.length>1?'sorties':'sortie')+'</span><span class="il-stats-sep"></span>';
+  Object.keys(OUT_TYPES).forEach(function(k){
+    if(by[k]) h+='<span class="il-stats-t"><i style="background:'+OUT_TYPES[k].color+'"></i><b>'+by[k]+'</b> '+OUT_TYPES[k].label+'</span>';
+  });
+  el.innerHTML=h;
 }
 
 function addOutRow() {
@@ -2259,12 +2278,12 @@ const _IL_CELL_RENDERERS={
   src:    r=>`<td data-col="src" data-label="Source"><input class="ilinp" style="color:var(--txt2)" value="${_oh(r.source||'')}" onchange="scheduleSave('${_jsq(r.id)}','source',this.value)"/></td>`,
   mic:    r=>`<td data-col="mic" data-label="Micro/DI"><input class="ilinp m" value="${_oh(r.mic||'')}" onchange="scheduleSave('${_jsq(r.id)}','mic',this.value)"/></td>`,
   gain:   r=>`<td data-col="gain" data-label="Gain"><input class="ilinp m" type="number" style="width:42px" value="${r.gain||0}" min="-60" max="60" step="1" onchange="scheduleSave('${_jsq(r.id)}','gain',parseInt(this.value)||0)"/></td>`,
-  phantom:r=>`<td data-col="phantom" data-label="+48V" style="text-align:center"><input type="checkbox" class="cb" ${r.phantom?'checked':''} onchange="scheduleSave('${_jsq(r.id)}','phantom',this.checked)"/></td>`,
+  phantom:r=>`<td data-col="phantom" data-label="+48V" style="text-align:center"><label class="il-tog" title="Alimentation fantôme +48V"><input type="checkbox" class="cb" ${r.phantom?'checked':''} onchange="scheduleSave('${_jsq(r.id)}','phantom',this.checked)"/><span>48V</span></label></td>`,
   iem:    r=>`<td data-col="iem" data-label="IEM"><input class="ilinp m" style="color:var(--grn);width:46px" value="${_oh(r.iem_group||'')}" onchange="scheduleSave('${_jsq(r.id)}','iem_group',this.value)" placeholder="GR1"/></td>`,
   hf:     r=>`<td data-col="hf" data-label="Fréq. HF"><input class="ilinp m" style="color:var(--accent2,#9b6aff);width:74px" value="${_oh((r.custom_data&&r.custom_data._hf)||'')}" onchange="saveCustomCell('${_jsq(r.id)}','_hf',this.value)" placeholder="MHz"/></td>`,
-  foh:    r=>`<td data-col="foh" data-label="FOH" style="text-align:center"><input type="checkbox" class="cb blu" ${r.foh?'checked':''} onchange="scheduleSave('${_jsq(r.id)}','foh',this.checked)"/></td>`,
-  mon:    r=>`<td data-col="mon" data-label="MON" style="text-align:center"><input type="checkbox" class="cb warn" ${r.mon?'checked':''} onchange="scheduleSave('${_jsq(r.id)}','mon',this.checked)"/></td>`,
-  bc:     r=>`<td data-col="bc" data-label="BC" style="text-align:center"><input type="checkbox" class="cb grn" ${r.bc?'checked':''} onchange="scheduleSave('${_jsq(r.id)}','bc',this.checked)"/></td>`,
+  foh:    r=>`<td data-col="foh" data-label="FOH" style="text-align:center"><label class="il-dot blu" title="Envoyé en façade"><input type="checkbox" class="cb blu" ${r.foh?'checked':''} onchange="scheduleSave('${_jsq(r.id)}','foh',this.checked)"/><span></span></label></td>`,
+  mon:    r=>`<td data-col="mon" data-label="MON" style="text-align:center"><label class="il-dot warn" title="Envoyé aux retours"><input type="checkbox" class="cb warn" ${r.mon?'checked':''} onchange="scheduleSave('${_jsq(r.id)}','mon',this.checked)"/><span></span></label></td>`,
+  bc:     r=>`<td data-col="bc" data-label="BC" style="text-align:center"><label class="il-dot grn" title="Envoyé au broadcast"><input type="checkbox" class="cb grn" ${r.bc?'checked':''} onchange="scheduleSave('${_jsq(r.id)}','bc',this.checked)"/><span></span></label></td>`,
   note:   r=>`<td data-col="note" data-label="Note"><input class="ilinp" list="il-note-list" style="color:var(--txt2)" value="${_oh(r.note||'')}" placeholder="—" onchange="scheduleSave('${_jsq(r.id)}','note',_expandNoteAbbr(this))" onblur="_expandNoteAbbr(this)"/></td>`,
 };
 const _IL_COL_LABELS={short:'Court',long:'Nom long',src:'Source',mic:'Micro/DI',gain:'Gain',phantom:'+48V',iem:'IEM',hf:'Fréq. HF',foh:'FOH',mon:'MON',bc:'BC',note:'Note'};
@@ -2280,7 +2299,7 @@ function _renderColHead(){
     html+='<th class="il-col-th" draggable="true" data-col="'+id+'" title="Glisser pour réordonner la colonne">'+
           '<span class="il-col-th-in"><i class="ti ti-grip-vertical il-col-grip"></i>'+_oh(label)+'</span></th>';
   });
-  html+='<th style="width:64px"></th>';
+  html+='<th class="il-th-act"></th>';
   head.innerHTML=html;
   _initColHeadDnd();
 }
@@ -2331,26 +2350,90 @@ function _initColHeadDnd(){
     head.querySelectorAll('.dragging,.drag-over').forEach(function(c2){c2.classList.remove('dragging','drag-over');});
   });
 }
+/* ── Groupes par source ──
+   Les canaux gardent l'ordre du patch : un groupe = une suite de canaux voisins qui ont la même source.
+   Si les sources alternent trop (plus d'un groupe pour deux canaux), on n'affiche pas d'en-têtes. */
+var IL_GROUP=true;
+try{ IL_GROUP=localStorage.getItem('pf_il_group')!=='0'; }catch(e){}
+var _IL_GRP_COLORS=['#ff8a47','#5fb4ff','#3ccf91','#b48bff','#f2b84b','#ff7d93','#2ad6c0','#9aa4b5'];
+function _ilRuns(){
+  if(!IL_GROUP||!CHS.length) return null;
+  var runs={}, cur=null, count=0, any=false, seen={}, k=0;
+  CHS.forEach(function(r,i){
+    var name=String(r.source||'').trim();
+    if(name) any=true;
+    if(!cur||cur.key!==name.toLowerCase()){
+      var key=name.toLowerCase();
+      if(!(key in seen)) seen[key]=_IL_GRP_COLORS[(k++)%_IL_GRP_COLORS.length];
+      cur={key:key,name:name||'Sans source',n:0,color:name?seen[key]:'var(--muted2)'};
+      runs[i]=cur; count++;
+    }
+    cur.n++;
+  });
+  if(!any||count>Math.ceil(CHS.length/2)) return null;
+  return runs;
+}
+function _ilGroupBtn(){
+  var b=document.getElementById('il-group-btn'); if(!b) return;
+  b.classList.toggle('on',IL_GROUP); b.setAttribute('aria-pressed',IL_GROUP?'true':'false');
+}
+function toggleILGroup(){
+  IL_GROUP=!IL_GROUP;
+  try{ localStorage.setItem('pf_il_group',IL_GROUP?'1':'0'); }catch(e){}
+  renderTable();
+  if(IL_GROUP&&CHS.length&&!_ilRuns()) toast('Renseignez la colonne Source : les canaux qui se suivent avec la même source sont regroupés.');
+}
+/* Filtre d'affichage (ne change ni l'ordre ni les données) : canaux en IN, sorties en OUT */
+function _ilFilter(){
+  var q=(document.getElementById('il-q')?.value||'').trim().toLowerCase();
+  var isIn=(typeof CUR_IL_MODE==='undefined'||CUR_IL_MODE!=='out');
+  var body=document.getElementById(isIn?'il-body':'out-body'), nores=document.getElementById('il-nores');
+  if(!body) return;
+  var shown=0, total=0, grp=null, grpShown=0;
+  var closeGrp=function(){ if(grp) grp.style.display=(q&&!grpShown)?'none':''; };
+  Array.prototype.forEach.call(body.rows,function(tr){
+    if(tr.classList.contains('il-grp')){ closeGrp(); grp=tr; grpShown=0; return; }
+    var id=isIn?tr.dataset.rid:tr.dataset.outid; if(!id) return;
+    total++;
+    var ok=true;
+    if(q){
+      var r=(isIn?CHS:OUT_CHS).find(function(x){return String(x.id)===id;})||{};
+      var hay=isIn?[r.ch,r.short_name,r.long_name,r.source,r.mic,r.iem_group,r.note]
+                  :[r.ch,r.short_name,r.long_name,(OUT_TYPES[r.type]||{}).label,r.dest,r.hf,r.note];
+      ok=hay.join(' ').toLowerCase().indexOf(q)>=0;
+    }
+    tr.style.display=ok?'':'none';
+    if(ok){ shown++; grpShown++; }
+  });
+  closeGrp();
+  if(nores) nores.style.display=(q&&total&&!shown)?'flex':'none';
+}
 function renderTable(){
   if(typeof _navSyncSoon==='function') _navSyncSoon();
   if(typeof _ilStats==='function') setTimeout(_ilStats,0);
   if(typeof SectionUndo!=='undefined') SectionUndo.record('il', function(){ return CHS; });
   initDragDrop();
   _renderColHead();
-  if(CHS.length===0){setILBody('<div class="loading" style="color:var(--muted)"><i class="ti ti-inbox" style="font-size:20px"></i>Aucun canal — clique sur "+ Canal" pour commencer</div>',true);}
+  if(CHS.length===0){
+    setILBody('<div class="il-empty"><i class="ti ti-list-numbers"></i><div class="il-empty-t">Aucun canal pour l\'instant</div><div class="il-empty-s">Ajoutez vos canaux un par un, ou partez d\'une base toute prête.</div><div class="il-empty-a"><button class="btn pri" onclick="addRow()"><i class="ti ti-plus"></i>Ajouter un canal</button><button class="btn" onclick="openILAssist()"><i class="ti ti-wand"></i>Assistant</button></div></div>',true);
+  }
   else{
-    document.getElementById('il-body').innerHTML=CHS.map(r=>`
+    var cols=_orderedColIds();
+    var runs=_ilRuns();
+    document.getElementById('il-body').innerHTML=CHS.map((r,i)=>(runs&&runs[i]?`
+    <tr class="il-grp"><td colspan="99"><div class="il-grp-in"><span class="il-grp-sw" style="background:${runs[i].color}"></span><span class="il-grp-n">${_oh(runs[i].name)}</span><span class="il-grp-c">${runs[i].n}</span></div></td></tr>`:'')+`
     <tr data-rid="${r.id}" draggable="true">
       <td class="ch-num">${r.ch}</td>
-      ${_orderedColIds().map(function(id){return _ilCellFor(id,r);}).join('')}
+      ${cols.map(function(id){return _ilCellFor(id,r);}).join('')}
       <td class="il-actions-cell" style="white-space:nowrap">
-        <i class="ti ti-grip-vertical drag-handle"></i>
-        <button class="move-btn" onclick="moveRow('${_jsq(r.id)}',-1)" ${r.ch===1?'disabled':''}><i class="ti ti-chevron-up"></i></button>
-        <button class="move-btn" onclick="moveRow('${_jsq(r.id)}',1)" ${r.ch===CHS.length?'disabled':''}><i class="ti ti-chevron-down"></i></button>
-        <button class="del-btn" onclick="delRow('${_jsq(r.id)}')"><i class="ti ti-trash"></i></button>
+        <i class="ti ti-grip-vertical drag-handle" title="Glisser pour déplacer"></i>
+        <button class="move-btn" onclick="moveRow('${_jsq(r.id)}',-1)" ${r.ch===1?'disabled':''} title="Monter"><i class="ti ti-chevron-up"></i></button>
+        <button class="move-btn" onclick="moveRow('${_jsq(r.id)}',1)" ${r.ch===CHS.length?'disabled':''} title="Descendre"><i class="ti ti-chevron-down"></i></button>
+        <button class="del-btn" onclick="delRow('${_jsq(r.id)}')" title="Supprimer le canal"><i class="ti ti-trash"></i></button>
       </td>
     </tr>`).join('');
   }
+  _ilGroupBtn(); _ilFilter();
   applyColVis();renderPills();updateStats();
   _saveChsSnapshot();
 }

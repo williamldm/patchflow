@@ -2133,3 +2133,158 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
   .side-panel{left:calc(var(--nav-w) + 10px);right:auto;top:96px;width:340px;max-height:min(560px,calc(100vh - 110px))}
   .sw-search input{font-size:13.5px}
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   INPUT LIST / OUTPUT LIST — nouvelle présentation
+   En-tête de page, barre d'outils unique, tableau à plat (filets
+   horizontaux), groupes par source, pied de chiffres.
+   ══════════════════════════════════════════════════════════════════ */
+#panel-inputlist .il-head{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+#panel-inputlist .il-head-t{min-width:0;margin-right:4px}
+#panel-inputlist .il-eyebrow{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46vw}
+#panel-inputlist .il-title{margin:3px 0 0;font-size:26px;font-weight:700;letter-spacing:-.03em;line-height:1.1;white-space:nowrap}
+/* Bascule IN / OUT et patchs : même contrôle segmenté */
+#panel-inputlist .il-mode,#panel-inputlist .il-patch-tabs{display:flex;align-items:center;gap:2px;padding:3px;margin:0;border:0;border-radius:9px;background:var(--surf);box-shadow:inset 0 0 0 1px var(--bdr);flex-wrap:nowrap;flex-shrink:0}
+#panel-inputlist .il-patch-tabs{flex:0 1 auto;min-width:0;overflow-x:auto;scrollbar-width:none}
+#panel-inputlist .il-patch-tabs::-webkit-scrollbar{display:none}
+#panel-inputlist .il-patch-tabs:empty{display:none}
+#panel-inputlist .il-mode .pmb,#panel-inputlist .il-ptab{height:28px;padding:0 12px;border:0;border-radius:7px;background:transparent;color:var(--txt2);font:500 13px var(--f);white-space:nowrap;flex-shrink:0;transition:background .12s,color .12s}
+#panel-inputlist .il-mode .pmb{font-weight:600;letter-spacing:.02em}
+#panel-inputlist .il-mode .pmb:hover,#panel-inputlist .il-ptab:hover{color:var(--txt)}
+#panel-inputlist .il-mode .pmb.on,#panel-inputlist .il-ptab.active{background:var(--surf3);color:var(--txt);font-weight:600}
+#panel-inputlist .il-ptab-dup,#panel-inputlist .il-ptab-del{color:var(--muted);opacity:1;padding:0 0 0 4px}
+#panel-inputlist .il-ptab-dup:hover{color:var(--txt)}
+#panel-inputlist .il-ptab-del:hover{color:var(--err)}
+#panel-inputlist .il-ptab:not(.active) :is(.il-ptab-dup,.il-ptab-del){display:none}
+#panel-inputlist .il-ptab-add{width:28px;height:28px;border:0;border-radius:7px;color:var(--muted);font-size:17px;flex-shrink:0}
+#panel-inputlist .il-ptab-add:hover{background:var(--surf2);color:var(--txt)}
+/* État de sauvegarde, discret, à droite */
+#panel-inputlist .il-save{margin-left:auto;display:flex;align-items:center;gap:6px;height:34px;font-size:12.5px;color:var(--muted);white-space:nowrap}
+#panel-inputlist .il-save i{font-size:16px;color:var(--grn)}
+#panel-inputlist .il-save.busy i{color:var(--warn);animation:spin .7s linear infinite}
+
+/* Barre d'outils */
+#panel-inputlist .il-bar{gap:4px;margin-bottom:0;padding-bottom:12px;border-bottom:1px solid var(--bdr);min-height:0}
+#panel-inputlist .il-filter{display:flex;align-items:center;gap:8px;width:240px;height:34px;padding:0 11px;margin-right:4px;border-radius:8px;background:var(--surf);box-shadow:inset 0 0 0 1px var(--bdr);color:var(--muted);flex-shrink:0}
+#panel-inputlist .il-filter:focus-within{box-shadow:inset 0 0 0 1px var(--bdr3)}
+#panel-inputlist .il-filter i{font-size:15px}
+#panel-inputlist .il-filter input{flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--txt);font:400 13px var(--f)}
+#panel-inputlist .il-bar-sp{flex:1}
+#panel-inputlist #col-panel{margin:12px 0 0!important}
+@media(min-width:641px){
+  #panel-inputlist .il-bar .btn{min-height:34px;height:34px;font-size:13px;border-radius:8px}
+  #panel-inputlist .il-bar .btn:not(.pri){padding:0 10px;background:transparent;border-color:transparent;color:var(--txt2)}
+  #panel-inputlist .il-bar .btn:not(.pri):hover{background:var(--surf2);color:var(--txt)}
+  #panel-inputlist .il-bar .btn:not(.pri)>i:first-child{color:var(--muted)}
+  #panel-inputlist .il-bar .btn.pri{padding:0 14px;margin-left:6px;font-weight:650}
+  #panel-inputlist .il-bar .btn.on{color:var(--txt)}
+  #panel-inputlist .il-bar .btn.on>i:first-child{color:var(--ora)}
+}
+
+/* Tableau */
+#panel-inputlist .table-wrap{border:0;border-radius:0}
+#panel-inputlist .iltable{font-size:13.5px;min-width:820px}
+#panel-inputlist .iltable th{height:40px;padding:0 10px;background:var(--bg);border:0;border-bottom:1px solid var(--bdr);color:var(--muted);font:650 11.5px var(--f);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+#panel-inputlist .iltable th:first-child{text-align:center}
+#panel-inputlist .iltable th.il-th-act{width:104px}
+#panel-inputlist .iltable td{height:44px;padding:0 6px;border:0;border-bottom:1px solid var(--bdr)}
+#panel-inputlist .iltable tbody tr:hover td{background:var(--surf)}
+#panel-inputlist .iltable tbody tr.flash td{background:rgba(34,214,160,.08)}
+#panel-inputlist .iltable tr:last-child td{border-bottom:1px solid var(--bdr)}
+#panel-inputlist .ch-num{min-width:46px;padding:0 8px;font-weight:600;letter-spacing:-.02em}
+#panel-inputlist .out-tbl .ch-num{font-size:14px;color:var(--muted)}
+#panel-inputlist .ilinp{height:32px;padding:0 6px;border-radius:6px;font-size:13.5px;color:var(--txt2);transition:background .12s,box-shadow .12s}
+#panel-inputlist .ilinp:hover{background:var(--surf2)}
+#panel-inputlist .ilinp:focus{background:var(--surf2);box-shadow:inset 0 0 0 1px var(--bdr3);color:var(--txt)}
+#panel-inputlist .ilinp.m{font-size:12.5px}
+#panel-inputlist .ilinp.sh{font-size:13.5px;font-weight:600;letter-spacing:.02em;color:var(--txt)}
+#panel-inputlist td[data-col="long"] .ilinp,#panel-inputlist .out-tbl td[data-label="Nom long"] .ilinp{color:var(--txt)}
+#panel-inputlist .ilinp::placeholder{color:var(--muted2)}
+/* 48V : pastille ; FOH / MON / BC : point plein ou vide */
+#panel-inputlist :is(.il-tog,.il-dot){position:relative;display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:32px;cursor:pointer;vertical-align:middle}
+#panel-inputlist :is(.il-tog,.il-dot) input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+#panel-inputlist .il-tog span{display:inline-flex;align-items:center;height:22px;padding:0 7px;border-radius:6px;font:600 11px var(--m);color:var(--muted2);opacity:.55;transition:all .12s}
+#panel-inputlist .iltable tr:hover .il-tog span{opacity:1;box-shadow:inset 0 0 0 1px var(--bdr2)}
+#panel-inputlist .il-tog:hover span{color:var(--txt2);box-shadow:inset 0 0 0 1px var(--bdr3)}
+#panel-inputlist .il-tog input:checked+span,#panel-inputlist .iltable tr:hover .il-tog input:checked+span{opacity:1;background:var(--ora-d);color:var(--ora);box-shadow:inset 0 0 0 1px var(--ora-g)}
+#panel-inputlist .il-dot span{width:12px;height:12px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--bdr3);transition:all .12s}
+#panel-inputlist .il-dot:hover span{box-shadow:inset 0 0 0 1.5px var(--muted)}
+#panel-inputlist .il-dot input:checked+span{background:var(--txt);box-shadow:none}
+#panel-inputlist .il-dot.blu input:checked+span{background:var(--blu2)}
+#panel-inputlist .il-dot.warn input:checked+span{background:var(--warn)}
+#panel-inputlist .il-dot.grn input:checked+span{background:var(--grn)}
+#panel-inputlist :is(.il-tog,.il-dot) input:focus-visible+span{outline:2px solid var(--ora);outline-offset:2px}
+#panel-inputlist .il-col-grip{opacity:0}
+#panel-inputlist .il-col-th:hover .il-col-grip{opacity:1;color:var(--txt2)}
+/* En-tête de groupe */
+#panel-inputlist .iltable tr.il-grp td{height:auto;padding:16px 8px 8px;background:transparent!important;border-bottom:1px solid var(--bdr2)}
+#panel-inputlist .il-grp-in{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:650;color:var(--txt)}
+#panel-inputlist .il-grp-sw{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+#panel-inputlist .il-grp-c{font:500 12px var(--m);color:var(--muted)}
+/* Actions de ligne : visibles au survol (toujours visibles au doigt) */
+#panel-inputlist .il-actions-cell{text-align:right;padding-right:4px}
+#panel-inputlist :is(.move-btn,.del-btn){width:26px;height:26px;padding:0;border-radius:6px;font-size:14px;display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;color:var(--muted)}
+#panel-inputlist .drag-handle{font-size:15px;color:var(--muted)}
+@media(hover:hover){
+  #panel-inputlist .il-actions-cell>*{opacity:0;transition:opacity .12s}
+  #panel-inputlist .iltable tr:is(:hover,:focus-within) .il-actions-cell>*{opacity:1}
+  #panel-inputlist .iltable tr:is(:hover,:focus-within) .move-btn:disabled{opacity:.2}
+}
+/* Type de sortie : point de couleur + liste */
+#panel-inputlist .out-type{display:flex;align-items:center;gap:8px;height:32px;padding:0 4px 0 8px;border-radius:6px}
+#panel-inputlist .out-type:hover,#panel-inputlist .out-type:focus-within{background:var(--surf2)}
+#panel-inputlist .out-type>i{width:8px;height:8px;border-radius:50%;flex-shrink:0;box-shadow:0 0 0 1px var(--bdr2)}
+#panel-inputlist .out-type-sel{flex:1;min-width:0;height:32px;padding:0;border:0;background:transparent;color:var(--txt2);font:500 13px var(--f)}
+/* Ligne d'ajout, messages, pied de chiffres */
+#panel-inputlist .add-row{width:auto;height:40px;padding:0 10px;border:0;border-radius:8px;margin-top:4px;justify-content:flex-start;gap:8px;font-size:13px;color:var(--muted)}
+#panel-inputlist .add-row:hover{background:var(--surf2);color:var(--txt)}
+#panel-inputlist .iltable tr.il-msg td{height:auto;border-bottom:0;background:transparent!important}
+#panel-inputlist tbody:has(.il-msg)~*,#panel-inputlist .table-wrap:has(.il-msg)+.add-row{display:none}
+#panel-inputlist .table-wrap:has(.il-msg) thead{display:none}
+.il-empty{display:flex;flex-direction:column;align-items:center;gap:6px;padding:64px 20px;text-align:center;color:var(--muted)}
+.il-empty>i{font-size:30px;opacity:.6;margin-bottom:6px}
+.il-empty-t{font-size:16px;font-weight:650;color:var(--txt)}
+.il-empty-s{font-size:13.5px;max-width:380px;line-height:1.5}
+.il-empty-a{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;justify-content:center}
+.il-nores{align-items:center;justify-content:center;gap:8px;padding:36px 20px;font-size:13.5px;color:var(--muted)}
+.il-nores i{font-size:18px}
+#panel-inputlist .il-stats{margin-top:8px;padding:12px 8px;border-radius:0;background:var(--bg);box-shadow:none;border-top:1px solid var(--bdr)}
+.il-stats-t{display:inline-flex;align-items:center;gap:6px}
+.il-stats-t>i{width:8px;height:8px;border-radius:50%;box-shadow:0 0 0 1px var(--bdr2)}
+@media(min-width:641px){
+  #panel-inputlist .il-stats{position:sticky;bottom:0;z-index:5}
+}
+
+/* Téléphone */
+@media(max-width:640px){
+  #panel-inputlist .il-head{align-items:center;gap:10px;margin-bottom:12px}
+  #panel-inputlist .il-head-t{flex:1;margin-right:0}
+  #panel-inputlist .il-title{font-size:23px}
+  #panel-inputlist .il-eyebrow{max-width:none}
+  #panel-inputlist .il-patch-tabs{flex:0 1 auto;max-width:100%;order:3}
+  #panel-inputlist .il-head-t{flex:1 1 50%}
+  #panel-inputlist .il-save{display:none!important}
+  #panel-inputlist .il-mode .pmb{height:34px;padding:0 14px}
+  #panel-inputlist .il-ptab,#panel-inputlist .il-ptab-add{height:34px}
+  #panel-inputlist .il-bar{gap:6px;row-gap:8px}
+  #panel-inputlist .il-filter{flex:1 1 100%;width:auto;height:40px;margin:0;order:-3}
+  #panel-inputlist .il-filter input{font-size:16px}
+  #panel-inputlist .il-bar .btn.pri{order:-2}
+  #panel-inputlist .il-bar .tpl-dd-wrap{order:-1}
+  #panel-inputlist .iltable td .ilinp.sh{width:88px}
+  #panel-inputlist .il-bar .btn.on{color:var(--ora);border-color:var(--ora-g)}
+  #panel-inputlist .il-bar-sp{display:none}
+  #panel-inputlist .iltable{min-width:0;font-size:13px}
+  #panel-inputlist .iltable th{height:34px;padding:0 8px;font-size:10.5px}
+  #panel-inputlist .iltable td{height:46px;padding:0 3px}
+  #panel-inputlist .ch-num{min-width:36px;padding:0 4px}
+  #panel-inputlist .iltable :is(th:first-child,td.ch-num,th[data-col="short"],td[data-col="short"]){background:var(--bg)}
+  #panel-inputlist .il-grp-in{position:sticky;left:8px}
+  #panel-inputlist .il-actions-cell{padding-left:8px}
+  #panel-inputlist :is(.move-btn,.del-btn){width:34px;height:34px;font-size:16px}
+  #panel-inputlist .il-stats{gap:14px;row-gap:6px;padding:12px 4px}
+  .il-empty{padding:40px 12px}
+}
+@media(max-width:640px){
+  #panel-inputlist .iltable td .out-type-sel{min-width:78px;font-size:13px}
+}
