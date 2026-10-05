@@ -2306,3 +2306,10 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 .lin-opt{display:flex;align-items:center;gap:10px;min-height:32px;font-size:13px;cursor:pointer}
 .lin-opt input{flex-shrink:0;accent-color:var(--ora)}
 
+
+/* Liste vide : police de l'interface (le tableau en impose une autre) et pleine largeur, y compris sur téléphone */
+#panel-inputlist .il-empty{font-family:var(--f);width:100%;box-sizing:border-box}
+#panel-inputlist .il-empty-t{font-family:var(--f);letter-spacing:-.01em}
+#panel-inputlist .il-empty-s{font-family:var(--f);font-weight:400}
+#panel-inputlist .table-wrap:has(.il-msg) .iltable{width:100%;min-width:0}
+#panel-inputlist tr.il-msg td{width:100%;font-family:var(--f);white-space:normal}
