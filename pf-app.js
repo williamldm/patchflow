@@ -2232,8 +2232,7 @@ async function saveILAAsTemplate(){
   if(!chs.length){toast('Aucun canal configure.');return;}
   const name=prompt('Nom du template :','');
   if(!name||!name.trim()) return;
-  const ICONS=['🎸','🎤','🎹','🎺','🎻','🥁','🎧','📡','🎭','🏢'];
-  const icon=ICONS[USER_TPLS.length%ICONS.length];
+  const icon='';
   const channels=chs.map((c,i)=>({
     ch:i+1,
     short_name:(c.s||'').slice(0,10),
@@ -4437,9 +4436,9 @@ function setPdfExportType(type){
     btn.classList.toggle('on', t===type);
     btn.style.display = _pdfVisibleTypes.includes(t) ? '' : 'none';
   });
-  const titles={in:'Export PDF — Input List',out:'Export PDF — Output List',both:'Export PDF — Input + Output',stage:'Export PDF — Plan de scène',site:'Export PDF — Plan de site',syno:'Export PDF — Synoptique'};
+  const titles={in:'Exporter l\'input list',out:'Exporter l\'output list',both:'Exporter les listes',stage:'Exporter le plan de scène',site:'Exporter le plan de site',syno:'Exporter le synoptique'};
   const titleEl=document.getElementById('pdf-modal-title');
-  if(titleEl) titleEl.textContent = titles[type]||'Exporter en PDF';
+  if(titleEl) titleEl.textContent = titles[type]||'Exporter';
   const isVisual = type==='stage'||type==='site'||type==='syno';
   const isTable  = !isVisual;
   // Show subtitle + orientation only for visual plans
@@ -4448,12 +4447,54 @@ function setPdfExportType(type){
   const orientRow = document.getElementById('pdf-orient-row');
   if(orientRow) orientRow.style.display = isVisual ? '' : 'none';
   // Hide link/recap checkboxes for visual plans
-  const foot1 = document.querySelector('#pdf-modal .modal-foot > div:first-child');
+  const foot1 = document.getElementById('pdf-checks');
   if(foot1) foot1.style.display = isTable ? '' : 'none';
   // Hide toggle row entirely if only one option visible
-  const toggleRow = document.querySelector('#pdf-modal .modal-body > div:first-child');
+  const toggleRow = document.getElementById('pdf-type-row');
   if(toggleRow) toggleRow.style.display = _pdfVisibleTypes.length <= 1 ? 'none' : '';
+  /* Format (PDF / CSV) et documents dérivés : listes seulement */
+  const fmtRow = document.getElementById('pdf-fmt-row');
+  if(fmtRow) fmtRow.style.display = isTable ? '' : 'none';
+  const moreRow = document.getElementById('pdf-more-row');
+  if(moreRow) moreRow.style.display = isTable ? '' : 'none';
+  _pdfSyncFormat();
 }
+/* Format d'export des listes : PDF mis en page, ou CSV pour un tableur. Mémorisé sur l'appareil. */
+var _pdfFormat='pdf';
+try{ if(localStorage.getItem('pf_export_fmt')==='csv') _pdfFormat='csv'; }catch(e){}
+function _pdfIsCsv(){ return _pdfFormat==='csv' && (_pdfExportType==='in'||_pdfExportType==='out'||_pdfExportType==='both'); }
+function setPdfFormat(f){
+  _pdfFormat=(f==='csv')?'csv':'pdf';
+  try{ localStorage.setItem('pf_export_fmt',_pdfFormat); }catch(e){}
+  _pdfSyncFormat();
+}
+function _pdfSyncFormat(){
+  var csv=_pdfIsCsv(), $=function(id){ return document.getElementById(id); };
+  if($('pdf-fmt-pdf')) $('pdf-fmt-pdf').classList.toggle('on',_pdfFormat!=='csv');
+  if($('pdf-fmt-csv')) $('pdf-fmt-csv').classList.toggle('on',_pdfFormat==='csv');
+  if($('pdf-fmt-hint')) $('pdf-fmt-hint').textContent=csv?'Tableau brut, pour Excel ou Numbers':'Document mis en page, prêt à envoyer';
+  if($('pdf-opts')) $('pdf-opts').style.display=csv?'none':'';
+  if($('pdf-tofiles-btn')) $('pdf-tofiles-btn').style.display=csv?'none':'';
+  _pdfHeadSum();
+}
+/* Résumé de l'en-tête replié : qui signe le document, et pour quel lieu */
+function _pdfHeadSum(){
+  var v=function(id){ return (document.getElementById(id)?.value||'').trim(); };
+  var el=document.getElementById('pdf-head-sum');
+  if(el) el.textContent=[v('pdf-eng'),v('pdf-role'),v('pdf-venue')].filter(Boolean).join(' · ')||'À compléter';
+  var n=document.getElementById('pdf-notes-sum');
+  if(n) n.textContent=v('pdf-notes')?'Renseignées':'';
+}
+document.addEventListener('input',function(e){ if(e.target&&e.target.closest&&e.target.closest('#pdf-modal')) _pdfHeadSum(); });
+/* Bouton principal de la fenêtre : CSV direct, sinon PDF */
+function doExport(){
+  if(!_pdfIsCsv()){ doPDF(); return; }
+  var t=_pdfExportType;
+  if(t==='in'||t==='both'){ if(!CHS.length&&t==='in'){ toast('Aucun canal à exporter.'); return; } if(CHS.length) exportCSV(); }
+  if(t==='out'||t==='both'){ if(!OUT_CHS.length&&t==='out'){ toast('Aucune sortie à exporter.'); return; } if(OUT_CHS.length) setTimeout(exportOutCSV,t==='both'?350:0); }
+  closePDF();
+}
+function pdfToFilesFromModal(){ quickPdfToFiles(_pdfExportType); }
 function setPdfOrient(o){
   _pdfOrient = (o==='portrait') ? 'portrait' : 'landscape';
   var l=document.getElementById('pdf-orient-land'), p=document.getElementById('pdf-orient-port');
@@ -4911,8 +4952,6 @@ function openPDFModal(forceType){
   document.querySelectorAll('.pdf-pro-fld').forEach(function(el){el.style.display=isFree?'none':'';});
   const notice=document.getElementById('pdf-free-notice');
   if(notice)notice.style.display=isFree?'flex':'none';
-  const lastSec=document.getElementById('pdf-notes-sec');
-  if(lastSec)lastSec.style.marginBottom=isFree?'0':'';
   const brandSec=document.getElementById('pdf-brand-sec');
   if(brandSec)brandSec.style.display=isStudio?'':'none';
   if(isStudio)loadPdfBranding();
@@ -4929,6 +4968,8 @@ function openPDFModal(forceType){
      pro : le titre du document est mis en avant, pas le nom interne du show). */
   const type = forceType || CUR_IL_MODE;
   setPdfExportType(type);
+  /* Sections repliées à l'ouverture : l'essentiel (contenu, format, télécharger) tient sans défiler */
+  document.querySelectorAll('#pdf-modal details.xp-sec').forEach(function(d){ d.open=false; });
   document.getElementById('pdf-modal').className='modal-ov show';
 }
 function closePDF(){document.getElementById('pdf-modal').className='modal-ov';}
@@ -14856,13 +14897,16 @@ document.addEventListener('click',e=>{if(!document.getElementById('tpl-dd-wrap')
 
 function renderTplQuickBar(){
   const el=document.getElementById('tpl-quick-list');if(!el)return;
-  const all=[...BLTPLS,...USER_TPLS];
-  if(!all.length){el.innerHTML='<div style="font-size:11px;color:var(--muted);padding:4px 2px">Aucun template</div>';return;}
   const _et=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  el.innerHTML=all.map(t=>`
-    <button class="tpl-dd-item" onclick="applyTemplate('${_jsq(t.id)}');closeTplDd()">
-      <span style="font-size:14px">${/^\p{Emoji}/u.test(t.icon||'')?_et(t.icon):'📋'}</span>${_et(t.name)}<span style="font-family:var(--m);font-size:9px;color:var(--muted);margin-left:auto">${(t.channels||[]).length} CH</span>
-    </button>`).join('');
+  const row=(t,mine)=>`
+    <div class="tpl-dd-item" role="button" tabindex="0" onclick="applyTemplate('${_jsq(t.id)}');closeTplDd()" onkeydown="if(event.key==='Enter'){applyTemplate('${_jsq(t.id)}');closeTplDd();}">
+      <span class="tpl-dd-txt"><span class="tpl-dd-n">${_et(t.name)}</span>${(t.desc||t.description)?`<span class="tpl-dd-d">${_et(t.desc||t.description)}</span>`:''}</span>
+      <span class="tpl-dd-c">${(t.channels||[]).length} CH</span>
+      ${mine?`<button type="button" class="tpl-dd-del" title="Supprimer ce template" aria-label="Supprimer" onclick="event.stopPropagation();delUserTpl('${_jsq(t.id)}')"><i class="ti ti-trash"></i></button>`:''}
+    </div>`;
+  el.innerHTML=(USER_TPLS.length?'<div class="tpl-dd-grp">Mes templates</div>'+USER_TPLS.map(t=>row(t,true)).join(''):'')
+    +(BLTPLS.length?'<div class="tpl-dd-grp">Modèles PatchFlow</div>'+BLTPLS.map(t=>row(t,false)).join(''):'')
+    ||'<div class="tpl-dd-none">Aucun template.</div>';
 }
 
 async function applyTemplate(tplId){
@@ -14997,7 +15041,7 @@ async function spSwitch(id){await switchShow(id);closeSP();}
 
 // Templates
 const BLTPLS=[
-  {id:'rock_full',icon:'🎸',name:'Rock Band',desc:'Kit complet, basse, 2 guitares, claviers, 3 voix, playback',channels:[
+  {id:'rock_full',name:'Rock Band',desc:'Kit complet, basse, 2 guitares, claviers, 3 voix, playback',channels:[
     {ch:1,short_name:'KCKI',long_name:'Kick In',source:'Batterie',mic:'Beta 91A',gain:0,phantom:false,iem_group:'GR1',foh:true,mon:true,bc:false,note:'Gate'},
     {ch:2,short_name:'KCKO',long_name:'Kick Out',source:'Batterie',mic:'Beta 52A',gain:0,phantom:false,iem_group:'GR1',foh:true,mon:false,bc:false,note:'Gate'},
     {ch:3,short_name:'SNRT',long_name:'Snare Top',source:'Batterie',mic:'SM57',gain:0,phantom:false,iem_group:'GR1',foh:true,mon:true,bc:false,note:''},
@@ -15020,7 +15064,7 @@ const BLTPLS=[
     {ch:20,short_name:'PBTL',long_name:'Playback L',source:'Playback',mic:'DI Stereo',gain:0,phantom:false,iem_group:'GR1',foh:true,mon:true,bc:true,note:'Ableton'},
     {ch:21,short_name:'PBTR',long_name:'Playback R',source:'Playback',mic:'DI Stereo',gain:0,phantom:false,iem_group:'GR1',foh:true,mon:true,bc:true,note:'Ableton'},
   ]},
-  {id:'pop_prod',icon:'🎤',name:'Pop / Production',desc:'Voix, musiciens, tracks Ableton',channels:[
+  {id:'pop_prod',name:'Pop / Production',desc:'Voix, musiciens, tracks Ableton',channels:[
     {ch:1,short_name:'VOX',long_name:'Voix Lead',source:'Chant',mic:'Beta 87A',gain:0,phantom:true,iem_group:'GR1',foh:true,mon:true,bc:true,note:'Comp + De-ess'},
     {ch:2,short_name:'BV1',long_name:'Backing Vox 1',source:'Chant',mic:'SM58',gain:0,phantom:false,iem_group:'GR1',foh:true,mon:true,bc:false,note:''},
     {ch:3,short_name:'BV2',long_name:'Backing Vox 2',source:'Chant',mic:'SM58',gain:0,phantom:false,iem_group:'GR2',foh:true,mon:true,bc:false,note:''},
@@ -15034,7 +15078,7 @@ const BLTPLS=[
     {ch:11,short_name:'DRML',long_name:'Drums Tracks L',source:'Playback',mic:'DI Stereo',gain:0,phantom:false,iem_group:'GR1',foh:true,mon:false,bc:false,note:'Ableton'},
     {ch:12,short_name:'DRMR',long_name:'Drums Tracks R',source:'Playback',mic:'DI Stereo',gain:0,phantom:false,iem_group:'GR1',foh:true,mon:false,bc:false,note:'Ableton'},
   ]},
-  {id:'jazz_acoustic',icon:'🎷',name:'Jazz / Acoustique',desc:'Piano, contrebasse, batterie legere, voix',channels:[
+  {id:'jazz_acoustic',name:'Jazz / Acoustique',desc:'Piano, contrebasse, batterie légère, voix',channels:[
     {ch:1,short_name:'PNOL',long_name:'Piano L',source:'Piano',mic:'AKG 414',gain:0,phantom:true,iem_group:'GR1',foh:true,mon:true,bc:false,note:''},
     {ch:2,short_name:'PNOR',long_name:'Piano R',source:'Piano',mic:'AKG 414',gain:0,phantom:true,iem_group:'GR1',foh:true,mon:true,bc:false,note:''},
     {ch:3,short_name:'CBAS',long_name:'Contrebasse DI',source:'Contrebasse',mic:'Radial JDI',gain:0,phantom:false,iem_group:'GR1',foh:true,mon:true,bc:false,note:''},
@@ -15046,7 +15090,7 @@ const BLTPLS=[
     {ch:9,short_name:'SAX',long_name:'Saxophone',source:'Cuivres',mic:'SM57',gain:0,phantom:false,iem_group:'',foh:true,mon:true,bc:false,note:''},
     {ch:10,short_name:'TPTS',long_name:'Trompette',source:'Cuivres',mic:'SM57',gain:0,phantom:false,iem_group:'',foh:true,mon:true,bc:false,note:'Attenuateur'},
   ]},
-  {id:'dj_full',icon:'🎧',name:'DJ Set',desc:'Console DJ, booth, MC, effets',channels:[
+  {id:'dj_full',name:'DJ Set',desc:'Console DJ, booth, MC, effets',channels:[
     {ch:1,short_name:'DJL',long_name:'DJ Sortie Main L',source:'DJ',mic:'DI Stereo',gain:0,phantom:false,iem_group:'',foh:true,mon:false,bc:true,note:''},
     {ch:2,short_name:'DJR',long_name:'DJ Sortie Main R',source:'DJ',mic:'DI Stereo',gain:0,phantom:false,iem_group:'',foh:true,mon:false,bc:true,note:''},
     {ch:3,short_name:'BTHL',long_name:'Booth Monitor L',source:'DJ',mic:'DI Stereo',gain:0,phantom:false,iem_group:'',foh:false,mon:true,bc:false,note:'Retour DJ'},
@@ -15055,7 +15099,7 @@ const BLTPLS=[
     {ch:6,short_name:'FXRL',long_name:'FX Return L',source:'Effets',mic:'DI Stereo',gain:0,phantom:false,iem_group:'',foh:true,mon:false,bc:false,note:''},
     {ch:7,short_name:'FXRR',long_name:'FX Return R',source:'Effets',mic:'DI Stereo',gain:0,phantom:false,iem_group:'',foh:true,mon:false,bc:false,note:''},
   ]},
-  {id:'theatre_musical',icon:'🎭',name:'Theatre / Comedie musicale',desc:'HF comediens, fosse, regie',channels:[
+  {id:'theatre_musical',name:'Théâtre / Comédie musicale',desc:'HF comédiens, fosse, régie',channels:[
     {ch:1,short_name:'HF01',long_name:'HF Comedien 1',source:'Chant',mic:'DPA 4061',gain:0,phantom:false,iem_group:'GR1',foh:true,mon:false,bc:true,note:'Lavalier'},
     {ch:2,short_name:'HF02',long_name:'HF Comedien 2',source:'Chant',mic:'DPA 4061',gain:0,phantom:false,iem_group:'GR1',foh:true,mon:false,bc:true,note:'Lavalier'},
     {ch:3,short_name:'HF03',long_name:'HF Comedien 3',source:'Chant',mic:'DPA 4061',gain:0,phantom:false,iem_group:'GR2',foh:true,mon:false,bc:true,note:'Lavalier'},
@@ -15071,7 +15115,7 @@ const BLTPLS=[
     {ch:13,short_name:'IFB',long_name:'IFB Regie',source:'Technique',mic:'DI',gain:0,phantom:false,iem_group:'',foh:false,mon:true,bc:false,note:'Retour regie'},
     {ch:14,short_name:'CHEF',long_name:'Retour chef orchestre',source:'Technique',mic:'DI',gain:0,phantom:false,iem_group:'',foh:false,mon:true,bc:false,note:'Mix special'},
   ]},
-  {id:'corporate',icon:'🏢',name:'Corporate / Conference',desc:'Presentateurs, intervenants, AV',channels:[
+  {id:'corporate',name:'Corporate / Conférence',desc:'Présentateurs, intervenants, AV',channels:[
     {ch:1,short_name:'PRES',long_name:'Presentateur principal',source:'Parole',mic:'DPA 4088 HF',gain:0,phantom:false,iem_group:'',foh:true,mon:false,bc:true,note:'HF cravate'},
     {ch:2,short_name:'INT1',long_name:'Intervenant 1',source:'Parole',mic:'DPA 4088 HF',gain:0,phantom:false,iem_group:'',foh:true,mon:false,bc:false,note:'HF main'},
     {ch:3,short_name:'INT2',long_name:'Intervenant 2',source:'Parole',mic:'DPA 4088 HF',gain:0,phantom:false,iem_group:'',foh:true,mon:false,bc:false,note:''},
@@ -15081,7 +15125,7 @@ const BLTPLS=[
     {ch:7,short_name:'PCL',long_name:'Laptop Presentation L',source:'Laptop',mic:'DI Stereo',gain:0,phantom:false,iem_group:'',foh:true,mon:false,bc:true,note:'HDMI / Jack'},
     {ch:8,short_name:'PCR',long_name:'Laptop Presentation R',source:'Laptop',mic:'DI Stereo',gain:0,phantom:false,iem_group:'',foh:true,mon:false,bc:true,note:'HDMI / Jack'},
   ]},
-  {id:'festival',icon:'🎪',name:'Festival / Grande scene',desc:'Rider complet multi-artiste, 24 CH',channels:[
+  {id:'festival',name:'Festival / Grande scène',desc:'Rider complet multi-artiste, 24 CH',channels:[
     {ch:1,short_name:'KCKI',long_name:'Kick In',source:'Batterie',mic:'Beta 91A',gain:0,phantom:false,iem_group:'GR1',foh:true,mon:true,bc:false,note:'Gate'},
     {ch:2,short_name:'KCKO',long_name:'Kick Out',source:'Batterie',mic:'Beta 52A',gain:0,phantom:false,iem_group:'',foh:true,mon:false,bc:false,note:'Gate'},
     {ch:3,short_name:'SNRT',long_name:'Snare Top',source:'Batterie',mic:'SM57',gain:0,phantom:false,iem_group:'GR1',foh:true,mon:true,bc:false,note:''},
@@ -15107,7 +15151,7 @@ const BLTPLS=[
     {ch:23,short_name:'PBTL',long_name:'Playback Tracks L',source:'Playback',mic:'DI Stereo',gain:0,phantom:false,iem_group:'GR1',foh:true,mon:true,bc:true,note:'Ableton'},
     {ch:24,short_name:'PBTR',long_name:'Playback Tracks R',source:'Playback',mic:'DI Stereo',gain:0,phantom:false,iem_group:'GR1',foh:true,mon:true,bc:true,note:'Ableton'},
   ]},
-  {id:'orchestre',icon:'🎻',name:'Orchestre / Classique',desc:'Cordes, vents, cuivres, percus, soliste',channels:[
+  {id:'orchestre',name:'Orchestre / Classique',desc:'Cordes, vents, cuivres, percus, soliste',channels:[
     {ch:1,short_name:'VIOL',long_name:'Violons (sub-mix)',source:'Cordes',mic:'DPA 4006',gain:0,phantom:true,iem_group:'',foh:true,mon:false,bc:false,note:'Stereo'},
     {ch:2,short_name:'ALTO',long_name:'Altos (sub-mix)',source:'Cordes',mic:'DPA 4006',gain:0,phantom:true,iem_group:'',foh:true,mon:false,bc:false,note:''},
     {ch:3,short_name:'VCEL',long_name:'Violoncelles',source:'Cordes',mic:'AKG 414',gain:0,phantom:true,iem_group:'',foh:true,mon:false,bc:false,note:''},
@@ -15135,7 +15179,7 @@ function renderSPTpls(){
   const _et=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   document.getElementById('sp-tpls-builtin').innerHTML=BLTPLS.map(t=>`
     <div class="sp-tpl ${SEL_TPL===t.id?'active':''}" onclick="selTpl('${_jsq(t.id)}')">
-      <span style="font-size:16px;width:20px;text-align:center">${/^\p{Emoji}/u.test(t.icon||'')?_et(t.icon):'📋'}</span>
+      
       <span style="flex:1">${_et(t.name)}</span>
       <span style="font-family:var(--m);font-size:9px;color:var(--muted)">${t.channels.length} CH</span>
     </div>`).join('');
@@ -15147,7 +15191,7 @@ function renderSPTplsUser(){
   if(USER_TPLS.length===0){el.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px 0">Aucun template.</div>';return;}
   el.innerHTML=USER_TPLS.map(t=>`
     <div class="sp-tpl usr ${SEL_TPL===t.id?'active':''}" onclick="selTpl('${_jsq(t.id)}')">
-      <span style="font-size:16px;width:20px;text-align:center">${/^\p{Emoji}/u.test(t.icon||'')?_et(t.icon):'📋'}</span>
+      
       <span style="flex:1">${_et(t.name)}</span>
       <span style="font-family:var(--m);font-size:9px;color:var(--muted)">${(t.channels||[]).length} CH</span>
       <button class="sp-tpl-del" onclick="event.stopPropagation();delUserTpl('${_jsq(t.id)}')"><i class="ti ti-trash"></i></button>
@@ -15158,7 +15202,7 @@ function selTpl(id){
   SEL_TPL=id;renderSPTpls();
   const tpl=getAllTpls().find(t=>t.id===id);if(!tpl)return;
   const chs=tpl.channels||[];
-  document.getElementById('sp-prev-title').textContent=`${tpl.icon||'📋'} ${tpl.name} — ${chs.length} CH`;
+  document.getElementById('sp-prev-title').textContent=`${tpl.name} — ${chs.length} CH`;
   document.getElementById('sp-prev-tbl').innerHTML=`
     <table><thead><tr><th>CH</th><th>Court</th><th>Nom long</th><th>Micro/DI</th><th>FOH</th><th>MON</th></tr></thead>
     <tbody>${chs.map(r=>`<tr>
@@ -15388,22 +15432,18 @@ async function applySelTplNew(){
 async function saveAsTemplate(){
   if(CHS.length===0){alert('Input List vide.');return;}
   const name=prompt('Nom du template :',CUR_SHOW?.name||'');if(!name?.trim())return;
-  const desc=prompt('Description :','')||'';
-  const tagsR=prompt('Tags (virgule) :','')||'';
-  const tags=tagsR.split(',').map(s=>s.trim()).filter(Boolean);
-  const ICONS=['🎸','🎤','🎹','🎺','🎻','🥁','🎧','📡','🎭','🏢'];
-  const icon=ICONS[USER_TPLS.length%ICONS.length];
+  const desc=CHS.length+' canaux'+(CUR_SHOW?.name?' · d\'après « '+CUR_SHOW.name+' »':''), tags=[], icon='';
   const channels=CHS.map(r=>({ch:r.ch,short_name:r.short_name,long_name:r.long_name,source:r.source,mic:r.mic,gain:r.gain,phantom:r.phantom,iem_group:r.iem_group,foh:r.foh,mon:r.mon,bc:r.bc,note:r.note}));
   const {data,error}=await sb.from('templates').insert({owner_id:ME.id,name:name.trim(),description:desc,icon,tags,channels,is_public:false}).select().single();
   if(error){toast('Erreur : '+error.message);return;}
-  USER_TPLS.unshift(data);renderSPTplsUser();
+  USER_TPLS.unshift(data);renderSPTplsUser();renderTplQuickBar();
   toast(`✓ Template "${name}" sauvegardé (${channels.length} CH)`);
 }
 
 async function delUserTpl(id){
   const t=USER_TPLS.find(x=>x.id===id);if(!confirm(`Supprimer "${t?.name}" ?`))return;
   await sb.from('templates').delete().eq('id',id);
-  USER_TPLS=USER_TPLS.filter(x=>x.id!==id);renderSPTplsUser();
+  USER_TPLS=USER_TPLS.filter(x=>x.id!==id);renderSPTplsUser();renderTplQuickBar();
 }
 
 // ══════════════════════════════════════
