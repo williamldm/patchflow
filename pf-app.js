@@ -5021,38 +5021,33 @@ function _bpRR(ctx,x,y,w,h,r){
   ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);
   ctx.closePath();
 }
-/* Label d'un nœud — réplique fidèlement .bp-vnode-lbl de l'éditeur (mode
-   vintage) : DM Mono à 13px*textScale, couleur navy #1d3a5f, fond blanc +
-   bordure fine, largeur max 130px*textScale, ellipsis si trop long.
-   L'icône, elle, reste ancrée au coin (el.x) comme dans l'éditeur vintage. */
+/* Nom d'un élément — même rendu que .bp-vnode-lbl : Archivo 600, encre, halo blanc, sans cadre */
+var _BP_INK='#1c2433';
 function _vtLabel(ctx,text,cx,y,SC,TS){
   TS=TS||1;
-  var fs=Math.max(9,Math.round(13*TS*SC));
-  ctx.font='600 '+fs+'px "DM Mono", ui-monospace, monospace';
+  var fs=Math.max(9,14.5*TS*SC);
+  ctx.font='600 '+fs+'px Archivo, sans-serif';
   ctx.textAlign='center';ctx.textBaseline='top';
   var lbl=(text||'');
-  var maxTextW=Math.max(20,(130*TS-20)*SC);
+  var maxTextW=Math.max(20,(150*TS-8)*SC);
   if(ctx.measureText(lbl).width>maxTextW){ while(lbl.length>1 && ctx.measureText(lbl+'…').width>maxTextW) lbl=lbl.slice(0,-1); lbl+='…'; }
-  var tw=ctx.measureText(lbl).width,padX=10*SC,padY=3*SC;
-  var boxW=tw+padX*2,boxH=fs+padY*2,bx=cx-boxW/2;
-  _bpRR(ctx,bx,y,boxW,boxH,5*SC);
-  ctx.fillStyle='rgba(255,255,255,.98)';ctx.fill();
-  ctx.strokeStyle='rgba(29,58,95,.18)';ctx.lineWidth=Math.max(1,1*SC);ctx.stroke();
-  ctx.fillStyle='#1d3a5f';ctx.fillText(lbl,cx,y+padY);
+  ctx.lineJoin='round';ctx.lineWidth=Math.max(2,4*SC);ctx.strokeStyle='#ffffff';
+  ctx.strokeText(lbl,cx,y+fs*0.14);
+  ctx.fillStyle=_BP_INK;ctx.fillText(lbl,cx,y+fs*0.14);
   ctx.textBaseline='alphabetic';
 }
+/* Étiquette de canal, à cheval sur le coin haut droit : entrée en orange, sortie à l'encre */
 function _vtChBadge(ctx,chNum,nodeW,nodeTop,SC,opts){
   SC=SC||1; opts=opts||{};
-  var fs=Math.round(22*SC);
-  var badge=(opts.prefix||'CH ')+chNum;
-  ctx.font='900 '+fs+'px monospace';
-  var pad=20*SC,bh=Math.round(32*SC),bw=ctx.measureText(badge).width+pad*2;
-  var bx=nodeW-bw+10*SC,by=nodeTop-bh/2-4*SC;
-  _bpRR(ctx,bx,by,bw,bh,bh/2);
-  ctx.fillStyle=opts.color||'#ff6b1a';
-  ctx.shadowColor='rgba(0,0,0,.6)';ctx.shadowBlur=8*SC;ctx.fill();ctx.shadowBlur=0;
-  ctx.fillStyle=opts.txtColor||'#000';ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.fillText(badge,bx+bw/2,by+bh/2);
+  var out=!!opts.out, badge=(opts.prefix||(out?'OUT ':'CH '))+chNum;
+  var fs=19*SC, bh=30*SC, pad=10*SC;
+  ctx.font='700 '+fs+'px Archivo, sans-serif';
+  var bw=ctx.measureText(badge).width+pad*2;
+  var bx=nodeW-bw+12*SC, by=nodeTop-12*SC;
+  _bpRR(ctx,bx-2.5*SC,by-2.5*SC,bw+5*SC,bh+5*SC,11.5*SC);ctx.fillStyle='#ffffff';ctx.fill();
+  _bpRR(ctx,bx,by,bw,bh,9*SC);ctx.fillStyle=out?_BP_INK:'#ff6b1a';ctx.fill();
+  ctx.fillStyle=out?'#ffffff':'#1f0d02';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(badge,bx+bw/2,by+bh/2+fs*0.04);
   ctx.textBaseline='alphabetic';
 }
 /* Numéro de sortie pour un élément (retour) — mono ou stéréo L+R. */
@@ -5356,8 +5351,8 @@ function _makeBpCanvas(cb){
     /* Hauteur du label sous l'icône + débord horizontal du label (centré sur
        l'icône, largeur jusqu'à ~130px*textScale) : indispensable pour ne pas
        rogner les retours/labels en bordure. */
-    const lblH = (el.type==='kit'||el.type==='text_lbl') ? 0 : 13*_ts+14;
-    const lblHalf = (el.type==='kit'||el.type==='riser'||el.type==='text_lbl') ? w/2 : Math.max(w/2, (130*_ts)/2);
+    const lblH = (el.type==='kit'||el.type==='text_lbl') ? 0 : 14.5*_ts+12;
+    const lblHalf = (el.type==='kit'||el.type==='riser'||el.type==='text_lbl') ? w/2 : Math.max(w/2, (150*_ts)/2);
     const cx = el.x + w/2;
     minX=Math.min(minX, el.x, cx-lblHalf);
     maxX=Math.max(maxX, el.x+w, cx+lblHalf);
@@ -5375,27 +5370,37 @@ function _makeBpCanvas(cb){
   const allChs=(typeof ALL_CHS!=='undefined'&&ALL_CHS.length)?ALL_CHS:(typeof CHS!=='undefined'?CHS:[]);
   /* ── VINTAGE CANVAS (light theme, white background) ── */
   if(true){  /* Always vintage now — modern mode removed */
-    // White background
+    // Feuille blanche
     ctx.fillStyle='#ffffff';ctx.fillRect(0,0,cw,ch);
-    /* Décor de scène (grille + cadre SCENE + footlight) — masquable */
+    /* Décor de scène (trame de points, cadre, nez de scène, repères) — masquable. Même dessin que l'éditeur. */
     if(!data.hideStage){
-      // Grid
-      ctx.strokeStyle='#e5eaf2';ctx.lineWidth=0.6;
-      for(var gx=0;gx<2400;gx+=40){var sx=wx(gx);if(sx>=0&&sx<=cw){ctx.beginPath();ctx.moveTo(sx,0);ctx.lineTo(sx,ch);ctx.stroke();}}
-      for(var gy=0;gy<1600;gy+=40){var sy=wy(gy);if(sy>=0&&sy<=ch){ctx.beginPath();ctx.moveTo(0,sy);ctx.lineTo(cw,sy);ctx.stroke();}}
-      // Stage area — orange dashed frame
-      _bpRR(ctx,wx(_stgX),wy(_stgY),_stgW*SC,_stgH*SC,18*SC);
-      ctx.fillStyle='rgba(255,107,26,0.035)';ctx.fill();
-      ctx.strokeStyle='rgba(255,107,26,0.30)';ctx.lineWidth=2*SC;ctx.setLineDash([14*SC,7*SC]);ctx.stroke();ctx.setLineDash([]);
-      // SCENE label
-      ctx.font='bold '+18*SC+'px sans-serif';
-      ctx.fillStyle='rgba(255,107,26,0.18)';ctx.textAlign='center';
-      ctx.fillText('SCENE',wx(1200),wy(Math.round(_stgY+_stgH*0.44)));
-      // Footlight (orange glow) at front
-      var flTop=wy(_stgY+_stgH)-30*SC;
-      var flGrad=ctx.createLinearGradient(0,flTop+30*SC,0,flTop);
-      flGrad.addColorStop(0,'rgba(255,107,26,0.10)');flGrad.addColorStop(1,'rgba(255,107,26,0)');
-      ctx.fillStyle=flGrad;ctx.fillRect(wx(_stgX),flTop,_stgW*SC,30*SC);
+      ctx.fillStyle='#d5dae2';
+      for(var gx=20;gx<2400;gx+=40){var sx=wx(gx);if(sx<0||sx>cw)continue;for(var gy=20;gy<1600;gy+=40){var sy=wy(gy);if(sy<0||sy>ch)continue;ctx.beginPath();ctx.arc(sx,sy,1.1*SC,0,Math.PI*2);ctx.fill();}}
+      _bpRR(ctx,wx(_stgX),wy(_stgY),_stgW*SC,_stgH*SC,6*SC);
+      ctx.fillStyle='#f7f8fa';ctx.fill();
+      ctx.strokeStyle='rgba(28,36,51,.5)';ctx.lineWidth=2*SC;ctx.stroke();
+      /* Axe de scène */
+      ctx.strokeStyle='rgba(28,36,51,.14)';ctx.lineWidth=1.5*SC;ctx.setLineDash([3*SC,9*SC]);
+      ctx.beginPath();ctx.moveTo(wx(1200),wy(_stgY+14));ctx.lineTo(wx(1200),wy(_stgY+_stgH-14));ctx.stroke();ctx.setLineDash([]);
+      /* Nez de scène, côté public */
+      ctx.strokeStyle='rgba(28,36,51,.78)';ctx.lineWidth=6*SC;
+      ctx.beginPath();ctx.moveTo(wx(_stgX),wy(_stgY+_stgH-3));ctx.lineTo(wx(_stgX+_stgW),wy(_stgY+_stgH-3));ctx.stroke();
+      /* Repères */
+      var _lab=function(txt,x,y,rot){
+        ctx.save();ctx.translate(wx(x),wy(y));if(rot)ctx.rotate(rot);
+        ctx.font='600 '+(20*SC)+'px Archivo, sans-serif';ctx.fillStyle='rgba(28,36,51,.5)';ctx.textAlign='center';ctx.textBaseline='alphabetic';
+        try{ctx.letterSpacing=(6*SC)+'px';}catch(e){}
+        ctx.fillText(txt,0,0);
+        try{ctx.letterSpacing='0px';}catch(e){}
+        ctx.restore();
+      };
+      _lab('LOINTAIN',1200,_stgY-18,0);
+      _lab('JARDIN',_stgX-20,_stgY+_stgH/2,-Math.PI/2);
+      _lab('COUR',_stgX+_stgW+20,_stgY+_stgH/2,Math.PI/2);
+      _lab('PUBLIC',1200,_stgY+_stgH+38,0);
+      ctx.strokeStyle='rgba(28,36,51,.36)';ctx.lineWidth=2*SC;ctx.lineCap='round';ctx.lineJoin='round';
+      ctx.beginPath();ctx.moveTo(wx(1186),wy(_stgY+_stgH+52));ctx.lineTo(wx(1200),wy(_stgY+_stgH+62));ctx.lineTo(wx(1214),wy(_stgY+_stgH+52));ctx.stroke();
+      ctx.lineCap='butt';
     }
     // Load SVG images for standard nodes
     var sorted=els.slice().sort(function(a,b){return a.z-b.z;});
@@ -5446,56 +5451,52 @@ function _makeBpCanvas(cb){
         var ns=data.nodeScale||1;
         if(el.type==='riser'){
           var rw=(el.riserW||2)*RSCALE*SC,rh=(el.riserH||1)*RSCALE*SC,alt=el.riserAlt||0.4;
-          var op=(0.10+(alt/1.2)*0.25).toFixed(2),rfs=Math.max(11,Math.min(18,rw/9));
-          _bpRR(ctx,0,0,rw,rh,9*SC);
-          ctx.fillStyle='rgba(255,107,26,'+op+')';ctx.fill();
-          ctx.strokeStyle='rgba(255,107,26,.45)';ctx.lineWidth=2*SC;ctx.stroke();
-          ctx.font='bold '+rfs+'px sans-serif';ctx.fillStyle='#1d3a5f';
-          ctx.textAlign='center';ctx.fillText((el.riserW||2)+'m \xd7 '+(el.riserH||1)+'m',rw/2,rh/2+rfs*0.35);
-          ctx.font=Math.max(8,9*SC)+'px sans-serif';ctx.fillStyle='#64748b';
-          ctx.fillText('⬆ '+alt+'m',rw/2,rh/2+rfs*0.35+12*SC);
+          /* Plateau hachuré, dimensions en bas à droite (comme .bp-riser-body) */
+          _bpRR(ctx,0,0,rw,rh,5*SC);ctx.fillStyle='rgba(28,36,51,.035)';ctx.fill();
+          ctx.save();_bpRR(ctx,0,0,rw,rh,5*SC);ctx.clip();
+          ctx.strokeStyle='rgba(28,36,51,.07)';ctx.lineWidth=1*SC;
+          for(var hx=-rh;hx<rw;hx+=17*SC){ctx.beginPath();ctx.moveTo(hx,0);ctx.lineTo(hx+rh,rh);ctx.stroke();}
+          ctx.restore();
+          _bpRR(ctx,0,0,rw,rh,5*SC);ctx.strokeStyle='rgba(28,36,51,.5)';ctx.lineWidth=1.5*SC;ctx.stroke();
+          var _nm=function(v){return String(v).replace('.',',');};
+          ctx.font='600 '+(12*SC)+'px Archivo, sans-serif';ctx.fillStyle='rgba(28,36,51,.62)';ctx.textAlign='right';ctx.textBaseline='alphabetic';
+          ctx.fillText(_nm(el.riserW||2)+' \xd7 '+_nm(el.riserH||1)+' m \xb7 h '+_nm(alt)+' m',rw-8*SC,rh-8*SC);
           if(el.ch){var rc=allChs.find(function(r){return r.id===el.ch;});if(rc)_vtChBadge(ctx,rc.ch,rw,0,SC);}
-          _lx=rw/2;_ly=rh+6*SC;
+          _lx=rw/2;_ly=rh+3*SC;
         } else if(el.type==='kit'){
           /* Reproduit _vintageInnerHTML : header ≈40px (emoji 22px × line-height
              1.2 + padding 8+7), texte CHn coloré sans pastille, lignes 26px. */
           var kitChs=el.chs||[];
           var rows=kitChs.map(function(id){return allChs.find(function(r){return r.id===id;});}).filter(Boolean);
-          var kci=BandPlan.getCatInfo('kit');
           var HEAD=40,ROW=26;
           var BW=210*SC,BH=(HEAD+Math.max(1,rows.length)*ROW)*SC;
-          /* Boîte blanche arrondie */
-          _bpRR(ctx,0,0,BW,BH,12*SC);ctx.fillStyle='#ffffff';ctx.fill();
-          /* Fond du header (clippé à la boîte pour garder les coins arrondis) */
-          ctx.save();_bpRR(ctx,0,0,BW,BH,12*SC);ctx.clip();
-          ctx.fillStyle=kci.color+'12';ctx.fillRect(0,0,BW,HEAD*SC);ctx.restore();
-          /* Bordure de la boîte */
-          _bpRR(ctx,0,0,BW,BH,12*SC);ctx.strokeStyle=kci.color+'66';ctx.lineWidth=1.5*SC;ctx.stroke();
-          /* Séparateur sous le header */
-          ctx.strokeStyle=kci.color+'22';ctx.lineWidth=1*SC;
+          _bpRR(ctx,0,0,BW,BH,9*SC);ctx.fillStyle='#ffffff';ctx.fill();
+          ctx.strokeStyle='rgba(28,36,51,.38)';ctx.lineWidth=1.5*SC;ctx.stroke();
           ctx.beginPath();ctx.moveTo(0,HEAD*SC);ctx.lineTo(BW,HEAD*SC);ctx.stroke();
-          /* Icône + label + badge "N CH" */
           ctx.textBaseline='middle';
-          ctx.font=Math.round(22*SC)+'px serif';ctx.textAlign='left';ctx.fillStyle='#000';
-          ctx.fillText('🥁',9*SC,HEAD*SC/2);
-          ctx.font='bold '+Math.round(13*SC)+'px sans-serif';ctx.fillStyle='#1d3a5f';
-          ctx.fillText(el.label.slice(0,16),32*SC,HEAD*SC/2);
+          var _kw=BW-24*SC;
           if(rows.length){
             var bt=rows.length+' CH';
-            ctx.font='bold '+Math.round(9*SC)+'px sans-serif';
-            var btw=ctx.measureText(bt).width+11*SC,bth=14*SC,bx=BW-btw-8*SC,by=(HEAD*SC-bth)/2;
-            _bpRR(ctx,bx,by,btw,bth,bth/2);ctx.fillStyle=kci.color;ctx.fill();
-            ctx.fillStyle='#fff';ctx.textAlign='center';
-            ctx.fillText(bt,bx+btw/2,HEAD*SC/2);ctx.textAlign='left';
+            ctx.font='700 '+(11.5*SC)+'px Archivo, sans-serif';
+            var btw=ctx.measureText(bt).width+14*SC,bth=20*SC,bx=BW-btw-12*SC,by=(HEAD*SC-bth)/2;
+            _bpRR(ctx,bx,by,btw,bth,6*SC);ctx.fillStyle='#ff6b1a';ctx.fill();
+            ctx.fillStyle='#1f0d02';ctx.textAlign='center';ctx.fillText(bt,bx+btw/2,HEAD*SC/2+0.5*SC);
+            _kw=bx-20*SC;
           }
-          /* Lignes des canaux : « CHn » coloré + nom navy */
+          var _fit=function(t,w){ t=String(t||''); if(ctx.measureText(t).width<=w) return t; while(t.length>1&&ctx.measureText(t+'…').width>w) t=t.slice(0,-1); return t+'…'; };
+          ctx.font='700 '+(14*SC)+'px Archivo, sans-serif';ctx.fillStyle=_BP_INK;ctx.textAlign='left';
+          ctx.fillText(_fit(el.label,_kw),12*SC,HEAD*SC/2+0.5*SC);
+          if(!rows.length){
+            ctx.font='400 '+(12*SC)+'px Archivo, sans-serif';ctx.fillStyle='rgba(28,36,51,.5)';
+            ctx.fillText('Aucun canal li\xe9',12*SC,(HEAD+ROW/2)*SC);
+          }
           rows.forEach(function(r,i){
             var ry=(HEAD+i*ROW)*SC,cy=ry+ROW*SC/2;
-            if(i>0){ctx.strokeStyle='#e5eaf2';ctx.lineWidth=1*SC;ctx.beginPath();ctx.moveTo(10*SC,ry);ctx.lineTo(BW-10*SC,ry);ctx.stroke();}
-            ctx.font='bold '+Math.round(11*SC)+'px monospace';ctx.fillStyle=kci.color;ctx.textAlign='left';
-            ctx.fillText('CH'+r.ch,12*SC,cy);
-            ctx.font=Math.round(12*SC)+'px sans-serif';ctx.fillStyle='#1d3a5f';
-            ctx.fillText((r.long_name||r.short_name||'—').slice(0,18),46*SC,cy);
+            if(i>0){ctx.strokeStyle='rgba(28,36,51,.1)';ctx.lineWidth=1*SC;ctx.beginPath();ctx.moveTo(0,ry);ctx.lineTo(BW,ry);ctx.stroke();}
+            ctx.font='700 '+(12.5*SC)+'px Archivo, sans-serif';ctx.fillStyle=_BP_INK;ctx.textAlign='left';
+            ctx.fillText(String(r.ch),12*SC,cy+0.5*SC);
+            ctx.font='400 '+(12.5*SC)+'px Archivo, sans-serif';
+            ctx.fillText(_fit(r.long_name||r.short_name||'—',150*SC),44*SC,cy+0.5*SC);
           });
           ctx.textBaseline='alphabetic';
         } else if(el.type==='image_frame'){
@@ -5515,14 +5516,10 @@ function _makeBpCanvas(cb){
           var SZ=120*SC*ns;
           /* Icone ancrée au coin (el.x,el.y) — identique à l'éditeur vintage
              (.bp-vnode : la vignette est au coin, le label centré dessous). */
-          _bpRR(ctx,0,0,SZ,SZ,16*SC);
-          ctx.fillStyle='#ffffff';ctx.fill();
-          ctx.strokeStyle=((ci&&ci.color)||'#c8d4e0')+'66';ctx.lineWidth=1.5*SC;ctx.stroke();
           if(img){ctx.drawImage(img,0,0,SZ,SZ);}
           else{
-            ctx.font=Math.round(42*SC*ns)+'px serif';ctx.textAlign='center';ctx.textBaseline='middle';
-            ctx.fillStyle=(ci&&ci.color)||'#5a6580';ctx.fillText((ci&&ci.emoji)||'?',SZ/2,SZ/2);
-            ctx.textBaseline='alphabetic';
+            _bpRR(ctx,SZ*0.14,SZ*0.14,SZ*0.72,SZ*0.72,SZ*0.14);ctx.fillStyle='#ffffff';ctx.fill();
+            ctx.strokeStyle=_BP_INK;ctx.lineWidth=2*SC;ctx.stroke();
           }
           /* Badge entrée (CH, orange) ou sortie (OUT, vert) — comme l'éditeur */
           if(el.ch||el.chR){
@@ -5532,9 +5529,9 @@ function _makeBpCanvas(cb){
             if(_it!=='')_vtChBadge(ctx,_it,SZ,0,SC);
           } else if(el.outCh||el.outChR){
             var _ot=_bpOutBadgeText(el);
-            if(_ot)_vtChBadge(ctx,_ot,SZ,0,SC,{prefix:'OUT ',color:'#22d6a0'});
+            if(_ot)_vtChBadge(ctx,_ot,SZ,0,SC,{out:true});
           }
-          _lx=SZ/2;_ly=SZ+6*SC;
+          _lx=SZ/2;_ly=SZ+(3-5*ns)*SC;
         }
         ctx.restore();
         if(_lx!=null){var _wcx=wx(el.x)+(_lx*Math.cos(_rad)-_ly*Math.sin(_rad))*_scl;var _wcy=wy(el.y)+(_lx*Math.sin(_rad)+_ly*Math.cos(_rad))*_scl;_vtLabel(ctx,el.label,_wcx,_wcy,SC,data.textScale||1);}
@@ -10620,12 +10617,10 @@ const BandPlan=(()=>{
   function addCustomItem(catId){
     const name=prompt('Nom de l\'instrument :','');
     if(!name||!name.trim())return;
-    const emoji=prompt('Emoji (ex: 🎺) :','🎸');
-    if(emoji===null)return;
     const t='cu_'+Math.random().toString(36).slice(2,8);
     const cat=CATS.find(c=>c.id===catId);
     const c=cat?cat.color:'#aabbdd';
-    _customItems.push({catId,t,n:name.trim(),e:(emoji.trim()||'🎸'),c});
+    _customItems.push({catId,t,n:name.trim(),e:'',c});
     _saveCustomItems();
     renderPalette(document.getElementById('bp-search')?.value||'');
   }
@@ -10845,8 +10840,7 @@ const BandPlan=(()=>{
       const total=items.length+customs.length;
       h+='<div class="bp-cat'+(open?'':' collapsed')+'">'
         +'<div class="bp-cat-hd" onclick="BandPlan.toggleCat(\''+_jsq(cat.id)+'\')">'
-        +'<i class="ti ti-chevron-down" style="font-size:9px;color:var(--ora);transition:transform .15s ease;width:8px;display:inline-block;'+(open?'':'transform:rotate(-90deg)')+'"></i>'
-        +'<div class="bp-cat-dot" style="background:'+cat.color+'"></div>'
+        +'<i class="ti ti-chevron-down bp-cat-chev"'+(open?'':' style="transform:rotate(-90deg)"')+'></i>'
         +'<span>'+cat.label+'</span>'
         +'<span class="bp-cat-count">'+total+'</span>'
         +'</div>';
@@ -10858,7 +10852,7 @@ const BandPlan=(()=>{
              exactly what users will see when they drop them. */
           const svgInner=_vSVG(it.t,c);
           h+='<div class="bp-item" draggable="true" ondragstart="BandPlan._pdrag(event,\''+_jsq(it.t)+'\')" ondblclick="BandPlan._pdblclick(\''+_jsq(it.t)+'\')">'
-            +'<div class="bp-item-ic" style="background:#fff;border-color:'+c+'55;padding:3px"><svg viewBox="0 0 72 72" style="width:100%;height:100%;display:block">'+svgInner+'</svg></div>'
+            +'<div class="bp-item-ic"><svg viewBox="0 0 72 72">'+svgInner+'</svg></div>'
             +'<div class="bp-item-nm">'+it.n+'</div>'
             +'</div>';
         });
@@ -10866,11 +10860,11 @@ const BandPlan=(()=>{
           const c=it.c||cat.color;
           h+='<div class="bp-item bp-item-custom" draggable="true" ondragstart="BandPlan._pdrag(event,\''+_jsq(it.t)+'\')" ondblclick="BandPlan._pdblclick(\''+_jsq(it.t)+'\')">'
             +'<button class="bp-item-del-ci" onclick="event.stopPropagation();BandPlan.removeCustomItem(\''+_jsq(it.t)+'\')" title="Supprimer">\xd7</button>'
-            +'<div class="bp-item-ic" style="background:#fff;border-color:'+c+'66;border-style:dashed;color:'+c+';font-size:20px;font-family:var(--m);font-weight:700;display:flex;align-items:center;justify-content:center">'+(it.e||'?')+'</div>'
+            +'<div class="bp-item-ic"><svg viewBox="0 0 72 72">'+_vSVG(it.t)+'</svg></div>'
             +'<div class="bp-item-nm">'+it.n+'</div>'
             +'</div>';
         });
-        if(!q)h+='<button class="bp-item-add" onclick="BandPlan.addCustomItem(\''+_jsq(cat.id)+'\')"><i class="ti ti-plus" style="font-size:10px"></i>Ajouter</button>';
+        if(!q)h+='<button class="bp-item-add" onclick="BandPlan.addCustomItem(\''+_jsq(cat.id)+'\')" title="Ajouter un élément à cette famille"><i class="ti ti-plus"></i>Élément</button>';
         h+='</div>';
       }
       h+='</div>';
@@ -10942,244 +10936,154 @@ const BandPlan=(()=>{
   // ---- LIGHT-THEME SVG instrument logos (72x72 viewBox) ----
   // Color palette: deep navy #1d3a5f (outlines), blue #1d9bf0 + orange #ff6b1a accents,
   // soft white/grey body fills — matches SynPro/SitePlan light theme.
+  /* ── Symboles du plan de scène ──
+     Un seul trait, une seule encre : chaque élément est dessiné au trait dans un carré de 72,
+     en vue de dessus quand c'est lisible (fûts, claviers, retours), de face sinon (guitares, amplis).
+     Pas de couleur par famille : sur un plan, la couleur est réservée aux numéros de canaux. */
   function _vSVG(t,col){
-    var c=col||'#1d3a5f';
-    function _lug(a,r){var x=(36+r*Math.cos(a*Math.PI/180)).toFixed(1),y=(36+r*Math.sin(a*Math.PI/180)).toFixed(1);return '<circle cx="'+x+'" cy="'+y+'" r="1.8" fill="#c8d4e0" stroke="#1d3a5f" stroke-width=".4"/>';}
+    var K='#1c2433', W='#ffffff', G='#e4e8ee';
+    var J=' stroke-linejoin="round" stroke-linecap="round"';
+    var o=' fill="'+W+'" stroke="'+K+'" stroke-width="1.9"'+J;      /* contour */
+    var g=' fill="'+G+'" stroke="'+K+'" stroke-width="1.3"'+J;      /* pièce grisée */
+    var d=' fill="none" stroke="'+K+'" stroke-width="1.2"'+J;       /* détail */
+    var f=' fill="none" stroke="'+K+'" stroke-width=".9" stroke-opacity=".45"'+J; /* détail fin */
+    var k=' fill="'+K+'"';
+    function C(x,y,r,a){ return '<circle cx="'+x+'" cy="'+y+'" r="'+r+'"'+a+'/>'; }
+    function R(x,y,w,h,r,a){ return '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="'+(r||0)+'"'+a+'/>'; }
+    function P(p,a){ return '<path d="'+p+'"'+a+'/>'; }
+    function Ln(x1,y1,x2,y2,a){ return '<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'"'+a+'/>'; }
+    /* Tube (cuivres) : un trait épais à l'encre, recouvert d'un trait blanc plus fin */
+    function T(p,w){ w=w||7; return P(p,' fill="none" stroke="'+K+'" stroke-width="'+w+'"'+J)+P(p,' fill="none" stroke="'+W+'" stroke-width="'+(w-3.4)+'"'+J); }
+    function drum(x,y,r){ return C(x,y,r,o)+C(x,y,Math.max(2,r-4.5),f); }
+    function cym(x,y,r){ return C(x,y,r,g)+C(x,y,r*0.62,f)+C(x,y,Math.max(1.6,r*0.2),k); }
+    function keys(x,y,w,h,n){
+      var s='', step=w/n, i;
+      for(i=1;i<n;i++) s+=Ln((x+i*step).toFixed(1),y,(x+i*step).toFixed(1),y+h,f);
+      for(i=1;i<n;i++){ if(i%7===3||i%7===0) continue; s+=R((x+i*step-step*0.3).toFixed(1),y,(step*0.6).toFixed(1),(h*0.58).toFixed(1),0.6,k); }
+      return s;
+    }
     switch(t){
-      case 'kick':
-        return '<circle cx="36" cy="36" r="31" fill="#f4f6fb" stroke="#1d3a5f" stroke-width="1.5"/>'
-          +'<circle cx="36" cy="36" r="23" fill="#ffffff" stroke="#1d3a5f" stroke-width="1"/>'
-          +'<circle cx="36" cy="36" r="10" fill="#1d3a5f" fill-opacity=".08" stroke="#1d3a5f" stroke-width="1" stroke-opacity=".35"/>'
-          +'<text x="36" y="40" text-anchor="middle" font-family="Archivo" font-size="7" font-weight="700" fill="#1d3a5f">KICK</text>'
-          +[0,45,90,135,180,225,270,315].map(function(a){return _lug(a,29);}).join('');
-      case 'snare':
-        return '<circle cx="36" cy="36" r="26" fill="#ffe4b5" stroke="#1d3a5f" stroke-width="1.5"/>'
-          +'<circle cx="36" cy="36" r="19" fill="#fff8e1" stroke="#1d3a5f" stroke-width=".7"/>'
-          +'<circle cx="36" cy="36" r="6" fill="#1d3a5f" fill-opacity=".15"/>'
-          +[0,60,120,180,240,300].map(function(a){return _lug(a,24);}).join('')
-          +'<line x1="22" y1="63" x2="50" y2="63" stroke="#1d3a5f" stroke-width="1.2"/>'
-          +'<line x1="20" y1="67" x2="52" y2="67" stroke="#1d3a5f" stroke-width=".8" stroke-opacity=".6"/>';
-      case 'hihat':
-        return '<ellipse cx="36" cy="29" rx="25" ry="4.5" fill="#fbbf24" stroke="#1d3a5f" stroke-width="1"/>'
-          +'<ellipse cx="36" cy="35" rx="25" ry="4.5" fill="#d97706" stroke="#1d3a5f" stroke-width="1"/>'
-          +'<line x1="36" y1="39" x2="36" y2="65" stroke="#1d3a5f" stroke-width="2"/>'
-          +'<circle cx="36" cy="68" r="5" fill="#1d3a5f"/>';
-      case 'toms':
-        return '<circle cx="36" cy="36" r="24" fill="#f4f6fb" stroke="#1d3a5f" stroke-width="1.5"/>'
-          +'<circle cx="36" cy="36" r="17" fill="#ffffff" stroke="#1d3a5f" stroke-width=".7"/>'
-          +'<circle cx="36" cy="36" r="7" fill="#1d3a5f" fill-opacity=".18"/>'
-          +'<text x="36" y="40" text-anchor="middle" font-family="Archivo" font-size="7" font-weight="700" fill="#1d3a5f">TOM</text>'
-          +[0,60,120,180,240,300].map(function(a){return _lug(a,22);}).join('');
-      case 'cymbal':
-        return '<circle cx="36" cy="36" r="30" fill="#fbbf24" fill-opacity=".25"/>'
-          +'<circle cx="36" cy="36" r="30" fill="none" stroke="#d97706" stroke-width="2"/>'
-          +'<circle cx="36" cy="36" r="22" fill="none" stroke="#d97706" stroke-width="1" stroke-opacity=".5"/>'
-          +'<circle cx="36" cy="36" r="14" fill="none" stroke="#d97706" stroke-width=".7" stroke-opacity=".3"/>'
-          +'<circle cx="36" cy="36" r="5" fill="#d97706" stroke="#1d3a5f" stroke-width="1"/>';
-      case 'cajon':
-        return '<rect x="12" y="12" width="48" height="48" rx="4" fill="#d97706" stroke="#1d3a5f" stroke-width="1.5"/>'
-          +'<rect x="17" y="17" width="38" height="38" rx="3" fill="#fbbf24" stroke="#1d3a5f" stroke-width=".7"/>'
-          +'<circle cx="36" cy="36" r="9" fill="#1d3a5f" fill-opacity=".2" stroke="#1d3a5f" stroke-width=".8"/>';
+      /* ── Batterie (vue de dessus) ── */
+      case 'kick':   return R(30,57,12,10,2,k)+C(36,34,27,o)+C(36,34,21.5,f)+C(45,41,5,g);
+      case 'snare':  return R(57,31,6,10,1.5,k)+C(36,36,22,o)+C(36,36,17.5,f)+Ln(27,33,45,33,d)+Ln(27,39,45,39,d);
+      case 'hihat':  return R(33,56,6,11,2,k)+C(36,34,23,g)+C(36,34,14,f)+C(36,34,5.5,o)+C(36,34,1.8,k);
+      case 'toms':   return Ln(24,34,48,34,d)+drum(23,34,15.5)+drum(50,34,14);
+      case 'cymbal': return cym(36,36,29);
+      case 'cajon':  return R(15,10,42,52,4,o)+C(36,32,7.5,g)+Ln(21,50,51,50,f)+Ln(21,55,51,55,f);
+      case 'kit':    return cym(13,15,10)+cym(59,17,11)+cym(9,39,7.5)+drum(27,25,8.5)+drum(46,25,8.5)+drum(36,45,13)+drum(17,55,8.5)+drum(57,53,9.5);
+      /* ── Guitares (de face, manche vers le haut) ── */
       case 'elec':
-        // Electric guitar body — orange ish accent
-        return '<path d="M36,9C47,9 55,17 55,27C55,33 51,35 51,39C51,54 49,63 36,64C23,63 21,54 21,39C21,35 17,33 17,27C17,17 25,9 36,9Z" fill="#fbbf24" stroke="#1d3a5f" stroke-width="1.2"/>'
-          +'<rect x="31" y="29" width="10" height="4" rx="1" fill="#1d3a5f"/>'
-          +'<rect x="31" y="39" width="10" height="4" rx="1" fill="#1d3a5f"/>'
-          +'<circle cx="26" cy="51" r="2.5" fill="#ffffff" stroke="#1d3a5f" stroke-width=".6"/>'
-          +'<circle cx="32" cy="54" r="2.5" fill="#ffffff" stroke="#1d3a5f" stroke-width=".6"/>'
-          +'<rect x="33" y="63" width="6" height="4" rx="1" fill="#1d3a5f"/>';
+        return R(32,2,8,7,2,k)+R(33.6,8,4.8,22,0,k)
+          +P('M30 28C24 22 16 26 18 34C19 39 22 41 21 47C19 58 26 66 36 66C46 66 53 58 51 47C50 41 53 39 54 34C56 26 48 22 42 28Z',o)
+          +R(29.5,38,13,3.4,1,k)+R(29.5,46,13,3.4,1,k)+R(31,55,10,2.6,1,k)+C(45,56,1.7,k);
       case 'acou':
-        return '<circle cx="36" cy="26" r="16" fill="#fde68a" stroke="#1d3a5f" stroke-width="1.2"/>'
-          +'<circle cx="36" cy="47" r="19" fill="#fbbf24" stroke="#1d3a5f" stroke-width="1.2"/>'
-          +'<rect x="30" y="35" width="12" height="7" fill="#fde68a" stroke="#1d3a5f" stroke-width="1"/>'
-          +'<circle cx="36" cy="47" r="9" fill="#1d3a5f" fill-opacity=".82" stroke="#1d3a5f" stroke-width=".8"/>'
-          +'<circle cx="36" cy="47" r="11" fill="none" stroke="#1d3a5f" stroke-width=".6" stroke-opacity=".4"/>'
-          +'<rect x="34" y="8" width="4" height="12" rx="1" fill="#1d3a5f"/>';
+        return R(32,2,8,7,2,k)+R(33.6,8,4.8,16,0,k)
+          +P('M36 22C45 22 49 28 48 34C47.5 37 49 39 51 42C55 49 53 66 36 66C19 66 17 49 21 42C23 39 24.5 37 24 34C23 28 27 22 36 22Z',o)
+          +C(36,39,6,g)+R(29,53,14,3,1,k);
       case 'bass_g':
-        return '<path d="M36,10C47,10 54,18 54,27C54,32 51,34 51,38C51,52 49,63 36,65C23,63 21,52 21,38C21,34 18,32 18,27C18,18 25,10 36,10Z" fill="#22d6a0" stroke="#1d3a5f" stroke-width="1.2"/>'
-          +'<rect x="31" y="34" width="10" height="5" rx="1" fill="#1d3a5f"/>'
-          +'<rect x="31" y="45" width="10" height="5" rx="1" fill="#1d3a5f"/>'
-          +'<circle cx="27" cy="57" r="2.5" fill="#ffffff" stroke="#1d3a5f" stroke-width=".6"/>'
-          +'<circle cx="36" cy="60" r="2.5" fill="#ffffff" stroke="#1d3a5f" stroke-width=".6"/>';
-      case 'gamp':
-      case 'bamp':
-        return '<rect x="7" y="11" width="58" height="50" rx="5" fill="#ffffff" stroke="#1d3a5f" stroke-width="1.2"/>'
-          +'<circle cx="36" cy="38" r="18" fill="#1d3a5f" fill-opacity=".10" stroke="#1d3a5f" stroke-width="1.2"/>'
-          +'<circle cx="36" cy="38" r="13" fill="#1d3a5f" fill-opacity=".75" stroke="#0d1828" stroke-width="0.7"/>'
-          +'<circle cx="36" cy="38" r="7" fill="#0d1828"/>'
-          +'<circle cx="17" cy="19" r="3.5" fill="#ffffff" stroke="#1d3a5f" stroke-width=".8"/>'
-          +'<circle cx="27" cy="19" r="3.5" fill="#ffffff" stroke="#1d3a5f" stroke-width=".8"/>'
-          +'<circle cx="37" cy="19" r="3.5" fill="#ffffff" stroke="#1d3a5f" stroke-width=".8"/>'
-          +'<circle cx="47" cy="19" r="3.5" fill="#ff6b1a" stroke="#1d3a5f" stroke-width=".8"/>';
-      case 'cab':
-        // 4x12 cabinet
-        return '<rect x="5" y="5" width="62" height="62" rx="5" fill="#ffffff" stroke="#1d3a5f" stroke-width="1.2"/>'
-          +'<circle cx="22" cy="22" r="13" fill="#1d3a5f" fill-opacity=".10" stroke="#1d3a5f" stroke-width=".8"/><circle cx="22" cy="22" r="8" fill="#1d3a5f" fill-opacity=".75"/>'
-          +'<circle cx="50" cy="22" r="13" fill="#1d3a5f" fill-opacity=".10" stroke="#1d3a5f" stroke-width=".8"/><circle cx="50" cy="22" r="8" fill="#1d3a5f" fill-opacity=".75"/>'
-          +'<circle cx="22" cy="50" r="13" fill="#1d3a5f" fill-opacity=".10" stroke="#1d3a5f" stroke-width=".8"/><circle cx="22" cy="50" r="8" fill="#1d3a5f" fill-opacity=".75"/>'
-          +'<circle cx="50" cy="50" r="13" fill="#1d3a5f" fill-opacity=".10" stroke="#1d3a5f" stroke-width=".8"/><circle cx="50" cy="50" r="8" fill="#1d3a5f" fill-opacity=".75"/>';
-      case 'keyboard':
-      case 'synth':
-      case 'piano':
-      case 'wurly':
-        // Keyboard top view — white keys with black accidentals
-        return '<rect x="4" y="18" width="64" height="36" rx="4" fill="'+(t==='wurly'?'#d97706':'#1d3a5f')+'" stroke="#1d3a5f" stroke-width="1.2"/>'
-          +'<rect x="6" y="24" width="60" height="28" rx="2" fill="#ffffff" stroke="#1d3a5f" stroke-width=".5"/>'
-          +[0,1,2,3,4,5,6].map(function(i){return '<line x1="'+(14+i*8)+'" y1="24" x2="'+(14+i*8)+'" y2="52" stroke="#1d3a5f" stroke-width=".5"/>';}).join('')
-          +[10,18,34,42,50].map(function(x){return '<rect x="'+x+'" y="24" width="5" height="16" rx="1" fill="#1d3a5f"/>';}).join('');
+        return P('M31 3h10l1.5 8h-13z',k)+R(33.6,10,4.8,26,0,k)
+          +P('M31 34C26 29 19 32 20 39C21 43 23 45 22 50C21 60 27 67 36 67C45 67 51 60 50 50C49 45 51 43 52 39C53 32 46 29 41 34Z',o)
+          +R(30,45,12,4.4,1,k)+R(31,56,10,2.6,1,k);
+      /* ── Amplis (de face) ── */
+      case 'gamp':   return R(11,12,50,48,4,o)+Ln(11,24,61,24,d)+C(20,18,1.9,k)+C(27,18,1.9,k)+C(34,18,1.9,k)+C(41,18,1.9,k)+R(49,16,7,4,1,k)+C(36,42,12.5,g)+C(36,42,4,k);
+      case 'bamp':   return R(15,7,42,13,3,o)+C(23,13.5,1.8,k)+C(30,13.5,1.8,k)+C(37,13.5,1.8,k)+R(44,11.5,7,4,1,k)+R(11,23,50,42,4,o)+C(25,44,9.5,g)+C(25,44,3,k)+C(47,44,9.5,g)+C(47,44,3,k);
+      case 'cab':    return R(11,11,50,50,4,o)+C(24.5,24.5,8.5,g)+C(47.5,24.5,8.5,g)+C(24.5,47.5,8.5,g)+C(47.5,47.5,8.5,g)+C(24.5,24.5,2.6,k)+C(47.5,24.5,2.6,k)+C(24.5,47.5,2.6,k)+C(47.5,47.5,2.6,k);
+      /* ── Claviers (vue de dessus) ── */
+      case 'keyboard': return R(5,23,62,26,3.5,o)+Ln(5,32,67,32,d)+keys(8,32,56,17,14)+R(10,26.2,10,2.6,1,k);
+      case 'synth':    return R(5,17,62,38,3.5,o)+Ln(5,34,67,34,d)+keys(8,34,56,21,14)+C(13,25.5,2.3,k)+C(21,25.5,2.3,k)+C(29,25.5,2.3,k)+C(37,25.5,2.3,k)+R(45,22,16,7,1.5,g);
+      case 'piano':    return P('M8 62V30C8 15 20 8 33 8C46 8 51 17 55 26C60 35 64 40 64 50V62Z',o)+P('M14 46C14 28 20 15 33 14',f)+Ln(8,48,64,48,d)+keys(11,48,50,14,14);
+      case 'wurly':    return R(7,18,58,36,9,o)+Ln(7,36,65,36,d)+keys(11,36,50,18,12)+Ln(14,25,30,25,d)+Ln(14,30,30,30,d)+C(48,27.5,2.6,k)+C(56,27.5,2.6,k);
+      /* ── Voix ── */
       case 'mic_s':
-        // Mic on stand — top view (circle base + mic)
-        return '<circle cx="36" cy="60" r="11" fill="#ffffff" stroke="#1d3a5f" stroke-width="1.2"/>'
-          +'<circle cx="36" cy="60" r="5" fill="#1d3a5f" fill-opacity=".25"/>'
-          +'<line x1="36" y1="49" x2="36" y2="20" stroke="#1d3a5f" stroke-width="2"/>'
-          +'<ellipse cx="36" cy="15" rx="7" ry="10" fill="#ffffff" stroke="#1d3a5f" stroke-width="1.5"/>'
-          +'<ellipse cx="36" cy="15" rx="4.5" ry="7" fill="#1d3a5f" fill-opacity=".7"/>';
+        return Ln(36,42,36,66,d)+Ln(36,42,15,30,d)+Ln(36,42,57,30,d)+C(36,66,2.4,k)+C(15,30,2.4,k)+C(57,30,2.4,k)
+          +Ln(36,42,36,22,' fill="none" stroke="'+K+'" stroke-width="2.4"'+J)+C(36,42,4.2,k)+R(30,4,12,20,6,g)+Ln(30.5,13,41.5,13,d);
       case 'mic_hf':
-        // Handheld wireless mic
-        return '<ellipse cx="36" cy="17" rx="8" ry="12" fill="#ffffff" stroke="#1d3a5f" stroke-width="1.3"/>'
-          +'<ellipse cx="36" cy="17" rx="5" ry="8" fill="#1d3a5f" fill-opacity=".75"/>'
-          +'<rect x="33" y="29" width="6" height="28" rx="2" fill="#1d3a5f" stroke="#1d3a5f" stroke-width=".5"/>'
-          +'<circle cx="36" cy="58" r="2" fill="#ff6b1a"/>';
+        return P('M50 12a14 14 0 0 1 6 11',d)+P('M54 6a21 21 0 0 1 9 17',f)
+          +R(31,26,10,30,3,o)+R(33.3,56,5.4,9,2,k)+C(36,17,10,g)+Ln(27,15,45,15,f)+Ln(27,20,45,20,f)+R(34,34,4,7,1,k);
       case 'iem_p':
-        // In-ear monitor — receiver belt-pack icon
-        return '<rect x="22" y="10" width="28" height="46" rx="4" fill="#ffffff" stroke="#1d3a5f" stroke-width="1.4"/>'
-          +'<rect x="26" y="14" width="20" height="14" rx="1" fill="#1d3a5f"/>'
-          +'<circle cx="36" cy="40" r="4" fill="#1d3a5f" fill-opacity=".25" stroke="#1d3a5f" stroke-width="0.8"/>'
-          +'<circle cx="36" cy="40" r="1.5" fill="#1d3a5f"/>'
-          +'<rect x="30" y="48" width="12" height="4" rx="1" fill="#9b6aff"/>'
-          +'<line x1="36" y1="10" x2="36" y2="2" stroke="#1d3a5f" stroke-width="1.5"/>'
-          +'<circle cx="36" cy="2" r="1.5" fill="#1d3a5f"/>';
+        return P('M15 44V37a21 21 0 0 1 42 0v7',' fill="none" stroke="'+K+'" stroke-width="2.4"'+J)+R(8,40,14,22,5,g)+R(50,40,14,22,5,g)+Ln(15,46,15,56,d)+Ln(57,46,57,56,d);
+      /* ── Cuivres & bois (de profil) ── */
       case 'trumpet':
-        return '<path d="M50,28C50,20 44,14 36,14C28,14 20,18 18,26C16,34 20,40 28,40C36,40 44,36 50,28Z" fill="none" stroke="#d97706" stroke-width="2.5"/>'
-          +'<circle cx="50" cy="44" r="16" fill="#fbbf24" stroke="#1d3a5f" stroke-width="1.5"/>'
-          +'<circle cx="50" cy="44" r="10" fill="#fde68a" stroke="#1d3a5f" stroke-width="0.8"/>'
-          +'<circle cx="50" cy="44" r="4" fill="#d97706" stroke="#1d3a5f" stroke-width="0.6"/>'
-          +'<line x1="28" y1="40" x2="20" y2="54" stroke="#d97706" stroke-width="2.5"/>';
+        return T('M9 30H50')+T('M20 30v8a5 5 0 0 0 5 5h20a5 5 0 0 0 5-5v-8',5.6)+P('M49 25L65 16V44L49 35Z',o)
+          +R(25,19,5,15,1.5,o)+R(32,19,5,15,1.5,o)+R(39,19,5,15,1.5,o)+R(24,16,7,3,1,k)+R(31,16,7,3,1,k)+R(38,16,7,3,1,k)+R(5,27.6,5,4.8,1.5,k);
       case 'trombone':
-        return '<line x1="10" y1="24" x2="62" y2="24" stroke="#d97706" stroke-width="3"/>'
-          +'<line x1="10" y1="33" x2="62" y2="33" stroke="#d97706" stroke-width="3"/>'
-          +'<rect x="8" y="22" width="11" height="13" rx="2" fill="#fbbf24" stroke="#1d3a5f" stroke-width="1"/>'
-          +'<circle cx="62" cy="28" r="13" fill="#fbbf24" stroke="#1d3a5f" stroke-width="1.5"/>'
-          +'<circle cx="62" cy="28" r="7" fill="#fde68a"/>';
+        return T('M62 44H14a7 7 0 0 1 0-14H44',5.6)+T('M8 22H46',5.6)+P('M45 17L64 8V36L45 27Z',o)+Ln(26,30,26,44,d)+R(4,19.6,5,4.8,1.5,k)+Ln(8,22,8,37,d);
       case 'sax':
-        return '<path d="M38,8C48,8 56,16 57,26C58,38 53,50 44,58C40,62 34,64 28,62C22,58 20,50 24,44C28,38 36,36 38,28C40,20 38,14 36,12" fill="none" stroke="#d97706" stroke-width="3.2" stroke-linecap="round"/>'
-          +'<circle cx="44" cy="58" r="10" fill="#fbbf24" stroke="#1d3a5f" stroke-width="1.5"/>'
-          +'<circle cx="44" cy="58" r="5" fill="#fde68a"/>'
-          +'<circle cx="38" cy="14" r="2.5" fill="#1d3a5f"/>'
-          +'<circle cx="36" cy="28" r="2" fill="#1d3a5f"/>';
+        return T('M24 8l7 5v30a11 11 0 0 0 22 0V30',8)+P('M46 30l14-5v9z',o)+R(19,4,7,5.5,1.5,k)+C(31,21,2.1,k)+C(31,28,2.1,k)+C(31,35,2.1,k)+C(44,50,2.1,k);
       case 'horn':
-        return '<circle cx="36" cy="38" r="20" fill="#fbbf24" stroke="#1d3a5f" stroke-width="1.5"/>'
-          +'<circle cx="36" cy="38" r="14" fill="#fde68a" stroke="#1d3a5f" stroke-width="0.7"/>'
-          +'<circle cx="36" cy="38" r="6" fill="#1d3a5f" fill-opacity=".25" stroke="#1d3a5f" stroke-width="0.8"/>'
-          +'<line x1="36" y1="18" x2="36" y2="10" stroke="#d97706" stroke-width="2"/>'
-          +'<circle cx="36" cy="7" r="4" fill="#d97706" stroke="#1d3a5f" stroke-width="0.8"/>';
-      case 'timb':
-        return '<circle cx="20" cy="36" r="15" fill="#ffe4b5" stroke="#1d3a5f" stroke-width="1.5"/><circle cx="20" cy="36" r="10" fill="#fff8e1" stroke="#1d3a5f" stroke-width=".5"/>'
-          +'<circle cx="52" cy="36" r="17" fill="#ffe4b5" stroke="#1d3a5f" stroke-width="1.5"/><circle cx="52" cy="36" r="12" fill="#fff8e1" stroke="#1d3a5f" stroke-width=".5"/>';
-      case 'conga':
-        return '<ellipse cx="22" cy="36" rx="13" ry="22" fill="#d97706" stroke="#1d3a5f" stroke-width="1.5"/><ellipse cx="22" cy="26" rx="10" ry="5" fill="#fbbf24" stroke="#1d3a5f" stroke-width=".7"/>'
-          +'<ellipse cx="50" cy="36" rx="13" ry="22" fill="#d97706" stroke="#1d3a5f" stroke-width="1.5"/><ellipse cx="50" cy="26" rx="10" ry="5" fill="#fbbf24" stroke="#1d3a5f" stroke-width=".7"/>';
+        return T('M10 20h12a7 7 0 0 1 7 7',5.6)+C(34,42,16,' fill="none" stroke="'+K+'" stroke-width="7.4"')+C(34,42,16,' fill="none" stroke="'+W+'" stroke-width="4"')
+          +P('M43 31L57 9L69 27Z',o)+R(5,17.6,5,4.8,1.5,k)+C(34,42,3.4,k);
+      /* ── Percussions ── */
+      case 'timb':   return Ln(24,36,50,36,d)+R(31,9,10,8,2,g)+drum(23,38,15.5)+drum(51,38,13.5);
+      case 'conga':  return C(26,40,17,o)+C(26,40,12.5,g)+C(52,27,12.5,o)+C(52,27,8.8,g);
       case 'marimba':
+        return P('M6 18L66 26V46L6 54Z',o)+Ln(6,36,66,36,f)+[13,20,27,34,41,48,55,61].map(function(x){ var dy=(x-6)/60*8; return Ln(x,(18+dy).toFixed(1),x,(54-dy).toFixed(1),d); }).join('');
       case 'xyl':
-        return '<rect x="4" y="12" width="64" height="48" rx="3" fill="#ffffff" stroke="#1d3a5f" stroke-width="1.2"/>'
-          +[0,1,2,3,4,5,6].map(function(i){var bh=[46,42,38,34,38,42,46][i],bc=t==='xyl'?'#22d6a0':'#fbbf24';return '<rect x="'+(9+i*9)+'" y="'+(60-bh)+'" width="7" height="'+bh+'" rx="1.5" fill="'+bc+'" stroke="#1d3a5f" stroke-width="0.7"/>';}).join('');
+        return P('M10 28L62 33V47L10 52Z',o)+[18,26,34,42,50,56].map(function(x){ var dy=(x-10)/52*5; return Ln(x,(28+dy).toFixed(1),x,(52-dy).toFixed(1),d); }).join('')
+          +Ln(22,22,40,8,d)+C(42,6.5,3,k)+Ln(50,22,56,10,d)+C(57,8,3,k);
+      /* ── Technique ── */
       case 'foh':
+        return R(5,14,62,44,4,o)+Ln(5,26,67,26,d)+R(25,17.5,22,5.4,1.2,g)
+          +[12,19,26,33,40,47,54,60].map(function(x,i){ var y=[40,34,44,37,42,33,39,45][i]; return Ln(x,31,x,53,f)+R(x-2,y,4,5.5,1,k); }).join('');
       case 'mon':
-        var consoleAccent = (t==='mon'?'#f5c542':'#1a8fff');
-        return '<rect x="4" y="12" width="64" height="48" rx="5" fill="'+consoleAccent+'" stroke="#1d3a5f" stroke-width="1.2"/>'
-          +'<rect x="4" y="12" width="64" height="9" rx="5" fill="#0d1828"/>'
-          +[0,1,2,3,4,5,6,7].map(function(i){var fx=8+i*8,fp=[32,26,34,22,36,28,30,24][i];return '<rect x="'+fx+'" y="24" width="4" height="26" rx="1" fill="#16243d"/>'+'<rect x="'+fx+'" y="'+fp+'" width="4" height="6" rx="1" fill="#ffffff"/>';}).join('')
-          +'<rect x="8" y="52" width="56" height="5" rx="1" fill="#16243d"/>'
-          +[0,1,2,3,4].map(function(i){return '<rect x="'+(8+i*12)+'" y="53" width="10" height="3" rx="0.5" fill="'+(i<3?'#22d6a0':'#ff6b1a')+'"/>';}).join('');
+        return R(9,16,54,40,4,o)+Ln(9,27,63,27,d)
+          +[16,23,30,37,44,51,57].map(function(x,i){ var y=[39,44,35,41,36,43,38][i]; return C(x,21.5,1.5,k)+Ln(x,31,x,51,f)+R(x-2,y,4,5.5,1,k); }).join('');
       case 'stagebox':
-        return '<rect x="7" y="16" width="58" height="40" rx="5" fill="#5a6580" stroke="#1d3a5f" stroke-width="1.2"/>'
-          +[0,1,2,3].map(function(i){return '<circle cx="'+(15+i*14)+'" cy="29" r="4.5" fill="#ffffff" stroke="#1d3a5f" stroke-width="1"/><circle cx="'+(15+i*14)+'" cy="29" r="2" fill="#1d3a5f"/>';}).join('')
-          +[0,1,2,3].map(function(i){return '<rect x="'+(12+i*14)+'" y="40" width="6" height="6" rx="1" fill="#ff6b1a" stroke="#1d3a5f" stroke-width=".5"/>';}).join('');
-      case 'di':
-        return '<rect x="14" y="14" width="44" height="44" rx="5" fill="#ffffff" stroke="#1d3a5f" stroke-width="1.5"/>'
-          +'<text x="36" y="32" text-anchor="middle" font-family="Archivo" font-size="11" font-weight="700" fill="#1d3a5f">DI</text>'
-          +'<circle cx="25" cy="44" r="4" fill="#1d3a5f" fill-opacity=".15" stroke="#1d3a5f" stroke-width="0.8"/>'
-          +'<rect x="37" y="40" width="11" height="7" rx="1" fill="#1d3a5f" fill-opacity=".15" stroke="#1d3a5f" stroke-width="0.7"/>';
+        return R(7,19,58,34,3.5,o)+[15,24,33,42,51,59].map(function(x){ return C(x,29,3,g)+C(x,42,3,g)+C(x,29,0.9,k)+C(x,42,0.9,k); }).join('');
+      case 'di':     return R(15,20,42,32,4,o)+C(27,36,5.5,g)+C(27,36,1.9,k)+C(45,36,5.5,g)+C(45,36,1.9,k)+R(33,24,6,3,1,k);
       case 'iem_r':
-        return '<rect x="4" y="10" width="64" height="44" rx="3" fill="#ffffff" stroke="#1d3a5f" stroke-width="1.2"/>'
-          +[0,1,2].map(function(i){return '<rect x="'+(8+i*22)+'" y="16" width="18" height="14" rx="2" fill="#9b6aff" stroke="#1d3a5f" stroke-width="0.7"/>'+'<circle cx="'+(17+i*22)+'" cy="23" r="3.5" fill="#ffffff" stroke="#1d3a5f" stroke-width="0.5"/>';}).join('')
-          +[0,1,2].map(function(i){return '<rect x="'+(11+i*22)+'" y="38" width="12" height="4" rx=".5" fill="#9b6aff"/>';}).join('')
-          +'<line x1="22" y1="10" x2="22" y2="3" stroke="#1d3a5f" stroke-width="1.5"/>'
-          +'<line x1="44" y1="10" x2="44" y2="1" stroke="#1d3a5f" stroke-width="1.5"/>';
-      case 'spk':
-        return '<rect x="5" y="5" width="62" height="62" rx="5" fill="#1a8fff" stroke="#1d3a5f" stroke-width="1.5"/>'
-          +'<circle cx="36" cy="36" r="25" fill="#ffffff" stroke="#1d3a5f" stroke-width="1"/>'
-          +'<circle cx="36" cy="36" r="17" fill="#1d3a5f" fill-opacity=".10" stroke="#1d3a5f" stroke-width="0.7"/>'
-          +'<circle cx="36" cy="36" r="7" fill="#1d3a5f"/>';
-      case 'sub':
-        return '<rect x="4" y="4" width="64" height="64" rx="5" fill="#ff6b1a" stroke="#1d3a5f" stroke-width="1.5"/>'
-          +'<circle cx="36" cy="36" r="28" fill="#ffffff" stroke="#1d3a5f" stroke-width="1"/>'
-          +'<circle cx="36" cy="36" r="19" fill="#ff6b1a" fill-opacity=".15" stroke="#1d3a5f" stroke-width="0.7"/>'
-          +'<circle cx="36" cy="36" r="8" fill="#1d3a5f"/>';
-      case 'wedge':
-        // Wedge — top-down trapezoid view
-        return '<polygon points="4,66 68,66 68,14 4,52" fill="#f5c542" stroke="#1d3a5f" stroke-width="1.5"/>'
-          +'<polygon points="10,63 62,63 62,20 10,49" fill="#ffffff" stroke="#1d3a5f" stroke-width="0.5"/>'
-          +'<circle cx="36" cy="42" r="16" fill="#1d3a5f" fill-opacity=".10" stroke="#1d3a5f" stroke-width="1.2"/>'
-          +'<circle cx="36" cy="42" r="10" fill="#1d3a5f" fill-opacity=".25" stroke="#1d3a5f" stroke-width="0.7"/>'
-          +'<circle cx="36" cy="42" r="4.5" fill="#1d3a5f"/>'
-          +'<rect x="18" y="62" width="36" height="2.5" rx="0.8" fill="#1d3a5f"/>';
-      case 'chair':
-        return '<rect x="12" y="12" width="48" height="48" rx="4" fill="#ffffff" stroke="#1d3a5f" stroke-width="1.5"/>'
-          +'<rect x="17" y="17" width="38" height="26" rx="3" fill="#1d3a5f" fill-opacity=".10" stroke="#1d3a5f" stroke-width="0.7"/>'
-          +'<rect x="16" y="46" width="8" height="11" rx="1.5" fill="#1d3a5f"/>'
-          +'<rect x="48" y="46" width="8" height="11" rx="1.5" fill="#1d3a5f"/>';
-      case 'stool':
-        return '<circle cx="36" cy="36" r="27" fill="#ffffff" stroke="#1d3a5f" stroke-width="1.5"/>'
-          +'<circle cx="36" cy="36" r="20" fill="#1d3a5f" fill-opacity=".10" stroke="#1d3a5f" stroke-width="0.7"/>'
-          +'<circle cx="18" cy="54" r="3.5" fill="#1d3a5f"/><circle cx="54" cy="54" r="3.5" fill="#1d3a5f"/>'
-          +'<circle cx="18" cy="18" r="3.5" fill="#1d3a5f"/><circle cx="54" cy="18" r="3.5" fill="#1d3a5f"/>';
+        return Ln(17,24,11,6,d)+C(11,6,2.2,k)+Ln(55,24,61,6,d)+C(61,6,2.2,k)+R(7,24,58,30,3.5,o)+Ln(7,39,65,39,d)
+          +R(13,28.5,18,6,1.2,g)+C(56,31.5,2.4,k)+C(48,31.5,2.4,k)+R(13,43.5,18,6,1.2,g)+C(56,46.5,2.4,k)+C(48,46.5,2.4,k);
+      case 'spk':    return R(15,5,42,62,4.5,o)+R(23,11,26,11,2.5,g)+C(36,44,14,g)+C(36,44,5,k);
+      case 'sub':    return R(7,12,58,48,4.5,o)+C(36,36,17,g)+C(36,36,6.5,k)+Ln(13,18,19,18,d)+Ln(53,18,59,18,d)+Ln(13,54,19,54,d)+Ln(53,54,59,54,d);
+      case 'wedge':  return P('M7 20H65L54 56H18Z',o)+Ln(14,29,58,29,f)+Ln(16.5,37,55.5,37,f)+Ln(19,45,53,45,f)+P('M28 56L26 63H46L44 56',d);
+      /* ── Divers ── */
+      case 'chair':  return R(14,22,44,40,7,o)+R(12,10,48,10,5,k)+Ln(21,32,51,32,f);
+      case 'stool':  return C(36,36,22,o)+C(36,36,14.5,f);
+      case 'txt_bp': return R(12,18,48,36,6,' fill="none" stroke="'+K+'" stroke-width="1.3" stroke-dasharray="3 4" stroke-opacity=".55"')+P('M27 28h18M36 28v17',' fill="none" stroke="'+K+'" stroke-width="2.6"'+J);
       default:{
-        var L=(t||'?').charAt(0).toUpperCase();
-        return '<circle cx="36" cy="36" r="30" fill="#ffffff" stroke="'+c+'" stroke-width="2"/>'
-          +'<text x="36" y="43" text-anchor="middle" font-family="Archivo" font-size="22" fill="'+c+'" font-weight="700">'+L+'</text>';
+        var it=_itemOf(t), nm=String((it&&it.n)||t||'?').replace(/[<>&"']/g,'').trim();
+        var ws=nm.split(/\s+/), L=(ws.length>1?ws[0].charAt(0)+ws[1].charAt(0):nm.slice(0,2)).toUpperCase();
+        return R(10,10,52,52,10,o)+'<text x="36" y="43.5" text-anchor="middle" font-family="Archivo,sans-serif" font-size="20" font-weight="700" fill="'+K+'">'+L+'</text>';
       }
     }
   }
 
+  /* Étiquette de canal d'un élément : entrée (orange) ou sortie (encre) */
+  function _chTag(el){
+    var tag=function(txt,out){ return '<div class="bp-node-ch'+(out?' out':'')+'">'+txt+'</div>'; };
+    if(el.type==='kit') return (el.chs&&el.chs.length)?tag(el.chs.length===1?'CH '+_chNum(el.chs[0]):el.chs.length+' CH'):'';
+    if(_isOutput(el.type)){
+      if(el.outStereo) return (el.outCh||el.outChR)?tag('OUT '+(el.outCh?_outChNum(el.outCh):'?')+'+'+(el.outChR?_outChNum(el.outChR):'?'),true):'';
+      return el.outCh?tag('OUT '+_outChNum(el.outCh),true):'';
+    }
+    if(el.stereo) return (el.ch||el.chR)?tag('CH '+(el.ch?_chNum(el.ch):'?')+'+'+(el.chR?_chNum(el.chR):'?')):'';
+    return el.ch?tag('CH '+_chNum(el.ch)):'';
+  }
   function _vintageInnerHTML(el){
-    var c=_elColor(el.type);
-    var it=_itemOf(el.type)||{e:'?'};
-    var chBadge=el.type==='kit'
-      ?(el.chs&&el.chs.length?'<div class="bp-node-ch">'+(el.chs.length===1?'CH '+_chNum(el.chs[0]):el.chs.length+'\xd7CH')+'</div>':'')
-      :(_isOutput(el.type)
-        ?(el.outStereo
-          ?(el.outCh||el.outChR?'<div class="bp-node-ch" style="background:#22d6a0;font-size:22px">OUT '+(el.outCh?_outChNum(el.outCh):'?')+'+'+(el.outChR?_outChNum(el.outChR):'?')+'</div>':'')
-          :(el.outCh?'<div class="bp-node-ch" style="background:#22d6a0">OUT '+_outChNum(el.outCh)+'</div>':''))
-        :(el.stereo
-          ?(el.ch||el.chR?'<div class="bp-node-ch" style="font-size:22px">CH '+(el.ch?_chNum(el.ch):'?')+'+'+(el.chR?_chNum(el.chR):'?')+'</div>':'')
-          :(el.ch?'<div class="bp-node-ch">CH '+_chNum(el.ch)+'</div>':'')));
+    var chBadge=_chTag(el);
+    var _lb=function(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;'); };
+    var _num=function(v){ return String(v).replace('.',','); };
     if(el.type==='riser'){
       var rw=(el.riserW||2)*RISER_SCALE,rh=(el.riserH||1)*RISER_SCALE,alt=el.riserAlt||0.4;
-      var op=(0.10+(alt/1.2)*0.25).toFixed(2),fs=Math.max(11,Math.min(18,rw/9));
-      return '<div class="bp-riser-body" style="width:'+rw+'px;height:'+rh+'px;background:rgba(255,107,26,'+op+');border:2px solid rgba(255,107,26,.45);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;position:relative;box-sizing:border-box;box-shadow:0 1px 6px rgba(0,0,0,.10)">'
+      return '<div class="bp-riser-body" style="width:'+rw+'px;height:'+rh+'px">'
         +chBadge
-        +'<span style="font-family:var(--m);font-size:'+fs+'px;color:#1d3a5f;font-weight:700;letter-spacing:.3px">'+((el.riserW||2)+'m \xd7 '+(el.riserH||1)+'m')+'</span>'
-        +'<span style="font-family:var(--m);font-size:8px;color:#64748b">⬆ '+alt+'m</span>'
+        +'<span class="bp-riser-dim">'+_num(el.riserW||2)+' \xd7 '+_num(el.riserH||1)+' m \xb7 h '+_num(alt)+' m</span>'
         +'<button class="bp-node-del" onclick="BandPlan.deleteNode('+el.id+')" title="Supprimer">\xd7</button>'
         +'</div>'
-        +'<div class="bp-vnode-lbl">'+el.label.replace(/</g,'&lt;')+'</div>';
+        +'<div class="bp-vnode-lbl">'+_lb(el.label)+'</div>';
     }
     if(el.type==='kit'){
       var kitChs=el.chs||[];
       var rows=kitChs.map(function(id){return _chById(id);}).filter(Boolean);
       var rowsHtml=rows.length
-        ?rows.map(function(r){return '<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-top:1px solid #e5eaf2">'
-          +'<span style="font-family:var(--m);font-size:11px;font-weight:700;color:'+c+';min-width:34px">CH'+r.ch+'</span>'
-          +'<span style="font-family:var(--m);font-size:12px;color:#1d3a5f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px">'+(r.long_name||r.short_name||'—')+'</span>'
-          +'</div>';}).join('')
-        :'<div style="font-family:var(--m);font-size:11px;color:#94a3b8;padding:7px 12px;font-style:italic">Aucun canal li\xe9</div>';
-      return '<div class="bp-kit-block" style="background:#ffffff;border:1.5px solid '+c+'66;border-radius:8px;overflow:hidden;min-width:210px;position:relative;box-shadow:0 2px 10px rgba(0,0,0,.10)">'
-        +'<div style="display:flex;align-items:center;gap:8px;padding:8px 12px 7px;background:'+c+'12;border-bottom:1px solid '+c+'22">'
-        +'<span style="font-size:22px">'+it.e+'</span>'
-        +'<span style="font-family:var(--m);font-size:13px;font-weight:700;color:#1d3a5f;flex:1;letter-spacing:.2px">'+el.label.replace(/</g,'&lt;')+'</span>'
-        +(rows.length?'<span style="font-family:var(--m);font-size:10px;color:#ffffff;background:'+c+';padding:2px 8px;border-radius:8px;font-weight:700">'+rows.length+' CH</span>':'')
-        +'<button class="bp-node-del" onclick="BandPlan.deleteNode('+el.id+')" title="Supprimer" style="position:relative;top:auto;right:auto;margin-left:2px">\xd7</button>'
+        ?rows.map(function(r){return '<div class="bp-kit-row"><b>'+r.ch+'</b><span>'+_lb(r.long_name||r.short_name||'—')+'</span></div>';}).join('')
+        :'<div class="bp-kit-none">Aucun canal li\xe9</div>';
+      return '<div class="bp-kit-block">'
+        +'<div class="bp-kit-hd">'
+        +'<span class="bp-kit-t">'+_lb(el.label)+'</span>'
+        +(rows.length?'<span class="bp-kit-n">'+rows.length+' CH</span>':'')
+        +'<button class="bp-node-del" onclick="BandPlan.deleteNode('+el.id+')" title="Supprimer">\xd7</button>'
         +'</div>'
         +rowsHtml
         +'</div>';
@@ -11196,7 +11100,7 @@ const BandPlan=(()=>{
           +'<div class="bp-rsz bp-rsz-sw" data-bpid="'+el.id+'" data-corner="sw" style="left:-6px;bottom:-6px"></div>'
           +'<div class="bp-rsz bp-rsz-se" data-bpid="'+el.id+'" data-corner="se" style="right:-6px;bottom:-6px"></div>'
           +'</div>'
-          +'<div class="bp-vnode-lbl">'+el.label.replace(/</g,'&lt;')+'</div>';
+          +'<div class="bp-vnode-lbl">'+_lb(el.label)+'</div>';
       }
       return '<div class="bp-img-frame" onclick="BandPlan.uploadElementIcon('+el.id+')" '
         +'style="width:'+ifPx+'px;height:'+ifPx+'px;border:2px dashed var(--bdr2);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-direction:column;gap:6px">'
@@ -11204,18 +11108,18 @@ const BandPlan=(()=>{
         +'<i class="ti ti-photo" style="font-size:22px;color:var(--muted);pointer-events:none"></i>'
         +'<span style="font-size:10px;font-family:var(--m);color:var(--muted);pointer-events:none">Ajouter une image</span>'
         +'</div>'
-        +'<div class="bp-vnode-lbl">'+el.label.replace(/</g,'&lt;')+'</div>';
+        +'<div class="bp-vnode-lbl">'+_lb(el.label)+'</div>';
     }
     return '<div class="bp-vnode-wrap">'
-      +'<div class="bp-vnode-body" style="background:#ffffff;border:1.5px solid '+c+'66">'
+      +'<div class="bp-vnode-body">'
       +'<svg viewBox="0 0 72 72" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">'
-      +_vSVG(el.type,c)
+      +_vSVG(el.type)
       +'</svg>'
       +'</div>'
       +chBadge
       +'<button class="bp-node-del" onclick="BandPlan.deleteNode('+el.id+')" title="Supprimer">\xd7</button>'
       +'</div>'
-      +'<div class="bp-vnode-lbl">'+el.label.replace(/</g,'&lt;')+'</div>';
+      +'<div class="bp-vnode-lbl">'+_lb(el.label)+'</div>';
   }
 
   function renderNode(el){
@@ -11404,7 +11308,7 @@ const BandPlan=(()=>{
     const el=document.getElementById('bp-insp-body');if(!el)return;
     const sel=st.els.find(e=>e.id===_sel);
     if(!sel){
-      el.innerHTML='<div class="bp-insp-empty"><i class="ti ti-cursor-text" style="font-size:28px;margin-bottom:9px;color:var(--muted2)"></i><span>Sélectionnez un élément</span></div>';
+      el.innerHTML='<div class="bp-insp-empty"><i class="ti ti-pointer"></i><span>Cliquez un élément du plan pour le régler, ou glissez-en un depuis la bibliothèque.</span></div>';
       return;
     }
     const c=_elColor(sel.type);
@@ -11421,7 +11325,7 @@ const BandPlan=(()=>{
     };
     /* Sélecteur de liste — affiché uniquement s'il y a plusieurs input lists. */
     const _listSel=_patches.length>1
-      ? '<div style="font-size:9px;font-family:var(--m);color:var(--muted);margin-bottom:3px"><i class="ti ti-list-numbers" style="font-size:10px"></i> Input list</div>'
+      ? '<div class="bp-fl">Input list</div>'
         +'<select class="bp-il-sel" style="margin-bottom:9px" onchange="BandPlan.setLinkPatch(this.value)">'
         +_patches.map(p=>'<option value="'+p.id+'"'+(p.id===_lp?' selected':'')+'>'+_escO(p.name||'Liste')+'</option>').join('')
         +'</select>'
@@ -11431,31 +11335,31 @@ const BandPlan=(()=>{
     el.innerHTML=
       // --- Alias
       '<div class="bp-insp-sec">'
-      +'<div class="bp-insp-title"><i class="ti ti-pencil" style="color:'+c+'"></i>Alias</div>'
+      +'<div class="bp-insp-title"><i class="ti ti-pencil"></i>Nom</div>'
       +'<input class="bp-inp" value="'+sel.label.replace(/"/g,'&quot;')+'" oninput="BandPlan.updateAlias(this.value)"/>'
       +'</div>'
       // --- Transform
       +'<div class="bp-insp-sec">'
-      +'<div class="bp-insp-title"><i class="ti ti-move" style="color:var(--muted)"></i>Transform</div>'
+      +'<div class="bp-insp-title"><i class="ti ti-arrows-move"></i>Position et taille</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:9px">'
-      +'<div><div style="font-size:9px;font-family:var(--m);color:var(--muted);margin-bottom:3px">X</div><input class="bp-xy-inp" type="number" value="'+sel.x+'" oninput="BandPlan.updPos(\'x\',+this.value)"/></div>'
-      +'<div><div style="font-size:9px;font-family:var(--m);color:var(--muted);margin-bottom:3px">Y</div><input class="bp-xy-inp" type="number" value="'+sel.y+'" oninput="BandPlan.updPos(\'y\',+this.value)"/></div>'
+      +'<div><div class="bp-fl">X</div><input class="bp-xy-inp" type="number" value="'+sel.x+'" oninput="BandPlan.updPos(\'x\',+this.value)"/></div>'
+      +'<div><div class="bp-fl">Y</div><input class="bp-xy-inp" type="number" value="'+sel.y+'" oninput="BandPlan.updPos(\'y\',+this.value)"/></div>'
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:9px">'
-      +'<div><div style="font-size:9px;font-family:var(--m);color:var(--muted);margin-bottom:3px">Echelle</div>'
+      +'<div><div class="bp-fl">Échelle</div>'
       +'<div style="display:flex;align-items:center;gap:3px">'
       +'<button class="bp-sc-btn" onclick="BandPlan.adjScale(-0.1)">−</button>'
-      +'<span style="font-family:var(--m);font-size:10px;color:var(--txt2);min-width:36px;text-align:center">'+Math.round(sel.scl*100)+'%</span>'
+      +'<span class="bp-val">'+Math.round(sel.scl*100)+'%</span>'
       +'<button class="bp-sc-btn" onclick="BandPlan.adjScale(0.1)">+</button>'
       +'</div></div>'
-      +'<div><div style="font-size:9px;font-family:var(--m);color:var(--muted);margin-bottom:3px">Plan</div>'
+      +'<div><div class="bp-fl">Plan</div>'
       +'<div style="display:flex;align-items:center;gap:3px">'
       +'<button class="bp-sc-btn" onclick="BandPlan.adjZ(-1)">↓</button>'
-      +'<span style="font-family:var(--m);font-size:10px;color:var(--txt2);min-width:28px;text-align:center">'+sel.z+'</span>'
+      +'<span class="bp-val">'+sel.z+'</span>'
       +'<button class="bp-sc-btn" onclick="BandPlan.adjZ(1)">↑</button>'
       +'</div></div>'
       +'</div>'
-      +'<div style="font-size:9px;font-family:var(--m);color:var(--muted);margin-bottom:6px">Rotation</div>'
+      +'<div class="bp-fl">Rotation</div>'
       +'<div class="bp-rot-grp">'
       +[0,90,180,270].map(r=>'<button class="bp-rot-btn'+(sel.rot===r?' on':'')+'" onclick="BandPlan.setRot('+r+')">'+r+'°</button>').join('')
       +'</div>'
@@ -11463,12 +11367,12 @@ const BandPlan=(()=>{
       // --- Riser (praticable)
       +(sel.type==='riser'
         ?'<div class="bp-insp-sec">'
-         +'<div class="bp-insp-title"><i class="ti ti-layout-board" style="color:#8899bb"></i>Praticable</div>'
-         +'<div style="font-size:9px;font-family:var(--m);color:var(--muted);margin-bottom:4px">Dimensions</div>'
+         +'<div class="bp-insp-title"><i class="ti ti-layout-board"></i>Praticable</div>'
+         +'<div class="bp-fl">Dimensions</div>'
          +'<select class="bp-il-sel" onchange="BandPlan.setRiserDims(this.value)" style="margin-bottom:9px">'
          +RISER_SIZES.map(s=>'<option value="'+s.w+','+s.h+'"'+((sel.riserW||2)===s.w&&(sel.riserH||1)===s.h?' selected':'')+'>'+s.label+'</option>').join('')
          +'</select>'
-         +'<div style="font-size:9px;font-family:var(--m);color:var(--muted);margin-bottom:4px">Hauteur</div>'
+         +'<div class="bp-fl">Hauteur</div>'
          +'<select class="bp-il-sel" onchange="BandPlan.setRiserAlt(+this.value)">'
          +RISER_ALTS.map(a=>'<option value="'+a+'"'+((sel.riserAlt||0.4)===a?' selected':'')+'>'+a+' m</option>').join('')
          +'</select>'
@@ -11494,11 +11398,11 @@ const BandPlan=(()=>{
             : (remOpts?'<select class="bp-il-sel" onchange="BandPlan.linkKitCh(this.value)" style="margin-bottom:6px"><option value="">+ Ajouter un canal…</option>'+remOpts+'</select>':'')
               +'<button class="bp-il-create" style="margin-bottom:6px" onclick="BandPlan.toggleKitMulti()"><i class="ti ti-checkbox"></i>Sélection multiple'+(isPro?'':' <span style="font-size:8px;background:var(--ora);color:#04231a;padding:1px 4px;border-radius:4px;font-weight:700;margin-left:3px">PRO</span>')+'</button>';
           return '<div class="bp-insp-sec">'
-            +'<div class="bp-insp-title"><i class="ti ti-list-numbers" style="color:var(--ora)"></i>Input List — Kit</div>'
+            +'<div class="bp-insp-title"><i class="ti ti-list-numbers"></i>Canaux du kit</div>'
             +_listSel
-            +linkedRows.map(r=>'<div class="bp-kit-ch-row"><i class="ti ti-plug-connected" style="color:var(--ora);font-size:11px"></i><span>CH '+r.ch+' — '+(r.long_name||r.short_name||'—')+'</span><button class="bp-kit-ch-del" onclick="BandPlan.unlinkKitCh(\''+_jsq(r.id)+'\')" title="Dissocier">\xd7</button></div>').join('')
+            +linkedRows.map(r=>'<div class="bp-kit-ch-row"><i class="ti ti-plug-connected"></i><span>CH '+r.ch+' — '+(r.long_name||r.short_name||'—')+'</span><button class="bp-kit-ch-del" onclick="BandPlan.unlinkKitCh(\''+_jsq(r.id)+'\')" title="Dissocier">\xd7</button></div>').join('')
             +multiBlock
-            +'<button class="bp-il-create" onclick="BandPlan.createKitCh()"><i class="ti ti-plus"></i>Creer un canal</button>'
+            +'<button class="bp-il-create" onclick="BandPlan.createKitCh()"><i class="ti ti-plus"></i>Créer un canal</button>'
             +'</div>';
         })()
         :_isOutput(sel.type)
@@ -11510,33 +11414,33 @@ const BandPlan=(()=>{
             const outOptsR=outChs.map(r=>'<option value="'+r.id+'"'+(sel.outChR===r.id?' selected':'')+'>OUT'+r.ch+' — '+(r.long_name||r.short_name||'—')+'</option>').join('');
             const gc='#22d6a0';
             return '<div class="bp-insp-sec">'
-              +'<div class="bp-insp-title"><i class="ti ti-list-numbers" style="color:'+gc+'"></i>Output List</div>'
-              +'<label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:11px;color:var(--txt2);margin-bottom:9px;user-select:none">'
-              +'<input type="checkbox" class="cb"'+(sel.outStereo?' checked':'')+' onchange="BandPlan.toggleOutStereo(this.checked)"/> Stereo (2 sorties L+R)'
+              +'<div class="bp-insp-title"><i class="ti ti-arrow-bar-to-right"></i>Sortie</div>'
+              +'<label class="bp-chk">'
+              +'<input type="checkbox" class="cb"'+(sel.outStereo?' checked':'')+' onchange="BandPlan.toggleOutStereo(this.checked)"/>Stéréo (2 sorties L+R)'
               +'</label>'
-              +(sel.outStereo?'<div style="font-size:9px;font-family:var(--m);color:var(--muted);margin-bottom:3px">Sortie L</div>':'')
+              +(sel.outStereo?'<div class="bp-fl">Sortie L</div>':'')
               +(linkedOut
-                ?'<div class="bp-il-badge" style="border-color:rgba(34,214,160,.3);color:'+gc+'"><i class="ti ti-plug-connected"></i>OUT '+linkedOut.ch+' — '+(linkedOut.long_name||linkedOut.short_name||'—')+'</div>'
+                ?'<div class="bp-il-badge out"><i class="ti ti-plug-connected"></i>OUT '+linkedOut.ch+' — '+(linkedOut.long_name||linkedOut.short_name||'—')+'</div>'
                  +'<button class="bp-il-unlink" onclick="BandPlan.unlinkOutCh()">Dissocier</button>'
-                :(outOpts?'<select class="bp-il-sel" onchange="BandPlan.linkOutCh(this.value)"><option value="">— Lier a une sortie'+(sel.outStereo?' L':'')+' —</option>'+outOpts+'</select>':'<div style="font-size:10px;color:var(--muted);padding:4px 0">Aucune sortie dans l\'output list.</div>')
+                :(outOpts?'<select class="bp-il-sel" onchange="BandPlan.linkOutCh(this.value)"><option value="">— Lier à une sortie'+(sel.outStereo?' L':'')+' —</option>'+outOpts+'</select>':'<div style="font-size:10px;color:var(--muted);padding:4px 0">Aucune sortie dans l\'output list.</div>')
               )
-              +'<button class="bp-il-create" onclick="BandPlan.createOutCh()" style="margin-bottom:'+(sel.outStereo?'10':'0')+'px"><i class="ti ti-plus"></i>Creer une sortie'+(sel.outStereo?' L':'')+' </button>'
+              +'<button class="bp-il-create" onclick="BandPlan.createOutCh()" style="margin-bottom:'+(sel.outStereo?'10':'0')+'px"><i class="ti ti-plus"></i>Créer une sortie'+(sel.outStereo?' L':'')+' </button>'
               +(sel.outStereo
-                ?'<div style="font-size:9px;font-family:var(--m);color:var(--muted);margin-bottom:3px;margin-top:2px">Sortie R</div>'
+                ?'<div class="bp-fl">Sortie R</div>'
                  +(linkedOutR
-                   ?'<div class="bp-il-badge" style="border-color:rgba(34,214,160,.3);color:'+gc+'"><i class="ti ti-plug-connected"></i>OUT '+linkedOutR.ch+' — '+(linkedOutR.long_name||linkedOutR.short_name||'—')+'</div>'
+                   ?'<div class="bp-il-badge out"><i class="ti ti-plug-connected"></i>OUT '+linkedOutR.ch+' — '+(linkedOutR.long_name||linkedOutR.short_name||'—')+'</div>'
                     +'<button class="bp-il-unlink" onclick="BandPlan.unlinkOutChR()">Dissocier</button>'
-                   :(outOptsR?'<select class="bp-il-sel" onchange="BandPlan.linkOutChR(this.value)"><option value="">— Lier a une sortie R —</option>'+outOptsR+'</select>':'<div style="font-size:10px;color:var(--muted);padding:4px 0">Aucune sortie dans l\'output list.</div>')
+                   :(outOptsR?'<select class="bp-il-sel" onchange="BandPlan.linkOutChR(this.value)"><option value="">— Lier à une sortie R —</option>'+outOptsR+'</select>':'<div style="font-size:10px;color:var(--muted);padding:4px 0">Aucune sortie dans l\'output list.</div>')
                  )
-                 +'<button class="bp-il-create" onclick="BandPlan.createOutChR()"><i class="ti ti-plus"></i>Creer une sortie R</button>'
+                 +'<button class="bp-il-create" onclick="BandPlan.createOutChR()"><i class="ti ti-plus"></i>Créer une sortie R</button>'
                 :''
               )
               +'</div>';
           })()
           :sel.type==='image_frame'
             ?('<div class="bp-insp-sec">'
-              +'<div class="bp-insp-title"><i class="ti ti-photo" style="color:var(--ora)"></i>Image</div>'
-              +'<div style="font-size:9px;font-family:var(--m);color:var(--muted);margin-bottom:5px">Taille</div>'
+              +'<div class="bp-insp-title"><i class="ti ti-photo"></i>Image</div>'
+              +'<div class="bp-fl">Taille</div>'
               +'<div style="display:flex;align-items:center;gap:7px;margin-bottom:9px">'
               +'<button class="spl-ts-btn" onclick="BandPlan.adjImgPx(\''+_jsq(sel.id)+'\',-40)">-</button>'
               +'<span style="flex:1;text-align:center;font-size:10px;color:var(--muted)">'+(sel.imgPx||240)+'px</span>'
@@ -11548,34 +11452,34 @@ const BandPlan=(()=>{
             const linkedChR=sel.stereo?_chById(sel.chR):null;
             const chOptsR=_chOpts(sel.chR);
             return '<div class="bp-insp-sec">'
-              +'<div class="bp-insp-title"><i class="ti ti-list-numbers" style="color:var(--ora)"></i>Input List</div>'
+              +'<div class="bp-insp-title"><i class="ti ti-list-numbers"></i>Canal</div>'
               +_listSel
               // Stereo toggle
-              +'<label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:11px;color:var(--txt2);margin-bottom:9px;user-select:none">'
-              +'<input type="checkbox" class="cb"'+(sel.stereo?' checked':'')+' onchange="BandPlan.toggleStereo(this.checked)"/> Stereo (2 canaux L+R)'
+              +'<label class="bp-chk">'
+              +'<input type="checkbox" class="cb"'+(sel.stereo?' checked':'')+' onchange="BandPlan.toggleStereo(this.checked)"/>Stéréo (2 canaux L+R)'
               +'</label>'
               // Canal L (ou mono)
-              +(sel.stereo?'<div style="font-size:9px;font-family:var(--m);color:var(--muted);margin-bottom:3px">Canal L</div>':'')
+              +(sel.stereo?'<div class="bp-fl">Canal L</div>':'')
               +(linkedCh
                 ?'<div class="bp-il-badge"><i class="ti ti-plug-connected"></i>CH '+linkedCh.ch+' — '+(linkedCh.long_name||linkedCh.short_name||'—')+'</div>'
                  +'<button class="bp-il-unlink" onclick="BandPlan.unlinkCh()">Dissocier</button>'
-                :(chOpts?'<select class="bp-il-sel" onchange="BandPlan.linkCh(this.value)"><option value="">— Lier a un canal'+(sel.stereo?' L':'')+' —</option>'+chOpts+'</select>':'')
+                :(chOpts?'<select class="bp-il-sel" onchange="BandPlan.linkCh(this.value)"><option value="">— Lier à un canal'+(sel.stereo?' L':'')+' —</option>'+chOpts+'</select>':'')
               )
-              +'<button class="bp-il-create" onclick="BandPlan.createCh()" style="margin-bottom:'+(sel.stereo?'10':'0')+'px"><i class="ti ti-plus"></i>Creer un canal'+(sel.stereo?' L':'')+' </button>'
+              +'<button class="bp-il-create" onclick="BandPlan.createCh()" style="margin-bottom:'+(sel.stereo?'10':'0')+'px"><i class="ti ti-plus"></i>Créer un canal'+(sel.stereo?' L':'')+' </button>'
               // Canal R (stereo uniquement)
               +(sel.stereo
-                ?'<div style="font-size:9px;font-family:var(--m);color:var(--muted);margin-bottom:3px;margin-top:2px">Canal R</div>'
+                ?'<div class="bp-fl">Canal R</div>'
                  +(linkedChR
                    ?'<div class="bp-il-badge"><i class="ti ti-plug-connected"></i>CH '+linkedChR.ch+' — '+(linkedChR.long_name||linkedChR.short_name||'—')+'</div>'
                     +'<button class="bp-il-unlink" onclick="BandPlan.unlinkChR()">Dissocier</button>'
-                   :(chOptsR?'<select class="bp-il-sel" onchange="BandPlan.linkChR(this.value)"><option value="">— Lier a un canal R —</option>'+chOptsR+'</select>':'')
+                   :(chOptsR?'<select class="bp-il-sel" onchange="BandPlan.linkChR(this.value)"><option value="">— Lier à un canal R —</option>'+chOptsR+'</select>':'')
                  )
-                 +'<button class="bp-il-create" onclick="BandPlan.createChR()"><i class="ti ti-plus"></i>Creer un canal R</button>'
+                 +'<button class="bp-il-create" onclick="BandPlan.createChR()"><i class="ti ti-plus"></i>Créer un canal R</button>'
                 :''
               )
               +'</div>'
               /* Image personnalisée */
-              +_iconImgInspHtml(sel.id, !!sel.iconImg, sel.iconImg||'', "BandPlan.uploadElementIcon('"+sel.id+"')", "BandPlan.clearElementIcon('"+sel.id+"')");
+              +'<div class="bp-insp-sec bp-insp-img">'+_iconImgInspHtml(sel.id, !!sel.iconImg, sel.iconImg||'', "BandPlan.uploadElementIcon('"+sel.id+"')", "BandPlan.clearElementIcon('"+sel.id+"')")+'</div>';
           })()
       );
   }
@@ -11903,21 +11807,22 @@ const BandPlan=(()=>{
 
   function _buildStageSVG_vintage(){
     const d=_getStageDims();
-    /* Light theme — white background with subtle grid pattern (SynPro look) */
+    const K='#1c2433';
+    const lab='font-family="Archivo,sans-serif" font-weight="650" font-size="20" fill="'+K+'" fill-opacity=".5" letter-spacing="6" text-anchor="middle"';
+    const my=d.y+d.h/2;
+    /* Feuille blanche, trame de points, scène au trait ; le bord épais du bas est le nez de scène, côté public */
     return '<svg width="2400" height="1600" xmlns="http://www.w3.org/2000/svg">'
-      +'<defs>'
-      +'<pattern id="bp_grid" width="40" height="40" patternUnits="userSpaceOnUse">'
-      +'<path d="M40 0 L0 0 0 40" fill="none" stroke="#e5eaf2" stroke-width="0.6"/>'
-      +'</pattern>'
-      +'<linearGradient id="bp_foot" x1="0" y1="1" x2="0" y2="0"><stop offset="0%" stop-color="#ff6b1a" stop-opacity="0.10"/><stop offset="100%" stop-color="#ff6b1a" stop-opacity="0"/></linearGradient>'
-      +'</defs>'
+      +'<defs><pattern id="bp_grid" width="40" height="40" patternUnits="userSpaceOnUse"><circle cx="20" cy="20" r="1.1" fill="#d5dae2"/></pattern></defs>'
       +'<rect width="2400" height="1600" fill="#ffffff"/>'
       +'<rect width="2400" height="1600" fill="url(#bp_grid)"/>'
-      +'<rect x="'+d.x+'" y="'+d.y+'" width="'+d.w+'" height="'+d.h+'" rx="18" fill="rgba(255,107,26,0.035)" stroke="rgba(255,107,26,0.30)" stroke-width="2" stroke-dasharray="14,7"/>'
-      +'<rect x="'+d.x+'" y="'+(d.sepY-55)+'" width="'+d.w+'" height="55" fill="url(#bp_foot)"/>'
-      +'<text x="1200" y="'+d.cy+'" text-anchor="middle" font-family="Archivo,sans-serif" font-weight="700" font-size="22" fill="rgba(255,107,26,0.18)" letter-spacing="12">SCENE</text>'
-      +'<line x1="'+d.x+'" y1="'+d.sepY+'" x2="'+(d.x+d.w)+'" y2="'+d.sepY+'" stroke="rgba(255,107,26,0.30)" stroke-width="1.5" stroke-dasharray="6,4"/>'
-      +'<text x="1200" y="'+d.pubY+'" text-anchor="middle" font-family="Archivo,sans-serif" font-weight="600" font-size="14" fill="rgba(100,116,139,0.45)" letter-spacing="8">PUBLIC</text>'
+      +'<rect x="'+d.x+'" y="'+d.y+'" width="'+d.w+'" height="'+d.h+'" rx="6" fill="#f7f8fa" stroke="'+K+'" stroke-opacity=".5" stroke-width="2"/>'
+      +'<line x1="1200" y1="'+(d.y+14)+'" x2="1200" y2="'+(d.sepY-14)+'" stroke="'+K+'" stroke-opacity=".14" stroke-width="1.5" stroke-dasharray="3,9"/>'
+      +'<line x1="'+d.x+'" y1="'+(d.sepY-3)+'" x2="'+(d.x+d.w)+'" y2="'+(d.sepY-3)+'" stroke="'+K+'" stroke-opacity=".78" stroke-width="6"/>'
+      +'<text x="1200" y="'+(d.y-18)+'" '+lab+'>LOINTAIN</text>'
+      +'<text transform="translate('+(d.x-20)+','+my+') rotate(-90)" '+lab+'>JARDIN</text>'
+      +'<text transform="translate('+(d.x+d.w+20)+','+my+') rotate(90)" '+lab+'>COUR</text>'
+      +'<text x="1200" y="'+(d.sepY+38)+'" '+lab+'>PUBLIC</text>'
+      +'<path d="M1186 '+(d.sepY+52)+'l14 10l14-10" fill="none" stroke="'+K+'" stroke-opacity=".36" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
       +'</svg>';
   }
 

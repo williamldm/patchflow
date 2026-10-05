@@ -63,7 +63,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=3.61">
+<link rel="stylesheet" href="pf-app.css?v=3.64">
 </head>
 <body>
 
@@ -552,12 +552,12 @@ html.rider-boot #rider-splash{display:flex}
       <div id="plan-scene-wrap" class="bp-layout">
         <div class="bp-pal">
           <div class="bp-pal-hd"><i class="ti ti-box"></i>Bibliothèque</div>
-          <div style="padding:7px 8px 6px;border-bottom:1px solid var(--bdr2);flex-shrink:0;background:var(--surf2);display:flex;flex-direction:column;gap:5px">
+          <div class="bp-pal-tools">
             <input type="file" id="bp-bg-file" accept="image/*" style="display:none" onchange="BandPlan.loadBg(this)"/>
             <input type="file" id="bp-ai-file" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none" onchange="bpAiHandleFile(this)"/>
-            <button class="btn sm" id="bp-ai-btn" style="width:100%;justify-content:center;font-size:10.5px;background:linear-gradient(135deg,var(--ora),#ff3d00);border-color:var(--ora);color:#fff" onclick="bpAiImport()"><i class="ti ti-sparkles"></i> Adapter un plan (IA)</button>
-            <button class="btn ghost sm" style="width:100%;justify-content:center;margin-top:5px" onclick="document.getElementById('bp-bg-file').click()"><i class="ti ti-photo"></i> Image de fond</button>
-            <button class="btn ghost sm" id="bp-stage-toggle-btn" style="width:100%;justify-content:center;margin-top:5px" onclick="BandPlan.toggleStageBg()"><i class="ti ti-eye-off"></i> Masquer la scène</button>
+            <button class="bp-tool" id="bp-ai-btn" onclick="bpAiImport()"><i class="ti ti-sparkles" style="color:var(--ora)"></i>Adapter un plan (IA)</button>
+            <button class="bp-tool" onclick="document.getElementById('bp-bg-file').click()"><i class="ti ti-photo"></i>Image de fond</button>
+            <button class="bp-tool" id="bp-stage-toggle-btn" onclick="BandPlan.toggleStageBg()"><i class="ti ti-eye-off"></i> Masquer la scène</button>
             <div id="bp-bg-controls" style="display:none">
               <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)" title="Opacité de l'image de fond">
                 <i class="ti ti-sun" style="font-size:11px;flex-shrink:0"></i>
@@ -574,7 +574,7 @@ html.rider-boot #rider-splash{display:flex}
             </div>
           </div>
           <div class="bp-pal-head">
-            <input class="bp-search" id="bp-search" placeholder="Rechercher..." oninput="BandPlan.search(this.value)">
+            <input class="bp-search" id="bp-search" placeholder="Rechercher un élément" oninput="BandPlan.search(this.value)" autocomplete="off">
           </div>
           <div id="bp-pal-list" class="bp-pal-list"></div>
         </div>
@@ -592,7 +592,7 @@ html.rider-boot #rider-splash{display:flex}
         <div class="bp-insp" id="bp-insp">
           <div class="bp-insp-hd"><i class="ti ti-adjustments"></i>Propriétés</div>
           <div id="bp-insp-body">
-            <div class="bp-insp-empty"><i class="ti ti-cursor-text" style="font-size:28px;margin-bottom:9px;color:var(--muted2)"></i><span>Sélectionnez un élément</span></div>
+            <div class="bp-insp-empty"><i class="ti ti-pointer"></i><span>Cliquez un élément du plan pour le régler, ou glissez-en un depuis la bibliothèque.</span></div>
           </div>
           <div class="bp-insp-footer">
             <div class="bp-insp-footer-row">
@@ -1591,7 +1591,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=3.81"></script>
+<script src="pf-app.js?v=3.84"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
   <div class="mob-plan-bar">
