@@ -7150,6 +7150,145 @@ const SynRoute = (function(){
   return { layout:layout, project:project, atT:atT, routeOf:routeOf, sideToward:sideToward, NORM:NORM };
 })();
 
+/* ── Symboles des plans (scène, site, synoptique) ──
+   Un seul trait, une seule encre : chaque élément est dessiné au trait dans un carré de 72,
+   en vue de dessus quand c'est lisible (fûts, claviers, retours), de face sinon (guitares, amplis).
+   Pas de couleur par famille : sur un plan, la couleur est réservée aux numéros de canaux. */
+function _pfSymbol(t,nm){
+  var K='#1c2433', W='#ffffff', G='#e4e8ee';
+  var J=' stroke-linejoin="round" stroke-linecap="round"';
+  var o=' fill="'+W+'" stroke="'+K+'" stroke-width="1.9"'+J;      /* contour */
+  var g=' fill="'+G+'" stroke="'+K+'" stroke-width="1.3"'+J;      /* pièce grisée */
+  var d=' fill="none" stroke="'+K+'" stroke-width="1.2"'+J;       /* détail */
+  var f=' fill="none" stroke="'+K+'" stroke-width=".9" stroke-opacity=".45"'+J; /* détail fin */
+  var k=' fill="'+K+'"';
+  function C(x,y,r,a){ return '<circle cx="'+x+'" cy="'+y+'" r="'+r+'"'+a+'/>'; }
+  function R(x,y,w,h,r,a){ return '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="'+(r||0)+'"'+a+'/>'; }
+  function P(p,a){ return '<path d="'+p+'"'+a+'/>'; }
+  function Ln(x1,y1,x2,y2,a){ return '<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'"'+a+'/>'; }
+  /* Tube (cuivres) : un trait épais à l'encre, recouvert d'un trait blanc plus fin */
+  function T(p,w){ w=w||7; return P(p,' fill="none" stroke="'+K+'" stroke-width="'+w+'"'+J)+P(p,' fill="none" stroke="'+W+'" stroke-width="'+(w-3.4)+'"'+J); }
+  function drum(x,y,r){ return C(x,y,r,o)+C(x,y,Math.max(2,r-4.5),f); }
+  function cym(x,y,r){ return C(x,y,r,g)+C(x,y,r*0.62,f)+C(x,y,Math.max(1.6,r*0.2),k); }
+  function keys(x,y,w,h,n){
+    var s='', step=w/n, i;
+    for(i=1;i<n;i++) s+=Ln((x+i*step).toFixed(1),y,(x+i*step).toFixed(1),y+h,f);
+    for(i=1;i<n;i++){ if(i%7===3||i%7===0) continue; s+=R((x+i*step-step*0.3).toFixed(1),y,(step*0.6).toFixed(1),(h*0.58).toFixed(1),0.6,k); }
+    return s;
+  }
+  switch(t){
+    /* ── Batterie (vue de dessus) ── */
+    case 'kick':   return R(30,57,12,10,2,k)+C(36,34,27,o)+C(36,34,21.5,f)+C(45,41,5,g);
+    case 'snare':  return R(57,31,6,10,1.5,k)+C(36,36,22,o)+C(36,36,17.5,f)+Ln(27,33,45,33,d)+Ln(27,39,45,39,d);
+    case 'hihat':  return R(33,56,6,11,2,k)+C(36,34,23,g)+C(36,34,14,f)+C(36,34,5.5,o)+C(36,34,1.8,k);
+    case 'toms':   return Ln(24,34,48,34,d)+drum(23,34,15.5)+drum(50,34,14);
+    case 'cymbal': return cym(36,36,29);
+    case 'cajon':  return R(15,10,42,52,4,o)+C(36,32,7.5,g)+Ln(21,50,51,50,f)+Ln(21,55,51,55,f);
+    case 'kit':    return cym(13,15,10)+cym(59,17,11)+cym(9,39,7.5)+drum(27,25,8.5)+drum(46,25,8.5)+drum(36,45,13)+drum(17,55,8.5)+drum(57,53,9.5);
+    /* ── Guitares (de face, manche vers le haut) ── */
+    case 'elec':
+      return R(32,2,8,7,2,k)+R(33.6,8,4.8,22,0,k)
+        +P('M30 28C24 22 16 26 18 34C19 39 22 41 21 47C19 58 26 66 36 66C46 66 53 58 51 47C50 41 53 39 54 34C56 26 48 22 42 28Z',o)
+        +R(29.5,38,13,3.4,1,k)+R(29.5,46,13,3.4,1,k)+R(31,55,10,2.6,1,k)+C(45,56,1.7,k);
+    case 'acou':
+      return R(32,2,8,7,2,k)+R(33.6,8,4.8,16,0,k)
+        +P('M36 22C45 22 49 28 48 34C47.5 37 49 39 51 42C55 49 53 66 36 66C19 66 17 49 21 42C23 39 24.5 37 24 34C23 28 27 22 36 22Z',o)
+        +C(36,39,6,g)+R(29,53,14,3,1,k);
+    case 'bass_g':
+      return P('M31 3h10l1.5 8h-13z',k)+R(33.6,10,4.8,26,0,k)
+        +P('M31 34C26 29 19 32 20 39C21 43 23 45 22 50C21 60 27 67 36 67C45 67 51 60 50 50C49 45 51 43 52 39C53 32 46 29 41 34Z',o)
+        +R(30,45,12,4.4,1,k)+R(31,56,10,2.6,1,k);
+    /* ── Amplis (de face) ── */
+    case 'gamp':   return R(11,12,50,48,4,o)+Ln(11,24,61,24,d)+C(20,18,1.9,k)+C(27,18,1.9,k)+C(34,18,1.9,k)+C(41,18,1.9,k)+R(49,16,7,4,1,k)+C(36,42,12.5,g)+C(36,42,4,k);
+    case 'bamp':   return R(15,7,42,13,3,o)+C(23,13.5,1.8,k)+C(30,13.5,1.8,k)+C(37,13.5,1.8,k)+R(44,11.5,7,4,1,k)+R(11,23,50,42,4,o)+C(25,44,9.5,g)+C(25,44,3,k)+C(47,44,9.5,g)+C(47,44,3,k);
+    case 'cab':    return R(11,11,50,50,4,o)+C(24.5,24.5,8.5,g)+C(47.5,24.5,8.5,g)+C(24.5,47.5,8.5,g)+C(47.5,47.5,8.5,g)+C(24.5,24.5,2.6,k)+C(47.5,24.5,2.6,k)+C(24.5,47.5,2.6,k)+C(47.5,47.5,2.6,k);
+    /* ── Claviers (vue de dessus) ── */
+    case 'keyboard': return R(5,23,62,26,3.5,o)+Ln(5,32,67,32,d)+keys(8,32,56,17,14)+R(10,26.2,10,2.6,1,k);
+    case 'synth':    return R(5,17,62,38,3.5,o)+Ln(5,34,67,34,d)+keys(8,34,56,21,14)+C(13,25.5,2.3,k)+C(21,25.5,2.3,k)+C(29,25.5,2.3,k)+C(37,25.5,2.3,k)+R(45,22,16,7,1.5,g);
+    case 'piano':    return P('M8 62V30C8 15 20 8 33 8C46 8 51 17 55 26C60 35 64 40 64 50V62Z',o)+P('M14 46C14 28 20 15 33 14',f)+Ln(8,48,64,48,d)+keys(11,48,50,14,14);
+    case 'wurly':    return R(7,18,58,36,9,o)+Ln(7,36,65,36,d)+keys(11,36,50,18,12)+Ln(14,25,30,25,d)+Ln(14,30,30,30,d)+C(48,27.5,2.6,k)+C(56,27.5,2.6,k);
+    /* ── Voix ── */
+    case 'mic_s':
+      return Ln(36,42,36,66,d)+Ln(36,42,15,30,d)+Ln(36,42,57,30,d)+C(36,66,2.4,k)+C(15,30,2.4,k)+C(57,30,2.4,k)
+        +Ln(36,42,36,22,' fill="none" stroke="'+K+'" stroke-width="2.4"'+J)+C(36,42,4.2,k)+R(30,4,12,20,6,g)+Ln(30.5,13,41.5,13,d);
+    case 'mic_hf':
+      return P('M50 12a14 14 0 0 1 6 11',d)+P('M54 6a21 21 0 0 1 9 17',f)
+        +R(31,26,10,30,3,o)+R(33.3,56,5.4,9,2,k)+C(36,17,10,g)+Ln(27,15,45,15,f)+Ln(27,20,45,20,f)+R(34,34,4,7,1,k);
+    case 'iem_p':
+      return P('M15 44V37a21 21 0 0 1 42 0v7',' fill="none" stroke="'+K+'" stroke-width="2.4"'+J)+R(8,40,14,22,5,g)+R(50,40,14,22,5,g)+Ln(15,46,15,56,d)+Ln(57,46,57,56,d);
+    /* ── Cuivres & bois (de profil) ── */
+    case 'trumpet':
+      return T('M9 30H50')+T('M20 30v8a5 5 0 0 0 5 5h20a5 5 0 0 0 5-5v-8',5.6)+P('M49 25L65 16V44L49 35Z',o)
+        +R(25,19,5,15,1.5,o)+R(32,19,5,15,1.5,o)+R(39,19,5,15,1.5,o)+R(24,16,7,3,1,k)+R(31,16,7,3,1,k)+R(38,16,7,3,1,k)+R(5,27.6,5,4.8,1.5,k);
+    case 'trombone':
+      return T('M62 44H14a7 7 0 0 1 0-14H44',5.6)+T('M8 22H46',5.6)+P('M45 17L64 8V36L45 27Z',o)+Ln(26,30,26,44,d)+R(4,19.6,5,4.8,1.5,k)+Ln(8,22,8,37,d);
+    case 'sax':
+      return T('M24 8l7 5v30a11 11 0 0 0 22 0V30',8)+P('M46 30l14-5v9z',o)+R(19,4,7,5.5,1.5,k)+C(31,21,2.1,k)+C(31,28,2.1,k)+C(31,35,2.1,k)+C(44,50,2.1,k);
+    case 'horn':
+      return T('M10 20h12a7 7 0 0 1 7 7',5.6)+C(34,42,16,' fill="none" stroke="'+K+'" stroke-width="7.4"')+C(34,42,16,' fill="none" stroke="'+W+'" stroke-width="4"')
+        +P('M43 31L57 9L69 27Z',o)+R(5,17.6,5,4.8,1.5,k)+C(34,42,3.4,k);
+    /* ── Percussions ── */
+    case 'timb':   return Ln(24,36,50,36,d)+R(31,9,10,8,2,g)+drum(23,38,15.5)+drum(51,38,13.5);
+    case 'conga':  return C(26,40,17,o)+C(26,40,12.5,g)+C(52,27,12.5,o)+C(52,27,8.8,g);
+    case 'marimba':
+      return P('M6 18L66 26V46L6 54Z',o)+Ln(6,36,66,36,f)+[13,20,27,34,41,48,55,61].map(function(x){ var dy=(x-6)/60*8; return Ln(x,(18+dy).toFixed(1),x,(54-dy).toFixed(1),d); }).join('');
+    case 'xyl':
+      return P('M10 28L62 33V47L10 52Z',o)+[18,26,34,42,50,56].map(function(x){ var dy=(x-10)/52*5; return Ln(x,(28+dy).toFixed(1),x,(52-dy).toFixed(1),d); }).join('')
+        +Ln(22,22,40,8,d)+C(42,6.5,3,k)+Ln(50,22,56,10,d)+C(57,8,3,k);
+    /* ── Technique ── */
+    case 'foh':
+      return R(5,14,62,44,4,o)+Ln(5,26,67,26,d)+R(25,17.5,22,5.4,1.2,g)
+        +[12,19,26,33,40,47,54,60].map(function(x,i){ var y=[40,34,44,37,42,33,39,45][i]; return Ln(x,31,x,53,f)+R(x-2,y,4,5.5,1,k); }).join('');
+    case 'mon':
+      return R(9,16,54,40,4,o)+Ln(9,27,63,27,d)
+        +[16,23,30,37,44,51,57].map(function(x,i){ var y=[39,44,35,41,36,43,38][i]; return C(x,21.5,1.5,k)+Ln(x,31,x,51,f)+R(x-2,y,4,5.5,1,k); }).join('');
+    case 'stagebox':
+      return R(7,19,58,34,3.5,o)+[15,24,33,42,51,59].map(function(x){ return C(x,29,3,g)+C(x,42,3,g)+C(x,29,0.9,k)+C(x,42,0.9,k); }).join('');
+    case 'di':     return R(15,20,42,32,4,o)+C(27,36,5.5,g)+C(27,36,1.9,k)+C(45,36,5.5,g)+C(45,36,1.9,k)+R(33,24,6,3,1,k);
+    case 'iem_r':
+      return Ln(17,24,11,6,d)+C(11,6,2.2,k)+Ln(55,24,61,6,d)+C(61,6,2.2,k)+R(7,24,58,30,3.5,o)+Ln(7,39,65,39,d)
+        +R(13,28.5,18,6,1.2,g)+C(56,31.5,2.4,k)+C(48,31.5,2.4,k)+R(13,43.5,18,6,1.2,g)+C(56,46.5,2.4,k)+C(48,46.5,2.4,k);
+    case 'spk':    return R(15,5,42,62,4.5,o)+R(23,11,26,11,2.5,g)+C(36,44,14,g)+C(36,44,5,k);
+    case 'sub':    return R(7,12,58,48,4.5,o)+C(36,36,17,g)+C(36,36,6.5,k)+Ln(13,18,19,18,d)+Ln(53,18,59,18,d)+Ln(13,54,19,54,d)+Ln(53,54,59,54,d);
+    case 'wedge':  return P('M7 20H65L54 56H18Z',o)+Ln(14,29,58,29,f)+Ln(16.5,37,55.5,37,f)+Ln(19,45,53,45,f)+P('M28 56L26 63H46L44 56',d);
+    /* ── Divers ── */
+    case 'chair':  return R(14,22,44,40,7,o)+R(12,10,48,10,5,k)+Ln(21,32,51,32,f);
+    case 'stool':  return C(36,36,22,o)+C(36,36,14.5,f);
+    case 'txt_bp': return R(12,18,48,36,6,' fill="none" stroke="'+K+'" stroke-width="1.3" stroke-dasharray="3 4" stroke-opacity=".55"')+P('M27 28h18M36 28v17',' fill="none" stroke="'+K+'" stroke-width="2.6"'+J);
+    /* ── Plan de site ── */
+    case 'site_array':  return R(22,3,28,5,1.5,k)+[0,1,2,3,4].map(function(i){ var x=15+i*i*0.7; return R(x.toFixed(1),10+i*11,42,9,2,o)+Ln((x+6).toFixed(1),14.5+i*11,(x+36).toFixed(1),14.5+i*11,f); }).join('');
+    case 'site_delay':  return Ln(36,32,36,65,' fill="none" stroke="'+K+'" stroke-width="2.6"'+J)+Ln(22,65,50,65,' fill="none" stroke="'+K+'" stroke-width="2.6"'+J)+Ln(36,52,26,65,d)+Ln(36,52,46,65,d)
+                         +R(20,4,32,8,2,o)+R(20,13.5,32,8,2,o)+R(20,23,32,8,2,o)+Ln(26,8,46,8,f)+Ln(26,17.5,46,17.5,f)+Ln(26,27,46,27,f);
+    case 'site_amp':    return R(4,20,64,32,3.5,o)+Ln(12,20,12,52,d)+Ln(60,20,60,52,d)+C(8,26,1.3,k)+C(8,46,1.3,k)+C(64,26,1.3,k)+C(64,46,1.3,k)
+                         +R(17,26,14,8,1.5,g)+[36,42,48,54].map(function(x){ return C(x,30,2.1,k)+Ln(x,37,x,46,f); }).join('')+Ln(17,40,31,40,f)+Ln(17,44,31,44,f);
+    case 'site_con':    return R(4,21,64,30,3.5,o)+[15,29,43,57].map(function(x){ return C(x,36,5.6,g)+C(x,36,1.9,k); }).join('');
+    case 'site_sw12':   return R(4,23,64,26,3.5,o)+[10,17,24,31,38,45].map(function(x){ return R(x,28,5,5,1,g)+R(x,37,5,5,1,g); }).join('')+C(57,31,1.8,k)+C(62,31,1.8,k)+R(55,38,9,3,1,k);
+    case 'site_sw8':    return R(4,25,64,22,3.5,o)+[10,17,24,31,38,45,52].map(function(x){ return R(x,31,5,5,1,g); }).join('')+C(62,31,1.8,k)+R(10,40,47,2,1,k);
+    case 'site_sw25':   return R(4,23,64,26,3.5,o)+[10,17,24,31].map(function(x){ return R(x,28,5,5,1,g)+R(x,37,5,5,1,g); }).join('')+R(41,28,9,14,1.5,k)+R(53,28,9,14,1.5,k);
+    case 'site_wifi':   return P('M10 34a37 37 0 0 1 52 0',' fill="none" stroke="'+K+'" stroke-width="2.6"'+J)+P('M19 43a24 24 0 0 1 34 0',' fill="none" stroke="'+K+'" stroke-width="2.6"'+J)+P('M28 52a11.5 11.5 0 0 1 16 0',' fill="none" stroke="'+K+'" stroke-width="2.6"'+J)+C(36,60,3.4,k);
+    case 'site_proc':   return R(4,21,64,30,3.5,o)+R(10,27,24,18,2,g)+Ln(14,33,30,33,f)+Ln(14,39,26,39,f)+C(48,36,6.5,o)+Ln(48,36,51.5,32.5,d)+C(60,30,1.7,k)+C(60,42,1.7,k);
+    case 'site_cdj':    return R(9,5,54,62,5,o)+R(17,10,38,10,2,g)+C(36,43,19,g)+C(36,43,12,f)+C(36,43,5,k);
+    case 'site_laptop': return R(12,12,48,34,3.5,o)+R(17,17,38,24,1.5,g)+P('M5 50H67L62 58H10Z',o)+Ln(30,54,42,54,d);
+    case 'site_regie':  return R(8,8,56,56,5,o)+Ln(8,8,64,64,f)+Ln(64,8,8,64,f)+R(20,44,32,9,2,k)+C(36,28,5,g);
+    case 'site_rack':   return R(13,4,46,64,3.5,o)+[17,30,43,56].map(function(y){ return Ln(13,y,59,y,d); }).join('')+[8,21,34,47].map(function(y){ return R(19,y,14,5,1,g)+C(48,y+2.5,1.7,k)+C(53,y+2.5,1.7,k); }).join('')+Ln(20,62,52,62,f);
+    case 'site_split':  return Ln(18,36,34,36,d)+P('M34 36L54 14M34 36H54M34 36L54 58',d)+C(12,36,6.5,g)+C(12,36,2.2,k)+C(59,14,5.5,o)+C(59,36,5.5,o)+C(59,58,5.5,o)+C(34,36,2.2,k);
+    case 'site_power':  return R(9,9,54,54,7,o)+P('M40 15L24 39h10l-3 18 17-24H37Z',k);
+    case 'site_zone':   return P('M36 67C36 67 13 44 13 28a23 23 0 0 1 46 0C59 44 36 67 36 67Z',o)+C(36,28,8.5,g)+C(36,28,2.8,k);
+    case 'site_image':  return R(7,11,58,50,5,o)+C(24,27,5,g)+P('M7 52L25 36L37 46L47 37L65 53',d);
+    /* ── Synoptique ── */
+    case 'syn_reel':  return C(36,36,28,o)+C(36,36,19,g)+C(36,36,6.5,o)+C(36,36,2,k)+Ln(36,8,36,17,f)+Ln(36,55,36,64,f)+Ln(8,36,17,36,f)+Ln(55,36,64,36,f);
+    case 'syn_fiber': return R(4,26,20,20,3,o)+R(48,26,20,20,3,o)+C(14,36,3.4,k)+C(58,36,3.4,k)+P('M24 36C31 22 41 50 48 36',' fill="none" stroke="'+K+'" stroke-width="2.4"'+J);
+    case 'syn_note':  return P('M12 10H60V46L46 62H12Z',o)+P('M60 46H46V62',d)+Ln(20,22,52,22,f)+Ln(20,31,52,31,f)+Ln(20,40,40,40,f);
+    case 'syn_rack2': return R(6,18,60,36,3.5,o)+Ln(6,36,66,36,d)+R(12,23,16,8,1.2,g)+C(52,27,1.9,k)+C(58,27,1.9,k)+R(12,41,16,8,1.2,g)+C(52,45,1.9,k)+C(58,45,1.9,k)+Ln(34,27,44,27,f)+Ln(34,45,44,45,f);
+    case 'syn_rack3': return R(6,12,60,48,3.5,o)+Ln(6,28,66,28,d)+Ln(6,44,66,44,d)+[16,32,48].map(function(y){ return R(12,y,16,8,1.2,g)+C(52,y+4,1.9,k)+C(58,y+4,1.9,k)+Ln(34,y+4,44,y+4,f); }).join('');
+    default:{
+      nm=String(nm||t||'?').replace(/[<>&"']/g,'').trim();
+      var ws=nm.split(/\s+/), L=(ws.length>1?ws[0].charAt(0)+ws[1].charAt(0):nm.slice(0,2)).toUpperCase();
+      return R(10,10,52,52,10,o)+'<text x="36" y="43.5" text-anchor="middle" font-family="Archivo,sans-serif" font-size="20" font-weight="700" fill="'+K+'">'+L+'</text>';
+    }
+  }
+}
+
 // ══════════════════════════════════════
 // SYNIO — entrées / sorties des équipements du synoptique
 // Chaque équipement peut afficher ses entrées (à gauche), ses sorties (à
@@ -7210,24 +7349,24 @@ const SynIO = (function(){
     var m = metrics(ps), s = m.s, x0 = box.x, x1 = box.x + box.w, top = box.y + headH, y0 = top + PAD, h = '';
     var F = 'font-family="Archivo,sans-serif"';
     function dot(x, y, c){ return '<circle cx="' + x + '" cy="' + y + '" r="3.8" fill="' + c + '" stroke="#ffffff" stroke-width="1.3"/>'; }
-    h += '<line x1="' + x0 + '" y1="' + top + '" x2="' + x1 + '" y2="' + top + '" stroke="#e2e8f0" stroke-width="1"/>';
-    if (m.cols) h += '<line x1="' + ((x0 + x1)/2) + '" y1="' + (y0 + 2) + '" x2="' + ((x0 + x1)/2) + '" y2="' + (y0 + m.cols*ROW - 2) + '" stroke="#eef2f6" stroke-width="1"/>';
+    h += '<line x1="' + x0 + '" y1="' + top + '" x2="' + x1 + '" y2="' + top + '" stroke="#1c2433" stroke-opacity=".14" stroke-width="1"/>';
+    if (m.cols) h += '<line x1="' + ((x0 + x1)/2) + '" y1="' + (y0 + 2) + '" x2="' + ((x0 + x1)/2) + '" y2="' + (y0 + m.cols*ROW - 2) + '" stroke="#1c2433" stroke-opacity=".08" stroke-width="1"/>';
     s.ins.forEach(function(p, i){
       var y = y0 + i*ROW + ROW/2;
-      h += dot(x0, y, color(p.conn)) + '<text x="' + (x0 + 9) + '" y="' + (y + 3.2) + '" ' + F + ' font-size="9.5" font-weight="600" fill="#1d3a5f">' + esc(p.name) +
-           (p.conn ? '<tspan font-size="7.5" font-weight="500" fill="#7b8a9e" dx="4">' + esc(p.conn) + '</tspan>' : '') + '</text>';
+      h += dot(x0, y, color(p.conn)) + '<text x="' + (x0 + 9) + '" y="' + (y + 3.2) + '" ' + F + ' font-size="9.5" font-weight="600" fill="#1c2433">' + esc(p.name) +
+           (p.conn ? '<tspan font-size="7.5" font-weight="500" fill="#1c2433" fill-opacity=".55" dx="4">' + esc(p.conn) + '</tspan>' : '') + '</text>';
     });
     s.outs.forEach(function(p, i){
       var y = y0 + i*ROW + ROW/2;
-      h += dot(x1, y, color(p.conn)) + '<text x="' + (x1 - 9) + '" y="' + (y + 3.2) + '" text-anchor="end" ' + F + ' font-size="9.5" font-weight="600" fill="#1d3a5f">' +
-           (p.conn ? '<tspan font-size="7.5" font-weight="500" fill="#7b8a9e">' + esc(p.conn) + '</tspan><tspan dx="4">' : '<tspan>') + esc(p.name) + '</tspan></text>';
+      h += dot(x1, y, color(p.conn)) + '<text x="' + (x1 - 9) + '" y="' + (y + 3.2) + '" text-anchor="end" ' + F + ' font-size="9.5" font-weight="600" fill="#1c2433">' +
+           (p.conn ? '<tspan font-size="7.5" font-weight="500" fill="#1c2433" fill-opacity=".55">' + esc(p.conn) + '</tspan><tspan dx="4">' : '<tspan>') + esc(p.name) + '</tspan></text>';
     });
-    if (s.nets.length && m.cols) h += '<line x1="' + (x0 + 8) + '" y1="' + (y0 + m.cols*ROW) + '" x2="' + (x1 - 8) + '" y2="' + (y0 + m.cols*ROW) + '" stroke="#eef2f6" stroke-width="1"/>';
+    if (s.nets.length && m.cols) h += '<line x1="' + (x0 + 8) + '" y1="' + (y0 + m.cols*ROW) + '" x2="' + (x1 - 8) + '" y2="' + (y0 + m.cols*ROW) + '" stroke="#1c2433" stroke-opacity=".08" stroke-width="1"/>';
     s.nets.forEach(function(p, j){
       var y = y0 + (m.cols + j)*ROW + ROW/2, c = color(p.conn);
       h += dot(x0, y, c) + dot(x1, y, c);
-      h += '<text x="' + ((x0 + x1)/2) + '" y="' + (y + 3.2) + '" text-anchor="middle" ' + F + ' font-size="9.5" font-weight="600" fill="#1d3a5f">' + esc(p.name) +
-           (p.conn ? '<tspan font-size="7.5" font-weight="500" fill="#7b8a9e" dx="4">' + esc(p.conn) + '</tspan>' : '') + '</text>';
+      h += '<text x="' + ((x0 + x1)/2) + '" y="' + (y + 3.2) + '" text-anchor="middle" ' + F + ' font-size="9.5" font-weight="600" fill="#1c2433">' + esc(p.name) +
+           (p.conn ? '<tspan font-size="7.5" font-weight="500" fill="#1c2433" fill-opacity=".55" dx="4">' + esc(p.conn) + '</tspan>' : '') + '</text>';
     });
     return h;
   }
@@ -7495,72 +7634,28 @@ const SynPro = (() => {
   });
 
   /* ── SVG icon builders — stylized, neutral grey/blue, scalable ── */
-  function _iconConsoleLarge() {
-    return '<svg viewBox="0 0 64 48" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="6" width="58" height="36" rx="2" fill="#2c3f5f"/><rect x="3" y="6" width="58" height="9" rx="2" fill="#1a2840"/><rect x="6" y="18" width="16" height="22" rx="1" fill="#16243d" stroke="#3a5378" stroke-width=".4"/><rect x="24" y="18" width="16" height="22" rx="1" fill="#16243d" stroke="#3a5378" stroke-width=".4"/><g fill="#1d9bf0"><rect x="42" y="20" width="2" height="9"/><rect x="46" y="20" width="2" height="9"/><rect x="50" y="20" width="2" height="9"/><rect x="54" y="20" width="2" height="9"/></g><g fill="#ff6b1a"><circle cx="43" cy="33" r="1.4"/><circle cx="47" cy="33" r="1.4"/><circle cx="51" cy="33" r="1.4"/><circle cx="55" cy="33" r="1.4"/></g></svg>';
-  }
-  function _iconConsoleCompact() {
-    return '<svg viewBox="0 0 64 48" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="6" y="10" width="52" height="32" rx="2" fill="#2c3f5f"/><rect x="6" y="10" width="52" height="7" rx="2" fill="#1a2840"/><rect x="9" y="20" width="20" height="20" rx="1" fill="#16243d" stroke="#3a5378" stroke-width=".4"/><g fill="#1d9bf0"><rect x="32" y="22" width="2" height="9"/><rect x="36" y="22" width="2" height="9"/><rect x="40" y="22" width="2" height="9"/><rect x="44" y="22" width="2" height="9"/><rect x="48" y="22" width="2" height="9"/></g><g fill="#ff6b1a"><circle cx="33" cy="35" r="1.2"/><circle cx="37" cy="35" r="1.2"/><circle cx="41" cy="35" r="1.2"/><circle cx="45" cy="35" r="1.2"/><circle cx="49" cy="35" r="1.2"/></g></svg>';
-  }
-  function _iconRack(slots) {
-    var rs='';
-    var sh = (40 - 4) / slots;
-    for (var i = 0; i < slots; i++) {
-      rs += '<rect x="8" y="' + (6 + i*sh + 1) + '" width="48" height="' + (sh - 2) + '" rx=".5" fill="#1a2840" stroke="#3a5378" stroke-width=".3"/>';
-      if (i % 2 === 0) rs += '<circle cx="14" cy="' + (6 + i*sh + sh/2) + '" r="1" fill="#ff6b1a"/>';
-    }
-    return '<svg viewBox="0 0 64 48" fill="none"><rect x="4" y="4" width="56" height="42" rx="2" fill="#0d1828" stroke="#2c3f5f" stroke-width="1"/><rect x="4" y="44" width="56" height="2" fill="#1d9bf0"/>' + rs + '</svg>';
-  }
-  function _iconStagebox() {
-    return '<svg viewBox="0 0 64 36" fill="none"><rect x="3" y="6" width="58" height="24" rx="2" fill="#2c3f5f" stroke="#1d9bf0" stroke-width=".8"/><g fill="#1a2840" stroke="#3a5378" stroke-width=".3"><circle cx="10" cy="14" r="2"/><circle cx="16" cy="14" r="2"/><circle cx="22" cy="14" r="2"/><circle cx="28" cy="14" r="2"/><circle cx="34" cy="14" r="2"/><circle cx="40" cy="14" r="2"/><circle cx="46" cy="14" r="2"/><circle cx="52" cy="14" r="2"/></g><g fill="#ff6b1a"><rect x="10" y="22" width="3" height="5" rx=".5"/><rect x="16" y="22" width="3" height="5" rx=".5"/><rect x="22" y="22" width="3" height="5" rx=".5"/><rect x="28" y="22" width="3" height="5" rx=".5"/></g></svg>';
-  }
-  function _iconAmp() {
-    return '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="6" width="56" height="24" rx="1.5" fill="#0d1828" stroke="#2c3f5f"/><rect x="4" y="6" width="56" height="4" fill="#1d9bf0"/><g fill="#1a2840" stroke="#3a5378" stroke-width=".3"><rect x="7" y="13" width="22" height="14" rx="1"/><rect x="32" y="13" width="22" height="14" rx="1"/></g><g fill="#22d6a0"><circle cx="11" cy="20" r=".8"/><circle cx="14" cy="20" r=".8"/></g><g fill="#ff6b1a"><circle cx="36" cy="20" r=".8"/><circle cx="39" cy="20" r=".8"/></g></svg>';
-  }
-  function _iconLineArray() {
-    return '<svg viewBox="0 0 48 64" fill="none"><g stroke="#2c3f5f" stroke-width="1" fill="#1d3a5f"><path d="M14 6 L34 6 L36 14 L12 14 Z"/><path d="M12 16 L36 16 L38 24 L10 24 Z"/><path d="M10 26 L38 26 L40 34 L8 34 Z"/><path d="M8 36 L40 36 L42 44 L6 44 Z"/></g><line x1="24" y1="2" x2="24" y2="6" stroke="#5a6a80" stroke-width="1.2"/><circle cx="24" cy="2" r="1.4" fill="#5a6a80"/></svg>';
-  }
-  function _iconSub() {
-    return '<svg viewBox="0 0 64 56" fill="none"><rect x="6" y="6" width="52" height="44" rx="2" fill="#1d3a5f" stroke="#2c3f5f" stroke-width="1"/><circle cx="32" cy="28" r="16" fill="#0d1828" stroke="#1d9bf0" stroke-width="1.2"/><circle cx="32" cy="28" r="11" fill="#16243d" stroke="#3a5378" stroke-width=".5"/><circle cx="32" cy="28" r="4" fill="#5a6a80"/></svg>';
-  }
-  function _iconSpeaker() {
-    return '<svg viewBox="0 0 48 56" fill="none"><rect x="6" y="6" width="36" height="44" rx="2" fill="#1d3a5f" stroke="#2c3f5f"/><circle cx="24" cy="20" r="8" fill="#0d1828" stroke="#1d9bf0"/><circle cx="24" cy="20" r="3" fill="#5a6a80"/><circle cx="24" cy="40" r="5" fill="#0d1828" stroke="#1d9bf0"/><circle cx="24" cy="40" r="2" fill="#5a6a80"/></svg>';
-  }
-  function _iconWedge() {
-    return '<svg viewBox="0 0 64 40" fill="none"><path d="M4 32 L60 32 L52 6 L18 6 Z" fill="#1d3a5f" stroke="#2c3f5f" stroke-width="1.2"/><ellipse cx="32" cy="18" rx="10" ry="5" fill="#0d1828" stroke="#1d9bf0"/><circle cx="32" cy="18" r="2" fill="#5a6a80"/></svg>';
-  }
-  function _iconSwitch() {
-    return '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="10" width="56" height="20" rx="2" fill="#0d1828" stroke="#2c3f5f"/><g fill="#1a2840" stroke="#3a5378" stroke-width=".4"><rect x="8" y="14" width="6" height="6" rx=".5"/><rect x="16" y="14" width="6" height="6" rx=".5"/><rect x="24" y="14" width="6" height="6" rx=".5"/><rect x="32" y="14" width="6" height="6" rx=".5"/><rect x="40" y="14" width="6" height="6" rx=".5"/><rect x="48" y="14" width="6" height="6" rx=".5"/></g><g fill="#22d6a0"><rect x="9" y="22" width="4" height="2" rx=".3"/><rect x="17" y="22" width="4" height="2" rx=".3"/><rect x="25" y="22" width="4" height="2" rx=".3"/></g></svg>';
-  }
-  function _iconWifi() {
-    return '<svg viewBox="0 0 48 40" fill="none" stroke="#1d9bf0" stroke-width="2" stroke-linecap="round"><path d="M8 22 Q24 6 40 22"/><path d="M14 26 Q24 16 34 26"/><path d="M20 30 Q24 26 28 30"/><circle cx="24" cy="34" r="2" fill="#1d9bf0"/></svg>';
-  }
-  function _iconReel() {
-    return '<svg viewBox="0 0 56 56" fill="none"><circle cx="28" cy="28" r="22" fill="#1a2840" stroke="#2c3f5f" stroke-width="1.5"/><circle cx="28" cy="28" r="14" fill="#0d1828" stroke="#3a5378"/><circle cx="28" cy="28" r="5" fill="#16243d"/><g stroke="#5a6a80" stroke-width=".8"><line x1="28" y1="14" x2="28" y2="6"/><line x1="28" y1="42" x2="28" y2="50"/><line x1="14" y1="28" x2="6" y2="28"/><line x1="42" y1="28" x2="50" y2="28"/></g></svg>';
-  }
-  function _iconFiber() {
-    return '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="10" width="56" height="20" rx="2" fill="#1d3a5f" stroke="#fbbf24" stroke-width="1"/><g stroke="#fbbf24" stroke-width="1.5"><path d="M10 20 Q20 14 32 20 Q44 26 54 20" fill="none"/></g><circle cx="12" cy="20" r="2" fill="#fbbf24"/><circle cx="52" cy="20" r="2" fill="#fbbf24"/></svg>';
-  }
-  function _iconMic() {
-    return '<svg viewBox="0 0 32 56" fill="none" stroke="#1d3a5f" stroke-width="1.4"><rect x="11" y="6" width="10" height="22" rx="5" fill="#2c3f5f"/><path d="M7 26 Q7 36 16 36 Q25 36 25 26" fill="none"/><line x1="16" y1="36" x2="16" y2="46" stroke-linecap="round"/><line x1="10" y1="50" x2="22" y2="50" stroke-linecap="round"/></svg>';
-  }
-  function _iconDI() {
-    return '<svg viewBox="0 0 48 56" fill="none"><rect x="8" y="8" width="32" height="40" rx="2" fill="#16243d" stroke="#2c3f5f" stroke-width="1.2"/><text x="24" y="28" text-anchor="middle" font-family="Archivo" font-size="10" font-weight="700" fill="#1d9bf0">DI</text><circle cx="16" cy="42" r="2" fill="#1a2840" stroke="#3a5378"/><circle cx="24" cy="42" r="2" fill="#1a2840" stroke="#3a5378"/><circle cx="32" cy="42" r="2" fill="#1a2840" stroke="#3a5378"/></svg>';
-  }
-  function _iconIEM() {
-    return '<svg viewBox="0 0 48 48" fill="none" stroke="#1d3a5f" stroke-width="1.4"><rect x="8" y="14" width="32" height="20" rx="2" fill="#2c3f5f"/><circle cx="16" cy="24" r="3" fill="#ff6b1a"/><line x1="22" y1="24" x2="34" y2="24"/><path d="M40 24 Q44 16 40 8" fill="none" stroke-linecap="round"/></svg>';
-  }
-  function _iconComputer() {
-    return '<svg viewBox="0 0 56 48" fill="none" stroke="#1d3a5f" stroke-width="1.2"><rect x="4" y="6" width="48" height="28" rx="1.5" fill="#16243d"/><rect x="6" y="8" width="44" height="24" fill="#0d1828"/><line x1="22" y1="38" x2="34" y2="38" stroke-linecap="round"/><line x1="14" y1="42" x2="42" y2="42" stroke-linecap="round" stroke-width="2"/></svg>';
-  }
-  function _iconNote() {
-    return '<svg viewBox="0 0 56 40" fill="none" stroke="#fbbf24" stroke-width="1.4"><rect x="4" y="4" width="48" height="32" rx="2" fill="#fef3c7"/><line x1="10" y1="14" x2="46" y2="14" stroke="#fbbf24" stroke-width="1"/><line x1="10" y1="20" x2="46" y2="20" stroke="#fbbf24" stroke-width="1"/><line x1="10" y1="26" x2="36" y2="26" stroke="#fbbf24" stroke-width="1"/></svg>';
-  }
-  function _iconTextLabel() {
-    return '<svg viewBox="0 0 56 32" fill="none"><text x="4" y="22" font-family="Archivo,sans-serif" font-size="16" font-weight="700" fill="#e8edf8">Aa</text></svg>';
-  }
-  function _iconImageFrame() {
-    return '<svg viewBox="0 0 56 48" fill="none"><rect x="4" y="4" width="48" height="40" rx="5" fill="#1a2840" stroke="#3a5378" stroke-width="1.2"/><path d="M4 32 L16 20 L26 28 L34 18 L52 36 L52 44 L4 44 Z" fill="#2c4060"/><circle cx="40" cy="16" r="6" fill="#f5c542" opacity=".8"/><line x1="14" y1="14" x2="14" y2="10" stroke="#3a5378" stroke-width="1"/><line x1="14" y1="14" x2="18" y2="14" stroke="#3a5378" stroke-width="1"/></svg>';
-  }
+  /* Mêmes symboles au trait que le plan de scène et le plan de site */
+  function _sym(k){ return '<svg viewBox="0 0 72 72" fill="none">' + _pfSymbol(k) + '</svg>'; }
+  function _iconConsoleLarge()   { return _sym('foh'); }
+  function _iconConsoleCompact() { return _sym('mon'); }
+  function _iconRack(slots)      { return _sym(slots <= 2 ? 'syn_rack2' : (slots === 3 ? 'syn_rack3' : 'site_rack')); }
+  function _iconStagebox()       { return _sym('stagebox'); }
+  function _iconAmp()            { return _sym('site_amp'); }
+  function _iconLineArray()      { return _sym('site_array'); }
+  function _iconSub()            { return _sym('sub'); }
+  function _iconSpeaker()        { return _sym('spk'); }
+  function _iconWedge()          { return _sym('wedge'); }
+  function _iconSwitch()         { return _sym('site_sw8'); }
+  function _iconWifi()           { return _sym('site_wifi'); }
+  function _iconReel()           { return _sym('syn_reel'); }
+  function _iconFiber()          { return _sym('syn_fiber'); }
+  function _iconMic()            { return _sym('mic_hf'); }
+  function _iconDI()             { return _sym('di'); }
+  function _iconIEM()            { return _sym('iem_r'); }
+  function _iconComputer()       { return _sym('site_laptop'); }
+  function _iconNote()           { return _sym('syn_note'); }
+  function _iconTextLabel()      { return _sym('txt_bp'); }
+  function _iconImageFrame()     { return _sym('site_image'); }
 
   /* ── State ──
      Cable type defaults — couvre la majorite des reseaux et signaux audio pro.
@@ -7683,7 +7778,7 @@ const SynPro = (() => {
     if (!CUR_SHOW || !state) return;
     /* Populate missing iconSvg fields before any save (retrocompat with older nodes) */
     state.nodes.forEach(function(n){
-      if(!n.iconSvg && n.type!=='note'){
+      if(n.type!=='note'){
         var sp2=spec(n.type);
         if(sp2&&sp2.icon) n.iconSvg=sp2.icon;
       }
@@ -8110,7 +8205,7 @@ const SynPro = (() => {
     });
 
     var h = '';
-    h += '<div style="padding:6px 8px 4px"><button class="sp-pal-cat-add" id="sp-pal-add" style="width:100%"><i class="ti ti-plus"></i> Nouvel équipement</button></div>';
+    h += '<div class="sp-pal-top"><button class="bp-tool" id="sp-pal-add"><i class="ti ti-plus"></i>Nouvel équipement</button></div>';
 
     catOrder.forEach(function(c, catIdx) {
       var subcats = tree[c];
@@ -8124,7 +8219,7 @@ const SynPro = (() => {
       var catCollapsed = !isCatOpen ? ' collapsed' : '';
 
       h += '<div class="sp-pal-cat' + catCollapsed + '" data-cat="' + esc(c) + '">';
-      h += '<div class="sp-pal-cat-name" data-toggle-cat><span class="sp-pal-cat-chevron">&#9660;</span><span>' + esc(_catLabel(c)) + '</span><span class="sp-pal-cat-count">' + totalCount + '</span></div>';
+      h += '<div class="sp-pal-cat-name" data-toggle-cat><i class="ti ti-chevron-down sp-pal-cat-chevron"></i><span>' + esc(_catLabel(c)) + '</span><span class="sp-pal-cat-count">' + totalCount + '</span></div>';
       h += '<div class="sp-pal-cat-items">';
 
       subcatKeys.forEach(function(sk, subIdx) {
@@ -8138,7 +8233,7 @@ const SynPro = (() => {
           var isSubOpen = openState.hasOwnProperty(subKey) ? openState[subKey] : defSubOpen;
           var subCollapsed = !isSubOpen ? ' collapsed' : '';
           h += '<div class="sp-pal-subcat' + subCollapsed + '" data-subcat="' + esc(subKey) + '">';
-          h += '<div class="sp-pal-subcat-name" data-toggle-sub><span class="sp-pal-sub-chevron">&#9660;</span><span>' + esc(sk) + '</span><span class="sp-pal-subcat-count">' + subcats[sk].length + '</span></div>';
+          h += '<div class="sp-pal-subcat-name" data-toggle-sub><i class="ti ti-chevron-down sp-pal-sub-chevron"></i><span>' + esc(sk) + '</span><span class="sp-pal-subcat-count">' + subcats[sk].length + '</span></div>';
           h += '<div class="sp-pal-subcat-items">' + subcats[sk].join('') + '</div>';
           h += '</div>';
         }
@@ -8192,7 +8287,7 @@ const SynPro = (() => {
   }
   function _palItemHtml(it, custom) {
     var rem = custom ? '<button class="sp-pal-item-rem" data-rem="' + esc(it.type) + '" title="Supprimer">&times;</button>' : '';
-    return '<div class="sp-pal-item" draggable="true" data-type="' + esc(it.type) + '" title="Glisser sur le plan"><span class="sp-pal-icon">' + it.icon + '</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(it.label) + '</span>' + rem + '</div>';
+    return '<div class="sp-pal-item" draggable="true" data-type="' + esc(it.type) + '" title="' + esc(it.label) + ' — glisser sur le plan"><span class="sp-pal-icon">' + it.icon + '</span><span class="sp-pal-nm">' + esc(it.label) + '</span>' + rem + '</div>';
   }
 
   /* ── Modal : add custom equipment ── */
@@ -8261,10 +8356,10 @@ const SynPro = (() => {
     }).join('');
     el.innerHTML =
       '<div class="sp-pal-cat' + collapsed + '" data-cat="' + catKey + '">' +
-        '<div class="sp-pal-cat-name" data-toggle><span class="sp-pal-cat-chevron">&#9660;</span><span><i class="ti ti-line" style="margin-right:4px"></i>Liaisons</span><span class="sp-pal-cat-count">' + state.networks.length + '</span></div>' +
+        '<div class="sp-pal-cat-name" data-toggle><i class="ti ti-chevron-down sp-pal-cat-chevron"></i><span>Liaisons</span><span class="sp-pal-cat-count">' + state.networks.length + '</span></div>' +
         '<div class="sp-pal-cat-items">' +
-          '<button class="sp-pal-cat-add" id="sp-cable-add" style="width:100%"><i class="ti ti-plus"></i> Nouveau type de liaison</button>' +
           items +
+          '<button class="sp-cable-item sp-cable-new" id="sp-cable-add"><i class="ti ti-plus"></i><span>Nouveau type de liaison</span></button>' +
           '<div class="sp-cable-help">Survolez un équipement et <b>tirez depuis un de ses points</b> vers un autre. Le type choisi ici sert aux nouvelles liaisons.</div>' +
         '</div>' +
       '</div>';
@@ -8274,7 +8369,7 @@ const SynPro = (() => {
       _palSetOpen(catKey, !cat.classList.contains('collapsed'));
     });
     el.querySelector('#sp-cable-add').addEventListener('click', _openAddCableModal);
-    el.querySelectorAll('.sp-cable-item').forEach(function(it){
+    el.querySelectorAll('.sp-cable-item[data-net]').forEach(function(it){
       it.addEventListener('click', function(){
         var nid = it.dataset.net;
         _setLastNet(nid);
@@ -8488,9 +8583,9 @@ const SynPro = (() => {
     lines.forEach(function(ln){ maxW = Math.max(maxW, ln.length); });
     var bw = Math.min(190, maxW * 6.6 + 16);
     var h = '<g' + (attrs || '') + '>';
-    h += '<rect x="' + (pt.x - bw/2) + '" y="' + (pt.y - totalH/2 - 3) + '" width="' + bw + '" height="' + (totalH + 6) + '" rx="5" fill="#ffffff" stroke="' + color + '" stroke-opacity=".5" stroke-width=".9"/>';
+    h += '<rect x="' + (pt.x - bw/2) + '" y="' + (pt.y - totalH/2 - 4) + '" width="' + bw + '" height="' + (totalH + 8) + '" rx="' + Math.min(10.5, (totalH + 8)/2) + '" fill="#ffffff" stroke="' + color + '" stroke-width="1.3"/>';
     lines.forEach(function(ln, i){
-      h += '<text x="' + pt.x + '" y="' + (pt.y - totalH/2 + lh/2 + 3 + i*lh) + '" text-anchor="middle" font-family="Archivo,sans-serif" font-size="11" font-weight="600" fill="' + color + '">' + esc(ln) + '</text>';
+      h += '<text x="' + pt.x + '" y="' + (pt.y - totalH/2 + lh/2 + 3 + i*lh) + '" text-anchor="middle" font-family="Archivo,sans-serif" font-size="11" font-weight="600" fill="#1c2433">' + esc(ln) + '</text>';
     });
     return h + '</g>';
   }
@@ -9728,12 +9823,14 @@ const SynPro = (() => {
     });
     /* Clip to prevent nodes/cables from overflowing canvas area */
     defs += '<clipPath id="exp-clip"><rect x="0" y="' + headH + '" width="' + fullW + '" height="' + canvasH + '"/></clipPath>';
+    defs += '<pattern id="exp-dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="12" cy="12" r="1.1" fill="#d5dae2"/></pattern>';
     defs += '</defs>';
 
     var svg = '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="' + fullW + '" height="' + fullH + '" viewBox="0 0 ' + fullW + ' ' + fullH + '">' + defs;
 
     /* White background */
     svg += '<rect width="' + fullW + '" height="' + fullH + '" fill="#ffffff"/>';
+    svg += '<rect x="0" y="' + headH + '" width="' + fullW + '" height="' + canvasH + '" fill="url(#exp-dots)"/>';
 
     if (!skipHeader) {
       /* Header band */
@@ -9824,7 +9921,7 @@ const SynPro = (() => {
       /* Equipment card — white box with border (plus haute si ses entrées / sorties sont affichées) */
       var nsE = _nodeSize(n);
       if (nsE.io.length) w = nsE.w;
-      svg += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + nsE.h + '" rx="8" fill="#ffffff" stroke="#c8d4e0" stroke-width="1.5"/>';
+      svg += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + nsE.h + '" rx="10" fill="#ffffff" stroke="#1c2433" stroke-opacity=".28" stroke-width="1.2"/>';
       if (nsE.io.length) svg += SynIO.svg(nsE.io, { x:x, y:y, w:w, h:nsE.h }, h, esc);
 
       /* Icon — proportional, centred in top area */
@@ -9838,18 +9935,19 @@ const SynPro = (() => {
         svg += '<image x="' + iconX + '" y="' + iconY + '" width="' + iconSize + '" height="' + iconSize + '" href="' + _safeImgSrc(n.iconImg) + '" xlink:href="' + _safeImgSrc(n.iconImg) + '" preserveAspectRatio="xMidYMid meet"/>';
       } else if (sp.icon) {
         var iconInner = sp.icon.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
-        svg += '<svg x="' + iconX + '" y="' + iconY + '" width="' + iconSize + '" height="' + iconSize + '" overflow="visible">' + iconInner + '</svg>';
+        var iconVb = (sp.icon.match(/viewBox=["']([^"']+)["']/) || [])[1] || '0 0 72 72';
+        svg += '<svg x="' + iconX + '" y="' + iconY + '" width="' + iconSize + '" height="' + iconSize + '" viewBox="' + iconVb + '" preserveAspectRatio="xMidYMid meet" overflow="visible">' + iconInner + '</svg>';
       }
 
       /* Label — centered, just above subtitle area */
       var labelY = y + h - (sub ? 18 : 10);
-      svg += '<text x="' + (x+w/2) + '" y="' + labelY + '" text-anchor="middle" font-family="Archivo,sans-serif" font-weight="700" font-size="11" fill="#1d3a5f">' + esc(label) + '</text>';
+      svg += '<text x="' + (x+w/2) + '" y="' + labelY + '" text-anchor="middle" font-family="Archivo,sans-serif" font-weight="600" font-size="11.5" fill="#1c2433">' + esc(label) + '</text>';
 
       /* Subtitle — one or two lines, clipped inside card */
       if (sub) {
         var subLines = sub.split('\n').slice(0,2);
         subLines.forEach(function(sl, i){
-          svg += '<text x="' + (x+w/2) + '" y="' + (y+h-6+i*10) + '" text-anchor="middle" font-family="Archivo,sans-serif" font-size="8.5" fill="#64748b">' + esc(sl) + '</text>';
+          svg += '<text x="' + (x+w/2) + '" y="' + (y+h-6+i*10) + '" text-anchor="middle" font-family="Archivo,sans-serif" font-size="9" fill="#1c2433" fill-opacity=".6">' + esc(sl) + '</text>';
         });
       }
     });
@@ -9859,7 +9957,7 @@ const SynPro = (() => {
     var legends = state.networks.filter(function(n){ return state.cables.some(function(c){ return c.network===n.id; }); });
     legends.forEach(function(n, i){
       svg += '<rect x="' + (14+i*140) + '" y="' + (legY-4) + '" width="20" height="4" rx="2" fill="' + n.color + '"/>';
-      svg += '<text x="' + (38+i*140) + '" y="' + legY + '" font-family="Archivo,sans-serif" font-size="10" fill="#64748b">' + esc(n.name) + '</text>';
+      svg += '<text x="' + (38+i*140) + '" y="' + legY + '" font-family="Archivo,sans-serif" font-size="10.5" font-weight="500" fill="#1c2433">' + esc(n.name) + '</text>';
     });
 
     /* Footer — uniquement si l'utilisateur a défini un texte personnalisé
@@ -10936,138 +11034,7 @@ const BandPlan=(()=>{
   // ---- LIGHT-THEME SVG instrument logos (72x72 viewBox) ----
   // Color palette: deep navy #1d3a5f (outlines), blue #1d9bf0 + orange #ff6b1a accents,
   // soft white/grey body fills — matches SynPro/SitePlan light theme.
-  /* ── Symboles du plan de scène ──
-     Un seul trait, une seule encre : chaque élément est dessiné au trait dans un carré de 72,
-     en vue de dessus quand c'est lisible (fûts, claviers, retours), de face sinon (guitares, amplis).
-     Pas de couleur par famille : sur un plan, la couleur est réservée aux numéros de canaux. */
-  function _vSVG(t,col){
-    var K='#1c2433', W='#ffffff', G='#e4e8ee';
-    var J=' stroke-linejoin="round" stroke-linecap="round"';
-    var o=' fill="'+W+'" stroke="'+K+'" stroke-width="1.9"'+J;      /* contour */
-    var g=' fill="'+G+'" stroke="'+K+'" stroke-width="1.3"'+J;      /* pièce grisée */
-    var d=' fill="none" stroke="'+K+'" stroke-width="1.2"'+J;       /* détail */
-    var f=' fill="none" stroke="'+K+'" stroke-width=".9" stroke-opacity=".45"'+J; /* détail fin */
-    var k=' fill="'+K+'"';
-    function C(x,y,r,a){ return '<circle cx="'+x+'" cy="'+y+'" r="'+r+'"'+a+'/>'; }
-    function R(x,y,w,h,r,a){ return '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="'+(r||0)+'"'+a+'/>'; }
-    function P(p,a){ return '<path d="'+p+'"'+a+'/>'; }
-    function Ln(x1,y1,x2,y2,a){ return '<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'"'+a+'/>'; }
-    /* Tube (cuivres) : un trait épais à l'encre, recouvert d'un trait blanc plus fin */
-    function T(p,w){ w=w||7; return P(p,' fill="none" stroke="'+K+'" stroke-width="'+w+'"'+J)+P(p,' fill="none" stroke="'+W+'" stroke-width="'+(w-3.4)+'"'+J); }
-    function drum(x,y,r){ return C(x,y,r,o)+C(x,y,Math.max(2,r-4.5),f); }
-    function cym(x,y,r){ return C(x,y,r,g)+C(x,y,r*0.62,f)+C(x,y,Math.max(1.6,r*0.2),k); }
-    function keys(x,y,w,h,n){
-      var s='', step=w/n, i;
-      for(i=1;i<n;i++) s+=Ln((x+i*step).toFixed(1),y,(x+i*step).toFixed(1),y+h,f);
-      for(i=1;i<n;i++){ if(i%7===3||i%7===0) continue; s+=R((x+i*step-step*0.3).toFixed(1),y,(step*0.6).toFixed(1),(h*0.58).toFixed(1),0.6,k); }
-      return s;
-    }
-    switch(t){
-      /* ── Batterie (vue de dessus) ── */
-      case 'kick':   return R(30,57,12,10,2,k)+C(36,34,27,o)+C(36,34,21.5,f)+C(45,41,5,g);
-      case 'snare':  return R(57,31,6,10,1.5,k)+C(36,36,22,o)+C(36,36,17.5,f)+Ln(27,33,45,33,d)+Ln(27,39,45,39,d);
-      case 'hihat':  return R(33,56,6,11,2,k)+C(36,34,23,g)+C(36,34,14,f)+C(36,34,5.5,o)+C(36,34,1.8,k);
-      case 'toms':   return Ln(24,34,48,34,d)+drum(23,34,15.5)+drum(50,34,14);
-      case 'cymbal': return cym(36,36,29);
-      case 'cajon':  return R(15,10,42,52,4,o)+C(36,32,7.5,g)+Ln(21,50,51,50,f)+Ln(21,55,51,55,f);
-      case 'kit':    return cym(13,15,10)+cym(59,17,11)+cym(9,39,7.5)+drum(27,25,8.5)+drum(46,25,8.5)+drum(36,45,13)+drum(17,55,8.5)+drum(57,53,9.5);
-      /* ── Guitares (de face, manche vers le haut) ── */
-      case 'elec':
-        return R(32,2,8,7,2,k)+R(33.6,8,4.8,22,0,k)
-          +P('M30 28C24 22 16 26 18 34C19 39 22 41 21 47C19 58 26 66 36 66C46 66 53 58 51 47C50 41 53 39 54 34C56 26 48 22 42 28Z',o)
-          +R(29.5,38,13,3.4,1,k)+R(29.5,46,13,3.4,1,k)+R(31,55,10,2.6,1,k)+C(45,56,1.7,k);
-      case 'acou':
-        return R(32,2,8,7,2,k)+R(33.6,8,4.8,16,0,k)
-          +P('M36 22C45 22 49 28 48 34C47.5 37 49 39 51 42C55 49 53 66 36 66C19 66 17 49 21 42C23 39 24.5 37 24 34C23 28 27 22 36 22Z',o)
-          +C(36,39,6,g)+R(29,53,14,3,1,k);
-      case 'bass_g':
-        return P('M31 3h10l1.5 8h-13z',k)+R(33.6,10,4.8,26,0,k)
-          +P('M31 34C26 29 19 32 20 39C21 43 23 45 22 50C21 60 27 67 36 67C45 67 51 60 50 50C49 45 51 43 52 39C53 32 46 29 41 34Z',o)
-          +R(30,45,12,4.4,1,k)+R(31,56,10,2.6,1,k);
-      /* ── Amplis (de face) ── */
-      case 'gamp':   return R(11,12,50,48,4,o)+Ln(11,24,61,24,d)+C(20,18,1.9,k)+C(27,18,1.9,k)+C(34,18,1.9,k)+C(41,18,1.9,k)+R(49,16,7,4,1,k)+C(36,42,12.5,g)+C(36,42,4,k);
-      case 'bamp':   return R(15,7,42,13,3,o)+C(23,13.5,1.8,k)+C(30,13.5,1.8,k)+C(37,13.5,1.8,k)+R(44,11.5,7,4,1,k)+R(11,23,50,42,4,o)+C(25,44,9.5,g)+C(25,44,3,k)+C(47,44,9.5,g)+C(47,44,3,k);
-      case 'cab':    return R(11,11,50,50,4,o)+C(24.5,24.5,8.5,g)+C(47.5,24.5,8.5,g)+C(24.5,47.5,8.5,g)+C(47.5,47.5,8.5,g)+C(24.5,24.5,2.6,k)+C(47.5,24.5,2.6,k)+C(24.5,47.5,2.6,k)+C(47.5,47.5,2.6,k);
-      /* ── Claviers (vue de dessus) ── */
-      case 'keyboard': return R(5,23,62,26,3.5,o)+Ln(5,32,67,32,d)+keys(8,32,56,17,14)+R(10,26.2,10,2.6,1,k);
-      case 'synth':    return R(5,17,62,38,3.5,o)+Ln(5,34,67,34,d)+keys(8,34,56,21,14)+C(13,25.5,2.3,k)+C(21,25.5,2.3,k)+C(29,25.5,2.3,k)+C(37,25.5,2.3,k)+R(45,22,16,7,1.5,g);
-      case 'piano':    return P('M8 62V30C8 15 20 8 33 8C46 8 51 17 55 26C60 35 64 40 64 50V62Z',o)+P('M14 46C14 28 20 15 33 14',f)+Ln(8,48,64,48,d)+keys(11,48,50,14,14);
-      case 'wurly':    return R(7,18,58,36,9,o)+Ln(7,36,65,36,d)+keys(11,36,50,18,12)+Ln(14,25,30,25,d)+Ln(14,30,30,30,d)+C(48,27.5,2.6,k)+C(56,27.5,2.6,k);
-      /* ── Voix ── */
-      case 'mic_s':
-        return Ln(36,42,36,66,d)+Ln(36,42,15,30,d)+Ln(36,42,57,30,d)+C(36,66,2.4,k)+C(15,30,2.4,k)+C(57,30,2.4,k)
-          +Ln(36,42,36,22,' fill="none" stroke="'+K+'" stroke-width="2.4"'+J)+C(36,42,4.2,k)+R(30,4,12,20,6,g)+Ln(30.5,13,41.5,13,d);
-      case 'mic_hf':
-        return P('M50 12a14 14 0 0 1 6 11',d)+P('M54 6a21 21 0 0 1 9 17',f)
-          +R(31,26,10,30,3,o)+R(33.3,56,5.4,9,2,k)+C(36,17,10,g)+Ln(27,15,45,15,f)+Ln(27,20,45,20,f)+R(34,34,4,7,1,k);
-      case 'iem_p':
-        return P('M15 44V37a21 21 0 0 1 42 0v7',' fill="none" stroke="'+K+'" stroke-width="2.4"'+J)+R(8,40,14,22,5,g)+R(50,40,14,22,5,g)+Ln(15,46,15,56,d)+Ln(57,46,57,56,d);
-      /* ── Cuivres & bois (de profil) ── */
-      case 'trumpet':
-        return T('M9 30H50')+T('M20 30v8a5 5 0 0 0 5 5h20a5 5 0 0 0 5-5v-8',5.6)+P('M49 25L65 16V44L49 35Z',o)
-          +R(25,19,5,15,1.5,o)+R(32,19,5,15,1.5,o)+R(39,19,5,15,1.5,o)+R(24,16,7,3,1,k)+R(31,16,7,3,1,k)+R(38,16,7,3,1,k)+R(5,27.6,5,4.8,1.5,k);
-      case 'trombone':
-        return T('M62 44H14a7 7 0 0 1 0-14H44',5.6)+T('M8 22H46',5.6)+P('M45 17L64 8V36L45 27Z',o)+Ln(26,30,26,44,d)+R(4,19.6,5,4.8,1.5,k)+Ln(8,22,8,37,d);
-      case 'sax':
-        return T('M24 8l7 5v30a11 11 0 0 0 22 0V30',8)+P('M46 30l14-5v9z',o)+R(19,4,7,5.5,1.5,k)+C(31,21,2.1,k)+C(31,28,2.1,k)+C(31,35,2.1,k)+C(44,50,2.1,k);
-      case 'horn':
-        return T('M10 20h12a7 7 0 0 1 7 7',5.6)+C(34,42,16,' fill="none" stroke="'+K+'" stroke-width="7.4"')+C(34,42,16,' fill="none" stroke="'+W+'" stroke-width="4"')
-          +P('M43 31L57 9L69 27Z',o)+R(5,17.6,5,4.8,1.5,k)+C(34,42,3.4,k);
-      /* ── Percussions ── */
-      case 'timb':   return Ln(24,36,50,36,d)+R(31,9,10,8,2,g)+drum(23,38,15.5)+drum(51,38,13.5);
-      case 'conga':  return C(26,40,17,o)+C(26,40,12.5,g)+C(52,27,12.5,o)+C(52,27,8.8,g);
-      case 'marimba':
-        return P('M6 18L66 26V46L6 54Z',o)+Ln(6,36,66,36,f)+[13,20,27,34,41,48,55,61].map(function(x){ var dy=(x-6)/60*8; return Ln(x,(18+dy).toFixed(1),x,(54-dy).toFixed(1),d); }).join('');
-      case 'xyl':
-        return P('M10 28L62 33V47L10 52Z',o)+[18,26,34,42,50,56].map(function(x){ var dy=(x-10)/52*5; return Ln(x,(28+dy).toFixed(1),x,(52-dy).toFixed(1),d); }).join('')
-          +Ln(22,22,40,8,d)+C(42,6.5,3,k)+Ln(50,22,56,10,d)+C(57,8,3,k);
-      /* ── Technique ── */
-      case 'foh':
-        return R(5,14,62,44,4,o)+Ln(5,26,67,26,d)+R(25,17.5,22,5.4,1.2,g)
-          +[12,19,26,33,40,47,54,60].map(function(x,i){ var y=[40,34,44,37,42,33,39,45][i]; return Ln(x,31,x,53,f)+R(x-2,y,4,5.5,1,k); }).join('');
-      case 'mon':
-        return R(9,16,54,40,4,o)+Ln(9,27,63,27,d)
-          +[16,23,30,37,44,51,57].map(function(x,i){ var y=[39,44,35,41,36,43,38][i]; return C(x,21.5,1.5,k)+Ln(x,31,x,51,f)+R(x-2,y,4,5.5,1,k); }).join('');
-      case 'stagebox':
-        return R(7,19,58,34,3.5,o)+[15,24,33,42,51,59].map(function(x){ return C(x,29,3,g)+C(x,42,3,g)+C(x,29,0.9,k)+C(x,42,0.9,k); }).join('');
-      case 'di':     return R(15,20,42,32,4,o)+C(27,36,5.5,g)+C(27,36,1.9,k)+C(45,36,5.5,g)+C(45,36,1.9,k)+R(33,24,6,3,1,k);
-      case 'iem_r':
-        return Ln(17,24,11,6,d)+C(11,6,2.2,k)+Ln(55,24,61,6,d)+C(61,6,2.2,k)+R(7,24,58,30,3.5,o)+Ln(7,39,65,39,d)
-          +R(13,28.5,18,6,1.2,g)+C(56,31.5,2.4,k)+C(48,31.5,2.4,k)+R(13,43.5,18,6,1.2,g)+C(56,46.5,2.4,k)+C(48,46.5,2.4,k);
-      case 'spk':    return R(15,5,42,62,4.5,o)+R(23,11,26,11,2.5,g)+C(36,44,14,g)+C(36,44,5,k);
-      case 'sub':    return R(7,12,58,48,4.5,o)+C(36,36,17,g)+C(36,36,6.5,k)+Ln(13,18,19,18,d)+Ln(53,18,59,18,d)+Ln(13,54,19,54,d)+Ln(53,54,59,54,d);
-      case 'wedge':  return P('M7 20H65L54 56H18Z',o)+Ln(14,29,58,29,f)+Ln(16.5,37,55.5,37,f)+Ln(19,45,53,45,f)+P('M28 56L26 63H46L44 56',d);
-      /* ── Divers ── */
-      case 'chair':  return R(14,22,44,40,7,o)+R(12,10,48,10,5,k)+Ln(21,32,51,32,f);
-      case 'stool':  return C(36,36,22,o)+C(36,36,14.5,f);
-      case 'txt_bp': return R(12,18,48,36,6,' fill="none" stroke="'+K+'" stroke-width="1.3" stroke-dasharray="3 4" stroke-opacity=".55"')+P('M27 28h18M36 28v17',' fill="none" stroke="'+K+'" stroke-width="2.6"'+J);
-      /* ── Plan de site ── */
-      case 'site_array':  return R(22,3,28,5,1.5,k)+[0,1,2,3,4].map(function(i){ var x=15+i*i*0.7; return R(x.toFixed(1),10+i*11,42,9,2,o)+Ln((x+6).toFixed(1),14.5+i*11,(x+36).toFixed(1),14.5+i*11,f); }).join('');
-      case 'site_delay':  return Ln(36,32,36,65,' fill="none" stroke="'+K+'" stroke-width="2.6"'+J)+Ln(22,65,50,65,' fill="none" stroke="'+K+'" stroke-width="2.6"'+J)+Ln(36,52,26,65,d)+Ln(36,52,46,65,d)
-                           +R(20,4,32,8,2,o)+R(20,13.5,32,8,2,o)+R(20,23,32,8,2,o)+Ln(26,8,46,8,f)+Ln(26,17.5,46,17.5,f)+Ln(26,27,46,27,f);
-      case 'site_amp':    return R(4,20,64,32,3.5,o)+Ln(12,20,12,52,d)+Ln(60,20,60,52,d)+C(8,26,1.3,k)+C(8,46,1.3,k)+C(64,26,1.3,k)+C(64,46,1.3,k)
-                           +R(17,26,14,8,1.5,g)+[36,42,48,54].map(function(x){ return C(x,30,2.1,k)+Ln(x,37,x,46,f); }).join('')+Ln(17,40,31,40,f)+Ln(17,44,31,44,f);
-      case 'site_con':    return R(4,21,64,30,3.5,o)+[15,29,43,57].map(function(x){ return C(x,36,5.6,g)+C(x,36,1.9,k); }).join('');
-      case 'site_sw12':   return R(4,23,64,26,3.5,o)+[10,17,24,31,38,45].map(function(x){ return R(x,28,5,5,1,g)+R(x,37,5,5,1,g); }).join('')+C(57,31,1.8,k)+C(62,31,1.8,k)+R(55,38,9,3,1,k);
-      case 'site_sw8':    return R(4,25,64,22,3.5,o)+[10,17,24,31,38,45,52].map(function(x){ return R(x,31,5,5,1,g); }).join('')+C(62,31,1.8,k)+R(10,40,47,2,1,k);
-      case 'site_sw25':   return R(4,23,64,26,3.5,o)+[10,17,24,31].map(function(x){ return R(x,28,5,5,1,g)+R(x,37,5,5,1,g); }).join('')+R(41,28,9,14,1.5,k)+R(53,28,9,14,1.5,k);
-      case 'site_wifi':   return P('M10 34a37 37 0 0 1 52 0',' fill="none" stroke="'+K+'" stroke-width="2.6"'+J)+P('M19 43a24 24 0 0 1 34 0',' fill="none" stroke="'+K+'" stroke-width="2.6"'+J)+P('M28 52a11.5 11.5 0 0 1 16 0',' fill="none" stroke="'+K+'" stroke-width="2.6"'+J)+C(36,60,3.4,k);
-      case 'site_proc':   return R(4,21,64,30,3.5,o)+R(10,27,24,18,2,g)+Ln(14,33,30,33,f)+Ln(14,39,26,39,f)+C(48,36,6.5,o)+Ln(48,36,51.5,32.5,d)+C(60,30,1.7,k)+C(60,42,1.7,k);
-      case 'site_cdj':    return R(9,5,54,62,5,o)+R(17,10,38,10,2,g)+C(36,43,19,g)+C(36,43,12,f)+C(36,43,5,k);
-      case 'site_laptop': return R(12,12,48,34,3.5,o)+R(17,17,38,24,1.5,g)+P('M5 50H67L62 58H10Z',o)+Ln(30,54,42,54,d);
-      case 'site_regie':  return R(8,8,56,56,5,o)+Ln(8,8,64,64,f)+Ln(64,8,8,64,f)+R(20,44,32,9,2,k)+C(36,28,5,g);
-      case 'site_rack':   return R(13,4,46,64,3.5,o)+[17,30,43,56].map(function(y){ return Ln(13,y,59,y,d); }).join('')+[8,21,34,47].map(function(y){ return R(19,y,14,5,1,g)+C(48,y+2.5,1.7,k)+C(53,y+2.5,1.7,k); }).join('')+Ln(20,62,52,62,f);
-      case 'site_split':  return Ln(18,36,34,36,d)+P('M34 36L54 14M34 36H54M34 36L54 58',d)+C(12,36,6.5,g)+C(12,36,2.2,k)+C(59,14,5.5,o)+C(59,36,5.5,o)+C(59,58,5.5,o)+C(34,36,2.2,k);
-      case 'site_power':  return R(9,9,54,54,7,o)+P('M40 15L24 39h10l-3 18 17-24H37Z',k);
-      case 'site_zone':   return P('M36 67C36 67 13 44 13 28a23 23 0 0 1 46 0C59 44 36 67 36 67Z',o)+C(36,28,8.5,g)+C(36,28,2.8,k);
-      case 'site_image':  return R(7,11,58,50,5,o)+C(24,27,5,g)+P('M7 52L25 36L37 46L47 37L65 53',d);
-      default:{
-        var it=_itemOf(t), nm=String((it&&it.n)||t||'?').replace(/[<>&"']/g,'').trim();
-        var ws=nm.split(/\s+/), L=(ws.length>1?ws[0].charAt(0)+ws[1].charAt(0):nm.slice(0,2)).toUpperCase();
-        return R(10,10,52,52,10,o)+'<text x="36" y="43.5" text-anchor="middle" font-family="Archivo,sans-serif" font-size="20" font-weight="700" fill="'+K+'">'+L+'</text>';
-      }
-    }
-  }
+  function _vSVG(t){ var it=_itemOf(t); return _pfSymbol(t,(it&&it.n)||t); }
 
   /* Étiquette de canal d'un élément : entrée (orange) ou sortie (encre) */
   function _chTag(el){
@@ -20132,9 +20099,9 @@ function _svFs(imgId, title){
         lines.forEach(function(l){maxLen=Math.max(maxLen,l.length);});
         var bw=Math.min(190,maxLen*6.6+16);var totalH=lines.length*lh;
         var lx=g.label.x,ly=g.label.y;
-        edgeSvg+='<rect x="'+(lx-bw/2)+'" y="'+(ly-totalH/2-3)+'" width="'+bw+'" height="'+(totalH+6)+'" rx="4" fill="#fff" stroke="'+col+'" stroke-opacity=".45" stroke-width=".8"/>';
+        edgeSvg+='<rect x="'+(lx-bw/2)+'" y="'+(ly-totalH/2-4)+'" width="'+bw+'" height="'+(totalH+8)+'" rx="'+Math.min(10.5,(totalH+8)/2)+'" fill="#fff" stroke="'+col+'" stroke-width="1.3"/>';
         lines.forEach(function(l,i){
-          edgeSvg+='<text x="'+lx+'" y="'+(ly-totalH/2+lh/2+3+i*lh)+'" text-anchor="middle" font-family="Archivo,sans-serif" font-size="11" font-weight="600" fill="'+col+'">'+esc(l)+'</text>';
+          edgeSvg+='<text x="'+lx+'" y="'+(ly-totalH/2+lh/2+3+i*lh)+'" text-anchor="middle" font-family="Archivo,sans-serif" font-size="11" font-weight="600" fill="#1c2433">'+esc(l)+'</text>';
         });
       }
     });
@@ -20155,7 +20122,7 @@ function _svFs(imgId, title){
           if(n.label)nodeSvg+='<text x="'+(x+w/2)+'" y="'+(y+h+14)+'" text-anchor="middle" font-family="Archivo,sans-serif" font-size="11" fill="#1d3a5f">'+esc(n.label)+'</text>';
         }
       } else {
-        nodeSvg+='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+s.h+'" rx="9" fill="#fff" stroke="#c8d4e0"/>';
+        nodeSvg+='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+s.h+'" rx="10" fill="#fff" stroke="#1c2433" stroke-opacity=".28" stroke-width="1.2"/>';
         /* Icon area */
         var iconAreaH=h-46, iconAreaY=y+10;
         /* Custom image takes priority over SVG icon */
@@ -20165,7 +20132,7 @@ function _svFs(imgId, title){
           nodeSvg+='<image x="'+ix2+'" y="'+iy2+'" width="'+iw2+'" height="'+ih2+'" href="'+safeSrc(n.iconImg)+'" xlink:href="'+safeSrc(n.iconImg)+'" preserveAspectRatio="xMidYMid meet"/>';
         }
         /* Use stored iconSvg; fall back to live LIB lookup for older nodes */
-        var _icSvg=n.iconImg?null:(n.iconSvg||(window.SynPro&&typeof window.SynPro.getIconByType==='function'?window.SynPro.getIconByType(n.type):''));
+        var _icSvg=n.iconImg?null:(((window.SynPro&&typeof window.SynPro.getIconByType==='function')?window.SynPro.getIconByType(n.type):'')||n.iconSvg);
         if(_icSvg){
           /* Inline SVG icon directly (no data URI — works everywhere) */
           var iw=Math.min(iconAreaH,w-20), ih=iconAreaH;
@@ -20179,8 +20146,8 @@ function _svFs(imgId, title){
         } else {
           nodeSvg+='<rect x="'+(x+w/2-26)+'" y="'+(iconAreaY)+'" width="52" height="'+(iconAreaH)+'" rx="4" fill="#e8eef5" stroke="#c8d4e0" stroke-width=".5"/>';
         }
-        nodeSvg+='<text x="'+(x+w/2)+'" y="'+(y+h-22)+'" text-anchor="middle" font-family="Archivo,sans-serif" font-weight="700" font-size="12" fill="#1d3a5f">'+esc(n.label||'')+'</text>';
-        if(n.sub){var sublines=n.sub.split('\n');sublines.forEach(function(s2,i){nodeSvg+='<text x="'+(x+w/2)+'" y="'+(y+h-8+i*11)+'" text-anchor="middle" font-family="Archivo,sans-serif" font-size="9" fill="#5a6a80">'+esc(s2)+'</text>';});}
+        nodeSvg+='<text x="'+(x+w/2)+'" y="'+(y+h-22)+'" text-anchor="middle" font-family="Archivo,sans-serif" font-weight="600" font-size="12" fill="#1c2433">'+esc(n.label||'')+'</text>';
+        if(n.sub){var sublines=n.sub.split('\n');sublines.forEach(function(s2,i){nodeSvg+='<text x="'+(x+w/2)+'" y="'+(y+h-8+i*11)+'" text-anchor="middle" font-family="Archivo,sans-serif" font-size="9" fill="#1c2433" fill-opacity=".6">'+esc(s2)+'</text>';});}
         if(s.io&&s.io.length) nodeSvg+=SynIO.svg(s.io,{x:x,y:y,w:w,h:s.h},h,esc);
       }
     });
@@ -20192,10 +20159,10 @@ function _svFs(imgId, title){
     var used=nets.filter(function(n){return cables.some(function(c){return c.network===n.id;});});
     used.forEach(function(n,i){
       footSvg+='<rect x="'+(legX+i*150)+'" y="'+(legY-3)+'" width="22" height="3" rx="1.5" fill="'+n.color+'"/>';
-      footSvg+='<text x="'+(legX+i*150+28)+'" y="'+legY+'" font-family="Archivo,sans-serif" font-size="11" fill="#5a6a80">'+esc(n.name)+'</text>';
+      footSvg+='<text x="'+(legX+i*150+28)+'" y="'+legY+'" font-family="Archivo,sans-serif" font-size="11" font-weight="500" fill="#1c2433">'+esc(n.name)+'</text>';
     });
     /* Canvas bg */
-    var bgSvg='<rect x="0" y="'+headH+'" width="'+vw+'" height="'+vh+'" fill="#f7f9fc"/>';
+    var bgSvg='<defs><pattern id="sv-dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="12" cy="12" r="1.1" fill="#d5dae2"/></pattern></defs><rect x="0" y="'+headH+'" width="'+vw+'" height="'+vh+'" fill="#ffffff"/><rect x="0" y="'+headH+'" width="'+vw+'" height="'+vh+'" fill="url(#sv-dots)"/>';
     if(sbg){
       var _bx=(+sbg.x||0)+ox,_by=(+sbg.y||0)+oy+headH,_rot=+sbg.rotation||0;
       var _op=(sbg.opacity==null?100:+sbg.opacity)/100;
