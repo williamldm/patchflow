@@ -63,7 +63,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=3.64">
+<link rel="stylesheet" href="pf-app.css?v=3.65">
 </head>
 <body>
 
@@ -628,9 +628,9 @@ html.rider-boot #rider-splash{display:flex}
         <!-- Palette gauche -->
         <div class="site-pal-wrap">
           <div class="site-pal-hd"><i class="ti ti-box"></i>Bibliothèque</div>
-          <div style="padding:7px 8px 6px;border-bottom:1px solid var(--bdr2);flex-shrink:0;display:flex;flex-direction:column;gap:5px;background:var(--surf2)">
+          <div class="bp-pal-tools">
             <input type="file" id="site-bg-file" accept="image/*" style="display:none" onchange="SitePlan.loadBg(this)"/>
-            <button class="btn ghost sm" style="width:100%;justify-content:center" onclick="document.getElementById('site-bg-file').click()"><i class="ti ti-photo"></i> Image de fond</button>
+            <button class="bp-tool" onclick="document.getElementById('site-bg-file').click()"><i class="ti ti-photo"></i>Image de fond</button>
             <div id="site-bg-controls" style="display:none">
               <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)">
                 <i class="ti ti-sun" style="font-size:11px"></i>
@@ -640,8 +640,8 @@ html.rider-boot #rider-splash{display:flex}
             </div>
           </div>
           <!-- Cable type picker -->
-          <div style="padding:7px 8px 5px;border-bottom:1px solid var(--bdr2);flex-shrink:0;background:var(--surf2)">
-            <div style="font-size:12px;font-family:var(--f);color:var(--txt);margin-bottom:5px;font-weight:500">Liaisons</div>
+          <div class="site-links">
+            <div class="site-links-t">Liaisons</div>
             <div id="site-cable-picker"></div>
           </div>
           <div id="site-pal-items" class="site-pal-items"></div>
@@ -1591,7 +1591,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=3.84"></script>
+<script src="pf-app.js?v=3.85"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
   <div class="mob-plan-bar">

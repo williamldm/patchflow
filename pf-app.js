@@ -11041,6 +11041,26 @@ const BandPlan=(()=>{
       case 'chair':  return R(14,22,44,40,7,o)+R(12,10,48,10,5,k)+Ln(21,32,51,32,f);
       case 'stool':  return C(36,36,22,o)+C(36,36,14.5,f);
       case 'txt_bp': return R(12,18,48,36,6,' fill="none" stroke="'+K+'" stroke-width="1.3" stroke-dasharray="3 4" stroke-opacity=".55"')+P('M27 28h18M36 28v17',' fill="none" stroke="'+K+'" stroke-width="2.6"'+J);
+      /* ── Plan de site ── */
+      case 'site_array':  return R(22,3,28,5,1.5,k)+[0,1,2,3,4].map(function(i){ var x=15+i*i*0.7; return R(x.toFixed(1),10+i*11,42,9,2,o)+Ln((x+6).toFixed(1),14.5+i*11,(x+36).toFixed(1),14.5+i*11,f); }).join('');
+      case 'site_delay':  return Ln(36,32,36,65,' fill="none" stroke="'+K+'" stroke-width="2.6"'+J)+Ln(22,65,50,65,' fill="none" stroke="'+K+'" stroke-width="2.6"'+J)+Ln(36,52,26,65,d)+Ln(36,52,46,65,d)
+                           +R(20,4,32,8,2,o)+R(20,13.5,32,8,2,o)+R(20,23,32,8,2,o)+Ln(26,8,46,8,f)+Ln(26,17.5,46,17.5,f)+Ln(26,27,46,27,f);
+      case 'site_amp':    return R(4,20,64,32,3.5,o)+Ln(12,20,12,52,d)+Ln(60,20,60,52,d)+C(8,26,1.3,k)+C(8,46,1.3,k)+C(64,26,1.3,k)+C(64,46,1.3,k)
+                           +R(17,26,14,8,1.5,g)+[36,42,48,54].map(function(x){ return C(x,30,2.1,k)+Ln(x,37,x,46,f); }).join('')+Ln(17,40,31,40,f)+Ln(17,44,31,44,f);
+      case 'site_con':    return R(4,21,64,30,3.5,o)+[15,29,43,57].map(function(x){ return C(x,36,5.6,g)+C(x,36,1.9,k); }).join('');
+      case 'site_sw12':   return R(4,23,64,26,3.5,o)+[10,17,24,31,38,45].map(function(x){ return R(x,28,5,5,1,g)+R(x,37,5,5,1,g); }).join('')+C(57,31,1.8,k)+C(62,31,1.8,k)+R(55,38,9,3,1,k);
+      case 'site_sw8':    return R(4,25,64,22,3.5,o)+[10,17,24,31,38,45,52].map(function(x){ return R(x,31,5,5,1,g); }).join('')+C(62,31,1.8,k)+R(10,40,47,2,1,k);
+      case 'site_sw25':   return R(4,23,64,26,3.5,o)+[10,17,24,31].map(function(x){ return R(x,28,5,5,1,g)+R(x,37,5,5,1,g); }).join('')+R(41,28,9,14,1.5,k)+R(53,28,9,14,1.5,k);
+      case 'site_wifi':   return P('M10 34a37 37 0 0 1 52 0',' fill="none" stroke="'+K+'" stroke-width="2.6"'+J)+P('M19 43a24 24 0 0 1 34 0',' fill="none" stroke="'+K+'" stroke-width="2.6"'+J)+P('M28 52a11.5 11.5 0 0 1 16 0',' fill="none" stroke="'+K+'" stroke-width="2.6"'+J)+C(36,60,3.4,k);
+      case 'site_proc':   return R(4,21,64,30,3.5,o)+R(10,27,24,18,2,g)+Ln(14,33,30,33,f)+Ln(14,39,26,39,f)+C(48,36,6.5,o)+Ln(48,36,51.5,32.5,d)+C(60,30,1.7,k)+C(60,42,1.7,k);
+      case 'site_cdj':    return R(9,5,54,62,5,o)+R(17,10,38,10,2,g)+C(36,43,19,g)+C(36,43,12,f)+C(36,43,5,k);
+      case 'site_laptop': return R(12,12,48,34,3.5,o)+R(17,17,38,24,1.5,g)+P('M5 50H67L62 58H10Z',o)+Ln(30,54,42,54,d);
+      case 'site_regie':  return R(8,8,56,56,5,o)+Ln(8,8,64,64,f)+Ln(64,8,8,64,f)+R(20,44,32,9,2,k)+C(36,28,5,g);
+      case 'site_rack':   return R(13,4,46,64,3.5,o)+[17,30,43,56].map(function(y){ return Ln(13,y,59,y,d); }).join('')+[8,21,34,47].map(function(y){ return R(19,y,14,5,1,g)+C(48,y+2.5,1.7,k)+C(53,y+2.5,1.7,k); }).join('')+Ln(20,62,52,62,f);
+      case 'site_split':  return Ln(18,36,34,36,d)+P('M34 36L54 14M34 36H54M34 36L54 58',d)+C(12,36,6.5,g)+C(12,36,2.2,k)+C(59,14,5.5,o)+C(59,36,5.5,o)+C(59,58,5.5,o)+C(34,36,2.2,k);
+      case 'site_power':  return R(9,9,54,54,7,o)+P('M40 15L24 39h10l-3 18 17-24H37Z',k);
+      case 'site_zone':   return P('M36 67C36 67 13 44 13 28a23 23 0 0 1 46 0C59 44 36 67 36 67Z',o)+C(36,28,8.5,g)+C(36,28,2.8,k);
+      case 'site_image':  return R(7,11,58,50,5,o)+C(24,27,5,g)+P('M7 52L25 36L37 46L47 37L65 53',d);
       default:{
         var it=_itemOf(t), nm=String((it&&it.n)||t||'?').replace(/[<>&"']/g,'').trim();
         var ws=nm.split(/\s+/), L=(ws.length>1?ws[0].charAt(0)+ws[1].charAt(0):nm.slice(0,2)).toUpperCase();
@@ -12022,8 +12042,8 @@ function _spFit(ctx,txt,maxW){
   while(s.length>1 && ctx.measureText(s+'...').width>maxW) s=s.slice(0,-1);
   return s+'...';
 }
-var _SP_FONT='ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
-var _SP_NAVY='#1d3a5f';
+var _SP_FONT='Archivo,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
+var _SP_NAVY='#1c2433';
 /* Dessine UN nœud. ex,ey = coin haut-gauche en px CANVAS (= wx(el.x),wy(el.y)).
    SCALE = facteur monde→canvas. TS = textScale. opt={color,iconImg,emoji}. */
 /* ── Texte libre : retour à la ligne ─────────────────────────────────────
@@ -12076,6 +12096,47 @@ function _spTextLblBox(el, TS){
   var widest=0; lines.forEach(function(l){ widest=Math.max(widest, ctx.measureText(l).width); });
   var padX=13, padY=9, lh=fs*1.4;
   return { fs:fs, lh:lh, lines:lines, padX:padX, padY:padY, w:(maxW?maxW:widest)+padX*2, h:lines.length*lh+padY*2 };
+}
+
+/* Feuille du plan de site : blanc + trame de points (comme l'éditeur) */
+function _spSheet(ctx, cw, ch, SCALE){
+  ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,cw,ch);
+  ctx.fillStyle='#d5dae2';
+  var step=24*SCALE, r=Math.max(0.8,1*SCALE);
+  for(var x=step/2;x<cw;x+=step) for(var y=step/2;y<ch;y+=step){ ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); }
+}
+/* Étiquette d'une liaison : pastille blanche cerclée de la couleur du câble, texte à l'encre */
+function _spCableLabel(ctx, txt, cx, cy, cts, SCALE, color){
+  var fs=13*cts*SCALE, rh=22*cts*SCALE;
+  ctx.font='600 '+fs+'px '+_SP_FONT;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  var tw=ctx.measureText(txt).width, w=tw+14*cts*SCALE;
+  _spRR(ctx,cx-w/2,cy-rh/2,w,rh,rh/2); ctx.fillStyle='#ffffff'; ctx.fill();
+  ctx.strokeStyle=color; ctx.lineWidth=1.5*cts*SCALE; ctx.stroke();
+  ctx.fillStyle=_SP_NAVY; ctx.fillText(txt, cx, cy+fs*0.04);
+}
+/* Légende des liaisons, en bas à gauche : rows = [{ color, dash, label }] */
+function _spLegend(ctx, rows, LS, SCALE, ch){
+  if(!rows.length) return;
+  var ROW=22*LS, HDR=30*LS, PADB=8*LS;
+  ctx.font='500 '+(11.5*LS*SCALE)+'px '+_SP_FONT;
+  var widest=0; rows.forEach(function(r){ widest=Math.max(widest, ctx.measureText(r.label).width); });
+  var LW=Math.max(150*LS*SCALE, widest+62*LS*SCALE), LH=(rows.length*ROW+HDR+PADB)*SCALE;
+  var LX=16*SCALE, LY=ch-LH-16*SCALE;
+  _spRR(ctx,LX,LY,LW,LH,8*SCALE); ctx.fillStyle='#ffffff'; ctx.fill();
+  ctx.strokeStyle='rgba(28,36,51,.22)'; ctx.lineWidth=Math.max(1,1*SCALE); ctx.stroke();
+  ctx.font='600 '+(10*LS*SCALE)+'px '+_SP_FONT; ctx.fillStyle='rgba(28,36,51,.55)';
+  ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('LIAISONS', LX+12*LS*SCALE, LY+11*LS*SCALE);
+  rows.forEach(function(r,i){
+    var ry=LY+(HDR+i*ROW)*SCALE;
+    ctx.beginPath(); ctx.strokeStyle=r.color; ctx.lineWidth=3*LS*SCALE; ctx.lineCap='round';
+    if(r.dash) ctx.setLineDash(String(r.dash).split(' ').map(function(n){ return parseFloat(n)*LS*SCALE; })); else ctx.setLineDash([]);
+    ctx.moveTo(LX+12*LS*SCALE,ry+7*LS*SCALE); ctx.lineTo(LX+38*LS*SCALE,ry+7*LS*SCALE);
+    ctx.stroke(); ctx.setLineDash([]); ctx.lineCap='butt';
+    ctx.font='500 '+(11.5*LS*SCALE)+'px '+_SP_FONT; ctx.fillStyle=_SP_NAVY;
+    ctx.textBaseline='middle'; ctx.fillText(r.label, LX+48*LS*SCALE, ry+7.5*LS*SCALE);
+  });
 }
 
 function _spDrawSiteNode(ctx, el, ex, ey, SCALE, TS, opt){
@@ -12142,7 +12203,7 @@ function _spDrawSiteNode(ctx, el, ex, ey, SCALE, TS, opt){
   var label=(el.label!=null&&el.label!=='')?el.label:'';
   var note=el.note||'';
 
-  ctx.font='700 '+lblFs+'px '+_SP_FONT;
+  ctx.font='600 '+lblFs+'px '+_SP_FONT;
   var label2=label?_spFit(ctx,label,maxInner):'';
   var lblW=label2?ctx.measureText(label2).width:0;
   ctx.font='500 '+noteFs+'px '+_SP_FONT;
@@ -12155,11 +12216,11 @@ function _spDrawSiteNode(ctx, el, ex, ey, SCALE, TS, opt){
 
   if(!el.noBg){
     ctx.save();
-    ctx.shadowColor='rgba(0,0,0,.12)'; ctx.shadowBlur=10*SCALE; ctx.shadowOffsetY=2*SCALE;
-    _spRR(ctx,ex,ey,cardW,cardH,11*SCALE); ctx.fillStyle='#ffffff'; ctx.fill();
+    ctx.shadowColor='rgba(16,24,40,.10)'; ctx.shadowBlur=6*SCALE; ctx.shadowOffsetY=1*SCALE;
+    _spRR(ctx,ex,ey,cardW,cardH,10*SCALE); ctx.fillStyle='#ffffff'; ctx.fill();
     ctx.restore();
-    ctx.strokeStyle='#c8d4e0'; ctx.lineWidth=Math.max(1,1*SCALE);
-    _spRR(ctx,ex,ey,cardW,cardH,11*SCALE); ctx.stroke();
+    ctx.strokeStyle='rgba(28,36,51,.26)'; ctx.lineWidth=Math.max(1,1.2*SCALE);
+    _spRR(ctx,ex,ey,cardW,cardH,10*SCALE); ctx.stroke();
   }
 
   /* Icône centrée en haut (SVG navy ou image custom), sans boîte colorée. */
@@ -12183,12 +12244,12 @@ function _spDrawSiteNode(ctx, el, ex, ey, SCALE, TS, opt){
   /* Label gras navy + note, centrés sous l'icône. */
   var cy=bodyY+bodyH+gap;
   if(label2){
-    ctx.font='700 '+lblFs+'px '+_SP_FONT; ctx.fillStyle=_SP_NAVY;
+    ctx.font='600 '+lblFs+'px '+_SP_FONT; ctx.fillStyle=_SP_NAVY;
     ctx.textAlign='center'; ctx.textBaseline='top';
     ctx.fillText(label2, ex+cardW/2, cy); cy+=lblFs+4*SCALE;
   }
   if(note2){
-    ctx.font='500 '+noteFs+'px '+_SP_FONT; ctx.fillStyle='#64748b';
+    ctx.font='400 '+noteFs+'px '+_SP_FONT; ctx.fillStyle='rgba(28,36,51,.6)';
     ctx.textAlign='center'; ctx.textBaseline='top';
     ctx.fillText(note2, ex+cardW/2, cy);
   }
@@ -12214,38 +12275,18 @@ function _siteCableEnds(c, findEl){
 
 const SitePlan = (() => {
   /* ── Professional SVG icon library ── */
-  const SITE_ICONS = {
-    main_array: '<svg viewBox="0 0 48 64" fill="none"><g stroke="#1d3a5f" stroke-width="1" fill="#1d3a5f"><path d="M14 6 L34 6 L36 14 L12 14 Z"/><path d="M12 16 L36 16 L38 24 L10 24 Z"/><path d="M10 26 L38 26 L40 34 L8 34 Z"/><path d="M8 36 L40 36 L42 44 L6 44 Z"/></g><line x1="24" y1="2" x2="24" y2="6" stroke="#5a6a80" stroke-width="1.2"/><circle cx="24" cy="2" r="1.4" fill="#5a6a80"/></svg>',
-    sub: '<svg viewBox="0 0 64 56" fill="none"><rect x="6" y="6" width="52" height="44" rx="2" fill="#1d3a5f" stroke="#0d1828" stroke-width="1"/><circle cx="32" cy="28" r="16" fill="#0d1828" stroke="#ff6b1a" stroke-width="1.5"/><circle cx="32" cy="28" r="11" fill="#16243d" stroke="#3a5378" stroke-width=".5"/><circle cx="32" cy="28" r="4" fill="#ff6b1a"/></svg>',
-    frontfill: '<svg viewBox="0 0 48 56" fill="none"><rect x="6" y="6" width="36" height="44" rx="2" fill="#5ab0ff" stroke="#1d3a5f"/><circle cx="24" cy="20" r="8" fill="#0d1828" stroke="#fff"/><circle cx="24" cy="20" r="3" fill="#5ab0ff"/><circle cx="24" cy="40" r="5" fill="#0d1828" stroke="#fff"/><circle cx="24" cy="40" r="2" fill="#5ab0ff"/></svg>',
-    delay: '<svg viewBox="0 0 48 56" fill="none"><path d="M24 4 L42 14 L42 38 L24 48 L6 38 L6 14 Z" fill="#9b6aff" stroke="#1d3a5f" stroke-width="1.4"/><circle cx="24" cy="26" r="9" fill="#0d1828" stroke="#fff"/><circle cx="24" cy="26" r="3.5" fill="#9b6aff"/></svg>',
-    wedge: '<svg viewBox="0 0 64 40" fill="none"><path d="M4 32 L60 32 L52 6 L18 6 Z" fill="#f5c542" stroke="#1d3a5f" stroke-width="1.4"/><ellipse cx="32" cy="18" rx="10" ry="5" fill="#0d1828" stroke="#fff"/><circle cx="32" cy="18" r="2.5" fill="#f5c542"/></svg>',
-    iem_tx: '<svg viewBox="0 0 48 48" fill="none"><rect x="6" y="14" width="36" height="22" rx="2" fill="#c4a0ff" stroke="#1d3a5f" stroke-width="1.2"/><circle cx="15" cy="25" r="3.5" fill="#0d1828" stroke="#fff"/><line x1="22" y1="25" x2="36" y2="25" stroke="#1d3a5f" stroke-width="1.5"/><path d="M40 8 Q46 18 40 28" fill="none" stroke="#c4a0ff" stroke-width="1.5" stroke-linecap="round"/><path d="M44 4 Q52 18 44 32" fill="none" stroke="#c4a0ff" stroke-width="1.3" stroke-linecap="round" opacity=".6"/></svg>',
-    linus14: '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="6" width="56" height="24" rx="1.5" fill="#0d1828" stroke="#22d6a0" stroke-width="1"/><rect x="4" y="6" width="56" height="4" fill="#22d6a0"/><g fill="#16243d" stroke="#3a5378" stroke-width=".3"><rect x="7" y="13" width="22" height="14" rx="1"/><rect x="32" y="13" width="22" height="14" rx="1"/></g><g fill="#22d6a0"><circle cx="11" cy="20" r=".8"/><circle cx="14" cy="20" r=".8"/></g><text x="42" y="22" font-family="Archivo" font-size="7" font-weight="700" fill="#22d6a0">14</text></svg>',
-    linus12: '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="6" width="56" height="24" rx="1.5" fill="#0d1828" stroke="#22d6a0" stroke-width="1"/><rect x="4" y="6" width="56" height="4" fill="#22d6a0"/><g fill="#16243d" stroke="#3a5378" stroke-width=".3"><rect x="7" y="13" width="22" height="14" rx="1"/><rect x="32" y="13" width="22" height="14" rx="1"/></g><g fill="#22d6a0"><circle cx="11" cy="20" r=".8"/><circle cx="14" cy="20" r=".8"/></g><text x="42" y="22" font-family="Archivo" font-size="7" font-weight="700" fill="#22d6a0">12</text></svg>',
-    linus14d: '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="6" width="56" height="24" rx="1.5" fill="#0d1828" stroke="#22d6a0" stroke-width="1"/><rect x="4" y="6" width="56" height="4" fill="#22d6a0"/><g fill="#16243d" stroke="#3a5378" stroke-width=".3"><rect x="7" y="13" width="22" height="14" rx="1"/><rect x="32" y="13" width="22" height="14" rx="1"/></g><g fill="#22d6a0"><circle cx="11" cy="20" r=".8"/><circle cx="14" cy="20" r=".8"/></g><text x="40" y="22" font-family="Archivo" font-size="6.5" font-weight="700" fill="#22d6a0">14D</text></svg>',
-    linus12c: '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="6" width="56" height="24" rx="1.5" fill="#0d1828" stroke="#1affd5" stroke-width="1"/><rect x="4" y="6" width="56" height="4" fill="#1affd5"/><g fill="#16243d" stroke="#3a5378" stroke-width=".3"><rect x="7" y="13" width="22" height="14" rx="1"/><rect x="32" y="13" width="22" height="14" rx="1"/></g><text x="40" y="22" font-family="Archivo" font-size="6.5" font-weight="700" fill="#1affd5">12C</text></svg>',
-    linus10: '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="6" width="56" height="24" rx="1.5" fill="#0d1828" stroke="#22d6a0" stroke-width="1"/><rect x="4" y="6" width="56" height="4" fill="#22d6a0"/><g fill="#16243d" stroke="#3a5378" stroke-width=".3"><rect x="7" y="13" width="22" height="14" rx="1"/><rect x="32" y="13" width="22" height="14" rx="1"/></g><g fill="#22d6a0"><circle cx="11" cy="20" r=".8"/></g><text x="42" y="22" font-family="Archivo" font-size="7" font-weight="700" fill="#22d6a0">10</text></svg>',
-    linuscon: '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="6" width="56" height="24" rx="2" fill="#0d1828" stroke="#5ab0ff" stroke-width="1"/><circle cx="20" cy="18" r="5" fill="#16243d" stroke="#5ab0ff"/><circle cx="20" cy="18" r="2" fill="#5ab0ff"/><g fill="#5ab0ff"><rect x="32" y="13" width="3" height="10" rx="1"/><rect x="38" y="13" width="3" height="10" rx="1"/><rect x="44" y="13" width="3" height="10" rx="1"/><rect x="50" y="13" width="3" height="10" rx="1"/></g></svg>',
-    lmx14r: '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="10" width="56" height="20" rx="2" fill="#0d1828" stroke="#9b6aff" stroke-width="1"/><g fill="#16243d" stroke="#3a5378" stroke-width=".4"><rect x="8" y="14" width="6" height="6" rx=".5"/><rect x="16" y="14" width="6" height="6" rx=".5"/><rect x="24" y="14" width="6" height="6" rx=".5"/><rect x="32" y="14" width="6" height="6" rx=".5"/><rect x="40" y="14" width="6" height="6" rx=".5"/><rect x="48" y="14" width="6" height="6" rx=".5"/></g><g fill="#9b6aff"><rect x="9" y="22" width="4" height="2" rx=".3"/><rect x="17" y="22" width="4" height="2" rx=".3"/><rect x="25" y="22" width="4" height="2" rx=".3"/></g></svg>',
-    lmx10p: '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="10" width="56" height="20" rx="2" fill="#0d1828" stroke="#9b6aff" stroke-width="1"/><g fill="#16243d" stroke="#3a5378" stroke-width=".4"><rect x="10" y="14" width="6" height="6" rx=".5"/><rect x="18" y="14" width="6" height="6" rx=".5"/><rect x="26" y="14" width="6" height="6" rx=".5"/><rect x="34" y="14" width="6" height="6" rx=".5"/><rect x="42" y="14" width="6" height="6" rx=".5"/></g><text x="32" y="27" text-anchor="middle" font-family="Archivo" font-size="5.5" font-weight="700" fill="#9b6aff">PoE</text></svg>',
-    lmx25g: '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="10" width="56" height="20" rx="2" fill="#0d1828" stroke="#b48aff" stroke-width="1"/><g fill="#16243d" stroke="#3a5378" stroke-width=".4"><rect x="8" y="14" width="6" height="6" rx=".5"/><rect x="16" y="14" width="6" height="6" rx=".5"/><rect x="24" y="14" width="6" height="6" rx=".5"/><rect x="32" y="14" width="6" height="6" rx=".5"/></g><text x="46" y="20" font-family="Archivo" font-size="6" font-weight="700" fill="#b48aff">25G</text></svg>',
-    sw_dante: '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="10" width="56" height="20" rx="2" fill="#0d1828" stroke="#5ab0ff" stroke-width="1"/><g fill="#16243d" stroke="#3a5378" stroke-width=".4"><rect x="8" y="14" width="6" height="6" rx=".5"/><rect x="16" y="14" width="6" height="6" rx=".5"/><rect x="24" y="14" width="6" height="6" rx=".5"/><rect x="32" y="14" width="6" height="6" rx=".5"/></g><text x="48" y="20" font-family="Archivo" font-size="5" font-weight="700" fill="#5ab0ff">DANTE</text></svg>',
-    wifi_ap: '<svg viewBox="0 0 48 40" fill="none" stroke="#5ab0ff" stroke-width="2" stroke-linecap="round"><path d="M8 22 Q24 6 40 22"/><path d="M14 26 Q24 16 34 26"/><path d="M20 30 Q24 26 28 30"/><circle cx="24" cy="34" r="2" fill="#5ab0ff"/></svg>',
-    console_foh: '<svg viewBox="0 0 64 48" fill="none"><rect x="3" y="6" width="58" height="36" rx="2" fill="#1a8fff"/><rect x="3" y="6" width="58" height="9" rx="2" fill="#0d1828"/><rect x="6" y="18" width="16" height="22" rx="1" fill="#16243d" stroke="#fff" stroke-width=".4"/><rect x="24" y="18" width="16" height="22" rx="1" fill="#16243d" stroke="#fff" stroke-width=".4"/><g fill="#fff"><rect x="42" y="20" width="2" height="9"/><rect x="46" y="20" width="2" height="9"/><rect x="50" y="20" width="2" height="9"/><rect x="54" y="20" width="2" height="9"/></g><text x="32" y="11" text-anchor="middle" font-family="Archivo" font-size="4.5" font-weight="700" fill="#1a8fff">FOH</text></svg>',
-    console_mon: '<svg viewBox="0 0 64 48" fill="none"><rect x="3" y="6" width="58" height="36" rx="2" fill="#f5c542"/><rect x="3" y="6" width="58" height="9" rx="2" fill="#0d1828"/><rect x="6" y="18" width="16" height="22" rx="1" fill="#16243d" stroke="#fff" stroke-width=".4"/><rect x="24" y="18" width="16" height="22" rx="1" fill="#16243d" stroke="#fff" stroke-width=".4"/><g fill="#fff"><rect x="42" y="20" width="2" height="9"/><rect x="46" y="20" width="2" height="9"/><rect x="50" y="20" width="2" height="9"/><rect x="54" y="20" width="2" height="9"/></g><text x="32" y="11" text-anchor="middle" font-family="Archivo" font-size="4.5" font-weight="700" fill="#f5c542">MON</text></svg>',
-    processor: '<svg viewBox="0 0 64 36" fill="none"><rect x="4" y="6" width="56" height="24" rx="2" fill="#0d1828" stroke="#22d6a0"/><rect x="4" y="6" width="56" height="4" fill="#22d6a0"/><circle cx="14" cy="20" r="5" fill="#16243d" stroke="#22d6a0"/><circle cx="14" cy="20" r="1.5" fill="#22d6a0"/><circle cx="30" cy="20" r="5" fill="#16243d" stroke="#22d6a0"/><circle cx="30" cy="20" r="1.5" fill="#22d6a0"/><g fill="#22d6a0"><rect x="42" y="16" width="3" height="8" rx="1"/><rect x="48" y="16" width="3" height="8" rx="1"/><rect x="54" y="16" width="3" height="8" rx="1"/></g></svg>',
-    cdj: '<svg viewBox="0 0 64 48" fill="none"><rect x="4" y="4" width="56" height="40" rx="3" fill="#16243d" stroke="#1d3a5f"/><circle cx="32" cy="26" r="16" fill="#0d1828" stroke="#e8edf8" stroke-width="1.2"/><circle cx="32" cy="26" r="10" fill="#16243d" stroke="#3a5378"/><circle cx="32" cy="26" r="2" fill="#e8edf8"/><rect x="9" y="9" width="14" height="4" rx="1" fill="#e8edf8"/></svg>',
-    laptop: '<svg viewBox="0 0 56 48" fill="none"><rect x="4" y="6" width="48" height="28" rx="1.5" fill="#16243d" stroke="#1d3a5f" stroke-width="1.2"/><rect x="6" y="8" width="44" height="24" fill="#0d1828" stroke="#5ab0ff" stroke-width=".3"/><line x1="14" y1="42" x2="42" y2="42" stroke="#1d3a5f" stroke-linecap="round" stroke-width="2.5"/></svg>',
-    regie_foh: '<svg viewBox="0 0 56 56" fill="none"><path d="M4 26 L28 6 L52 26 L52 50 L4 50 Z" fill="#ff6b1a" stroke="#1d3a5f" stroke-width="1.4"/><rect x="20" y="32" width="16" height="18" rx="1" fill="#fff" stroke="#1d3a5f"/><rect x="8" y="30" width="8" height="10" rx=".5" fill="#fff" stroke="#1d3a5f" stroke-width=".5"/><rect x="40" y="30" width="8" height="10" rx=".5" fill="#fff" stroke="#1d3a5f" stroke-width=".5"/><text x="28" y="45" text-anchor="middle" font-family="Archivo" font-size="5.5" font-weight="700" fill="#1d3a5f">FOH</text></svg>',
-    regie_mon: '<svg viewBox="0 0 56 56" fill="none"><path d="M4 26 L28 6 L52 26 L52 50 L4 50 Z" fill="#f5c542" stroke="#1d3a5f" stroke-width="1.4"/><rect x="20" y="32" width="16" height="18" rx="1" fill="#fff" stroke="#1d3a5f"/><rect x="8" y="30" width="8" height="10" rx=".5" fill="#fff" stroke="#1d3a5f" stroke-width=".5"/><rect x="40" y="30" width="8" height="10" rx=".5" fill="#fff" stroke="#1d3a5f" stroke-width=".5"/><text x="28" y="45" text-anchor="middle" font-family="Archivo" font-size="5.5" font-weight="700" fill="#1d3a5f">MON</text></svg>',
-    rack: '<svg viewBox="0 0 64 48" fill="none"><rect x="4" y="4" width="56" height="42" rx="2" fill="#0d1828" stroke="#5a6580" stroke-width="1"/><rect x="4" y="44" width="56" height="2" fill="#5a6580"/><rect x="8" y="7" width="48" height="6" rx=".5" fill="#16243d" stroke="#3a5378" stroke-width=".3"/><rect x="8" y="15" width="48" height="6" rx=".5" fill="#16243d" stroke="#3a5378" stroke-width=".3"/><rect x="8" y="23" width="48" height="6" rx=".5" fill="#16243d" stroke="#3a5378" stroke-width=".3"/><rect x="8" y="31" width="48" height="6" rx=".5" fill="#16243d" stroke="#3a5378" stroke-width=".3"/><circle cx="14" cy="10" r=".8" fill="#ff6b1a"/><circle cx="14" cy="26" r=".8" fill="#ff6b1a"/></svg>',
-    stagebox: '<svg viewBox="0 0 64 36" fill="none"><rect x="3" y="6" width="58" height="24" rx="2" fill="#5a6580" stroke="#1d3a5f" stroke-width="1"/><g fill="#16243d" stroke="#fff" stroke-width=".3"><circle cx="10" cy="14" r="2"/><circle cx="16" cy="14" r="2"/><circle cx="22" cy="14" r="2"/><circle cx="28" cy="14" r="2"/><circle cx="34" cy="14" r="2"/><circle cx="40" cy="14" r="2"/><circle cx="46" cy="14" r="2"/><circle cx="52" cy="14" r="2"/></g><g fill="#ff6b1a"><rect x="10" y="22" width="3" height="5" rx=".5"/><rect x="16" y="22" width="3" height="5" rx=".5"/><rect x="22" y="22" width="3" height="5" rx=".5"/><rect x="28" y="22" width="3" height="5" rx=".5"/></g></svg>',
-    splitter: '<svg viewBox="0 0 64 48" fill="none" stroke="#1d3a5f" stroke-width="1.5"><circle cx="14" cy="24" r="5" fill="#5a6580"/><circle cx="50" cy="10" r="4" fill="#5a6580"/><circle cx="50" cy="24" r="4" fill="#5a6580"/><circle cx="50" cy="38" r="4" fill="#5a6580"/><line x1="19" y1="24" x2="46" y2="10"/><line x1="19" y1="24" x2="46" y2="24"/><line x1="19" y1="24" x2="46" y2="38"/></svg>',
-    distrib: '<svg viewBox="0 0 56 56" fill="none"><rect x="6" y="6" width="44" height="44" rx="3" fill="#ff4d6a" stroke="#1d3a5f" stroke-width="1.4"/><path d="M22 14 L30 14 L26 26 L34 26 L22 44 L26 32 L18 32 Z" fill="#fff" stroke="#1d3a5f" stroke-width=".4" stroke-linejoin="round"/></svg>',
-    zone_lbl: '<svg viewBox="0 0 56 36" fill="none"><path d="M6 8 L40 8 L50 18 L40 28 L6 28 Z" fill="#3d4a62" stroke="#1d3a5f" stroke-width="1.2"/><circle cx="42" cy="18" r="2" fill="#fff"/></svg>',
-    text_lbl: '<svg viewBox="0 0 56 40" fill="none"><rect x="4" y="6" width="48" height="28" rx="3" fill="#aabbdd" stroke="#1d3a5f" stroke-width="1.2"/><text x="28" y="26" text-anchor="middle" font-family="Archivo" font-size="16" font-weight="700" fill="#1d3a5f">T</text></svg>',
+  /* Symboles au trait, dessinés par le plan de scène (même encre, même épaisseur) */
+  const _SITE_SYM = {
+    main_array:'site_array', sub:'sub', frontfill:'spk', delay:'site_delay', wedge:'wedge', iem_tx:'iem_r',
+    linus14:'site_amp', linus12:'site_amp', linus14d:'site_amp', linus12c:'site_amp', linus10:'site_amp', linuscon:'site_con',
+    lmx14r:'site_sw12', lmx10p:'site_sw8', lmx25g:'site_sw25', sw_dante:'site_sw8', wifi_ap:'site_wifi',
+    console_foh:'foh', console_mon:'mon', processor:'site_proc', cdj:'site_cdj', laptop:'site_laptop',
+    regie_foh:'site_regie', regie_mon:'site_regie', rack:'site_rack', stagebox:'stagebox', splitter:'site_split',
+    distrib:'site_power', zone_lbl:'site_zone', text_lbl:'txt_bp', image_frame:'site_image'
   };
+  const _siteSvg = function(sym){ return '<svg viewBox="0 0 72 72" fill="none">' + BandPlan.getVintageSVG(sym) + '</svg>'; };
+  const SITE_ICONS = {};
+  Object.keys(_SITE_SYM).forEach(function(k){ SITE_ICONS[k] = _siteSvg(_SITE_SYM[k]); });
 
   const PALETTE = [
     { cat:'Son',      color:'#1a8fff', items:[
@@ -12253,8 +12294,8 @@ const SitePlan = (() => {
       { type:'sub',        label:'Sub',           icon:SITE_ICONS.sub,         color:'#ff6b1a' },
       { type:'frontfill',  label:'Front fill',    icon:SITE_ICONS.frontfill,   color:'#5ab0ff' },
       { type:'delay',      label:'Delay / Tour',  icon:SITE_ICONS.delay,       color:'#9b6aff' },
-      { type:'wedge',      label:'Retour scene',  icon:SITE_ICONS.wedge,       color:'#f5c542' },
-      { type:'iem_tx',     label:'IEM Emetteur',  icon:SITE_ICONS.iem_tx,      color:'#c4a0ff' },
+      { type:'wedge',      label:'Retour scène',  icon:SITE_ICONS.wedge,       color:'#f5c542' },
+      { type:'iem_tx',     label:'Émetteur IEM',  icon:SITE_ICONS.iem_tx,      color:'#c4a0ff' },
     ]},
     { cat:'Amplis',   color:'#22d6a0', items:[
       { type:'linus14',  label:'LINUS 14',  icon:SITE_ICONS.linus14,  color:'#22d6a0' },
@@ -12269,7 +12310,7 @@ const SitePlan = (() => {
       { type:'lmx10p',   label:'Luminex 10PoE', icon:SITE_ICONS.lmx10p,   color:'#9b6aff' },
       { type:'lmx25g',   label:'Luminex 25G',   icon:SITE_ICONS.lmx25g,   color:'#b48aff' },
       { type:'sw_dante', label:'Switch Dante',  icon:SITE_ICONS.sw_dante, color:'#5ab0ff' },
-      { type:'wifi_ap',  label:'Access Point',  icon:SITE_ICONS.wifi_ap,  color:'#5ab0ff' },
+      { type:'wifi_ap',  label:'Point d\'accès Wi-Fi',  icon:SITE_ICONS.wifi_ap,  color:'#5ab0ff' },
     ]},
     { cat:'Controle', color:'#f5c542', items:[
       { type:'console_foh', label:'Console FOH', icon:SITE_ICONS.console_foh, color:'#1a8fff' },
@@ -12279,8 +12320,8 @@ const SitePlan = (() => {
       { type:'laptop',      label:'Ordinateur',  icon:SITE_ICONS.laptop,      color:'#e8edf8' },
     ]},
     { cat:'Infra',    color:'#5a6580', items:[
-      { type:'regie_foh', label:'Regie FOH',       icon:SITE_ICONS.regie_foh, color:'#ff6b1a' },
-      { type:'regie_mon', label:'Regie MON',       icon:SITE_ICONS.regie_mon, color:'#f5c542' },
+      { type:'regie_foh', label:'Régie FOH',       icon:SITE_ICONS.regie_foh, color:'#ff6b1a' },
+      { type:'regie_mon', label:'Régie MON',       icon:SITE_ICONS.regie_mon, color:'#f5c542' },
       { type:'rack',      label:'Rack 19"',        icon:SITE_ICONS.rack,      color:'#5a6580' },
       { type:'stagebox',  label:'Stage Box',       icon:SITE_ICONS.stagebox,  color:'#5a6580' },
       { type:'splitter',  label:'Splitter',        icon:SITE_ICONS.splitter,  color:'#5a6580' },
@@ -12289,7 +12330,7 @@ const SitePlan = (() => {
     ]},
     { cat:'Texte',     color:'#aabbdd', items:[
       { type:'text_lbl',    label:'Texte libre', icon:SITE_ICONS.text_lbl, color:'#aabbdd' },
-      { type:'image_frame', label:'Image / Photo', icon:'<svg viewBox="0 0 56 48" fill="none"><rect x="4" y="4" width="48" height="40" rx="5" fill="#1a2840" stroke="#3a5378" stroke-width="1.2"/><path d="M4 32 L16 20 L26 28 L34 18 L52 36 L52 44 L4 44 Z" fill="#2c4060"/><circle cx="40" cy="16" r="6" fill="#f5c542" opacity=".8"/></svg>', color:'#ec4899' },
+      { type:'image_frame', label:'Image / Photo', icon:SITE_ICONS.image_frame, color:'#5a6580' },
     ]},
   ];
 
@@ -12386,6 +12427,7 @@ const SitePlan = (() => {
     render();
   }
 
+  var _palOpen = {};
   function renderPalette() {
     const el = $('site-pal-items');
     if(!el) return;
@@ -12393,38 +12435,23 @@ const SitePlan = (() => {
     el.innerHTML = PALETTE.map((g, gi) => {
       const customInCat = customAll.filter(function(it){ return it.cat === g.cat; });
       const allItems = g.items.concat(customInCat);
-      const catColor = g.color || '#5a6580';
+      const open = _palOpen[g.cat] !== false;
       return '<div class="spl-cat-sec">'
-        + '<div class="spl-cat-lbl" data-cat="' + gi + '">'
+        + '<div class="spl-cat-lbl" data-cat="' + gi + '" data-catname="' + esc(g.cat) + '">'
+        + '<i class="ti ti-chevron-down spl-cat-arrow"' + (open ? '' : ' style="transform:rotate(-90deg)"') + '></i>'
         + '<span>' + _catLabel(g.cat) + '</span>'
-        + '<i class="ti ti-chevron-right spl-cat-arrow"></i>'
+        + '<span class="spl-cat-n">' + allItems.length + '</span>'
         + '</div>'
-        + '<div class="spl-cat-items" data-cat="' + gi + '" style="display:none">'
+        + '<div class="spl-cat-items" data-cat="' + gi + '"' + (open ? '' : ' style="display:none"') + '>'
         + allItems.map(function(it) {
             var isCustom = !!it.isCustom;
-            var del = isCustom
-              ? '<button type="button" class="spl-custom-del" data-ctype="' + it.type + '" title="Supprimer" style="margin-left:auto;border:none;background:none;color:var(--muted);cursor:pointer;font-size:11px;padding:0 2px;flex-shrink:0;line-height:1">x</button>'
-              : '';
+            var del = isCustom ? '<span class="spl-custom-del" role="button" data-ctype="' + it.type + '" title="Supprimer cet objet">\xd7</span>' : '';
             var isSvg = typeof it.icon === 'string' && it.icon.charAt(0) === '<';
-            var iconHtml = isSvg
-              ? '<span class="spl-item-ic" style="border-color:' + it.color + '55">' + it.icon + '</span>'
-              : '<span class="spl-item-ic-emoji" style="background:' + it.color + '18;border-color:' + it.color + '44;color:' + it.color + '">' + it.icon + '</span>';
-            return '<button class="spl-item' + (isCustom ? ' spl-custom-item' : '') + '" draggable="true" data-type="' + it.type + '" style="--ic:' + it.color + '">'
-              + iconHtml
-              + '<span style="flex:1;text-align:left">' + esc(it.label) + '</span>'
-              + del
-              + '</button>';
+            var iconHtml = '<span class="spl-item-ic">' + (isSvg ? it.icon : (it.icon ? '<span class="spl-item-emo">' + esc(it.icon) + '</span>' : _siteSvg(it.type))) + '</span>';
+            return '<button class="spl-item' + (isCustom ? ' spl-custom-item' : '') + '" draggable="true" data-type="' + it.type + '" title="Cliquer ou glisser sur le plan">'
+              + iconHtml + '<span class="spl-item-nm">' + esc(it.label) + '</span>' + del + '</button>';
           }).join('')
-        // Creation form
-        + '<div class="spl-custom-form" data-cat="' + gi + '" data-catname="' + g.cat + '" style="margin-top:6px;padding-top:6px;border-top:1px solid var(--bdr)">'
-        + '<div style="font-size:12px;color:var(--muted);margin-bottom:5px;font-family:var(--f);font-weight:500">Ajouter un objet</div>'
-        + '<div style="display:flex;gap:3px;margin-bottom:4px">'
-        + '<input class="spl-ci-icon syn-custom-inp" placeholder="&#x1F4E6;" style="width:34px;text-align:center;font-size:14px;padding:3px" maxlength="2"/>'
-        + '<input class="spl-ci-label syn-custom-inp" placeholder="Nom..." style="flex:1"/>'
-        + '<input type="color" class="spl-ci-color" value="' + catColor + '" style="width:26px;height:26px;border:none;border-radius:4px;padding:1px;cursor:pointer;background:none;flex-shrink:0"/>'
-        + '</div>'
-        + '<button type="button" class="spl-ci-add syn-custom-btn" style="width:100%">+ Ajouter et enregistrer</button>'
-        + '</div>'
+        + '<button type="button" class="spl-item spl-item-add spl-ci-add" data-catname="' + esc(g.cat) + '" title="Ajouter un objet à cette famille"><span class="spl-item-ic"><i class="ti ti-plus"></i></span><span class="spl-item-nm">Objet</span></button>'
         + '</div></div>';
     }).join('');
 
@@ -12435,11 +12462,12 @@ const SitePlan = (() => {
         var arrow = hd.querySelector('.spl-cat-arrow');
         var isOpen = items.style.display !== 'none';
         items.style.display = isOpen ? 'none' : '';
-        arrow.style.transform = isOpen ? '' : 'rotate(90deg)';
+        arrow.style.transform = isOpen ? 'rotate(-90deg)' : '';
+        _palOpen[hd.dataset.catname] = !isOpen;
       });
     });
 
-    el.querySelectorAll('.spl-item').forEach(function(btn) {
+    el.querySelectorAll('.spl-item:not(.spl-item-add)').forEach(function(btn) {
       btn.addEventListener('dragstart', function(e) { e.dataTransfer.setData('spl-type', btn.dataset.type); });
       btn.addEventListener('click', function(ev) {
         if(ev.target.closest('.spl-custom-del')) return;
@@ -12459,19 +12487,15 @@ const SitePlan = (() => {
       });
     });
 
-    // Add custom item
+    // Ajouter un objet : son nom suffit, il est dessiné avec ses initiales
     el.querySelectorAll('.spl-ci-add').forEach(function(addBtn) {
       addBtn.addEventListener('click', function() {
-        var form = addBtn.closest('.spl-custom-form');
-        var label = (form.querySelector('.spl-ci-label')?.value || '').trim();
-        if(!label){ toast('Donnez un nom'); return; }
-        var icon  = (form.querySelector('.spl-ci-icon')?.value  || '').trim() || '📦';
-        var color = form.querySelector('.spl-ci-color')?.value || '#5a6580';
-        var catName = form.dataset.catname || 'Custom';
+        var label = (prompt('Nom de l\'objet :', '') || '').trim();
+        if(!label) return;
         var t = 'csi_' + Date.now().toString(36);
-        _saveCustomSiteItem({ type:t, label:label, icon:icon, color:color, cat:catName, isCustom:true });
+        _saveCustomSiteItem({ type:t, label:label.slice(0,40), icon:'', color:'#5a6580', cat:addBtn.dataset.catname || 'Custom', isCustom:true });
+        _invalidateSiteIconImgs();
         renderPalette();
-        toast('"' + label + '" enregistre');
       });
     });
   }
@@ -12577,7 +12601,7 @@ const SitePlan = (() => {
     }).join('');
     const ls = state.legendScale || 1;
     leg.style.setProperty('--leg-ts', ls);
-    leg.innerHTML = '<div class="scl-title">Cables</div>' + rows;
+    leg.innerHTML = '<div class="scl-title">Liaisons</div>' + rows;
   }
 
   function renderNodes() {
@@ -12642,10 +12666,10 @@ const SitePlan = (() => {
           ? `<img src="${_safeImgSrc(el.iconImg)}" style="width:${sz-6}px;height:${sz-6}px;object-fit:contain;pointer-events:none;border-radius:4px"/>`
           : isSvg
             ? it.icon
-            : `<div class="spl-body-emoji" style="font-size:${iconSz}px;color:${it.color}">${it.icon}</div>`;
+            : (it.icon ? `<div class="spl-body-emoji" style="font-size:${iconSz}px">${it.icon}</div>` : _siteSvg(el.type));
         div.innerHTML =
           `<button class="spl-del" data-del="${el.id}">×</button>`+
-          `<div class="spl-body" style="border-color:${it.color};width:${sz}px;height:${sz}px">${iconMarkup}</div>`+
+          `<div class="spl-body" style="width:${sz}px;height:${sz}px">${iconMarkup}</div>`+
           `<div class="spl-lbl">${esc(el.label)}</div>`+
           (el.note?`<div class="spl-note">${esc(el.note)}</div>`:'')+
           `<button class="spl-conn" data-conn="${el.id}" title="Tirer une liaison"><i class="ti ti-plug-connected" style="font-size:11px"></i></button>`;
@@ -12752,7 +12776,7 @@ const SitePlan = (() => {
   let _lblCtx=null;
   function _measureCableLbl(txt, fs){
     if(!_lblCtx) _lblCtx=document.createElement('canvas').getContext('2d');
-    _lblCtx.font='700 '+fs+'px '+(getComputedStyle(document.documentElement).getPropertyValue('--m').trim()||'monospace');
+    _lblCtx.font='600 '+fs+'px Archivo, sans-serif';
     return _lblCtx.measureText(txt).width;
   }
 
@@ -12785,9 +12809,9 @@ const SitePlan = (() => {
       if(cable.label||cable.length) {
         const txt=[cable.label,cable.length].filter(Boolean).join(' · ');
         const cts=(state.cableTextScale||1)*(cable.textScale||1);
-        const fs=(14*cts), tw=_measureCableLbl(txt, fs), rh=18*cts;
-        paths += `<rect x="${mxo-tw/2-5*cts}" y="${myo-rh-5}" width="${tw+10*cts}" height="${rh}" rx="${4*cts}" fill="rgba(8,8,20,0.82)"/>`;
-        paths += `<text x="${mxo}" y="${myo-rh/2-5+fs*0.36}" fill="${c.color}" font-size="${fs.toFixed(1)}" font-family="var(--m)" text-anchor="middle" opacity="0.97" font-weight="700">${esc(txt)}</text>`;
+        const fs=(13*cts), tw=_measureCableLbl(txt, fs), rh=22*cts;
+        paths += `<rect x="${mxo-tw/2-7*cts}" y="${myo-rh-5}" width="${tw+14*cts}" height="${rh}" rx="${rh/2}" fill="#ffffff" stroke="${c.color}" stroke-width="${1.5*cts}"/>`;
+        paths += `<text x="${mxo}" y="${myo-rh/2-5+fs*0.35}" fill="#1c2433" font-size="${fs.toFixed(1)}" font-family="Archivo,sans-serif" text-anchor="middle" font-weight="600">${esc(txt)}</text>`;
       }
       /* Poignées des points de routage (cable sélectionné). */
       if(isSel && cable.waypoints && cable.waypoints.length){
@@ -13676,7 +13700,7 @@ const SitePlan = (() => {
       const canvas=document.createElement('canvas');
       canvas.width=cw; canvas.height=ch;
       const ctx=canvas.getContext('2d');
-      ctx.fillStyle='#0a0f1c'; ctx.fillRect(0,0,cw,ch);
+      _spSheet(ctx,cw,ch,SCALE);
       const wx=x=>(x-minX)*SCALE, wy=y=>(y-minY)*SCALE;
       if(bgImg){
         ctx.save(); ctx.globalAlpha=state.bgOpacity/100;
@@ -13722,13 +13746,7 @@ const SitePlan = (() => {
         if(cable.label||cable.length){
           const txt=[cable.label,cable.length].filter(Boolean).join(' · ');
           const cts=(state.cableTextScale||1)*(cable.textScale||1);
-          const fs=14*cts*SCALE;
-          ctx.font=`700 ${fs}px sans-serif`;
-          ctx.textAlign='center'; ctx.textBaseline='middle';
-          const tw=ctx.measureText(txt).width, rh=fs*1.5, cx=wx(mxo), cyy=wy(myo)-rh*0.7;
-          _rrect(ctx,cx-tw/2-6*cts*SCALE,cyy-rh/2,tw+12*cts*SCALE,rh,4*cts*SCALE);
-          ctx.fillStyle='rgba(8,8,20,0.82)'; ctx.fill();
-          ctx.fillStyle=c.color; ctx.fillText(txt, cx, cyy);
+          _spCableLabel(ctx, txt, wx(mxo), wy(myo)-16*cts*SCALE, cts, SCALE, c.color);
         }
       });
       const TS=state.textScale||1;
@@ -13742,27 +13760,7 @@ const SitePlan = (() => {
         _spDrawSiteNode(ctx, el, ex, ey, SCALE, TS, {color:(it&&it.color)||'#5a6580', iconImg:_iconImg, emoji:_emoji});
       });
       const usedIds=[...new Set(cables.map(c=>c.type))];
-      if(usedIds.length>0){
-        const LS=state.legendScale||1;
-        const ROW=22*LS, HDR=28*LS, LW=175*LS;
-        const LH=(usedIds.length*ROW+HDR)*SCALE;
-        const LX=16*SCALE, LY=ch-LH-16*SCALE;
-        ctx.fillStyle='rgba(10,15,28,0.9)'; _rrect(ctx,LX,LY,LW*SCALE,LH,6*SCALE); ctx.fill();
-        ctx.font=`bold ${9*LS*SCALE}px sans-serif`; ctx.fillStyle='#888';
-        ctx.textAlign='left'; ctx.textBaseline='top';
-        ctx.fillText('LIAISONS', LX+10*LS*SCALE, LY+8*LS*SCALE);
-        usedIds.forEach((id,i)=>{
-          const c=CABLE_TYPES.find(t=>t.id===id)||CABLE_TYPES[0];
-          const ry=LY+(HDR+i*ROW)*SCALE;
-          ctx.beginPath(); ctx.strokeStyle=c.color; ctx.lineWidth=2.5*LS*SCALE;
-          if(c.dash) ctx.setLineDash(c.dash.split(' ').map(n=>parseFloat(n)*LS*SCALE));
-          else ctx.setLineDash([]);
-          ctx.moveTo(LX+10*LS*SCALE,ry+7*LS*SCALE); ctx.lineTo(LX+38*LS*SCALE,ry+7*LS*SCALE);
-          ctx.stroke(); ctx.setLineDash([]);
-          ctx.font=`${10*LS*SCALE}px sans-serif`; ctx.fillStyle='#ccc';
-          ctx.textBaseline='top'; ctx.fillText(c.label, LX+46*LS*SCALE, ry);
-        });
-      }
+      _spLegend(ctx, usedIds.map(function(id){ const c=CABLE_TYPES.find(t=>t.id===id)||CABLE_TYPES[0]; return {color:c.color, dash:c.dash, label:c.label}; }), state.legendScale||1, SCALE, ch);
       cb(canvas);
     };
     _loadSiteIconImgs(function() {
@@ -19865,7 +19863,7 @@ function _svFs(imgId, title){
         var wy=function(y){return (y-minY)*SCALE;};
 
         /* Fond BLANC (identique au canvas de l'app, pas de fond sombre) */
-        ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,cw,ch);
+        _spSheet(ctx,cw,ch,SCALE);
         if(_bgImg){
           ctx.save(); ctx.globalAlpha=(siteData.bgOpacity??100)/100;
           if(_brot){
@@ -19922,13 +19920,7 @@ function _svFs(imgId, title){
           if(c.label||c.length){
             var txt=[c.label,c.length].filter(Boolean).join(' · ');
             var cts=(siteData.cableTextScale||1)*(c.textScale||1);
-            var fs=14*cts*SCALE;
-            ctx.font='700 '+fs+'px sans-serif';
-            ctx.textAlign='center'; ctx.textBaseline='middle';
-            var tw=ctx.measureText(txt).width, rh=fs*1.5, cx=wx(mx), cyy=wy(my)-rh*0.7;
-            _rrect(ctx,cx-tw/2-6*cts*SCALE,cyy-rh/2,tw+12*cts*SCALE,rh,4*cts*SCALE);
-            ctx.fillStyle='rgba(8,8,20,0.82)'; ctx.fill();
-            ctx.fillStyle=ct.color; ctx.fillText(txt, cx, cyy);
+            _spCableLabel(ctx, txt, wx(mx), wy(my)-16*cts*SCALE, cts, SCALE, ct.color);
           }
         });
 
@@ -19945,26 +19937,7 @@ function _svFs(imgId, title){
         /* Légende des liaisons — même rendu que l'export PDF/PNG. */
         var usedIds=[];
         cables.forEach(function(c){ if(usedIds.indexOf(c.type)<0) usedIds.push(c.type); });
-        if(usedIds.length){
-          var LS=siteData.legendScale||1;
-          var ROW=22*LS, HDR=28*LS, LW=175*LS;
-          var LH=(usedIds.length*ROW+HDR)*SCALE;
-          var LX=16*SCALE, LY=ch-LH-16*SCALE;
-          ctx.fillStyle='rgba(10,15,28,0.9)'; _rrect(ctx,LX,LY,LW*SCALE,LH,6*SCALE); ctx.fill();
-          ctx.font='bold '+(9*LS*SCALE)+'px sans-serif'; ctx.fillStyle='#888';
-          ctx.textAlign='left'; ctx.textBaseline='top';
-          ctx.fillText('LIAISONS', LX+10*LS*SCALE, LY+8*LS*SCALE);
-          usedIds.forEach(function(id,i){
-            var lc=_cableColor(id);
-            var ry=LY+(HDR+i*ROW)*SCALE;
-            ctx.beginPath(); ctx.strokeStyle=lc.color; ctx.lineWidth=2.5*LS*SCALE;
-            if(lc.dash) ctx.setLineDash(lc.dash.split(' ').map(function(n){return parseFloat(n)*LS*SCALE;})); else ctx.setLineDash([]);
-            ctx.moveTo(LX+10*LS*SCALE,ry+7*LS*SCALE); ctx.lineTo(LX+38*LS*SCALE,ry+7*LS*SCALE);
-            ctx.stroke(); ctx.setLineDash([]);
-            ctx.font=(10*LS*SCALE)+'px sans-serif'; ctx.fillStyle='#ccc';
-            ctx.textBaseline='top'; ctx.fillText(lc.label, LX+46*LS*SCALE, ry);
-          });
-        }
+        _spLegend(ctx, usedIds.map(function(id){ var lc=_cableColor(id); return {color:lc.color, dash:lc.dash, label:lc.label}; }), siteData.legendScale||1, SCALE, ch);
 
         /* 2e arg = largeur d'affichage en px RÉELS (coords monde) : le canvas est
            rendu en haute résolution (x SCALE) mais affiché à la taille réelle ->
