@@ -63,7 +63,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=3.66">
+<link rel="stylesheet" href="pf-app.css?v=3.69">
 </head>
 <body>
 
@@ -479,49 +479,50 @@ html.rider-boot #rider-splash{display:flex}
     </div>
 
     <!-- FICHIERS -->
-    <div class="panel" id="panel-fichiers" style="min-height:calc(100vh - 140px)">
-      <div class="pbar" style="padding:14px 18px 0">
-        <span class="ptitle"><i class="ti ti-cloud" style="color:var(--ora)"></i>Fichiers<span class="ptitle-sep">/</span><span id="sn-fichiers" style="color:var(--txt2)">…</span></span>
-        <span id="fich-upload-status" style="font-size:10px;color:var(--muted);display:none"><i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Upload…</span>
-      </div>
+    <div class="panel" id="panel-fichiers">
+      <header class="fi-head">
+        <div class="fi-head-t">
+          <div class="fi-eyebrow" id="sn-fichiers">…</div>
+          <h1 class="fi-title">Fichiers</h1>
+        </div>
+        <span id="fich-upload-status" class="fi-up" style="display:none"><i class="ti ti-loader-2"></i><span id="fich-upload-txt">Envoi…</span></span>
+      </header>
       <input type="file" id="fichiers-file-input" style="display:none" multiple>
       <input type="file" id="fich-replace-input" style="display:none">
-      <div id="fich-breadcrumb" class="fich-breadcrumb" style="display:none"></div>
-      <!-- Actions + search + sort -->
-      <div class="fich-filter-bar fich-actions-bar" style="border-bottom:none;padding-bottom:4px">
-        <button class="fich-action-btn upload" onclick="fichImportClick()"><i class="ti ti-upload"></i> Envoyer</button>
-        <button class="fich-action-btn folder" onclick="createFichierFolder()"><i class="ti ti-folder-plus"></i> Dossier</button>
-        <div class="fich-search">
-          <i class="ti ti-search"></i>
-          <input type="text" id="fich-search-input" placeholder="Rechercher un fichier…" oninput="setFichSearch(this.value)">
+      <!-- Barre d'outils -->
+      <div class="fi-bar" id="fi-bar">
+        <label class="fi-search"><i class="ti ti-search"></i><input type="text" id="fich-search-input" placeholder="Rechercher dans tous les dossiers" oninput="setFichSearch(this.value)" autocomplete="off" aria-label="Rechercher un fichier"><button type="button" class="fi-search-x" id="fi-search-x" onclick="fichClearSearch()" style="display:none" aria-label="Effacer la recherche"><i class="ti ti-x"></i></button></label>
+        <div class="exp-wrap">
+          <button class="btn ghost" id="fi-type-btn" onclick="toggleExpMenu('fi-type-menu','fi-type-btn')" title="Filtrer par type"><i class="ti ti-filter"></i><span id="fi-type-lbl">Tous les types</span><i class="ti ti-chevron-down fi-chev"></i></button>
+          <div class="exp-menu" id="fi-type-menu"></div>
         </div>
-        <select class="fich-sort" id="fich-sort-select" onchange="setFichSort(this.value)" title="Trier">
-          <option value="name-asc">Nom A→Z</option>
-          <option value="name-desc">Nom Z→A</option>
-          <option value="date-desc">Plus récent</option>
-          <option value="date-asc">Plus ancien</option>
-          <option value="size-desc">Plus lourd</option>
-          <option value="size-asc">Plus léger</option>
-        </select>
+        <div class="exp-wrap fi-sort-wrap">
+          <button class="btn ghost" id="fi-sort-btn" onclick="toggleExpMenu('fi-sort-menu','fi-sort-btn')" title="Trier"><i class="ti ti-arrows-sort"></i><span id="fi-sort-lbl">Nom, A → Z</span><i class="ti ti-chevron-down fi-chev"></i></button>
+          <div class="exp-menu" id="fi-sort-menu"></div>
+        </div>
+        <span class="fi-bar-sp"></span>
+        <button class="btn ghost" onclick="createFichierFolder()"><i class="ti ti-folder-plus"></i>Dossier</button>
+        <button class="btn pri" onclick="fichImportClick()"><i class="ti ti-upload"></i>Envoyer</button>
       </div>
-      <!-- Type filters -->
-      <div id="fich-filter-bar" class="fich-filter-bar">
-        <button class="fich-filter-chip active" onclick="setFichFilter('all',this)">Tous</button>
-        <button class="fich-filter-chip" onclick="setFichFilter('PDF',this)"><i class="ti ti-file-type-pdf" style="font-size:10px;margin-right:3px"></i>PDF</button>
-        <button class="fich-filter-chip" onclick="setFichFilter('Show file',this)"><i class="ti ti-adjustments-alt" style="font-size:10px;margin-right:3px"></i>Show files</button>
-        <button class="fich-filter-chip" onclick="setFichFilter('Session DAW',this)"><i class="ti ti-waveform" style="font-size:10px;margin-right:3px"></i>Sessions DAW</button>
-        <button class="fich-filter-chip" onclick="setFichFilter('Audio',this)"><i class="ti ti-music" style="font-size:10px;margin-right:3px"></i>Audio</button>
-        <button class="fich-filter-chip" onclick="setFichFilter('Image',this)"><i class="ti ti-photo" style="font-size:10px;margin-right:3px"></i>Images</button>
-        <button class="fich-filter-chip" onclick="setFichFilter('Document',this)"><i class="ti ti-file-type-doc" style="font-size:10px;margin-right:3px"></i>Docs</button>
-        <button class="fich-filter-chip" onclick="setFichFilter('Tableur',this)"><i class="ti ti-file-type-xls" style="font-size:10px;margin-right:3px"></i>Tableurs</button>
-        <button class="fich-filter-chip" onclick="setFichFilter('Video',this)"><i class="ti ti-device-tv" style="font-size:10px;margin-right:3px"></i>Video</button>
+      <!-- Sélection multiple -->
+      <div class="fi-bar fi-selbar" id="fi-selbar" style="display:none">
+        <button type="button" class="fi-sel-x" onclick="fichClearSel()" title="Annuler la sélection (Échap)" aria-label="Annuler la sélection"><i class="ti ti-x"></i></button>
+        <span class="fi-sel-n" id="fi-sel-n">1 fichier sélectionné</span>
+        <span class="fi-bar-sp"></span>
+        <button class="btn ghost" onclick="fichSelDownload()"><i class="ti ti-download"></i>Télécharger</button>
+        <button class="btn ghost" onclick="fichSelMove()"><i class="ti ti-folder-share"></i>Déplacer</button>
+        <button class="btn ghost fi-danger" onclick="fichSelDelete()"><i class="ti ti-trash"></i>Supprimer</button>
       </div>
-      <div id="fichiers-list" style="flex:1;overflow-y:auto"></div>
-      <div id="fich-storage-row" class="fich-storage-row" style="display:none">
-        <span class="fich-storage-lbl" id="fich-storage-lbl">0 Mo utilisés</span>
-        <div class="fich-storage-track"><div class="fich-storage-fill" id="fich-storage-fill" style="width:0%"></div></div>
+      <div id="fich-breadcrumb" class="fi-path"></div>
+      <div id="fichiers-list" class="fi-list"></div>
+      <div id="fich-storage-row" class="fi-foot" style="display:none">
+        <span class="fi-count" id="fi-count"></span>
+        <span class="fi-quota" id="fi-quota">
+          <span class="fich-storage-lbl" id="fich-storage-lbl"></span>
+          <span class="fich-storage-track"><span class="fich-storage-fill" id="fich-storage-fill" style="width:0%"></span></span>
+        </span>
       </div>
-      <div id="fichiers-drop-zone" class="fich-dropzone" style="display:none"></div>
+      <div class="fi-drop" id="fi-drop"><div><i class="ti ti-cloud-upload"></i><b id="fi-drop-t">Déposez pour envoyer</b></div></div>
     </div>
 
 
@@ -1591,7 +1592,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=3.87"></script>
+<script src="pf-app.js?v=3.89"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
   <div class="mob-plan-bar">
@@ -1634,9 +1635,4 @@ html.rider-boot #rider-splash{display:flex}
   <div class="mob-plan-foot">Glissez · Pincez pour zoomer · Double-tap pour ajuster</div>
 </div>
 
-<!-- Popover déplacer fichier -->
-<div id="fich-move-pop">
-  <div class="fich-move-head">Déplacer vers</div>
-  <div id="fich-move-list"></div>
-</div>
 </body>

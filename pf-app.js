@@ -16061,7 +16061,7 @@ async function loadFichiers() {
   // 1. Essayer Supabase (rapide)
   const { data: sfData, error: sfErr } = await _sfListFolder(folderRel);
   if (sfErr) {
-    if (list) list.innerHTML = '<div class="fich-empty"><i class="ti ti-alert-triangle"></i><p style="font-size:12px">Erreur chargement : ' + (sfErr.message||'') + '</p></div>';
+    if (list) list.innerHTML = '<div class="fi-empty"><i class="ti ti-alert-triangle"></i><div class="fi-empty-t">Impossible de charger les fichiers</div><div class="fi-empty-s">' + _fEsc(sfErr.message||'') + '</div><div class="fi-empty-a"><button class="btn" onclick="loadFichiers()">Réessayer</button></div></div>';
     if (dz) dz.style.display = 'none';
     return;
   }
@@ -16083,6 +16083,7 @@ async function loadFichiers() {
     }));
     _renderFichBreadcrumb();
     _renderFichiersGrid();
+    _fichLoadIndex(false);
     // Réconciliation B2 en arrière-plan : capture dossiers/fichiers manquants
     _reconcileFolderWithB2(prefix, folderRel);
     return;
@@ -16091,7 +16092,7 @@ async function loadFichiers() {
   // 3. show_files vide pour ce dossier → lecture B2 directe + backfill
   const { data: b2Data, error: b2Err } = await B2Storage.listB2Raw(prefix);
   if (b2Err) {
-    if (list) list.innerHTML = '<div class="fich-empty"><i class="ti ti-alert-triangle"></i><p style="font-size:12px">Erreur stockage : ' + (b2Err.message||'') + '</p></div>';
+    if (list) list.innerHTML = '<div class="fi-empty"><i class="ti ti-alert-triangle"></i><div class="fi-empty-t">Impossible de joindre le stockage</div><div class="fi-empty-s">' + _fEsc(b2Err.message||'') + '</div><div class="fi-empty-a"><button class="btn" onclick="loadFichiers()">Réessayer</button></div></div>';
     if (dz) dz.style.display = 'none';
     return;
   }
@@ -16113,6 +16114,7 @@ async function loadFichiers() {
   });
   _renderFichBreadcrumb();
   _renderFichiersGrid();
+  _fichLoadIndex(false);
   _backfillRows(b2Files, prefix, folderRel);
 }
 
@@ -16190,69 +16192,155 @@ async function _reconcileFolderWithB2(prefix, folderRel) {
   } catch (e) { /* silencieux */ }
 }
 
+/* ══════════════════════════════════════════════════════════════════
+   FICHIERS — liste, recherche dans tout le show, sélection multiple
+   ══════════════════════════════════════════════════════════════════ */
 function _renderFichBreadcrumb() {
   const el = document.getElementById('fich-breadcrumb');
   if (!el) return;
-  if (_fichPath.length === 0) { el.style.display = 'none'; return; }
-  el.style.display = '';
-  let html = '<span class="fich-bc-seg" onclick="_fichNavTo(-1)"><i class="ti ti-home" style="font-size:11px"></i> Accueil</span>';
+  const drop = function(dir){ return ' ondragover="_fiDragOver(event)" ondragleave="_fiDragLeave(event)" ondrop="_fiDropOn(event,' + _fEsc(JSON.stringify(dir)) + ')"'; };
+  let html = '<button type="button" class="fi-path-seg' + (_fichPath.length ? '' : ' cur') + '"' + (_fichPath.length ? ' onclick="_fichNavTo(-1)"' + drop('') : '') + '><i class="ti ti-cloud"></i>Tous les fichiers</button>';
   _fichPath.forEach((seg, i) => {
-    html += '<span class="fich-bc-sep"><i class="ti ti-chevron-right"></i></span>';
     const isCur = i === _fichPath.length - 1;
-    html += '<span class="fich-bc-seg' + (isCur ? ' cur' : '') + '"' +
-      (isCur ? '' : ' onclick="_fichNavTo(' + i + ')"') + '>' + _fEsc(seg) + '</span>';
+    html += '<i class="ti ti-chevron-right fi-path-sep"></i><button type="button" class="fi-path-seg' + (isCur ? ' cur' : '') + '"' +
+      (isCur ? '' : ' onclick="_fichNavTo(' + i + ')"' + drop(_fichPath.slice(0, i + 1).join('/') + '/')) + '>' + _fEsc(seg) + '</button>';
   });
   el.innerHTML = html;
 }
 
 function _fichNavTo(idx) {
   _fichPath = idx === -1 ? [] : _fichPath.slice(0, idx + 1);
+  _fichSel.clear();
   loadFichiers();
 }
 
-/* Navigation dans un sous-dossier — fonction atomique avec garde anti-double-clic.
-   L'ancien pattern onclick="navTo(idx);_fichPath.push(name);loadFichiers()" était
-   exécuté deux fois sur un double-clic → dossier dupliqué dans le chemin. */
+/* Navigation dans un sous-dossier — fonction atomique avec garde anti-double-clic. */
 let _fichNavLock = false;
 function _fichEnterFolder(name) {
   if(_fichNavLock) return;
   _fichNavLock = true;
   _fichPath.push(name);
+  _fichSel.clear();
   loadFichiers().finally(function(){ _fichNavLock = false; });
+}
+/* Ouvre un dossier par son chemin (résultat de recherche) */
+function _fichGoPath(rel) {
+  _fichPath = String(rel || '').split('/').filter(Boolean);
+  _fichSel.clear();
+  fichClearSearch(true);
+  loadFichiers();
 }
 
 let _fichFilter = 'all';
 let _fichSearch = '';
 let _fichSort = 'name-asc';
+try { const _fs = localStorage.getItem('pf_fich_sort'); if (/^(name|size|date)-(asc|desc)$/.test(_fs || '')) _fichSort = _fs; } catch (e) {}
+const _fichSel = new Set();   // chemins (relatifs au show) des fichiers cochés
 
-function setFichFilter(type, btn) {
-  _fichFilter = type;
-  document.querySelectorAll('.fich-filter-chip').forEach(function(b) { b.classList.remove('active'); });
-  if (btn) btn.classList.add('active');
+function setFichFilter(type) {
+  _fichFilter = type || 'all';
+  try { closeExpMenu('fi-type-menu'); } catch (e) {}
   _renderFichiersGrid();
 }
-function setFichSearch(q) { _fichSearch = (q || '').toLowerCase().trim(); _renderFichiersGrid(); }
-function setFichSort(v) { _fichSort = v || 'name-asc'; _renderFichiersGrid(); }
+function setFichSearch(q) {
+  _fichSearch = (q || '').toLowerCase().trim();
+  const x = document.getElementById('fi-search-x'); if (x) x.style.display = _fichSearch ? '' : 'none';
+  if (_fichSearch && !_fichIndex) _fichLoadIndex(true);
+  _renderFichiersGrid();
+}
+function fichClearSearch(silent) {
+  const inp = document.getElementById('fich-search-input'); if (inp) inp.value = '';
+  _fichSearch = '';
+  const x = document.getElementById('fi-search-x'); if (x) x.style.display = 'none';
+  if (!silent) _renderFichiersGrid();
+}
+function setFichSort(v) {
+  _fichSort = v || 'name-asc';
+  try { localStorage.setItem('pf_fich_sort', _fichSort); } catch (e) {}
+  try { closeExpMenu('fi-sort-menu'); } catch (e) {}
+  _renderFichiersGrid();
+}
+/* Clic sur un en-tête de colonne : trie, puis inverse */
+function fichSortBy(key) {
+  const p = _fichSort.split('-');
+  setFichSort(p[0] === key ? key + '-' + (p[1] === 'asc' ? 'desc' : 'asc') : key + '-' + (key === 'name' ? 'asc' : 'desc'));
+}
 
 function _fichSortFiles(arr) {
   const [key, dir] = _fichSort.split('-');
   const mul = dir === 'desc' ? -1 : 1;
+  const byName = function(a, b){ return _fichDisplayName(a.name).localeCompare(_fichDisplayName(b.name), 'fr', { numeric:true }); };
   return arr.slice().sort(function(a, b) {
-    if (key === 'name') return mul * _fichDisplayName(a.name).localeCompare(_fichDisplayName(b.name), 'fr', { numeric:true });
-    if (key === 'size') return mul * ((a.metadata?.size || 0) - (b.metadata?.size || 0));
-    if (key === 'date') return mul * (new Date(a.created_at || 0) - new Date(b.created_at || 0));
-    return 0;
+    let c = 0;
+    if (key === 'size') c = (a.metadata?.size || 0) - (b.metadata?.size || 0);
+    else if (key === 'date') c = new Date(a.created_at || 0) - new Date(b.created_at || 0);
+    else return mul * byName(a, b);
+    return c ? mul * c : byName(a, b);
   });
+}
+
+/* ── Index du show : tous les fichiers, tous dossiers confondus.
+      Sert à la recherche globale, au contenu des dossiers et au choix d'une destination. ── */
+let _fichIndex = null, _fichIndexShow = null, _fichIndexAt = 0;
+async function _fichLoadIndex(force) {
+  if (!CUR_SHOW) return;
+  const sid = CUR_SHOW.id;
+  if (!force && _fichIndex && _fichIndexShow === sid && Date.now() - _fichIndexAt < 2500) return;
+  _fichIndexAt = Date.now();
+  try {
+    const { data, error } = await sb.from('show_files')
+      .select('id, path, name, folder, size, content_type, is_folder, created_at, verified_at, verified_by_name')
+      .eq('show_id', sid);
+    if (error || !CUR_SHOW || CUR_SHOW.id !== sid) return;
+    _fichIndex = (data || []).filter(f => f && f.path && f.folder !== 'node-icons' && !/(^|\/)node-icons(\/|$)/.test(f.path));
+    _fichIndexShow = sid;
+    _renderFichiersGrid();
+  } catch (e) { /* la liste du dossier courant reste affichée */ }
+}
+function _fichRel(fullPath) { return CUR_SHOW ? String(fullPath || '').slice(CUR_SHOW.id.length + 1) : String(fullPath || ''); }
+/* Contenu d'un dossier (tous niveaux) : nombre de fichiers et poids */
+function _fichFolderStats(rel) {
+  if (!_fichIndex || _fichIndexShow !== CUR_SHOW?.id) return null;
+  let n = 0, size = 0;
+  _fichIndex.forEach(function(f){
+    if (f.is_folder) return;
+    if (f.folder === rel || String(f.folder || '').indexOf(rel + '/') === 0) { n++; size += f.size || 0; }
+  });
+  return { n:n, size:size };
+}
+/* Tous les dossiers du show (chemins relatifs), ancêtres compris */
+function _fichAllFolders() {
+  const set = new Set();
+  const add = function(p){ const segs = String(p || '').split('/').filter(Boolean); for (let i = 1; i <= segs.length; i++) set.add(segs.slice(0, i).join('/')); };
+  (_fichIndex || []).forEach(function(f){ if (f.is_folder) add(_fichRel(f.path)); else if (f.folder) add(f.folder); });
+  SHOW_FILES.filter(f => f.id === null).forEach(function(f){ add(_fichPathStr() + f.name); });
+  set.delete('node-icons');
+  return [...set].sort(function(a, b){ return a.localeCompare(b, 'fr', { numeric:true }); });
+}
+function _fiSize(b) {
+  if (!b) return '—';
+  const n = function(v){ return (v >= 100 ? Math.round(v) : Math.round(v * 10) / 10).toString().replace('.', ','); };
+  if (b < 1024) return b + ' o';
+  if (b < 1048576) return n(b / 1024) + ' Ko';
+  if (b < 1073741824) return n(b / 1048576) + ' Mo';
+  return n(b / 1073741824) + ' Go';
+}
+function _fiDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso), now = new Date();
+  if (isNaN(d)) return '—';
+  if (d.toDateString() === now.toDateString()) return 'Aujourd\'hui';
+  return d.toLocaleDateString('fr-FR', d.getFullYear() === now.getFullYear() ? { day:'numeric', month:'short' } : { day:'numeric', month:'short', year:'numeric' });
 }
 
 /* Suggested folder structure tailored to a sound tech's show */
 const FICH_SUGGEST = [
-  { name:'Riders',            sub:'Riders tech & hospitality', icon:'ti-file-description', color:'#ef4444' },
-  { name:'Show Files',        sub:'Fichiers consoles',         icon:'ti-adjustments-alt',  color:'#ff6b1a' },
-  { name:'Plans & Schemas',   sub:'Scene, site, synoptique',   icon:'ti-map-2',            color:'#22d6a0' },
-  { name:'Audio',             sub:'Multipistes, virtual SC',   icon:'ti-waveform',         color:'#8b5cf6' },
-  { name:'Logos & Visuels',   sub:'Logos prod, photos',        icon:'ti-photo',            color:'#ec4899' },
-  { name:'Contrats & Admin',  sub:'Devis, feuilles de route',  icon:'ti-folder',           color:'#3b82f6' },
+  { name:'Riders',            sub:'Riders tech et hospitality', icon:'ti-file-description' },
+  { name:'Show Files',        sub:'Fichiers consoles',          icon:'ti-adjustments-alt' },
+  { name:'Plans & Schemas',   sub:'Scène, site, synoptique',    icon:'ti-map-2' },
+  { name:'Audio',             sub:'Multipistes, virtual SC',    icon:'ti-waveform' },
+  { name:'Logos & Visuels',   sub:'Logos prod, photos',         icon:'ti-photo' },
+  { name:'Contrats & Admin',  sub:'Devis, feuilles de route',   icon:'ti-folder' },
 ];
 
 async function _fichCreateFolderNamed(name) {
@@ -16295,270 +16383,316 @@ async function renameFichier(relPath) {
   _fichMarkGone(oldPath); // empêche la réconciliation de recréer l'ancien nom
   // Sync Supabase
   await _sfMoveFile(oldPath, newPath).catch(() => {});
-  toast('Fichier renomme');
+  toast('✓ Fichier renommé');
   await loadFichiers();
 }
 
 /* ── Déplacer un fichier dans un dossier ── */
-let _fichMoveRelPath = null; // chemin relatif du fichier en cours de déplacement
-
-function openMoveFichier(event, relPath) {
-  _fichMoveRelPath = relPath;
-  const pop = document.getElementById('fich-move-pop');
-  const lst = document.getElementById('fich-move-list');
-  if (!pop || !lst) return;
-
-  /* Construire la liste des destinations disponibles :
-     - Racine du show (si on n'y est pas déjà)
-     - Tous les dossiers du niveau courant (sauf le dossier actuel du fichier)
-     - Dossier parent (si on est dans un sous-dossier) */
-  const currentDir = _fichPathStr(); // chemin du dossier affiché actuellement
-  const fileDir    = relPath.includes('/') ? relPath.slice(0, relPath.lastIndexOf('/') + 1) : '';
-  const allFolders = SHOW_FILES.filter(f => f.id === null);
-  let items = [];
-
-  // Racine (si le fichier n'est pas déjà à la racine)
-  if (fileDir !== '') {
-    items.push({ label: 'Racine', path: '', icon: 'ti-home' });
-  }
-
-  // Dossier parent (si on est dans un sous-dossier et que le fichier n'y est pas déjà)
-  if (_fichPath.length > 0) {
-    const parentPath = _fichPath.slice(0, -1).join('/') + (_fichPath.length > 1 ? '/' : '');
-    if (parentPath !== fileDir) {
-      const parentName = _fichPath.length > 1 ? _fichPath[_fichPath.length - 2] : 'Racine';
-      items.push({ label: '↑ ' + parentName, path: parentPath, icon: 'ti-corner-left-up' });
-    }
-  }
-
-  // Dossiers du niveau courant (excluant le dossier actuel du fichier)
-  allFolders.forEach(function(f) {
-    const destPath = currentDir + f.name + '/';
-    if (destPath !== fileDir) {
-      items.push({ label: f.name, path: destPath, icon: 'ti-folder-filled' });
-    }
+/* ── Sélection multiple ── */
+function fichToggleSel(rel, on) {
+  if (on === undefined) on = !_fichSel.has(rel);
+  if (on) _fichSel.add(rel); else _fichSel.delete(rel);
+  _fichSyncSel();
+}
+function fichSelAll(on) {
+  document.querySelectorAll('#fichiers-list .fi-row[data-rel]:not(.is-folder)').forEach(function(r){ if (on) _fichSel.add(r.dataset.rel); else _fichSel.delete(r.dataset.rel); });
+  _fichSyncSel();
+}
+function fichClearSel() { _fichSel.clear(); _fichSyncSel(); }
+/* Reflète la sélection sans tout redessiner */
+function _fichSyncSel() {
+  let shown = 0, checked = 0;
+  document.querySelectorAll('#fichiers-list .fi-row[data-rel]:not(.is-folder)').forEach(function(r){
+    const on = _fichSel.has(r.dataset.rel); shown++; if (on) checked++;
+    r.classList.toggle('sel', on);
+    const cb = r.querySelector('.fi-cb'); if (cb) cb.checked = on;
   });
-
-  if (items.length === 0) {
-    items.push({ label: 'Aucun dossier disponible', path: null, icon: 'ti-info-circle' });
-  }
-
-  /* Utiliser data-dest plutôt que onclick inline pour éviter que les guillemets
-     dans les noms de dossiers cassent l'attribut HTML. */
-  lst.innerHTML = items.map(function(it) {
-    const color = it.icon === 'ti-folder-filled' ? 'color:#f5c542' : 'color:var(--muted)';
-    const disabled = it.path === null;
-    return '<div class="fich-move-item"'
-      + (disabled ? ' style="opacity:.5;cursor:default"' : ' data-dest="' + _fEsc(it.path) + '"')
-      + '>'
-      + '<i class="ti ' + it.icon + '" style="' + color + '"></i>'
-      + '<span style="overflow:hidden;text-overflow:ellipsis">' + _fEsc(it.label) + '</span>'
-      + '</div>';
-  }).join('');
-
-  // Délégation d'événements sur la liste (évite les closures par item)
-  lst.onclick = function(e) {
-    var item = e.target.closest('.fich-move-item[data-dest]');
-    if (!item) return;
-    moveFichierToFolder(item.getAttribute('data-dest'));
-  };
-
-  // Positionner le popover — au-dessus du bouton si pas assez de place en dessous
-  const btn = event.currentTarget || event.target;
-  const r   = btn.getBoundingClientRect();
-  pop.style.top  = '-9999px'; // positionner hors écran pour mesurer la hauteur
-  pop.style.left = '-9999px';
-  pop.classList.add('show');
-  const popH = pop.offsetHeight || 200;
-  const spaceBelow = window.innerHeight - r.bottom - 8;
-  const spaceAbove = r.top - 8;
-  if (spaceBelow >= popH || spaceBelow >= spaceAbove) {
-    // Afficher en dessous
-    pop.style.top  = (r.bottom + 4) + 'px';
-  } else {
-    // Afficher au-dessus
-    pop.style.top  = (r.top - popH - 4) + 'px';
-  }
-  pop.style.left = Math.min(window.innerWidth - 200, Math.max(4, r.right - 190)) + 'px';
-
-  // Fermer si clic ailleurs
-  setTimeout(function() {
-    document.addEventListener('click', _closeMovePopover, { once: true });
-  }, 0);
-}
-
-function _closeMovePopover() {
-  const pop = document.getElementById('fich-move-pop');
-  if (pop) pop.classList.remove('show');
-}
-
-async function moveFichierToFolder(destDir) {
-  _closeMovePopover();
-  if (!_fichMoveRelPath || !CUR_SHOW) return;
-  const relPath = _fichMoveRelPath;
-  _fichMoveRelPath = null;
-
-  const filename = relPath.split('/').pop();
-  const oldFullPath = CUR_SHOW.id + '/' + relPath;
-  const newFullPath = CUR_SHOW.id + '/' + destDir + filename;
-
-  if (oldFullPath === newFullPath) return;
-
-  const btn = document.querySelector('.fich-file-btn.mv');
-  try {
-    const { error } = await B2Storage.move(oldFullPath, newFullPath);
-    if (error) { toast('Erreur déplacement : ' + error.message); return; }
-    _fichMarkGone(oldFullPath); // évite la ré-injection de l'ancien emplacement
-    // Sync Supabase
-    await _sfMoveFile(oldFullPath, newFullPath).catch(() => {});
-    const destLabel = destDir === '' ? 'la racine' : destDir.replace(/\/$/, '').split('/').pop();
-    toast('Déplacé vers ' + destLabel + ' ✓');
-    await loadFichiers();
-  } catch(e) {
-    toast('Erreur : ' + e.message);
+  const all = document.getElementById('fi-cb-all');
+  if (all) { all.checked = shown > 0 && checked === shown; all.indeterminate = checked > 0 && checked < shown; }
+  const bar = document.getElementById('fi-bar'), sb2 = document.getElementById('fi-selbar'), n = _fichSel.size;
+  if (bar) bar.style.display = n ? 'none' : '';
+  if (sb2) {
+    sb2.style.display = n ? '' : 'none';
+    const c = document.getElementById('fi-sel-n'); if (c) c.textContent = n + (n > 1 ? ' fichiers sélectionnés' : ' fichier sélectionné');
   }
 }
 
 function _renderFichiersGrid() {
   const list = document.getElementById('fichiers-list');
-  const dz   = document.getElementById('fichiers-drop-zone');
-  const stor  = document.getElementById('fich-storage-row');
-  if (!list) return;
+  const stor = document.getElementById('fich-storage-row');
+  if (!list || !CUR_SHOW) return;
 
-  const folders = SHOW_FILES.filter(f => f.id === null);
+  const folders  = SHOW_FILES.filter(f => f.id === null);
   const allFiles = SHOW_FILES.filter(f => f.id !== null);
+  const typeOf = function(f){ return _fichInfoOf(_fichDisplayName(f.name)).label; };
+  const searching = !!_fichSearch;
 
-  const isEmpty = folders.length === 0 && allFiles.length === 0;
-  /* Empty root → onboarding with suggested folder structure */
-  if (isEmpty && _fichPath.length === 0) {
-    if (dz) dz.className = 'fich-dropzone has-files';
+  /* ── Racine vide : proposer une arborescence prête pour le son ── */
+  if (!folders.length && !allFiles.length && !_fichPath.length && !searching) {
     if (stor) stor.style.display = 'none';
-    var sg = '<div class="fich-list-wrap"><div class="fich-suggest">'+
-      '<div style="text-align:center;padding:14px 0 18px">'+
-        '<i class="ti ti-cloud-plus" style="font-size:34px;color:var(--ora)"></i>'+
-        '<div style="font-size:14px;font-weight:700;color:var(--txt);margin-top:8px">Votre cloud de production</div>'+
-        '<div style="font-size:11px;color:var(--muted);margin-top:3px">Glissez vos fichiers ici, ou démarrez avec une arborescence prête pour le son.</div>'+
-      '</div>'+
-      '<div class="fich-suggest-hd"><i class="ti ti-folders"></i>Dossiers suggérés</div>'+
-      '<div class="fich-suggest-grid">';
-    FICH_SUGGEST.forEach(function(s){
-      sg += '<button class="fich-suggest-card" onclick="fichCreateSuggested(\'' + s.name.replace(/'/g,"\\'") + '\')">'+
-        '<div class="fich-suggest-ico" style="background:'+s.color+'1f;color:'+s.color+'"><i class="ti '+s.icon+'"></i></div>'+
-        '<div><div class="fich-suggest-nm">'+s.name+'</div><div class="fich-suggest-sub">'+s.sub+'</div></div>'+
-        '</button>';
-    });
-    sg += '</div>'+
-      '<button class="btn sm fich-suggest-all" onclick="fichCreateAllSuggested()"><i class="ti ti-wand"></i> Créer toute l\'arborescence</button>'+
-      '</div></div>';
-    list.innerHTML = sg;
+    _fiTypeMenu([], 0);
+    list.innerHTML = '<div class="fi-empty"><i class="ti ti-cloud-upload"></i><div class="fi-empty-t">Aucun fichier pour l\'instant</div>'
+      + '<div class="fi-empty-s">Glissez vos fichiers ici, ou partez d\'une arborescence prête pour le son.</div>'
+      + '<div class="fi-sug">' + FICH_SUGGEST.map(function(s){
+          return '<button type="button" class="fi-sug-b" onclick="fichCreateSuggested(' + _fEsc(JSON.stringify(s.name)) + ')"><i class="ti ' + s.icon + '"></i><span><b>' + _fEsc(s.name) + '</b><span>' + _fEsc(s.sub) + '</span></span></button>';
+        }).join('') + '</div>'
+      + '<div class="fi-empty-a"><button class="btn pri" onclick="fichImportClick()"><i class="ti ti-upload"></i>Envoyer des fichiers</button>'
+      + '<button class="btn" onclick="fichCreateAllSuggested()"><i class="ti ti-folders"></i>Créer toute l\'arborescence</button></div></div>';
+    _fichSyncSel();
     return;
   }
-  if (dz) dz.className = 'fich-dropzone has-files';
 
-  // type filter
-  let files = _fichFilter === 'all'
-    ? allFiles
-    : allFiles.filter(f => _fichInfoOf(_fichDisplayName(f.name)).label === _fichFilter);
+  /* ── Ce qu'on affiche : le dossier courant, ou les résultats dans tout le show ── */
+  let rowsFolders, rowsFiles, global = false;
+  if (searching && _fichIndex && _fichIndexShow === CUR_SHOW.id) {
+    global = true;
+    rowsFiles = _fichIndex.filter(f => !f.is_folder && _fichDisplayName(f.name).toLowerCase().includes(_fichSearch))
+      .map(f => ({ name:f.name, id:f.id, metadata:{ size:f.size }, created_at:f.created_at, verified_at:f.verified_at || null, verified_by_name:f.verified_by_name || null, _path:f.path, _isFolder:false }));
+    rowsFolders = _fichAllFolders().filter(p => p.split('/').pop().toLowerCase().includes(_fichSearch))
+      .map(p => ({ name:p.split('/').pop(), id:null, _path:CUR_SHOW.id + '/' + p, _isFolder:true }));
+  } else {
+    rowsFiles = searching ? allFiles.filter(f => _fichDisplayName(f.name).toLowerCase().includes(_fichSearch)) : allFiles;
+    rowsFolders = searching ? folders.filter(f => f.name.toLowerCase().includes(_fichSearch)) : folders;
+  }
+  /* Types présents (avant filtre), pour le menu */
+  const typeCount = {};
+  rowsFiles.forEach(function(f){ const t = typeOf(f); typeCount[t] = (typeCount[t] || 0) + 1; });
+  if (_fichFilter !== 'all' && !typeCount[_fichFilter]) _fichFilter = 'all';
+  _fiTypeMenu(Object.keys(typeCount).sort(function(a, b){ return a.localeCompare(b, 'fr'); }).map(function(t){ return [t, typeCount[t]]; }), rowsFiles.length);
+  _fiSortMenu();
+  if (_fichFilter !== 'all') { rowsFiles = rowsFiles.filter(f => typeOf(f) === _fichFilter); rowsFolders = []; }
 
-  // search filter (across files + folders)
-  let foldersShown = folders;
-  if (_fichSearch) {
-    files = files.filter(f => _fichDisplayName(f.name).toLowerCase().includes(_fichSearch));
-    foldersShown = folders.filter(f => f.name.toLowerCase().includes(_fichSearch));
+  rowsFolders = rowsFolders.slice().sort(function(a, b){ return a.name.localeCompare(b.name, 'fr', { numeric:true }); });
+  rowsFiles = _fichSortFiles(rowsFiles);
+  /* Une sélection ne survit pas à la disparition de ses fichiers */
+  if (_fichSel.size && !global) { const here = new Set(allFiles.map(f => _fichRel(f._path))); [..._fichSel].forEach(function(r){ if (!here.has(r)) _fichSel.delete(r); }); }
+
+  const sk = _fichSort.split('-');
+  const th = function(key, label, cls){
+    const on = sk[0] === key;
+    return '<button type="button" class="fi-th ' + cls + (on ? ' on' : '') + '" onclick="fichSortBy(\'' + key + '\')" title="Trier par ' + label.toLowerCase() + '">' + label
+      + (on ? '<i class="ti ti-arrow-' + (sk[1] === 'asc' ? 'up' : 'down') + '"></i>' : '') + '</button>';
+  };
+  let html = '';
+  if (rowsFolders.length || rowsFiles.length) {
+    html += '<div class="fi-hd"><span class="fi-c-cb"><input type="checkbox" class="cb" id="fi-cb-all" onchange="fichSelAll(this.checked)" title="Tout sélectionner" aria-label="Tout sélectionner"></span>'
+      + th('name', 'Nom', 'fi-c-name') + '<span class="fi-th fi-c-type">Type</span>' + th('size', 'Taille', 'fi-c-size') + th('date', 'Ajouté', 'fi-c-date') + '<span class="fi-c-act"></span></div>';
   }
 
-  let html = '<div class="fich-list-wrap">';
+  rowsFolders.forEach(function(f){
+    const rel = _fichRel(f._path), st = _fichFolderStats(rel);
+    const relJ = _fEsc(JSON.stringify(rel)), nameJ = _fEsc(JSON.stringify(f.name));
+    const open = global ? '_fichGoPath(' + relJ + ')' : '_fichEnterFolder(' + nameJ + ')';
+    const where = global && rel.indexOf('/') > 0 ? '<span class="fi-where">' + _fEsc(rel.slice(0, rel.lastIndexOf('/')).split('/').join(' › ')) + '</span>' : '';
+    html += '<div class="fi-row is-folder" data-rel="' + _fEsc(rel) + '" role="button" tabindex="0" onclick="' + open + '" onkeydown="if(event.key===\'Enter\'){' + open + '}"'
+      + ' ondragover="_fiDragOver(event)" ondragleave="_fiDragLeave(event)" ondrop="_fiDropOn(event,' + _fEsc(JSON.stringify(rel + '/')) + ')">'
+      + '<span class="fi-c-cb"></span>'
+      + '<span class="fi-c-name"><span class="fi-ico fold"><i class="ti ti-folder-filled"></i></span><span class="fi-nm"><span class="fi-nm-t">' + _fEsc(f.name) + '</span>' + where + '</span></span>'
+      + '<span class="fi-c-type">Dossier</span>'
+      + '<span class="fi-c-size">' + (st ? (st.n ? st.n + (st.n > 1 ? ' fichiers' : ' fichier') : 'Vide') : '') + '</span>'
+      + '<span class="fi-c-date">' + (st && st.size ? _fiSize(st.size) : '') + '</span>'
+      + '<span class="fi-c-act">' + (global ? '' : '<button type="button" class="fi-btn" onclick="event.stopPropagation();deleteFichierFolder(' + nameJ + ')" title="Supprimer le dossier et son contenu"><i class="ti ti-trash"></i></button>') + '</span>'
+      + '</div>';
+  });
 
-  // dossiers (cache si filtre type actif)
-  if (foldersShown.length && _fichFilter === 'all') {
-    html += '<div class="fich-section-lbl"><i class="ti ti-folder" style="color:#f5c542;font-size:10px"></i>Dossiers</div>';
-    _fichSortFiles(foldersShown).forEach(function(f) {
-      const fnJ = _fEsc(JSON.stringify(f.name)); // HTML-escape so quotes survive inside onclick="..."
-      html += '<div class="fich-file-card is-folder" onclick="_fichEnterFolder(' + fnJ + ')">' +
-        '<div class="fich-file-ico ico-folder"><i class="ti ti-folder-filled fich-folder-ico"></i></div>' +
-        '<div class="fich-file-info"><div class="fich-file-name">' + _fEsc(f.name) + '</div><div class="fich-file-meta">Dossier</div></div>' +
-        '<div class="fich-file-actions">' +
-          '<button class="fich-file-btn del" onclick="event.stopPropagation();deleteFichierFolder(' + fnJ + ')" title="Supprimer"><i class="ti ti-trash"></i></button>' +
-        '</div>' +
-        '</div>';
-    });
+  rowsFiles.forEach(function(f){
+    const name = _fichDisplayName(f.name), info = _fichInfoOf(name), rel = _fichRel(f._path);
+    const relJ = _fEsc(JSON.stringify(rel)), idJ = _fEsc(JSON.stringify(f.id || ''));
+    const ver = !!f.verified_at, vDate = ver ? new Date(f.verified_at).toLocaleDateString('fr-FR') : '';
+    const dir = rel.indexOf('/') > 0 ? rel.slice(0, rel.lastIndexOf('/')) : '';
+    const sub = global
+      ? '<span class="fi-where">' + (dir ? _fEsc(dir.split('/').join(' › ')) : 'Tous les fichiers') + '</span>'
+      : (ver ? '<span class="fi-ver"><i class="ti ti-rosette-discount-check-filled"></i>Vérifié par ' + _fEsc(f.verified_by_name || '—') + ' · ' + _fEsc(vDate) + '</span>' : '');
+    const on = _fichSel.has(rel);
+    html += '<div class="fi-row' + (on ? ' sel' : '') + (ver ? ' verified' : '') + '" data-rel="' + _fEsc(rel) + '" role="button" tabindex="0" draggable="true"'
+      + ' onclick="viewFichier(' + relJ + ')" onkeydown="if(event.key===\'Enter\'){viewFichier(' + relJ + ')}" ondragstart="_fiDragStart(event,' + relJ + ')" ondragend="_fiDragEnd()">'
+      + '<span class="fi-c-cb" onclick="event.stopPropagation()"><input type="checkbox" class="cb fi-cb"' + (on ? ' checked' : '') + ' onchange="fichToggleSel(' + relJ + ',this.checked)" aria-label="Sélectionner ' + _fEsc(name) + '"></span>'
+      + '<span class="fi-c-name"><span class="fi-ico">' + info.icon + '</span><span class="fi-nm"><span class="fi-nm-t">' + _fEsc(name) + (ver && global ? '<i class="ti ti-rosette-discount-check-filled fi-ver-i" title="Vérifié"></i>' : '') + '</span>' + sub
+        + '<span class="fi-meta">' + _fEsc([f.metadata?.size ? _fiSize(f.metadata.size) : '', f.created_at ? _fiDate(f.created_at) : ''].filter(Boolean).join(' · ')) + '</span></span></span>'
+      + '<span class="fi-c-type">' + _fEsc(info.label) + '</span>'
+      + '<span class="fi-c-size">' + _fiSize(f.metadata?.size) + '</span>'
+      + '<span class="fi-c-date" title="' + (f.created_at ? _fEsc(new Date(f.created_at).toLocaleString('fr-FR')) : '') + '">' + _fiDate(f.created_at) + '</span>'
+      + '<span class="fi-c-act" onclick="event.stopPropagation()">'
+        + '<button type="button" class="fi-btn vf' + (ver ? ' on' : '') + '" onclick="toggleFileVerified(' + idJ + ',' + relJ + ')" title="' + (ver ? 'Vérifié par ' + _fEsc(f.verified_by_name || '—') + ' le ' + _fEsc(vDate) + ' — cliquer pour annuler' : 'Marquer comme vérifié') + '"><i class="ti ti-rosette-discount-check' + (ver ? '-filled' : '') + '"></i></button>'
+        + '<button type="button" class="fi-btn" onclick="_fichDownload(' + relJ + ')" title="Télécharger"><i class="ti ti-download"></i></button>'
+        + '<button type="button" class="fi-btn" onclick="openFichMenu(event,' + relJ + ',' + idJ + ')" title="Plus d\'actions" aria-haspopup="menu"><i class="ti ti-dots"></i></button>'
+      + '</span></div>';
+  });
+
+  if (!rowsFolders.length && !rowsFiles.length) {
+    const msg = searching ? ['ti-search-off', 'Aucun fichier ne correspond à « ' + _fEsc(_fichSearch) + ' »', 'La recherche porte sur tous les dossiers du show.']
+              : (_fichFilter !== 'all' ? ['ti-filter-off', 'Aucun fichier de ce type ici', ''] : ['ti-folder-open', 'Ce dossier est vide', 'Glissez des fichiers ici, ou utilisez « Envoyer ».']);
+    html += '<div class="fi-empty"><i class="ti ' + msg[0] + '"></i><div class="fi-empty-t">' + msg[1] + '</div>' + (msg[2] ? '<div class="fi-empty-s">' + msg[2] + '</div>' : '') + '</div>';
   }
-
-  // fichiers groupes
-  if (files.length) {
-    const groups = {};
-    files.forEach(function(f) {
-      const name = _fichDisplayName(f.name);
-      const info = _fichInfoOf(name);
-      const g = info.label;
-      if (!groups[g]) groups[g] = [];
-      groups[g].push({ f, name, info });
-    });
-    const ORDER = ['PDF','Show file','Session DAW','Audio','Image','Document','Tableur','Presentation','Video','Archive','Fichier'];
-    Object.entries(groups)
-      .sort(function(a,b){ return ORDER.indexOf(a[0]) - ORDER.indexOf(b[0]); })
-      .forEach(function([label, items]) {
-        if (_fichFilter === 'all') {
-          html += '<div class="fich-section-lbl"><i class="ti ti-tag" style="font-size:9px;color:var(--muted)"></i>' + label + ' <span style="color:var(--muted2);font-weight:400">· ' + items.length + '</span></div>';
-        }
-        _fichSortFiles(items.map(i => i.f)).forEach(function(f) {
-          const name = _fichDisplayName(f.name);
-          const info = _fichInfoOf(name);
-          const size = _fmtSize(f.metadata?.size);
-          const date = f.created_at ? new Date(f.created_at).toLocaleDateString('fr-FR') : '';
-          const meta = [size, date ? 'Ajouté le ' + date : ''].filter(Boolean).join(' · ');
-          const fpJ  = _fEsc(JSON.stringify(_fichPathStr() + f.name)); // HTML-escape so quotes survive inside onclick="..."
-          const isVerified = !!f.verified_at;
-          const vDate = isVerified ? new Date(f.verified_at).toLocaleDateString('fr-FR') : '';
-          const vTag = isVerified
-            ? '<div class="fich-file-verified-tag"><i class="ti ti-rosette-discount-check"></i>Vérifié par ' + _fEsc(f.verified_by_name||'—') + ' · ' + _fEsc(vDate) + '</div>'
-            : '';
-          const fidJ = _fEsc(JSON.stringify(f.id||''));
-          const vTitle = isVerified
-            ? 'Vérifié par ' + (f.verified_by_name||'—') + ' le ' + vDate + ' — cliquer pour annuler'
-            : 'Marquer comme vérifié (matériel demandé confirmé disponible)';
-          html += '<div class="fich-file-card' + (isVerified?' verified':'') + '" onclick="viewFichier(' + fpJ + ')">' +
-            '<div class="fich-file-ico ' + (info.cls || 'ico-other') + '">' + info.icon + '</div>' +
-            '<div class="fich-file-info"><div class="fich-file-name">' + _fEsc(name) + '</div><div class="fich-file-meta">' + _fEsc(meta) + '</div>' + vTag + '</div>' +
-            '<div class="fich-file-actions">' +
-              '<button class="fich-file-btn vf' + (isVerified?' on':'') + '" onclick="event.stopPropagation();toggleFileVerified(' + fidJ + ',' + fpJ + ')" title="' + _fEsc(vTitle) + '"><i class="ti ' + (isVerified?'ti-rosette-discount-check-filled':'ti-rosette-discount-check') + '"></i></button>' +
-              '<button class="fich-file-btn" onclick="event.stopPropagation();replaceFichier(' + fpJ + ')" title="Remplacer par une nouvelle version (même nom)"><i class="ti ti-refresh"></i></button>' +
-              '<button class="fich-file-btn" onclick="event.stopPropagation();renameFichier(' + fpJ + ')" title="Renommer"><i class="ti ti-pencil"></i></button>' +
-              '<button class="fich-file-btn mv" onclick="event.stopPropagation();openMoveFichier(event,' + fpJ + ')" title="Déplacer dans un dossier"><i class="ti ti-folder-share"></i></button>' +
-              '<button class="fich-file-btn dl" onclick="event.stopPropagation();_fichDownload(' + fpJ + ')" title="Télécharger"><i class="ti ti-download"></i></button>' +
-              '<button class="fich-file-btn del" onclick="event.stopPropagation();deleteFichier(' + fpJ + ')" title="Supprimer"><i class="ti ti-trash"></i></button>' +
-            '</div>' +
-            '</div>';
-        });
-      });
-  } else if (!foldersShown.length) {
-    var emptyMsg = _fichSearch ? 'Aucun résultat pour « ' + _fEsc(_fichSearch) + ' »'
-                 : (_fichFilter !== 'all' ? 'Aucun fichier dans ce filtre' : 'Dossier vide');
-    html += '<div class="fich-empty"><i class="ti ti-filter"></i><p style="font-size:12px">' + emptyMsg + '</p></div>';
-  }
-
-  html += '</div>';
   list.innerHTML = html;
+  _fichSyncSel();
 
-  // barre de stockage (plan-aware)
-  const plan = userPlan ? userPlan() : 'free';
-  const QUOTA_GO = { free: 0.5, pro: 50 };
-  const quotaGo  = QUOTA_GO[plan] || 0;
-  const lblEl  = document.getElementById('fich-storage-lbl');
-  const fillEl = document.getElementById('fich-storage-fill');
-  if (stor) {
-    if (!canDo || !canDo('storage') || quotaGo === 0) {
-      stor.style.display = 'none';
-    } else {
-      const totalBytes = allFiles.reduce(function(s, f) { return s + (f.metadata?.size || 0); }, 0);
-      const totalMo = (totalBytes / 1048576).toFixed(1);
-      const quotaBytes = quotaGo * 1073741824;
-      const fillPct = Math.min(100, totalBytes / quotaBytes * 100).toFixed(1);
-      if (lblEl)  lblEl.textContent  = totalMo + ' Mo utilisés / ' + quotaGo + ' Go';
-      if (fillEl) fillEl.style.width = fillPct + '%';
-      stor.style.display = '';
-    }
+  /* ── Pied : contenu affiché, puis stockage du compte ── */
+  const cnt = document.getElementById('fi-count');
+  if (cnt) {
+    const tot = rowsFiles.reduce(function(s, f){ return s + (f.metadata?.size || 0); }, 0);
+    const parts = [];
+    if (rowsFolders.length) parts.push(rowsFolders.length + (rowsFolders.length > 1 ? ' dossiers' : ' dossier'));
+    parts.push(rowsFiles.length + (rowsFiles.length > 1 ? ' fichiers' : ' fichier'));
+    cnt.innerHTML = (searching ? '<b>Résultats</b> · ' : '') + parts.join(' · ') + (tot ? ' · ' + _fiSize(tot) : '');
   }
+  if (stor) stor.style.display = '';
+  _fiStorage();
+}
+
+/* Stockage du compte (tous les shows), avec repli sur le contenu du show */
+async function _fiStorage() {
+  const lbl = document.getElementById('fich-storage-lbl'), fill = document.getElementById('fich-storage-fill'), box = document.getElementById('fi-quota');
+  if (!lbl || !fill) return;
+  if (typeof canDo === 'function' && !canDo('storage')) { if (box) box.style.display = 'none'; return; }
+  if (box) box.style.display = '';
+  const quota = _storageQuotaBytes();
+  let used = 0;
+  try { const u = await _getStorageUsage(false); used = (u && u.total) || 0; } catch (e) {}
+  if (!used && _fichIndex) used = _fichIndex.reduce(function(s, f){ return s + (f.is_folder ? 0 : (f.size || 0)); }, 0);
+  const pct = Math.min(100, used / quota * 100);
+  lbl.textContent = (used ? _fiSize(used) : '0 Mo') + ' utilisés sur ' + _fiSize(quota);
+  fill.style.width = (used ? Math.max(1.5, pct) : 0).toFixed(1) + '%';
+  fill.classList.toggle('warn', pct >= 80);
+}
+
+/* Menus « Type » et « Trier » de la barre d'outils */
+function _fiTypeMenu(types, total) {
+  const m = document.getElementById('fi-type-menu'), l = document.getElementById('fi-type-lbl'), b = document.getElementById('fi-type-btn');
+  if (l) l.textContent = _fichFilter === 'all' ? 'Tous les types' : _fichFilter;
+  if (b) b.classList.toggle('on', _fichFilter !== 'all');
+  if (!m) return;
+  const it = function(v, label, n){ return '<button class="exp-item' + (_fichFilter === v ? ' on' : '') + '" onclick="setFichFilter(' + _fEsc(JSON.stringify(v)) + ')"><i class="ti ti-' + (_fichFilter === v ? 'check' : 'point') + '"></i>' + _fEsc(label) + '<span class="fi-menu-n">' + n + '</span></button>'; };
+  m.innerHTML = it('all', 'Tous les types', total) + (types.length ? '<div class="exp-sep"></div>' : '') + types.map(function(t){ return it(t[0], t[0], t[1]); }).join('');
+}
+function _fiSortMenu() {
+  const m = document.getElementById('fi-sort-menu'), l = document.getElementById('fi-sort-lbl');
+  const opts = [['name-asc', 'Nom, A → Z'], ['name-desc', 'Nom, Z → A'], ['date-desc', 'Plus récents d\'abord'], ['date-asc', 'Plus anciens d\'abord'], ['size-desc', 'Plus lourds d\'abord'], ['size-asc', 'Plus légers d\'abord']];
+  const cur = opts.filter(function(o){ return o[0] === _fichSort; })[0] || opts[0];
+  if (l) l.textContent = cur[1];
+  if (m) m.innerHTML = opts.map(function(o){ return '<button class="exp-item' + (o[0] === _fichSort ? ' on' : '') + '" onclick="setFichSort(\'' + o[0] + '\')"><i class="ti ti-' + (o[0] === _fichSort ? 'check' : 'point') + '"></i>' + o[1] + '</button>'; }).join('');
+}
+
+/* ── Menu d'un fichier (⋯) ── */
+function _closeFichMenu() { const m = document.getElementById('fi-menu'); if (m) m.remove(); document.removeEventListener('click', _fichMenuOutside, true); }
+function _fichMenuOutside(e) { if (!e.target.closest('#fi-menu')) _closeFichMenu(); }
+function openFichMenu(ev, rel, fileId) {
+  if (ev) { ev.stopPropagation(); ev.preventDefault(); }
+  if (document.getElementById('fi-menu')) { _closeFichMenu(); return; }
+  const relJ = _fEsc(JSON.stringify(rel)), idJ = _fEsc(JSON.stringify(fileId || ''));
+  const it = function(icon, label, fn, cls){ return '<button class="sess-mm-item' + (cls || '') + '" onclick="_closeFichMenu();' + fn + '"><i class="ti ' + icon + '"></i>' + label + '</button>'; };
+  const menu = document.createElement('div');
+  menu.id = 'fi-menu'; menu.className = 'sess-move-menu'; menu.setAttribute('role', 'menu');
+  menu.innerHTML = it('ti-eye', 'Ouvrir', 'viewFichier(' + relJ + ')')
+    + it('ti-download', 'Télécharger', '_fichDownload(' + relJ + ')')
+    + '<div class="sess-mm-sep"></div>'
+    + it('ti-pencil', 'Renommer', 'renameFichier(' + relJ + ')')
+    + it('ti-folder-share', 'Déplacer vers…', 'openFichMoveModal([' + relJ + '])')
+    + it('ti-refresh', 'Remplacer par une nouvelle version', 'replaceFichier(' + relJ + ')')
+    + '<div class="sess-mm-sep"></div>'
+    + it('ti-trash', 'Supprimer', 'deleteFichier(' + relJ + ')', ' danger');
+  document.body.appendChild(menu);
+  const r = (ev && ev.currentTarget ? ev.currentTarget : ev.target).getBoundingClientRect(), mw = 250, mh = menu.offsetHeight;
+  menu.style.minWidth = mw + 'px';
+  menu.style.left = Math.max(10, Math.min(r.right - mw, window.innerWidth - mw - 10)) + 'px';
+  let top = r.bottom + 6; if (top + mh > window.innerHeight - 10) top = Math.max(10, r.top - mh - 6);
+  menu.style.top = top + 'px';
+  setTimeout(function(){ document.addEventListener('click', _fichMenuOutside, true); }, 0);
+}
+
+/* ── Déplacer : vers n'importe quel dossier du show ── */
+function openMoveFichier(event, relPath) { if (event) event.stopPropagation(); openFichMoveModal([relPath]); }
+async function openFichMoveModal(rels) {
+  rels = (rels || []).filter(Boolean);
+  if (!rels.length || !CUR_SHOW) return;
+  if (!_fichIndex || _fichIndexShow !== CUR_SHOW.id) await _fichLoadIndex(true);
+  let m = document.getElementById('fi-move-modal');
+  if (!m) {
+    m = document.createElement('div'); m.id = 'fi-move-modal'; m.className = 'modal-ov';
+    m.addEventListener('click', function(e){ if (e.target === m) closeFichMoveModal(); });
+    document.body.appendChild(m);
+  }
+  const dirOf = function(r){ return r.indexOf('/') > 0 ? r.slice(0, r.lastIndexOf('/')) : ''; };
+  const same = rels.every(function(r){ return dirOf(r) === dirOf(rels[0]); }) ? dirOf(rels[0]) : null;
+  const row = function(path, label, depth, icon){
+    const here = same !== null && path === same;
+    return '<button type="button" class="fi-dest' + (here ? ' here' : '') + '"' + (here ? ' disabled' : '') + ' style="padding-left:' + (12 + depth * 18) + 'px" onclick="_fichMoveMany(_fichMoveRels,' + _fEsc(JSON.stringify(path ? path + '/' : '')) + ')">'
+      + '<i class="ti ' + icon + '"></i><span>' + _fEsc(label) + '</span>' + (here ? '<em>Emplacement actuel</em>' : '') + '</button>';
+  };
+  _fichMoveRels = rels;
+  const folders = _fichAllFolders();
+  m.innerHTML = '<div class="modal-box" style="width:440px">'
+    + '<div class="modal-head"><span class="modal-title">Déplacer ' + (rels.length > 1 ? rels.length + ' fichiers' : '« ' + _fEsc(_fichDisplayName(rels[0].split('/').pop())) + ' »') + '</span><button class="modal-close" onclick="closeFichMoveModal()" aria-label="Fermer"><i class="ti ti-x"></i></button></div>'
+    + '<div class="modal-body"><div class="fi-dest-list">' + row('', 'Tous les fichiers (racine)', 0, 'ti-cloud')
+      + folders.map(function(p){ return row(p, p.split('/').pop(), p.split('/').length, 'ti-folder'); }).join('') + '</div>'
+      + (folders.length ? '' : '<div class="tour-hint">Aucun dossier pour l\'instant : créez-en un avec le bouton « Dossier ».</div>') + '</div>'
+    + '<div class="modal-foot"><button class="btn" type="button" onclick="closeFichMoveModal()">Annuler</button></div></div>';
+  m.classList.add('show');
+}
+let _fichMoveRels = [];
+function closeFichMoveModal() { const m = document.getElementById('fi-move-modal'); if (m) m.classList.remove('show'); }
+async function _fichMoveMany(rels, destDir) {
+  closeFichMoveModal();
+  rels = (rels || []).filter(Boolean);
+  if (!rels.length || !CUR_SHOW) return;
+  let ok = 0, fail = 0;
+  for (const rel of rels) {
+    const filename = rel.split('/').pop();
+    const oldFull = CUR_SHOW.id + '/' + rel, newFull = CUR_SHOW.id + '/' + destDir + filename;
+    if (oldFull === newFull) continue;
+    try {
+      const { error } = await B2Storage.move(oldFull, newFull);
+      if (error) { fail++; continue; }
+      _fichMarkGone(oldFull);
+      await _sfMoveFile(oldFull, newFull).catch(() => {});
+      ok++;
+    } catch (e) { fail++; }
+  }
+  _fichSel.clear();
+  const dest = destDir ? '« ' + destDir.replace(/\/$/, '').split('/').pop() + ' »' : 'la racine';
+  if (ok) toast('✓ ' + (ok > 1 ? ok + ' fichiers déplacés' : 'Fichier déplacé') + ' vers ' + dest + (fail ? ' · ' + fail + ' en échec' : ''));
+  else if (fail) toast('Déplacement impossible.');
+  await loadFichiers();
+}
+function fichSelMove() { if (_fichSel.size) openFichMoveModal([..._fichSel]); }
+async function fichSelDownload() {
+  const rels = [..._fichSel];
+  for (let i = 0; i < rels.length; i++) { await _fichDownload(rels[i]); if (i < rels.length - 1) await new Promise(function(r){ setTimeout(r, 450); }); }
+}
+async function fichSelDelete() {
+  const rels = [..._fichSel];
+  if (!rels.length || !CUR_SHOW) return;
+  const n = rels.length;
+  if (!await _confirmModal('Supprimer ' + (n > 1 ? n + ' fichiers' : '« ' + _fichDisplayName(rels[0].split('/').pop()) + ' »') + ' ?', 'Cette action est irréversible.')) return;
+  const full = rels.map(function(r){ return CUR_SHOW.id + '/' + r; });
+  const { error } = await B2Storage.remove(full);
+  if (error) { toast('Erreur : ' + error.message); return; }
+  for (const p of full) { _fichMarkGone(p); await _sfDeleteFile(p); }
+  _storageCache = null;
+  _fichSel.clear();
+  toast('✓ ' + (n > 1 ? n + ' fichiers supprimés' : 'Fichier supprimé'));
+  await loadFichiers();
+}
+
+/* ── Glisser des fichiers de la liste vers un dossier ── */
+let _fiDragRels = null;
+function _fiDragStart(ev, rel) {
+  _fiDragRels = (_fichSel.has(rel) && _fichSel.size > 1) ? [..._fichSel] : [rel];
+  try { ev.dataTransfer.effectAllowed = 'move'; ev.dataTransfer.setData('text/plain', _fiDragRels.join('\n')); } catch (e) {}
+  document.getElementById('panel-fichiers')?.classList.add('fi-moving');
+}
+function _fiDragEnd() {
+  _fiDragRels = null;
+  document.getElementById('panel-fichiers')?.classList.remove('fi-moving');
+  document.querySelectorAll('.fi-over').forEach(function(e){ e.classList.remove('fi-over'); });
+}
+function _fiDragOver(ev) { if (!_fiDragRels) return; ev.preventDefault(); try { ev.dataTransfer.dropEffect = 'move'; } catch (e) {} ev.currentTarget.classList.add('fi-over'); }
+function _fiDragLeave(ev) { ev.currentTarget.classList.remove('fi-over'); }
+function _fiDropOn(ev, destDir) {
+  if (!_fiDragRels) return;
+  ev.preventDefault(); ev.stopPropagation();
+  const rels = _fiDragRels; _fiDragEnd();
+  _fichMoveMany(rels, destDir);
 }
 
 async function _fichDownload(relPath) {
@@ -16581,25 +16715,31 @@ function fichImportClick() {
 function initFichiersDrop() {
   if (_fichInited) return;
   _fichInited = true;
-  const dz = document.getElementById('fichiers-drop-zone');
   const inp = document.getElementById('fichiers-file-input');
   const panel = document.getElementById('panel-fichiers');
-
+  const veil = document.getElementById('fi-drop');
   const doUpload = files => { if (files.length) _uploadFichiers([...files]); };
-
-  if (dz) {
-    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
-    dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
-    dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); doUpload(e.dataTransfer.files); });
-    dz.addEventListener('click', () => inp?.click());
-  }
   if (inp) inp.addEventListener('change', e => { doUpload(e.target.files); inp.value = ''; });
   const rinp = document.getElementById('fich-replace-input');
   if (rinp) rinp.addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) _doReplaceFichier(f); });
   if (panel) {
-    panel.addEventListener('dragover', e => e.preventDefault());
-    panel.addEventListener('drop', e => { e.preventDefault(); doUpload(e.dataTransfer.files); });
+    /* Fichiers venus de l'ordinateur (pas un déplacement interne de la liste) */
+    const fromOS = e => !_fiDragRels && e.dataTransfer && [...(e.dataTransfer.types || [])].indexOf('Files') >= 0;
+    let depth = 0;
+    const show = on => {
+      if (!veil) return;
+      veil.classList.toggle('show', on);
+      const t = document.getElementById('fi-drop-t');
+      if (on && t) t.textContent = 'Déposez pour envoyer dans ' + (_fichPath.length ? '« ' + _fichPath[_fichPath.length - 1] + ' »' : 'ce show');
+    };
+    panel.addEventListener('dragenter', e => { if (!fromOS(e)) return; e.preventDefault(); depth++; show(true); });
+    panel.addEventListener('dragover', e => { if (fromOS(e)) e.preventDefault(); });
+    panel.addEventListener('dragleave', e => { if (!fromOS(e)) return; depth = Math.max(0, depth - 1); if (!depth) show(false); });
+    panel.addEventListener('drop', e => { if (!fromOS(e)) return; e.preventDefault(); depth = 0; show(false); doUpload(e.dataTransfer.files); });
   }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && _fichSel.size && document.getElementById('panel-fichiers')?.classList.contains('on') && !document.querySelector('.modal-ov.show')) fichClearSel();
+  });
 }
 
 /* Cherche dans le dossier courant un fichier (pas un dossier) qui porte le même
@@ -16652,7 +16792,11 @@ async function _uploadFichiers(files) {
 
     /* Quota : on ne compte que le surplus réel (taille - ancienne version). */
     if (!await _quotaCheck(Math.max(0, file.size - oldSize))) break;
-    if (status) status.style.display = '';
+    if (status) {
+      status.style.display = '';
+      const st = document.getElementById('fich-upload-txt');
+      if (st) st.textContent = 'Envoi ' + (files.indexOf(file) + 1) + ' / ' + files.length + ' · ' + displayName;
+    }
 
     let uploadPath, isReplace = !!replacePath;
     if (isReplace) {
@@ -16783,7 +16927,8 @@ async function toggleFileVerified(fileId, relPath) {
     return;
   }
   const entry = SHOW_FILES.find(f => f.id === fileId);
-  const nextVerified = !(entry && entry.verified_at);
+  const idx = (_fichIndex || []).find(f => f.id === fileId);
+  const nextVerified = !((entry && entry.verified_at) || (!entry && idx && idx.verified_at));
   const { data, error } = await sb.rpc('set_file_verified', { p_file_id: fileId, p_verified: nextVerified });
   if (error) { toast('Erreur : ' + error.message); return; }
   if (data && data.ok === false) {
@@ -16793,6 +16938,10 @@ async function toggleFileVerified(fileId, relPath) {
   if (entry) {
     entry.verified_at      = nextVerified ? (data?.verified_at || new Date().toISOString()) : null;
     entry.verified_by_name = nextVerified ? (data?.verified_by_name || null) : null;
+  }
+  if (idx) {
+    idx.verified_at      = nextVerified ? (data?.verified_at || new Date().toISOString()) : null;
+    idx.verified_by_name = nextVerified ? (data?.verified_by_name || null) : null;
   }
   _renderFichiersGrid();
   toast(nextVerified ? '✓ Fichier marqué vérifié' : 'Vérification retirée');
