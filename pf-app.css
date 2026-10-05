@@ -2385,3 +2385,6 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 
 .xp-more .xp-lbl{width:auto;margin-right:4px}
 #panel-inputlist .tpl-dd-mode button{flex:0 0 auto}
+
+/* Plans : sur ordinateur, on passe de la scène au site depuis le menu de gauche (le titre indique le plan affiché) */
+@media(min-width:641px){ .plan-mode-sw{display:none} }

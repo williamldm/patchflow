@@ -12062,6 +12062,7 @@ function setPlanMode(mode,save=true){
   PLAN_MODE=mode;
   document.getElementById('plan-scene-wrap').style.display=mode==='scene'?'':'none';
   document.getElementById('plan-site-wrap').style.display=mode==='site'?'':'none';
+  var _pt=document.getElementById('plan-title'); if(_pt) _pt.textContent=mode==='site'?'Plan de site':'Plan de scène';
   document.getElementById('pmb-scene').classList.toggle('on',mode==='scene');
   document.getElementById('pmb-site').classList.toggle('on',mode==='site');
   /* Bouton Annuler du plan : suit le mode actif (scène→stage, site→site). */
