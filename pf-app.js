@@ -14450,8 +14450,15 @@ async function applyTemplate(tplId){
 
 function toggleSP(){const p=document.getElementById('side-panel');p.classList.contains('show')?closeSP():openSP();}
 function openSP(){
-  document.getElementById('side-panel').classList.add('show');
+  var p=document.getElementById('side-panel');
+  try{ closeNotifs(); }catch(e){}
+  /* Ordinateur : la fenêtre s'ouvre à côté du menu, à la hauteur du nom du show */
+  var hd=document.querySelector('.nav-show-hd'), top='';
+  if(window.innerWidth>=641 && hd && hd.offsetParent){ top=Math.max(12,Math.min(hd.getBoundingClientRect().top-6, window.innerHeight-420))+'px'; }
+  p.style.top=top;
+  p.classList.add('show');
   document.getElementById('sp-ov').classList.add('show');
+  var q=document.getElementById('sw-q'); if(q){ q.value=''; if(window.innerWidth>=641) setTimeout(function(){ try{ q.focus(); }catch(e){} },30); }
   renderSPShows();
 }
 function closeSP(){document.getElementById('side-panel').classList.remove('show');document.getElementById('sp-ov').classList.remove('show');closePrev();}
@@ -14477,26 +14484,31 @@ function _fmtShowDate(v){
   /* Date locale (pas new Date('AAAA-MM-JJ') : interprété en UTC, décalé d'un jour à l'ouest). */
   return new Date(+p[0],+p[1]-1,+p[2]).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});
 }
+/* Liste du sélecteur de session : à venir (de la plus proche à la plus lointaine), puis passées */
 function renderSPShows(){
   const el=document.getElementById('sp-shows');if(!el)return;
-  if(SHOWS.length===0){el.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px 0">Aucun show.</div>';return;}
   const _e2=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  const _MP=[['rgba(255,107,26,.14)','#ff8c42','rgba(255,107,26,.32)'],['rgba(26,143,255,.14)','#4ca5ff','rgba(26,143,255,.32)'],['rgba(34,214,160,.13)','#22d6a0','rgba(34,214,160,.30)'],['rgba(155,106,255,.14)','#b48bff','rgba(155,106,255,.32)'],['rgba(245,197,66,.14)','#f5c542','rgba(245,197,66,.32)'],['rgba(255,77,106,.12)','#ff6b85','rgba(255,77,106,.30)'],['rgba(0,200,180,.12)','#2ad6c0','rgba(0,200,180,.30)']];
-  const _mono=n=>{var s=String(n||'?').trim();var fa=w=>{var m=w.match(/[a-zA-ZÀ-ÿ]/);return m?m[0]:'';};var w=s.split(/\s+/).filter(x=>/[a-zA-ZÀ-ÿ]/.test(x));var ini=w.length>=2?(fa(w[0])+fa(w[1])):(w.length===1?(w[0].replace(/[^a-zA-ZÀ-ÿ]/g,'').slice(0,2)||w[0].slice(0,2)):s.slice(0,2));ini=(ini||'?').toUpperCase();var h=0;for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return {ini:ini,c:_MP[h%_MP.length]};};
-  el.innerHTML=SHOWS.map((s,i)=>{
-    var isCur=s.id===CUR_SHOW?.id;
-    var meta=[s.venue,_fmtShowDate(s.show_date)].filter(Boolean).join(' · ')||'Pas de lieu';
-    var chCount=isCur&&CHS.length?`<span style="font-size:9px;font-family:var(--m);background:var(--ora-d);color:var(--ora);border:1px solid rgba(255,107,26,.2);border-radius:4px;padding:0 5px;margin-left:4px">${CHS.length} CH</span>`:'';
-    var mo=_mono(s.name);
-    return `<div class="sp-show ${isCur?'active':''}" onclick="spSwitch('${_jsq(s.id)}')" style="${isCur?'border-left:2px solid var(--ora);padding-left:10px':''}">
-      <div class="sp-show-ico" style="background:${mo.c[0]};border-color:${mo.c[2]};color:${mo.c[1]};font-family:var(--m);font-weight:700;font-size:11px;letter-spacing:.3px">${_e2(mo.ini)}</div>
-      <div style="flex:1;min-width:0">
-        <div class="sp-show-name" style="display:flex;align-items:center;gap:3px">${_e2(s.name)}${chCount}</div>
-        <div class="sp-show-meta">${_e2(meta)}</div>
-      </div>
-      ${(!s.owner_id||s.owner_id===ME?.id)?`<button class="sp-show-del" onclick="delShow('${_jsq(s.id)}',event)"><i class="ti ti-trash"></i></button>`:''}
-    </div>`;
-  }).join('');
+  var q=(document.getElementById('sw-q')?.value||'').trim().toLowerCase();
+  var today=_todayISO();
+  var list=SHOWS.filter(function(s){ return !q || String(s.name||'').toLowerCase().indexOf(q)>=0 || String(s.venue||'').toLowerCase().indexOf(q)>=0; });
+  if(!list.length){
+    el.innerHTML='<div class="nf-empty"><i class="ti '+(q?'ti-search-off':'ti-calendar-plus')+'"></i><span>'+(q?'Aucune session ne correspond.':'Aucune session pour l\'instant.')+'</span></div>';
+    return;
+  }
+  var iso=function(s){ return _showDateISO(s.show_date); };
+  var up=list.filter(function(s){ var i=iso(s); return !i||i>=today; }).sort(function(a,b){ var x=iso(a),y=iso(b); if(!x&&!y) return 0; if(!x) return 1; if(!y) return -1; return x.localeCompare(y); });
+  var past=list.filter(function(s){ var i=iso(s); return i&&i<today; }).sort(function(a,b){ return iso(b).localeCompare(iso(a)); });
+  var row=function(s){
+    var i=iso(s), d=i?_isoToDate(i):null, cur=s.id===CUR_SHOW?.id;
+    var sub=[s.venue?_e2(s.venue):'', i?_countdownTxt(i):'Sans date'].filter(Boolean).join(' · ');
+    return '<button type="button" class="sw-row'+(cur?' on':'')+'" onclick="spSwitch(\''+_jsq(s.id)+'\')"'+(cur?' aria-current="true"':'')+'>'
+      +'<span class="sw-date">'+(d?'<b>'+d.getDate()+'</b><i>'+_e2(d.toLocaleDateString('fr-FR',{month:'short'}).replace('.','').toUpperCase())+'</i>':'<span class="ti ti-calendar-off"></span>')+'</span>'
+      +'<span class="sw-info"><span class="sw-name">'+_e2(s.name)+'</span><span class="sw-sub">'+sub+'</span></span>'
+      +(cur?'<span class="ti ti-check sw-ck"></span>':'')
+    +'</button>';
+  };
+  el.innerHTML=(up.length?'<div class="sw-grp">À venir</div>'+up.map(row).join(''):'')
+    +(past.length?'<div class="sw-grp">Passées</div>'+past.map(row).join(''):'');
 }
 async function spSwitch(id){await switchShow(id);closeSP();}
 

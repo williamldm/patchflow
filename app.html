@@ -60,7 +60,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=3.52">
+<link rel="stylesheet" href="pf-app.css?v=3.53">
 </head>
 <body>
 
@@ -989,19 +989,16 @@ html.rider-boot #rider-splash{display:flex}
 
 <!-- SIDE PANEL -->
 <div class="sp-overlay" id="sp-ov" onclick="closeSP()"></div>
-<div class="side-panel" id="side-panel">
-  <div class="sp-head">
-    <div class="sp-head-title"><i class="ti ti-layout-board" style="color:var(--ora);font-size:15px"></i>Mon espace</div>
-    <button class="btn ghost sm" onclick="closeSP()"><i class="ti ti-x"></i></button>
+<div class="side-panel" id="side-panel" role="dialog" aria-label="Changer de session">
+  <div class="nf-head">
+    <span class="nf-title">Changer de session</span>
+    <button type="button" class="nf-x" onclick="closeSP()" aria-label="Fermer"><i class="ti ti-x"></i></button>
   </div>
-  <div class="sp-body">
-    <div class="sp-sec">
-      <div class="sp-sec-head">
-        <span class="sp-sec-title"><i class="ti ti-folders"></i>Mes shows</span>
-        <button class="btn sm" onclick="newShow()"><i class="ti ti-plus"></i>Nouveau</button>
-      </div>
-      <div id="sp-shows"><div class="loading"><div class="spinner"></div></div></div>
-    </div>
+  <label class="sw-search"><i class="ti ti-search"></i><input id="sw-q" placeholder="Show, salle…" oninput="renderSPShows()" autocomplete="off" aria-label="Rechercher une session"/></label>
+  <div class="sw-list" id="sp-shows"></div>
+  <div class="sw-foot">
+    <button type="button" class="btn sm" onclick="closeSP();goTab('sessions',null)"><i class="ti ti-calendar-event"></i>Toutes les sessions</button>
+    <button type="button" class="btn pri sm" onclick="newShow()"><i class="ti ti-plus"></i>Nouveau show</button>
   </div>
   <!-- Template preview slide (keep for tpl-dd-menu usage) -->
   <div class="sp-preview" id="sp-preview">
@@ -1687,7 +1684,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=3.72"></script>
+<script src="pf-app.js?v=3.73"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
   <div class="mob-plan-bar">
