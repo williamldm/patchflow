@@ -4452,29 +4452,48 @@ function setPdfExportType(type){
   // Hide toggle row entirely if only one option visible
   const toggleRow = document.getElementById('pdf-type-row');
   if(toggleRow) toggleRow.style.display = _pdfVisibleTypes.length <= 1 ? 'none' : '';
-  /* Format (PDF / CSV) et documents dérivés : listes seulement */
-  const fmtRow = document.getElementById('pdf-fmt-row');
-  if(fmtRow) fmtRow.style.display = isTable ? '' : 'none';
+  /* Documents dérivés (listes) et lien de partage (plan de scène) */
   const moreRow = document.getElementById('pdf-more-row');
   if(moreRow) moreRow.style.display = isTable ? '' : 'none';
+  const shareRow = document.getElementById('pdf-share-row');
+  if(shareRow) shareRow.style.display = type==='stage' ? '' : 'none';
   _pdfSyncFormat();
 }
-/* Format d'export des listes : PDF mis en page, ou CSV pour un tableur. Mémorisé sur l'appareil. */
-var _pdfFormat='pdf';
-try{ if(localStorage.getItem('pf_export_fmt')==='csv') _pdfFormat='csv'; }catch(e){}
-function _pdfIsCsv(){ return _pdfFormat==='csv' && (_pdfExportType==='in'||_pdfExportType==='out'||_pdfExportType==='both'); }
+/* Formats proposés : listes → PDF ou CSV ; plans → PDF ou image ; synoptique → PDF, image ou SVG.
+   Le dernier choix est mémorisé sur l'appareil, séparément pour les listes et pour les plans. */
+var _pdfFormat='pdf', _pdfVFormat='pdf';
+try{ if(localStorage.getItem('pf_export_fmt')==='csv') _pdfFormat='csv'; var _pvf=localStorage.getItem('pf_export_fmt_v'); if(_pvf==='png'||_pvf==='svg') _pdfVFormat=_pvf; }catch(e){}
+var _PDF_FMT_HINT={pdf:'Document mis en page, prêt à envoyer',csv:'Tableau brut, pour Excel ou Numbers',png:'Image, à glisser dans un mail ou un document',svg:'Dessin vectoriel, à retoucher dans un logiciel de dessin'};
+function _pdfFormats(){
+  var t=_pdfExportType;
+  if(t==='syno') return ['pdf','png','svg'];
+  if(t==='stage'||t==='site') return ['pdf','png'];
+  return ['pdf','csv'];
+}
+function _pdfCurFmt(){
+  var list=_pdfFormats(), f=(list.indexOf('csv')>=0)?_pdfFormat:_pdfVFormat;
+  return list.indexOf(f)>=0?f:'pdf';
+}
+function _pdfIsCsv(){ return _pdfCurFmt()==='csv'; }
 function setPdfFormat(f){
-  _pdfFormat=(f==='csv')?'csv':'pdf';
-  try{ localStorage.setItem('pf_export_fmt',_pdfFormat); }catch(e){}
+  if(_pdfFormats().indexOf(f)<0) f='pdf';
+  try{
+    if(_pdfFormats().indexOf('csv')>=0){ _pdfFormat=f; localStorage.setItem('pf_export_fmt',f); }
+    else { _pdfVFormat=f; localStorage.setItem('pf_export_fmt_v',f); }
+  }catch(e){}
   _pdfSyncFormat();
 }
 function _pdfSyncFormat(){
-  var csv=_pdfIsCsv(), $=function(id){ return document.getElementById(id); };
-  if($('pdf-fmt-pdf')) $('pdf-fmt-pdf').classList.toggle('on',_pdfFormat!=='csv');
-  if($('pdf-fmt-csv')) $('pdf-fmt-csv').classList.toggle('on',_pdfFormat==='csv');
-  if($('pdf-fmt-hint')) $('pdf-fmt-hint').textContent=csv?'Tableau brut, pour Excel ou Numbers':'Document mis en page, prêt à envoyer';
-  if($('pdf-opts')) $('pdf-opts').style.display=csv?'none':'';
-  if($('pdf-tofiles-btn')) $('pdf-tofiles-btn').style.display=csv?'none':'';
+  var list=_pdfFormats(), cur=_pdfCurFmt(), isPdf=cur==='pdf', $=function(id){ return document.getElementById(id); };
+  ['pdf','csv','png','svg'].forEach(function(f){
+    var b=$('pdf-fmt-'+f); if(!b) return;
+    b.style.display=list.indexOf(f)>=0?'':'none';
+    b.classList.toggle('on',f===cur);
+  });
+  if($('pdf-fmt-row')) $('pdf-fmt-row').style.display='';
+  if($('pdf-fmt-hint')) $('pdf-fmt-hint').textContent=_PDF_FMT_HINT[cur]||'';
+  if($('pdf-opts')) $('pdf-opts').style.display=isPdf?'':'none';
+  if($('pdf-tofiles-btn')) $('pdf-tofiles-btn').style.display=isPdf?'':'none';
   _pdfHeadSum();
 }
 /* Résumé de l'en-tête replié : qui signe le document, et pour quel lieu */
@@ -4486,12 +4505,20 @@ function _pdfHeadSum(){
   if(n) n.textContent=v('pdf-notes')?'Renseignées':'';
 }
 document.addEventListener('input',function(e){ if(e.target&&e.target.closest&&e.target.closest('#pdf-modal')) _pdfHeadSum(); });
-/* Bouton principal de la fenêtre : CSV direct, sinon PDF */
+/* Bouton principal de la fenêtre : PDF, sinon le format direct choisi (CSV, image, SVG) */
 function doExport(){
-  if(!_pdfIsCsv()){ doPDF(); return; }
-  var t=_pdfExportType;
-  if(t==='in'||t==='both'){ if(!CHS.length&&t==='in'){ toast('Aucun canal à exporter.'); return; } if(CHS.length) exportCSV(); }
-  if(t==='out'||t==='both'){ if(!OUT_CHS.length&&t==='out'){ toast('Aucune sortie à exporter.'); return; } if(OUT_CHS.length) setTimeout(exportOutCSV,t==='both'?350:0); }
+  var fmt=_pdfCurFmt(), t=_pdfExportType;
+  if(fmt==='pdf'){ doPDF(); return; }
+  if(fmt==='csv'){
+    if(t==='in'||t==='both'){ if(!CHS.length&&t==='in'){ toast('Aucun canal à exporter.'); return; } if(CHS.length) exportCSV(); }
+    if(t==='out'||t==='both'){ if(!OUT_CHS.length&&t==='out'){ toast('Aucune sortie à exporter.'); return; } if(OUT_CHS.length) setTimeout(exportOutCSV,t==='both'?350:0); }
+  }
+  else if(fmt==='png'){
+    if(t==='stage') exportBpPng();
+    else if(t==='site') SitePlan.exportPng();
+    else if(t==='syno') SynPro.exportPng();
+  }
+  else if(fmt==='svg' && t==='syno') SynPro.exportSvg();
   closePDF();
 }
 function pdfToFilesFromModal(){ quickPdfToFiles(_pdfExportType); }
@@ -5671,14 +5698,7 @@ function _planExpShare() {
 /* Mise à jour du bouton export plan quand le mode change */
 function _updatePlanExpWrap() {
   const wrap = document.getElementById('plan-exp-wrap');
-  if (!wrap) return;
-  wrap.style.display = '';
-  const pngBtn   = document.getElementById('plan-exp-png');
-  const pdfBtn   = document.getElementById('plan-exp-pdf');
-  const shareBtn = document.getElementById('plan-exp-share');
-  if (pngBtn)   pngBtn.firstChild.nextSibling.textContent = PLAN_MODE === 'site' ? 'Plan de site PNG' : 'Plan de scène PNG';
-  if (pdfBtn)   pdfBtn.firstChild.nextSibling.textContent = PLAN_MODE === 'site' ? 'Plan de site PDF' : 'Plan de scène PDF';
-  if (shareBtn) shareBtn.style.display = PLAN_MODE === 'site' ? 'none' : '';
+  if (wrap) wrap.style.display = '';
 }
 
 function exportBpPng(){
@@ -9493,30 +9513,6 @@ const SynPro = (() => {
     $('sp-conf')?.addEventListener('click', _openConfModal);
     $('sp-reset')?.addEventListener('click', _resetDiagram);
 
-    /* Export dropdown */
-    var expBtn  = $('sp-export');
-    var expMenu = $('sp-export-menu');
-    if (expBtn && expMenu) {
-      expBtn.addEventListener('click', function(e){
-        e.stopPropagation();
-        expMenu.classList.toggle('open');
-        if (expMenu.classList.contains('open')) _clampMenuToViewport(expMenu);
-      });
-      document.addEventListener('click', function(){ expMenu.classList.remove('open'); expMenu.style.left=''; expMenu.style.right=''; });
-      expMenu.querySelectorAll('.sp-exp-item').forEach(function(item){
-        item.addEventListener('click', function(e){
-          e.stopPropagation();
-          expMenu.classList.remove('open');
-          var fmt = item.dataset.fmt;
-          if (fmt === 'png')   _exportPng();
-          if (fmt === 'svg')   _exportSvg();
-          if (fmt === 'pdf')   _openPdfMetaModal();
-          if (fmt === 'pdffiles' && typeof quickPdfToFiles==='function') quickPdfToFiles('syno');
-          if (fmt === 'print') _print();
-        });
-      });
-    }
-
     /* Zoom HUD — slider + buttons */
     var hudSlider = $('sp-zoom-slider');
     var hudPct    = $('sp-hud-pct');
@@ -10211,7 +10207,7 @@ const SynPro = (() => {
     setTimeout(fitView, 80);
     return true;
   }
-  return { init, show, render, resetLoaded, isLoaded, getData, setData, cancelCable, _saveNow, buildExportSvg: _buildExportSvg, specSize, specIo, importDiagram, setSceneId, setSceneData, loadSceneDirect, getIconByType, uploadNodeIcon, clearNodeIcon, adjImgPx,
+  return { init, show, render, resetLoaded, isLoaded, getData, setData, cancelCable, _saveNow, buildExportSvg: _buildExportSvg, specSize, specIo, importDiagram, openExport: _openPdfMetaModal, exportPng: _exportPng, exportSvg: _exportSvg, setSceneId, setSceneData, loadSceneDirect, getIconByType, uploadNodeIcon, clearNodeIcon, adjImgPx,
            loadBg, setBgOpacity, setBgRotation, rotateBg, scaleBg, toggleBgEdit, clearBg };
 })();
 

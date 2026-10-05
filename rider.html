@@ -407,16 +407,7 @@ html.rider-boot #rider-splash{display:flex}
           </div>
           <button type="button" class="btn ghost sm" id="sp-conf"><i class="ti ti-settings"></i>Marque &amp; réseaux</button>
           <button type="button" class="btn ghost sm" id="sp-import" onclick="LinusImport.pick()" title="Créer le synoptique à partir d'une session LINUS Control (Coda Audio)"><i class="ti ti-file-import"></i>Session LINUS</button>
-          <div style="position:relative;display:inline-block">
-            <button type="button" class="btn sm" id="sp-export"><i class="ti ti-file-export"></i>Exporter <i class="ti ti-chevron-down" style="font-size:10px;margin-left:2px"></i></button>
-            <div class="sp-export-menu" id="sp-export-menu">
-              <button class="sp-exp-item" data-fmt="png"><i class="ti ti-photo"></i>Image PNG</button>
-              <button class="sp-exp-item" data-fmt="pdf"><i class="ti ti-file-type-pdf"></i>Document PDF</button>
-              <button class="sp-exp-item" data-fmt="svg"><i class="ti ti-vector"></i>Vectoriel SVG</button>
-              <div class="sp-exp-sep"></div>
-              <button class="sp-exp-item" data-fmt="print"><i class="ti ti-printer"></i>Imprimer</button>
-            </div>
-          </div>
+          <button type="button" class="btn sm" id="sp-export" onclick="SynPro.openExport()"><i class="ti ti-file-export"></i>Exporter</button>
           <span id="sp-save-status" style="font-size:10px;font-family:var(--m);display:flex;align-items:center;gap:4px;color:var(--muted)"></span>
           <button type="button" class="btn ghost sm" data-undo="syno" onclick="undoSection('syno')" title="Annuler (Ctrl/⌘+Z)" style="display:none"><i class="ti ti-arrow-back-up"></i></button>
           <button type="button" class="btn ghost sm" id="sp-reset" title="Vider le synoptique"><i class="ti ti-trash"></i></button>
@@ -544,17 +535,7 @@ html.rider-boot #rider-splash{display:flex}
             <button class="pmb" id="pmb-site" onclick="setPlanMode('site')"><i class="ti ti-map-2"></i> Site</button>
           </div>
           <button type="button" class="btn ghost sm" id="plan-undo-btn" data-undo="stage" onclick="undoActiveSection()" title="Annuler (Ctrl/⌘+Z)" style="display:none"><i class="ti ti-arrow-back-up"></i></button>
-          <div class="exp-wrap" id="plan-exp-wrap" style="display:none">
-            <button class="btn sm" id="plan-exp-btn" onclick="toggleExpMenu('plan-exp-menu','plan-exp-btn')"><i class="ti ti-file-export"></i>Exporter <i class="ti ti-chevron-down" style="font-size:10px;margin-left:2px"></i></button>
-            <div class="exp-menu" id="plan-exp-menu">
-              <button class="exp-item" id="plan-exp-png" onclick="_planExpPng();closeExpMenu('plan-exp-menu')"><i class="ti ti-photo"></i>Image PNG</button>
-              <button class="exp-item" id="plan-exp-pdf" onclick="_planExpPdf();closeExpMenu('plan-exp-menu')"><i class="ti ti-file-type-pdf"></i>Document PDF</button>
-              <div class="exp-sep"></div>
-              <button class="exp-item" id="plan-exp-share" onclick="_planExpShare();closeExpMenu('plan-exp-menu')"><i class="ti ti-link"></i>Lien de partage</button>
-              <div class="exp-sep"></div>
-              <button class="exp-item" onclick="window.print();closeExpMenu('plan-exp-menu')"><i class="ti ti-printer"></i>Imprimer</button>
-            </div>
-          </div>
+          <button class="btn sm" id="plan-exp-wrap" onclick="_planExpPdf()" style="display:none"><i class="ti ti-file-export"></i>Exporter</button>
           <button class="btn ghost sm" onclick="clearCurrentPlan()"><i class="ti ti-trash"></i></button>
           <!-- Legacy IDs kept pour setPlanMode -->
           <span id="btn-bp-export" style="display:none"></span>
@@ -1035,6 +1016,8 @@ html.rider-boot #rider-splash{display:flex}
         <div class="xp-seg">
           <button type="button" id="pdf-fmt-pdf" class="xp-seg-b on" onclick="setPdfFormat('pdf')">PDF</button>
           <button type="button" id="pdf-fmt-csv" class="xp-seg-b"    onclick="setPdfFormat('csv')">CSV</button>
+          <button type="button" id="pdf-fmt-png" class="xp-seg-b"    onclick="setPdfFormat('png')">Image PNG</button>
+          <button type="button" id="pdf-fmt-svg" class="xp-seg-b"    onclick="setPdfFormat('svg')">SVG</button>
         </div>
         <span class="xp-hint" id="pdf-fmt-hint">Document mis en page, prêt à envoyer</span>
       </div>
@@ -1106,6 +1089,10 @@ html.rider-boot #rider-splash{display:flex}
         <span class="xp-lbl">Autres documents</span>
         <button type="button" class="xp-link" onclick="closePDF();openRecapMatos()">Récap matériel<i class="ti ti-arrow-right"></i></button>
         <button type="button" class="xp-link" onclick="closePDF();openPrep()">Bon de préparation<i class="ti ti-arrow-right"></i></button>
+      </div>
+      <div class="xp-more" id="pdf-share-row" style="display:none">
+        <span class="xp-lbl">Partager</span>
+        <button type="button" class="xp-link" onclick="closePDF();_planExpShare()">Lien de partage en lecture seule<i class="ti ti-arrow-right"></i></button>
       </div>
     </div>
     <div class="modal-foot">
@@ -1604,7 +1591,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=3.79"></script>
+<script src="pf-app.js?v=3.80"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
   <div class="mob-plan-bar">
