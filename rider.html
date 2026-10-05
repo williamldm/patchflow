@@ -63,7 +63,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=3.56">
+<link rel="stylesheet" href="pf-app.css?v=3.57">
 </head>
 <body>
 
@@ -425,6 +425,7 @@ html.rider-boot #rider-splash{display:flex}
             <button type="button" id="sp-fit" title="Ajuster"><i class="ti ti-arrows-maximize"></i></button>
           </div>
           <button type="button" class="btn ghost sm" id="sp-conf"><i class="ti ti-settings"></i>Marque &amp; réseaux</button>
+          <button type="button" class="btn ghost sm" id="sp-import" onclick="LinusImport.pick()" title="Créer le synoptique à partir d'une session LINUS Control (Coda Audio)"><i class="ti ti-file-import"></i>Session LINUS</button>
           <div style="position:relative;display:inline-block">
             <button type="button" class="btn sm" id="sp-export"><i class="ti ti-file-export"></i>Exporter <i class="ti ti-chevron-down" style="font-size:10px;margin-left:2px"></i></button>
             <div class="sp-export-menu" id="sp-export-menu">
@@ -1606,7 +1607,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=3.74"></script>
+<script src="pf-app.js?v=3.78"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
   <div class="mob-plan-bar">

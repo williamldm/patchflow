@@ -2288,3 +2288,21 @@ textarea.pdf-inp{resize:vertical;min-height:54px;line-height:1.5}
 @media(max-width:640px){
   #panel-inputlist .iltable td .out-type-sel{min-width:78px;font-size:13px}
 }
+
+/* ── Import d'une session LINUS Control : aperçu avant création ── */
+.lin-sum{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.lin-sum b{font-size:15px;font-weight:650;color:var(--txt)}
+.lin-list{margin:12px 0 14px;max-height:300px;overflow-y:auto;border-radius:10px;box-shadow:inset 0 0 0 1px var(--bdr2)}
+.lin-amp{padding:10px 12px}
+.lin-amp+.lin-amp{border-top:1px solid var(--bdr)}
+.lin-amp-hd{display:flex;align-items:baseline;gap:10px;margin-bottom:4px;font-size:13px}
+.lin-amp-hd b{font-weight:650}
+.lin-amp-hd span{font:400 11.5px var(--m);color:var(--muted)}
+.lin-out{display:flex;align-items:baseline;gap:8px;min-height:24px;font-size:12.5px;color:var(--muted)}
+.lin-out b{font-weight:600;color:var(--txt)}
+.lin-out.off{opacity:.55}
+.lin-ch{width:34px;flex-shrink:0;font:500 11.5px var(--m);color:var(--ora)}
+.lin-in{margin-left:auto;font:500 11.5px var(--m);color:var(--txt2)}
+.lin-opt{display:flex;align-items:center;gap:10px;min-height:32px;font-size:13px;cursor:pointer}
+.lin-opt input{flex-shrink:0;accent-color:var(--ora)}
+

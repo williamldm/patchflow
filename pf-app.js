@@ -10107,11 +10107,411 @@ const SynPro = (() => {
   /* Taille d'un équipement de la bibliothèque (rider partagé : même tracé que l'export) */
   function specSize(type){ var sp2 = spec(type); return sp2 ? { w:sp2.w, h:sp2.h } : null; }
   function specIo(type){ var sp2 = spec(type); return (sp2 && sp2.io) ? sp2.io : null; }
-  return { init, show, render, resetLoaded, isLoaded, getData, setData, cancelCable, _saveNow, buildExportSvg: _buildExportSvg, specSize, specIo, setSceneId, setSceneData, loadSceneDirect, getIconByType, uploadNodeIcon, clearNodeIcon, adjImgPx,
+  /* Pose un lot d'équipements et de liaisons préparé ailleurs (import LINUS Control).
+     plan : { nodes:[{ key, type, x, y, label, sub, io, showIo }], cables:[{ from, to, … }], networks }
+     mode 'replace' vide d'abord le plan ; 'append' ajoute le lot sous l'existant. */
+  function importDiagram(plan, mode){
+    if (!loaded || !state || !plan || !Array.isArray(plan.nodes) || !plan.nodes.length) return false;
+    if (mode === 'replace') { state.nodes = []; state.cables = []; }
+    var minX = Infinity, minY = Infinity;
+    plan.nodes.forEach(function(n){ minX = Math.min(minX, n.x); minY = Math.min(minY, n.y); });
+    var dx = 60 - minX, dy = 60 - minY;
+    if (state.nodes.length) {
+      var bx = Infinity, by = -Infinity;
+      state.nodes.forEach(function(n){ var s = _nodeSize(n); bx = Math.min(bx, n.x); by = Math.max(by, n.y + s.h); });
+      dx = bx - minX; dy = by + 140 - minY;
+    }
+    /* Types de liaison : on réutilise ceux du plan (même identifiant, sinon même nom), on n'ajoute que ceux qui manquent */
+    var netMap = {}, normNet = function(v){ return String(v || '').toLowerCase().replace(/[^a-z0-9]/g, ''); };
+    (plan.networks || []).forEach(function(nw){
+      if (!plan.cables.some(function(c){ return c.network === nw.id; })) return;
+      var ex = netById(nw.id) || state.networks.filter(function(x){ return normNet(x.name) === normNet(nw.name) || normNet(x.name) === normNet(nw.id); })[0];
+      if (!ex) { ex = { id:nw.id, name:nw.name, color:nw.color }; state.networks.push(ex); }
+      netMap[nw.id] = ex.id;
+    });
+    var ids = {}, taken = {}, vias = [];
+    state.nodes.forEach(function(n){ taken[n.id] = 1; });
+    state.cables.forEach(function(c){ taken[c.id] = 1; });
+    var fresh = function(){ var id; do { id = uid(); } while (taken[id]); taken[id] = 1; return id; };
+    plan.nodes.forEach(function(p){
+      var sp = spec(p.type) || { label:p.type };
+      var n = { id:(ids[p.key] = fresh()), type:p.type, x:Math.round(p.x + dx), y:Math.round(p.y + dy),
+                label:String(p.label || sp.label || '').slice(0, 60), sub:String(p.sub || '').slice(0, 80), iconSvg:sp.icon || '' };
+      if (Array.isArray(p.io)) n.io = SynIO.clean(p.io);
+      if (p.showIo) n.showIo = true;
+      state.nodes.push(n);
+    });
+    plan.cables.forEach(function(p){
+      var net = netMap[p.network] || p.network;
+      if (!ids[p.from] || !ids[p.to] || !netById(net)) return;
+      var c = { id:fresh(), from:ids[p.from], to:ids[p.to], network:net, label:String(p.label || ''), dir:p.dir || 'none', route:p.route || 'ortho' };
+      if (p.fromPort) c.fromPort = p.fromPort; else if (p.fromSide) c.fromSide = p.fromSide;
+      if (p.toPort) c.toPort = p.toPort; else if (p.toSide) c.toSide = p.toSide;
+      if (p.waypoints && p.waypoints.length) c.waypoints = p.waypoints.map(function(w){ return { x:Math.round(w.x + dx), y:Math.round(w.y + dy) }; });
+      state.cables.push(c);
+      if (p.via) vias.push({ c:c, via:p.via });
+    });
+    selected = { kind:null, id:null }; selWp = null;
+    render();
+    if (plan.level && ids[plan.level.node] && ids[plan.level.to]) {
+      var lf = _portDom(ids[plan.level.node], plan.level.port, null), lt = _portDom(ids[plan.level.to], plan.level.toPort, null), ln = nodeById(ids[plan.level.node]);
+      if (lf && lt && ln && Math.abs(lt.y - lf.y) > 0.5) { ln.y = Math.round((ln.y + lt.y - lf.y) * 10) / 10; render(); }
+    }
+    /* Un angle par liaison, posé à la hauteur exacte de l'arrivée (mesurée à l'écran) : pas de petit décroché */
+    vias.forEach(function(v){
+      var c = v.c, x = Math.round(v.via.x + dx), y = null, from = c.fromPort ? _portDom(c.from, c.fromPort, { x:x, y:0 }) : null;
+      if (v.via.y === 'toPort') { var tp = _portDom(c.to, c.toPort, { x:x, y:0 }); if (tp) y = tp.y; }
+      else { var b = _boxDom(c.to); if (b && b.h) y = b.y + b.h / 2; }
+      if (y == null || (from && Math.abs(from.y - y) < 3)) return;
+      c.waypoints = [{ x:x, y:Math.round(y * 10) / 10 }];
+    });
+    scheduleSave();
+    render();
+    setTimeout(fitView, 80);
+    return true;
+  }
+  return { init, show, render, resetLoaded, isLoaded, getData, setData, cancelCable, _saveNow, buildExportSvg: _buildExportSvg, specSize, specIo, importDiagram, setSceneId, setSceneData, loadSceneDirect, getIconByType, uploadNodeIcon, clearNodeIcon, adjImgPx,
            loadBg, setBgOpacity, setBgRotation, rotateBg, scaleBg, toggleBgEdit, clearBg };
 })();
 
 window.SynPro = SynPro;
+
+// ══════════════════════════════════════
+// LINUS CONTROL (Coda Audio) → SYNOPTIQUE
+// Lit une session .linuscontrol et en tire un synoptique : les amplis, une
+// enceinte par sortie utilisée (les voies d'une enceinte 2 voies partagent le
+// même câble), les liaisons HP et, en option, la régie avec les entrées A–D.
+// Le fichier est lu dans le navigateur : rien n'est envoyé ni modifié.
+// Format : JSON compacté (compress-json) puis compressé en LZ-UTF8.
+// ══════════════════════════════════════
+const LinusImport = (function(){
+  /* LZ-UTF8 : octets littéraux, et renvois de 2 ou 3 octets vers ce qui précède.
+     Un renvoi se distingue d'un caractère UTF-8 par son 2e octet (bit de poids fort à 0). */
+  function unlz(inp){
+    var out = [], n = inp.length, i = 0;
+    while (i < n) {
+      var b = inp[i], k = b >>> 5;
+      if ((k !== 6 && k !== 7) || i + 1 >= n || (inp[i+1] >>> 7) === 1) { out.push(b); i++; continue; }
+      var len = b & 31, dist;
+      if (k === 6) { dist = inp[i+1]; i += 2; }
+      else { if (i + 2 >= n) throw new Error('lz'); dist = (inp[i+1] << 8) | inp[i+2]; i += 3; }
+      var p = out.length - dist;
+      if (p < 0) throw new Error('lz');
+      for (var o = 0; o < len; o++) out.push(out[p + o]);
+    }
+    return new TextDecoder('utf-8').decode(new Uint8Array(out));
+  }
+  /* compress-json : [valeurs, racine] ; chaque valeur renvoie aux autres par un indice en base 62 */
+  var B62 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+  function s2i(s){ var a = 0; for (var i = 0; i < s.length; i++) a = a * 62 + B62.indexOf(s.charAt(i)); return a; }
+  function s2is(s){
+    if (s.charAt(0) !== ':') return String(s2i(s));
+    s = s.slice(1);
+    if (typeof BigInt !== 'function') return String(s2i(s));
+    var a = BigInt(0), n62 = BigInt(62);
+    for (var i = 0; i < s.length; i++) a = a * n62 + BigInt(B62.indexOf(s.charAt(i)));
+    return a.toString();
+  }
+  function s2n(s){
+    if (s.charAt(0) === '-') return -s2n(s.slice(1));
+    var p = s.split('.');
+    if (!p[1]) return s2i(p[0]);
+    var str = s2is(p[0]) + '.' + s2is(p[1]).split('').reverse().join('');
+    if (p[2]) { var c = p[2], neg = c.charAt(0) === '-'; if (neg) c = c.slice(1); str += 'e' + (neg ? '-' : '') + s2is(c); }
+    return +str;
+  }
+  function unpack(values, root){
+    var memo = {};
+    function dec(key){
+      if (key === '' || key === '_' || key == null) return null;
+      var id = typeof key === 'number' ? key : s2i(key);
+      if (id in memo) return memo[id];
+      var v = values[id], r = v;
+      if (typeof v === 'string') {
+        if (v.charAt(1) === '|') {
+          var t = v.charAt(0), vs, i;
+          if (t === 'b') r = v.charAt(2) === 'T';
+          else if (t === 'n') r = s2n(v.slice(2));
+          else if (t === 'N') r = null;
+          else if (t === 's') r = v.slice(2);
+          else if (t === 'a') { r = []; if (v !== 'a|') { vs = v.split('|'); for (i = 1; i < vs.length; i++) r.push(dec(vs[i])); } }
+          else if (t === 'o') {
+            r = {};
+            if (v !== 'o|') {
+              vs = v.split('|');
+              var keys = dec(vs[1]);
+              if (!Array.isArray(keys)) keys = [keys];
+              for (i = 2; i < vs.length; i++) r[keys[i-2]] = dec(vs[i]);
+            }
+          }
+        }
+      }
+      memo[id] = r;
+      return r;
+    }
+    return dec(root);
+  }
+  /* Octets du fichier → état de la session */
+  function parse(bytes){
+    var d = JSON.parse(unlz(bytes));
+    var st = Array.isArray(d) ? unpack(d[0], d[1]) : d;
+    if (!st || typeof st !== 'object' || !Array.isArray(st.modules) || !Array.isArray(st.channels)) throw new Error('format');
+    return st;
+  }
+
+  function val(x){ return (x && typeof x === 'object' && 'value' in x) ? x.value : x; }
+  function trim(s){ return String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); }
+  function chRange(ids){ var a = ids.map(function(i){ return i + 1; }); return a.length > 1 ? a[0] + '–' + a[a.length - 1] : String(a[0]); }
+  var KIND = { analog:{ txt:'Analog', conn:'XLR', net:'xlr' }, digital:{ txt:'AES', conn:'XLR AES', net:'aes' }, dante:{ txt:'Dante', conn:'etherCON', net:'dante' } };
+  var SUFFIX = /\s+(LF|HF|MF|PF|SF|FF|RF|BN|BP|Bn)\b.*$/;
+
+  function spkType(series, model, suffix, groups){
+    var g = groups.join(' ').toLowerCase();
+    if (/sub/i.test(series) || suffix === 'SF' || /sub\b/i.test(model)) return 'spk.sub';
+    if (/wedge|retour|monitor/.test(g) || /monitor/i.test(series)) return 'spk.wedge';
+    if (/delay|rappel/.test(g)) return 'spk.delay';
+    if (/side/.test(g)) return 'spk.side-fill';
+    if (/front|\bff\b|\blip\b|nez de/.test(g)) return 'spk.front-fill';
+    if (/out ?fill/.test(g)) return 'spk.out-fill';
+    if (/array|line/i.test(series) || /RAY/.test(model)) return 'spk.line-top';
+    return 'spk.front-fill';
+  }
+
+  /* État de session → équipements et liaisons à poser (positions comprises) */
+  function plan(st, opts){
+    opts = opts || {};
+    var withSource = opts.source !== false;
+    var size = function(type){ var s = (typeof SynPro !== 'undefined' && SynPro.specSize) ? SynPro.specSize(type) : null; return s || { w:130, h:100 }; };
+    var presets = {};
+    (st.speakerPresetsDef || []).concat(st.speakerPresets || []).forEach(function(p){ if (!p) return; var id = p.id != null ? p.id : p.nr; if (id != null) presets[id] = p; });
+    var spk = {}; (st.speakers || []).forEach(function(s){ if (s) spk[s.id] = s; });
+    var K = function(m, c){ return m + '/' + c; };
+    var spkOf = {}; (st.speakerAssignments || []).forEach(function(a){ spkOf[K(a.moduleId, a.channelId)] = a.speakerId; });
+    var gName = {}; (st.groups || []).forEach(function(g){ gName[g.id] = trim(g.name); });
+    var grpOf = {}; (st.groupAssignments || []).forEach(function(a){ var k = K(a.moduleId, a.channelId); if (gName[a.groupId]) (grpOf[k] = grpOf[k] || []).push(a.groupId); });
+    var routOf = {}; (st.routings || []).forEach(function(r){ if (r) routOf[r.moduleId] = r; });
+    var mods = st.modules.slice().sort(function(a, b){
+      var pa = a.position || {}, pb = b.position || {};
+      return ((pa.gridX || 0) - (pb.gridX || 0)) || ((pa.gridY || 0) - (pb.gridY || 0)) || (a.id - b.id);
+    });
+
+    /* 1. Amplis et lignes d'enceintes */
+    var amps = [], units = [];
+    mods.forEach(function(m, mi){
+      var r = routOf[m.id] || {}, kind = KIND[r.type] ? r.type : 'analog', table = r[kind] || {};
+      var chans = st.channels.filter(function(c){ return c.moduleId === m.id; }).sort(function(a, b){ return a.id - b.id; });
+      var lettersOf = function(cid){
+        var cr = (table.channelRoutes || []).filter(function(x){ return x.channelId === cid; })[0];
+        return cr ? (cr.routes || []).filter(function(x){ return x.active; }).map(function(x){ return 'ABCDEFGH'.charAt(x.in); }) : [];
+      };
+      var name = trim(m.name);
+      var amp = { key:'amp' + mi, id:m.id, model:trim(m.type) || 'LINUS', ip:trim(m.ip), kind:kind, units:[], outs:[], letters:[],
+                  label:(name && !/^Name #\d+$/i.test(name)) ? name : (trim(m.type) || 'Ampli') + ' #' + (mi + 1) };
+      for (var i = 0; i < chans.length; i++) {
+        var c = chans[i], sid = spkOf[K(m.id, c.id)], s = spk[sid], p = s ? presets[s.presetId] : null;
+        var hint = trim(c.speakerHint).replace(/^\d+\s+/, '');
+        if (!p && !hint) { amp.outs.push({ chs:[c.id], unit:null }); continue; }
+        var span = 1, ways = p ? (p.ways || 1) : 1;
+        while (span < ways && i + span < chans.length && sid != null && spkOf[K(m.id, chans[i+span].id)] === sid &&
+               trim(chans[i+span].speakerSuffix) !== trim(c.speakerSuffix)) span++;
+        var cs = chans.slice(i, i + span); i += span - 1;
+        var model = p ? trim(p.type) : (hint.replace(SUFFIX, '') || trim(c.speakerType) || 'Enceinte');
+        var desc = p ? trim(p.description).replace(/[\s>]+$/, '') : '';
+        if (p && /-SUB$/i.test(model) && desc) model = desc.replace(/\s*(Omni|Cardio|Hyper|Infra)\s*\d*.*$/i, '') || model;
+        var letters = [], gids = [], delay = 0;
+        cs.forEach(function(x){
+          lettersOf(x.id).forEach(function(l){ if (letters.indexOf(l) < 0) letters.push(l); });
+          (grpOf[K(m.id, x.id)] || []).forEach(function(g){ if (gids.indexOf(g) < 0) gids.push(g); });
+          delay = Math.max(delay, +val(x.delay) || 0);
+        });
+        letters.sort();
+        letters.forEach(function(l){ if (amp.letters.indexOf(l) < 0) amp.letters.push(l); });
+        var u = { amp:amp, chs:cs.map(function(x){ return x.id; }), model:model, desc:desc, series:p ? trim(p.series) : '', suffix:trim(c.speakerSuffix),
+                  letters:letters, gids:gids, delay:delay, ways:span };
+        amp.units.push(u); amp.outs.push({ chs:u.chs, unit:u }); units.push(u);
+      }
+      amp.letters.sort();
+      amps.push(amp);
+    });
+
+    /* 2. Nom de chaque ligne : les groupes qui la distinguent (ni « tout », ni le groupe de son modèle) */
+    var members = {};
+    units.forEach(function(u, ui){ u.gids.forEach(function(g){ (members[g] = members[g] || []).push(ui); }); });
+    units.forEach(function(u){
+      var same = units.filter(function(x){ return x.model === u.model; }).length;
+      var keep = u.gids.filter(function(g){
+        var n = members[g].length;
+        if (units.length > 1 && n === units.length) return false;
+        if (/^(all|tout|tous|toutes|master|global)$/i.test(gName[g]) || (units.length >= 4 && n >= units.length * 0.75)) return false;
+        if (n === same && members[g].every(function(ui){ return units[ui].model === u.model; })) return false;
+        return true;
+      }).sort(function(a, b){ return members[b].length - members[a].length; }).slice(0, 3).map(function(g){ return gName[g]; });
+      var desc = u.desc.toLowerCase().indexOf(u.model.toLowerCase()) === 0 ? trim(u.desc.slice(u.model.length)) : u.desc;
+      if (/^(crossover|fullrange|arrayed|single|standard)?$/i.test(desc)) desc = '';
+      var sub = keep.length ? keep.join(' · ') : desc;
+      if (u.delay > 0) sub += (sub ? ' · ' : '') + (Math.round(u.delay * 100) / 100) + ' ms';
+      u.sub = sub.slice(0, 60);
+      u.type = spkType(u.series, u.model, u.suffix, u.gids.map(function(g){ return gName[g]; }));
+    });
+
+    /* 3. Mise en place : la régie à gauche, les amplis en colonne(s), les enceintes à droite de leur ampli */
+    var ROW = SynIO.ROW, PAD = SynIO.PAD, AMP_W = SynIO.MINW, AMP_HEAD = 100, GAP_AS = 190, SPK_GAP = 48, BLOCK_GAP = 70, COL_GAP = 200, STEP = 14;
+    var nodes = [], cables = [];
+    amps.forEach(function(a){
+      a.ins = (a.kind === 'dante') ? [] : a.letters.map(function(l, i){ return { id:'in' + (i + 1), dir:'in', name:'IN ' + l + ' · ' + KIND[a.kind].txt, conn:KIND[a.kind].conn, letter:l }; });
+      a.io = a.ins.map(function(p){ return { id:p.id, dir:p.dir, name:p.name, conn:p.conn }; });
+      a.outs.forEach(function(o, i){
+        o.id = 'out' + (i + 1);
+        var nm = 'CH ' + chRange(o.chs) + (o.unit ? ' · ' + o.unit.model + (o.unit.letters.length ? ' ← ' + o.unit.letters.join('+') : '') : '');
+        a.io.push({ id:o.id, dir:'out', name:nm.slice(0, 48), conn:'NL4' });
+      });
+      a.io.push({ id:'net1', dir:'net', name:a.kind === 'dante' ? 'Dante / Ethernet' : 'Ethernet', conn:'RJ45' });
+      a.cols = Math.max(a.ins.length, a.outs.length);
+      a.h = AMP_HEAD + PAD * 2 + (a.cols + 1) * ROW;
+      a.units.forEach(function(u){ u.size = size(u.type); });
+      a.spkH = a.units.reduce(function(t, u){ return t + u.size.h; }, 0) + Math.max(0, a.units.length - 1) * SPK_GAP;
+      a.H = Math.max(a.h, a.spkH);
+    });
+    var ncols = amps.length <= 4 ? 1 : (amps.length <= 10 ? 2 : 3);
+    var total = amps.reduce(function(t, a){ return t + a.H + BLOCK_GAP; }, 0), target = total / ncols;
+    var cols = [[]], acc = 0;
+    amps.forEach(function(a){
+      if (cols.length < ncols && cols[cols.length - 1].length && acc + a.H / 2 > target * cols.length) cols.push([]);
+      cols[cols.length - 1].push(a); acc += a.H + BLOCK_GAP;
+    });
+    var COL_W = AMP_W + GAP_AS + 130 + COL_GAP;
+    var feeds = [], hasDante = amps.some(function(a){ return a.kind === 'dante' && a.units.length; });
+    amps.forEach(function(a){ a.ins.forEach(function(p){ var k = a.kind + ':' + p.letter; if (feeds.indexOf(k) < 0) feeds.push(k); }); });
+    feeds.sort(function(a, b){ var x = a.split(':'), y = b.split(':'); return x[1].localeCompare(y[1]) || x[0].localeCompare(y[0]); });
+    var nT = feeds.length + (hasDante ? 1 : 0), S_HEAD = 115, sh = S_HEAD + PAD * 2 + nT * ROW;
+    var srcOn = withSource && nT > 0 && amps.length > 0;
+    /* Plusieurs colonnes : la régie passe au-dessus, ses départs longent le haut puis descendent devant chaque colonne */
+    var y0 = (srcOn && cols.length > 1) ? sh + 70 : 0;
+    cols.forEach(function(col, ci){
+      var y = y0, x = ci * COL_W;
+      col.forEach(function(a){
+        a.col = ci; a.x = x; a.y = y + (a.H - a.h) / 2;
+        var sy = y + (a.H - a.spkH) / 2;
+        a.units.forEach(function(u){ u.x = x + AMP_W + GAP_AS + (130 - u.size.w) / 2; u.y = sy; sy += u.size.h + SPK_GAP; });
+        y += a.H + BLOCK_GAP;
+      });
+      col.height = y - BLOCK_GAP - y0;
+    });
+    amps.forEach(function(a){
+      nodes.push({ key:a.key, type:a.model === 'LINUS14' ? 'amp.linus14' : (a.model === 'LINUS12C' ? 'amp.linus12' : 'amp.generic'),
+                   x:a.x, y:a.y, label:a.label, sub:[a.ip, KIND[a.kind].txt].filter(Boolean).join(' · '), io:a.io, showIo:true });
+      /* Liaisons HP : un tronc vertical par câble, décalé pour qu'ils ne se croisent pas */
+      var links = a.outs.map(function(o, i){ return o.unit ? { o:o, u:o.unit, py:a.y + AMP_HEAD + PAD + i * ROW + ROW / 2, cy:o.unit.y + o.unit.size.h / 2 + 10 } : null; }).filter(Boolean);
+      var ups = links.filter(function(l){ return l.cy < l.py - 8; }), downs = links.filter(function(l){ return l.cy > l.py + 8; });
+      ups.forEach(function(l, i){ l.tx = a.x + AMP_W + 34 + i * STEP; });
+      downs.forEach(function(l, i){ l.tx = a.x + AMP_W + 34 + (downs.length - 1 - i) * STEP; });
+      links.forEach(function(l, i){
+        var u = l.u; u.key = a.key + 's' + i;
+        nodes.push({ key:u.key, type:u.type, x:u.x, y:u.y, label:u.model, sub:u.sub, showIo:false });
+        var c = { from:a.key, to:u.key, fromPort:l.o.id, toSide:'w', network:'speakon', dir:'forward', route:'ortho', label:u.ways > 1 ? u.ways + ' voies' : '' };
+        if (l.tx != null) c.via = { x:l.tx, y:'to' };
+        cables.push(c);
+      });
+    });
+
+    /* 4. Régie : une sortie par entrée utilisée (A, B…), reliée à tous les amplis qui l'écoutent.
+          Chaque départ file à l'horizontale jusque devant la colonne, puis descend jusqu'à l'entrée de l'ampli. */
+    if (srcOn) {
+      var sio = feeds.map(function(k, i){ var f = k.split(':'); return { id:'out' + (i + 1), dir:'out', name:'Sortie ' + f[1] + (KIND[f[0]].txt !== 'Analog' ? ' · ' + KIND[f[0]].txt : ''), conn:KIND[f[0]].conn }; });
+      if (hasDante) sio.push({ id:'net1', dir:'net', name:'Dante', conn:'etherCON' });
+      var sx = -(AMP_W + 110 + nT * STEP + 60), sy = cols.length > 1 ? 0 : Math.max(0, (cols[0].height - sh) / 2);
+      nodes.push({ key:'src', type:'console.generic', x:sx, y:sy, label:'Régie', sub:'Sorties vers les amplis', io:sio, showIo:true });
+      var gutter = function(a, k){ return a.col * COL_W - (46 + (nT - 1 - k) * STEP); };
+      amps.forEach(function(a){
+        a.ins.forEach(function(p){
+          var k = feeds.indexOf(a.kind + ':' + p.letter);
+          cables.push({ from:'src', to:a.key, fromPort:'out' + (k + 1), toPort:p.id, network:KIND[a.kind].net, dir:'forward', route:'ortho', label:'', via:{ x:gutter(a, k), y:'toPort' } });
+        });
+        if (a.kind === 'dante' && a.units.length)
+          cables.push({ from:'src', to:a.key, fromPort:'net1', toPort:'net1', network:'dante', dir:'none', route:'ortho', label:'', via:{ x:gutter(a, feeds.length), y:'toPort' } });
+      });
+    }
+    /* Un seul ampli : la régie se cale à sa hauteur, les départs arrivent tout droit */
+    var level = (srcOn && amps.length === 1 && amps[0].ins.length) ? { node:'src', port:'out1', to:amps[0].key, toPort:amps[0].ins[0].id } : null;
+    return { nodes:nodes, cables:cables, amps:amps, units:units, feeds:feeds, level:level,
+             networks:[{ id:'speakon', name:'Speakon NL4', color:'#dc2626' }, { id:'xlr', name:'XLR', color:'#94a3b8' }, { id:'aes', name:'AES/EBU', color:'#14b8a6' }, { id:'dante', name:'Dante', color:'#1d9bf0' }] };
+  }
+
+  /* ── Interface : choix du fichier, aperçu, création ── */
+  var cur = null;   // { name, st }
+  var esc = function(s){ return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+  function pick(){
+    var inp = document.getElementById('linus-file');
+    if (!inp) {
+      inp = document.createElement('input'); inp.type = 'file'; inp.id = 'linus-file'; inp.accept = '.linuscontrol'; inp.style.display = 'none';
+      inp.addEventListener('change', function(){ var f = inp.files && inp.files[0]; inp.value = ''; if (f) readFile(f); });
+      document.body.appendChild(inp);
+    }
+    inp.click();
+  }
+  function readFile(file){
+    var fr = new FileReader();
+    fr.onerror = function(){ toast('Impossible de lire ce fichier.'); };
+    fr.onload = function(){
+      var st;
+      try { st = parse(new Uint8Array(fr.result)); }
+      catch (e) { console.warn('[linus]', e); toast('Ce fichier n\'est pas une session LINUS Control lisible.'); return; }
+      if (!st.modules.length) { toast('Cette session ne contient aucun ampli.'); return; }
+      cur = { name:String(file.name || '').replace(/\.linuscontrol$/i, ''), st:st };
+      openModal();
+    };
+    fr.readAsArrayBuffer(file);
+  }
+  function openModal(){
+    if (!cur) return;
+    var p = plan(cur.st, { source:true });
+    var m = document.getElementById('linus-modal');
+    if (!m) {
+      m = document.createElement('div'); m.id = 'linus-modal'; m.className = 'modal-ov';
+      m.addEventListener('click', function(e){ if (e.target === m) closeModal(); });
+      document.body.appendChild(m);
+    }
+    var existing = 0;
+    try { existing = (SynPro.getData().nodes || []).length; } catch (e) {}
+    var rows = p.amps.map(function(a){
+      var outs = a.outs.map(function(o){
+        return '<div class="lin-out' + (o.unit ? '' : ' off') + '"><span class="lin-ch">' + esc(chRange(o.chs)) + '</span>' +
+          (o.unit ? '<b>' + esc(o.unit.model) + '</b>' + (o.unit.sub ? '<span>' + esc(o.unit.sub) + '</span>' : '') +
+                    (o.unit.letters.length ? '<span class="lin-in">' + esc(o.unit.letters.join('+')) + '</span>' : '')
+                  : '<span>Libre</span>') + '</div>';
+      }).join('');
+      return '<div class="lin-amp"><div class="lin-amp-hd"><b>' + esc(a.label) + '</b><span>' + esc([a.ip, KIND[a.kind].txt].filter(Boolean).join(' · ')) + '</span></div>' + outs + '</div>';
+    }).join('');
+    var nA = p.amps.length, nU = p.units.length;
+    m.innerHTML = '<div class="modal-box" style="width:560px">' +
+      '<div class="modal-head"><span class="modal-title">Session LINUS Control</span><button class="modal-close" onclick="LinusImport.close()" aria-label="Fermer"><i class="ti ti-x"></i></button></div>' +
+      '<div class="modal-body">' +
+        '<div class="lin-sum"><b>' + esc(cur.name) + '</b><span>' + nA + (nA > 1 ? ' amplis' : ' ampli') + ' · ' + nU + (nU > 1 ? ' lignes d\'enceintes' : ' ligne d\'enceintes') + '</span></div>' +
+        '<div class="lin-list">' + rows + '</div>' +
+        '<label class="lin-opt"><input type="checkbox" class="cb" id="linus-src" checked><span>Ajouter la régie et les liaisons d\'entrée' + (p.feeds.length ? ' (' + esc(p.feeds.map(function(k){ return k.split(':')[1]; }).filter(function(l, i, arr){ return arr.indexOf(l) === i; }).join(', ')) + ')' : '') + '</span></label>' +
+        (existing ? '<div class="pdf-lbl" style="margin-top:14px">Synoptique actuel (' + existing + (existing > 1 ? ' équipements' : ' équipement') + ')</div>' +
+          '<label class="lin-opt"><input type="radio" name="linus-mode" value="append" checked><span>Le garder et ajouter la session en dessous</span></label>' +
+          '<label class="lin-opt"><input type="radio" name="linus-mode" value="replace"><span>Le remplacer par la session</span></label>' : '') +
+        '<div class="tour-hint">Le fichier est lu sur cet appareil et n\'est pas modifié. Tout reste déplaçable et renommable ensuite.</div>' +
+      '</div>' +
+      '<div class="modal-foot"><button class="btn" type="button" onclick="LinusImport.close()">Annuler</button>' +
+      '<button class="btn pri" type="button" onclick="LinusImport.apply()"><i class="ti ti-topology-star"></i>Créer le synoptique</button></div></div>';
+    m.classList.add('show');
+  }
+  function closeModal(){ var m = document.getElementById('linus-modal'); if (m) m.classList.remove('show'); cur = null; }
+  function apply(){
+    if (!cur) return;
+    var src = document.getElementById('linus-src'), mode = document.querySelector('input[name="linus-mode"]:checked');
+    var p = plan(cur.st, { source: !src || src.checked });
+    var ok = SynPro.importDiagram(p, mode ? mode.value : 'replace');
+    if (!ok) { toast('Ouvrez d\'abord le synoptique.'); return; }
+    var n = p.amps.length, u = p.units.length;
+    closeModal();
+    toast('✓ Synoptique créé : ' + n + (n > 1 ? ' amplis' : ' ampli') + ', ' + u + (u > 1 ? ' lignes d\'enceintes' : ' ligne d\'enceintes'));
+  }
+  return { pick:pick, parse:parse, plan:plan, apply:apply, close:closeModal, readFile:readFile };
+})();
+window.LinusImport = LinusImport;
 
 // ══════════════════════════════════════
 // BAND PLAN
