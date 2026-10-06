@@ -3995,23 +3995,37 @@ function _sfName(r,len){
   return (L||S||('CH '+r.ch)).slice(0,len).trim();
 }
 /* Une ligne par voie : ce que le fichier de la console `id` va écrire */
+/* Groupes d'entrées proposés voie par voie, et leur libellé court */
+const _SF_GRPS={
+  x32:[['local','Local'],['a','AES50 A'],['b','AES50 B']],
+  wing:[['LCL','Local'],['A','AES50 A'],['B','AES50 B'],['C','AES50 C']],
+  dlive:[['MixRack','MixRack'],['MixRack DX 1/2','DX 1/2'],['MixRack DX 3/4','DX 3/4'],['Surface','Surface']],
+  avantis:[['SLink','SLink'],['Surface','Surface'],['IO 1','IO 1'],['IO 2','IO 2']]
+};
+function _sfMax(id,g){ return id==='x32' ? (g==='local'?32:48) : (_SF_SOCKETS[g+'@'+id]||_SF_SOCKETS[g]||0); }
+/* Choix propres à une voie, enregistrés avec elle : {col:'red', p:{wing:['A',5], dlive:['',0]}}
+   p[console] absent = réglage général ; ['',0] = pas d'entrée */
+function _sfOv(r){ return (r.custom_data && r.custom_data._sf) || {}; }
 function _sfRows(id){
-  var c=_SF[id], src=_sfOpt(id,'src'), pre=_sfOpt(id,'pre');
-  var max=src ? (_SF_SOCKETS[src+'@'+id]||_SF_SOCKETS[src]||0) : 0;
+  var c=_SF[id], pre=_sfOpt(id,'pre');
+  var def=id==='x32' ? pre : _sfOpt(id,'src');
   var seen={};
   return CHS.map(function(r,i){
     var ch=parseInt(r.ch,10); if(!(ch>0)) ch=i+1;
-    var hue=_SF_HUES[_SF_HUE[_instrGroup(r)]||'white'];
-    var o={ch:ch, name:_sfName(r,c.nameLen), orig:String(r.long_name||r.short_name||'').trim(), hue:hue, grp:_instrGroup(r),
-           gain:Number(r.gain)||0, ph:!!r.phantom, skip:'', socket:0, src:'', g:null, pw:undefined};
+    var ov=_sfOv(r), auto=_SF_HUE[_instrGroup(r)]||'white', hk=_SF_HUES[ov.col]?ov.col:auto;
+    var o={id:r.id, ch:ch, name:_sfName(r,c.nameLen), orig:String(r.long_name||r.short_name||'').trim(), hue:_SF_HUES[hk], hk:hk, hauto:!_SF_HUES[ov.col],
+           grp:_instrGroup(r), gain:Number(r.gain)||0, ph:!!r.phantom, skip:'', socket:0, sg:'', src:'', pauto:true, g:null, pw:undefined};
     if(ch>c.maxCh) o.skip='Au-delà des '+c.maxCh+' voies de la console';
     else if(seen[ch]) o.skip='Numéro de voie en double';
     seen[ch]=1;
     if(!o.skip){
-      if(id==='x32'){ if(pre){ o.src=pre==='local'?'Local':pre==='a'?'AES50 A':'AES50 B'; o.socket=ch; } }
-      else if(src){ o.src=src; o.socket=ch<=max?ch:0; }
-      /* Préampli : écrit seulement si une entrée physique est désignée. g = gain écrit, pw = +48 V écrit */
-      if((id==='wing' ? !!src : !!pre) && o.socket){
+      var p=ov.p && ov.p[id], g=def, n=ch;
+      if(p && (p[0]==='' || _SF_GRPS[id].some(function(x){return x[0]===p[0];}))){ g=p[0]; n=parseInt(p[1],10)||ch; o.pauto=false; }
+      if(g && n>=1 && n<=_sfMax(id,g)){ o.sg=g; o.socket=n; o.src=(_SF_GRPS[id].find(function(x){return x[0]===g;})||[g,g])[1]; }
+      else if(g){ o.want=g; }
+      /* Préampli : écrit seulement si une entrée physique est désignée. g = gain écrit, pw = +48 V écrit.
+         X32 et WING : dès qu'une entrée est choisie ; dLive et Avantis : selon le réglage « Gain et +48 V ». */
+      if(o.socket && ((id==='dlive'||id==='avantis') ? !!pre : true)){
         o.g = id==='x32' ? _sfHalf(o.gain,-12,60) : id==='wing' ? _sfHalf(o.gain,-2.5,45)
             : (o.gain>0 ? Math.round(Math.max(5,Math.min(60,o.gain))) : null);
         o.pw = o.ph;
@@ -4019,6 +4033,23 @@ function _sfRows(id){
     }
     return o;
   }).sort(function(a,b){return a.ch-b.ch;});
+}
+function _sfSaveOv(chId,fn){
+  var r=CHS.find(function(x){return x.id===chId;}); if(!r) return;
+  var ov=JSON.parse(JSON.stringify(_sfOv(r))); fn(ov);
+  if(ov.p && !Object.keys(ov.p).length) delete ov.p;
+  saveCustomCell(chId,'_sf',ov);
+  renderShowfiles();
+}
+function sfSetCol(chId,val){ _sfSaveOv(chId,function(ov){ if(val) ov.col=val; else delete ov.col; }); }
+function sfSetIn(chId,grp,num){
+  var id=SF_CUR;
+  _sfSaveOv(chId,function(ov){
+    ov.p=ov.p||{};
+    if(grp==='*') delete ov.p[id];
+    else if(grp==='-') ov.p[id]=['',0];
+    else ov.p[id]=[grp, Math.max(1,parseInt(num,10)||1)];
+  });
 }
 function _sfShowName(len){ return _sfClean((typeof CUR_SHOW!=='undefined'&&CUR_SHOW&&CUR_SHOW.name)||'PatchFlow').slice(0,len)||'PatchFlow'; }
 function _sfHalf(v,lo,hi){ v=Math.round(Math.max(lo,Math.min(hi,v))*2)/2; return v; }
@@ -4029,13 +4060,15 @@ function _sfHalf(v,lo,hi){ v=Math.round(Math.max(lo,Math.min(hi,v))*2)/2; return
    L'en-tête est complété par des espaces jusqu'à 126 caractères : X32-Edit et M32-Edit sautent un en-tête
    de longueur fixe, et sans ce remplissage les premières lignes du fichier sont perdues (vérifié dans M32-Edit). */
 function genX32(){
-  var pre=_sfOpt('x32','pre'), base=pre==='a'?32:pre==='b'?80:0;
+  var BASE={local:0,a:32,b:80};
   var rows=_sfRows('x32').filter(function(x){return !x.skip;}), mask=0;
   rows.forEach(function(x){ mask|=(1<<(x.ch-1)); });
   var p2=function(n){return String(n).padStart(2,'0');}, p3=function(n){return String(n).padStart(3,'0');};
+  var pre=rows.some(function(x){return x.pw!==undefined;});
   var o=('#4.0# "'+_sfShowName(16)+'" '+(pre?3:2)+' '+mask+' 0 0 1').padEnd(126,' ')+'\n';
-  if(pre) rows.forEach(function(x){
-    o+='/headamp/'+p3(base+x.ch-1)+' '+(x.g<0?'-':'+')+Math.abs(x.g).toFixed(1)+' '+(x.pw?'ON':'OFF')+'\n';
+  rows.forEach(function(x){
+    if(x.pw===undefined) return;
+    o+='/headamp/'+p3(BASE[x.sg]+x.socket-1)+' '+(x.g<0?'-':'+')+Math.abs(x.g).toFixed(1)+' '+(x.pw?'ON':'OFF')+'\n';
   });
   rows.forEach(function(x){
     var a='/ch/'+p2(x.ch)+'/config/';
@@ -4050,18 +4083,18 @@ function genX32(){
    et ceux écrits sur la voie restent invisibles. Avec un patch, la source reçoit aussi nom et couleur. */
 function genW(){
   if(SF_WBASE) return _sfWingMerge();
-  var grp=_sfOpt('wing','src'), ch={}, io={};
+  var ch={}, io={}, any=false;
   _sfRows('wing').forEach(function(x){
     if(x.skip) return;
     var c={clink:false, name:x.name, col:x.hue.wing};
-    if(grp && x.socket){
-      c['in']={conn:{grp:grp,'in':x.socket}};
-      io[x.socket]={g:x.g, vph:!!x.pw, name:x.name, col:x.hue.wing};
+    if(x.socket){
+      c['in']={conn:{grp:x.sg,'in':x.socket}}; any=true;
+      (io[x.sg]=io[x.sg]||{})[x.socket]={g:x.g, vph:!!x.pw, name:x.name, col:x.hue.wing};
     }
     ch[x.ch]=c;
   });
   var ae={ch:ch};
-  if(grp && Object.keys(io).length){ ae.io={'in':{}}; ae.io['in'][grp]=io; }
+  if(any) ae.io={'in':io};
   return JSON.stringify({type:'snapshot.11', creator:'PatchFlow', creator_name:_sfShowName(32), creator_model:'wing', ae_data:ae});
 }
 /* ── Allen & Heath dLive / Avantis : CSV d'import ──
@@ -4073,7 +4106,7 @@ function genAH(id){
   _sfRows(id).forEach(function(x){
     if(x.skip) return;
     var on=x.pw!==undefined;
-    L.push(row(['Input', x.ch, x.name, x.hue.ah, x.socket?x.src:'Unassigned', x.socket||'', '', x.g==null?'':x.g,
+    L.push(row(['Input', x.ch, x.name, x.hue.ah, x.socket?x.sg:'Unassigned', x.socket||'', '', x.g==null?'':x.g,
       on?'Off':'', on?(x.pw?'On':'Off'):'',
       'Unassigned','','','','','', 'Unassigned','','','','','', 'Unassigned']));
   });
@@ -4085,13 +4118,13 @@ function genAH(id){
    · sfWingToList : les noms du snapshot sont repris dans l'Input list. */
 var SF_WBASE=null;
 function _sfWingMerge(){
-  var d=JSON.parse(JSON.stringify(SF_WBASE.data)), ae=d.ae_data, grp=_sfOpt('wing','src');
+  var d=JSON.parse(JSON.stringify(SF_WBASE.data)), ae=d.ae_data;
   _sfRows('wing').forEach(function(x){
     var c=ae.ch && ae.ch[x.ch]; if(x.skip || !c) return;
     c.clink=false; c.name=x.name; c.col=x.hue.wing;
-    if(grp && x.socket){
-      c['in']=c['in']||{}; c['in'].conn=Object.assign(c['in'].conn||{},{grp:grp,'in':x.socket});
-      var s=ae.io && ae.io['in'] && ae.io['in'][grp] && ae.io['in'][grp][x.socket];
+    if(x.socket){
+      c['in']=c['in']||{}; c['in'].conn=Object.assign(c['in'].conn||{},{grp:x.sg,'in':x.socket});
+      var s=ae.io && ae.io['in'] && ae.io['in'][x.sg] && ae.io['in'][x.sg][x.socket];
       if(s){ s.g=x.g; s.vph=!!x.pw; s.name=x.name; s.col=x.hue.wing; }
     }
   });
@@ -4488,8 +4521,8 @@ function renderShowfiles(){
 
   /* ── Colonne de gauche : la console, ce que le fichier écrit, les réglages, la marche à suivre ── */
   var writes=c.writes.slice();
-  if(SF_CUR==='x32' && hasPre) writes.push('Gain et +48 V des préamplis ('+E(ok[0].src)+')');
-  if(SF_CUR==='wing' && _sfOpt('wing','src')) writes.push('Patch, gain et +48 V, nom et couleur de la source');
+  if(SF_CUR==='x32' && hasPre) writes.push('Gain et +48 V des préamplis choisis');
+  if(SF_CUR==='wing' && ok.some(function(x){return x.socket;})) writes.push('Patch, gain et +48 V, nom et couleur de la source');
   if((SF_CUR==='dlive'||SF_CUR==='avantis') && hasPre) writes.push('Gain et +48 V');
   var h='<aside class="sfx-side">'
     +'<div class="sfx-name">'+E(c.name)+'</div><div class="sfx-models">'+E(c.models)+'</div>'
@@ -4542,17 +4575,32 @@ function renderShowfiles(){
     h+='<pre class="sfx-code">'+E(txt)+'</pre>'
       +(SF_CUR==='wing'?'<div class="sfx-foot">Affiché indenté pour la lecture ; le fichier téléchargé tient sur une ligne, comme ceux de la console.</div>':'');
   } else {
-    var showSrc=ok.some(function(x){return x.src;});
+    var showSrc=true, GR=_SF_GRPS[SF_CUR];
+    var colSel=function(x){
+      return '<label class="sfx-col"><i style="background:'+x.hue.hex+'"></i><select onchange="sfSetCol(\''+x.id+'\',this.value)" title="Couleur de la voie">'
+        +'<option value=""'+(x.hauto?' selected':'')+'>'+(x.hauto?x.hue.fr+' (auto)':'Auto')+'</option>'
+        +Object.keys(_SF_HUES).map(function(k){ return '<option value="'+k+'"'+(!x.hauto&&k===x.hk?' selected':'')+'>'+_SF_HUES[k].fr+'</option>'; }).join('')+'</select></label>';
+    };
+    var inSel=function(x){
+      var cur=x.pauto?'*':(x.sg||x.want||'-');
+      var autoLbl='Auto'+(x.pauto?(x.socket?' · '+x.src:' · aucune'):'');
+      return '<span class="sfx-in'+(x.pauto?' auto':'')+'"><select onchange="sfSetIn(\''+x.id+'\',this.value,'+(x.socket||x.ch)+')" title="Entrée physique de la voie">'
+        +'<option value="*"'+(cur==='*'?' selected':'')+'>'+E(autoLbl)+'</option>'
+        +GR.map(function(g){ return '<option value="'+E(g[0])+'"'+(cur===g[0]?' selected':'')+'>'+E(g[1])+'</option>'; }).join('')
+        +'<option value="-"'+(cur==='-'?' selected':'')+'>'+(SF_CUR==='x32'?'Aucun préampli':'Aucune entrée')+'</option></select>'
+        +((x.socket||x.want)?'<input type="number" min="1" max="'+_sfMax(SF_CUR,x.sg||x.want)+'" value="'+(x.socket||'')+'"'+(x.want&&!x.socket?' class="bad" placeholder="hors plage"':'')
+          +' onchange="sfSetIn(\''+x.id+'\',\''+E(x.sg||x.want)+'\',this.value)" title="Numéro d\'entrée">':'')+'</span>';
+    };
     h+='<div class="sfx-tw"><table class="sfx-tbl"><thead><tr><th class="n">Voie</th><th>Nom envoyé</th><th>Couleur</th>'
-      +(showSrc?'<th>Entrée</th>':'')+(hasPre?'<th class="r">Gain</th><th class="c">+48 V</th>':'')+'</tr></thead><tbody>'
+      +(showSrc?'<th>'+(SF_CUR==='x32'?'Préampli':'Entrée')+'</th>':'')+(hasPre?'<th class="r">Gain</th><th class="c">+48 V</th>':'')+'</tr></thead><tbody>'
       +rows.map(function(x){
         if(x.skip) return '<tr class="skip"><td class="n">'+x.ch+'</td><td><span class="sfx-nm">'+E(x.orig||x.name)+'</span></td>'
           +'<td colspan="'+(1+(showSrc?1:0)+(hasPre?2:0))+'" class="why">'+E(x.skip)+'</td></tr>';
         var diff=x.orig && x.orig!==x.name;
         return '<tr><td class="n">'+x.ch+'</td>'
           +'<td><span class="sfx-nm">'+E(x.name)+'</span>'+(diff?'<span class="sfx-was" title="Nom dans PatchFlow">'+E(x.orig)+'</span>':'')+'</td>'
-          +'<td><span class="sfx-col"><i style="background:'+x.hue.hex+'"></i>'+x.hue.fr+'</span></td>'
-          +(showSrc?'<td class="src">'+(x.socket?E(x.src)+' '+x.socket:'<span class="none">Sans entrée</span>')+'</td>':'')
+          +'<td>'+colSel(x)+'</td>'
+          +(showSrc?'<td class="src">'+inSel(x)+'</td>':'')
           +(hasPre?'<td class="r">'+(x.g==null?'<span class="none">—</span>':(x.g>0?'+':'')+x.g+' dB')+'</td>'
                   +'<td class="c">'+(x.pw===undefined?'<span class="none">—</span>':x.pw?'<span class="p48">48 V</span>':'<span class="none">Off</span>')+'</td>':'')
           +'</tr>';

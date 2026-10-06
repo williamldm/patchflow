@@ -2853,6 +2853,15 @@ button.fi-th:hover{background:var(--surf2);color:var(--txt)}
 #panel-showfiles .sfx-col{display:inline-flex;align-items:center;gap:8px}
 #panel-showfiles .sfx-col i{width:10px;height:10px;border-radius:3px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.18)}
 #panel-showfiles .sfx-tbl .none{color:var(--muted)}
+#panel-showfiles .sfx-tbl select,#panel-showfiles .sfx-tbl input[type=number]{height:30px;border:0;border-radius:7px;background-color:transparent;color:var(--txt);font:500 13px var(--f);cursor:pointer}
+#panel-showfiles .sfx-tbl select{padding:0 22px 0 8px;max-width:150px}
+#panel-showfiles .sfx-tbl select:hover,#panel-showfiles .sfx-tbl input[type=number]:hover{background-color:var(--surf2)}
+#panel-showfiles .sfx-tbl select:focus,#panel-showfiles .sfx-tbl input[type=number]:focus{outline:0;background-color:var(--surf2);box-shadow:inset 0 0 0 1px var(--bdr3)}
+#panel-showfiles .sfx-col{gap:4px;cursor:pointer}
+#panel-showfiles .sfx-in{display:inline-flex;align-items:center;gap:2px}
+#panel-showfiles .sfx-in.auto select,#panel-showfiles .sfx-in.auto input{color:var(--txt2);font-weight:400}
+#panel-showfiles .sfx-in input[type=number]{width:54px;padding:0 4px 0 8px;font-variant-numeric:tabular-nums;cursor:text}
+#panel-showfiles .sfx-in input.bad{box-shadow:inset 0 0 0 1px var(--err);width:92px}
 #panel-showfiles .sfx-tbl .p48{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:5px;background:var(--ora-d);color:var(--ora);font:650 11px var(--f)}
 #panel-showfiles .sfx-tbl tr.skip td{color:var(--muted)}
 #panel-showfiles .sfx-tbl tr.skip .sfx-nm{color:var(--muted);text-decoration:line-through;font-weight:500}
