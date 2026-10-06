@@ -3940,11 +3940,11 @@ const _ICON_X32={kick:3,snare:4,tom:6,hat:9,oh:10,drums:11,bass:17,guitar:20,key
 
 const _SF={
   x32:{ tab:'X32 · M32', name:'Behringer X32 · Midas M32', models:'X32, Compact, Producer, Rack, Core · M32, M32R, M32C',
-        fmt:'Snippet .snp', req:'Firmware 4.x', fn:'x32.snp', type:'text/plain', maxCh:32, nameLen:12,
+        fmt:'Snippet .snp', req:'Firmware 4.x · testé dans M32-Edit', fn:'x32.snp', type:'text/plain', maxCh:32, nameLen:12,
         writes:['Noms de voies (12 caractères)','Couleurs','Icônes'],
         opts:[{key:'pre',label:'Gain et +48 V',def:'',choices:[['','Ne pas écrire'],['local','Entrées locales (XLR)'],['a','AES50 A (stage box)'],['b','AES50 B (stage box)']]}],
-        steps:['Copier le fichier sur une clé USB et la brancher sur la console.','Écran SCENES, page Snippets : Utility, Import, choisir le fichier.','Sélectionner le snippet importé et le charger (Go).'],
-        alt:'Sans la console : X32-Edit ou M32-Edit, liste des snippets, Import.',
+        steps:['Dans X32-Edit ou M32-Edit : Scenes, onglet Snippets, sélectionner une ligne libre, puis Import.','Sélectionner le snippet importé, Load, puis confirmer.','Sur la console : clé USB, écran SCENES, page Snippets, Utility, Import, puis charger le snippet.'],
+        alt:'',
         note:'Un snippet ne rappelle que les lignes qu\'il contient : le patch, les traitements et les mixes restent tels quels.' },
   wing:{ tab:'WING', name:'Behringer WING', models:'WING, WING Compact, WING Rack',
         fmt:'Snapshot partiel .snap', req:'Firmware 3.x · testé dans WING-Edit 3.3.2', fn:'wing.snap', type:'application/json', maxCh:40, nameLen:16,
@@ -4025,13 +4025,15 @@ function _sfHalf(v,lo,hi){ v=Math.round(Math.max(lo,Math.min(hi,v))*2)/2; return
 
 /* ── Behringer X32 / Midas M32 : snippet (.snp) ──
    En-tête : #4.0# "nom" <paramètres> <voies> <aux/bus> <main/dca> 1
-   paramètres = bit 0 préamplis, bit 1 config ; voies = masque 32 bits signé (bit 0 = voie 1). */
+   paramètres = bit 0 préamplis (HA Config), bit 1 config (Source, Scribble) ; voies = masque 32 bits signé (bit 0 = voie 1).
+   L'en-tête est complété par des espaces jusqu'à 126 caractères : X32-Edit et M32-Edit sautent un en-tête
+   de longueur fixe, et sans ce remplissage les premières lignes du fichier sont perdues (vérifié dans M32-Edit). */
 function genX32(){
   var pre=_sfOpt('x32','pre'), base=pre==='a'?32:pre==='b'?80:0;
   var rows=_sfRows('x32').filter(function(x){return !x.skip;}), mask=0;
   rows.forEach(function(x){ mask|=(1<<(x.ch-1)); });
   var p2=function(n){return String(n).padStart(2,'0');}, p3=function(n){return String(n).padStart(3,'0');};
-  var o='#4.0# "'+_sfShowName(16)+'" '+(pre?3:2)+' '+mask+' 0 0 1\n';
+  var o=('#4.0# "'+_sfShowName(16)+'" '+(pre?3:2)+' '+mask+' 0 0 1').padEnd(126,' ')+'\n';
   if(pre) rows.forEach(function(x){
     o+='/headamp/'+p3(base+x.ch-1)+' '+(x.g<0?'-':'+')+Math.abs(x.g).toFixed(1)+' '+(x.pw?'ON':'OFF')+'\n';
   });
