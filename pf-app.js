@@ -3975,9 +3975,9 @@ _SF.yam={ tab:'Yamaha CL · QL', name:'Yamaha CL · QL', models:'CL5, CL3, CL1 �
         writes:['Noms de voies (8 caractères)','Couleurs','Icônes'],
         opts:[{key:'model',label:'Console',def:'QL1',choices:[['QL1','QL1 (32 voies)'],['QL5','QL5 (64 voies)'],['CL1','CL1 (48 voies)'],['CL3','CL3 (64 voies)'],['CL5','CL5 (72 voies)']]},
               {key:'src',label:'Patch des entrées',def:'',choices:[['','Ne pas écrire'],['DANTE','Dante (stage box)'],['LOCAL','Entrées locales']]}],
-        steps:['Décompresser le fichier .zip : il contient un dossier avec InName.csv (et InPatch.csv si un patch est demandé).','Dans CL Editor ou QL Editor : File, CSV File Import, puis choisir ce dossier.','L\'éditeur signale « Document … not loaded » pour chaque fichier absent du dossier : valider, ces réglages-là ne sont pas modifiés.'],
+        steps:['Décompresser le fichier .zip : vous obtenez un dossier.','Dans CL Editor ou QL Editor : File, CSV File Import.','Sélectionner le dossier lui-même (les fichiers .csv sont grisés, c\'est normal), puis Ouvrir.'],
         alt:'Ensuite : synchroniser l\'éditeur vers la console, ou enregistrer le fichier console sur une clé USB.',
-        note:'Le gain et le +48 V ne font pas partie des CSV Yamaha : ils ne sont pas transmis. Seules les voies listées sont modifiées.' };
+        note:'Le gain et le +48 V ne font pas partie des CSV Yamaha : ils ne sont pas transmis. Seules les voies listées sont modifiées ; les autres fichiers du dossier sont vides et ne changent rien.' };
 /* Yamaha : icône de voie par famille d'instrument (noms exacts de CL/QL Editor) */
 const _ICON_YAM={kick:'Kick',snare:'Snare',tom:'Tom',hat:'Hi-Hat',oh:'DrumKit',drums:'DrumKit',bass:'E.Bass',guitar:'E.Guitar',keys:'Keyboard',leadvox:'Dynamic',vox:'Dynamic',horns:'Trumpet',track:'PC',fx:'Effector',talk:'Dynamic',other:'Dynamic'};
 const _YAM_CH={QL1:32,QL5:64,CL1:48,CL3:64,CL5:72}, _YAM_LOCAL={QL1:16,QL5:32,CL1:8,CL3:8,CL5:8};
@@ -4216,8 +4216,13 @@ function _yamFiles(){
   var f={'InName.csv':head('InName','IN,NAME,COLOR,ICON,')+rows.map(function(x){
     return '_'+String(x.ch).padStart(2,'0')+','+x.name+','+x.hue.yam+','+(_ICON_YAM[x.grp]||'Dynamic')+',\r\n'; }).join('')};
   var pat=rows.filter(function(x){return x.socket || (!x.pauto && !x.want);});
-  if(pat.length) f['InPatch.csv']=head('InPatch','IN PATCH,SOURCE,COMMENT')+pat.map(function(x){
+  f['InPatch.csv']=head('InPatch','IN PATCH,SOURCE,COMMENT')+pat.map(function(x){
     return 'CH '+x.ch+','+(x.socket ? (x.sg==='DANTE'?'DANTE ':loc+' ')+x.socket : 'NONE')+',\r\n'; }).join('');
+  /* Les autres fichiers attendus par l'éditeur sont fournis vides (en-tête seul) : sans eux il affiche une alerte
+     « Document … not loaded » par fichier absent. Vides, ils ne modifient rien (vérifié dans CL Editor). */
+  var E={DCAName:'DCA,NAME,COLOR,ICON,',MixName:'MIX,NAME,COLOR,ICON,',MtxName:'MATRIX,NAME,COLOR,ICON,',StMonoName:'STEREO/MONO,NAME,COLOR,ICON,',
+         StName:'ST,NAME,COLOR,ICON,',OutPatch:'OUT PATCH,SOURCE,COMMENT',PortRackPatch:'PORT RACK PATCH,SOURCE,COMMENT'};
+  Object.keys(E).forEach(function(k){ f[k+'.csv']=head(k,E[k]); });
   return f;
 }
 /* Archive .zip sans compression (les CSV font quelques Ko) */
@@ -4617,7 +4622,7 @@ function renderShowfiles(){
     +'<span class="sfx-view-t">'+(SF_VIEW==='file'?E(fn):'Ce que la console recevra')+'</span></div>';
   if(SF_VIEW==='file' && pro){
     var txt;
-    if(SF_CUR==='yam'){ var yf=_yamFiles(); txt=Object.keys(yf).map(function(n){ return '── '+n+' ──\n'+yf[n].replace(/\r/g,''); }).join('\n'); }
+    if(SF_CUR==='yam'){ var yf=_yamFiles(); txt=['InName.csv','InPatch.csv'].map(function(n){ return '── '+n+' ──\n'+yf[n].replace(/\r/g,''); }).join('\n'); }
     else txt=_sfGen(SF_CUR);
     if(SF_CUR==='wing' && !SF_WBASE){ try{ txt=JSON.stringify(JSON.parse(txt),null,2); }catch(e){} }
     if(txt.length>60000) txt=txt.slice(0,60000)+'\n… (mémoire complète, '+Math.round(txt.length/1024)+' Ko)';
