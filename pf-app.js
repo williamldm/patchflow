@@ -4049,6 +4049,7 @@ function genX32(){
    clink:false est indispensable : par défaut la voie affiche le nom et la couleur de sa SOURCE,
    et ceux écrits sur la voie restent invisibles. Avec un patch, la source reçoit aussi nom et couleur. */
 function genW(){
+  if(SF_WBASE) return _sfWingMerge();
   var grp=_sfOpt('wing','src'), ch={}, io={};
   _sfRows('wing').forEach(function(x){
     if(x.skip) return;
@@ -4077,6 +4078,82 @@ function genAH(id){
       'Unassigned','','','','','', 'Unassigned','','','','','', 'Unassigned']));
   });
   return L.join('\r\n')+'\r\n';
+}
+/* ── WING : mémoire existante ──
+   L'utilisateur fournit un snapshot de sa console ; il reste dans le navigateur (rien n'est envoyé).
+   · _sfWingMerge : le snapshot est recopié tel quel, seuls nom, couleur (et patch, gain, +48 V si demandés) changent.
+   · sfWingToList : les noms du snapshot sont repris dans l'Input list. */
+var SF_WBASE=null;
+function _sfWingMerge(){
+  var d=JSON.parse(JSON.stringify(SF_WBASE.data)), ae=d.ae_data, grp=_sfOpt('wing','src');
+  _sfRows('wing').forEach(function(x){
+    var c=ae.ch && ae.ch[x.ch]; if(x.skip || !c) return;
+    c.clink=false; c.name=x.name; c.col=x.hue.wing;
+    if(grp && x.socket){
+      c['in']=c['in']||{}; c['in'].conn=Object.assign(c['in'].conn||{},{grp:grp,'in':x.socket});
+      var s=ae.io && ae.io['in'] && ae.io['in'][grp] && ae.io['in'][grp][x.socket];
+      if(s){ s.g=x.g; s.vph=!!x.pw; s.name=x.name; s.col=x.hue.wing; }
+    }
+  });
+  return JSON.stringify(d);
+}
+/* Nom affiché par la console pour une voie : le sien, ou celui de sa source quand la voie y est liée */
+function _sfWingChan(ae,n){
+  var c=ae.ch[n], conn=(c['in']&&c['in'].conn)||{}, s=null;
+  try{ s=ae.io['in'][conn.grp][conn['in']]; }catch(e){}
+  var name=String((c.clink&&s&&s.name) || c.name || (s&&s.name) || '').trim();
+  var pre=s && /^(LCL|A|B|C)$/.test(conn.grp);
+  return {name:name, grp:conn.grp, sock:conn['in'], g:pre?Math.round(Number(s.g)||0):null, vph:pre?!!s.vph:null};
+}
+function sfWingPick(){ var i=document.getElementById('sf-wbase-file'); if(i){ i.value=''; i.click(); } }
+function sfWingFile(inp){
+  var f=inp.files && inp.files[0]; if(!f) return;
+  var rd=new FileReader();
+  rd.onload=function(){
+    try{
+      var d=JSON.parse(rd.result);
+      if(!/^snapshot\./.test(d.type||'') || !d.ae_data || !d.ae_data.ch || !d.ae_data.ch['1']) throw 0;
+      var named=0; Object.keys(d.ae_data.ch).forEach(function(n){ if(_sfWingChan(d.ae_data,n).name) named++; });
+      SF_WBASE={file:f.name, data:d, named:named, total:Object.keys(d.ae_data.ch).length};
+      toast('Mémoire « '+f.name+' » chargée');
+    }catch(e){ toast('Ce fichier n\'est pas un snapshot WING complet (.snap)'); }
+    renderShowfiles();
+  };
+  rd.readAsText(f);
+}
+function sfWingClear(){ SF_WBASE=null; renderShowfiles(); }
+async function sfWingToList(){
+  if(!SF_WBASE || !CUR_SHOW) return;
+  var ae=SF_WBASE.data.ae_data, last=0, n;
+  for(n=1;n<=40;n++){ if(ae.ch[n] && _sfWingChan(ae,n).name) last=n; }
+  if(!last){ toast('Aucune voie nommée dans cette mémoire'); return; }
+  var byCh={}; CHS.forEach(function(r){ byCh[parseInt(r.ch,10)]=r; });
+  var upd=0, add=0;
+  for(n=1;n<=last;n++){ if(byCh[n]){ if(_sfWingChan(ae,n).name) upd++; } else add++; }
+  if(CHS.length+add>planLimit('max_channels')){ showUpgradeModal('max_channels'); return; }
+  if(!confirm('Reprendre les noms de « '+SF_WBASE.file+' » dans l\'Input list ?\n\n'+upd+' voie'+(upd>1?'s':'')+' mise'+(upd>1?'s':'')+' à jour, '+add+' créée'+(add>1?'s':'')+'.')) return;
+  var LBL={LCL:'Local',A:'AES50 A',B:'AES50 B',C:'AES50 C'};
+  try{
+    for(n=1;n<=last;n++){
+      var w=_sfWingChan(ae,n), r=byCh[n], src=(w.grp&&w.grp!=='OFF') ? (LBL[w.grp]||w.grp)+' '+w.sock : '';
+      if(r){
+        if(!w.name) continue;
+        var p={long_name:w.name, updated_by:ME.id};
+        if(!String(r.short_name||'').trim()) p.short_name=w.name.toUpperCase().slice(0,4).trim();
+        if(!String(r.source||'').trim() && src) p.source=src;
+        if(w.g!==null){ p.gain=w.g; p.phantom=w.vph; }
+        var u=await sb.from('channels').update(p).eq('id',r.id); if(u.error) throw u.error;
+      } else {
+        var rec={show_id:CUR_SHOW.id, ch:n, short_name:w.name.toUpperCase().slice(0,4).trim(), long_name:w.name, source:w.name?src:'', mic:'',
+                 gain:w.g||0, phantom:!!w.vph, iem_group:'', foh:true, mon:false, bc:false, note:''};
+        if(_patchColReady) rec.patch_id=CUR_PATCH_ID;
+        var ins=await sb.from('channels').insert(rec); if(ins.error) throw ins.error;
+      }
+    }
+    await loadChs();
+    toast('✓ Noms de la mémoire WING repris dans l\'Input list');
+  }catch(e){ console.error(e); toast('Erreur : '+(e.message||e)); }
+  renderShowfiles();
 }
 function genD(){ return genAH('dlive'); }
 function genAvantis(){ return genAH('avantis'); }
@@ -4416,7 +4493,7 @@ function renderShowfiles(){
   if((SF_CUR==='dlive'||SF_CUR==='avantis') && hasPre) writes.push('Gain et +48 V');
   var h='<aside class="sfx-side">'
     +'<div class="sfx-name">'+E(c.name)+'</div><div class="sfx-models">'+E(c.models)+'</div>'
-    +'<div class="sfx-meta"><span><i class="ti ti-file-code"></i>'+E(c.fmt)+'</span><span><i class="ti ti-cpu"></i>'+E(c.req)+'</span></div>'
+    +'<div class="sfx-meta"><span><i class="ti ti-file-code"></i>'+E((SF_CUR==='wing'&&SF_WBASE)?'Mémoire complète .snap':c.fmt)+'</span><span><i class="ti ti-cpu"></i>'+E(c.req)+'</span></div>'
     +'<div class="sfx-sec"><div class="sfx-lbl">Le fichier écrit</div><ul class="sfx-writes">'
     +writes.map(function(w){return '<li><i class="ti ti-check"></i>'+w+'</li>';}).join('')+'</ul></div>';
   if(c.opts && c.opts.length){
@@ -4427,8 +4504,21 @@ function renderShowfiles(){
         +'</select></label>';
     }).join('')+'</div>';
   }
+  if(SF_CUR==='wing'){
+    h+='<div class="sfx-sec"><div class="sfx-lbl">Mémoire existante</div><input type="file" id="sf-wbase-file" accept=".snap,application/json" hidden onchange="sfWingFile(this)">';
+    if(SF_WBASE){
+      h+='<div class="sfx-base"><i class="ti ti-file-check"></i><div><b>'+E(SF_WBASE.file)+'</b><span>'+SF_WBASE.named+' voie'+(SF_WBASE.named>1?'s':'')+' nommée'+(SF_WBASE.named>1?'s':'')+' sur '+SF_WBASE.total+'</span></div>'
+        +'<button type="button" title="Retirer la mémoire" onclick="sfWingClear()"><i class="ti ti-x"></i></button></div>'
+        +'<div class="sfx-base-h">Le fichier téléchargé est cette mémoire complète, avec les noms et couleurs de PatchFlow : traitements, mixes et routage restent les vôtres.</div>'
+        +'<button type="button" class="btn sfx-ghost" onclick="sfWingToList()"><i class="ti ti-arrow-back-up"></i>Reprendre ses noms dans l\'Input list</button>';
+    } else {
+      h+='<button type="button" class="btn sfx-ghost" onclick="sfWingPick()"><i class="ti ti-upload"></i>Charger une mémoire (.snap)</button>'
+        +'<div class="sfx-base-h">Pour renommer une mémoire que vous avez déjà, ou reprendre ses noms dans l\'Input list. Le fichier reste sur votre ordinateur.</div>';
+    }
+    h+='</div>';
+  }
   h+='<button type="button" class="btn pri sfx-dl" onclick="dlFile(\''+SF_CUR+'\')"><i class="ti ti-download"></i><span>Télécharger</span><em>'+E(fn)+'</em></button>'
-    +'<div class="sfx-sum">'+ok.length+' voie'+(ok.length>1?'s':'')+' dans le fichier'
+    +'<div class="sfx-sum">'+ok.length+' voie'+(ok.length>1?'s':'')+((SF_CUR==='wing'&&SF_WBASE)?' renommée'+(ok.length>1?'s':'')+' dans la mémoire':' dans le fichier')
     +(hasPre?' · '+n48+' × +48 V':'')
     +(skipped?' · <b>'+skipped+' non exportée'+(skipped>1?'s':'')+'</b>':'')
     +(unpatched?' · <b>'+unpatched+' sans entrée</b>':'')+'</div>'
@@ -4445,7 +4535,8 @@ function renderShowfiles(){
     +'<span class="sfx-view-t">'+(SF_VIEW==='file'?E(fn):'Ce que la console recevra')+'</span></div>';
   if(SF_VIEW==='file' && pro){
     var txt=_sfGen(SF_CUR);
-    if(SF_CUR==='wing'){ try{ txt=JSON.stringify(JSON.parse(txt),null,2); }catch(e){} }
+    if(SF_CUR==='wing' && !SF_WBASE){ try{ txt=JSON.stringify(JSON.parse(txt),null,2); }catch(e){} }
+    if(txt.length>60000) txt=txt.slice(0,60000)+'\n… (mémoire complète, '+Math.round(txt.length/1024)+' Ko)';
     var ls=txt.split('\n');
     if(ls.length>400) txt=ls.slice(0,400).join('\n')+'\n… '+(ls.length-400)+' lignes de plus';
     h+='<pre class="sfx-code">'+E(txt)+'</pre>'

@@ -2824,6 +2824,17 @@ button.fi-th:hover{background:var(--surf2);color:var(--txt)}
 #panel-showfiles .sfx-note{display:flex;gap:9px;margin-top:16px;padding-top:14px;border-top:1px solid var(--bdr);font-size:12.5px;color:var(--muted);line-height:1.5}
 #panel-showfiles .sfx-note i{font-size:16px;color:var(--muted2,var(--muted));flex-shrink:0;margin-top:1px}
 
+#panel-showfiles .sfx-ghost{width:100%;height:36px;min-height:36px;justify-content:flex-start;gap:8px;padding:0 12px;border-radius:8px;background:var(--surf);border-color:transparent;box-shadow:inset 0 0 0 1px var(--bdr2);color:var(--txt);font-size:13px;font-weight:550}
+#panel-showfiles .sfx-ghost:hover{background:var(--surf2)}
+#panel-showfiles .sfx-ghost i{color:var(--muted);font-size:16px}
+#panel-showfiles .sfx-base{display:flex;align-items:center;gap:10px;padding:9px 8px 9px 12px;border-radius:9px;background:var(--surf);box-shadow:inset 0 0 0 1px var(--bdr2)}
+#panel-showfiles .sfx-base>i{font-size:18px;color:var(--grn);flex-shrink:0}
+#panel-showfiles .sfx-base>div{flex:1;min-width:0;display:grid}
+#panel-showfiles .sfx-base b{font-size:13px;font-weight:600;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#panel-showfiles .sfx-base span{font-size:12px;color:var(--muted)}
+#panel-showfiles .sfx-base>button{width:28px;height:28px;border:0;border-radius:7px;background:transparent;color:var(--muted);cursor:pointer;flex-shrink:0}
+#panel-showfiles .sfx-base>button:hover{background:var(--surf3);color:var(--txt)}
+#panel-showfiles .sfx-base-h{margin:8px 0;font-size:12.5px;color:var(--muted);line-height:1.45}
 #panel-showfiles .sfx-view{min-width:0}
 #panel-showfiles .sfx-view-h{display:flex;align-items:center;gap:12px;margin-bottom:10px}
 #panel-showfiles .sfx-view-t{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
