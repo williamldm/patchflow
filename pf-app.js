@@ -3982,7 +3982,14 @@ _SF.yam={ tab:'Yamaha CL · QL', name:'Yamaha CL · QL', models:'CL5, CL3, CL1 �
 const _ICON_YAM={kick:'Kick',snare:'Snare',tom:'Tom',hat:'Hi-Hat',oh:'DrumKit',drums:'DrumKit',bass:'E.Bass',guitar:'E.Guitar',keys:'Keyboard',leadvox:'Dynamic',vox:'Dynamic',horns:'Trumpet',track:'PC',fx:'Effector',talk:'Dynamic',other:'Dynamic'};
 const _YAM_CH={QL1:32,QL5:64,CL1:48,CL3:64,CL5:72}, _YAM_LOCAL={QL1:16,QL5:32,CL1:8,CL3:8,CL5:8};
 function _sfMaxCh(id){ return id==='yam' ? _YAM_CH[_sfOpt('yam','model')] : _SF[id].maxCh; }
-const _SF_KEYS=['x32','wing','dlive','avantis','yam'];
+_SF.sq={ tab:'SQ', name:'Allen & Heath SQ', models:'SQ-5, SQ-6, SQ-7',
+        fmt:'Scène SCENEnnn.DAT', req:'À partir d\'une scène de votre console · format relevé sur SQ-5', fn:'SCENE.DAT', type:'application/octet-stream', maxCh:48, nameLen:8,
+        writes:['Noms de voies (8 caractères)','Couleurs'],
+        opts:[{key:'src',label:'Prise, gain et +48 V',def:'',choices:[['','Ne pas écrire'],['LOCAL','Prises locales']]}],
+        steps:['Sur la SQ : enregistrer une scène, puis la copier sur une clé USB (dossier AHSQ/SCENES).','Charger ici ce fichier SCENEnnn.DAT, télécharger le fichier modifié et le remettre sur la clé à la place de l\'original, sous le même nom.','Sur la SQ : recopier la scène depuis la clé, puis la rappeler.'],
+        alt:'',
+        note:'La SQ n\'a pas d\'import de noms : PatchFlow modifie directement votre scène. Seuls nom et couleur (et prise, gain, +48 V si demandés) changent, la somme de contrôle est recalculée. Format relevé sur une SQ-5, pas encore rechargé sur console : premier essai à faire hors prestation, en gardant une copie de la scène d\'origine.' };
+const _SF_KEYS=['x32','wing','dlive','avantis','yam','sq'];
 /* Nombre d'entrées par source (au-delà : pas de patch) */
 const _SF_SOCKETS={'MixRack':64,'MixRack DX 1/2':32,'MixRack DX 3/4':32,'Surface@dlive':8,'Surface@avantis':12,'SLink':128,'IO 1':128,'IO 2':128,'LCL':24,'A':48,'B':48,'C':48};
 var SF_CUR='x32', SF_VIEW='ch', SF_OPTS={};
@@ -4013,9 +4020,11 @@ const _SF_GRPS={
   wing:[['LCL','Local'],['A','AES50 A'],['B','AES50 B'],['C','AES50 C']],
   dlive:[['MixRack','MixRack'],['MixRack DX 1/2','DX 1/2'],['MixRack DX 3/4','DX 3/4'],['Surface','Surface']],
   avantis:[['SLink','SLink'],['Surface','Surface'],['IO 1','IO 1'],['IO 2','IO 2']],
-  yam:[['DANTE','Dante'],['LOCAL','Local']]
+  yam:[['DANTE','Dante'],['LOCAL','Local']],
+  sq:[['LOCAL','Local']]
 };
-function _sfMax(id,g){ if(id==='yam') return g==='DANTE'?64:_YAM_LOCAL[_sfOpt('yam','model')];
+function _sfMax(id,g){ if(id==='sq') return 32;
+  if(id==='yam') return g==='DANTE'?64:_YAM_LOCAL[_sfOpt('yam','model')];
   return id==='x32' ? (g==='local'?32:48) : (_SF_SOCKETS[g+'@'+id]||_SF_SOCKETS[g]||0); }
 /* Choix propres à une voie, enregistrés avec elle : {col:'red', p:{wing:['A',5], dlive:['',0]}}
    p[console] absent = réglage général ; ['',0] = pas d'entrée */
@@ -4040,7 +4049,7 @@ function _sfRows(id){
       /* Préampli : écrit seulement si une entrée physique est désignée. g = gain écrit, pw = +48 V écrit.
          X32 et WING : dès qu'une entrée est choisie ; dLive et Avantis : selon le réglage « Gain et +48 V ». */
       if(o.socket && id!=='yam' && ((id==='dlive'||id==='avantis') ? !!pre : true)){
-        o.g = id==='x32' ? _sfHalf(o.gain,-12,60) : id==='wing' ? _sfHalf(o.gain,-2.5,45)
+        o.g = id==='x32' ? _sfHalf(o.gain,-12,60) : id==='sq' ? _sfHalf(o.gain,0,60) : id==='wing' ? _sfHalf(o.gain,-2.5,45)
             : (o.gain>0 ? Math.round(Math.max(5,Math.min(60,o.gain))) : null);
         o.pw = o.ph;
       }
@@ -4241,6 +4250,60 @@ function _sfZip(files,dir){
   var cs=cen.reduce(function(a,b){return a+b.length;},0), cnt=Object.keys(files).length;
   return new Blob(parts.concat(cen,[new Uint8Array([0x50,0x4B,5,6].concat(u16(0),u16(0),u16(cnt),u16(cnt),u32(cs),u32(off),u16(0)))]),{type:'application/zip'});
 }
+/* ── Allen & Heath SQ : scène SCENEnnn.DAT modifiée en place ──
+   Image binaire de 131 072 octets, relevée par comparaison de scènes enregistrées sur une SQ-5 :
+   · une fiche de 336 octets par voie d'entrée ; nom à 0x374 + 336 × (voie − 1), 8 octets complétés par des zéros ;
+   · couleur à nom + 16 : R, V, B (0x00 ou 0xFF), 0, puis 1, 0, 0, 0 ; couleur par défaut (vert) : 00 00 00 00 00 FF FF FF ;
+   · prise à nom + 24 : numéro de prise (base 0), 0, classe 1 ;
+   · préamplis à 0x1389C, 4 octets par prise : (gain + 128) × 256 sur 16 bits, puis +48 V (0 ou 1) ;
+   · CRC-32 des octets 20 à fin − 4, rangé dans les 4 derniers octets. */
+var SF_SQBASE=null;
+const _SQ_LEN=131072, _SQ_NAME=0x374, _SQ_REC=336, _SQ_PRE=0x1389C;
+const _SQ_RGB={red:[255,0,0],yellow:[255,255,0],blue:[0,0,255],cyan:[0,255,255],purple:[255,0,255],white:[255,255,255]};
+function _sfCrc32(b,from,to){
+  var T=_sfCrc32.T; if(!T){ T=_sfCrc32.T=[]; for(var n=0;n<256;n++){ var c=n; for(var k=0;k<8;k++) c=c&1?0xEDB88320^(c>>>1):c>>>1; T[n]=c>>>0; } }
+  var crc=0xFFFFFFFF; for(var i=from;i<to;i++) crc=T[(crc^b[i])&255]^(crc>>>8); return (crc^0xFFFFFFFF)>>>0;
+}
+function _sqCrcOk(b){ var c=_sfCrc32(b,20,_SQ_LEN-4); return b[_SQ_LEN-4]===(c&255) && b[_SQ_LEN-3]===((c>>>8)&255) && b[_SQ_LEN-2]===((c>>>16)&255) && b[_SQ_LEN-1]===(c>>>24); }
+/* Une fiche de voie se reconnaît à ses deux octets FE après la prise */
+function _sqRecOk(b,ch){ var o=_SQ_NAME+_SQ_REC*(ch-1); return b[o+26]===1 && b[o+27]===0xFE && b[o+31]===0xFE; }
+function sfSqPick(){ var i=document.getElementById('sf-sqbase-file'); if(i){ i.value=''; i.click(); } }
+function sfSqFile(inp){
+  var f=inp.files && inp.files[0]; if(!f) return;
+  var rd=new FileReader();
+  rd.onload=function(){
+    var b=new Uint8Array(rd.result), ok=b.length===_SQ_LEN && _sqCrcOk(b);
+    for(var ch=1; ok && ch<=48; ch++) ok=_sqRecOk(b,ch);
+    if(!ok){ SF_SQBASE=null; toast('Ce fichier n\'est pas une scène SQ reconnue (SCENEnnn.DAT)'); }
+    else {
+      var nm=''; for(var i=0x14;i<0x24 && b[i];i++) nm+=String.fromCharCode(b[i]);
+      SF_SQBASE={file:f.name, bytes:b, scene:nm};
+      toast('Scène « '+(nm||f.name)+' » chargée');
+    }
+    renderShowfiles();
+  };
+  rd.readAsArrayBuffer(f);
+}
+function sfSqClear(){ SF_SQBASE=null; renderShowfiles(); }
+function genSq(){
+  if(!SF_SQBASE) return null;
+  var b=new Uint8Array(SF_SQBASE.bytes);
+  _sfRows('sq').forEach(function(x){
+    if(x.skip || !_sqRecOk(b,x.ch)) return;
+    var o=_SQ_NAME+_SQ_REC*(x.ch-1), i, rgb=_SQ_RGB[x.hk];
+    for(i=0;i<8;i++) b[o+i]=i<x.name.length ? x.name.charCodeAt(i)&127 : 0;
+    var col=rgb ? [rgb[0],rgb[1],rgb[2],0,1,0,0,0] : [0,0,0,0,0,255,255,255];
+    for(i=0;i<8;i++) b[o+16+i]=col[i];
+    if(x.socket){
+      b[o+24]=x.socket-1; b[o+25]=0; b[o+26]=1;
+      var p=_SQ_PRE+4*(x.socket-1), v=Math.round((x.g+128)*256);
+      b[p]=v&255; b[p+1]=(v>>>8)&255; b[p+2]=x.pw?1:0; b[p+3]=0;
+    }
+  });
+  var c=_sfCrc32(b,20,_SQ_LEN-4);
+  b[_SQ_LEN-4]=c&255; b[_SQ_LEN-3]=(c>>>8)&255; b[_SQ_LEN-2]=(c>>>16)&255; b[_SQ_LEN-1]=c>>>24;
+  return b;
+}
 function genYam(){ return _sfZip(_yamFiles(),'PatchFlow_'+_sfOpt('yam','model')); }
 
 function genUniv(){
@@ -4258,6 +4321,7 @@ const FMETA={
   dlive:  {title:'Allen & Heath dLive — CSV Director',   fn:_SF.dlive.fn,   type:_SF.dlive.type,   gen:genD},
   avantis:{title:'Allen & Heath Avantis — CSV',          fn:_SF.avantis.fn, type:_SF.avantis.type, gen:genAvantis},
   yam:    {title:'Yamaha CL / QL — dossier CSV',         fn:_SF.yam.fn,     type:_SF.yam.type,     gen:genYam},
+  sq:     {title:'Allen & Heath SQ — scène',             fn:_SF.sq.fn,      type:_SF.sq.type,      gen:genSq},
   univ:   {title:'CSV universel — channels.csv',         fn:'channels.csv', type:'text/csv',       gen:genUniv},
 };
 function dl(content,type,fn){const b=new Blob([content],{type});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=fn;a.click();URL.revokeObjectURL(a.href);}
@@ -4267,6 +4331,11 @@ function dlFile(t){
   if(!canDo('console_export')){ showUpgradeModal('console_export'); return; }
   if(!CHS.length){ toast('Aucun canal à exporter — ajoutez des canaux dans l\'Input List.'); return; }
   const slug=CUR_SHOW?.slug||'show';
+  /* SQ : la console retrouve la scène par son nom de fichier, qui doit rester celui d'origine */
+  if(t==='sq'){
+    if(!SF_SQBASE){ toast('Chargez d\'abord une scène de votre SQ (SCENEnnn.DAT)'); return; }
+    dl(m.gen(),m.type,SF_SQBASE.file); toast('✓ '+SF_SQBASE.file+' téléchargé'); return;
+  }
   dl(m.gen(),m.type,slug+'_'+m.fn);
   toast('✓ '+slug+'_'+m.fn+' téléchargé');
 }
@@ -4571,11 +4640,13 @@ function renderShowfiles(){
   var hasPre=ok.some(function(x){return x.pw!==undefined;}), n48=ok.filter(function(x){return x.pw;}).length;
   var unpatched=(SF_CUR==='dlive'||SF_CUR==='avantis') ? ok.filter(function(x){return !x.socket;}).length : 0;
   var fn=((typeof CUR_SHOW!=='undefined'&&CUR_SHOW&&CUR_SHOW.slug)||'show')+'_'+c.fn;
+  if(SF_CUR==='sq') fn=SF_SQBASE?SF_SQBASE.file:'SCENEnnn.DAT';
 
   /* ── Colonne de gauche : la console, ce que le fichier écrit, les réglages, la marche à suivre ── */
   var writes=c.writes.slice();
   if(SF_CUR==='x32' && hasPre) writes.push('Gain et +48 V des préamplis choisis');
   if(SF_CUR==='yam' && ok.some(function(x){return x.socket;})) writes.push('Patch des entrées');
+  if(SF_CUR==='sq' && ok.some(function(x){return x.socket;})) writes.push('Prise d\'entrée, gain et +48 V');
   if(SF_CUR==='wing' && ok.some(function(x){return x.socket;})) writes.push('Patch, gain et +48 V, nom et couleur de la source');
   if((SF_CUR==='dlive'||SF_CUR==='avantis') && hasPre) writes.push('Gain et +48 V');
   var h='<aside class="sfx-side">'
@@ -4590,6 +4661,18 @@ function renderShowfiles(){
         +o.choices.map(function(ch){return '<option value="'+E(ch[0])+'"'+(ch[0]===cur?' selected':'')+'>'+E(ch[1])+'</option>';}).join('')
         +'</select></label>';
     }).join('')+'</div>';
+  }
+  if(SF_CUR==='sq'){
+    h+='<div class="sfx-sec"><div class="sfx-lbl">Scène de la console</div><input type="file" id="sf-sqbase-file" accept=".DAT,.dat" hidden onchange="sfSqFile(this)">';
+    if(SF_SQBASE){
+      h+='<div class="sfx-base"><i class="ti ti-file-check"></i><div><b>'+E(SF_SQBASE.file)+'</b><span>'+E(SF_SQBASE.scene||'Scène')+'</span></div>'
+        +'<button type="button" title="Retirer la scène" onclick="sfSqClear()"><i class="ti ti-x"></i></button></div>'
+        +'<div class="sfx-base-h">Le fichier téléchargé est cette scène, où seules les voies listées sont renommées et recolorées. Il garde le même nom de fichier.</div>';
+    } else {
+      h+='<button type="button" class="btn sfx-ghost" onclick="sfSqPick()"><i class="ti ti-upload"></i>Charger une scène (SCENEnnn.DAT)</button>'
+        +'<div class="sfx-base-h">Obligatoire : PatchFlow écrit dans une scène enregistrée par votre SQ. Le fichier reste sur votre ordinateur.</div>';
+    }
+    h+='</div>';
   }
   if(SF_CUR==='wing'){
     h+='<div class="sfx-sec"><div class="sfx-lbl">Mémoire existante</div><input type="file" id="sf-wbase-file" accept=".snap,application/json" hidden onchange="sfWingFile(this)">';
@@ -4622,7 +4705,8 @@ function renderShowfiles(){
     +'<span class="sfx-view-t">'+(SF_VIEW==='file'?E(fn):'Ce que la console recevra')+'</span></div>';
   if(SF_VIEW==='file' && pro){
     var txt;
-    if(SF_CUR==='yam'){ var yf=_yamFiles(); txt=['InName.csv','InPatch.csv'].map(function(n){ return '── '+n+' ──\n'+yf[n].replace(/\r/g,''); }).join('\n'); }
+    if(SF_CUR==='sq'){ txt=SF_SQBASE ? 'Scène binaire (131 072 octets) : '+SF_SQBASE.file+'\nLes valeurs écrites sont celles de l\'onglet Voies.' : 'Chargez une scène de votre SQ pour produire le fichier.'; }
+    else if(SF_CUR==='yam'){ var yf=_yamFiles(); txt=['InName.csv','InPatch.csv'].map(function(n){ return '── '+n+' ──\n'+yf[n].replace(/\r/g,''); }).join('\n'); }
     else txt=_sfGen(SF_CUR);
     if(SF_CUR==='wing' && !SF_WBASE){ try{ txt=JSON.stringify(JSON.parse(txt),null,2); }catch(e){} }
     if(txt.length>60000) txt=txt.slice(0,60000)+'\n… (mémoire complète, '+Math.round(txt.length/1024)+' Ko)';
@@ -18539,7 +18623,7 @@ const GATE_META = {
   recap_matos:    { icon:'ti-clipboard-list',   title:'Recap materiels',              desc:'Obtenez le decompte exact de chaque micro et pied necessaires — indispensable avant un show pour ne rien oublier.', plan:'pro', feats:['Decompte par modele de micro ou DI','Decompte par type de pied','Total consolide sur tous les patches'] },
   recent_activity:{ icon:'ti-history',          title:'Activite recente',             desc:'Visualisez les derniers canaux modifies par votre equipe en temps reel — utile pour savoir qui a touche a quoi.', plan:'pro', feats:['5 derniers canaux modifies','Horodatage relatif (il y a X min)','Inclus dans le plan Pro'] },
   export_pdf_pro: { icon:'ti-file-type-pdf',    title:'Export PDF complet',           desc:'Retirez le filigrane et ajoutez societe, contact, venue, date, revision et notes techniques.', plan:'pro', feats:['PDF sans filigrane','Coordonnees completes en en-tete','Notes techniques sur chaque export'] },
-  console_export: { icon:'ti-device-floppy',    title:'Exports console',  desc:'Générez le fichier que votre console sait importer : noms de voies, couleurs, patch, gains et +48 V.', plan:'pro', feats:['Behringer X32, Midas M32 et WING','Allen & Heath dLive et Avantis','Yamaha CL et QL','Formats vérifiés sur de vrais fichiers de console'] },
+  console_export: { icon:'ti-device-floppy',    title:'Exports console',  desc:'Générez le fichier que votre console sait importer : noms de voies, couleurs, patch, gains et +48 V.', plan:'pro', feats:['Behringer X32, Midas M32 et WING','Allen & Heath dLive, Avantis et SQ','Yamaha CL et QL','Formats vérifiés sur de vrais fichiers de console'] },
   ai_stage:       { icon:'ti-sparkles',         title:'Plan de scène par IA',          desc:'Envoyez la photo ou le croquis d\'un plan de scène : l\'IA le numérise et place automatiquement les instruments et le matériel dans l\'éditeur.', plan:'pro', feats:['Reconnaissance d\'un plan à partir d\'une image','Placement automatique des éléments','Vous ajustez ensuite librement'] },
   ai_inputlist:   { icon:'ti-sparkles',         title:'Input List par IA',             desc:'Envoyez une input list existante (image, PDF, CSV, Word) : l\'IA la numérise et crée automatiquement les canaux avec micro, +48V, IEM et pied de micro.', plan:'pro', feats:['Formats image, PDF, CSV et Word','Détecte micro/DI, +48V, IEM et pied','Canaux ajoutés prêts à ajuster'] },
   max_share_links:{ icon:'ti-link',             title:'Limite de liens de partage',   desc:'Le plan Gratuit est limite a 5 liens de partage au total. Passez au Pro pour des liens illimites.', plan:'pro', feats:['Liens de partage illimites sur Pro','Partagez chaque show en lecture seule','Mise a jour en temps reel'] },
