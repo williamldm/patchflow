@@ -3927,13 +3927,13 @@ function _instrGroup(r){
 /* Couleur de voie par famille d'instrument, puis jeton propre à chaque console */
 const _SF_HUE={kick:'yellow',snare:'yellow',tom:'yellow',hat:'yellow',oh:'yellow',drums:'yellow',bass:'green',guitar:'purple',keys:'cyan',leadvox:'red',vox:'red',horns:'blue',track:'white',fx:'white',talk:'white',other:'white'};
 const _SF_HUES={
-  yellow:{hex:'#f2c230',fr:'Jaune',  x32:'YE',ah:'Yellow', wing:7},
-  green: {hex:'#3ecf6e',fr:'Vert',   x32:'GN',ah:'Green',  wing:5},
-  purple:{hex:'#d05ce0',fr:'Magenta',x32:'MG',ah:'Magenta',wing:12},
-  cyan:  {hex:'#35c8d8',fr:'Cyan',   x32:'CY',ah:'Cyan',   wing:4},
-  red:   {hex:'#ef5350',fr:'Rouge',  x32:'RD',ah:'Red',    wing:9},
-  blue:  {hex:'#4a8df0',fr:'Bleu',   x32:'BL',ah:'Blue',   wing:2},
-  white: {hex:'#e3e6eb',fr:'Blanc',  x32:'WH',ah:'White',  wing:1}
+  yellow:{hex:'#f2c230',fr:'Jaune',  x32:'YE',ah:'Yellow', wing:7, yam:'Yellow'},
+  green: {hex:'#3ecf6e',fr:'Vert',   x32:'GN',ah:'Green',  wing:5, yam:'Green'},
+  purple:{hex:'#d05ce0',fr:'Magenta',x32:'MG',ah:'Magenta',wing:12, yam:'Purple'},
+  cyan:  {hex:'#35c8d8',fr:'Cyan',   x32:'CY',ah:'Cyan',   wing:4, yam:'Cyan'},
+  red:   {hex:'#ef5350',fr:'Rouge',  x32:'RD',ah:'Red',    wing:9, yam:'Red'},
+  blue:  {hex:'#4a8df0',fr:'Bleu',   x32:'BL',ah:'Blue',   wing:2, yam:'Blue'},
+  white: {hex:'#e3e6eb',fr:'Blanc',  x32:'WH',ah:'White',  wing:1, yam:'Blue'}
 };
 /* X32 / M32 : numéro d'icône (1-74) par famille */
 const _ICON_X32={kick:3,snare:4,tom:6,hat:9,oh:10,drums:11,bass:17,guitar:20,keys:30,leadvox:50,vox:50,horns:35,track:62,fx:61,talk:45,other:1};
@@ -3970,7 +3970,19 @@ const _SF={
         alt:'',
         note:'Chaque voie est patchée sur l\'entrée de même numéro. Au-delà de la plage de la source choisie, la voie est laissée sans entrée.' }
 };
-const _SF_KEYS=['x32','wing','dlive','avantis'];
+_SF.yam={ tab:'Yamaha CL · QL', name:'Yamaha CL · QL', models:'CL5, CL3, CL1 · QL5, QL1 (import dans CL Editor ou QL Editor)',
+        fmt:'Dossier CSV (.zip)', req:'Editor V4.1 ou plus récent · testé dans CL Editor', fn:'yamaha-csv.zip', type:'application/zip', maxCh:72, nameLen:8,
+        writes:['Noms de voies (8 caractères)','Couleurs','Icônes'],
+        opts:[{key:'model',label:'Console',def:'QL1',choices:[['QL1','QL1 (32 voies)'],['QL5','QL5 (64 voies)'],['CL1','CL1 (48 voies)'],['CL3','CL3 (64 voies)'],['CL5','CL5 (72 voies)']]},
+              {key:'src',label:'Patch des entrées',def:'',choices:[['','Ne pas écrire'],['DANTE','Dante (stage box)'],['LOCAL','Entrées locales']]}],
+        steps:['Décompresser le fichier .zip : il contient un dossier avec InName.csv (et InPatch.csv si un patch est demandé).','Dans CL Editor ou QL Editor : File, CSV File Import, puis choisir ce dossier.','L\'éditeur signale « Document … not loaded » pour chaque fichier absent du dossier : valider, ces réglages-là ne sont pas modifiés.'],
+        alt:'Ensuite : synchroniser l\'éditeur vers la console, ou enregistrer le fichier console sur une clé USB.',
+        note:'Le gain et le +48 V ne font pas partie des CSV Yamaha : ils ne sont pas transmis. Seules les voies listées sont modifiées.' };
+/* Yamaha : icône de voie par famille d'instrument (noms exacts de CL/QL Editor) */
+const _ICON_YAM={kick:'Kick',snare:'Snare',tom:'Tom',hat:'Hi-Hat',oh:'DrumKit',drums:'DrumKit',bass:'E.Bass',guitar:'E.Guitar',keys:'Keyboard',leadvox:'Dynamic',vox:'Dynamic',horns:'Trumpet',track:'PC',fx:'Effector',talk:'Dynamic',other:'Dynamic'};
+const _YAM_CH={QL1:32,QL5:64,CL1:48,CL3:64,CL5:72}, _YAM_LOCAL={QL1:16,QL5:32,CL1:8,CL3:8,CL5:8};
+function _sfMaxCh(id){ return id==='yam' ? _YAM_CH[_sfOpt('yam','model')] : _SF[id].maxCh; }
+const _SF_KEYS=['x32','wing','dlive','avantis','yam'];
 /* Nombre d'entrées par source (au-delà : pas de patch) */
 const _SF_SOCKETS={'MixRack':64,'MixRack DX 1/2':32,'MixRack DX 3/4':32,'Surface@dlive':8,'Surface@avantis':12,'SLink':128,'IO 1':128,'IO 2':128,'LCL':24,'A':48,'B':48,'C':48};
 var SF_CUR='x32', SF_VIEW='ch', SF_OPTS={};
@@ -4000,9 +4012,11 @@ const _SF_GRPS={
   x32:[['local','Local'],['a','AES50 A'],['b','AES50 B']],
   wing:[['LCL','Local'],['A','AES50 A'],['B','AES50 B'],['C','AES50 C']],
   dlive:[['MixRack','MixRack'],['MixRack DX 1/2','DX 1/2'],['MixRack DX 3/4','DX 3/4'],['Surface','Surface']],
-  avantis:[['SLink','SLink'],['Surface','Surface'],['IO 1','IO 1'],['IO 2','IO 2']]
+  avantis:[['SLink','SLink'],['Surface','Surface'],['IO 1','IO 1'],['IO 2','IO 2']],
+  yam:[['DANTE','Dante'],['LOCAL','Local']]
 };
-function _sfMax(id,g){ return id==='x32' ? (g==='local'?32:48) : (_SF_SOCKETS[g+'@'+id]||_SF_SOCKETS[g]||0); }
+function _sfMax(id,g){ if(id==='yam') return g==='DANTE'?64:_YAM_LOCAL[_sfOpt('yam','model')];
+  return id==='x32' ? (g==='local'?32:48) : (_SF_SOCKETS[g+'@'+id]||_SF_SOCKETS[g]||0); }
 /* Choix propres à une voie, enregistrés avec elle : {col:'red', p:{wing:['A',5], dlive:['',0]}}
    p[console] absent = réglage général ; ['',0] = pas d'entrée */
 function _sfOv(r){ return (r.custom_data && r.custom_data._sf) || {}; }
@@ -4015,7 +4029,7 @@ function _sfRows(id){
     var ov=_sfOv(r), auto=_SF_HUE[_instrGroup(r)]||'white', hk=_SF_HUES[ov.col]?ov.col:auto;
     var o={id:r.id, ch:ch, name:_sfName(r,c.nameLen), orig:String(r.long_name||r.short_name||'').trim(), hue:_SF_HUES[hk], hk:hk, hauto:!_SF_HUES[ov.col],
            grp:_instrGroup(r), gain:Number(r.gain)||0, ph:!!r.phantom, skip:'', socket:0, sg:'', src:'', pauto:true, g:null, pw:undefined};
-    if(ch>c.maxCh) o.skip='Au-delà des '+c.maxCh+' voies de la console';
+    if(ch>_sfMaxCh(id)) o.skip='Au-delà des '+_sfMaxCh(id)+' voies de la console';
     else if(seen[ch]) o.skip='Numéro de voie en double';
     seen[ch]=1;
     if(!o.skip){
@@ -4025,7 +4039,7 @@ function _sfRows(id){
       else if(g){ o.want=g; }
       /* Préampli : écrit seulement si une entrée physique est désignée. g = gain écrit, pw = +48 V écrit.
          X32 et WING : dès qu'une entrée est choisie ; dLive et Avantis : selon le réglage « Gain et +48 V ». */
-      if(o.socket && ((id==='dlive'||id==='avantis') ? !!pre : true)){
+      if(o.socket && id!=='yam' && ((id==='dlive'||id==='avantis') ? !!pre : true)){
         o.g = id==='x32' ? _sfHalf(o.gain,-12,60) : id==='wing' ? _sfHalf(o.gain,-2.5,45)
             : (o.gain>0 ? Math.round(Math.max(5,Math.min(60,o.gain))) : null);
         o.pw = o.ph;
@@ -4190,6 +4204,39 @@ async function sfWingToList(){
 }
 function genD(){ return genAH('dlive'); }
 function genAvantis(){ return genAH('avantis'); }
+/* ── Yamaha CL / QL : dossier de CSV pour « File › CSV File Import » de CL Editor / QL Editor ──
+   Structure relevée sur les fichiers écrits par CL Editor, puis réimportée dans CL Editor :
+   [Information] / modèle / V4.1 / [Section] / ligne de titres / une ligne par voie, fins de ligne CRLF.
+   Un fichier peut ne contenir que quelques voies ; les fichiers absents du dossier ne sont pas touchés.
+   Entrées locales : OMNI n sur CL, INPUT n sur QL. */
+function _yamFiles(){
+  var model=_sfOpt('yam','model'), loc=/^QL/.test(model)?'INPUT':'OMNI';
+  var rows=_sfRows('yam').filter(function(x){return !x.skip;});
+  var head=function(sec,cols){ return '[Information]\r\n'+model+'\r\nV4.1\r\n['+sec+']\r\n'+cols+'\r\n'; };
+  var f={'InName.csv':head('InName','IN,NAME,COLOR,ICON,')+rows.map(function(x){
+    return '_'+String(x.ch).padStart(2,'0')+','+x.name+','+x.hue.yam+','+(_ICON_YAM[x.grp]||'Dynamic')+',\r\n'; }).join('')};
+  var pat=rows.filter(function(x){return x.socket || (!x.pauto && !x.want);});
+  if(pat.length) f['InPatch.csv']=head('InPatch','IN PATCH,SOURCE,COMMENT')+pat.map(function(x){
+    return 'CH '+x.ch+','+(x.socket ? (x.sg==='DANTE'?'DANTE ':loc+' ')+x.socket : 'NONE')+',\r\n'; }).join('');
+  return f;
+}
+/* Archive .zip sans compression (les CSV font quelques Ko) */
+function _sfZip(files,dir){
+  var enc=new TextEncoder(), T=[]; for(var n=0;n<256;n++){ var c=n; for(var k=0;k<8;k++) c=c&1?0xEDB88320^(c>>>1):c>>>1; T[n]=c>>>0; }
+  var crc=function(b){ var c=0xFFFFFFFF; for(var i=0;i<b.length;i++) c=T[(c^b[i])&255]^(c>>>8); return (c^0xFFFFFFFF)>>>0; };
+  var parts=[], cen=[], off=0;
+  var u16=function(v){return [v&255,(v>>>8)&255];}, u32=function(v){return [v&255,(v>>>8)&255,(v>>>16)&255,(v>>>24)&255];};
+  Object.keys(files).forEach(function(name){
+    var nm=enc.encode(dir+'/'+name), d=enc.encode(files[name]), cr=crc(d);
+    var common=[].concat(u16(20),u16(0x0800),u16(0),u16(0),u16(0x21),u32(cr),u32(d.length),u32(d.length),u16(nm.length),u16(0));
+    var lh=new Uint8Array([0x50,0x4B,3,4].concat(common));
+    cen.push(new Uint8Array([0x50,0x4B,1,2].concat(u16(20),common,u16(0),u16(0),u16(0),u32(0),u32(off))), nm);
+    parts.push(lh,nm,d); off+=lh.length+nm.length+d.length;
+  });
+  var cs=cen.reduce(function(a,b){return a+b.length;},0), cnt=Object.keys(files).length;
+  return new Blob(parts.concat(cen,[new Uint8Array([0x50,0x4B,5,6].concat(u16(0),u16(0),u16(cnt),u16(cnt),u32(cs),u32(off),u16(0)))]),{type:'application/zip'});
+}
+function genYam(){ return _sfZip(_yamFiles(),'PatchFlow_'+_sfOpt('yam','model')); }
 
 function genUniv(){
   const q=s=>'"'+String(s||'').replace(/"/g,'""')+'"';
@@ -4205,6 +4252,7 @@ const FMETA={
   wing:   {title:'Behringer WING — snapshot',            fn:_SF.wing.fn,    type:_SF.wing.type,    gen:genW},
   dlive:  {title:'Allen & Heath dLive — CSV Director',   fn:_SF.dlive.fn,   type:_SF.dlive.type,   gen:genD},
   avantis:{title:'Allen & Heath Avantis — CSV',          fn:_SF.avantis.fn, type:_SF.avantis.type, gen:genAvantis},
+  yam:    {title:'Yamaha CL / QL — dossier CSV',         fn:_SF.yam.fn,     type:_SF.yam.type,     gen:genYam},
   univ:   {title:'CSV universel — channels.csv',         fn:'channels.csv', type:'text/csv',       gen:genUniv},
 };
 function dl(content,type,fn){const b=new Blob([content],{type});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=fn;a.click();URL.revokeObjectURL(a.href);}
@@ -4522,6 +4570,7 @@ function renderShowfiles(){
   /* ── Colonne de gauche : la console, ce que le fichier écrit, les réglages, la marche à suivre ── */
   var writes=c.writes.slice();
   if(SF_CUR==='x32' && hasPre) writes.push('Gain et +48 V des préamplis choisis');
+  if(SF_CUR==='yam' && ok.some(function(x){return x.socket;})) writes.push('Patch des entrées');
   if(SF_CUR==='wing' && ok.some(function(x){return x.socket;})) writes.push('Patch, gain et +48 V, nom et couleur de la source');
   if((SF_CUR==='dlive'||SF_CUR==='avantis') && hasPre) writes.push('Gain et +48 V');
   var h='<aside class="sfx-side">'
@@ -4567,7 +4616,9 @@ function renderShowfiles(){
     +'<button type="button" class="'+(SF_VIEW==='file'?'on':'')+'" onclick="sfSetView(\'file\')">Fichier</button></div>'
     +'<span class="sfx-view-t">'+(SF_VIEW==='file'?E(fn):'Ce que la console recevra')+'</span></div>';
   if(SF_VIEW==='file' && pro){
-    var txt=_sfGen(SF_CUR);
+    var txt;
+    if(SF_CUR==='yam'){ var yf=_yamFiles(); txt=Object.keys(yf).map(function(n){ return '── '+n+' ──\n'+yf[n].replace(/\r/g,''); }).join('\n'); }
+    else txt=_sfGen(SF_CUR);
     if(SF_CUR==='wing' && !SF_WBASE){ try{ txt=JSON.stringify(JSON.parse(txt),null,2); }catch(e){} }
     if(txt.length>60000) txt=txt.slice(0,60000)+'\n… (mémoire complète, '+Math.round(txt.length/1024)+' Ko)';
     var ls=txt.split('\n');
@@ -18483,7 +18534,7 @@ const GATE_META = {
   recap_matos:    { icon:'ti-clipboard-list',   title:'Recap materiels',              desc:'Obtenez le decompte exact de chaque micro et pied necessaires — indispensable avant un show pour ne rien oublier.', plan:'pro', feats:['Decompte par modele de micro ou DI','Decompte par type de pied','Total consolide sur tous les patches'] },
   recent_activity:{ icon:'ti-history',          title:'Activite recente',             desc:'Visualisez les derniers canaux modifies par votre equipe en temps reel — utile pour savoir qui a touche a quoi.', plan:'pro', feats:['5 derniers canaux modifies','Horodatage relatif (il y a X min)','Inclus dans le plan Pro'] },
   export_pdf_pro: { icon:'ti-file-type-pdf',    title:'Export PDF complet',           desc:'Retirez le filigrane et ajoutez societe, contact, venue, date, revision et notes techniques.', plan:'pro', feats:['PDF sans filigrane','Coordonnees completes en en-tete','Notes techniques sur chaque export'] },
-  console_export: { icon:'ti-device-floppy',    title:'Exports console',  desc:'Générez le fichier que votre console sait importer : noms de voies, couleurs, patch, gains et +48 V.', plan:'pro', feats:['Behringer X32, Midas M32 et WING','Allen & Heath dLive et Avantis','Formats vérifiés sur de vrais fichiers de console'] },
+  console_export: { icon:'ti-device-floppy',    title:'Exports console',  desc:'Générez le fichier que votre console sait importer : noms de voies, couleurs, patch, gains et +48 V.', plan:'pro', feats:['Behringer X32, Midas M32 et WING','Allen & Heath dLive et Avantis','Yamaha CL et QL','Formats vérifiés sur de vrais fichiers de console'] },
   ai_stage:       { icon:'ti-sparkles',         title:'Plan de scène par IA',          desc:'Envoyez la photo ou le croquis d\'un plan de scène : l\'IA le numérise et place automatiquement les instruments et le matériel dans l\'éditeur.', plan:'pro', feats:['Reconnaissance d\'un plan à partir d\'une image','Placement automatique des éléments','Vous ajustez ensuite librement'] },
   ai_inputlist:   { icon:'ti-sparkles',         title:'Input List par IA',             desc:'Envoyez une input list existante (image, PDF, CSV, Word) : l\'IA la numérise et crée automatiquement les canaux avec micro, +48V, IEM et pied de micro.', plan:'pro', feats:['Formats image, PDF, CSV et Word','Détecte micro/DI, +48V, IEM et pied','Canaux ajoutés prêts à ajuster'] },
   max_share_links:{ icon:'ti-link',             title:'Limite de liens de partage',   desc:'Le plan Gratuit est limite a 5 liens de partage au total. Passez au Pro pour des liens illimites.', plan:'pro', feats:['Liens de partage illimites sur Pro','Partagez chaque show en lecture seule','Mise a jour en temps reel'] },
