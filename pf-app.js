@@ -122,7 +122,6 @@ function _saveVisCol(){try{localStorage.setItem(_VISCOL_KEY,JSON.stringify([...v
 function _loadVisCol(){try{var s=localStorage.getItem(_VISCOL_KEY);if(s){var a=JSON.parse(s);if(Array.isArray(a)&&a.length)return new Set(a);}}catch(e){}return new Set(['short','long','src','mic','gain','phantom','iem','foh','mon','note']);}
 let visCol=_loadVisCol();
 let pdfMeta={};
-let prevType='';
 
 // ══════════════════════════════════════
 // AUTH
@@ -3915,189 +3914,169 @@ function _instrGroup(r){
   return 'other';
 }
 
-/* Maps de couleurs par console (par groupe d'instrument) */
-const _COL_YAMAHA={kick:'YELLOW',snare:'YELLOW',tom:'YELLOW',hat:'YELLOW',oh:'YELLOW',drums:'YELLOW',bass:'GREEN',guitar:'PURPLE',keys:'CYAN',leadvox:'RED',vox:'RED',horns:'BLUE',track:'WHITE',fx:'WHITE',talk:'WHITE',other:'WHITE'};
-/* dLive Director CSV — tokens couleur valides UNIQUEMENT : Off, Blue, Cyan, Red, Yellow, Green, Magenta, White
-   (Cyan = bleu clair, Magenta = violet). 'Purple' n'existe pas → rejet à l'import. */
-const _COL_AH={kick:'Yellow',snare:'Yellow',tom:'Yellow',hat:'Yellow',oh:'Yellow',drums:'Yellow',bass:'Green',guitar:'Magenta',keys:'Cyan',leadvox:'Red',vox:'Red',horns:'Blue',track:'White',fx:'White',talk:'White',other:'White'};
-const _COL_WING={kick:'yellow',snare:'yellow',tom:'yellow',hat:'yellow',oh:'yellow',drums:'yellow',bass:'green',guitar:'purple',keys:'cyan',leadvox:'red',vox:'red',horns:'blue',track:'white',fx:'white',talk:'white',other:'white'};
-/* X32/M32 — codes couleur : OFF RD GN YE BL MG CY WH */
-const _COL_X32={kick:'YE',snare:'YE',tom:'YE',hat:'YE',oh:'YE',drums:'YE',bass:'GN',guitar:'MG',keys:'CY',leadvox:'RD',vox:'RD',horns:'BL',track:'WH',fx:'WH',talk:'WH',other:'WH'};
-/* X32/M32 — index d'icône (1-74) approximatif par groupe */
-const _ICON_X32={kick:8,snare:9,tom:10,hat:11,oh:12,drums:7,bass:14,guitar:17,keys:22,leadvox:33,vox:34,horns:29,track:50,fx:60,talk:36,other:1};
+/* ══════════════════════════════════════════════════════════════════
+   EXPORTS CONSOLE
+   Seules les consoles dont le format d'import a été vérifié sur de
+   vrais fichiers (ou la documentation du constructeur) sont proposées :
+   · X32 / M32  : snippet .snp, mêmes lignes que celles écrites par la console (firmware 4.x)
+   · WING       : snapshot partiel .snap (la console fusionne clé par clé)
+   · dLive      : CSV « Director » ([Version] / [Channels], 28 colonnes)
+   · Avantis    : même CSV, sources Surface / SLink / IO
+   Chaque fichier n'écrit que ce qui est listé à l'écran : le reste du show n'est pas touché.
+   ══════════════════════════════════════════════════════════════════ */
+/* Couleur de voie par famille d'instrument, puis jeton propre à chaque console */
+const _SF_HUE={kick:'yellow',snare:'yellow',tom:'yellow',hat:'yellow',oh:'yellow',drums:'yellow',bass:'green',guitar:'purple',keys:'cyan',leadvox:'red',vox:'red',horns:'blue',track:'white',fx:'white',talk:'white',other:'white'};
+const _SF_HUES={
+  yellow:{hex:'#f2c230',fr:'Jaune',  x32:'YE',ah:'Yellow', wing:7},
+  green: {hex:'#3ecf6e',fr:'Vert',   x32:'GN',ah:'Green',  wing:5},
+  purple:{hex:'#d05ce0',fr:'Magenta',x32:'MG',ah:'Magenta',wing:12},
+  cyan:  {hex:'#35c8d8',fr:'Cyan',   x32:'CY',ah:'Cyan',   wing:4},
+  red:   {hex:'#ef5350',fr:'Rouge',  x32:'RD',ah:'Red',    wing:9},
+  blue:  {hex:'#4a8df0',fr:'Bleu',   x32:'BL',ah:'Blue',   wing:2},
+  white: {hex:'#e3e6eb',fr:'Blanc',  x32:'WH',ah:'White',  wing:1}
+};
+/* X32 / M32 : numéro d'icône (1-74) par famille */
+const _ICON_X32={kick:3,snare:4,tom:6,hat:9,oh:10,drums:11,bass:17,guitar:20,keys:30,leadvox:50,vox:50,horns:35,track:62,fx:61,talk:45,other:1};
 
-function _shortUp(r,len){return (r.short_name||r.long_name||'CH'+r.ch).trim().slice(0,len||8);}
-function _longName(r){return (r.long_name||r.short_name||'CH'+r.ch).trim();}
-/* Nom compatible dLive Director : sans accents/caractères spéciaux, max 8 caractères.
-   dLive rejette äöüéß et tronque au-delà de 8 → on le fait proprement nous-mêmes. */
-function _dliveName(r){
-  var n=(r.short_name||r.long_name||('CH'+r.ch)).trim();
-  n=n.normalize('NFD').replace(/[\u0300-\u036f]/g,'');   // décompose et retire les accents
-  n=n.replace(/[^\x20-\x7E]/g,'').replace(/[",]/g,' ');  // ASCII imprimable, pas de "/,
-  return n.trim().slice(0,8);
+const _SF={
+  x32:{ tab:'X32 · M32', name:'Behringer X32 · Midas M32', models:'X32, Compact, Producer, Rack, Core · M32, M32R, M32C',
+        fmt:'Snippet .snp', req:'Firmware 4.x', fn:'x32.snp', type:'text/plain', maxCh:32, nameLen:12,
+        writes:['Noms de voies (12 caractères)','Couleurs','Icônes'],
+        opts:[{key:'pre',label:'Gain et +48 V',def:'',choices:[['','Ne pas écrire'],['local','Entrées locales (XLR)'],['a','AES50 A (stage box)'],['b','AES50 B (stage box)']]}],
+        steps:['Copier le fichier sur une clé USB et la brancher sur la console.','Écran SCENES, page Snippets : Utility, Import, choisir le fichier.','Sélectionner le snippet importé et le charger (Go).'],
+        alt:'Sans la console : X32-Edit ou M32-Edit, liste des snippets, Import.',
+        note:'Un snippet ne rappelle que les lignes qu\'il contient : le patch, les traitements et les mixes restent tels quels.' },
+  wing:{ tab:'WING', name:'Behringer WING', models:'WING, WING Compact, WING Rack',
+        fmt:'Snapshot partiel .snap', req:'Firmware 3.x', fn:'wing.snap', type:'application/json', maxCh:40, nameLen:16,
+        writes:['Noms de voies (16 caractères)','Couleurs'],
+        opts:[{key:'src',label:'Patch, gain et +48 V',def:'',choices:[['','Ne pas écrire'],['LCL','Entrées locales'],['A','AES50 A'],['B','AES50 B'],['C','AES50 C']]}],
+        steps:['Copier le fichier sur une clé USB et la brancher sur la console.','Touche LIBRARY : ouvrir la clé et sélectionner le fichier .snap.','Charger (Load). La console fusionne le fichier avec le show en cours.'],
+        alt:'Sans la console : WING-Edit, Library, même manipulation.',
+        note:'Le fichier ne contient que les voies listées : tout le reste de la console est conservé.' },
+  dlive:{ tab:'dLive', name:'Allen & Heath dLive', models:'S Class, C Class, CDM (via dLive Director)',
+        fmt:'CSV Director', req:'Director 1.9 ou 2.x', fn:'dlive-director.csv', type:'text/csv', maxCh:128, nameLen:8,
+        writes:['Noms de voies (8 caractères, sans accents)','Couleurs','Patch des entrées'],
+        opts:[{key:'src',label:'Entrées patchées sur',def:'MixRack',choices:[['MixRack','MixRack (1-64)'],['MixRack DX 1/2','MixRack DX 1/2 (1-32)'],['MixRack DX 3/4','MixRack DX 3/4 (1-32)'],['Surface','Surface (1-8)']]},
+              {key:'pre',label:'Gain et +48 V',def:'1',choices:[['1','Écrire'],['','Ne pas écrire']]}],
+        steps:['Ouvrir le show dans dLive Director (connecté à la console ou hors ligne).','Ouvrir l\'écran CSV Import / Export et choisir Import.','Sélectionner le fichier : Director liste les lignes importées et celles refusées.'],
+        alt:'',
+        note:'Chaque voie est patchée sur l\'entrée de même numéro. Au-delà de la plage de la source choisie, la voie est laissée sans entrée.' },
+  avantis:{ tab:'Avantis', name:'Allen & Heath Avantis', models:'Avantis, Avantis Solo, Avantis Director',
+        fmt:'CSV Import / Export', req:'Firmware 1.3 ou plus récent', fn:'avantis.csv', type:'text/csv', maxCh:64, nameLen:8,
+        writes:['Noms de voies (8 caractères, sans accents)','Couleurs','Patch des entrées'],
+        opts:[{key:'src',label:'Entrées patchées sur',def:'SLink',choices:[['SLink','SLink (1-128)'],['Surface','Surface (1-12)'],['IO 1','Carte IO 1 (1-128)'],['IO 2','Carte IO 2 (1-128)']]},
+              {key:'pre',label:'Gain et +48 V',def:'1',choices:[['1','Écrire'],['','Ne pas écrire']]}],
+        steps:['Copier le fichier sur une clé USB, ou ouvrir Avantis Director.','Ouvrir l\'écran CSV Import / Export et choisir Import.','Sélectionner le fichier : les lignes refusées sont listées avec leur motif.'],
+        alt:'',
+        note:'Chaque voie est patchée sur l\'entrée de même numéro. Au-delà de la plage de la source choisie, la voie est laissée sans entrée.' }
+};
+const _SF_KEYS=['x32','wing','dlive','avantis'];
+/* Nombre d'entrées par source (au-delà : pas de patch) */
+const _SF_SOCKETS={'MixRack':64,'MixRack DX 1/2':32,'MixRack DX 3/4':32,'Surface@dlive':8,'Surface@avantis':12,'SLink':128,'IO 1':128,'IO 2':128,'LCL':24,'A':48,'B':48,'C':48};
+var SF_CUR='x32', SF_VIEW='ch', SF_OPTS={};
+try{ SF_CUR=localStorage.getItem('pf_sf_cur')||'x32'; SF_OPTS=JSON.parse(localStorage.getItem('pf_sf_opts')||'{}')||{}; }catch(e){}
+if(!_SF[SF_CUR]) SF_CUR='x32';
+
+function _sfOpt(id,key){
+  var d=(_SF[id].opts||[]).find(function(o){return o.key===key;});
+  if(!d) return '';
+  var v=(SF_OPTS[id]||{})[key];
+  return d.choices.some(function(c){return c[0]===v;}) ? v : d.def;
 }
-
-/* ── Yamaha CL / QL / CL Editor — CH_NAME.csv ── */
-function genY(){
-  const q=s=>'"'+String(s||'').replace(/"/g,'""')+'"';
-  let o='Target,"INPUT CH"\r\nDataName,"Short Name","Long Name","Color","Icon","Input Patch"\r\n"","Short Name","Long Name","Color","Icon","Input Patch"\r\n';
-  CHS.forEach((r,i)=>{
-    const col=_COL_YAMAHA[_instrGroup(r)]||'WHITE';
-    o+=`"Input Ch ${i+1}",${q(_shortUp(r,8).toUpperCase())},${q(_longName(r))},${q(col)},"",${q('Dante'+(i+1))}\r\n`;
-  });
-  return o;
+/* Nom écrit dans la console : ASCII, sans guillemets ni virgules, tenu dans la longueur de l'afficheur.
+   Le nom long est gardé s'il tient ; sinon le nom court ; sinon le nom long coupé. */
+function _sfClean(s){
+  return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\x20-\x7E]/g,'').replace(/[",\\]/g,' ').replace(/\s+/g,' ').trim();
 }
-
-/* ── Yamaha DM7 / DM7 Compact — Channel List CSV ──
-   Le DM7 Editor (File → Channel List) importe un CSV de nommage des voies.
-   Colonnes : Channel, Name, Color, Icon, +48V (convention Channel List Yamaha).
-   Couleurs Yamaha en majuscules ; nom de voie limité à 8 caractères (afficheur). */
-function genDM7(){
-  const q=s=>'"'+String(s||'').replace(/"/g,'""')+'"';
-  let o='Channel,Name,Color,Icon,+48V\r\n';
-  CHS.forEach((r,i)=>{
-    const col=_COL_YAMAHA[_instrGroup(r)]||'WHITE';
-    const name=(r.long_name||r.short_name||('CH'+r.ch)).trim().slice(0,16);
-    o+=`${i+1},${q(name)},${q(col)},,${r.phantom?'ON':'OFF'}\r\n`;
-  });
-  return o;
+function _sfName(r,len){
+  var L=_sfClean(r.long_name), S=_sfClean(r.short_name);
+  if(L && L.length<=len) return L;
+  if(S && S.length<=len) return S;
+  return (L||S||('CH '+r.ch)).slice(0,len).trim();
 }
-
-/* ── Yamaha Rivage PM — CSV nommage ── */
-function genRiv(){
-  const q=s=>'"'+String(s||'').replace(/"/g,'""')+'"';
-  let o='Ch,Name,Color,Icon,HA Gain,+48V\r\n';
-  CHS.forEach((r,i)=>{
-    const col=_COL_YAMAHA[_instrGroup(r)]||'WHITE';
-    o+=`${i+1},${q(_longName(r))},${q(col)},,${r.gain||0},${r.phantom?'ON':'OFF'}\r\n`;
-  });
-  return o;
+/* Une ligne par voie : ce que le fichier de la console `id` va écrire */
+function _sfRows(id){
+  var c=_SF[id], src=_sfOpt(id,'src'), pre=_sfOpt(id,'pre');
+  var max=src ? (_SF_SOCKETS[src+'@'+id]||_SF_SOCKETS[src]||0) : 0;
+  var seen={};
+  return CHS.map(function(r,i){
+    var ch=parseInt(r.ch,10); if(!(ch>0)) ch=i+1;
+    var hue=_SF_HUES[_SF_HUE[_instrGroup(r)]||'white'];
+    var o={ch:ch, name:_sfName(r,c.nameLen), orig:String(r.long_name||r.short_name||'').trim(), hue:hue, grp:_instrGroup(r),
+           gain:Number(r.gain)||0, ph:!!r.phantom, skip:'', socket:0, src:'', g:null, pw:undefined};
+    if(ch>c.maxCh) o.skip='Au-delà des '+c.maxCh+' voies de la console';
+    else if(seen[ch]) o.skip='Numéro de voie en double';
+    seen[ch]=1;
+    if(!o.skip){
+      if(id==='x32'){ if(pre){ o.src=pre==='local'?'Local':pre==='a'?'AES50 A':'AES50 B'; o.socket=ch; } }
+      else if(src){ o.src=src; o.socket=ch<=max?ch:0; }
+      /* Préampli : écrit seulement si une entrée physique est désignée. g = gain écrit, pw = +48 V écrit */
+      if((id==='wing' ? !!src : !!pre) && o.socket){
+        o.g = id==='x32' ? _sfHalf(o.gain,-12,60) : id==='wing' ? _sfHalf(o.gain,0,45)
+            : (o.gain>0 ? Math.round(Math.max(5,Math.min(60,o.gain))) : null);
+        o.pw = o.ph;
+      }
+    }
+    return o;
+  }).sort(function(a,b){return a.ch-b.ch;});
 }
+function _sfShowName(len){ return _sfClean((typeof CUR_SHOW!=='undefined'&&CUR_SHOW&&CUR_SHOW.name)||'PatchFlow').slice(0,len)||'PatchFlow'; }
+function _sfHalf(v,lo,hi){ v=Math.round(Math.max(lo,Math.min(hi,v))*2)/2; return v; }
 
-/* ── Behringer X32 / Midas M32 — fichier scène .scn natif ── */
+/* ── Behringer X32 / Midas M32 : snippet (.snp) ──
+   En-tête : #4.0# "nom" <paramètres> <voies> <aux/bus> <main/dca> 1
+   paramètres = bit 0 préamplis, bit 1 config ; voies = masque 32 bits signé (bit 0 = voie 1). */
 function genX32(){
-  const name=(CUR_SHOW?.name||'PatchFlow').slice(0,12);
-  const esc=s=>String(s||'').replace(/"/g,'');
-  let o=`#4.0# "${esc(name)}" "PatchFlow" %000000000 1 1\n`;
-  /* Config des voies : nom, couleur, icône, source */
-  CHS.forEach((r,i)=>{
-    if(i>=32) return; // X32 = 32 voies d'entrée
-    const g=_instrGroup(r);
-    const nm=esc(_shortUp(r,12));
-    const col=_COL_X32[g]||'WH';
-    const icon=_ICON_X32[g]||1;
-    const src=i+1; // patch local 1:1
-    const num=String(i+1).padStart(2,'0');
-    o+=`/ch/${num}/config "${nm}" ${col} ${icon} ${src}\n`;
+  var pre=_sfOpt('x32','pre'), base=pre==='a'?32:pre==='b'?80:0;
+  var rows=_sfRows('x32').filter(function(x){return !x.skip;}), mask=0;
+  rows.forEach(function(x){ mask|=(1<<(x.ch-1)); });
+  var p2=function(n){return String(n).padStart(2,'0');}, p3=function(n){return String(n).padStart(3,'0');};
+  var o='#4.0# "'+_sfShowName(16)+'" '+(pre?3:2)+' '+mask+' 0 0 1\n';
+  if(pre) rows.forEach(function(x){
+    o+='/headamp/'+p3(base+x.ch-1)+' '+(x.g<0?'-':'+')+Math.abs(x.g).toFixed(1)+' '+(x.pw?'ON':'OFF')+'\n';
   });
-  /* Head amps : gain + alimentation fantôme */
-  CHS.forEach((r,i)=>{
-    if(i>=32) return;
-    const num=String(i).padStart(3,'0'); // headamp 000-031
-    const gain=(typeof r.gain==='number'?r.gain:18).toFixed(1);
-    const g=gain.startsWith('-')?gain:'+'+gain;
-    o+=`/headamp/${num} ${g} ${r.phantom?'ON':'OFF'}\n`;
+  rows.forEach(function(x){
+    var a='/ch/'+p2(x.ch)+'/config/';
+    o+=a+'name "'+x.name+'"\n'+a+'icon '+(_ICON_X32[x.grp]||1)+'\n'+a+'color '+x.hue.x32+'\n';
   });
   return o;
 }
-
-/* ── Behringer Wing — snapshot JSON ── */
+/* ── Behringer WING : snapshot partiel (.snap) ──
+   La console fusionne le JSON clé par clé : seules les clés présentes sont rappelées.
+   Nom et couleur vivent sur la voie (ae_data.ch), gain et +48 V sur l'entrée physique (ae_data.io.in). */
 function genW(){
-  const snap={ch:{},bus:{},main:{}};
-  CHS.forEach((r,i)=>{
-    const col=_COL_WING[_instrGroup(r)]||'white';
-    snap.ch[String(i+1)]={cfg:{name:_shortUp(r,12),color:col,on:1},ha:{gain:r.gain||0,phantom:r.phantom?1:0,pad:0},fdr:{val:-10,on:1}};
+  var grp=_sfOpt('wing','src'), ch={}, io={};
+  _sfRows('wing').forEach(function(x){
+    if(x.skip) return;
+    var c={name:x.name, col:x.hue.wing};
+    if(grp && x.socket){
+      c['in']={conn:{grp:grp,'in':x.socket}};
+      io[x.socket]={g:x.g, vph:!!x.pw};
+    }
+    ch[x.ch]=c;
   });
-  for(let b=1;b<=16;b++)snap.bus[String(b)]={cfg:{name:'Bus '+b,color:'white',on:1},fdr:{val:-10,on:0}};
-  snap.main={lr:{cfg:{name:'LR',color:'white',on:1},fdr:{val:0,on:1}}};
-  return JSON.stringify(snap);
+  var ae={ch:ch};
+  if(grp && Object.keys(io).length){ ae.io={'in':{}}; ae.io['in'][grp]=io; }
+  return JSON.stringify({type:'snapshot.11', creator:'PatchFlow', creator_name:_sfShowName(32), creator_model:'wing', ae_data:ae});
 }
-
-/* ── DiGiCo SD / Quantum — CSV liste de voies ── */
-function genDigi(){
-  const q=s=>'"'+String(s||'').replace(/"/g,'""')+'"';
-  let o='Channel,Name,Colour,Gain,48V\r\n';
-  const DC={kick:'Yellow',snare:'Yellow',tom:'Yellow',hat:'Yellow',oh:'Yellow',drums:'Yellow',bass:'Green',guitar:'Purple',keys:'Cyan',leadvox:'Red',vox:'Red',horns:'Blue',track:'White',fx:'White',talk:'White',other:'White'};
-  CHS.forEach((r,i)=>{
-    const col=DC[_instrGroup(r)]||'White';
-    o+=`${i+1},${q(_longName(r))},${col},${r.gain||0},${r.phantom?'On':'Off'}\r\n`;
+/* ── Allen & Heath dLive / Avantis : CSV d'import ──
+   [Version] puis [Channels] ; par voie : type, n°, nom, couleur, source, entrée, côté, gain, pad, +48 V,
+   puis trois blocs « Unassigned ». 28 colonnes, fins de ligne CRLF. Gain 5 à 60 dB, cellule vide = ne pas toucher. */
+function genAH(id){
+  var row=function(a){ while(a.length<28) a.push(''); return a.join(','); };
+  var L=[row(['[Version]','V1.0']), row(['[Channels]'])];
+  _sfRows(id).forEach(function(x){
+    if(x.skip) return;
+    var on=x.pw!==undefined;
+    L.push(row(['Input', x.ch, x.name, x.hue.ah, x.socket?x.src:'Unassigned', x.socket||'', '', x.g==null?'':x.g,
+      on?'Off':'', on?(x.pw?'On':'Off'):'',
+      'Unassigned','','','','','', 'Unassigned','','','','','', 'Unassigned']));
   });
-  return o;
+  return L.join('\r\n')+'\r\n';
 }
+function genD(){ return genAH('dlive'); }
+function genAvantis(){ return genAH('avantis'); }
 
-/* ── Avid VENUE S6L / Profile — CSV noms de voies ── */
-function genAvid(){
-  const q=s=>'"'+String(s||'').replace(/"/g,'""')+'"';
-  let o='Channel Number,Channel Name,Phantom,Gain (dB)\r\n';
-  CHS.forEach((r,i)=>{
-    o+=`${i+1},${q(_longName(r))},${r.phantom?'On':'Off'},${r.gain||0}\r\n`;
-  });
-  return o;
-}
-
-/* ── Soundcraft Vi / Si — CSV noms de voies ── */
-function genSC(){
-  const q=s=>'"'+String(s||'').replace(/"/g,'""')+'"';
-  let o='Input,Label,Color,Gain,48V\r\n';
-  const SCC={kick:'Yellow',snare:'Yellow',tom:'Yellow',hat:'Yellow',oh:'Yellow',drums:'Yellow',bass:'Green',guitar:'Magenta',keys:'Cyan',leadvox:'Red',vox:'Red',horns:'Blue',track:'White',fx:'White',talk:'White',other:'White'};
-  CHS.forEach((r,i)=>{
-    const col=SCC[_instrGroup(r)]||'White';
-    o+=`${i+1},${q(_shortUp(r,10))},${col},${r.gain||0},${r.phantom?'On':'Off'}\r\n`;
-  });
-  return o;
-}
-
-/* ── Allen & Heath dLive — CSV Director (format officiel) ──
-   Structure réelle attendue par dLive Director :
-   - Section [Version] (V1.0) puis section [Channels], 28 colonnes par ligne.
-   - Chaque canal : Input, <ch>, <nom≤8>, <couleur>, <source>, <socket>, '',
-     <gain>, <pad>, <phantom>, puis 3 blocs "Unassigned"+5 cellules vides.
-   - Couleurs valides : Off, Blue, Cyan, Red, Yellow, Green, Magenta, White.
-   - Noms : ASCII uniquement, tronqués à 8 caractères.
-   Ref : github.com/togrupe/dlive-midi-tools (src/directorcsv/CsvCreator.py) */
-function genD(){
-  const COLS=28;
-  const cell=v=>{ v=String(v==null?'':v); return /[",\r\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
-  const pad=arr=>{ while(arr.length<COLS) arr.push(''); return arr.slice(0,COLS); };
-  const rows=[];
-  rows.push(pad(['[Version]','V1.0']));
-  rows.push(pad(['[Channels]']));
-  CHS.forEach((r,i)=>{
-    const ch=i+1;
-    const col=_COL_AH[_instrGroup(r)]||'White';
-    rows.push(pad([
-      'Input', ch, _dliveName(r), col, 'Local', ch, '',
-      (r.gain||0), 'Off', (r.phantom?'On':'Off'),
-      'Unassigned','','','','','',
-      'Unassigned','','','','','',
-      'Unassigned'
-    ]));
-  });
-  return rows.map(row=>row.map(cell).join(',')).join('\r\n')+'\r\n';
-}
-
-/* ── Allen & Heath SQ — CSV générique (nom + couleur + patch) ──
-   Le SQ-MixPad accepte un CSV simple ; on conserve le format historique. */
-function genS(){
-  const q=s=>'"'+String(s||'').replace(/"/g,'""')+'"';
-  let o='Name,Colour,Source,Channel,Gain,Pad,Phantom\r\n';
-  CHS.forEach((r,i)=>{
-    const col=_COL_AH[_instrGroup(r)]||'White';
-    o+=`${q(_dliveName(r))},${col},Local,${i+1},${r.gain||0},Off,${r.phantom?'On':'Off'}\r\n`;
-  });
-  return o;
-}
-
-/* ── Allen & Heath SQ — Patch List texte ── */
-function genSP(){
-  const n=CUR_SHOW?.name||'Show';const now=new Date().toLocaleString('fr-FR');
-  let o=`PATCHFLOW — SQ Patch List\nShow: ${n}\nDate: ${now}\n${'═'.repeat(70)}\n`;
-  o+=`${'CH'.padEnd(5)}${'COURT'.padEnd(7)}${'NOM'.padEnd(20)}${'MICRO'.padEnd(14)}${'GAIN'.padEnd(6)}${'48V'.padEnd(5)}IEM\n${'─'.repeat(70)}\n`;
-  CHS.forEach(r=>{o+=`${String(r.ch).padEnd(5)}${(r.short_name||'').trim().padEnd(7)}${(r.long_name||'').slice(0,19).padEnd(20)}${(r.mic||'').slice(0,13).padEnd(14)}${String(r.gain||0).padEnd(6)}${(r.phantom?'+48V':'---').padEnd(5)}${r.iem_group||'—'}\n`;});
-  o+=`\n${'═'.repeat(70)}\n${CHS.length} canaux | PatchFlow\n`;return o;
-}
-
-/* ── CSV universel (toute console acceptant un import générique) ── */
 function genUniv(){
   const q=s=>'"'+String(s||'').replace(/"/g,'""')+'"';
   let o='Channel,Short,Long,Source,Mic,Gain,Phantom,FOH,MON\r\n';
@@ -4108,18 +4087,11 @@ function genUniv(){
 }
 
 const FMETA={
-  y:   {title:'Yamaha CL/QL — CH_NAME.csv',          fn:'CH_NAME.csv',         type:'text/csv',          gen:genY},
-  dm7: {title:'Yamaha DM7 — Channel List CSV',       fn:'DM7_channels.csv',    type:'text/csv',          gen:genDM7},
-  riv: {title:'Yamaha Rivage PM — channels.csv',     fn:'Rivage_channels.csv', type:'text/csv',          gen:genRiv},
-  x32: {title:'Behringer X32 / Midas M32 — scène .scn', fn:'patchflow.scn',     type:'text/plain',        gen:genX32},
-  w:   {title:'Behringer Wing — snapshot.snap',      fn:'snapshot.snap',       type:'application/json',  gen:genW},
-  digi:{title:'DiGiCo SD/Quantum — channels.csv',    fn:'DiGiCo_channels.csv', type:'text/csv',          gen:genDigi},
-  avid:{title:'Avid VENUE S6L — channels.csv',       fn:'VENUE_channels.csv',  type:'text/csv',          gen:genAvid},
-  sc:  {title:'Soundcraft Vi/Si — labels.csv',       fn:'Soundcraft_labels.csv',type:'text/csv',         gen:genSC},
-  d:   {title:'A&H dLive — Director CSV',             fn:'patchflow-director.csv', type:'text/csv',       gen:genD},
-  s:   {title:'A&H SQ — SQ_channels.csv',            fn:'SQ_channels.csv',     type:'text/csv',          gen:genS},
-  sp:  {title:'A&H SQ — patch_list.txt',             fn:'patch_list.txt',      type:'text/plain',        gen:genSP},
-  univ:{title:'CSV universel — channels.csv',        fn:'channels.csv',        type:'text/csv',          gen:genUniv},
+  x32:    {title:'Behringer X32 / Midas M32 — snippet',  fn:_SF.x32.fn,     type:_SF.x32.type,     gen:genX32},
+  wing:   {title:'Behringer WING — snapshot',            fn:_SF.wing.fn,    type:_SF.wing.type,    gen:genW},
+  dlive:  {title:'Allen & Heath dLive — CSV Director',   fn:_SF.dlive.fn,   type:_SF.dlive.type,   gen:genD},
+  avantis:{title:'Allen & Heath Avantis — CSV',          fn:_SF.avantis.fn, type:_SF.avantis.type, gen:genAvantis},
+  univ:   {title:'CSV universel — channels.csv',         fn:'channels.csv', type:'text/csv',       gen:genUniv},
 };
 function dl(content,type,fn){const b=new Blob([content],{type});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=fn;a.click();URL.revokeObjectURL(a.href);}
 function dlFile(t){
@@ -4129,7 +4101,7 @@ function dlFile(t){
   if(!CHS.length){ toast('Aucun canal à exporter — ajoutez des canaux dans l\'Input List.'); return; }
   const slug=CUR_SHOW?.slug||'show';
   dl(m.gen(),m.type,slug+'_'+m.fn);
-  toast('✓ '+m.fn+' téléchargé');
+  toast('✓ '+slug+'_'+m.fn+' téléchargé');
 }
 // ── CSV IMPORT ──────────────────────────────────────────────────
 var _csvRawRows=[], _csvHeaders=[], _csvColMap={}, _csvMode='append';
@@ -4399,28 +4371,104 @@ function _doCSVImportOut(dataRows){
 }
 // ────────────────────────────────────────────────────────────────
 function exportCSV(){let c='CH,Court,Nom Long,Source,Micro/DI,Gain,Phantom,IEM,FOH,MON,BC,Note\n';CHS.forEach(r=>{c+=`${r.ch},"${(r.short_name||'').trim()}","${r.long_name||''}","${r.source||''}","${r.mic||''}",${r.gain||0},${r.phantom?'On':'Off'},"${r.iem_group||''}",${r.foh?1:0},${r.mon?1:0},${r.bc?1:0},"${r.note||''}"\n`;});dl(c,'text/csv',(CUR_SHOW?.slug||'show')+'_inputlist.csv');}
-const _SF_KEYS=['y','dm7','riv','x32','w','digi','avid','sc','d','s'];
-function prevFile(t){
-  const m=FMETA[t];if(!m)return;
-  if(!canDo('console_export')){ showUpgradeModal('console_export'); return; }
-  prevType=t;let c=m.gen();
-  if(t==='w'){try{c=JSON.stringify(JSON.parse(c),null,2);}catch(e){}}
-  const lines=c.split('\n');
-  document.getElementById('prev-title').textContent=m.title;
-  document.getElementById('prev-code').textContent=lines.length>70?lines.slice(0,70).join('\n')+'\n\n[… '+(lines.length-70)+' lignes]':c;
-  document.getElementById('prev-modal').className='modal-ov show';
+function _sfGen(id){ return id==='x32'?genX32():id==='wing'?genW():genAH(id); }
+function sfSelect(id){ if(!_SF[id]) return; SF_CUR=id; try{localStorage.setItem('pf_sf_cur',id);}catch(e){} renderShowfiles(); }
+function sfSetOpt(key,val){
+  (SF_OPTS[SF_CUR]=SF_OPTS[SF_CUR]||{})[key]=val;
+  try{localStorage.setItem('pf_sf_opts',JSON.stringify(SF_OPTS));}catch(e){}
+  renderShowfiles();
 }
-function closePrevModal(){document.getElementById('prev-modal').className='modal-ov';}
-function dlFromPrev(){dlFile(prevType);}
-function renderPills(){
-  const _e=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  _SF_KEYS.forEach(id=>{
-    const el=document.getElementById('pills-'+id);
-    if(!el)return;
-    el.innerHTML=CHS.slice(0,10).map(r=>`<span class="ch-pill">${_e(r.ch)}·${_e((r.short_name||r.long_name||'CH'+r.ch).trim())}</span>`).join('');
-  });
+function sfSetView(v){
+  if(v==='file' && !canDo('console_export')){ showUpgradeModal('console_export'); return; }
+  SF_VIEW=v; renderShowfiles();
 }
-function updateStats(){const n=CHS.length,ph=CHS.filter(r=>r.phantom).length;_SF_KEYS.forEach(id=>{const el=document.getElementById('st-'+id);if(el)el.textContent=`${n} canaux`+(ph?` · ${ph} ×+48V`:'');});}
+function renderShowfiles(){
+  var tabs=document.getElementById('sf-tabs'), main=document.getElementById('sf-main');
+  if(!tabs||!main) return;
+  var E=function(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
+  var pro=canDo('console_export');
+  var ban=document.getElementById('sf-pro-banner'); if(ban) ban.style.display=pro?'none':'flex';
+  var c=_SF[SF_CUR];
+  tabs.innerHTML=_SF_KEYS.map(function(k){
+    return '<button type="button" role="tab" aria-selected="'+(k===SF_CUR)+'" class="sfx-tab'+(k===SF_CUR?' on':'')+'" onclick="sfSelect(\''+k+'\')">'+E(_SF[k].tab)+'</button>';
+  }).join('');
+  if(!CHS.length){
+    main.className='sfx-main empty';
+    main.innerHTML='<div class="sfx-empty"><i class="ti ti-adjustments-alt"></i><div class="sfx-empty-t">Aucune voie à exporter</div>'
+      +'<div class="sfx-empty-s">Les exports reprennent les voies de l\'Input list : noms, couleurs, gains et +48 V.</div>'
+      +'<button type="button" class="btn pri" onclick="goTab(\'inputlist\')"><i class="ti ti-list-numbers"></i>Ouvrir l\'Input list</button></div>';
+    return;
+  }
+  main.className='sfx-main';
+  var rows=_sfRows(SF_CUR), ok=rows.filter(function(x){return !x.skip;}), skipped=rows.length-ok.length;
+  var hasPre=ok.some(function(x){return x.pw!==undefined;}), n48=ok.filter(function(x){return x.pw;}).length;
+  var unpatched=(SF_CUR==='dlive'||SF_CUR==='avantis') ? ok.filter(function(x){return !x.socket;}).length : 0;
+  var fn=((typeof CUR_SHOW!=='undefined'&&CUR_SHOW&&CUR_SHOW.slug)||'show')+'_'+c.fn;
+
+  /* ── Colonne de gauche : la console, ce que le fichier écrit, les réglages, la marche à suivre ── */
+  var writes=c.writes.slice();
+  if(SF_CUR==='x32' && hasPre) writes.push('Gain et +48 V des préamplis ('+E(ok[0].src)+')');
+  if(SF_CUR==='wing' && _sfOpt('wing','src')) writes.push('Patch, gain et +48 V');
+  if((SF_CUR==='dlive'||SF_CUR==='avantis') && hasPre) writes.push('Gain et +48 V');
+  var h='<aside class="sfx-side">'
+    +'<div class="sfx-name">'+E(c.name)+'</div><div class="sfx-models">'+E(c.models)+'</div>'
+    +'<div class="sfx-meta"><span><i class="ti ti-file-code"></i>'+E(c.fmt)+'</span><span><i class="ti ti-cpu"></i>'+E(c.req)+'</span></div>'
+    +'<div class="sfx-sec"><div class="sfx-lbl">Le fichier écrit</div><ul class="sfx-writes">'
+    +writes.map(function(w){return '<li><i class="ti ti-check"></i>'+w+'</li>';}).join('')+'</ul></div>';
+  if(c.opts && c.opts.length){
+    h+='<div class="sfx-sec"><div class="sfx-lbl">Réglages</div>'+c.opts.map(function(o){
+      var cur=_sfOpt(SF_CUR,o.key);
+      return '<label class="sfx-opt"><span>'+E(o.label)+'</span><select onchange="sfSetOpt(\''+o.key+'\',this.value)">'
+        +o.choices.map(function(ch){return '<option value="'+E(ch[0])+'"'+(ch[0]===cur?' selected':'')+'>'+E(ch[1])+'</option>';}).join('')
+        +'</select></label>';
+    }).join('')+'</div>';
+  }
+  h+='<button type="button" class="btn pri sfx-dl" onclick="dlFile(\''+SF_CUR+'\')"><i class="ti ti-download"></i><span>Télécharger</span><em>'+E(fn)+'</em></button>'
+    +'<div class="sfx-sum">'+ok.length+' voie'+(ok.length>1?'s':'')+' dans le fichier'
+    +(hasPre?' · '+n48+' × +48 V':'')
+    +(skipped?' · <b>'+skipped+' non exportée'+(skipped>1?'s':'')+'</b>':'')
+    +(unpatched?' · <b>'+unpatched+' sans entrée</b>':'')+'</div>'
+    +'<div class="sfx-sec"><div class="sfx-lbl">Charger dans la console</div><ol class="sfx-steps">'
+    +c.steps.map(function(s){return '<li>'+E(s)+'</li>';}).join('')+'</ol>'
+    +(c.alt?'<div class="sfx-alt">'+E(c.alt)+'</div>':'')
+    +'<div class="sfx-note"><i class="ti ti-shield-check"></i><span>'+E(c.note)+'</span></div></div>'
+    +'</aside>';
+
+  /* ── Colonne de droite : les voies telles qu'elles seront écrites, ou le fichier lui-même ── */
+  h+='<section class="sfx-view"><div class="sfx-view-h"><div class="sfx-seg">'
+    +'<button type="button" class="'+(SF_VIEW!=='file'?'on':'')+'" onclick="sfSetView(\'ch\')">Voies</button>'
+    +'<button type="button" class="'+(SF_VIEW==='file'?'on':'')+'" onclick="sfSetView(\'file\')">Fichier</button></div>'
+    +'<span class="sfx-view-t">'+(SF_VIEW==='file'?E(fn):'Ce que la console recevra')+'</span></div>';
+  if(SF_VIEW==='file' && pro){
+    var txt=_sfGen(SF_CUR);
+    if(SF_CUR==='wing'){ try{ txt=JSON.stringify(JSON.parse(txt),null,2); }catch(e){} }
+    var ls=txt.split('\n');
+    if(ls.length>400) txt=ls.slice(0,400).join('\n')+'\n… '+(ls.length-400)+' lignes de plus';
+    h+='<pre class="sfx-code">'+E(txt)+'</pre>'
+      +(SF_CUR==='wing'?'<div class="sfx-foot">Affiché indenté pour la lecture ; le fichier téléchargé tient sur une ligne, comme ceux de la console.</div>':'');
+  } else {
+    var showSrc=ok.some(function(x){return x.src;});
+    h+='<div class="sfx-tw"><table class="sfx-tbl"><thead><tr><th class="n">Voie</th><th>Nom envoyé</th><th>Couleur</th>'
+      +(showSrc?'<th>Entrée</th>':'')+(hasPre?'<th class="r">Gain</th><th class="c">+48 V</th>':'')+'</tr></thead><tbody>'
+      +rows.map(function(x){
+        if(x.skip) return '<tr class="skip"><td class="n">'+x.ch+'</td><td><span class="sfx-nm">'+E(x.orig||x.name)+'</span></td>'
+          +'<td colspan="'+(1+(showSrc?1:0)+(hasPre?2:0))+'" class="why">'+E(x.skip)+'</td></tr>';
+        var diff=x.orig && x.orig!==x.name;
+        return '<tr><td class="n">'+x.ch+'</td>'
+          +'<td><span class="sfx-nm">'+E(x.name)+'</span>'+(diff?'<span class="sfx-was" title="Nom dans PatchFlow">'+E(x.orig)+'</span>':'')+'</td>'
+          +'<td><span class="sfx-col"><i style="background:'+x.hue.hex+'"></i>'+x.hue.fr+'</span></td>'
+          +(showSrc?'<td class="src">'+(x.socket?E(x.src)+' '+x.socket:'<span class="none">Sans entrée</span>')+'</td>':'')
+          +(hasPre?'<td class="r">'+(x.g==null?'<span class="none">—</span>':(x.g>0?'+':'')+x.g+' dB')+'</td>'
+                  +'<td class="c">'+(x.pw===undefined?'<span class="none">—</span>':x.pw?'<span class="p48">48 V</span>':'<span class="none">Off</span>')+'</td>':'')
+          +'</tr>';
+      }).join('')+'</tbody></table></div>';
+  }
+  h+='</section>';
+  main.innerHTML=h;
+}
+/* Appelés à chaque modification de l'Input list : la page se met à jour si elle est affichée */
+function renderPills(){ if(document.getElementById('panel-showfiles')?.classList.contains('on')) renderShowfiles(); }
+function updateStats(){}
 
 // ══════════════════════════════════════
 // PDF EXPORT
@@ -17977,11 +18025,7 @@ function goTab(id,el){
   }
   if(id==='fichiers')renderFichiers();
   if(id==='team'){_initRiderBuilder();}
-  if(id==='showfiles'){
-    renderPills(); updateStats();
-    var sfB=document.getElementById('sf-pro-banner');
-    if(sfB) sfB.style.display = canDo('console_export') ? 'none' : 'flex';
-  }
+  if(id==='showfiles') renderShowfiles();
 }
 
 const _MOB_PLAN_W = 1200; // largeur de rendu SVG/canvas mobile
@@ -18296,7 +18340,7 @@ const GATE_META = {
   recap_matos:    { icon:'ti-clipboard-list',   title:'Recap materiels',              desc:'Obtenez le decompte exact de chaque micro et pied necessaires — indispensable avant un show pour ne rien oublier.', plan:'pro', feats:['Decompte par modele de micro ou DI','Decompte par type de pied','Total consolide sur tous les patches'] },
   recent_activity:{ icon:'ti-history',          title:'Activite recente',             desc:'Visualisez les derniers canaux modifies par votre equipe en temps reel — utile pour savoir qui a touche a quoi.', plan:'pro', feats:['5 derniers canaux modifies','Horodatage relatif (il y a X min)','Inclus dans le plan Pro'] },
   export_pdf_pro: { icon:'ti-file-type-pdf',    title:'Export PDF complet',           desc:'Retirez le filigrane et ajoutez societe, contact, venue, date, revision et notes techniques.', plan:'pro', feats:['PDF sans filigrane','Coordonnees completes en en-tete','Notes techniques sur chaque export'] },
-  console_export: { icon:'ti-device-floppy',    title:'Exports console (Show Files)',  desc:'Generez les fichiers natifs pour charger vos noms de voies, couleurs, gains et +48V directement dans votre console.', plan:'pro', feats:['Yamaha, Behringer, Midas, DiGiCo, Avid, A&H...','Scene X32/M32 native, CSV officiels','Couleurs et icones intelligentes par instrument'] },
+  console_export: { icon:'ti-device-floppy',    title:'Exports console',  desc:'Générez le fichier que votre console sait importer : noms de voies, couleurs, patch, gains et +48 V.', plan:'pro', feats:['Behringer X32, Midas M32 et WING','Allen & Heath dLive et Avantis','Formats vérifiés sur de vrais fichiers de console'] },
   ai_stage:       { icon:'ti-sparkles',         title:'Plan de scène par IA',          desc:'Envoyez la photo ou le croquis d\'un plan de scène : l\'IA le numérise et place automatiquement les instruments et le matériel dans l\'éditeur.', plan:'pro', feats:['Reconnaissance d\'un plan à partir d\'une image','Placement automatique des éléments','Vous ajustez ensuite librement'] },
   ai_inputlist:   { icon:'ti-sparkles',         title:'Input List par IA',             desc:'Envoyez une input list existante (image, PDF, CSV, Word) : l\'IA la numérise et crée automatiquement les canaux avec micro, +48V, IEM et pied de micro.', plan:'pro', feats:['Formats image, PDF, CSV et Word','Détecte micro/DI, +48V, IEM et pied','Canaux ajoutés prêts à ajuster'] },
   max_share_links:{ icon:'ti-link',             title:'Limite de liens de partage',   desc:'Le plan Gratuit est limite a 5 liens de partage au total. Passez au Pro pour des liens illimites.', plan:'pro', feats:['Liens de partage illimites sur Pro','Partagez chaque show en lecture seule','Mise a jour en temps reel'] },
@@ -18839,7 +18883,6 @@ function toast(msg){
 
 // Keyboard shortcuts
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.getElementById('auth-wrap').classList.contains('show')){document.getElementById('form-login').style.display!=='none'?doLogin():doReg();}});
-document.getElementById('prev-modal').addEventListener('click',function(e){if(e.target===this)closePrevModal();});
 document.getElementById('pdf-modal').addEventListener('click',function(e){if(e.target===this)closePDF();});
 document.getElementById('site-pdf-modal').addEventListener('click',function(e){if(e.target===this)closeSitePDF();});
 document.getElementById('fich-viewer-modal').addEventListener('click',function(e){if(e.target.classList.contains('fich-viewer-ov'))closeFichierViewer();});

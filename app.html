@@ -60,7 +60,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=3.69">
+<link rel="stylesheet" href="pf-app.css?v=3.70">
 </head>
 <body>
 
@@ -466,27 +466,20 @@ html.rider-boot #rider-splash{display:flex}
 
     <!-- SHOW FILES -->
     <div class="panel" id="panel-showfiles">
-      <div class="pbar"><span class="ptitle"><i class="ti ti-device-floppy" style="color:var(--ora)"></i>Show Files<span class="ptitle-sep">/</span><span id="sn-sf" style="color:var(--txt2)">…</span></span>
-        <button class="gen-btn univ" onclick="dlFile('univ')" style="width:auto;margin:0;padding:6px 12px;text-transform:none;letter-spacing:0"><i class="ti ti-file-spreadsheet"></i>CSV universel</button>
+      <header class="sfx-head">
+        <div><div class="sfx-eyebrow" id="sn-sf">…</div><h1 class="sfx-title">Exports console</h1></div>
+        <button type="button" class="btn sm sfx-univ" onclick="dlFile('univ')" title="Toutes les voies dans un tableau, à ouvrir dans un tableur"><i class="ti ti-file-spreadsheet"></i>CSV universel</button>
+      </header>
+      <div id="sf-pro-banner" class="sfx-pro">
+        <i class="ti ti-lock"></i>
+        <div>Les <b>exports console</b> font partie du plan <b>Pro</b> : noms, couleurs, patch, gains et +48&nbsp;V chargés directement dans la console.</div>
+        <button type="button" class="btn pri sm" onclick="showUpgradeModal('console_export')">Passer Pro</button>
       </div>
-      <!-- Bandeau Pro -->
-      <div id="sf-pro-banner" style="display:none;align-items:center;gap:10px;margin:0 0 14px;padding:11px 15px;background:linear-gradient(135deg,rgba(255,107,26,.1),rgba(255,107,26,.04));border:1px solid rgba(255,107,26,.28);border-radius:8px">
-        <i class="ti ti-device-floppy" style="font-size:20px;color:var(--ora);flex-shrink:0"></i>
-        <div style="flex:1;font-size:11.5px;color:var(--txt2);line-height:1.5">Les <strong>exports console</strong> sont réservés au plan <strong style="color:var(--ora)">Pro</strong>. Chargez vos noms de voies, couleurs, gains et +48V directement dans votre console.</div>
-        <button class="btn pri sm" onclick="showUpgradeModal('console_export')" style="flex-shrink:0"><i class="ti ti-rocket"></i>Passer Pro</button>
+      <div class="sfx-bar">
+        <div class="sfx-tabs" id="sf-tabs" role="tablist" aria-label="Console"></div>
+        <div class="sfx-hint">Formats vérifiés sur de vrais fichiers de console. Seul ce qui est listé est écrit&nbsp;: le reste du show n'est pas touché.</div>
       </div>
-      <div class="sf-grid">
-        <div class="sf-card"><div class="sf-head"><div class="sf-logo lg-x">X32<br>M32</div><div><div class="sf-name">Behringer X32 / Midas M32</div><div class="sf-sub">X32 · M32 · X32 Rack · M32R</div></div></div><div class="sf-body"><div class="fmt-tag real">Scène native .scn — noms, couleurs, gain, +48V</div><div class="ch-pills" id="pills-x32"></div><div class="sf-steps"><div class="sf-step"><div class="sf-snum">1</div>Télécharger <span class="cb2">patchflow.scn</span></div><div class="sf-step"><div class="sf-snum">2</div>USB → console → Scenes → Import</div></div><button class="gen-btn y" onclick="prevFile('x32')"><i class="ti ti-eye"></i>Prévisualiser</button><button class="gen-btn y" onclick="dlFile('x32')"><i class="ti ti-file-download"></i>patchflow.scn</button><div class="sf-stat"><span class="dp dg"></span><span id="st-x32">—</span></div></div></div>
-        <div class="sf-card"><div class="sf-head"><div class="sf-logo lg-y">CL<br>QL</div><div><div class="sf-name">Yamaha CL / QL</div><div class="sf-sub">CL5 · CL3 · QL5 · QL1</div></div></div><div class="sf-body"><div class="fmt-tag real">CSV — CL/QL Editor v4.1+</div><div class="ch-pills" id="pills-y"></div><div class="sf-steps"><div class="sf-step"><div class="sf-snum">1</div>Télécharger <span class="cb2">CH_NAME.csv</span></div><div class="sf-step"><div class="sf-snum">2</div>CL/QL Editor → File → CSV File Import</div></div><button class="gen-btn y" onclick="prevFile('y')"><i class="ti ti-eye"></i>Prévisualiser</button><button class="gen-btn y" onclick="dlFile('y')"><i class="ti ti-file-download"></i>CH_NAME.csv</button><div class="sf-stat"><span class="dp dg"></span><span id="st-y">—</span></div></div></div>
-        <div class="sf-card"><div class="sf-head"><div class="sf-logo lg-dm7">DM7</div><div><div class="sf-name">Yamaha DM7</div><div class="sf-sub">DM7 · DM7 Compact</div></div></div><div class="sf-body"><div class="fmt-tag real">CSV Channel List — DM7 Editor</div><div class="ch-pills" id="pills-dm7"></div><div class="sf-steps"><div class="sf-step"><div class="sf-snum">1</div>Télécharger <span class="cb2">DM7_channels.csv</span></div><div class="sf-step"><div class="sf-snum">2</div>DM7 Editor → File → Channel List → Import</div></div><button class="gen-btn y" onclick="prevFile('dm7')"><i class="ti ti-eye"></i>Prévisualiser</button><button class="gen-btn y" onclick="dlFile('dm7')"><i class="ti ti-file-download"></i>DM7_channels.csv</button><div class="sf-stat"><span class="dp dg"></span><span id="st-dm7">—</span></div></div></div>
-        <div class="sf-card"><div class="sf-head"><div class="sf-logo lg-r">RIVAGE</div><div><div class="sf-name">Yamaha Rivage PM</div><div class="sf-sub">PM10 · PM7 · PM5 · PM3</div></div></div><div class="sf-body"><div class="fmt-tag real">CSV nommage de voies</div><div class="ch-pills" id="pills-riv"></div><div class="sf-steps"><div class="sf-step"><div class="sf-snum">1</div>Télécharger <span class="cb2">Rivage_channels.csv</span></div><div class="sf-step"><div class="sf-snum">2</div>RIVAGE Editor → Import noms</div></div><button class="gen-btn y" onclick="prevFile('riv')"><i class="ti ti-eye"></i>Prévisualiser</button><button class="gen-btn y" onclick="dlFile('riv')"><i class="ti ti-file-download"></i>Rivage_channels.csv</button><div class="sf-stat"><span class="dp dg"></span><span id="st-riv">—</span></div></div></div>
-        <div class="sf-card"><div class="sf-head"><div class="sf-logo lg-w">WING</div><div><div class="sf-name">Behringer Wing</div><div class="sf-sub">Wing · Compact · Rack</div></div></div><div class="sf-body"><div class="fmt-tag real">Snapshot JSON natif (.snap)</div><div class="ch-pills" id="pills-w"></div><div class="sf-steps"><div class="sf-step"><div class="sf-snum">1</div>Télécharger <span class="cb2">snapshot.snap</span></div><div class="sf-step"><div class="sf-snum">2</div>USB → <span class="cb2">/Snaps/</span> → Library → Load</div></div><button class="gen-btn w" onclick="prevFile('w')"><i class="ti ti-eye"></i>Prévisualiser JSON</button><button class="gen-btn w" onclick="dlFile('w')"><i class="ti ti-file-download"></i>snapshot.snap</button><div class="sf-stat"><span class="dp dg"></span><span id="st-w">—</span></div></div></div>
-        <div class="sf-card"><div class="sf-head"><div class="sf-logo lg-d">dLive</div><div><div class="sf-name">Allen &amp; Heath dLive</div><div class="sf-sub">C/S/CDM — via Director</div></div></div><div class="sf-body"><div class="fmt-tag real">CSV Director — format officiel [Version]/[Channels]</div><div class="ch-pills" id="pills-d"></div><div class="sf-steps"><div class="sf-step"><div class="sf-snum">1</div>Télécharger <span class="cb2">patchflow-director.csv</span></div><div class="sf-step"><div class="sf-snum">2</div>dLive Director → File → Import → CSV</div></div><button class="gen-btn d" onclick="prevFile('d')"><i class="ti ti-eye"></i>Prévisualiser</button><button class="gen-btn d" onclick="dlFile('d')"><i class="ti ti-file-download"></i>patchflow-director.csv</button><div class="sf-stat"><span class="dp dg"></span><span id="st-d">—</span></div></div></div>
-        <div class="sf-card"><div class="sf-head"><div class="sf-logo lg-s">SQ</div><div><div class="sf-name">Allen &amp; Heath SQ</div><div class="sf-sub">SQ-5 · SQ-6 · SQ-7</div></div></div><div class="sf-body"><div class="fmt-tag real">CSV SQ-MixPad + Patch List</div><div class="ch-pills" id="pills-s"></div><div class="sf-steps"><div class="sf-step"><div class="sf-snum">1</div>Télécharger CSV + Patch List</div><div class="sf-step"><div class="sf-snum">2</div>SQ-MixPad → File → Import Channel Names</div></div><button class="gen-btn s" onclick="prevFile('s')"><i class="ti ti-eye"></i>Prévisualiser</button><button class="gen-btn s" onclick="dlFile('s')"><i class="ti ti-file-download"></i>SQ_channels.csv</button><button class="gen-btn s" onclick="dlFile('sp')"><i class="ti ti-file-text"></i>patch_list.txt</button><div class="sf-stat"><span class="dp dw"></span><span id="st-s">—</span></div></div></div>
-        <div class="sf-card"><div class="sf-head"><div class="sf-logo lg-g">DiGiCo</div><div><div class="sf-name">DiGiCo SD / Quantum</div><div class="sf-sub">SD9 · SD12 · Q225 · Q338</div></div></div><div class="sf-body"><div class="fmt-tag real">CSV liste de voies</div><div class="ch-pills" id="pills-digi"></div><div class="sf-steps"><div class="sf-step"><div class="sf-snum">1</div>Télécharger <span class="cb2">DiGiCo_channels.csv</span></div><div class="sf-step"><div class="sf-snum">2</div>Importer la liste dans la session</div></div><button class="gen-btn d" onclick="prevFile('digi')"><i class="ti ti-eye"></i>Prévisualiser</button><button class="gen-btn d" onclick="dlFile('digi')"><i class="ti ti-file-download"></i>DiGiCo_channels.csv</button><div class="sf-stat"><span class="dp dg"></span><span id="st-digi">—</span></div></div></div>
-        <div class="sf-card"><div class="sf-head"><div class="sf-logo lg-a">VENUE</div><div><div class="sf-name">Avid VENUE S6L</div><div class="sf-sub">S6L · Profile · SC48</div></div></div><div class="sf-body"><div class="fmt-tag real">CSV noms de voies</div><div class="ch-pills" id="pills-avid"></div><div class="sf-steps"><div class="sf-step"><div class="sf-snum">1</div>Télécharger <span class="cb2">VENUE_channels.csv</span></div><div class="sf-step"><div class="sf-snum">2</div>Patchbay → Import Channel Names</div></div><button class="gen-btn s" onclick="prevFile('avid')"><i class="ti ti-eye"></i>Prévisualiser</button><button class="gen-btn s" onclick="dlFile('avid')"><i class="ti ti-file-download"></i>VENUE_channels.csv</button><div class="sf-stat"><span class="dp dg"></span><span id="st-avid">—</span></div></div></div>
-        <div class="sf-card"><div class="sf-head"><div class="sf-logo lg-sc">Sound<br>craft</div><div><div class="sf-name">Soundcraft Vi / Si</div><div class="sf-sub">Vi · Si Impact · Si Expression</div></div></div><div class="sf-body"><div class="fmt-tag real">CSV labels de voies</div><div class="ch-pills" id="pills-sc"></div><div class="sf-steps"><div class="sf-step"><div class="sf-snum">1</div>Télécharger <span class="cb2">Soundcraft_labels.csv</span></div><div class="sf-step"><div class="sf-snum">2</div>Importer les labels</div></div><button class="gen-btn w" onclick="prevFile('sc')"><i class="ti ti-eye"></i>Prévisualiser</button><button class="gen-btn w" onclick="dlFile('sc')"><i class="ti ti-file-download"></i>Soundcraft_labels.csv</button><div class="sf-stat"><span class="dp dg"></span><span id="st-sc">—</span></div></div></div>
-      </div>
+      <div class="sfx-main" id="sf-main"></div>
     </div>
 
     <!-- SYNOPTIQUE -->
@@ -1083,14 +1076,6 @@ html.rider-boot #rider-splash{display:flex}
 </div>
 
 <!-- FILE PREVIEW MODAL -->
-<div class="modal-ov" id="prev-modal">
-  <div class="modal-box" style="width:700px">
-    <div class="modal-head"><i class="ti ti-code" style="font-size:15px;color:var(--ora)"></i><span class="modal-title" id="prev-title">Aperçu</span><button class="btn sm" onclick="dlFromPrev()"><i class="ti ti-download"></i>Télécharger</button></div>
-    <div class="modal-body"><pre class="pre-code" id="prev-code"></pre></div>
-    <div class="modal-foot"><button class="btn ghost sm" onclick="closePrevModal()"><i class="ti ti-x"></i>Fermer</button></div>
-  </div>
-</div>
-
 <!-- PDF MODAL -->
 <div class="modal-ov" id="pdf-modal">
   <div class="modal-box xp-box" style="width:560px">
@@ -1689,7 +1674,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=3.89"></script>
+<script src="pf-app.js?v=3.90"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
   <div class="mob-plan-bar">
