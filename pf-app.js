@@ -3947,12 +3947,12 @@ const _SF={
         alt:'Sans la console : X32-Edit ou M32-Edit, liste des snippets, Import.',
         note:'Un snippet ne rappelle que les lignes qu\'il contient : le patch, les traitements et les mixes restent tels quels.' },
   wing:{ tab:'WING', name:'Behringer WING', models:'WING, WING Compact, WING Rack',
-        fmt:'Snapshot partiel .snap', req:'Firmware 3.x', fn:'wing.snap', type:'application/json', maxCh:40, nameLen:16,
+        fmt:'Snapshot partiel .snap', req:'Firmware 3.x · testé dans WING-Edit 3.3.2', fn:'wing.snap', type:'application/json', maxCh:40, nameLen:16,
         writes:['Noms de voies (16 caractères)','Couleurs'],
         opts:[{key:'src',label:'Patch, gain et +48 V',def:'',choices:[['','Ne pas écrire'],['LCL','Entrées locales'],['A','AES50 A'],['B','AES50 B'],['C','AES50 C']]}],
-        steps:['Copier le fichier sur une clé USB et la brancher sur la console.','Touche LIBRARY : ouvrir la clé et sélectionner le fichier .snap.','Charger (Load). La console fusionne le fichier avec le show en cours.'],
-        alt:'Sans la console : WING-Edit, Library, même manipulation.',
-        note:'Le fichier ne contient que les voies listées : tout le reste de la console est conservé.' },
+        steps:['Dans WING-Edit : bouton LOAD en haut à droite, puis choisir le fichier .snap.','Sur la console : copier le fichier sur une clé USB, touche LIBRARY, sélectionner le fichier et le charger.','Les voies prennent leur nom et leur couleur ; le reste du show en cours ne bouge pas.'],
+        alt:'',
+        note:'Chaque voie reçoit son propre nom : elle est détachée de la personnalisation de sa source (sinon la WING affiche le nom de la source). Avec un patch, la source reçoit le même nom.' },
   dlive:{ tab:'dLive', name:'Allen & Heath dLive', models:'S Class, C Class, CDM (via dLive Director)',
         fmt:'CSV Director', req:'Director 1.9 ou 2.x', fn:'dlive-director.csv', type:'text/csv', maxCh:128, nameLen:8,
         writes:['Noms de voies (8 caractères, sans accents)','Couleurs','Patch des entrées'],
@@ -4012,7 +4012,7 @@ function _sfRows(id){
       else if(src){ o.src=src; o.socket=ch<=max?ch:0; }
       /* Préampli : écrit seulement si une entrée physique est désignée. g = gain écrit, pw = +48 V écrit */
       if((id==='wing' ? !!src : !!pre) && o.socket){
-        o.g = id==='x32' ? _sfHalf(o.gain,-12,60) : id==='wing' ? _sfHalf(o.gain,0,45)
+        o.g = id==='x32' ? _sfHalf(o.gain,-12,60) : id==='wing' ? _sfHalf(o.gain,-2.5,45)
             : (o.gain>0 ? Math.round(Math.max(5,Math.min(60,o.gain))) : null);
         o.pw = o.ph;
       }
@@ -4042,16 +4042,18 @@ function genX32(){
   return o;
 }
 /* ── Behringer WING : snapshot partiel (.snap) ──
-   La console fusionne le JSON clé par clé : seules les clés présentes sont rappelées.
-   Nom et couleur vivent sur la voie (ae_data.ch), gain et +48 V sur l'entrée physique (ae_data.io.in). */
+   La console fusionne le JSON clé par clé : seules les clés présentes sont rappelées (vérifié dans WING-Edit 3.3.2).
+   Nom et couleur vivent sur la voie (ae_data.ch), gain et +48 V sur l'entrée physique (ae_data.io.in).
+   clink:false est indispensable : par défaut la voie affiche le nom et la couleur de sa SOURCE,
+   et ceux écrits sur la voie restent invisibles. Avec un patch, la source reçoit aussi nom et couleur. */
 function genW(){
   var grp=_sfOpt('wing','src'), ch={}, io={};
   _sfRows('wing').forEach(function(x){
     if(x.skip) return;
-    var c={name:x.name, col:x.hue.wing};
+    var c={clink:false, name:x.name, col:x.hue.wing};
     if(grp && x.socket){
       c['in']={conn:{grp:grp,'in':x.socket}};
-      io[x.socket]={g:x.g, vph:!!x.pw};
+      io[x.socket]={g:x.g, vph:!!x.pw, name:x.name, col:x.hue.wing};
     }
     ch[x.ch]=c;
   });
@@ -4408,7 +4410,7 @@ function renderShowfiles(){
   /* ── Colonne de gauche : la console, ce que le fichier écrit, les réglages, la marche à suivre ── */
   var writes=c.writes.slice();
   if(SF_CUR==='x32' && hasPre) writes.push('Gain et +48 V des préamplis ('+E(ok[0].src)+')');
-  if(SF_CUR==='wing' && _sfOpt('wing','src')) writes.push('Patch, gain et +48 V');
+  if(SF_CUR==='wing' && _sfOpt('wing','src')) writes.push('Patch, gain et +48 V, nom et couleur de la source');
   if((SF_CUR==='dlive'||SF_CUR==='avantis') && hasPre) writes.push('Gain et +48 V');
   var h='<aside class="sfx-side">'
     +'<div class="sfx-name">'+E(c.name)+'</div><div class="sfx-models">'+E(c.models)+'</div>'
