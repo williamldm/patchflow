@@ -3954,13 +3954,13 @@ const _SF={
         alt:'',
         note:'Chaque voie reçoit son propre nom : elle est détachée de la personnalisation de sa source (sinon la WING affiche le nom de la source). Avec un patch, la source reçoit le même nom.' },
   dlive:{ tab:'dLive', name:'Allen & Heath dLive', models:'S Class, C Class, CDM (via dLive Director)',
-        fmt:'CSV Director', req:'Director 1.9 ou 2.x', fn:'dlive-director.csv', type:'text/csv', maxCh:128, nameLen:8,
+        fmt:'CSV Director', req:'Director 1.9 ou 2.x · testé dans Director 2.12', fn:'dlive-director.csv', type:'text/csv', maxCh:128, nameLen:8,
         writes:['Noms de voies (8 caractères, sans accents)','Couleurs','Patch des entrées'],
         opts:[{key:'src',label:'Entrées patchées sur',def:'MixRack',choices:[['MixRack','MixRack (1-64)'],['MixRack DX 1/2','MixRack DX 1/2 (1-32)'],['MixRack DX 3/4','MixRack DX 3/4 (1-32)'],['Surface','Surface (1-8)']]},
               {key:'pre',label:'Gain et +48 V',def:'1',choices:[['1','Écrire'],['','Ne pas écrire']]}],
-        steps:['Ouvrir le show dans dLive Director (connecté à la console ou hors ligne).','Ouvrir l\'écran CSV Import / Export et choisir Import.','Sélectionner le fichier : Director liste les lignes importées et celles refusées.'],
+        steps:['Ouvrir le show dans dLive Director (connecté à la console ou hors ligne).','Onglet System, bouton Import CSV, puis choisir le fichier.','Director affiche le compte rendu ligne par ligne : cliquer Apply.'],
         alt:'',
-        note:'Chaque voie est patchée sur l\'entrée de même numéro. Au-delà de la plage de la source choisie, la voie est laissée sans entrée.' },
+        note:'Chaque voie est patchée sur l\'entrée de même numéro. Le gain et le +48 V appartiennent à la prise : les autres voies patchées sur la même prise les reçoivent aussi. Un bus absent de la configuration du show (matrix, groupe stéréo…) est ignoré sans message.' },
   avantis:{ tab:'Avantis', name:'Allen & Heath Avantis', models:'Avantis, Avantis Solo, Avantis Director',
         fmt:'CSV Import / Export', req:'Firmware 1.3 ou plus récent', fn:'avantis.csv', type:'text/csv', maxCh:64, nameLen:8,
         writes:['Noms de voies (8 caractères, sans accents)','Couleurs','Patch des entrées'],
@@ -4070,7 +4070,7 @@ function _sfRows(id){
 const _SF_BUS={
   x32:[['bus','Bus',16],['mtx','Matrix',6],['main','Main LR',1]],
   wing:[['bus','Bus',16],['mtx','Matrix',8],['main','Main',4]],
-  dlive:[['Aux','Aux',40],['St Aux','Aux stéréo',20],['Group','Groupe',40],['St Group','Groupe stéréo',20],['FX','Envoi FX',16],['Matrix','Matrix',40],['St Matrix','Matrix stéréo',20],['Main','Main',3]],
+  dlive:[['Aux','Aux',40],['St Aux','Aux stéréo',20],['Group','Groupe',40],['St Group','Groupe stéréo',20],['Matrix','Matrix',40],['St Matrix','Matrix stéréo',20],['Main','Main',3]],
   avantis:[['Aux','Aux',40],['St Aux','Aux stéréo',20],['Group','Groupe',40],['St Group','Groupe stéréo',20],['FX','Envoi FX',12],['Matrix','Matrix',40],['St Matrix','Matrix stéréo',20],['Main','Main',3]],
   yam:[['MIX','Mix',24],['MATRIX','Matrix',8],['ST','Stéréo L/R',1]],
   sq:[],
@@ -4082,7 +4082,7 @@ function _sfOutKind(id,type){
   var ah=(id==='dlive'||id==='avantis'), first=(_SF_BUS[id][0]||[''])[0];
   if(type==='mon'||type==='iem'||type==='aux') return first;
   if(type==='group') return ah?'Group':first;
-  if(type==='fx') return ah?'FX':first;
+  if(type==='fx') return id==='avantis'?'FX':id==='dlive'?'':first;   /* dLive : pas de type « envoi FX » dans le CSV Director */
   if(type==='matrix') return (id==='yam'||id==='dm7')?'MATRIX':ah?'Matrix':'mtx';
   return '';                       /* main, sub, autre : pas de bus par défaut, à choisir */
 }
