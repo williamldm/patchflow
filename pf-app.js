@@ -3990,10 +3990,10 @@ _SF.sq={ tab:'SQ', name:'Allen & Heath SQ', models:'SQ-5, SQ-6, SQ-7',
         alt:'',
         note:'La SQ n\'a pas d\'import de noms : PatchFlow modifie directement votre scène. Seuls nom et couleur (et prise, gain, +48 V si demandés) changent, la somme de contrôle est recalculée. Format relevé sur une SQ-5, pas encore rechargé sur console : premier essai à faire hors prestation, en gardant une copie de la scène d\'origine.' };
 _SF.dm7={ tab:'DM7', name:'Yamaha DM7', models:'DM7, DM7 Compact',
-        fmt:'Fichier console .dm7f', req:'À partir d\'un fichier de votre DM7 · testé dans DM7 Editor 1.7', fn:'dm7.dm7f', type:'application/octet-stream', maxCh:120, nameLen:8,
+        fmt:'Fichier console .dm7f', req:'Session vierge ou fichier de votre DM7 · testé dans DM7 Editor 1.7', fn:'dm7.dm7f', type:'application/octet-stream', maxCh:120, nameLen:8,
         writes:['Noms de voies (8 caractères)','Couleurs','Icônes'],
         opts:[],
-        steps:['Sur la DM7 ou dans DM7 Editor : enregistrer le fichier (.dm7f) et le charger ici.','Télécharger le fichier modifié, puis le charger dans DM7 Editor (File, Load) ou sur la console depuis une clé USB.','Choisir « Load » : les voies et les bus prennent leurs noms et couleurs, le reste du fichier est inchangé.'],
+        steps:['Télécharger le fichier, puis le charger dans DM7 Editor (File, Load) ou sur la console depuis une clé USB.','Pour conserver un mix existant : enregistrer le fichier de la console (.dm7f) et le charger ici avant de télécharger.','Choisir « Load » : les voies et les bus prennent leurs noms et couleurs, le reste du fichier est inchangé.'],
         alt:'',
         note:'La DM7 n\'a pas d\'import de noms : PatchFlow modifie directement votre fichier. Seule la mémoire courante est touchée (pas les scènes enregistrées). Patch, gain et +48 V ne sont pas écrits.' };
 const _SF_KEYS=['x32','wing','dlive','avantis','yam','dm7','sq'];
@@ -4446,9 +4446,19 @@ function sfDm7File(inp){
   rd.readAsArrayBuffer(f);
 }
 function sfDm7Clear(){ SF_DM7BASE=null; renderShowfiles(); }
+/* Session vierge intégrée (pf-dm7-blank.dm7f, enregistrée par une DM7 initialisée, une scène « 00 ») :
+   sert quand l'utilisateur ne fournit pas son propre fichier. */
+var SF_DM7BLANK=null, _dm7BlankAsked=false;
+function _dm7LoadBlank(){
+  if(_dm7BlankAsked) return; _dm7BlankAsked=true;
+  fetch('pf-dm7-blank.dm7f?v=1').then(function(r){ if(!r.ok) throw 0; return r.arrayBuffer(); }).then(function(buf){
+    var b=new Uint8Array(buf); if(_dm7Find(b)){ SF_DM7BLANK=b; if(SF_CUR==='dm7') renderShowfiles(); }
+  }).catch(function(){ _dm7BlankAsked=false; });
+}
 async function genDm7(){
-  if(!SF_DM7BASE) return null;
-  var a=SF_DM7BASE.bytes, e=_dm7Find(a), d=await _sfZlib(a.slice(e.s,e.s+e.L),true);
+  var a=SF_DM7BASE ? SF_DM7BASE.bytes : SF_DM7BLANK;
+  if(!a) return null;
+  var e=_dm7Find(a), d=await _sfZlib(a.slice(e.s,e.s+e.L),true);
   var put=function(p,x,icon){
     if(!_dm7Ok(d,p)) return;
     _dm7Put(d,p,64,x.name); _dm7Put(d,p+64,8,_DM7_COL[x.hk]||'Blue');
@@ -4496,9 +4506,8 @@ function dlFile(t){
   const slug=CUR_SHOW?.slug||'show';
   /* SQ : la console retrouve la scène par son nom de fichier, qui doit rester celui d'origine */
   if(t==='dm7'){
-    if(!SF_DM7BASE){ toast('Chargez d\'abord un fichier de votre DM7 (.dm7f)'); return; }
-    var dn=SF_DM7BASE.file.replace(/\.dm7f$/i,'')+'_patchflow.dm7f';
-    genDm7().then(function(b){ dl(b,m.type,dn); toast('✓ '+dn+' téléchargé'); }).catch(function(e){ console.error(e); toast('Erreur : fichier DM7 non produit'); });
+    var dn=SF_DM7BASE ? SF_DM7BASE.file.replace(/\.dm7f$/i,'')+'_patchflow.dm7f' : slug+'_dm7.dm7f';
+    genDm7().then(function(b){ if(!b){ toast('Session vierge indisponible : chargez un fichier de votre DM7'); return; } dl(b,m.type,dn); toast('✓ '+dn+' téléchargé'); }).catch(function(e){ console.error(e); toast('Erreur : fichier DM7 non produit'); });
     return;
   }
   if(t==='sq'){
@@ -4811,7 +4820,7 @@ function renderShowfiles(){
   var unpatched=(SF_CUR==='dlive'||SF_CUR==='avantis') ? ok.filter(function(x){return !x.socket;}).length : 0;
   var fn=((typeof CUR_SHOW!=='undefined'&&CUR_SHOW&&CUR_SHOW.slug)||'show')+'_'+c.fn;
   var nOut=(_SF_BUS[SF_CUR]||[]).length ? _sfOutsOk(SF_CUR).length : 0;
-  if(SF_CUR==='dm7') fn=SF_DM7BASE?SF_DM7BASE.file.replace(/\.dm7f$/i,'')+'_patchflow.dm7f':'fichier.dm7f';
+  if(SF_CUR==='dm7'){ if(SF_DM7BASE) fn=SF_DM7BASE.file.replace(/\.dm7f$/i,'')+'_patchflow.dm7f'; _dm7LoadBlank(); }
   if(SF_CUR==='sq'){ fn=SF_SQBASE?SF_SQBASE.file:'SCENE000.DAT'; _sqLoadBlank(); }
 
   /* ── Colonne de gauche : la console, ce que le fichier écrit, les réglages, la marche à suivre ── */
@@ -4842,8 +4851,9 @@ function renderShowfiles(){
         +'<button type="button" title="Retirer le fichier" onclick="sfDm7Clear()"><i class="ti ti-x"></i></button></div>'
         +'<div class="sfx-base-h">Le fichier téléchargé est une copie de celui-ci, où seules les voies et sorties listées sont renommées et recolorées.</div>';
     } else {
-      h+='<button type="button" class="btn sfx-ghost" onclick="sfDm7Pick()"><i class="ti ti-upload"></i>Charger un fichier DM7 (.dm7f)</button>'
-        +'<div class="sfx-base-h">Obligatoire : PatchFlow écrit dans un fichier enregistré par votre DM7 ou DM7 Editor. Il reste sur votre ordinateur.</div>';
+      h+='<div class="sfx-base"><i class="ti ti-file"></i><div><b>Session vierge DM7</b><span>'+(SF_DM7BLANK?'Console initialisée, scène 00':'Chargement…')+'</span></div></div>'
+        +'<div class="sfx-base-h">Sans fichier fourni, l\'export part d\'une session vierge : la charger remplace tout le contenu de la console. Pour garder votre mix, chargez votre propre fichier.</div>'
+        +'<button type="button" class="btn sfx-ghost" onclick="sfDm7Pick()"><i class="ti ti-upload"></i>Partir de mon fichier (.dm7f)</button>';
     }
     h+='</div>';
   }
@@ -4913,7 +4923,7 @@ function renderShowfiles(){
       }).join('')+'</tbody></table></div>';
   } else if(SF_VIEW==='file' && pro){
     var txt;
-    if(SF_CUR==='dm7'){ txt=SF_DM7BASE ? 'Fichier binaire compressé : '+SF_DM7BASE.file+'\nLes valeurs écrites sont celles des onglets Voies et Sorties.' : 'Chargez un fichier de votre DM7 pour produire l\'export.'; }
+    if(SF_CUR==='dm7'){ txt=(SF_DM7BASE||SF_DM7BLANK) ? 'Fichier binaire compressé : '+(SF_DM7BASE?SF_DM7BASE.file:'session vierge DM7')+'\nLes valeurs écrites sont celles des onglets Voies et Sorties.' : 'Session vierge en cours de chargement.'; }
     else if(SF_CUR==='sq'){ txt=(SF_SQBASE||SF_SQBLANK) ? 'Scène binaire (131 072 octets) : '+(SF_SQBASE?SF_SQBASE.file:'scène vierge SQ-5')+'\nLes valeurs écrites sont celles de l\'onglet Voies.' : 'Scène vierge en cours de chargement.'; }
     else if(SF_CUR==='yam'){ var yf=_yamFiles(); txt=['InName.csv','InPatch.csv','MixName.csv','MtxName.csv','StMonoName.csv'].map(function(n){ return '── '+n+' ──\n'+yf[n].replace(/\r/g,''); }).join('\n'); }
     else txt=_sfGen(SF_CUR);
