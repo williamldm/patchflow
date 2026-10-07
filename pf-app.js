@@ -4996,9 +4996,12 @@ function setPdfExportType(type){
   if(subRow) subRow.style.display = isVisual ? '' : 'none';
   const orientRow = document.getElementById('pdf-orient-row');
   if(orientRow) orientRow.style.display = isVisual ? '' : 'none';
-  const textRow = document.getElementById('pdf-text-row');
-  if(textRow) textRow.style.display = type==='syno' ? '' : 'none';
+  const zoomRow = document.getElementById('pdf-zoom-row');
+  if(zoomRow) zoomRow.style.display = type==='syno' ? '' : 'none';
   setPdfOrient(_pdfOrient); setPdfTextSize(_pdfTextSize);
+  const textRow = document.getElementById('pdf-text-row');
+  if(textRow) textRow.style.display = (type==='syno' && _pdfZoom) ? '' : 'none';
+  const zc = document.getElementById('pdf-zoom'); if(zc) zc.checked = _pdfZoom;
   // Hide link/recap checkboxes for visual plans
   const foot1 = document.getElementById('pdf-checks');
   if(foot1) foot1.style.display = isTable ? '' : 'none';
@@ -5086,11 +5089,21 @@ function setPdfOrient(o){
 /* Taille du texte du synoptique dans le PDF : seuil à partir duquel des pages de détail agrandies sont ajoutées.
    'fit' = tout tenir sur la vue d'ensemble, sans page de détail. Valeur = millimètres par pixel du schéma. */
 var _pdfTextSize='normal';
-const _PDF_TEXT_MIN={fit:0, normal:0.2, large:0.26, xlarge:0.33};
+const _PDF_TEXT_MIN={normal:0.2, large:0.26, xlarge:0.33};
 try{ var _pts=localStorage.getItem('pf_pdf_text'); if(_PDF_TEXT_MIN[_pts]!==undefined) _pdfTextSize=_pts; var _po=localStorage.getItem('pf_pdf_orient'); if(_po==='portrait'||_po==='auto'||_po==='landscape') _pdfOrient=_po; }catch(e){}
+/* Pages zoomées du synoptique : case à cocher à l'export. Cochée, le schéma est redécoupé en portions agrandies,
+   toujours en paysage ; la taille du texte règle le niveau de zoom. */
+var _pdfZoom=false;
+try{ _pdfZoom=localStorage.getItem('pf_pdf_zoom')==='1'; }catch(e){}
+function setPdfZoom(on){
+  _pdfZoom=!!on;
+  var c=document.getElementById('pdf-zoom'); if(c) c.checked=_pdfZoom;
+  var r=document.getElementById('pdf-text-row'); if(r) r.style.display=(_pdfZoom && _pdfExportType==='syno')?'':'none';
+  try{ localStorage.setItem('pf_pdf_zoom',_pdfZoom?'1':'0'); }catch(e){}
+}
 function setPdfTextSize(v){
   _pdfTextSize = _PDF_TEXT_MIN[v]!==undefined ? v : 'normal';
-  ['fit','normal','large','xlarge'].forEach(function(k){ var b=document.getElementById('pdf-text-'+k); if(b) b.classList.toggle('on',k===_pdfTextSize); });
+  ['normal','large','xlarge'].forEach(function(k){ var b=document.getElementById('pdf-text-'+k); if(b) b.classList.toggle('on',k===_pdfTextSize); });
   try{ localStorage.setItem('pf_pdf_text',_pdfTextSize); }catch(e){}
 }
 function loadPdfLogo(input){
@@ -7102,16 +7115,15 @@ async function _openSynoPdf(meta, synHtml, shareUrl, brand){
     }
     /* ── Pages de détail : quand la vue d'ensemble réduit trop le schéma, il est redécoupé en portions
        agrandies (texte des cartes à environ 6,5 points au minimum), avec un recouvrement entre portions ── */
-    var s1=dw/ex.w, SMIN=_PDF_TEXT_MIN[_pdfTextSize], OV=70;
-    if(s1<SMIN){
+    var s1=dw/ex.w, SMIN=_PDF_TEXT_MIN[_pdfTextSize]||0.2, OV=70;
+    if(_pdfZoom && s1<SMIN){
       var plan=function(o){
         var bw=(o==='portrait'?210:297)-2*M, bh=(o==='portrait'?297:210)-M-16-_pdfFootH(false)-4;
         var tw=bw/SMIN, th=bh/SMIN;
         var cols=Math.max(1,Math.ceil((ex.w-OV)/(tw-OV))), rows=Math.max(1,Math.ceil((ex.h-OV)/(th-OV)));
         return {o:o,bw:bw,bh:bh,cols:cols,rows:rows,n:cols*rows};
       };
-      var pa=plan('landscape'), pb=plan('portrait');
-      var pl=!autoO ? (orientation==='portrait'?pb:pa) : (pb.n<pa.n || (pb.n===pa.n && orientation==='portrait'))?pb:pa;
+      var pl=plan('landscape');   /* pages zoomées : toujours en paysage */
       if(pl.n<=12){
         var tW=(ex.w+OV*(pl.cols-1))/pl.cols, tH=(ex.h+OV*(pl.rows-1))/pl.rows, k=0;
         for(var rr=0;rr<pl.rows;rr++) for(var cc=0;cc<pl.cols;cc++){
