@@ -6118,6 +6118,33 @@ function _planExpPng() {
   if (PLAN_MODE === 'site') { SitePlan.exportPng(); }
   else { exportBpPng(); }
 }
+/* ── Plein écran des plans (scène, site, synoptique) ──
+   Classe pf-fs sur le panneau : seul le plan reste, recadré pour tenir en entier. Échap quitte. */
+function pfFullscreen(which, force){
+  var p=document.getElementById(which==='syno'?'panel-synoptique':'panel-stage'); if(!p) return;
+  var on=force===undefined ? !p.classList.contains('pf-fs') : !!force;
+  if(on) document.querySelectorAll('.panel.pf-fs').forEach(function(x){ if(x!==p) x.classList.remove('pf-fs'); });
+  p.classList.toggle('pf-fs',on);
+  document.body.classList.toggle('pf-fs-on',!!document.querySelector('.panel.pf-fs'));
+  p.querySelectorAll('.pf-fs-btn').forEach(function(b){
+    b.classList.toggle('on',on);
+    b.innerHTML='<i class="ti ti-'+(on?'minimize':'maximize')+'"></i><span>'+(on?'Quitter le plein écran':'Plein écran')+'</span>';
+  });
+  /* Le plan change de taille : on le recadre une fois la mise en page appliquée */
+  setTimeout(function(){
+    try{
+      if(which==='syno'){ var f=document.getElementById('sp-fit'); if(f) f.click(); }
+      else if(typeof PLAN_MODE!=='undefined' && PLAN_MODE==='site') SitePlan.fitView();
+      else BandPlan.fitView();
+    }catch(e){}
+  },140);
+}
+document.addEventListener('keydown',function(e){
+  if(e.key!=='Escape') return;
+  var p=document.querySelector('.panel.pf-fs'); if(!p) return;
+  if(document.querySelector('.modal-ov.show')) return;          /* une fenêtre ouverte se ferme d'abord */
+  pfFullscreen(p.id==='panel-synoptique'?'syno':'plan',false);
+});
 function _planExpPdf() {
   if (PLAN_MODE === 'site') { openPDFModal('site'); }
   else { openPDFModal('stage'); }
@@ -18419,6 +18446,7 @@ function goTab(id,el){
   if(id==='fichiers')renderFichiers();
   if(id==='team'){_initRiderBuilder();}
   if(id==='showfiles') renderShowfiles();
+  var _fs=document.querySelector('.panel.pf-fs'); if(_fs && _fs.id!=='panel-'+id) pfFullscreen(_fs.id==='panel-synoptique'?'syno':'plan',false);
 }
 
 const _MOB_PLAN_W = 1200; // largeur de rendu SVG/canvas mobile

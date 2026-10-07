@@ -60,7 +60,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=3.73">
+<link rel="stylesheet" href="pf-app.css?v=3.74">
 </head>
 <body>
 
@@ -495,6 +495,7 @@ html.rider-boot #rider-splash{display:flex}
           </div>
           <button type="button" class="btn ghost sm" id="sp-conf"><i class="ti ti-settings"></i>Marque &amp; réseaux</button>
           <button type="button" class="btn ghost sm" id="sp-import" onclick="LinusImport.pick()" title="Créer le synoptique à partir d'une session LINUS Control (Coda Audio)"><i class="ti ti-file-import"></i>Session LINUS</button>
+          <button type="button" class="btn ghost sm pf-fs-btn" onclick="pfFullscreen('syno')" title="Plein écran (Échap pour quitter)"><i class="ti ti-maximize"></i><span>Plein écran</span></button>
           <button type="button" class="btn sm" id="sp-export" onclick="SynPro.openExport()"><i class="ti ti-file-export"></i>Exporter</button>
           <span id="sp-save-status" style="font-size:10px;font-family:var(--m);display:flex;align-items:center;gap:4px;color:var(--muted)"></span>
           <button type="button" class="btn ghost sm" data-undo="syno" onclick="undoSection('syno')" title="Annuler (Ctrl/⌘+Z)" style="display:none"><i class="ti ti-arrow-back-up"></i></button>
@@ -620,6 +621,7 @@ html.rider-boot #rider-splash{display:flex}
             <button class="pmb" id="pmb-site" onclick="setPlanMode('site')"><i class="ti ti-map-2"></i> Site</button>
           </div>
           <button type="button" class="btn ghost sm" id="plan-undo-btn" data-undo="stage" onclick="undoActiveSection()" title="Annuler (Ctrl/⌘+Z)" style="display:none"><i class="ti ti-arrow-back-up"></i></button>
+          <button type="button" class="btn ghost sm pf-fs-btn" onclick="pfFullscreen('plan')" title="Plein écran (Échap pour quitter)"><i class="ti ti-maximize"></i><span>Plein écran</span></button>
           <button class="btn sm" id="plan-exp-wrap" onclick="_planExpPdf()" style="display:none"><i class="ti ti-file-export"></i>Exporter</button>
           <button class="btn ghost sm" onclick="clearCurrentPlan()"><i class="ti ti-trash"></i></button>
           <!-- Legacy IDs kept pour setPlanMode -->
@@ -1674,7 +1676,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=3.99"></script>
+<script src="pf-app.js?v=4.00"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
   <div class="mob-plan-bar">

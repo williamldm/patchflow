@@ -2887,3 +2887,19 @@ button.fi-th:hover{background:var(--surf2);color:var(--txt)}
   #panel-showfiles .sfx-opt{flex-wrap:wrap;gap:6px}
   #panel-showfiles .sfx-opt select{flex:1 1 100%}
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   PLEIN ÉCRAN — plan de scène, plan de site, synoptique
+   Le plan occupe toute la fenêtre, bibliothèque et propriétés masquées,
+   pour le relire en entier avant l'export. Échap pour quitter.
+   ══════════════════════════════════════════════════════════════════ */
+.panel.pf-fs{position:fixed;inset:0;z-index:290;margin:0;padding:0;background:var(--bg);box-shadow:0 0 0 100vmax var(--bg);display:flex!important;flex-direction:column;height:100vh;height:100dvh;overflow:hidden}
+.panel.pf-fs .bp-layout,.panel.pf-fs .site-layout,.panel.pf-fs .sp-body{grid-template-columns:minmax(0,1fr)!important;flex:1;min-height:0;height:auto}
+.panel.pf-fs .sp-app{height:100%;flex:1;min-height:0;padding:10px}
+.panel.pf-fs :is(.bp-pal,.bp-insp,.site-pal-wrap,.site-insp-col,.sp-palette,.sp-hintbar,.plan-mode-sw,#sp-conf,#sp-import,#sp-save-status){display:none!important}
+.panel.pf-fs .sp-body>:not(.sp-canvas-wrap){display:none!important}
+.panel.pf-fs button[onclick="clearCurrentPlan()"]{display:none}
+.pf-fs-btn.on{color:var(--txt)}
+.pf-fs-btn.on>i{color:var(--ora)}
+body.pf-fs-on{overflow:hidden}
+@media(max-width:640px){ .pf-fs-btn span{display:none} }
