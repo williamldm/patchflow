@@ -4996,8 +4996,13 @@ function setPdfExportType(type){
   if(subRow) subRow.style.display = isVisual ? '' : 'none';
   const orientRow = document.getElementById('pdf-orient-row');
   if(orientRow) orientRow.style.display = isVisual ? '' : 'none';
+  const layoutCard = document.getElementById('pdf-layout');
+  if(layoutCard) layoutCard.style.display = isVisual ? '' : 'none';
   const zoomRow = document.getElementById('pdf-zoom-row');
   if(zoomRow) zoomRow.style.display = type==='syno' ? '' : 'none';
+  const creditRow = document.getElementById('pdf-credit-row');
+  if(creditRow) creditRow.style.display = type==='syno' ? '' : 'none';
+  _pdfSyncCredit();
   setPdfOrient(_pdfOrient); setPdfTextSize(_pdfTextSize);
   const textRow = document.getElementById('pdf-text-row');
   if(textRow) textRow.style.display = (type==='syno' && _pdfZoom) ? '' : 'none';
@@ -5084,6 +5089,7 @@ function setPdfOrient(o){
   if(l) l.classList.toggle('on', _pdfOrient==='landscape');
   if(p) p.classList.toggle('on', _pdfOrient==='portrait');
   if(a) a.classList.toggle('on', _pdfOrient==='auto');
+  var h=document.getElementById('pdf-orient-hint'); if(h) h.textContent=_pdfOrient==='auto'?'Chaque page prend l\'orientation la plus lisible':'Toutes les pages suivent ce choix';
   try{ localStorage.setItem('pf_pdf_orient',_pdfOrient); }catch(e){}
 }
 /* Taille du texte du synoptique dans le PDF : seuil à partir duquel des pages de détail agrandies sont ajoutées.
@@ -5100,6 +5106,21 @@ function setPdfZoom(on){
   var c=document.getElementById('pdf-zoom'); if(c) c.checked=_pdfZoom;
   var r=document.getElementById('pdf-text-row'); if(r) r.style.display=(_pdfZoom && _pdfExportType==='syno')?'':'none';
   try{ localStorage.setItem('pf_pdf_zoom',_pdfZoom?'1':'0'); }catch(e){}
+}
+/* Mention « Créez votre synoptique sur PatchFlow » en bas du schéma : toujours présente sur le plan gratuit,
+   désactivable à partir du plan Pro (même règle que le filigrane). */
+var _pdfCredit=true;
+try{ _pdfCredit=localStorage.getItem('pf_pdf_credit')!=='0'; }catch(e){}
+function _pdfCreditFree(){ return (PLAN_PERMS[userPlan()]||PLAN_PERMS.free).pdf_watermark===true; }
+function _pdfCreditOn(){ return _pdfCreditFree() || _pdfCredit; }
+function _pdfSyncCredit(){
+  var c=document.getElementById('pdf-credit'); if(c) c.checked=_pdfCreditOn();
+  var b=document.getElementById('pdf-credit-pro'); if(b) b.style.display=_pdfCreditFree()?'':'none';
+}
+function setPdfCredit(on){
+  if(!on && _pdfCreditFree()){ _pdfSyncCredit(); closePDF(); showUpgradeModal('export_pdf_pro'); return; }
+  _pdfCredit=!!on; try{ localStorage.setItem('pf_pdf_credit',_pdfCredit?'1':'0'); }catch(e){}
+  _pdfSyncCredit();
 }
 function setPdfTextSize(v){
   _pdfTextSize = _PDF_TEXT_MIN[v]!==undefined ? v : 'normal';
@@ -7041,6 +7062,17 @@ function _pdfLogoInfo(url){
 }
 
 /* ── Synoptique : page 1 le schéma, page 2 la nomenclature (équipements et liaisons) ── */
+/* Mention PatchFlow posée dans l'angle bas droit d'un cadre de schéma (x, y, l, h en mm) */
+function _pdfCreditTag(doc, pf, x, y, w, h){
+  var K=_PDFK, t='Créez votre synoptique sur patchflow.fr';
+  doc.setFont('helvetica','bold'); doc.setFontSize(7.5);
+  var tw=doc.getTextWidth(t), bw=tw+(pf?9.5:5), bh=6.6, bx=x+w-bw-2.6, by=y+h-bh-2.6;
+  doc.setFillColor(255,255,255); doc.setDrawColor(K.line[0],K.line[1],K.line[2]); doc.setLineWidth(0.25); doc.roundedRect(bx,by,bw,bh,3.3,3.3,'FD');
+  if(pf){ try{ doc.addImage(pf,'PNG',bx+2.2,by+1.2,4.2,4.2); }catch(e){} }
+  doc.setTextColor(K.txt2[0],K.txt2[1],K.txt2[2]);
+  doc.text(t, bx+(pf?7.3:2.5), by+4.5);
+  try{ doc.link(bx,by,bw,bh,{url:'https://patchflow.fr'}); }catch(e){}
+}
 async function _openSynoPdf(meta, synHtml, shareUrl, brand){
   if(!window.SynPro || !SynPro.buildExportSvg){ toast('Module synoptique indisponible.'); return; }
   var ex;
@@ -7090,6 +7122,8 @@ async function _openSynoPdf(meta, synHtml, shareUrl, brand){
     var r=await _svgStrToPng(ex.svg,scale);
     if(!r){ toast('Impossible de générer le PDF du synoptique.'); return; }
     doc.addImage(r.dataUrl,'PNG',M+(boxW-dw)/2,y+(boxH-dh)/2,dw,dh,undefined,'FAST');
+    var credit=_pdfCreditOn();
+    if(credit) _pdfCreditTag(doc,pfLogo,M,y,boxW,boxH);
     y+=boxH;
     if(used.length){
       var lx=M+1, ly=y+5.4;
@@ -7139,6 +7173,7 @@ async function _openSynoPdf(meta, synHtml, shareUrl, brand){
           var sc2=Math.max(2,Math.min(5,(tw2/25.4*300)/tW));
           var rt=await _svgStrToPng(tsvg,sc2);
           if(rt) doc.addImage(rt.dataUrl,'PNG',M+(bw2-tw2)/2,yd+(bh2-th2)/2,tw2,th2,undefined,'FAST');
+          if(credit) _pdfCreditTag(doc,pfLogo,M,yd,bw2,bh2);
         }
       }
     }
@@ -7181,7 +7216,6 @@ async function _openSynoPdf(meta, synHtml, shareUrl, brand){
     for(var p=1;p<=pages;p++){
       doc.setPage(p);
       _pdfFoot(doc,{acc:acc, pf:pfLogo, qr:p===1?qr:null, url:shareUrl, stamp:p===1?'':title, page:p, pages:pages});
-      if(brand.watermark) _pdfWatermark(doc);
     }
     await _pdfDeliver(doc, (_pdfSlug(title)||'synoptique')+'-synoptique.pdf');
   }catch(e){ console.error('_openSynoPdf:',e); toast('Erreur PDF : '+(e&&e.message||e)); }

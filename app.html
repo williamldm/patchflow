@@ -60,7 +60,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=3.74">
+<link rel="stylesheet" href="pf-app.css?v=3.75">
 </head>
 <body>
 
@@ -1108,31 +1108,38 @@ html.rider-boot #rider-splash{display:flex}
       </div>
       <!-- Réglages du PDF -->
       <div id="pdf-opts">
-        <div id="pdf-sub-row" class="pdf-fld" style="display:none;margin-bottom:12px"><label class="pdf-lbl">Sous-titre / production (optionnel)</label><input class="pdf-inp" id="pdf-sub" placeholder="Nom de la production, tournée…"/></div>
-        <div id="pdf-orient-row" class="xp-row" style="display:none">
-          <span class="xp-lbl">Orientation</span>
-          <div class="xp-seg">
-            <button type="button" id="pdf-orient-land" class="xp-seg-b on" onclick="setPdfOrient('landscape')">Paysage</button>
-            <button type="button" id="pdf-orient-port" class="xp-seg-b" onclick="setPdfOrient('portrait')">Portrait</button>
-            <button type="button" id="pdf-orient-auto" class="xp-seg-b" onclick="setPdfOrient('auto')" title="Chaque page prend l'orientation où le plan est le plus grand">Les deux</button>
+        <!-- Mise en page des plans : un seul bloc, une ligne par réglage -->
+        <div id="pdf-layout" class="xp-card" style="display:none">
+          <div class="xp-opt" id="pdf-orient-row">
+            <div class="xp-opt-t"><b>Orientation</b><span id="pdf-orient-hint">Toutes les pages suivent ce choix</span></div>
+            <div class="xp-seg">
+              <button type="button" id="pdf-orient-land" class="xp-seg-b on" onclick="setPdfOrient('landscape')">Paysage</button>
+              <button type="button" id="pdf-orient-port" class="xp-seg-b" onclick="setPdfOrient('portrait')">Portrait</button>
+              <button type="button" id="pdf-orient-auto" class="xp-seg-b" onclick="setPdfOrient('auto')">Les deux</button>
+            </div>
           </div>
-        </div>
-        <div id="pdf-zoom-row" class="xp-row" style="display:none">
-          <span class="xp-lbl">Pages zoomées</span>
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--txt2);cursor:pointer"><input type="checkbox" id="pdf-zoom" onchange="setPdfZoom(this.checked)"/>Ajouter le schéma agrandi, en paysage, après la vue d'ensemble</label>
-        </div>
-        <div id="pdf-text-row" class="xp-row" style="display:none">
-          <span class="xp-lbl">Taille du texte</span>
-          <div class="xp-seg">
-            <button type="button" id="pdf-text-normal" class="xp-seg-b on" onclick="setPdfTextSize('normal')" title="Pages de détail ajoutées si le texte passe sous 6,5 points">Normal</button>
-            <button type="button" id="pdf-text-large" class="xp-seg-b" onclick="setPdfTextSize('large')" title="Texte à 8,5 points au minimum">Grand</button>
-            <button type="button" id="pdf-text-xlarge" class="xp-seg-b" onclick="setPdfTextSize('xlarge')" title="Texte à 11 points au minimum">Très grand</button>
+          <div class="xp-opt" id="pdf-zoom-row" style="display:none">
+            <div class="xp-opt-t"><b>Pages zoomées</b><span>Le schéma agrandi, en paysage, après la vue d'ensemble</span></div>
+            <label class="xp-sw"><input type="checkbox" id="pdf-zoom" onchange="setPdfZoom(this.checked)"/><i></i></label>
+          </div>
+          <div class="xp-opt xp-opt-sub" id="pdf-text-row" style="display:none">
+            <div class="xp-opt-t"><b>Niveau de zoom</b><span>Plus le texte est grand, plus il y a de pages</span></div>
+            <div class="xp-seg">
+              <button type="button" id="pdf-text-normal" class="xp-seg-b on" onclick="setPdfTextSize('normal')">Normal</button>
+              <button type="button" id="pdf-text-large" class="xp-seg-b" onclick="setPdfTextSize('large')">Grand</button>
+              <button type="button" id="pdf-text-xlarge" class="xp-seg-b" onclick="setPdfTextSize('xlarge')">Très grand</button>
+            </div>
+          </div>
+          <div class="xp-opt" id="pdf-credit-row" style="display:none">
+            <div class="xp-opt-t"><b>Mention PatchFlow <span class="exp-pro" id="pdf-credit-pro">Pro</span></b><span>« Créez votre synoptique sur PatchFlow », en bas du schéma</span></div>
+            <label class="xp-sw"><input type="checkbox" id="pdf-credit" checked onchange="setPdfCredit(this.checked)"/><i></i></label>
           </div>
         </div>
         <div id="pdf-free-notice" class="xp-note" style="display:none"><i class="ti ti-droplet"></i><span>Plan Gratuit : l'export inclut un léger filigrane PatchFlow. <button type="button" onclick="closePDF();showUpgradeModal('export_pdf_pro')">Passer Pro</button> pour un PDF sans filigrane et tous les champs.</span></div>
         <details class="xp-sec" id="pdf-head-sec">
           <summary><span class="xp-sec-t">En-tête du document</span><span class="xp-sec-s" id="pdf-head-sum"></span><i class="ti ti-chevron-down"></i></summary>
           <div class="xp-sec-b">
+            <div id="pdf-sub-row" class="pdf-fld" style="display:none;margin-bottom:12px"><label class="pdf-lbl">Sous-titre / production (optionnel)</label><input class="pdf-inp" id="pdf-sub" placeholder="Nom de la production, tournée…"/></div>
             <div class="pdf-grid">
               <div class="pdf-fld"><label class="pdf-lbl">Nom</label><input class="pdf-inp" id="pdf-eng" placeholder="Jean-Marie Leclerc"/></div>
               <div class="pdf-fld"><label class="pdf-lbl">Rôle / poste</label><input class="pdf-inp" id="pdf-role" placeholder="Ingé façade"/></div>
@@ -1689,7 +1696,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=4.07"></script>
+<script src="pf-app.js?v=4.08"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
   <div class="mob-plan-bar">
