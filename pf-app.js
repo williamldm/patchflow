@@ -4057,6 +4057,65 @@ function _sfRows(id){
     return o;
   }).sort(function(a,b){return a.ch-b.ch;});
 }
+/* ── Sorties : chaque ligne de l'Output list est affectée à un bus de la console ──
+   Familles de bus par console : [code, libellé, nombre]. La première famille reçoit retours, IEM et aux. */
+const _SF_BUS={
+  x32:[['bus','Bus',16],['mtx','Matrix',6],['main','Main LR',1]],
+  wing:[['bus','Bus',16],['mtx','Matrix',8],['main','Main',4]],
+  dlive:[['Aux','Aux',40],['St Aux','Aux stéréo',20],['Group','Groupe',40],['St Group','Groupe stéréo',20],['FX','Envoi FX',16],['Matrix','Matrix',40],['St Matrix','Matrix stéréo',20],['Main','Main',3]],
+  avantis:[['Aux','Aux',40],['St Aux','Aux stéréo',20],['Group','Groupe',40],['St Group','Groupe stéréo',20],['FX','Envoi FX',12],['Matrix','Matrix',40],['St Matrix','Matrix stéréo',20],['Main','Main',3]],
+  yam:[['MIX','Mix',24],['MATRIX','Matrix',8],['ST','Stéréo L/R',1]],
+  sq:[]
+};
+/* Type de sortie PatchFlow : famille de bus par défaut (selon la console) et couleur par défaut */
+const _SF_OUT_HUE={main:'red',sub:'red',mon:'yellow',iem:'green',aux:'cyan',fx:'purple',group:'blue',matrix:'white',other:'white'};
+function _sfOutKind(id,type){
+  var ah=(id==='dlive'||id==='avantis'), first=(_SF_BUS[id][0]||[''])[0];
+  if(type==='mon'||type==='iem'||type==='aux') return first;
+  if(type==='group') return ah?'Group':first;
+  if(type==='fx') return ah?'FX':first;
+  if(type==='matrix') return id==='yam'?'MATRIX':ah?'Matrix':'mtx';
+  return '';                       /* main, sub, autre : pas de bus par défaut, à choisir */
+}
+function _sfBusMax(id,k){
+  if(id==='yam' && k==='MIX') return /^QL/.test(_sfOpt('yam','model'))?16:24;
+  var f=(_SF_BUS[id]||[]).find(function(x){return x[0]===k;}); return f?f[2]:0;
+}
+function _sfOuts(id){
+  var c=_SF[id], next={}, list=(typeof OUT_CHS!=='undefined'?OUT_CHS:[]);
+  return list.map(function(r,i){
+    var ov=r._sf||{}, t=OUT_TYPES[r.type]?r.type:'other', auto=_SF_OUT_HUE[t], hk=_SF_HUES[ov.col]?ov.col:auto;
+    var o={id:r.id, n:i+1, type:t, name:_sfName(r,c.nameLen), orig:String(r.long_name||r.short_name||'').trim(), hue:_SF_HUES[hk], hk:hk, hauto:!_SF_HUES[ov.col],
+           kind:'', num:0, kauto:true, bad:false};
+    var b=ov.b && ov.b[id];
+    if(b && (b[0]==='' || _sfBusMax(id,b[0]))){ o.kauto=false; o.kind=b[0]; o.num=parseInt(b[1],10)||1; }
+    else { o.kind=_sfOutKind(id,t); if(o.kind){ next[o.kind]=(next[o.kind]||0)+1; o.num=next[o.kind]; } }
+    if(o.kind && !(o.num>=1 && o.num<=_sfBusMax(id,o.kind))) o.bad=true;
+    o.lbl=o.kind ? ((_SF_BUS[id].find(function(x){return x[0]===o.kind;})||['',o.kind])[1]) : '';
+    return o;
+  });
+}
+/* Sorties réellement écrites : affectées, dans la plage, une seule par bus (la première gagne) */
+function _sfOutsOk(id){
+  var seen={};
+  return _sfOuts(id).filter(function(o){ if(!o.kind||o.bad) return false; var k=o.kind+'/'+o.num; if(seen[k]){ o.dup=true; return false; } seen[k]=1; return true; });
+}
+function _sfSaveOut(outId,fn){
+  var r=OUT_CHS.find(function(x){return x.id===outId;}); if(!r) return;
+  var ov=JSON.parse(JSON.stringify(r._sf||{})); fn(ov);
+  if(ov.b && !Object.keys(ov.b).length) delete ov.b;
+  r._sf=ov; saveOutData(); renderShowfiles();
+}
+function sfSetOutCol(outId,val){ _sfSaveOut(outId,function(ov){ if(val) ov.col=val; else delete ov.col; }); }
+function sfSetOutBus(outId,kind,num){
+  var id=SF_CUR;
+  _sfSaveOut(outId,function(ov){
+    ov.b=ov.b||{};
+    if(kind==='*') delete ov.b[id];
+    else if(kind==='-') ov.b[id]=['',0];
+    else ov.b[id]=[kind, Math.max(1,parseInt(num,10)||1)];
+  });
+}
 function _sfSaveOv(chId,fn){
   var r=CHS.find(function(x){return x.id===chId;}); if(!r) return;
   var ov=JSON.parse(JSON.stringify(_sfOv(r))); fn(ov);
@@ -4088,7 +4147,9 @@ function genX32(){
   rows.forEach(function(x){ mask|=(1<<(x.ch-1)); });
   var p2=function(n){return String(n).padStart(2,'0');}, p3=function(n){return String(n).padStart(3,'0');};
   var pre=rows.some(function(x){return x.pw!==undefined;});
-  var o=('#4.0# "'+_sfShowName(16)+'" '+(pre?3:2)+' '+mask+' 0 0 1').padEnd(126,' ')+'\n';
+  var outs=_sfOutsOk('x32'), m3=0, m4=0;
+  outs.forEach(function(x){ if(x.kind==='bus') m3|=(1<<(15+x.num)); else if(x.kind==='mtx') m4|=(1<<(x.num-1)); else m4|=64; });
+  var o=('#4.0# "'+_sfShowName(16)+'" '+(pre?3:2)+' '+mask+' '+m3+' '+m4+' 1').padEnd(126,' ')+'\n';
   rows.forEach(function(x){
     if(x.pw===undefined) return;
     o+='/headamp/'+p3(BASE[x.sg]+x.socket-1)+' '+(x.g<0?'-':'+')+Math.abs(x.g).toFixed(1)+' '+(x.pw?'ON':'OFF')+'\n';
@@ -4096,6 +4157,10 @@ function genX32(){
   rows.forEach(function(x){
     var a='/ch/'+p2(x.ch)+'/config/';
     o+=a+'name "'+x.name+'"\n'+a+'icon '+(_ICON_X32[x.grp]||1)+'\n'+a+'color '+x.hue.x32+'\n';
+  });
+  outs.forEach(function(x){
+    var a=(x.kind==='bus'?'/bus/'+p2(x.num):x.kind==='mtx'?'/mtx/'+p2(x.num):'/main/st')+'/config/';
+    o+=a+'name "'+x.name+'"\n'+a+'color '+x.hue.x32+'\n';
   });
   return o;
 }
@@ -4118,6 +4183,7 @@ function genW(){
   });
   var ae={ch:ch};
   if(any) ae.io={'in':io};
+  _sfOutsOk('wing').forEach(function(x){ (ae[x.kind]=ae[x.kind]||{})[x.num]={name:x.name, col:x.hue.wing}; });
   return JSON.stringify({type:'snapshot.11', creator:'PatchFlow', creator_name:_sfShowName(32), creator_model:'wing', ae_data:ae});
 }
 /* ── Allen & Heath dLive / Avantis : CSV d'import ──
@@ -4133,6 +4199,7 @@ function genAH(id){
       on?'Off':'', on?(x.pw?'On':'Off'):'',
       'Unassigned','','','','','', 'Unassigned','','','','','', 'Unassigned']));
   });
+  _sfOutsOk(id).forEach(function(x){ L.push(row([x.kind, x.num, x.name, x.hue.ah])); });
   return L.join('\r\n')+'\r\n';
 }
 /* ── WING : mémoire existante ──
@@ -4151,6 +4218,7 @@ function _sfWingMerge(){
       if(s){ s.g=x.g; s.vph=!!x.pw; s.name=x.name; s.col=x.hue.wing; }
     }
   });
+  _sfOutsOk('wing').forEach(function(x){ var t=ae[x.kind] && ae[x.kind][x.num]; if(t){ t.name=x.name; t.col=x.hue.wing; } });
   return JSON.stringify(d);
 }
 /* Nom affiché par la console pour une voie : le sien, ou celui de sa source quand la voie y est liée */
@@ -4232,6 +4300,12 @@ function _yamFiles(){
   var E={DCAName:'DCA,NAME,COLOR,ICON,',MixName:'MIX,NAME,COLOR,ICON,',MtxName:'MATRIX,NAME,COLOR,ICON,',StMonoName:'STEREO/MONO,NAME,COLOR,ICON,',
          StName:'ST,NAME,COLOR,ICON,',OutPatch:'OUT PATCH,SOURCE,COMMENT',PortRackPatch:'PORT RACK PATCH,SOURCE,COMMENT'};
   Object.keys(E).forEach(function(k){ f[k+'.csv']=head(k,E[k]); });
+  _sfOutsOk('yam').forEach(function(x){
+    var line=function(n){ return '_'+String(n).padStart(2,'0')+','+x.name+','+x.hue.yam+',Blank,\r\n'; };
+    if(x.kind==='MIX') f['MixName.csv']+=line(x.num);
+    else if(x.kind==='MATRIX') f['MtxName.csv']+=line(x.num);
+    else f['StMonoName.csv']+=line(1)+line(2);
+  });
   return f;
 }
 /* Archive .zip sans compression (les CSV font quelques Ko) */
@@ -4651,11 +4725,13 @@ function renderShowfiles(){
   var hasPre=ok.some(function(x){return x.pw!==undefined;}), n48=ok.filter(function(x){return x.pw;}).length;
   var unpatched=(SF_CUR==='dlive'||SF_CUR==='avantis') ? ok.filter(function(x){return !x.socket;}).length : 0;
   var fn=((typeof CUR_SHOW!=='undefined'&&CUR_SHOW&&CUR_SHOW.slug)||'show')+'_'+c.fn;
+  var nOut=(_SF_BUS[SF_CUR]||[]).length ? _sfOutsOk(SF_CUR).length : 0;
   if(SF_CUR==='sq'){ fn=SF_SQBASE?SF_SQBASE.file:'SCENE000.DAT'; _sqLoadBlank(); }
 
   /* ── Colonne de gauche : la console, ce que le fichier écrit, les réglages, la marche à suivre ── */
   var writes=c.writes.slice();
   if(SF_CUR==='x32' && hasPre) writes.push('Gain et +48 V des préamplis choisis');
+  if(nOut) writes.push('Noms et couleurs de '+nOut+' sortie'+(nOut>1?'s':'')+' (bus, matrices)');
   if(SF_CUR==='yam' && ok.some(function(x){return x.socket;})) writes.push('Patch des entrées');
   if(SF_CUR==='sq' && ok.some(function(x){return x.socket;})) writes.push('Prise d\'entrée, gain et +48 V');
   if(SF_CUR==='wing' && ok.some(function(x){return x.socket;})) writes.push('Patch, gain et +48 V, nom et couleur de la source');
@@ -4712,13 +4788,35 @@ function renderShowfiles(){
 
   /* ── Colonne de droite : les voies telles qu'elles seront écrites, ou le fichier lui-même ── */
   h+='<section class="sfx-view"><div class="sfx-view-h"><div class="sfx-seg">'
-    +'<button type="button" class="'+(SF_VIEW!=='file'?'on':'')+'" onclick="sfSetView(\'ch\')">Voies</button>'
+    +'<button type="button" class="'+(SF_VIEW!=='file'&&SF_VIEW!=='out'?'on':'')+'" onclick="sfSetView(\'ch\')">Voies</button>'
+    +'<button type="button" class="'+(SF_VIEW==='out'?'on':'')+'" onclick="sfSetView(\'out\')">Sorties'+(nOut?' · '+nOut:'')+'</button>'
     +'<button type="button" class="'+(SF_VIEW==='file'?'on':'')+'" onclick="sfSetView(\'file\')">Fichier</button></div>'
-    +'<span class="sfx-view-t">'+(SF_VIEW==='file'?E(fn):'Ce que la console recevra')+'</span></div>';
-  if(SF_VIEW==='file' && pro){
+    +'<span class="sfx-view-t">'+(SF_VIEW==='file'?E(fn):SF_VIEW==='out'?'Bus, matrices et envois, depuis l\'Output list':'Ce que la console recevra')+'</span></div>';
+  if(SF_VIEW==='out'){
+    var BK=_SF_BUS[SF_CUR]||[], outs=_sfOuts(SF_CUR), written={}; _sfOutsOk(SF_CUR).forEach(function(x){ written[x.id]=1; });
+    if(!BK.length) h+='<div class="sfx-empty"><i class="ti ti-arrow-bar-to-right"></i><div class="sfx-empty-t">Sorties pas encore prises en charge sur cette console</div><div class="sfx-empty-s">L\'emplacement des noms de bus dans la scène n\'est pas encore relevé.</div></div>';
+    else if(!outs.length) h+='<div class="sfx-empty"><i class="ti ti-arrow-bar-to-right"></i><div class="sfx-empty-t">Aucune sortie</div><div class="sfx-empty-s">Les bus, matrices et envois viennent de l\'Output list.</div><button type="button" class="btn pri" onclick="goTab(\'inputlist\')"><i class="ti ti-list-numbers"></i>Ouvrir l\'Output list</button></div>';
+    else h+='<div class="sfx-tw"><table class="sfx-tbl"><thead><tr><th class="n">N°</th><th>Nom envoyé</th><th>Type</th><th>Couleur</th><th>Bus de la console</th></tr></thead><tbody>'
+      +outs.map(function(x){
+        var diff=x.orig && x.orig!==x.name, cur=x.kauto?'*':(x.kind||'-');
+        var autoLbl='Auto'+(x.kauto?(x.kind?' · '+x.lbl:' · aucun'):'');
+        return '<tr'+(written[x.id]?'':' class="off"')+'><td class="n">'+x.n+'</td>'
+          +'<td><span class="sfx-nm">'+E(x.name)+'</span>'+(diff?'<span class="sfx-was" title="Nom dans PatchFlow">'+E(x.orig)+'</span>':'')+'</td>'
+          +'<td class="src">'+E(OUT_TYPES[x.type].label)+'</td>'
+          +'<td><label class="sfx-col"><i style="background:'+x.hue.hex+'"></i><select onchange="sfSetOutCol(\''+x.id+'\',this.value)" title="Couleur du bus">'
+            +'<option value=""'+(x.hauto?' selected':'')+'>'+(x.hauto?x.hue.fr+' (auto)':'Auto')+'</option>'
+            +Object.keys(_SF_HUES).map(function(k){ return '<option value="'+k+'"'+(!x.hauto&&k===x.hk?' selected':'')+'>'+_SF_HUES[k].fr+'</option>'; }).join('')+'</select></label></td>'
+          +'<td class="src"><span class="sfx-in'+(x.kauto?' auto':'')+'"><select onchange="sfSetOutBus(\''+x.id+'\',this.value,'+(x.num||1)+')" title="Bus de la console">'
+            +'<option value="*"'+(cur==='*'?' selected':'')+'>'+E(autoLbl)+'</option>'
+            +BK.map(function(g){ return '<option value="'+E(g[0])+'"'+(cur===g[0]?' selected':'')+'>'+E(g[1])+'</option>'; }).join('')
+            +'<option value="-"'+(cur==='-'?' selected':'')+'>Ne pas écrire</option></select>'
+            +(x.kind?'<input type="number" min="1" max="'+_sfBusMax(SF_CUR,x.kind)+'" value="'+x.num+'"'+((x.bad||x.dup)?' class="bad"':'')+' onchange="sfSetOutBus(\''+x.id+'\',\''+E(x.kind)+'\',this.value)" title="'+(x.dup?'Bus déjà utilisé par une autre sortie':x.bad?'Hors plage':'Numéro du bus')+'">':'')
+            +'</span></td></tr>';
+      }).join('')+'</tbody></table></div>';
+  } else if(SF_VIEW==='file' && pro){
     var txt;
     if(SF_CUR==='sq'){ txt=(SF_SQBASE||SF_SQBLANK) ? 'Scène binaire (131 072 octets) : '+(SF_SQBASE?SF_SQBASE.file:'scène vierge SQ-5')+'\nLes valeurs écrites sont celles de l\'onglet Voies.' : 'Scène vierge en cours de chargement.'; }
-    else if(SF_CUR==='yam'){ var yf=_yamFiles(); txt=['InName.csv','InPatch.csv'].map(function(n){ return '── '+n+' ──\n'+yf[n].replace(/\r/g,''); }).join('\n'); }
+    else if(SF_CUR==='yam'){ var yf=_yamFiles(); txt=['InName.csv','InPatch.csv','MixName.csv','MtxName.csv','StMonoName.csv'].map(function(n){ return '── '+n+' ──\n'+yf[n].replace(/\r/g,''); }).join('\n'); }
     else txt=_sfGen(SF_CUR);
     if(SF_CUR==='wing' && !SF_WBASE){ try{ txt=JSON.stringify(JSON.parse(txt),null,2); }catch(e){} }
     if(txt.length>60000) txt=txt.slice(0,60000)+'\n… (mémoire complète, '+Math.round(txt.length/1024)+' Ko)';
