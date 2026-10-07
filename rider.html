@@ -1017,6 +1017,16 @@ html.rider-boot #rider-splash{display:flex}
           <div class="xp-seg">
             <button type="button" id="pdf-orient-land" class="xp-seg-b on" onclick="setPdfOrient('landscape')">Paysage</button>
             <button type="button" id="pdf-orient-port" class="xp-seg-b" onclick="setPdfOrient('portrait')">Portrait</button>
+            <button type="button" id="pdf-orient-auto" class="xp-seg-b" onclick="setPdfOrient('auto')" title="Chaque page prend l'orientation où le plan est le plus grand">Les deux</button>
+          </div>
+        </div>
+        <div id="pdf-text-row" class="xp-row" style="display:none">
+          <span class="xp-lbl">Taille du texte</span>
+          <div class="xp-seg">
+            <button type="button" id="pdf-text-fit" class="xp-seg-b" onclick="setPdfTextSize('fit')" title="Tout le schéma sur une page, sans page de détail">Une page</button>
+            <button type="button" id="pdf-text-normal" class="xp-seg-b on" onclick="setPdfTextSize('normal')" title="Pages de détail ajoutées si le texte passe sous 6,5 points">Normal</button>
+            <button type="button" id="pdf-text-large" class="xp-seg-b" onclick="setPdfTextSize('large')" title="Texte à 8,5 points au minimum">Grand</button>
+            <button type="button" id="pdf-text-xlarge" class="xp-seg-b" onclick="setPdfTextSize('xlarge')" title="Texte à 11 points au minimum">Très grand</button>
           </div>
         </div>
         <div id="pdf-free-notice" class="xp-note" style="display:none"><i class="ti ti-droplet"></i><span>Plan Gratuit : l'export inclut un léger filigrane PatchFlow. <button type="button" onclick="closePDF();showUpgradeModal('export_pdf_pro')">Passer Pro</button> pour un PDF sans filigrane et tous les champs.</span></div>
@@ -1579,7 +1589,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=4.05"></script>
+<script src="pf-app.js?v=4.06"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
   <div class="mob-plan-bar">
