@@ -4997,11 +4997,11 @@ function setPdfExportType(type){
   const orientRow = document.getElementById('pdf-orient-row');
   if(orientRow) orientRow.style.display = isVisual ? '' : 'none';
   const layoutCard = document.getElementById('pdf-layout');
-  if(layoutCard) layoutCard.style.display = isVisual ? '' : 'none';
+  if(layoutCard) layoutCard.style.display = '';
   const zoomRow = document.getElementById('pdf-zoom-row');
   if(zoomRow) zoomRow.style.display = type==='syno' ? '' : 'none';
   const creditRow = document.getElementById('pdf-credit-row');
-  if(creditRow) creditRow.style.display = type==='syno' ? '' : 'none';
+  if(creditRow) creditRow.style.display = '';
   _pdfSyncCredit();
   setPdfOrient(_pdfOrient); setPdfTextSize(_pdfTextSize);
   const textRow = document.getElementById('pdf-text-row');
@@ -6800,156 +6800,53 @@ async function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand, opts){
   toast('Génération PDF…');
   try {
     const JsPDF = await _bpLoadJsPDF();
-
-    /* Image du plan : raster direct (scène/site) ou SVG rasterisé (synoptique) */
+    /* Image du plan : raster direct (scène, site) ou SVG rasterisé */
     let planImg, ratio;
     if(inlineSvg){
-      const r = await _svgStrToPng(dataUrl, 1.6);
-      if(!r){ toast('Impossible de générer le PDF du synoptique.'); return; }
+      const r = await _svgStrToPng(dataUrl, 3);
+      if(!r){ toast('Impossible de générer le PDF.'); return; }
       planImg = r.dataUrl; ratio = r.w/r.h;
-    } else {
-      planImg = dataUrl;
-      ratio = await _imgRatio(dataUrl);
-    }
-
-    /* Orientation choisie par l'utilisateur (paysage par défaut). */
+    } else { planImg = dataUrl; ratio = await _imgRatio(dataUrl); }
     /* « Les deux » : l'orientation qui convient à la forme du plan */
     const orientation = opts.orientation==='auto' ? (ratio<1?'portrait':'landscape') : (opts.orientation==='portrait') ? 'portrait' : 'landscape';
-    const doc = new JsPDF({orientation, unit:'mm', format:'a4'});
-    const PW = orientation==='portrait' ? 210 : 297;
-    const PH = orientation==='portrait' ? 297 : 210;
-    const now = new Date().toLocaleString('fr-FR');
+    const doc = new JsPDF({orientation, unit:'mm', format:'a4', compress:true});
+    const K=_PDFK, M=K.M, PW=doc.internal.pageSize.getWidth(), PH=doc.internal.pageSize.getHeight();
     const acc = _hex2rgb(_safeColor(brand.color)||'#ff6b1a');
-    /* Titre mis en avant. Le nom interne du show n'est PLUS injecté ici :
-       si aucun titre n'est saisi, on retombe sur le type de document. */
-    const title = String(meta.title||docType).slice(0,60);
-    const sub   = String(meta.sub||'').slice(0,90);
-    const eng   = [meta.eng, meta.role].filter(Boolean).join(' — ');
-
-    /* Logo PatchFlow rastérisé (best-effort) — réutilisé en-tête + pied. */
-    let _pfLogo=null; try{ _pfLogo = await _pfLogoPng('#FF6B2B'); }catch(e){ _pfLogo=null; }
-
-    /* ── Header sombre — logo + titre en grand ── */
-    const HDR=21;
-    doc.setFillColor(10,15,28); doc.rect(0,0,PW,HDR,'F');
-    doc.setFillColor(acc[0],acc[1],acc[2]); doc.rect(0,HDR,PW,0.9,'F');
-    let LX=10;
-    if(_pfLogo){ try{ doc.addImage(_pfLogo,'PNG',10,5.6,10,10); LX=24; }catch(e){ LX=10; } }
-    /* Marque / société (petit, au-dessus du titre) */
-    doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(acc[0],acc[1],acc[2]);
-    doc.text((brand.co||'PatchFlow').toUpperCase(), LX, 8.2);
-    /* Type de doc + horodatage (à droite) */
-    doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(acc[0],acc[1],acc[2]);
-    doc.text(String(docType).toUpperCase(),PW-10,8.2,{align:'right'});
-    doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor(122,138,160);
-    doc.text((meta.rev?'Rev. '+meta.rev+'  ·  ':'')+now,PW-10,12.8,{align:'right'});
-    /* Titre — grand, auto-réduit s'il déborde de la place dispo */
-    let tFs=18; doc.setFont('helvetica','bold');
-    const titleMaxW = PW - LX - 44; /* marge gauche (logo+texte) + réserve droite (type/date) */
-    doc.setFontSize(tFs);
-    while(tFs>11 && doc.getTextWidth(title) > titleMaxW){ tFs-=1; doc.setFontSize(tFs); }
-    doc.setTextColor(255,255,255);
-    doc.text(title, LX, sub?14.4:16.2);
-    if(sub){ doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(150,165,190); doc.text(sub, LX, 18.4); }
-
-    /* ── Barre méta ── */
-    let y=HDR+0.8;
-    const mItems=[];
-    if(meta.venue) mItems.push(['Venue',meta.venue]);
-    if(meta.date)  mItems.push(['Date',meta.date]);
-    if(eng)        mItems.push(['Créateur',eng]);
-    if(meta.co)    mItems.push(['Société',meta.co]);
-    if(mItems.length){
-      const MB=8.5;
-      doc.setFillColor(247,248,250); doc.rect(0,y,PW,MB,'F');
-      doc.setDrawColor(230,232,236); doc.setLineWidth(0.2); doc.line(0,y+MB,PW,y+MB);
-      const cw=PW/mItems.length;
-      mItems.forEach(function(it,i){
-        const cx=i*cw+6;
-        if(i>0){ doc.setDrawColor(230,232,236); doc.line(i*cw,y+1.5,i*cw,y+MB-1.5); }
-        doc.setFontSize(5.5); doc.setFont('helvetica','normal'); doc.setTextColor(160,160,160);
-        doc.text(it[0].toUpperCase(),cx,y+3.4);
-        doc.setFontSize(7.5); doc.setFont('helvetica','bold');
-        if(it[0]==='Créateur') doc.setTextColor(acc[0],acc[1],acc[2]); else doc.setTextColor(51,51,51);
-        doc.text(String(it[1]).slice(0,38),cx,y+6.8);
-      });
-      y+=MB;
+    const isSite=/site/i.test(docType), label=isSite?'Plan de site':/sc[eè]ne/i.test(docType)?'Plan de scène':String(docType);
+    const title = String(meta.title||label).slice(0,70);
+    let pfLogo=null; try{ pfLogo = await _pfLogoPng('#FF6B2B'); }catch(e){ pfLogo=null; }
+    const logo = await _pdfLogoInfo(brand.logo);
+    let qr=null; if(shareUrl){ try{ const q=await _qrImage(shareUrl,{px:320}); qr=q&&q.dataUrl; }catch(e){} }
+    const stamp=new Date().toLocaleDateString('fr-FR');
+    let y=_pdfHead(doc,{acc:acc, pf:pfLogo, brand:brand.co||'PatchFlow', docType:label, title:title, sub:String(meta.sub||'').slice(0,110), logo:logo,
+      rightLines:[meta.rev?'Révision '+meta.rev:'', 'Édité le '+stamp].filter(Boolean),
+      meta:[['Lieu',meta.venue],['Date',_pdfDateFr(meta.date)],['Réalisé par',[meta.eng,meta.role].filter(Boolean).join(' · ')],['Société',meta.co],['Contact',meta.tel]]});
+    doc.setFont('helvetica','normal'); doc.setFontSize(8);
+    const notes=meta.notes?doc.splitTextToSize(String(meta.notes),PW-2*M-16).slice(0,3):[];
+    const notesH=notes.length?(3+notes.length*3.6):0, footH=_pdfFootH(!!qr);
+    const boxW=PW-2*M, boxH=PH-y-footH-3-notesH;
+    doc.setFillColor(255,255,255); doc.setDrawColor(K.line[0],K.line[1],K.line[2]); doc.setLineWidth(0.3);
+    doc.roundedRect(M,y,boxW,boxH,2.2,2.2,'FD');
+    const pad=2.5; let dw=boxW-2*pad, dh=dw/ratio;
+    if(dh>boxH-2*pad){ dh=boxH-2*pad; dw=dh*ratio; }
+    /* compression FAST indispensable : sinon le PNG d'un grand plan pèse des dizaines de Mo */
+    doc.addImage(planImg,'PNG',M+(boxW-dw)/2,y+(boxH-dh)/2,dw,dh,undefined,'FAST');
+    _pdfFrameTicks(doc,acc,M,y,boxW,boxH);
+    y+=boxH;
+    if(notes.length){
+      doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(K.muted[0],K.muted[1],K.muted[2]);
+      doc.text('NOTES', M+1, y+4.6, {charSpace:0.3});
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(K.txt2[0],K.txt2[1],K.txt2[2]);
+      doc.text(notes, M+17, y+4.6);
     }
-
-    /* ── Zone image (maximisée, centrée, ratio préservé) — chrome resserré
-       pour laisser le plan le plus grand possible ── */
-    const hasQr = !!shareUrl;
-    const QRH = hasQr?18:0;
-    const notesLines = meta.notes ? doc.splitTextToSize(String(meta.notes), PW-20) : [];
-    const notesH = meta.notes ? Math.min(16, 6+notesLines.length*3) : 0;
-    const PAD=2;
-    const availH = PH - y - QRH - notesH - PAD*2;
-    const availW = PW - PAD*2;
-    let drawW=availW, drawH=availW/ratio;
-    if(drawH>availH){ drawH=availH; drawW=availH*ratio; }
-    const ix=(PW-drawW)/2, iy=y+PAD;
-    /* compression 'FAST' (zlib) : indispensable, sinon le PNG d'un grand canvas
-       gonfle le PDF à plusieurs dizaines de Mo */
-    doc.addImage(planImg,'PNG',ix,iy,drawW,drawH,undefined,'FAST');
-    /* Cadre fin autour du plan (rendu pro) */
-    doc.setDrawColor(208,214,222); doc.setLineWidth(0.3); doc.rect(ix,iy,drawW,drawH);
-
-    /* ── Notes ── */
-    if(meta.notes){
-      const ny=PH-QRH-notesH;
-      doc.setFillColor(255,251,247); doc.rect(0,ny,PW,notesH,'F');
-      doc.setDrawColor(255,224,200); doc.setLineWidth(0.2); doc.line(0,ny,PW,ny);
-      doc.setFontSize(5.5); doc.setFont('helvetica','bold'); doc.setTextColor(200,160,120);
-      doc.text('NOTES',10,ny+3.4);
-      doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(85,85,85);
-      doc.text(notesLines,10,ny+6.6);
-    }
-
-    /* ── Footer QR + lien partagé + marque PatchFlow ── */
-    if(hasQr){
-      const fy=PH-QRH;
-      doc.setFillColor(244,250,255); doc.rect(0,fy,PW,QRH,'F');
-      doc.setFillColor(26,143,255); doc.rect(0,fy,PW,0.5,'F');
-      const qr=await _qrImage(shareUrl,{px:320});
-      let tx=10;
-      /* QR centré verticalement dans le pied → plus de débordement/crop */
-      const qrSize=13, qy=fy+(QRH-qrSize)/2;
-      if(qr){ doc.addImage(qr.dataUrl,'PNG',10,qy,qrSize,qrSize); tx=10+qrSize+5; }
-      doc.setFontSize(6); doc.setFont('helvetica','bold'); doc.setTextColor(26,143,255);
-      doc.text('FICHE À JOUR EN LIGNE',tx,fy+6);
-      doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(26,79,255);
-      const lnk=String(shareUrl).slice(0,88);
-      if(doc.textWithLink){ doc.textWithLink(lnk,tx,fy+10.5,{url:shareUrl}); } else { doc.text(lnk,tx,fy+10.5); }
-      doc.setFontSize(5.5); doc.setFont('helvetica','normal'); doc.setTextColor(122,138,154);
-      doc.text('Scannez le QR code ou ouvrez le lien pour retrouver cette fiche à jour à tout moment.',tx,fy+14.2);
-      /* Marque PatchFlow à droite du pied (logo + wordmark) */
-      const wm='patchflow.fr', wmY=fy+QRH/2+1;
-      doc.setFontSize(7); doc.setFont('helvetica','bold');
-      const wmW=doc.getTextWidth(wm);
-      if(_pfLogo){ try{ doc.addImage(_pfLogo,'PNG',PW-10-wmW-9,fy+(QRH-7)/2,7,7); }catch(e){} }
-      doc.setTextColor(26,143,255); doc.text(wm,PW-10,wmY,{align:'right'});
-    }
-
-    /* ── Filigrane plan Gratuit ── */
-    if(brand.watermark){
-      try{ if(doc.setGState) doc.setGState(new doc.GState({opacity:0.07})); }catch(e){}
-      doc.setTextColor(60,70,90); doc.setFont('helvetica','bold'); doc.setFontSize(46);
-      doc.text('PATCHFLOW · GRATUIT', PW/2, PH/2, {align:'center', angle:28});
-      try{ if(doc.setGState) doc.setGState(new doc.GState({opacity:1})); }catch(e){}
-    }
-
-    const slug=function(s){return String(s||'').replace(/[^a-z0-9]/gi,'-').replace(/-+/g,'-').toLowerCase().replace(/^-|-$/g,'');};
-    await _pdfDeliver(doc, (slug(title)||'plan')+'-'+(slug(docType)||'document')+'.pdf');
+    _pdfFoot(doc,{acc:acc, pf:pfLogo, credit:_pdfCreditOn(), creditWhat:label.toLowerCase(), qr:qr, url:shareUrl, stamp:'', page:1, pages:1});
+    await _pdfDeliver(doc, (_pdfSlug(title)||'plan')+'-'+(_pdfSlug(label)||'document')+'.pdf');
   } catch(e){
     console.error('_openVisualPdf:',e);
     toast('Erreur PDF : '+(e&&e.message||e));
   }
 }
 
-/* Synoptique PDF — SVG inline pour préserver les câbles, flèches et marqueurs.
-   Quand on injecte un SVG via <img src="data:image/svg+xml...">, les marqueurs
-   (flèches) et parfois les paths internes ne s'affichent pas correctement à
-   l'impression (sandboxing). Solution : rendre le SVG en INLINE dans le HTML. */
 /* ══════════════════════════════════════════════════════════════════
    PDF — charte commune des exports (nouveau design)
    Page claire, encre #1c2433, filets fins, un seul accent (couleur de marque).
@@ -7042,7 +6939,7 @@ function _pdfFoot(doc, o){
   doc.text(ft, PW-M, base, {align:'right'});
   /* Marque PatchFlow, sur chaque page : logo et adresse du site */
   var bx=PW-M-(ft?doc.getTextWidth(ft)+5:0);
-  var bt=o.credit?'Créez votre synoptique sur patchflow.fr':'patchflow.fr';
+  var bt=o.credit?('Créez votre '+(o.creditWhat||'synoptique')+' sur patchflow.fr'):'patchflow.fr';
   doc.setFont('helvetica',o.credit?'normal':'bold'); doc.setTextColor(K.muted[0],K.muted[1],K.muted[2]);
   doc.text(bt, bx, base, {align:'right'});
   try{ doc.link(bx-doc.getTextWidth(bt),base-3,doc.getTextWidth(bt),4,{url:'https://patchflow.fr'}); }catch(e){}
@@ -7311,55 +7208,26 @@ async function _openTablePdf(type, meta, brand, shareUrl){
     var docTitle=userTitle || patchName;
     var docSubtitle=userTitle ? '' : (hasMultiPatch?showName:'');
 
-    /* Filigrane diagonal pour les comptes gratuits (sur chaque page) */
-    function _wm(){
-      if(!brand.watermark) return;
-      try{ if(doc.setGState) doc.setGState(new doc.GState({opacity:0.06})); }catch(e){}
-      doc.setTextColor(60,70,90); doc.setFont('helvetica','bold'); doc.setFontSize(46);
-      doc.text('PATCHFLOW · GRATUIT', PW/2, PH/2, {align:'center', angle:24});
-      try{ if(doc.setGState) doc.setGState(new doc.GState({opacity:1})); }catch(e){}
-    }
-
-    /* En-tête (page 1) */
+    /* Charte commune : en-tête, bandeau d'informations, pied posé à la fin */
+    var K=_PDFK;
     var _pfLogo=null; try{ _pfLogo=await _pfLogoPng('#FF6B2B'); }catch(e){}
-    var y=M;
-    var titleX=M;
-    if(_pfLogo){ try{ doc.addImage(_pfLogo,'PNG',M,y,9,9); titleX=M+12; }catch(e){} }
-    doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(26,26,46);
-    doc.text(docTitle, titleX, y+6);
-    if(docSubtitle){
-      doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(130,130,145);
-      doc.text(docSubtitle, titleX, y+10.5);
-    }
-    var docLabel=type==='out'?'OUTPUT LIST':type==='both'?'INPUT + OUTPUT LIST':'INPUT LIST';
-    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(accent[0],accent[1],accent[2]);
-    doc.text(docLabel, PW-M, y+3.5, {align:'right'});
-    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(110,110,110);
-    doc.text((meta.rev?('Rév. '+meta.rev+'   '):'')+now, PW-M, y+8, {align:'right'});
-    y += docSubtitle ? 13 : 11;
-    doc.setDrawColor(accent[0],accent[1],accent[2]); doc.setLineWidth(0.8); doc.line(M,y,PW-M,y);
-    y+=4;
-    var metaParts=[];
-    var engLine=[meta.eng,meta.role].filter(Boolean).join(' — ');
-    if(engLine) metaParts.push(['Créé par',engLine]);
-    if(meta.co) metaParts.push(['Société',meta.co]);
-    var venue=(CUR_SHOW&&CUR_SHOW.venue)||meta.venue; if(venue) metaParts.push(['Venue',venue]);
-    if(meta.date) metaParts.push(['Date',meta.date]);
-    if(meta.tel) metaParts.push(['Contact',meta.tel]);
-    if(metaParts.length){
-      var mx=M;
-      metaParts.forEach(function(p){
-        doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(150,150,150);
-        doc.text(p[0].toUpperCase(), mx, y);
-        var lblW=doc.getTextWidth(p[0].toUpperCase());
-        doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(60,60,80);
-        var val=' '+p[1];
-        doc.text(val, mx+lblW, y);
-        mx += lblW+doc.getTextWidth(val)+7;
-      });
-      y+=5;
-    }
+    var _coLogo=await _pdfLogoInfo(brand.logo);
+    var docLabel=type==='out'?'Output list':type==='both'?'Input et output list':'Input list';
+    var _qr=null; if(shareUrl){ try{ var _q=await _qrImage(shareUrl,{px:320}); _qr=_q&&_q.dataUrl; }catch(e){} }
+    var BOT=_pdfFootH(!!_qr)+4, TOP=30;   /* marges des tableaux : pied en bas, en-tête réduit sur les pages de suite */
+    var venue=(CUR_SHOW&&CUR_SHOW.venue)||meta.venue;
+    var y=_pdfHead(doc,{acc:accent, pf:_pfLogo, brand:brand.co||'PatchFlow', docType:docLabel, title:docTitle, sub:docSubtitle, logo:_coLogo,
+      rightLines:[meta.rev?'Révision '+meta.rev:'', 'Édité le '+new Date().toLocaleDateString('fr-FR')].filter(Boolean),
+      meta:[['Lieu',venue],['Date',_pdfDateFr(meta.date)],['Réalisé par',[meta.eng,meta.role].filter(Boolean).join(' · ')],['Société',meta.co],['Contact',meta.tel]]});
     var startY=y+1;
+    /* Style des tableaux : sans grille, filets horizontaux, en-têtes discrets, numéro de voie en gras */
+    var TBL={theme:'plain', margin:{left:M,right:M,top:TOP,bottom:BOT},
+      styles:{font:'helvetica',fontSize:8.2,cellPadding:{top:1.55,bottom:1.55,left:1.8,right:1.8},textColor:K.ink,lineColor:K.line,lineWidth:{bottom:0.2},valign:'middle'},
+      headStyles:{fontSize:6.5,fontStyle:'bold',textColor:K.muted,lineColor:K.ink,lineWidth:{bottom:0.35}},
+      columnStyles:{0:{halign:'center',fontStyle:'bold',cellWidth:10}}};
+    var _sect=function(t,n,yy){ doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(K.ink[0],K.ink[1],K.ink[2]); doc.text(t,M,yy); var tw=doc.getTextWidth(t);
+      if(n!==''){ doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(K.muted[0],K.muted[1],K.muted[2]); doc.text(String(n),M+tw+2.5,yy); } };
+    var _tot=function(t,yy){ doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(K.muted[0],K.muted[1],K.muted[2]); doc.text(t,M,yy); };
 
     function drawInput(sy){
       var cols=_ilColsForPdf();
@@ -7379,15 +7247,12 @@ async function _openTablePdf(type, meta, brand, shareUrl){
         });
         return row;
       });
-      doc.autoTable({head:head,body:body,startY:sy,margin:{left:M,right:M,top:M},theme:'grid',
-        styles:{fontSize:7.5,cellPadding:1.4,lineColor:[236,232,225],lineWidth:0.1,textColor:[45,45,55],font:'helvetica'},
-        headStyles:{fillColor:accent,textColor:[255,255,255],fontSize:7,fontStyle:'bold'},
-        columnStyles:{0:{halign:'center',fontStyle:'bold',textColor:accent,cellWidth:9}},
-        alternateRowStyles:{fillColor:[253,248,244]},
-        didDrawPage:_wm});
+      var _ph=cols.findIndex(function(c){return c.id==='phantom';})+1;
+      doc.autoTable(Object.assign({},TBL,{head:[head[0].map(function(h){return String(h).toUpperCase();})],body:body,startY:sy,
+        didParseCell:function(d){ if(d.section==='body' && d.column.index===_ph && d.cell.raw){ d.cell.styles.textColor=accent; d.cell.styles.fontStyle='bold'; }
+          if(d.section==='body' && d.column.index>1 && d.column.index!==_ph) d.cell.styles.textColor=K.txt2; }}));
       var fy=doc.lastAutoTable.finalY;
-      doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(90,90,110);
-      doc.text('Total '+CHS.length+' canaux    +48V '+CHS.filter(function(r){return r.phantom;}).length+'    FOH '+CHS.filter(function(r){return r.foh;}).length+'    MON '+CHS.filter(function(r){return r.mon;}).length+'    IEM '+CHS.filter(function(r){return r.iem_group;}).length, M, fy+4.5);
+      _tot('Total '+CHS.length+' canaux   ·   +48V '+CHS.filter(function(r){return r.phantom;}).length+'   ·   FOH '+CHS.filter(function(r){return r.foh;}).length+'   ·   MON '+CHS.filter(function(r){return r.mon;}).length+'   ·   IEM '+CHS.filter(function(r){return r.iem_group;}).length, fy+4.5);
       return fy+6;
     }
     function drawOutput(sy){
@@ -7396,15 +7261,10 @@ async function _openTablePdf(type, meta, brand, shareUrl){
         var t=(OUT_TYPES[r.type]||OUT_TYPES.other);
         return [String(r.ch),(r.short_name||'').trim(),(r.long_name||''),(t&&t.label)||r.type||'',(r.dest||''),(r.note||'')];
       });
-      doc.autoTable({head:head,body:body,startY:sy,margin:{left:M,right:M,top:M},theme:'grid',
-        styles:{fontSize:8,cellPadding:1.5,lineColor:[236,232,225],lineWidth:0.1,textColor:[45,45,55],font:'helvetica'},
-        headStyles:{fillColor:accent,textColor:[255,255,255],fontSize:7,fontStyle:'bold'},
-        columnStyles:{0:{halign:'center',fontStyle:'bold',textColor:accent,cellWidth:9}},
-        alternateRowStyles:{fillColor:[253,248,244]},
-        didDrawPage:_wm});
+      doc.autoTable(Object.assign({},TBL,{head:[head[0].map(function(h){return String(h).toUpperCase();})],body:body,startY:sy,
+        didParseCell:function(d){ if(d.section==='body' && d.column.index>2) d.cell.styles.textColor=K.txt2; }}));
       var fy=doc.lastAutoTable.finalY;
-      doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(90,90,110);
-      doc.text('Total '+OUT_CHS.length+' sorties', M, fy+4.5);
+      _tot('Total '+OUT_CHS.length+' sorties', fy+4.5);
       return fy+6;
     }
 
@@ -7422,14 +7282,10 @@ async function _openTablePdf(type, meta, brand, shareUrl){
       var standEntries=Object.keys(stands).sort(function(a,b){return stands[b]-stands[a]||a.localeCompare(b);});
       if(!micEntries.length && !standEntries.length) return sy;
       /* Réserver la place du titre + au moins l'en-tête d'un tableau */
-      if(sy>PH-46){ doc.addPage(); sy=M; }
-      sy+=4;
-      doc.setDrawColor(accent[0],accent[1],accent[2]); doc.setLineWidth(0.6); doc.line(M,sy,PW-M,sy);
-      sy+=5;
-      doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(26,26,46);
-      doc.text('Récapitulatif matériels', M, sy);
-      doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(140,140,155);
-      doc.text('Décompte par modèle — à préparer', M, sy+3.8);
+      if(sy>PH-BOT-40){ doc.addPage(); sy=TOP; }
+      sy+=8;
+      _sect('Récapitulatif matériel','',sy);
+      _tot('Décompte par modèle, à préparer', sy+4);
       sy+=7;
 
       var gap=8, halfW=(PW-2*M-gap)/2;
@@ -7439,15 +7295,14 @@ async function _openTablePdf(type, meta, brand, shareUrl){
          centrée en gras + lignes alternées + ligne Total en pied. */
       function recapTable(title, entries, counts, total, leftX){
         doc.autoTable({
-          head: [[title, 'Qté']],
+          head: [[String(title).toUpperCase(), 'QTÉ']],
           body: entries.length ? entries.map(function(k){return [k, String(counts[k])];}) : [['—','0']],
           foot: [['Total', String(total)]],
-          startY: sy, margin:{left:leftX}, tableWidth: halfW, theme:'grid',
-          styles:{fontSize:8, cellPadding:1.7, lineColor:[228,224,217], lineWidth:0.1, textColor:[45,45,55], font:'helvetica', valign:'middle'},
-          headStyles:{fillColor:accent, textColor:[255,255,255], fontSize:7.5, fontStyle:'bold'},
-          footStyles:{fillColor:[248,244,239], textColor:accent, fontStyle:'bold', fontSize:8, lineColor:[228,224,217], lineWidth:0.1},
-          alternateRowStyles:{fillColor:[252,250,247]},
-          columnStyles:{1:{halign:'center', fontStyle:'bold', textColor:accent, cellWidth:14}},
+          startY: sy, margin:{left:leftX,top:TOP,bottom:BOT}, tableWidth: halfW, theme:'plain',
+          styles:TBL.styles, headStyles:TBL.headStyles,
+          footStyles:{fontStyle:'bold', fontSize:8.2, textColor:K.ink, lineColor:K.ink, lineWidth:{top:0.35}},
+          columnStyles:{1:{halign:'right', fontStyle:'bold', textColor:accent, cellWidth:16}},
+          didParseCell:function(d){ if(d.column.index===1) d.cell.styles.halign='right'; },
         });
         return doc.lastAutoTable.finalY;
       }
@@ -7465,38 +7320,17 @@ async function _openTablePdf(type, meta, brand, shareUrl){
     else {
       fy=drawInput(startY);
       if(meta.inclRecap) fy=drawRecap(fy);
-      if(fy>PH-34){ doc.addPage(); fy=M; } else { fy+=4; }
-      doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(accent[0],accent[1],accent[2]);
-      doc.text('OUTPUT LIST', M, fy+2); fy+=4;
+      if(fy>PH-BOT-34){ doc.addPage(); fy=TOP; } else { fy+=8; }
+      _sect('Output list',OUT_CHS.length,fy+2); fy+=5;
       fy=drawOutput(fy);
     }
 
-    /* Bloc QR + lien à jour */
-    if(shareUrl){
-      var footY=fy+3;
-      if(footY>PH-20){ doc.addPage(); footY=M+2; }
-      doc.setDrawColor(26,143,255); doc.setLineWidth(0.5); doc.line(M,footY,PW-M,footY);
-      footY+=3;
-      var qr=null;
-      try{ qr=await _qrImage(shareUrl,{px:320}); }catch(e){}
-      var tx=M;
-      if(qr&&qr.dataUrl){ try{ doc.addImage(qr.dataUrl,'PNG',M,footY,13,13); tx=M+16; }catch(e){} }
-      doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(26,143,255);
-      doc.text('FICHE À JOUR EN LIGNE', tx, footY+3);
-      doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(26,79,255);
-      var lnk=String(shareUrl).slice(0,105);
-      if(doc.textWithLink){ doc.textWithLink(lnk, tx, footY+7, {url:shareUrl}); } else { doc.text(lnk, tx, footY+7); }
-      doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(120,130,145);
-      doc.text('Scannez le QR code ou ouvrez le lien pour retrouver cette fiche à jour à tout moment.', tx, footY+10.5);
-    }
-
-    /* Pied de page (marque + pagination) sur toutes les pages */
+    /* En-tête réduit des pages de suite, pied et mention : posés à la fin, quand le nombre de pages est connu */
     var pageCount=doc.internal.getNumberOfPages();
     for(var pi=1;pi<=pageCount;pi++){
       doc.setPage(pi);
-      doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(170,170,180);
-      doc.text((brand.co||'PATCHFLOW')+' · '+(brand.site||'patchflow.fr'), M, PH-5);
-      doc.text('Page '+pi+' / '+pageCount, PW-M, PH-5, {align:'right'});
+      if(pi>1) _pdfHead(doc,{acc:accent, pf:_pfLogo, brand:brand.co||'PatchFlow', docType:docLabel, title:docTitle, compact:true, right:[venue,_pdfDateFr(meta.date)].filter(Boolean).join(' · ')});
+      _pdfFoot(doc,{acc:accent, pf:_pfLogo, credit:_pdfCreditOn(), creditWhat:'patch', qr:pi===1?_qr:null, url:shareUrl, stamp:pi===1?'':docTitle, page:pi, pages:pageCount});
     }
 
     var fnameBase=userTitle ? _pdfSlug(userTitle) : (hasMultiPatch ? (_pdfSlug(showName)+'-'+_pdfSlug(patchName)) : _pdfSlug(showName));
