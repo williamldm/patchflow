@@ -6964,6 +6964,8 @@ function _pdfDateFr(d){
 /* En-tête de page. Renvoie l'ordonnée (mm) où commence le contenu. compact = pages de suite. */
 function _pdfHead(doc, o){
   var K=_PDFK, M=K.M, PW=doc.internal.pageSize.getWidth(), acc=o.acc, y=M;
+  /* Signature PatchFlow : court onglet d'accent en haut de page, repris sur toutes les pages */
+  doc.setFillColor(acc[0],acc[1],acc[2]); doc.rect(M,0,16,2.2,'F');
   var lx=M;
   if(o.logo && !o.compact){ try{ var lw=Math.min(30,13*o.logo.ratio), lh=lw/o.logo.ratio; if(lh>13){ lh=13; lw=13*o.logo.ratio; } doc.addImage(o.logo.dataUrl,'PNG',M,y+0.5,lw,lh); lx=M+lw+5; }catch(e){ lx=M; } }
   /* Ligne de marque : pastille d'accent + société, type de document à droite */
@@ -7040,8 +7042,11 @@ function _pdfFoot(doc, o){
   doc.text(ft, PW-M, base, {align:'right'});
   /* Marque PatchFlow, sur chaque page : logo et adresse du site */
   var bx=PW-M-(ft?doc.getTextWidth(ft)+5:0);
-  doc.setFont('helvetica','bold'); doc.setTextColor(K.txt2[0],K.txt2[1],K.txt2[2]);
-  doc.text('patchflow.fr', bx, base, {align:'right'}); bx-=doc.getTextWidth('patchflow.fr')+1.6;
+  var bt=o.credit?'Créez votre synoptique sur patchflow.fr':'patchflow.fr';
+  doc.setFont('helvetica',o.credit?'normal':'bold'); doc.setTextColor(K.muted[0],K.muted[1],K.muted[2]);
+  doc.text(bt, bx, base, {align:'right'});
+  try{ doc.link(bx-doc.getTextWidth(bt),base-3,doc.getTextWidth(bt),4,{url:'https://patchflow.fr'}); }catch(e){}
+  bx-=doc.getTextWidth(bt)+1.6;
   if(o.pf){ try{ doc.addImage(o.pf,'PNG',bx-4.6,base-3.5,4.6,4.6); }catch(e){} }
 }
 function _pdfWatermark(doc){
@@ -7062,7 +7067,15 @@ function _pdfLogoInfo(url){
 }
 
 /* ── Synoptique : page 1 le schéma, page 2 la nomenclature (équipements et liaisons) ── */
-/* Mention PatchFlow posée dans l'angle bas droit d'un cadre de schéma (x, y, l, h en mm) */
+/* Repères d'angle autour d'un cadre de schéma, dans la couleur d'accent : la marque de fabrique des plans PatchFlow */
+function _pdfFrameTicks(doc, acc, x, y, w, h){
+  var o=1.3, L=5.5;
+  doc.setDrawColor(acc[0],acc[1],acc[2]); doc.setLineWidth(0.6); doc.setLineCap('butt');
+  [[x-o,y-o,1,1],[x+w+o,y-o,-1,1],[x-o,y+h+o,1,-1],[x+w+o,y+h+o,-1,-1]].forEach(function(c){
+    doc.line(c[0],c[1],c[0]+L*c[2],c[1]); doc.line(c[0],c[1],c[0],c[1]+L*c[3]);
+  });
+}
+/* Mention PatchFlow posée dans l'angle bas droit d'un cadre de schéma (x, y, l, h en mm) — plus utilisée : la mention est dans le pied */
 function _pdfCreditTag(doc, pf, x, y, w, h){
   var K=_PDFK, t='Créez votre synoptique sur patchflow.fr';
   doc.setFont('helvetica','bold'); doc.setFontSize(7.5);
@@ -7123,7 +7136,7 @@ async function _openSynoPdf(meta, synHtml, shareUrl, brand){
     if(!r){ toast('Impossible de générer le PDF du synoptique.'); return; }
     doc.addImage(r.dataUrl,'PNG',M+(boxW-dw)/2,y+(boxH-dh)/2,dw,dh,undefined,'FAST');
     var credit=_pdfCreditOn();
-    if(credit) _pdfCreditTag(doc,pfLogo,M,y,boxW,boxH);
+    _pdfFrameTicks(doc,acc,M,y,boxW,boxH);
     y+=boxH;
     if(used.length){
       var lx=M+1, ly=y+5.4;
@@ -7173,7 +7186,7 @@ async function _openSynoPdf(meta, synHtml, shareUrl, brand){
           var sc2=Math.max(2,Math.min(5,(tw2/25.4*300)/tW));
           var rt=await _svgStrToPng(tsvg,sc2);
           if(rt) doc.addImage(rt.dataUrl,'PNG',M+(bw2-tw2)/2,yd+(bh2-th2)/2,tw2,th2,undefined,'FAST');
-          if(credit) _pdfCreditTag(doc,pfLogo,M,yd,bw2,bh2);
+          _pdfFrameTicks(doc,acc,M,yd,bw2,bh2);
         }
       }
     }
@@ -7215,7 +7228,7 @@ async function _openSynoPdf(meta, synHtml, shareUrl, brand){
     pages=doc.getNumberOfPages();
     for(var p=1;p<=pages;p++){
       doc.setPage(p);
-      _pdfFoot(doc,{acc:acc, pf:pfLogo, qr:p===1?qr:null, url:shareUrl, stamp:p===1?'':title, page:p, pages:pages});
+      _pdfFoot(doc,{acc:acc, pf:pfLogo, credit:credit, qr:p===1?qr:null, url:shareUrl, stamp:p===1?'':title, page:p, pages:pages});
     }
     await _pdfDeliver(doc, (_pdfSlug(title)||'synoptique')+'-synoptique.pdf');
   }catch(e){ console.error('_openSynoPdf:',e); toast('Erreur PDF : '+(e&&e.message||e)); }
