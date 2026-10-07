@@ -6917,9 +6917,11 @@ function _pdfHead(doc, o){
   var lx=M;
   if(o.logo && !o.compact){ try{ var lw=Math.min(30,13*o.logo.ratio), lh=lw/o.logo.ratio; if(lh>13){ lh=13; lw=13*o.logo.ratio; } doc.addImage(o.logo.dataUrl,'PNG',M,y+0.5,lw,lh); lx=M+lw+5; }catch(e){ lx=M; } }
   /* Ligne de marque : pastille d'accent + société, type de document à droite */
-  doc.setFillColor(acc[0],acc[1],acc[2]); doc.roundedRect(lx,y+0.4,2.2,2.2,0.5,0.5,'F');
+  var bxo=3.6;
+  if(o.pf && !o.logo){ try{ doc.addImage(o.pf,'PNG',lx,y-0.9,4.4,4.4); bxo=5.8; }catch(e){ o.pf=null; } }
+  if(bxo===3.6){ doc.setFillColor(acc[0],acc[1],acc[2]); doc.roundedRect(lx,y+0.4,2.2,2.2,0.5,0.5,'F'); }
   doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(K.muted[0],K.muted[1],K.muted[2]);
-  doc.text(String(o.brand||'').toUpperCase(), lx+3.6, y+2.3, {charSpace:0.35});
+  doc.text(String(o.brand||'').toUpperCase(), lx+bxo, y+2.3, {charSpace:0.35});
   doc.setTextColor(acc[0],acc[1],acc[2]);
   var dt=String(o.docType||'').toUpperCase();   /* aligné à droite à la main : l'interlettrage n'est pas compté par align */
   doc.text(dt, PW-M-doc.getTextWidth(dt)-0.35*(dt.length-1), y+2.3, {charSpace:0.35});
@@ -6927,7 +6929,14 @@ function _pdfHead(doc, o){
     doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(K.ink[0],K.ink[1],K.ink[2]);
     doc.text(String(o.title||''), lx, y+8.4);
     doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(K.muted[0],K.muted[1],K.muted[2]);
-    if(o.right) doc.text(o.right, PW-M, y+8.4, {align:'right'});
+    var rx=PW-M;
+    if(o.map){   /* vignette : où se trouve cette portion dans le schéma entier */
+      var mh=5.6, mw=Math.max(3,Math.min(16,mh*o.map.W/o.map.H)); mh=mw*o.map.H/o.map.W; var mx=PW-M-mw, my=y+5;
+      doc.setDrawColor(K.muted[0],K.muted[1],K.muted[2]); doc.setLineWidth(0.2); doc.setFillColor(255,255,255); doc.rect(mx,my,mw,mh,'FD');
+      doc.setFillColor(acc[0],acc[1],acc[2]); doc.rect(mx+mw*o.map.x/o.map.W, my+mh*o.map.y/o.map.H, mw*o.map.w/o.map.W, mh*o.map.h/o.map.H, 'F');
+      rx=mx-3;
+    }
+    if(o.right) doc.text(o.right, rx, y+8.4, {align:'right'});
     doc.setDrawColor(K.line[0],K.line[1],K.line[2]); doc.setLineWidth(0.25); doc.line(M,y+11.5,PW-M,y+11.5);
     return y+16;
   }
@@ -6977,7 +6986,13 @@ function _pdfFoot(doc, o){
     base=top+11;
   }
   doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(K.muted[0],K.muted[1],K.muted[2]);
-  doc.text([o.site, o.stamp, o.pages>1?('Page '+o.page+' / '+o.pages):''].filter(Boolean).join('   ·   '), PW-M, base, {align:'right'});
+  var ft=[o.stamp, o.pages>1?('Page '+o.page+' / '+o.pages):''].filter(Boolean).join('   ·   ');
+  doc.text(ft, PW-M, base, {align:'right'});
+  /* Marque PatchFlow, sur chaque page : logo et adresse du site */
+  var bx=PW-M-(ft?doc.getTextWidth(ft)+5:0);
+  doc.setFont('helvetica','bold'); doc.setTextColor(K.txt2[0],K.txt2[1],K.txt2[2]);
+  doc.text('patchflow.fr', bx, base, {align:'right'}); bx-=doc.getTextWidth('patchflow.fr')+1.6;
+  if(o.pf){ try{ doc.addImage(o.pf,'PNG',bx-4.6,base-3.5,4.6,4.6); }catch(e){} }
 }
 function _pdfWatermark(doc){
   var PW=doc.internal.pageSize.getWidth(), PH=doc.internal.pageSize.getHeight();
@@ -7006,16 +7021,20 @@ async function _openSynoPdf(meta, synHtml, shareUrl, brand){
   try{
     var JsPDF=await _loadAutoTable();
     var K=_PDFK, M=K.M;
-    var orientation=(_pdfOrient==='portrait')?'portrait':'landscape';
+    /* Orientation : celle où le schéma sort le plus grand (choix de l'utilisateur gardé si l'écart est faible) */
+    var _fit=function(pw,ph){ return Math.min((pw-2*K.M-6)/ex.w,(ph-84)/ex.h); };
+    var sL=_fit(297,210), sP=_fit(210,297), want=(_pdfOrient==='portrait')?'portrait':'landscape';
+    var orientation=(sP>sL*1.08)?'portrait':(sL>sP*1.08)?'landscape':want;
     var doc=new JsPDF({orientation:orientation, unit:'mm', format:'a4', compress:true});
     var PW=doc.internal.pageSize.getWidth(), PH=doc.internal.pageSize.getHeight();
+    var pfLogo=null; try{ pfLogo=await _pfLogoPng('#FF6B2B'); }catch(e){ pfLogo=null; }
     var acc=_hex2rgb(_safeColor(brand.color)||'#ff6b1a');
     var st=SynPro.getData()||{}, nodes=(st.nodes||[]), cables=(st.cables||[]), nets=(st.networks||[]);
     var title=String(meta.title||st.title||'Synoptique').slice(0,70);
     var stamp=new Date().toLocaleDateString('fr-FR');
     var logo=await _pdfLogoInfo(brand.logo);
     var qr=null; if(shareUrl){ try{ var q=await _qrImage(shareUrl,{px:320}); qr=q&&q.dataUrl; }catch(e){} }
-    var head={acc:acc, brand:brand.co||'PatchFlow', docType:'Synoptique', title:title, sub:String(meta.sub||'').slice(0,110), logo:logo,
+    var head={acc:acc, pf:pfLogo, brand:brand.co||'PatchFlow', docType:'Synoptique', title:title, sub:String(meta.sub||'').slice(0,110), logo:logo,
               rightLines:[meta.rev?'Révision '+meta.rev:'', 'Édité le '+stamp].filter(Boolean),
               meta:[['Lieu',meta.venue],['Date',_pdfDateFr(meta.date)],['Réalisé par',[meta.eng,meta.role].filter(Boolean).join(' · ')],['Société',meta.co],['Contact',meta.tel]]};
     /* Équipements réels (hors textes et images libres) et liaisons, pour la légende et la page 2 */
@@ -7064,13 +7083,41 @@ async function _openSynoPdf(meta, synHtml, shareUrl, brand){
       doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(K.txt2[0],K.txt2[1],K.txt2[2]);
       doc.text(notes, M+17, y+4.6);
     }
-    _pdfFoot(doc,{acc:acc, qr:qr, url:shareUrl, site:brand.site||'patchflow.fr', stamp:'', page:1, pages:pages});
-    if(brand.watermark) _pdfWatermark(doc);
+    /* ── Pages de détail : quand la vue d'ensemble réduit trop le schéma, il est redécoupé en portions
+       agrandies (texte des cartes à environ 6,5 points au minimum), avec un recouvrement entre portions ── */
+    var s1=dw/ex.w, SMIN=0.2, OV=70;
+    if(s1<SMIN){
+      var plan=function(o){
+        var bw=(o==='portrait'?210:297)-2*M, bh=(o==='portrait'?297:210)-M-16-_pdfFootH(false)-4;
+        var tw=bw/SMIN, th=bh/SMIN;
+        var cols=Math.max(1,Math.ceil((ex.w-OV)/(tw-OV))), rows=Math.max(1,Math.ceil((ex.h-OV)/(th-OV)));
+        return {o:o,bw:bw,bh:bh,cols:cols,rows:rows,n:cols*rows};
+      };
+      var pa=plan('landscape'), pb=plan('portrait'), pl=(pb.n<pa.n || (pb.n===pa.n && orientation==='portrait'))?pb:pa;
+      if(pl.n<=12){
+        var tW=(ex.w+OV*(pl.cols-1))/pl.cols, tH=(ex.h+OV*(pl.rows-1))/pl.rows, k=0;
+        for(var rr=0;rr<pl.rows;rr++) for(var cc=0;cc<pl.cols;cc++){
+          k++;
+          var tx=cc*(tW-OV), ty=rr*(tH-OV);
+          doc.addPage('a4',pl.o);
+          var yd=_pdfHead(doc,{acc:acc, pf:pfLogo, brand:head.brand, docType:'Synoptique · détail '+k+' / '+pl.n, title:title, compact:true, map:{W:ex.w,H:ex.h,x:tx,y:ty,w:tW,h:tH}});
+          var pw2=doc.internal.pageSize.getWidth(), ph2=doc.internal.pageSize.getHeight();
+          var bw2=pw2-2*M, bh2=ph2-yd-_pdfFootH(false)-4;
+          doc.setFillColor(255,255,255); doc.setDrawColor(K.line[0],K.line[1],K.line[2]); doc.setLineWidth(0.3); doc.roundedRect(M,yd,bw2,bh2,2.2,2.2,'FD');
+          var sd=Math.min((bw2-4)/tW,(bh2-4)/tH), tw2=tW*sd, th2=tH*sd;
+          var tsvg=ex.svg.replace(/<svg ([^>]*?)width="[\d.]+" height="[\d.]+" viewBox="[^"]*"/, '<svg $1width="'+tW+'" height="'+tH+'" viewBox="'+tx+' '+ty+' '+tW+' '+tH+'"');
+          var sc2=Math.max(2,Math.min(5,(tw2/25.4*300)/tW));
+          var rt=await _svgStrToPng(tsvg,sc2);
+          if(rt) doc.addImage(rt.dataUrl,'PNG',M+(bw2-tw2)/2,yd+(bh2-th2)/2,tw2,th2,undefined,'FAST');
+        }
+      }
+    }
 
     /* ── Page 2 : nomenclature ── */
     if(pages>1){
-      doc.addPage();
-      var y2=_pdfHead(doc,{acc:acc, brand:head.brand, docType:'Synoptique · nomenclature', title:title, compact:true, right:[meta.venue,_pdfDateFr(meta.date)].filter(Boolean).join(' · ')});
+      doc.addPage('a4',orientation);
+      var nomPage=doc.getNumberOfPages();
+      var y2=_pdfHead(doc,{acc:acc, pf:pfLogo, brand:head.brand, docType:'Synoptique · nomenclature', title:title, compact:true, right:[meta.venue,_pdfDateFr(meta.date)].filter(Boolean).join(' · ')});
       var netOf=function(c){ return nets.find(function(n){return n.id===c.network;})||{name:'',color:'#5a6a80'}; };
       var cnt={}; links.forEach(function(c){ cnt[c.from]=(cnt[c.from]||0)+1; cnt[c.to]=(cnt[c.to]||0)+1; });
       var gap=8, colW=(PW-2*M-gap)/2, wide=PW>250;
@@ -7088,8 +7135,8 @@ async function _openSynoPdf(meta, synHtml, shareUrl, brand){
       var afterGear=doc.lastAutoTable?doc.lastAutoTable.finalY:y2+10;
       if(links.length){
         var lxo=wide?M+colW+gap:M, lyo=wide?y2:afterGear+10;
-        if(!wide && lyo>PH-bottom-30){ doc.addPage(); pages++; lyo=_pdfHead(doc,{acc:acc, brand:head.brand, docType:'Synoptique · nomenclature', title:title, compact:true}); }
-        if(wide) doc.setPage(2);
+        if(!wide && lyo>PH-bottom-30){ doc.addPage(); pages++; lyo=_pdfHead(doc,{acc:acc, pf:pfLogo, brand:head.brand, docType:'Synoptique · nomenclature', title:title, compact:true}); }
+        if(wide) doc.setPage(nomPage);
         sect('Liaisons',lxo,lyo+2,links.length);
         doc.autoTable(Object.assign({},base,{startY:lyo+5, margin:{left:lxo,right:M,bottom:bottom,top:28}, tableWidth:wide?colW:PW-2*M,
           head:[['','DE','VERS','RÉSEAU','REPÈRE']],
@@ -7098,9 +7145,13 @@ async function _openSynoPdf(meta, synHtml, shareUrl, brand){
           didDrawCell:function(d){ if(d.section==='body' && d.column.index===0){ var c=_hex2rgb(_safeColor(netOf(links[d.row.index]).color)||'#5a6a80');
             doc.setFillColor(c[0],c[1],c[2]); doc.roundedRect(d.cell.x+1.2,d.cell.y+d.cell.height/2-1.1,2.2,2.2,0.6,0.6,'F'); } }}));
       }
-      pages=doc.getNumberOfPages();
-      for(var p=2;p<=pages;p++){ doc.setPage(p); _pdfFoot(doc,{acc:acc, qr:null, site:brand.site||'patchflow.fr', stamp:title, page:p, pages:pages}); if(brand.watermark) _pdfWatermark(doc); }
-      /* la première page a été numérotée avant de connaître le total : on la repasse si le total a changé */
+    }
+    /* Pieds et filigrane : posés à la fin, quand le nombre total de pages est connu */
+    pages=doc.getNumberOfPages();
+    for(var p=1;p<=pages;p++){
+      doc.setPage(p);
+      _pdfFoot(doc,{acc:acc, pf:pfLogo, qr:p===1?qr:null, url:shareUrl, stamp:p===1?'':title, page:p, pages:pages});
+      if(brand.watermark) _pdfWatermark(doc);
     }
     await _pdfDeliver(doc, (_pdfSlug(title)||'synoptique')+'-synoptique.pdf');
   }catch(e){ console.error('_openSynoPdf:',e); toast('Erreur PDF : '+(e&&e.message||e)); }
