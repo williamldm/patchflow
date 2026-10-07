@@ -6900,18 +6900,210 @@ async function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand, opts){
    Quand on injecte un SVG via <img src="data:image/svg+xml...">, les marqueurs
    (flèches) et parfois les paths internes ne s'affichent pas correctement à
    l'impression (sandboxing). Solution : rendre le SVG en INLINE dans le HTML. */
-function _openSynoPdf(meta, synHtml, shareUrl, brand){
-  if(!window.SynPro || !SynPro.buildExportSvg){
-    toast('Module synoptique indisponible.');return;
+/* ══════════════════════════════════════════════════════════════════
+   PDF — charte commune des exports (nouveau design)
+   Page claire, encre #1c2433, filets fins, un seul accent (couleur de marque).
+   En-tête : marque, type de document, grand titre ; bandeau d'informations ;
+   pied : QR et lien de la version en ligne, marque, numéro de page.
+   ══════════════════════════════════════════════════════════════════ */
+const _PDFK={ink:[28,36,51], txt2:[74,85,104], muted:[122,132,148], line:[222,226,232], soft:[246,247,249], M:12};
+function _pdfDateFr(d){
+  var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(d||'').trim()); if(!m) return String(d||'');
+  try{ return new Date(+m[1],+m[2]-1,+m[3]).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}); }catch(e){ return d; }
+}
+/* En-tête de page. Renvoie l'ordonnée (mm) où commence le contenu. compact = pages de suite. */
+function _pdfHead(doc, o){
+  var K=_PDFK, M=K.M, PW=doc.internal.pageSize.getWidth(), acc=o.acc, y=M;
+  var lx=M;
+  if(o.logo && !o.compact){ try{ var lw=Math.min(30,13*o.logo.ratio), lh=lw/o.logo.ratio; if(lh>13){ lh=13; lw=13*o.logo.ratio; } doc.addImage(o.logo.dataUrl,'PNG',M,y+0.5,lw,lh); lx=M+lw+5; }catch(e){ lx=M; } }
+  /* Ligne de marque : pastille d'accent + société, type de document à droite */
+  doc.setFillColor(acc[0],acc[1],acc[2]); doc.roundedRect(lx,y+0.4,2.2,2.2,0.5,0.5,'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(K.muted[0],K.muted[1],K.muted[2]);
+  doc.text(String(o.brand||'').toUpperCase(), lx+3.6, y+2.3, {charSpace:0.35});
+  doc.setTextColor(acc[0],acc[1],acc[2]);
+  var dt=String(o.docType||'').toUpperCase();   /* aligné à droite à la main : l'interlettrage n'est pas compté par align */
+  doc.text(dt, PW-M-doc.getTextWidth(dt)-0.35*(dt.length-1), y+2.3, {charSpace:0.35});
+  if(o.compact){
+    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(K.ink[0],K.ink[1],K.ink[2]);
+    doc.text(String(o.title||''), lx, y+8.4);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(K.muted[0],K.muted[1],K.muted[2]);
+    if(o.right) doc.text(o.right, PW-M, y+8.4, {align:'right'});
+    doc.setDrawColor(K.line[0],K.line[1],K.line[2]); doc.setLineWidth(0.25); doc.line(M,y+11.5,PW-M,y+11.5);
+    return y+16;
   }
-  let ex;
-  try { ex = SynPro.buildExportSvg({skipHeader:true}); }
-  catch(e){ toast('Erreur synoptique : '+e.message);return; }
-  if(!ex || !ex.svg){toast('Synoptique vide ou non chargé.');return;}
+  /* Titre : grand, réduit s'il ne tient pas */
+  var maxW=PW-lx-M-52, fs=22; doc.setFont('helvetica','bold'); doc.setFontSize(fs);
+  while(fs>12 && doc.getTextWidth(String(o.title||''))>maxW){ fs-=1; doc.setFontSize(fs); }
+  doc.setTextColor(K.ink[0],K.ink[1],K.ink[2]);
+  doc.text(String(o.title||''), lx, y+11.4);
+  if(o.sub){ doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(K.txt2[0],K.txt2[1],K.txt2[2]); doc.text(String(o.sub), lx, y+16.4); }
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(K.muted[0],K.muted[1],K.muted[2]);
+  (o.rightLines||[]).forEach(function(t,i){ doc.text(String(t), PW-M, y+7+i*3.6, {align:'right'}); });
+  y+=o.sub?20:16;
+  doc.setDrawColor(K.line[0],K.line[1],K.line[2]); doc.setLineWidth(0.25); doc.line(M,y,PW-M,y);
+  /* Bandeau d'informations : libellé discret, valeur lisible */
+  var items=(o.meta||[]).filter(function(it){return it[1];});
+  if(items.length){
+    var cw=(PW-2*M)/items.length;
+    items.forEach(function(it,i){
+      var x=M+i*cw;
+      if(i>0){ doc.setDrawColor(K.line[0],K.line[1],K.line[2]); doc.line(x,y+2.2,x,y+9.8); x+=4; }
+      doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(K.muted[0],K.muted[1],K.muted[2]);
+      doc.text(String(it[0]).toUpperCase(), x, y+4.6, {charSpace:0.3});
+      doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(K.ink[0],K.ink[1],K.ink[2]);
+      var v=String(it[1]); while(v.length>4 && doc.getTextWidth(v)>cw-8) v=v.slice(0,-2);
+      doc.text(v+(v!==String(it[1])?'...':''), x, y+9);
+    });
+    y+=12; doc.setDrawColor(K.line[0],K.line[1],K.line[2]); doc.line(M,y,PW-M,y);
+  }
+  return y+4;
+}
+/* Pied de page (hauteur réservée : _pdfFootH). QR et lien seulement en première page. */
+function _pdfFootH(hasQr){ return hasQr?19:10; }
+function _pdfFoot(doc, o){
+  var K=_PDFK, M=K.M, PW=doc.internal.pageSize.getWidth(), PH=doc.internal.pageSize.getHeight(), acc=o.acc;
+  var top=PH-_pdfFootH(!!o.qr)-1;
+  doc.setDrawColor(K.line[0],K.line[1],K.line[2]); doc.setLineWidth(0.25); doc.line(M,top,PW-M,top);
+  var x=M, base=PH-6;
+  if(o.qr){
+    try{ doc.addImage(o.qr,'PNG',M,top+2.6,12,12); x=M+15.5; }catch(e){}
+    doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(K.ink[0],K.ink[1],K.ink[2]);
+    doc.text('Version à jour en ligne', x, top+7);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(acc[0],acc[1],acc[2]);
+    var lk=String(o.url).replace(/^https?:\/\//,''); if(lk.length>86) lk=lk.slice(0,84)+'...';
+    if(doc.textWithLink) doc.textWithLink(lk, x, top+11, {url:o.url}); else doc.text(lk, x, top+11);
+    doc.setFontSize(6.5); doc.setTextColor(K.muted[0],K.muted[1],K.muted[2]);
+    doc.text('Scannez le code pour retrouver ce document toujours à jour.', x, top+14.4);
+    base=top+11;
+  }
+  doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(K.muted[0],K.muted[1],K.muted[2]);
+  doc.text([o.site, o.stamp, o.pages>1?('Page '+o.page+' / '+o.pages):''].filter(Boolean).join('   ·   '), PW-M, base, {align:'right'});
+}
+function _pdfWatermark(doc){
+  var PW=doc.internal.pageSize.getWidth(), PH=doc.internal.pageSize.getHeight();
+  try{ if(doc.setGState) doc.setGState(new doc.GState({opacity:0.07})); }catch(e){}
+  doc.setTextColor(60,70,90); doc.setFont('helvetica','bold'); doc.setFontSize(46);
+  doc.text('PATCHFLOW · GRATUIT', PW/2, PH/2, {align:'center', angle:28});
+  try{ if(doc.setGState) doc.setGState(new doc.GState({opacity:1})); }catch(e){}
+}
+function _pdfLogoInfo(url){
+  return new Promise(function(res){
+    if(!url){ res(null); return; }
+    var im=new Image(); im.onload=function(){
+      try{ var c=document.createElement('canvas'); c.width=im.naturalWidth; c.height=im.naturalHeight; c.getContext('2d').drawImage(im,0,0);
+           res({dataUrl:c.toDataURL('image/png'), ratio:im.naturalWidth/Math.max(1,im.naturalHeight)}); }catch(e){ res(null); }
+    }; im.onerror=function(){ res(null); }; im.src=url;
+  });
+}
 
-  /* On passe le SVG STRING directement (pas un data URI) au visual PDF.
-     _openVisualPdf détecte le préfixe '<svg' et l'inline dans la page. */
-  _openVisualPdf('Synoptique', meta, ex.svg, shareUrl, brand, {bigPlan:true, inlineSvg:true, orientation:_pdfOrient});
+/* ── Synoptique : page 1 le schéma, page 2 la nomenclature (équipements et liaisons) ── */
+async function _openSynoPdf(meta, synHtml, shareUrl, brand){
+  if(!window.SynPro || !SynPro.buildExportSvg){ toast('Module synoptique indisponible.'); return; }
+  var ex;
+  try{ ex=SynPro.buildExportSvg({skipHeader:true, skipLegend:true}); }catch(e){ toast('Erreur synoptique : '+e.message); return; }
+  if(!ex || !ex.svg){ toast('Synoptique vide ou non chargé.'); return; }
+  toast('Génération PDF…');
+  try{
+    var JsPDF=await _loadAutoTable();
+    var K=_PDFK, M=K.M;
+    var orientation=(_pdfOrient==='portrait')?'portrait':'landscape';
+    var doc=new JsPDF({orientation:orientation, unit:'mm', format:'a4', compress:true});
+    var PW=doc.internal.pageSize.getWidth(), PH=doc.internal.pageSize.getHeight();
+    var acc=_hex2rgb(_safeColor(brand.color)||'#ff6b1a');
+    var st=SynPro.getData()||{}, nodes=(st.nodes||[]), cables=(st.cables||[]), nets=(st.networks||[]);
+    var title=String(meta.title||st.title||'Synoptique').slice(0,70);
+    var stamp=new Date().toLocaleDateString('fr-FR');
+    var logo=await _pdfLogoInfo(brand.logo);
+    var qr=null; if(shareUrl){ try{ var q=await _qrImage(shareUrl,{px:320}); qr=q&&q.dataUrl; }catch(e){} }
+    var head={acc:acc, brand:brand.co||'PatchFlow', docType:'Synoptique', title:title, sub:String(meta.sub||'').slice(0,110), logo:logo,
+              rightLines:[meta.rev?'Révision '+meta.rev:'', 'Édité le '+stamp].filter(Boolean),
+              meta:[['Lieu',meta.venue],['Date',_pdfDateFr(meta.date)],['Réalisé par',[meta.eng,meta.role].filter(Boolean).join(' · ')],['Société',meta.co],['Contact',meta.tel]]};
+    /* Équipements réels (hors textes et images libres) et liaisons, pour la légende et la page 2 */
+    var byId={}; nodes.forEach(function(n){ byId[n.id]=n; });
+    var nm=function(n){ return n ? String(n.label||n.name||'').replace(/\s*\n\s*/g,' ').trim() : ''; };
+    var gear=nodes.filter(function(n){ return n.type!=='text_label' && n.type!=='image_frame' && nm(n); });
+    var links=cables.filter(function(c){ return byId[c.from] && byId[c.to]; });
+    var used=nets.map(function(n){ return {n:n, k:links.filter(function(c){return c.network===n.id;}).length}; }).filter(function(u){return u.k>0;});
+    var pages=(gear.length||links.length)?2:1;
+
+    /* ── Page 1 : le schéma ── */
+    var y=_pdfHead(doc,head), footH=_pdfFootH(!!qr);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8);
+    var notes=meta.notes?doc.splitTextToSize(String(meta.notes),PW-2*M-16).slice(0,3):[];
+    var notesH=notes.length?(3+notes.length*3.6):0, legH=used.length?8:0;
+    var boxH=PH-y-footH-3-notesH-legH, boxW=PW-2*M;
+    doc.setFillColor(255,255,255); doc.setDrawColor(K.line[0],K.line[1],K.line[2]); doc.setLineWidth(0.3);
+    doc.roundedRect(M,y,boxW,boxH,2.2,2.2,'FD');
+    var pad=3, ratio=ex.w/ex.h, dw=boxW-2*pad, dh=dw/ratio;
+    if(dh>boxH-2*pad){ dh=boxH-2*pad; dw=dh*ratio; }
+    /* Netteté : environ 300 points par pouce à la taille imprimée, dans des limites raisonnables */
+    var scale=Math.max(2,Math.min(5,(dw/25.4*300)/ex.w)); if(ex.w*scale>6000) scale=6000/ex.w;
+    var r=await _svgStrToPng(ex.svg,scale);
+    if(!r){ toast('Impossible de générer le PDF du synoptique.'); return; }
+    doc.addImage(r.dataUrl,'PNG',M+(boxW-dw)/2,y+(boxH-dh)/2,dw,dh,undefined,'FAST');
+    y+=boxH;
+    if(used.length){
+      var lx=M+1, ly=y+5.4;
+      doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(K.muted[0],K.muted[1],K.muted[2]);
+      doc.text('LIAISONS', lx, ly, {charSpace:0.3}); lx+=17;
+      used.forEach(function(u){
+        var c=_hex2rgb(_safeColor(u.n.color)||'#5a6a80'), name=String(u.n.name||''), cnt=' · '+u.k;
+        doc.setFont('helvetica','bold'); doc.setFontSize(8); var w=doc.getTextWidth(name);
+        doc.setFont('helvetica','normal'); var w2=doc.getTextWidth(cnt);
+        if(lx+9+w+w2>PW-M) return;
+        doc.setDrawColor(c[0],c[1],c[2]); doc.setLineWidth(1); doc.setLineCap('round'); doc.line(lx,ly-1,lx+6,ly-1); doc.setLineCap('butt');
+        doc.setFont('helvetica','bold'); doc.setTextColor(K.ink[0],K.ink[1],K.ink[2]); doc.text(name, lx+8, ly);
+        doc.setFont('helvetica','normal'); doc.setTextColor(K.muted[0],K.muted[1],K.muted[2]); doc.text(cnt, lx+8+w, ly);
+        lx+=8+w+w2+7;
+      });
+      y+=legH;
+    }
+    if(notes.length){
+      doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(K.muted[0],K.muted[1],K.muted[2]);
+      doc.text('NOTES', M+1, y+4.6, {charSpace:0.3});
+      doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(K.txt2[0],K.txt2[1],K.txt2[2]);
+      doc.text(notes, M+17, y+4.6);
+    }
+    _pdfFoot(doc,{acc:acc, qr:qr, url:shareUrl, site:brand.site||'patchflow.fr', stamp:'', page:1, pages:pages});
+    if(brand.watermark) _pdfWatermark(doc);
+
+    /* ── Page 2 : nomenclature ── */
+    if(pages>1){
+      doc.addPage();
+      var y2=_pdfHead(doc,{acc:acc, brand:head.brand, docType:'Synoptique · nomenclature', title:title, compact:true, right:[meta.venue,_pdfDateFr(meta.date)].filter(Boolean).join(' · ')});
+      var netOf=function(c){ return nets.find(function(n){return n.id===c.network;})||{name:'',color:'#5a6a80'}; };
+      var cnt={}; links.forEach(function(c){ cnt[c.from]=(cnt[c.from]||0)+1; cnt[c.to]=(cnt[c.to]||0)+1; });
+      var gap=8, colW=(PW-2*M-gap)/2, wide=PW>250;
+      var base={theme:'plain', styles:{font:'helvetica',fontSize:8.5,cellPadding:{top:1.9,bottom:1.9,left:2,right:2},textColor:K.ink,lineColor:K.line,lineWidth:{bottom:0.2}},
+                headStyles:{fontSize:6.5,fontStyle:'bold',textColor:K.muted,lineColor:K.line,lineWidth:{bottom:0.3}},
+                didDrawPage:function(){}};
+      var sect=function(t,x,yy,n){ doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(K.ink[0],K.ink[1],K.ink[2]); doc.text(t,x,yy); var tw=doc.getTextWidth(t);
+        doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(K.muted[0],K.muted[1],K.muted[2]); doc.text(String(n),x+tw+2.5,yy); };
+      var bottom=_pdfFootH(false)+4;
+      sect('Équipements',M,y2+2,gear.length);
+      doc.autoTable(Object.assign({},base,{startY:y2+5, margin:{left:M,right:wide?PW-M-colW:M,bottom:bottom,top:28}, tableWidth:wide?colW:PW-2*M,
+        head:[['N°','ÉQUIPEMENT','DÉTAIL','LIAISONS']],
+        body:gear.map(function(n,i){ return [i+1, nm(n), String(n.sub||'').replace(/\s*\n\s*/g,' · '), cnt[n.id]||'']; }),
+        columnStyles:{0:{cellWidth:9,textColor:K.muted},1:{fontStyle:'bold'},2:{textColor:K.txt2},3:{cellWidth:16,halign:'right',textColor:K.txt2}}}));
+      var afterGear=doc.lastAutoTable?doc.lastAutoTable.finalY:y2+10;
+      if(links.length){
+        var lxo=wide?M+colW+gap:M, lyo=wide?y2:afterGear+10;
+        if(!wide && lyo>PH-bottom-30){ doc.addPage(); pages++; lyo=_pdfHead(doc,{acc:acc, brand:head.brand, docType:'Synoptique · nomenclature', title:title, compact:true}); }
+        if(wide) doc.setPage(2);
+        sect('Liaisons',lxo,lyo+2,links.length);
+        doc.autoTable(Object.assign({},base,{startY:lyo+5, margin:{left:lxo,right:M,bottom:bottom,top:28}, tableWidth:wide?colW:PW-2*M,
+          head:[['','DE','VERS','RÉSEAU','REPÈRE']],
+          body:links.map(function(c){ var bid=c.dir==='both'||c.dir==='bidir'; return ['', nm(byId[c.from]), nm(byId[c.to])+(bid?'  (aller-retour)':''), netOf(c).name||'', String(c.label||'')]; }),
+          columnStyles:{0:{cellWidth:5},1:{fontStyle:'bold'},2:{fontStyle:'bold'},3:{textColor:K.txt2},4:{textColor:K.txt2}},
+          didDrawCell:function(d){ if(d.section==='body' && d.column.index===0){ var c=_hex2rgb(_safeColor(netOf(links[d.row.index]).color)||'#5a6a80');
+            doc.setFillColor(c[0],c[1],c[2]); doc.roundedRect(d.cell.x+1.2,d.cell.y+d.cell.height/2-1.1,2.2,2.2,0.6,0.6,'F'); } }}));
+      }
+      pages=doc.getNumberOfPages();
+      for(var p=2;p<=pages;p++){ doc.setPage(p); _pdfFoot(doc,{acc:acc, qr:null, site:brand.site||'patchflow.fr', stamp:title, page:p, pages:pages}); if(brand.watermark) _pdfWatermark(doc); }
+      /* la première page a été numérotée avant de connaître le total : on la repasse si le total a changé */
+    }
+    await _pdfDeliver(doc, (_pdfSlug(title)||'synoptique')+'-synoptique.pdf');
+  }catch(e){ console.error('_openSynoPdf:',e); toast('Erreur PDF : '+(e&&e.message||e)); }
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -10385,7 +10577,8 @@ const SynPro = (() => {
     var ox = -b.minX, oy = -b.minY;
     var canvasW = b.maxX - b.minX;
     var canvasH = b.maxY - b.minY;
-    var headH = skipHeader ? 0 : 56, footH = 42;
+    var skipLegend = !!opts.skipLegend; /* le PDF dessine sa propre légende, en texte vectoriel */
+    var headH = skipHeader ? 0 : 56, footH = skipLegend ? 0 : 42;
     var fullW = canvasW, fullH = canvasH + headH + footH;
 
     /* ── Arrow defs (same logic as _renderEdges) ── */
@@ -10532,7 +10725,7 @@ const SynPro = (() => {
     /* ── Legend (noms de câbles / réseaux) — toujours conservée ── */
     var legY = canvasH + headH + 16;
     var legends = state.networks.filter(function(n){ return state.cables.some(function(c){ return c.network===n.id; }); });
-    legends.forEach(function(n, i){
+    if (!skipLegend) legends.forEach(function(n, i){
       svg += '<rect x="' + (14+i*140) + '" y="' + (legY-4) + '" width="20" height="4" rx="2" fill="' + n.color + '"/>';
       svg += '<text x="' + (38+i*140) + '" y="' + legY + '" font-family="Archivo,sans-serif" font-size="10.5" font-weight="500" fill="#1c2433">' + esc(n.name) + '</text>';
     });
