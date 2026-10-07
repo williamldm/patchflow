@@ -3983,10 +3983,10 @@ const _ICON_YAM={kick:'Kick',snare:'Snare',tom:'Tom',hat:'Hi-Hat',oh:'DrumKit',d
 const _YAM_CH={QL1:32,QL5:64,CL1:48,CL3:64,CL5:72}, _YAM_LOCAL={QL1:16,QL5:32,CL1:8,CL3:8,CL5:8};
 function _sfMaxCh(id){ return id==='yam' ? _YAM_CH[_sfOpt('yam','model')] : _SF[id].maxCh; }
 _SF.sq={ tab:'SQ', name:'Allen & Heath SQ', models:'SQ-5, SQ-6, SQ-7',
-        fmt:'Scène SCENEnnn.DAT', req:'À partir d\'une scène de votre console · format relevé sur SQ-5', fn:'SCENE.DAT', type:'application/octet-stream', maxCh:48, nameLen:8,
+        fmt:'Scène SCENEnnn.DAT', req:'Scène vierge SQ-5 ou scène de votre console', fn:'SCENE.DAT', type:'application/octet-stream', maxCh:48, nameLen:8,
         writes:['Noms de voies (8 caractères)','Couleurs'],
-        opts:[{key:'src',label:'Prise, gain et +48 V',def:'',choices:[['','Ne pas écrire'],['LOCAL','Prises locales']]}],
-        steps:['Sur la SQ : enregistrer une scène, puis la copier sur une clé USB (dossier AHSQ/SCENES).','Charger ici ce fichier SCENEnnn.DAT, télécharger le fichier modifié et le remettre sur la clé à la place de l\'original, sous le même nom.','Sur la SQ : recopier la scène depuis la clé, puis la rappeler.'],
+        opts:[{key:'src',label:'Prise, gain et +48 V',def:'',choices:[['','Ne pas écrire'],['LOCAL','Prises locales (1-16)']]}],
+        steps:['Télécharger le fichier et le copier sur une clé USB, dans le dossier AHSQ/SCENES (renommer si un SCENE000.DAT existe déjà : SCENE001.DAT, etc.).','Sur la SQ : recopier la scène depuis la clé, puis la rappeler.','Pour conserver un mix existant : enregistrer une scène sur la SQ, la copier sur clé, et la charger ici avant de télécharger.'],
         alt:'',
         note:'La SQ n\'a pas d\'import de noms : PatchFlow modifie directement votre scène. Seuls nom et couleur (et prise, gain, +48 V si demandés) changent, la somme de contrôle est recalculée. Format relevé sur une SQ-5, pas encore rechargé sur console : premier essai à faire hors prestation, en gardant une copie de la scène d\'origine.' };
 const _SF_KEYS=['x32','wing','dlive','avantis','yam','sq'];
@@ -4023,7 +4023,7 @@ const _SF_GRPS={
   yam:[['DANTE','Dante'],['LOCAL','Local']],
   sq:[['LOCAL','Local']]
 };
-function _sfMax(id,g){ if(id==='sq') return 32;
+function _sfMax(id,g){ if(id==='sq') return 16;   /* prises locales d'une SQ-5 ; au-delà, numérotation non relevée */
   if(id==='yam') return g==='DANTE'?64:_YAM_LOCAL[_sfOpt('yam','model')];
   return id==='x32' ? (g==='local'?32:48) : (_SF_SOCKETS[g+'@'+id]||_SF_SOCKETS[g]||0); }
 /* Choix propres à une voie, enregistrés avec elle : {col:'red', p:{wing:['A',5], dlive:['',0]}}
@@ -4266,7 +4266,7 @@ function _sfCrc32(b,from,to){
 }
 function _sqCrcOk(b){ var c=_sfCrc32(b,20,_SQ_LEN-4); return b[_SQ_LEN-4]===(c&255) && b[_SQ_LEN-3]===((c>>>8)&255) && b[_SQ_LEN-2]===((c>>>16)&255) && b[_SQ_LEN-1]===(c>>>24); }
 /* Une fiche de voie se reconnaît à ses deux octets FE après la prise */
-function _sqRecOk(b,ch){ var o=_SQ_NAME+_SQ_REC*(ch-1); return b[o+26]===1 && b[o+27]===0xFE && b[o+31]===0xFE; }
+function _sqRecOk(b,ch){ var o=_SQ_NAME+_SQ_REC*(ch-1); return b[o+27]===0xFE && b[o+31]===0xFE; }
 function sfSqPick(){ var i=document.getElementById('sf-sqbase-file'); if(i){ i.value=''; i.click(); } }
 function sfSqFile(inp){
   var f=inp.files && inp.files[0]; if(!f) return;
@@ -4285,9 +4285,19 @@ function sfSqFile(inp){
   rd.readAsArrayBuffer(f);
 }
 function sfSqClear(){ SF_SQBASE=null; renderShowfiles(); }
+/* Scène vierge intégrée : SQ-5 après « Reset Mix Settings », noms et couleurs remis par défaut (pf-sq5-blank.dat).
+   Chargée à la première ouverture de l'onglet ; sert quand l'utilisateur ne fournit pas sa propre scène. */
+var SF_SQBLANK=null, _sqBlankAsked=false;
+function _sqLoadBlank(){
+  if(_sqBlankAsked) return; _sqBlankAsked=true;
+  fetch('pf-sq5-blank.dat?v=1').then(function(r){ if(!r.ok) throw 0; return r.arrayBuffer(); }).then(function(buf){
+    var b=new Uint8Array(buf); if(b.length===_SQ_LEN && _sqCrcOk(b)){ SF_SQBLANK=b; if(SF_CUR==='sq') renderShowfiles(); }
+  }).catch(function(){ _sqBlankAsked=false; });
+}
 function genSq(){
-  if(!SF_SQBASE) return null;
-  var b=new Uint8Array(SF_SQBASE.bytes);
+  var src=SF_SQBASE ? SF_SQBASE.bytes : SF_SQBLANK;
+  if(!src) return null;
+  var b=new Uint8Array(src);
   _sfRows('sq').forEach(function(x){
     if(x.skip || !_sqRecOk(b,x.ch)) return;
     var o=_SQ_NAME+_SQ_REC*(x.ch-1), i, rgb=_SQ_RGB[x.hk];
@@ -4333,8 +4343,9 @@ function dlFile(t){
   const slug=CUR_SHOW?.slug||'show';
   /* SQ : la console retrouve la scène par son nom de fichier, qui doit rester celui d'origine */
   if(t==='sq'){
-    if(!SF_SQBASE){ toast('Chargez d\'abord une scène de votre SQ (SCENEnnn.DAT)'); return; }
-    dl(m.gen(),m.type,SF_SQBASE.file); toast('✓ '+SF_SQBASE.file+' téléchargé'); return;
+    var sqb=m.gen(), sqn=SF_SQBASE?SF_SQBASE.file:'SCENE000.DAT';
+    if(!sqb){ toast('Scène vierge indisponible : chargez une scène de votre SQ (SCENEnnn.DAT)'); return; }
+    dl(sqb,m.type,sqn); toast('✓ '+sqn+' téléchargé'); return;
   }
   dl(m.gen(),m.type,slug+'_'+m.fn);
   toast('✓ '+slug+'_'+m.fn+' téléchargé');
@@ -4640,7 +4651,7 @@ function renderShowfiles(){
   var hasPre=ok.some(function(x){return x.pw!==undefined;}), n48=ok.filter(function(x){return x.pw;}).length;
   var unpatched=(SF_CUR==='dlive'||SF_CUR==='avantis') ? ok.filter(function(x){return !x.socket;}).length : 0;
   var fn=((typeof CUR_SHOW!=='undefined'&&CUR_SHOW&&CUR_SHOW.slug)||'show')+'_'+c.fn;
-  if(SF_CUR==='sq') fn=SF_SQBASE?SF_SQBASE.file:'SCENEnnn.DAT';
+  if(SF_CUR==='sq'){ fn=SF_SQBASE?SF_SQBASE.file:'SCENE000.DAT'; _sqLoadBlank(); }
 
   /* ── Colonne de gauche : la console, ce que le fichier écrit, les réglages, la marche à suivre ── */
   var writes=c.writes.slice();
@@ -4669,8 +4680,9 @@ function renderShowfiles(){
         +'<button type="button" title="Retirer la scène" onclick="sfSqClear()"><i class="ti ti-x"></i></button></div>'
         +'<div class="sfx-base-h">Le fichier téléchargé est cette scène, où seules les voies listées sont renommées et recolorées. Il garde le même nom de fichier.</div>';
     } else {
-      h+='<button type="button" class="btn sfx-ghost" onclick="sfSqPick()"><i class="ti ti-upload"></i>Charger une scène (SCENEnnn.DAT)</button>'
-        +'<div class="sfx-base-h">Obligatoire : PatchFlow écrit dans une scène enregistrée par votre SQ. Le fichier reste sur votre ordinateur.</div>';
+      h+='<div class="sfx-base"><i class="ti ti-file"></i><div><b>Scène vierge SQ-5</b><span>'+(SF_SQBLANK?'Mix remis à zéro, 16 prises locales':'Chargement…')+'</span></div></div>'
+        +'<div class="sfx-base-h">Sans scène fournie, le fichier part d\'une scène vierge : la rappeler remet tout le mix à zéro. Pour garder votre mix, chargez une scène de votre console.</div>'
+        +'<button type="button" class="btn sfx-ghost" onclick="sfSqPick()"><i class="ti ti-upload"></i>Partir de ma scène (SCENEnnn.DAT)</button>';
     }
     h+='</div>';
   }
@@ -4705,7 +4717,7 @@ function renderShowfiles(){
     +'<span class="sfx-view-t">'+(SF_VIEW==='file'?E(fn):'Ce que la console recevra')+'</span></div>';
   if(SF_VIEW==='file' && pro){
     var txt;
-    if(SF_CUR==='sq'){ txt=SF_SQBASE ? 'Scène binaire (131 072 octets) : '+SF_SQBASE.file+'\nLes valeurs écrites sont celles de l\'onglet Voies.' : 'Chargez une scène de votre SQ pour produire le fichier.'; }
+    if(SF_CUR==='sq'){ txt=(SF_SQBASE||SF_SQBLANK) ? 'Scène binaire (131 072 octets) : '+(SF_SQBASE?SF_SQBASE.file:'scène vierge SQ-5')+'\nLes valeurs écrites sont celles de l\'onglet Voies.' : 'Scène vierge en cours de chargement.'; }
     else if(SF_CUR==='yam'){ var yf=_yamFiles(); txt=['InName.csv','InPatch.csv'].map(function(n){ return '── '+n+' ──\n'+yf[n].replace(/\r/g,''); }).join('\n'); }
     else txt=_sfGen(SF_CUR);
     if(SF_CUR==='wing' && !SF_WBASE){ try{ txt=JSON.stringify(JSON.parse(txt),null,2); }catch(e){} }
