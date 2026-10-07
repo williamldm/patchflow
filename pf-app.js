@@ -3989,7 +3989,14 @@ _SF.sq={ tab:'SQ', name:'Allen & Heath SQ', models:'SQ-5, SQ-6, SQ-7',
         steps:['Télécharger le fichier et le copier sur une clé USB, dans le dossier AHSQ/SCENES (renommer si un SCENE000.DAT existe déjà : SCENE001.DAT, etc.).','Sur la SQ : recopier la scène depuis la clé, puis la rappeler.','Pour conserver un mix existant : enregistrer une scène sur la SQ, la copier sur clé, et la charger ici avant de télécharger.'],
         alt:'',
         note:'La SQ n\'a pas d\'import de noms : PatchFlow modifie directement votre scène. Seuls nom et couleur (et prise, gain, +48 V si demandés) changent, la somme de contrôle est recalculée. Format relevé sur une SQ-5, pas encore rechargé sur console : premier essai à faire hors prestation, en gardant une copie de la scène d\'origine.' };
-const _SF_KEYS=['x32','wing','dlive','avantis','yam','sq'];
+_SF.dm7={ tab:'DM7', name:'Yamaha DM7', models:'DM7, DM7 Compact',
+        fmt:'Fichier console .dm7f', req:'À partir d\'un fichier de votre DM7 · testé dans DM7 Editor 1.7', fn:'dm7.dm7f', type:'application/octet-stream', maxCh:120, nameLen:8,
+        writes:['Noms de voies (8 caractères)','Couleurs','Icônes'],
+        opts:[],
+        steps:['Sur la DM7 ou dans DM7 Editor : enregistrer le fichier (.dm7f) et le charger ici.','Télécharger le fichier modifié, puis le charger dans DM7 Editor (File, Load) ou sur la console depuis une clé USB.','Choisir « Load » : les voies et les bus prennent leurs noms et couleurs, le reste du fichier est inchangé.'],
+        alt:'',
+        note:'La DM7 n\'a pas d\'import de noms : PatchFlow modifie directement votre fichier. Seule la mémoire courante est touchée (pas les scènes enregistrées). Patch, gain et +48 V ne sont pas écrits.' };
+const _SF_KEYS=['x32','wing','dlive','avantis','yam','dm7','sq'];
 /* Nombre d'entrées par source (au-delà : pas de patch) */
 const _SF_SOCKETS={'MixRack':64,'MixRack DX 1/2':32,'MixRack DX 3/4':32,'Surface@dlive':8,'Surface@avantis':12,'SLink':128,'IO 1':128,'IO 2':128,'LCL':24,'A':48,'B':48,'C':48};
 var SF_CUR='x32', SF_VIEW='ch', SF_OPTS={};
@@ -4021,7 +4028,8 @@ const _SF_GRPS={
   dlive:[['MixRack','MixRack'],['MixRack DX 1/2','DX 1/2'],['MixRack DX 3/4','DX 3/4'],['Surface','Surface']],
   avantis:[['SLink','SLink'],['Surface','Surface'],['IO 1','IO 1'],['IO 2','IO 2']],
   yam:[['DANTE','Dante'],['LOCAL','Local']],
-  sq:[['LOCAL','Local']]
+  sq:[['LOCAL','Local']],
+  dm7:[]
 };
 function _sfMax(id,g){ if(id==='sq') return 16;   /* prises locales d'une SQ-5 ; au-delà, numérotation non relevée */
   if(id==='yam') return g==='DANTE'?64:_YAM_LOCAL[_sfOpt('yam','model')];
@@ -4065,7 +4073,8 @@ const _SF_BUS={
   dlive:[['Aux','Aux',40],['St Aux','Aux stéréo',20],['Group','Groupe',40],['St Group','Groupe stéréo',20],['FX','Envoi FX',16],['Matrix','Matrix',40],['St Matrix','Matrix stéréo',20],['Main','Main',3]],
   avantis:[['Aux','Aux',40],['St Aux','Aux stéréo',20],['Group','Groupe',40],['St Group','Groupe stéréo',20],['FX','Envoi FX',12],['Matrix','Matrix',40],['St Matrix','Matrix stéréo',20],['Main','Main',3]],
   yam:[['MIX','Mix',24],['MATRIX','Matrix',8],['ST','Stéréo L/R',1]],
-  sq:[]
+  sq:[],
+  dm7:[['MIX','Mix',48],['MATRIX','Matrix',12],['ST','Stéréo A / B',2]]
 };
 /* Type de sortie PatchFlow : famille de bus par défaut (selon la console) et couleur par défaut */
 const _SF_OUT_HUE={main:'red',sub:'red',mon:'yellow',iem:'green',aux:'cyan',fx:'purple',group:'blue',matrix:'white',other:'white'};
@@ -4074,7 +4083,7 @@ function _sfOutKind(id,type){
   if(type==='mon'||type==='iem'||type==='aux') return first;
   if(type==='group') return ah?'Group':first;
   if(type==='fx') return ah?'FX':first;
-  if(type==='matrix') return id==='yam'?'MATRIX':ah?'Matrix':'mtx';
+  if(type==='matrix') return (id==='yam'||id==='dm7')?'MATRIX':ah?'Matrix':'mtx';
   return '';                       /* main, sub, autre : pas de bus par défaut, à choisir */
 }
 function _sfBusMax(id,k){
@@ -4388,6 +4397,75 @@ function genSq(){
   b[_SQ_LEN-4]=c&255; b[_SQ_LEN-3]=(c>>>8)&255; b[_SQ_LEN-2]=(c>>>16)&255; b[_SQ_LEN-1]=c>>>24;
   return b;
 }
+/* ── Yamaha DM7 : fichier .dm7f modifié ──
+   Conteneur « MBDFProjectFile » : des entrées nommées, chacune avec sa longueur (32 bits gros-boutiste, 16 octets
+   avant le nom) et ses données compressées zlib, alignées sur 4 octets. La mémoire courante est l'entrée
+   CurrentBackupFile.bup. Une fois décompressée (402 756 octets) : 120 fiches de voie de 1 785 octets, nom sur
+   64 octets à 0x5A1E, couleur en texte sur 8 octets à +64, icône en texte à +72 ; même sous-structure pour
+   les Mix (0x39ED7, pas 647), Matrix (0x4181F, pas 518) et Stéréo A puis B, deux fiches chacun (0x43065, pas 743).
+   Aucune somme de contrôle. Vérifié en rechargeant des fichiers modifiés dans DM7 Editor 1.7.2. */
+var SF_DM7BASE=null;
+const _DM7_ULEN=402756, _DM7_COL={yellow:'Yellow',green:'Green',purple:'Purple',cyan:'SkyBlue',red:'Red',blue:'Blue',white:'White'};
+const _DM7_COLS=['Blue','Orange','Yellow','Purple','SkyBlue','Pink','Red','Green','LtGreen','White','Off'];
+const _DM7_ICON={kick:'Kick',snare:'Snare',tom:'Tom',hat:'DrumKit',oh:'DrumKit',drums:'DrumKit',bass:'A.Bass',guitar:'E.Guitar',keys:'Keyboard',leadvox:'Wireless',vox:'BG Vocal',horns:'Saxophone',track:'Media3',fx:'Fx',talk:'Blank',other:'Blank'};
+const _DM7_AT={ch:[0x5A1E,1785],MIX:[0x39ED7,647],MATRIX:[0x4181F,518],ST:[0x43065,743]};
+async function _sfZlib(bytes,inflate){
+  var cs=inflate ? new DecompressionStream('deflate') : new CompressionStream('deflate');
+  var w=cs.writable.getWriter(); w.write(bytes); w.close();
+  return new Uint8Array(await new Response(cs.readable).arrayBuffer());
+}
+function _dm7Find(a){
+  var key='CurrentBackupFile.bup', n=-1;
+  outer: for(var i=16;i<a.length-key.length-1;i++){
+    for(var j=0;j<key.length;j++) if(a[i+j]!==key.charCodeAt(j)) continue outer;
+    if(a[i+key.length]===0){ n=i; break; }
+  }
+  if(n<0) return null;
+  var L=((a[n-16]<<24)|(a[n-15]<<16)|(a[n-14]<<8)|a[n-13])>>>0, s=(n+key.length+1+3)&~3;
+  return (L>0 && s+L<=a.length) ? {n:n,s:s,L:L} : null;
+}
+function _dm7Str(d,p,len){ var t=''; for(var i=0;i<len && d[p+i];i++) t+=String.fromCharCode(d[p+i]); return t; }
+function _dm7Put(d,p,len,txt){ for(var i=0;i<len;i++) d[p+i]=i<txt.length ? txt.charCodeAt(i)&127 : 0; }
+/* Une fiche est reconnue quand sa couleur est l'un des mots attendus à +64 */
+function _dm7Ok(d,p){ return _DM7_COLS.indexOf(_dm7Str(d,p+64,8))>=0; }
+function sfDm7Pick(){ var i=document.getElementById('sf-dm7base-file'); if(i){ i.value=''; i.click(); } }
+function sfDm7File(inp){
+  var f=inp.files && inp.files[0]; if(!f) return;
+  var rd=new FileReader();
+  rd.onload=async function(){
+    try{
+      var a=new Uint8Array(rd.result), e=_dm7Find(a); if(!e) throw 0;
+      var d=await _sfZlib(a.slice(e.s,e.s+e.L),true);
+      if(d.length!==_DM7_ULEN || !_dm7Ok(d,_DM7_AT.ch[0]) || !_dm7Ok(d,_DM7_AT.ch[0]+119*1785) || !_dm7Ok(d,_DM7_AT.MIX[0]) || !_dm7Ok(d,_DM7_AT.MATRIX[0])) throw 1;
+      var named=0; for(var c=0;c<120;c++){ var nm=_dm7Str(d,_DM7_AT.ch[0]+1785*c,64); if(nm && !/^ch ?\d+$/.test(nm)) named++; }
+      SF_DM7BASE={file:f.name, bytes:a, named:named};
+      toast('Fichier « '+f.name+' » chargé');
+    }catch(err){ SF_DM7BASE=null; toast(err===1 ? 'Version de fichier DM7 non reconnue : rien ne sera modifié' : 'Ce fichier n\'est pas un fichier DM7 (.dm7f)'); }
+    renderShowfiles();
+  };
+  rd.readAsArrayBuffer(f);
+}
+function sfDm7Clear(){ SF_DM7BASE=null; renderShowfiles(); }
+async function genDm7(){
+  if(!SF_DM7BASE) return null;
+  var a=SF_DM7BASE.bytes, e=_dm7Find(a), d=await _sfZlib(a.slice(e.s,e.s+e.L),true);
+  var put=function(p,x,icon){
+    if(!_dm7Ok(d,p)) return;
+    _dm7Put(d,p,64,x.name); _dm7Put(d,p+64,8,_DM7_COL[x.hk]||'Blue');
+    if(icon) _dm7Put(d,p+72,12,icon);
+  };
+  _sfRows('dm7').forEach(function(x){ if(!x.skip) put(_DM7_AT.ch[0]+_DM7_AT.ch[1]*(x.ch-1),x,_DM7_ICON[x.grp]||'Blank'); });
+  _sfOutsOk('dm7').forEach(function(x){
+    var t=_DM7_AT[x.kind]; if(!t) return;
+    if(x.kind==='ST'){ put(t[0]+t[1]*2*(x.num-1),x,null); put(t[0]+t[1]*(2*(x.num-1)+1),x,null); }   /* gauche et droite */
+    else put(t[0]+t[1]*(x.num-1),x,null);
+  });
+  var z=await _sfZlib(d,false), pad=(4-((e.s+z.length)&3))&3, oldEnd=(e.s+e.L+3)&~3;
+  var out=new Uint8Array(e.s+z.length+pad+(a.length-oldEnd));
+  out.set(a.subarray(0,e.s),0); out.set(z,e.s); out.set(a.subarray(oldEnd),e.s+z.length+pad);
+  var L=z.length; out[e.n-16]=(L>>>24)&255; out[e.n-15]=(L>>>16)&255; out[e.n-14]=(L>>>8)&255; out[e.n-13]=L&255;
+  return out;
+}
 function genYam(){ return _sfZip(_yamFiles(),'PatchFlow_'+_sfOpt('yam','model')); }
 
 function genUniv(){
@@ -4405,6 +4483,7 @@ const FMETA={
   dlive:  {title:'Allen & Heath dLive — CSV Director',   fn:_SF.dlive.fn,   type:_SF.dlive.type,   gen:genD},
   avantis:{title:'Allen & Heath Avantis — CSV',          fn:_SF.avantis.fn, type:_SF.avantis.type, gen:genAvantis},
   yam:    {title:'Yamaha CL / QL — dossier CSV',         fn:_SF.yam.fn,     type:_SF.yam.type,     gen:genYam},
+  dm7:    {title:'Yamaha DM7 — fichier console',         fn:_SF.dm7.fn,     type:_SF.dm7.type,     gen:genDm7},
   sq:     {title:'Allen & Heath SQ — scène',             fn:_SF.sq.fn,      type:_SF.sq.type,      gen:genSq},
   univ:   {title:'CSV universel — channels.csv',         fn:'channels.csv', type:'text/csv',       gen:genUniv},
 };
@@ -4416,6 +4495,12 @@ function dlFile(t){
   if(!CHS.length){ toast('Aucun canal à exporter — ajoutez des canaux dans l\'Input List.'); return; }
   const slug=CUR_SHOW?.slug||'show';
   /* SQ : la console retrouve la scène par son nom de fichier, qui doit rester celui d'origine */
+  if(t==='dm7'){
+    if(!SF_DM7BASE){ toast('Chargez d\'abord un fichier de votre DM7 (.dm7f)'); return; }
+    var dn=SF_DM7BASE.file.replace(/\.dm7f$/i,'')+'_patchflow.dm7f';
+    genDm7().then(function(b){ dl(b,m.type,dn); toast('✓ '+dn+' téléchargé'); }).catch(function(e){ console.error(e); toast('Erreur : fichier DM7 non produit'); });
+    return;
+  }
   if(t==='sq'){
     var sqb=m.gen(), sqn=SF_SQBASE?SF_SQBASE.file:'SCENE000.DAT';
     if(!sqb){ toast('Scène vierge indisponible : chargez une scène de votre SQ (SCENEnnn.DAT)'); return; }
@@ -4726,6 +4811,7 @@ function renderShowfiles(){
   var unpatched=(SF_CUR==='dlive'||SF_CUR==='avantis') ? ok.filter(function(x){return !x.socket;}).length : 0;
   var fn=((typeof CUR_SHOW!=='undefined'&&CUR_SHOW&&CUR_SHOW.slug)||'show')+'_'+c.fn;
   var nOut=(_SF_BUS[SF_CUR]||[]).length ? _sfOutsOk(SF_CUR).length : 0;
+  if(SF_CUR==='dm7') fn=SF_DM7BASE?SF_DM7BASE.file.replace(/\.dm7f$/i,'')+'_patchflow.dm7f':'fichier.dm7f';
   if(SF_CUR==='sq'){ fn=SF_SQBASE?SF_SQBASE.file:'SCENE000.DAT'; _sqLoadBlank(); }
 
   /* ── Colonne de gauche : la console, ce que le fichier écrit, les réglages, la marche à suivre ── */
@@ -4748,6 +4834,18 @@ function renderShowfiles(){
         +o.choices.map(function(ch){return '<option value="'+E(ch[0])+'"'+(ch[0]===cur?' selected':'')+'>'+E(ch[1])+'</option>';}).join('')
         +'</select></label>';
     }).join('')+'</div>';
+  }
+  if(SF_CUR==='dm7'){
+    h+='<div class="sfx-sec"><div class="sfx-lbl">Fichier de la console</div><input type="file" id="sf-dm7base-file" accept=".dm7f" hidden onchange="sfDm7File(this)">';
+    if(SF_DM7BASE){
+      h+='<div class="sfx-base"><i class="ti ti-file-check"></i><div><b>'+E(SF_DM7BASE.file)+'</b><span>'+SF_DM7BASE.named+' voie'+(SF_DM7BASE.named>1?'s':'')+' déjà nommée'+(SF_DM7BASE.named>1?'s':'')+'</span></div>'
+        +'<button type="button" title="Retirer le fichier" onclick="sfDm7Clear()"><i class="ti ti-x"></i></button></div>'
+        +'<div class="sfx-base-h">Le fichier téléchargé est une copie de celui-ci, où seules les voies et sorties listées sont renommées et recolorées.</div>';
+    } else {
+      h+='<button type="button" class="btn sfx-ghost" onclick="sfDm7Pick()"><i class="ti ti-upload"></i>Charger un fichier DM7 (.dm7f)</button>'
+        +'<div class="sfx-base-h">Obligatoire : PatchFlow écrit dans un fichier enregistré par votre DM7 ou DM7 Editor. Il reste sur votre ordinateur.</div>';
+    }
+    h+='</div>';
   }
   if(SF_CUR==='sq'){
     h+='<div class="sfx-sec"><div class="sfx-lbl">Scène de la console</div><input type="file" id="sf-sqbase-file" accept=".DAT,.dat" hidden onchange="sfSqFile(this)">';
@@ -4815,7 +4913,8 @@ function renderShowfiles(){
       }).join('')+'</tbody></table></div>';
   } else if(SF_VIEW==='file' && pro){
     var txt;
-    if(SF_CUR==='sq'){ txt=(SF_SQBASE||SF_SQBLANK) ? 'Scène binaire (131 072 octets) : '+(SF_SQBASE?SF_SQBASE.file:'scène vierge SQ-5')+'\nLes valeurs écrites sont celles de l\'onglet Voies.' : 'Scène vierge en cours de chargement.'; }
+    if(SF_CUR==='dm7'){ txt=SF_DM7BASE ? 'Fichier binaire compressé : '+SF_DM7BASE.file+'\nLes valeurs écrites sont celles des onglets Voies et Sorties.' : 'Chargez un fichier de votre DM7 pour produire l\'export.'; }
+    else if(SF_CUR==='sq'){ txt=(SF_SQBASE||SF_SQBLANK) ? 'Scène binaire (131 072 octets) : '+(SF_SQBASE?SF_SQBASE.file:'scène vierge SQ-5')+'\nLes valeurs écrites sont celles de l\'onglet Voies.' : 'Scène vierge en cours de chargement.'; }
     else if(SF_CUR==='yam'){ var yf=_yamFiles(); txt=['InName.csv','InPatch.csv','MixName.csv','MtxName.csv','StMonoName.csv'].map(function(n){ return '── '+n+' ──\n'+yf[n].replace(/\r/g,''); }).join('\n'); }
     else txt=_sfGen(SF_CUR);
     if(SF_CUR==='wing' && !SF_WBASE){ try{ txt=JSON.stringify(JSON.parse(txt),null,2); }catch(e){} }
@@ -4825,7 +4924,7 @@ function renderShowfiles(){
     h+='<pre class="sfx-code">'+E(txt)+'</pre>'
       +(SF_CUR==='wing'?'<div class="sfx-foot">Affiché indenté pour la lecture ; le fichier téléchargé tient sur une ligne, comme ceux de la console.</div>':'');
   } else {
-    var showSrc=true, GR=_SF_GRPS[SF_CUR];
+    var GR=_SF_GRPS[SF_CUR], showSrc=GR.length>0;
     var colSel=function(x){
       return '<label class="sfx-col"><i style="background:'+x.hue.hex+'"></i><select onchange="sfSetCol(\''+x.id+'\',this.value)" title="Couleur de la voie">'
         +'<option value=""'+(x.hauto?' selected':'')+'>'+(x.hauto?x.hue.fr+' (auto)':'Auto')+'</option>'
@@ -18761,7 +18860,7 @@ const GATE_META = {
   recap_matos:    { icon:'ti-clipboard-list',   title:'Recap materiels',              desc:'Obtenez le decompte exact de chaque micro et pied necessaires — indispensable avant un show pour ne rien oublier.', plan:'pro', feats:['Decompte par modele de micro ou DI','Decompte par type de pied','Total consolide sur tous les patches'] },
   recent_activity:{ icon:'ti-history',          title:'Activite recente',             desc:'Visualisez les derniers canaux modifies par votre equipe en temps reel — utile pour savoir qui a touche a quoi.', plan:'pro', feats:['5 derniers canaux modifies','Horodatage relatif (il y a X min)','Inclus dans le plan Pro'] },
   export_pdf_pro: { icon:'ti-file-type-pdf',    title:'Export PDF complet',           desc:'Retirez le filigrane et ajoutez societe, contact, venue, date, revision et notes techniques.', plan:'pro', feats:['PDF sans filigrane','Coordonnees completes en en-tete','Notes techniques sur chaque export'] },
-  console_export: { icon:'ti-device-floppy',    title:'Exports console',  desc:'Générez le fichier que votre console sait importer : noms de voies, couleurs, patch, gains et +48 V.', plan:'pro', feats:['Behringer X32, Midas M32 et WING','Allen & Heath dLive, Avantis et SQ','Yamaha CL et QL','Formats vérifiés sur de vrais fichiers de console'] },
+  console_export: { icon:'ti-device-floppy',    title:'Exports console',  desc:'Générez le fichier que votre console sait importer : noms de voies, couleurs, patch, gains et +48 V.', plan:'pro', feats:['Behringer X32, Midas M32 et WING','Allen & Heath dLive, Avantis et SQ','Yamaha CL, QL et DM7','Formats vérifiés sur de vrais fichiers de console'] },
   ai_stage:       { icon:'ti-sparkles',         title:'Plan de scène par IA',          desc:'Envoyez la photo ou le croquis d\'un plan de scène : l\'IA le numérise et place automatiquement les instruments et le matériel dans l\'éditeur.', plan:'pro', feats:['Reconnaissance d\'un plan à partir d\'une image','Placement automatique des éléments','Vous ajustez ensuite librement'] },
   ai_inputlist:   { icon:'ti-sparkles',         title:'Input List par IA',             desc:'Envoyez une input list existante (image, PDF, CSV, Word) : l\'IA la numérise et crée automatiquement les canaux avec micro, +48V, IEM et pied de micro.', plan:'pro', feats:['Formats image, PDF, CSV et Word','Détecte micro/DI, +48V, IEM et pied','Canaux ajoutés prêts à ajuster'] },
   max_share_links:{ icon:'ti-link',             title:'Limite de liens de partage',   desc:'Le plan Gratuit est limite a 5 liens de partage au total. Passez au Pro pour des liens illimites.', plan:'pro', feats:['Liens de partage illimites sur Pro','Partagez chaque show en lecture seule','Mise a jour en temps reel'] },
