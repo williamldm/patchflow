@@ -6930,10 +6930,10 @@ function _pdfFoot(doc, o){
     doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(K.ink[0],K.ink[1],K.ink[2]);
     doc.text('Version à jour en ligne', x, top+7);
     doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(acc[0],acc[1],acc[2]);
-    var lk=String(o.url).replace(/^https?:\/\//,''); if(lk.length>86) lk=lk.slice(0,84)+'...';
+    var lk=String(o.url).replace(/^https?:\/\//,''); var lkMax=PW<250?50:86; if(lk.length>lkMax) lk=lk.slice(0,lkMax-2)+'...';   /* portrait : la mention de droite est sur la même ligne */
     if(doc.textWithLink) doc.textWithLink(lk, x, top+11, {url:o.url}); else doc.text(lk, x, top+11);
     doc.setFontSize(6.5); doc.setTextColor(K.muted[0],K.muted[1],K.muted[2]);
-    doc.text('Scannez le code pour retrouver ce document toujours à jour.', x, top+14.4);
+    doc.text(o.qrNote||'Scannez le code pour retrouver ce document toujours à jour.', x, top+14.4);
     base=top+11;
   }
   doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(K.muted[0],K.muted[1],K.muted[2]);
@@ -15805,7 +15805,11 @@ async function demPdf(){
     var JsPDF=await _loadAutoTable(), doc=new JsPDF({orientation:'portrait',unit:'mm',format:'a4'});
     var PW=doc.internal.pageSize.getWidth(), PH=doc.internal.pageSize.getHeight(), K=_PDFK, M=K.M, brand=_pdfBrand(), acc=_hex2rgb(brand.color||'#ff6b1a');
     var pf=null; try{ pf=await _pfLogoPng('#FF6B2B'); }catch(e){}
-    var logo=await _pdfLogoInfo(brand.logo), s=CUR_SHOW||{}, title=s.name||'Show', BOT=_pdfFootH(false)+4, TOP=30;
+    var logo=await _pdfLogoInfo(brand.logo), s=CUR_SHOW||{}, title=s.name||'Show', TOP=30;
+    /* Lien à jour : la fiche technique en ligne (patch, sorties, synoptique, plan de site) dont la demande est tirée */
+    var url='', qr=null;
+    if(s.id){ try{ await _ensureShareActive(); url=_riderBase()+'?view='+s.id+'&sections=il,out,syno,site'; var q=await _qrImage(url,{px:320}); qr=q&&q.dataUrl; }catch(e){ url=''; qr=null; } }
+    var BOT=_pdfFootH(!!qr)+4;
     var who=(typeof PROFILE!=='undefined'&&PROFILE&&PROFILE.full_name)||'', mail=(typeof ME!=='undefined'&&ME&&ME.email)||'';
     var y=_pdfHead(doc,{acc:acc,pf:pf,brand:brand.co||'PatchFlow',docType:'Demande de matériel',title:title,sub:'',logo:logo,
       rightLines:['Édité le '+new Date().toLocaleDateString('fr-FR')],
@@ -15843,7 +15847,7 @@ async function demPdf(){
     for(var p=1;p<=n;p++){
       doc.setPage(p);
       if(p>1) _pdfHead(doc,{acc:acc,pf:pf,brand:brand.co||'PatchFlow',docType:'Demande de matériel',title:title,compact:true,right:[s.venue,_pdfDateFr(_showDateISO(s.show_date))].filter(Boolean).join(' · ')});
-      _pdfFoot(doc,{acc:acc,pf:pf,credit:_pdfCreditOn(),creditWhat:'fiche technique',qr:null,url:'',stamp:p===1?'':title,page:p,pages:n});
+      _pdfFoot(doc,{acc:acc,pf:pf,credit:_pdfCreditOn(),creditWhat:'fiche technique',qr:p===1?qr:null,url:url,qrNote:'Scannez le code : input list, sorties, synoptique et plan de site, toujours à jour.',stamp:p===1?'':title,page:p,pages:n});
     }
     await _pdfDeliver(doc,(_pdfSlug(title)||'patchflow')+'-demande-materiel.pdf');
   }catch(e){ console.error('demPdf:',e); toast('Export impossible : '+(e&&e.message||e)); }
