@@ -3052,6 +3052,7 @@ button.bonp-empty{cursor:pointer}
 .dem-q:focus,.dem-xn:focus,.dem-note:focus{outline:0;box-shadow:inset 0 0 0 1.5px var(--ora)}
 @media(max-width:900px){ .bonp-switch{display:flex} .bonp-switch button{flex:1;justify-content:center;padding:0 8px;font-size:12.5px} }
 /* Import d'un patch depuis un PDF : choix de la page et aperçu */
+#ilpdf-modal{z-index:295}   /* sous la fenêtre d'offre (300), qui peut s'ouvrir par-dessus */
 .ilpdf-box{width:1040px;max-width:97vw;height:86vh;max-height:760px;display:flex;flex-direction:column}
 .ilpdf-body{flex:1;min-height:0;display:grid;grid-template-columns:270px minmax(0,1fr)}
 .ilpdf-pages{min-height:0;overflow-y:auto;padding:16px;border-right:1px solid var(--bdr)}
@@ -3073,7 +3074,7 @@ button.bonp-empty{cursor:pointer}
 .ilpdf-top b{color:var(--txt)}
 .ilpdf-scroll{flex:1;min-height:0;overflow:auto}
 .ilpdf-scroll thead th{position:sticky;top:0;background:var(--surf)}
-@media(max-width:760px){ .ilpdf-box{height:92vh} .ilpdf-body{grid-template-columns:minmax(0,1fr);grid-template-rows:150px minmax(0,1fr)} .ilpdf-pages{border-right:0;border-bottom:1px solid var(--bdr);padding:10px} .ilpdf-thumbs{display:flex;overflow-x:auto} .ilpdf-thumb{flex:0 0 84px;min-height:0} .ilpdf-pages .bon-lbl{display:none} }
+@media(max-width:760px){ .ilpdf-box{height:92vh} .ilpdf-body{grid-template-columns:minmax(0,1fr);grid-template-rows:112px minmax(0,1fr)} .ilpdf-pages{border-right:0;border-bottom:1px solid var(--bdr);padding:10px} .ilpdf-thumbs{display:flex;overflow-x:auto} .ilpdf-thumb{flex:0 0 64px;min-height:0} .ilpdf-pages .bon-lbl{display:none} .ilpdf-res{padding:12px 14px} .ilpdf-res>.bon-note,#ilpdf-info{display:none} .ilpdf-top{margin-bottom:6px} }
 .ilpdf-tbl th{height:auto;padding:6px 8px;vertical-align:bottom;white-space:normal;min-width:128px}
 .ilpdf-tbl th span{display:block;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
 .ilpdf-map{width:100%;height:28px;padding:0 22px 0 8px;border:0;border-radius:7px;background-color:var(--surf2);box-shadow:inset 0 0 0 1px var(--ora);color:var(--txt);font:600 12px var(--f);text-transform:none;letter-spacing:0}

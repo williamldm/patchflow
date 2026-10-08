@@ -5869,7 +5869,6 @@ const _ILPDF_COLS=[
   ['stand',  /^(pied|pieds|piedmicro|piedsmicro|pieddemicro|stand|stands|micstand|support)$/],
   ['short',  /^(court|nomcourt|short|shortname|abrev|abreviation)$/],
   ['phantom',/^(48v|48|phantom|fantome|alim)$/],
-  ['note',   /^(remarque|remarques|note|notes|commentaire|commentaires|comment|comments|info|infos|insert|inserts|divers)$/],
   ['iem',    /^(iem|ear|ears|inear|groupeiem)$/],
   ['foh',    /^(foh|face|facade)$/],
   ['mon',    /^(mon|retour|retours|monitor|monitors)$/],
@@ -5943,7 +5942,8 @@ async function _ilPdfLines(p){
     var out=[];
     r.it.forEach(function(it){
       var p=out[out.length-1], gap=p?it.x-(p.x+p.w):1e9, h=p?Math.max(p.h,it.h):it.h;
-      if(p && p.w>0 && gap<h*0.75){ p.s+=(gap>h*0.16?' ':'')+it.s; p.w=it.x+it.w-p.x; }
+      /* Un morceau qui recouvre franchement le précédent est une autre cellule (texte qui déborde), pas la suite du mot */
+      if(p && p.w>0 && gap<h*0.75 && gap>-h*0.35){ p.s+=(gap>h*0.16?' ':'')+it.s; p.w=it.x+it.w-p.x; }
       else out.push({x:it.x, w:it.w, h:it.h, s:it.s});
     });
     r.it=out;
@@ -5955,57 +5955,140 @@ async function _ilPdfLines(p){
 const _ILPDF_FIELDS=[['','Ignorer'],['ch','N° de voie'],['short','Nom court'],['name','Nom long'],['src','Source'],['mic','Micro / DI'],['stand','Pied micro'],['phantom','48V'],['gain','Gain'],['iem','IEM'],['foh','FOH'],['mon','MON'],['bc','BC'],['note','Remarque (ajoutée au pied micro)']];
 /* Champ de l'import -> colonne de l'input list, pour afficher ou masquer les colonnes après l'import */
 const _ILPDF_TO_COL={short:'short',name:'long',src:'src',mic:'mic',stand:'note',note:'note',phantom:'phantom',gain:'gain',iem:'iem',foh:'foh',mon:'mon',bc:'bc'};
+/* Colonnes d'après le corps du tableau : à chaque abscisse, le nombre de lignes qui y portent du texte.
+   Une zone sans aucun texte sépare deux colonnes. Avec « pont », une zone qu'une seule ligne traverse entre deux
+   zones denses sépare aussi : c'est une cellule qui déborde sur la colonne voisine (« (Petit Pied Perche) »).
+   Les titres ne servent pas ici : ils sont souvent décalés par rapport à leurs cellules. */
+function _ilPdfBands(lines, bridge){
+  var rs=lines.filter(function(r){ return r.it.length>=2; }); if(rs.length<2) return [];
+  /* Une ligne du tableau partage ses alignements (bord gauche, centre ou bord droit) avec les autres ;
+     une ligne de total, de légende ou de pied de page ne s'aligne sur rien : elle ne doit pas souder deux colonnes. */
+  var fits=function(r){
+    var n=0;
+    r.it.forEach(function(it){
+      var l=it.x, c=it.x+it.w/2, e=it.x+it.w;
+      if(rs.some(function(o){ return o!==r && o.it.some(function(q){ return Math.abs(q.x-l)<=2 || Math.abs(q.x+q.w/2-c)<=2 || Math.abs(q.x+q.w-e)<=2; }); })) n++;
+    });
+    return n/r.it.length>=0.5;
+  };
+  var keep=rs.filter(fits); if(keep.length>=2) rs=keep;
+  var gaps=[]; for(var g=1;g<rs.length;g++) gaps.push(Math.abs(rs[g-1].y-rs[g].y));
+  var med=gaps.slice().sort(function(p,q){ return p-q; })[Math.floor(gaps.length/2)]||0;
+  for(g=0;g<gaps.length;g++){ if(g>=2 && gaps[g]>Math.max(med*2.5,30)){ rs=rs.slice(0,g+1); break; } }   /* grand saut : légende ou pied de page */
+  var W=0; rs.forEach(function(r){ r.it.forEach(function(it){ W=Math.max(W, Math.ceil(it.x+it.w)+2); }); });
+  if(!(W>0) || W>6000) return [];
+  var cov=[], x; for(x=0;x<=W;x++) cov.push(0);
+  rs.forEach(function(r){
+    var seen={};
+    r.it.forEach(function(it){ for(var p=Math.max(0,Math.floor(it.x)), e=Math.ceil(it.x+Math.max(it.w,1)); p<e && p<=W; p++){ if(!seen[p]){ seen[p]=1; cov[p]++; } } });
+  });
+  var runs=[], a=-1;
+  for(x=0;x<=W;x++){ if(cov[x]>0){ if(a<0) a=x; } else if(a>=0){ runs.push([a,x]); a=-1; } }
+  if(!bridge || rs.length<4) return runs;
+  var out=[];
+  runs.forEach(function(b){
+    var start=b[0], weak=-1, dense=false;
+    for(var p=b[0];p<b[1];p++){
+      if(cov[p]>=2){ if(weak>=0 && dense && p-weak>=3){ out.push([start,weak]); start=p; } weak=-1; dense=true; }
+      else if(weak<0) weak=p;
+    }
+    out.push([start,b[1]]);
+  });
+  return out;
+}
+/* Associe les titres aux colonnes, dans l'ordre de gauche à droite : au plus près, sans croisement.
+   Un titre peut rester sans colonne (colonne vide dans tout le tableau), une colonne sans titre. */
+function _ilPdfAlign(H, B){
+  var n=H.length, m=B.length, SK=45, d=[], i, j;
+  var cost=function(i,j){ var a=H[i].x, b=H[i].x+(H[i].w||0); return Math.max(B[j][0]-b, a-B[j][1], 0)+Math.abs((a+b)/2-(B[j][0]+B[j][1])/2)*0.01; };
+  for(i=0;i<=n;i++){ d.push([]); for(j=0;j<=m;j++){
+    var v=(!i&&!j)?0:1e9;
+    if(i&&j) v=Math.min(v,d[i-1][j-1]+cost(i-1,j-1));
+    if(i) v=Math.min(v,d[i-1][j]+SK);
+    if(j) v=Math.min(v,d[i][j-1]+SK);
+    d[i].push(v);
+  } }
+  var map=H.map(function(){ return -1; }); i=n; j=m;
+  while(i>0||j>0){
+    if(i&&j && Math.abs(d[i][j]-(d[i-1][j-1]+cost(i-1,j-1)))<1e-6){ map[i-1]=j-1; i--; j--; }
+    else if(i && Math.abs(d[i][j]-(d[i-1][j]+SK))<1e-6) i--;
+    else j--;
+  }
+  return map;
+}
+/* Une cellule va dans la colonne qui la recouvre le plus ; si aucune ne la recouvre, dans la plus proche */
+function _ilPdfColOf(cols, it){
+  var a=it.x, b=it.x+(it.w||0), best=0, bo=-1, bd=1e9;
+  for(var i=0;i<cols.length;i++){
+    var ca=cols[i].x, cb=cols[i].x+cols[i].w, ov=Math.min(b,cb)-Math.max(a,ca), d=ov>0?0:Math.max(ca-b,a-cb);
+    if(ov>0 ? ov>bo : (bo<=0 && d<bd)){ best=i; if(ov>0) bo=ov; bd=d; }
+  }
+  return best;
+}
 function _ilPdfParse(rows){
   var key=function(s){ return _bonNorm(s); }, NUM=/^(?:ch\.?\s*)?(\d{1,3})\.?$/i;
   /* Titre exact d'abord (« Micro »), puis titre composé (« Channel name / Instrument », « Pied de micro ») */
-  var LOOSE=[['stand',/pied|stand/],['mic',/micro|mic(?!ien)|capteur/],['name',/instrument|name|nom|designation|libelle/],['phantom',/48|phantom|fantome/],['note',/remarque|comment|note/],['src',/source|famille/]];
+  var LOOSE=[['stand',/pied|stand/],['mic',/micro|mic(?!ien)|capteur/],['name',/instrument|name|nom|designation|libelle/],['phantom',/48|phantom|fantome/],['src',/source|famille/]];
   var guess=function(s){
     var k=key(s); for(var c=0;c<_ILPDF_COLS.length;c++){ if(_ILPDF_COLS[c][1].test(k)) return _ILPDF_COLS[c][0]; }
     if(/^gain$/.test(k)) return 'gain';
     if(k.length>5) for(var l=0;l<LOOSE.length;l++){ if(LOOSE[l][1].test(k)) return LOOSE[l][0]; }
     return '';
   };
+  var cells=function(cols, r){ var c=cols.map(function(){ return ''; }); r.it.forEach(function(it){ var j=_ilPdfColOf(cols,it); c[j]=(c[j]?c[j]+' ':'')+it.s; }); return {c:c, y:r.y}; };
   /* Ligne de titres : celle qui reconnaît le plus de colonnes (au moins deux) */
   var best=null, heads={};
   rows.forEach(function(r,ri){
     var seen={}, n=0;
     r.it.forEach(function(it){ var g=guess(it.s); if(g && !seen[g]){ seen[g]=1; n++; } });
+    /* Une ligne de canal peut contenir « DI » et « 48V » : ce n'est un titre que sans numéro, avec la voie, le nom ou le micro et le pied */
+    if(r.it.some(function(it){ return /^\d{1,3}\.?$/.test(it.s) && !guess(it.s); })) return;
+    if(!(seen.ch || seen.name || seen.short || (seen.mic && seen.stand))) return;
     if(n>=2){ heads[ri]=1; if(!best || n>best.n) best={ri:ri, n:n}; }
   });
   if(best){
-    var hd=rows[best.ri].it, used={};
-    var cols=hd.map(function(it){ var g=guess(it.s); if(used[g]) g=''; if(g) used[g]=1; return {label:it.s, f:g, x:it.x, w:it.w||0}; });
-    /* Une cellule va dans la colonne dont le titre la recouvre le plus (tableaux centrés comme alignés à gauche) ;
-       si aucun titre ne la recouvre, dans la plus proche. */
-    var colOf=function(it){
-      var a=it.x, b=it.x+(it.w||0), best=0, bo=-1, bd=1e9;
-      for(var i=0;i<cols.length;i++){
-        var ca=cols[i].x, cb=cols[i].x+cols[i].w, ov=Math.min(b,cb)-Math.max(a,ca), d=ov>0?0:Math.max(ca-b,a-cb);
-        if(ov>0 ? ov>bo : (bo<=0 && d<bd)){ best=i; if(ov>0) bo=ov; bd=d; }
-      }
-      return best;
-    };
-    var raw=[];
-    for(var i=best.ri+1;i<rows.length;i++){
-      if(heads[i]) break;                      /* autre tableau sur la page (output list…) : on s'arrête là */
-      var c=cols.map(function(){ return ''; });
-      rows[i].it.forEach(function(it){ var j=colOf(it); c[j]=(c[j]?c[j]+' ':'')+it.s; });
-      raw.push({c:c, y:rows[i].y});
+    var hd=rows[best.ri].it, used={}, body=[];
+    for(var i=best.ri+1;i<rows.length;i++){ if(heads[i]) break; body.push(rows[i]); }   /* autre tableau sur la page (output list…) : on s'arrête là */
+    var H=hd.map(function(it){ var g=guess(it.s); if(used[g]) g=''; if(g) used[g]=1; return {label:it.s, f:g, x:it.x, w:it.w||0}; });
+    /* Colonnes prises sur le corps du tableau, puis rapprochées des titres. Deux lectures (avec et sans pont) :
+       on garde celle qui donne autant de colonnes que de titres, sinon la plus proche par excès. */
+    var cols=null, tries=[_ilPdfBands(body,true), _ilPdfBands(body,false)];
+    tries.sort(function(p,q){ var dp=p.length-H.length, dq=q.length-H.length; return (dp<0)-(dq<0) || Math.abs(dp)-Math.abs(dq); });
+    for(var t=0;t<tries.length && !cols;t++){
+      var B=tries[t]; if(B.length<2) continue;
+      var map=_ilPdfAlign(H,B), taken={}, ok=true;
+      map.forEach(function(j){ if(j>=0) taken[j]=1; });
+      /* Un titre resté seul alors qu'il surplombe une colonne déjà prise : deux colonnes ont été fondues, lecture rejetée */
+      H.forEach(function(h,k){ if(map[k]<0 && B.some(function(b){ return Math.min(h.x+h.w,b[1])-Math.max(h.x,b[0])>0; })) ok=false; });
+      if(!ok || !map.some(function(j){ return j>=0; })) continue;
+      cols=H.map(function(h,k){ var j=map[k]; return j>=0?{label:h.label, f:h.f, x:B[j][0], w:B[j][1]-B[j][0]}:{label:h.label, f:h.f, x:h.x, w:h.w}; });
+      B.forEach(function(b,j){ if(!taken[j]) cols.push({label:'', f:'', x:b[0], w:b[1]-b[0]}); });
+      cols.sort(function(p,q){ return p.x-q.x; });
+      cols.forEach(function(c,k){ if(!c.label){ c.label='Colonne '+(k+1); c.auto=1; } });
     }
-    return {cols:cols, raw:raw, mode:'titres'};
+    if(!cols) cols=H;                          /* à défaut : les titres bornent eux-mêmes les colonnes */
+    return {cols:cols, raw:body.map(function(r){ return cells(cols,r); }), mode:'titres'};
   }
-  /* Sans titres : les lignes qui commencent par un numéro de voie, colonnes prises dans l'ordre */
+  /* Sans titres : les lignes qui commencent par un numéro de voie, colonnes prises sur le corps */
   var lines=rows.filter(function(r){ return r.it.length>=2 && NUM.test(r.it[0].s); });
   if(lines.length<3) return {cols:[], raw:[], mode:'numeros'};        /* numéros isolés : dates, pagination */
+  var G=['ch','name','mic'], Bn=_ilPdfBands(lines,true).slice(0,10);
+  if(Bn.length>=2){
+    var cn=Bn.map(function(b,k){ return {label:'Colonne '+(k+1), f:G[k]||'', x:b[0], w:b[1]-b[0], auto:1}; });
+    return {cols:cn, mode:'numeros', raw:lines.map(function(r){ return cells(cn,r); })};
+  }
   var n=Math.min(8, Math.max.apply(null,lines.map(function(r){ return r.it.length; })));
-  var G=['ch','name','mic'], cols2=[]; for(var k=0;k<n;k++) cols2.push({label:'Colonne '+(k+1), f:G[k]||''});
-  return {cols:cols2, mode:'numeros', raw:lines.map(function(r){ var c=cols2.map(function(){ return ''; }); r.it.forEach(function(it,j){ var q=Math.min(j,n-1); c[q]=(c[q]?c[q]+' ':'')+it.s; }); return {c:c, y:r.y}; })};
+  var cols2=[]; for(var q=0;q<n;q++) cols2.push({label:'Colonne '+(q+1), f:G[q]||'', auto:1});
+  return {cols:cols2, mode:'numeros', raw:lines.map(function(r){ var c=cols2.map(function(){ return ''; }); r.it.forEach(function(it,j){ var z=Math.min(j,n-1); c[z]=(c[z]?c[z]+' ':'')+it.s; }); return {c:c, y:r.y}; })};
 }
 /* Applique le choix des colonnes : une ligne brute devient un canal, ou complète le précédent, ou est écartée */
 function _ilPdfBuild(){
-  var cols=_ilPdf.cols||[], raw=_ilPdf.raw||[], NUM=/^(?:ch\.?\s*)?(\d{1,3})\.?$/i, out=[], last=null, prevY=null;
+  var cols=_ilPdf.cols||[], raw=_ilPdf.raw||[], out=[], last=null, prevY=null;
+  /* « 12 », « 12. », « CH 12 », et les paires « 15/16 », « 15-16 », « 15+16 » (deux voies, L et R) */
+  var NUM=/^(?:ch\.?\s*)?(\d{1,3})\.?(?:\s*[-\/+&]\s*(\d{1,3}))?$/i;
   var hasCh=cols.some(function(c){ return c.f==='ch'; });
-  var yes=function(s){ return /^(x|o|oui|yes|on|\+?48\s*v|48|✓|✔|•|1)$/i.test(String(s||'').trim()); };
+  var yes=function(s){ return /^(x|o|ok|oui|yes|on|\+?\s*48\s*v?|phantom|✓|✔|•|●|■|1)$/i.test(String(s||'').trim()); };
+  var boolCols=['foh','mon','bc'].filter(function(k){ return cols.some(function(c){ return c.f===k; }); });
   raw.forEach(function(r){
     r.st='skip';
     var cell={}, extra={};
@@ -6014,23 +6097,34 @@ function _ilPdfBuild(){
       if(c.f==='new' || c.f.indexOf('cc:')===0){ var ek=c.f==='new'?'new:'+j:c.f; extra[ek]=(extra[ek]?extra[ek]+' ':'')+r.c[j]; return; }   /* colonne personnalisée, existante ou à créer */
       cell[c.f]=(cell[c.f]?cell[c.f]+' ':'')+r.c[j];
     });
-    var m=hasCh?String(cell.ch||'').match(NUM):null, near=prevY!=null && Math.abs(prevY-r.y)<16; prevY=r.y;
+    var m=hasCh?String(cell.ch||'').trim().match(NUM):null, near=prevY!=null && Math.abs(prevY-r.y)<16; prevY=r.y;
     if(r.off){ last=null; r.st='off'; return; }
     if(hasCh && !m){
       /* Ligne sans numéro : suite de la précédente si elle est proche, sinon hors tableau (pied de page, légende) */
-      if(last && near && !_ilPdf.ai){ ['name','short','mic','stand','note','src'].forEach(function(k){ if(cell[k]) last[k]=(last[k]?last[k]+' ':'')+cell[k]; }); r.st='more'; }
-      else last=null;
+      if(last && near && !_ilPdf.ai){
+        ['name','short','mic','stand','note','src'].forEach(function(k){ if(cell[k]) last.forEach(function(L){ L[k]=(L[k]?L[k]+' ':'')+cell[k]; }); });
+        Object.keys(extra).forEach(function(k){ last.forEach(function(L){ L.extra[k]=(L.extra[k]?L.extra[k]+' ':'')+extra[k]; }); });
+        r.st='more';
+      } else last=null;
       return;
     }
-    if(!cell.name && !cell.short && !cell.mic){
+    var named=cell.name||cell.short||cell.mic, any=named||cell.src||cell.stand||cell.note||Object.keys(extra).length;
+    if(hasCh ? !any : !named){
       /* Voie numérotée mais vide : gardée pour ne pas décaler la numérotation, si d'autres voies suivent */
       last=null; if(m && out.length){ out.push({ch:+m[1], name:'', short:'', src:'', mic:'', stand:'', note:'', phantom:false, gain:0, iem:'', extra:{}, empty:true}); r.st='ch'; }
       return;
     }
     var g=parseFloat(String(cell.gain||'').replace(',','.'));
-    last={ch:m?+m[1]:out.length+1, name:cell.name||'', short:cell.short||'', src:cell.src||'', mic:cell.mic||'', stand:cell.stand||'', note:cell.note||'', phantom:yes(cell.phantom), gain:isFinite(g)?g:0, iem:cell.iem||'', extra:extra};
-    ['foh','mon','bc'].forEach(function(k){ if(cols.some(function(c){ return c.f===k; })) last[k]=yes(cell[k]); });
-    out.push(last); r.st='ch';
+    var a=m?+m[1]:out.length+1, b=(m && m[2])?+m[2]:a, n=(b>a && b-a<=7)?b-a+1:1;
+    last=[];
+    for(var k=0;k<n;k++){
+      var sfx=n===2?(k?' R':' L'):n>2?' '+(k+1):'';
+      var L={ch:a+k, name:(cell.name||'')+(cell.name?sfx:''), short:(cell.short||'')+(cell.short?sfx:''), src:cell.src||'', mic:cell.mic||'', stand:cell.stand||'', note:cell.note||'',
+             phantom:yes(cell.phantom), gain:isFinite(g)?g:0, iem:cell.iem||'', extra:Object.assign({},extra)};
+      boolCols.forEach(function(q){ L[q]=yes(cell[q]); });
+      last.push(L); out.push(L);
+    }
+    r.st='ch';
   });
   while(out.length && out[out.length-1].empty) out.pop();
   return out;
@@ -6061,9 +6155,9 @@ function _ilPdfRender(msg){
   var sel=function(c,j){ return '<select class="ilpdf-map'+(c.f?'':' none')+'" onchange="ilPdfMap('+j+',this.value)" title="Où ranger cette colonne">'
     +_ILPDF_FIELDS.map(function(f){ return '<option value="'+f[0]+'"'+(c.f===f[0]?' selected':'')+'>'+f[1]+'</option>'; }).join('')
     +_getCustomCols().map(function(cc){ return '<option value="cc:'+E(cc.id)+'"'+(c.f==='cc:'+cc.id?' selected':'')+'>Colonne « '+E(cc.label)+' »</option>'; }).join('')
-    +(_ilPdf.ai?'':'<option value="new"'+(c.f==='new'?' selected':'')+'>+ Créer la colonne « '+E(String(c.label).slice(0,30))+' »</option>')+'</select>'; };
+    +((_ilPdf.ai||c.auto)?'':'<option value="new"'+(c.f==='new'?' selected':'')+'>+ Créer la colonne « '+E(String(c.label).slice(0,30))+' »</option>')+'</select>'; };
   /* Colonnes du PDF sans équivalent dans PatchFlow : on propose de les créer */
-  var orphan=_ilPdf.ai?[]:cols.map(function(c,j){ return {c:c,j:j}; }).filter(function(o){ return !o.c.f && raw.some(function(r){ return r.st==='ch' && r.c[o.j]; }); });
+  var orphan=_ilPdf.ai?[]:cols.map(function(c,j){ return {c:c,j:j}; }).filter(function(o){ return !o.c.f && !o.c.auto && raw.some(function(r){ return r.st==='ch' && r.c[o.j]; }); });
   var nNew=cols.filter(function(c){ return c.f==='new'; }).length;
   res.innerHTML='<div class="ilpdf-top"><span><b>Page '+_ilPdf.page+'</b> · '+_ilPl(n)+' reconnu'+(n>1?'s':'')+(_ilPdf.ai?' par l\'IA':'')+'. Choisissez où va chaque colonne.</span>'+(_ilPdf.ai?'':ai)+'</div>'
     +'<div class="ilpdf-scroll"><table class="bon-tbl ilpdf-tbl"><thead><tr>'+cols.map(function(c,j){ return '<th><span>'+E(c.label)+'</span>'+sel(c,j)+'</th>'; }).join('')+'<th></th></tr></thead><tbody>'
@@ -6076,7 +6170,7 @@ function _ilPdfRender(msg){
 }
 function ilPdfNewAll(){
   if(!canDo('multi_scenes')){ showUpgradeModal('custom_cols'); return; }
-  (_ilPdf.cols||[]).forEach(function(c,j){ if(!c.f && (_ilPdf.raw||[]).some(function(r){ return r.st==='ch' && r.c[j]; })) c.f='new'; });
+  (_ilPdf.cols||[]).forEach(function(c,j){ if(!c.f && !c.auto && (_ilPdf.raw||[]).some(function(r){ return r.st==='ch' && r.c[j]; })) c.f='new'; });
   _ilPdfRender();
 }
 function ilPdfMap(j,f){
@@ -6137,6 +6231,7 @@ async function ilPdfApply(){
       /* Colonnes : celles que le PDF remplit sont affichées, toutes les autres (natives ou personnalisées) sont masquées, même si le patch a déjà des canaux */
       var got={short:1,long:1}, hid=[];
       cols.forEach(function(c){ if(_ILPDF_TO_COL[c.f]) got[_ILPDF_TO_COL[c.f]]=1; if(c.f.indexOf('cc:')===0) got[c.f.slice(3)]=1; });
+      made.forEach(function(id){ got[id]=1; });          /* les colonnes qu'on vient de créer restent affichées */
       Object.keys(got).forEach(function(id){ visCol.add(id); });
       _orderedColIds().forEach(function(id){ if(!got[id] && visCol.has(id)){ visCol.delete(id); var d=_colDefById(id); hid.push(d?d.label:id); } });
       _saveILLayout(); renderTable(); loadColChips(); updateColBtn();
@@ -20060,6 +20155,7 @@ const GATE_META = {
   max_shows:      { icon:'ti-calendar-event',   title:'Limite de shows atteinte',     desc:'Le plan Gratuit est limite a 3 shows actifs. Passez au Pro pour des shows illimites.', plan:'pro',    feats:['Shows illimites sur Pro','Canaux illimites par show','Archivage et gestion avancee'] },
   max_channels:   { icon:'ti-list-numbers',     title:'Limite de canaux atteinte',    desc:'Le plan Gratuit est limite a 26 canaux par show. Passez au Pro pour des canaux illimites.', plan:'pro',    feats:['Canaux illimites sur Pro','Pas de restriction sur le nombre de prises','Full festival patch sans limite'] },
   max_members:    { icon:'ti-users',            title:'Limite de membres atteinte',   desc:'Le plan Gratuit est limite a 1 membre. Passez au Pro pour inviter votre equipe sans limite.', plan:'pro', feats:['Membres illimites sur Pro','Roles et permissions par membre','Collaboration en temps reel'] },
+  custom_cols:    { icon:'ti-columns-3',        title:'Colonnes personnalisées',      desc:'Ajoutez vos propres colonnes à l\'input list : insert, musicien, remarques… Elles suivent le patch dans les exports.', plan:'pro', feats:['Colonnes libres, texte ou case à cocher','Créées d\'office à l\'import d\'un PDF','Affichables et déplaçables comme les autres'] },
   multi_patches:  { icon:'ti-layers-subtract',  title:'Multi-patches & multi-scenes', desc:'Creez plusieurs variantes de patch (A/B, festival) et plusieurs synoptiques / plans par show.', plan:'pro', feats:['Variantes A/B, festival, acoustique','Plusieurs synoptiques et plans par show','Inclus dans le plan Pro'] },
   custom_exports: { icon:'ti-photo',            title:'Exports personnalises',        desc:'Ajoutez votre logo et les informations de votre societe sur tous les exports PDF.', plan:'pro', feats:['Logo sur chaque page PDF','Entete avec vos coordonnees','Charte graphique de votre societe'] },
   vintage_view:   { icon:'ti-photo-film',       title:'Affichage Vintage',            desc:'Mode theatral avec les instruments dessines en vue de dessus sur un plateau sombre.', plan:'pro', feats:['Vue en plongee de chaque instrument','Fond de scene theatral avec parquet','Inclus dans le plan Pro'] },
