@@ -308,7 +308,8 @@ html[data-view=mobile] .notes h3{margin-top:0}
 :root{--ease:cubic-bezier(.16,1,.3,1)}
 .js :is(.kicker,.chapter h2,.share h2,.head .lede,.split .lede,.share .lede,.hero .lede,.hero .ctas,.hero .fine,
   .shot,.notes li,.facts li,.share-list li,.phone,.card,.aussi h3,.aussi li,.plan,.addon,.faq-side .note,.faq details,
-  .seg,.billing,.view-sw,.mshot,.caption,.final .lede,.final .ctas,.final .fine){
+  .seg,.billing,.view-sw,.mshot,.caption,.final .lede,.final .ctas,.final .fine,
+  .scope-hd,.scope-grid,.mat-t,.ticks li,.auteur-id,.auteur-t){
   opacity:0;translate:0 26px;transition:opacity .9s var(--ease),translate 1s var(--ease);transition-delay:calc(var(--d,0) * 80ms)}
 .js .bleed{translate:64px 0}
 .js .head .lede{--d:2}
@@ -435,6 +436,26 @@ html[data-view=mobile] .notes h3{margin-top:0}
 .sc-t span{font-size:13.5px;line-height:1.4;color:var(--ink2)}
 .sc-a{width:18px;height:18px;color:var(--ink3);opacity:0;transform:translateX(-4px);transition:opacity .18s,transform .18s}
 .scope-col a:hover .sc-a{opacity:1;transform:none}
+/* Tour d'horizon : le panneau se pose, puis chaque colonne se remplit de gauche à droite —
+   le trait d'accent se tire, les pictogrammes surgissent, les lignes montent l'une après l'autre. */
+.js .scope-grid{scale:.985;transition:opacity .9s var(--ease),translate 1s var(--ease),scale 1s var(--ease);transition-delay:calc(var(--d,0) * 80ms)}
+.js .scope-grid.in{scale:1}
+.scope-col{position:relative}
+.scope-col::before{content:'';position:absolute;top:0;left:22px;width:26px;height:2px;border-radius:2px;background:var(--acc)}
+.js .scope-col::before{scale:0 1;transform-origin:left;transition:scale .9s var(--ease) calc(var(--b,.9s) + var(--c,0) * 130ms)}
+.js .scope-grid.in .scope-col::before{scale:1 1}
+.js .scope-k{opacity:0;transition:opacity .7s var(--ease) calc(var(--b,.9s) + var(--c,0) * 130ms)}
+.js .scope-grid.in .scope-k{opacity:1}
+.js .scope-col a{--dl:calc(var(--b,.9s) + var(--c,0) * 130ms + var(--r,0) * 110ms + 120ms);opacity:0;translate:0 14px;
+  transition:opacity .7s var(--ease) var(--dl),translate .85s var(--ease) var(--dl),background .18s}
+.js .scope-grid.in .scope-col a{opacity:1;translate:none}
+.js .scope-col .sc-i{scale:.55;transition:scale .75s cubic-bezier(.34,1.56,.64,1) calc(var(--dl) + 90ms),background .18s,color .18s,box-shadow .18s,translate .25s var(--ease)}
+.js .scope-grid.in .sc-i{scale:1}
+.scope-col a:hover .sc-i{translate:0 -2px}
+.scope-col a:active{scale:.985}
+/* Une fois tout en place, les retards ne doivent plus freiner le survol */
+.js .scope-grid.done .scope-col a{transition:background .18s,scale .15s}
+.js .scope-grid.done .sc-i{transition:background .18s,color .18s,box-shadow .18s,translate .25s var(--ease)}
 /* ── Matériel : trois blocs texte + capture, en alternance ── */
 .mat{display:grid;grid-template-columns:minmax(0,4fr) minmax(0,7fr);gap:clamp(32px,5vw,72px);align-items:center}
 .mat+.mat{margin-top:clamp(64px,8vw,120px)}
@@ -1206,14 +1227,24 @@ html[data-view=mobile] .notes h3{margin-top:0}
   /* Éléments qui apparaissent au défilement : décalage selon leur rang parmi leurs voisins */
   var SEL='.kicker,.chapter h2,.share h2,.head .lede,.split .lede,.share .lede,.hero .lede,.hero .ctas,.hero .fine,'+
     '.shot,.notes li,.facts li,.share-list li,.phone,.card,.aussi h3,.aussi li,.plan,.addon,.faq-side .note,.faq details,'+
-    '.seg,.billing,.view-sw,.mshot,.caption,.final .lede,.final .ctas,.final .fine,.split-h';
+    '.seg,.billing,.view-sw,.mshot,.caption,.final .lede,.final .ctas,.final .fine,.split-h,'+
+    '.scope-hd,.scope-grid,.mat-t,.ticks li,.auteur-id,.auteur-t';
   var targets=[].slice.call(document.querySelectorAll(SEL));
   targets.forEach(function(el){
     var sib=[].filter.call(el.parentNode.children,function(c){ return targets.indexOf(c)>=0; });
     el.style.setProperty('--d',Math.min(sib.indexOf(el),6));
   });
+  /* Tour d'horizon : rang de chaque colonne et de chaque ligne, puis fin de l'entrée en scène */
+  [].forEach.call(document.querySelectorAll('.scope-col'),function(c,i){
+    c.style.setProperty('--c',i);
+    [].forEach.call(c.querySelectorAll('a'),function(a,r){ a.style.setProperty('--r',r); });
+  });
+  (function(){
+    var g=document.querySelector('.scope-grid'); if(!g) return;
+    var t=setInterval(function(){ if(g.classList.contains('in')){ clearInterval(t); setTimeout(function(){ g.classList.add('done'); },2600); } },200);
+  })();
   /* Haut de page : le texte après le titre, la capture en dernier */
-  [['.hero .lede',5],['.hero .ctas',6],['.hero .fine',7],['.hero .shot',7]].forEach(function(x){
+  [['.hero .lede',5],['.hero .ctas',6],['.hero .fine',7],['.scope-hd',8],['.scope-grid',9],['.hero .shot',10]].forEach(function(x){
     var el=document.querySelector(x[0]); if(el) el.style.setProperty('--d',x[1]);
   });
   [].forEach.call(document.querySelectorAll('.shot'),function(f){
