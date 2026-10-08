@@ -15597,6 +15597,20 @@ function _navSync(){
 }
 var _navSyncT=null;
 function _navSyncSoon(){ clearTimeout(_navSyncT); _navSyncT=setTimeout(_navSync,120); }
+/* Téléphone : panneau « Plus » de la barre du bas, avec toutes les rubriques qui n'y tiennent pas */
+function mobMore(open){
+  var m=document.getElementById('mob-more'); if(!m) return;
+  if(!open){ m.classList.remove('show'); return; }
+  var p=document.querySelector('.panel.on'), id=p?p.id.replace('panel-',''):'';
+  m.querySelectorAll('.mob-more-grid button').forEach(function(b){
+    var on=b.dataset.tab===id, md=b.dataset.mode;
+    if(on && md) on = id==='inputlist' ? md===CUR_IL_MODE : md===(PLAN_MODE==='site'?'site':'scene');
+    b.classList.toggle('on',on);
+  });
+  var s=document.getElementById('mob-more-show');
+  if(s){ s.textContent=CUR_SHOW?(CUR_SHOW.name||''):''; s.style.display=CUR_SHOW?'':'none'; }
+  m.classList.add('show');
+}
 function navIL(mode){ goTab('inputlist',null); if(CUR_IL_MODE!==mode) setILMode(mode); _navSync(); }
 function navPlan(mode){ goTab('stage',null); if((PLAN_MODE==='site'?'site':'scene')!==mode) setPlanMode(mode); _navSync(); }
 function navFolder(id){ setSessFolderView(SESS_FOLDER_VIEW===id?'all':id); goTab('sessions',null); }
@@ -20114,6 +20128,8 @@ function goTab(id,el){
   // Bottom nav sync
   document.querySelectorAll('.bn-tab').forEach(b=>b.classList.remove('on'));
   const bn=document.getElementById('bn-'+id);if(bn)bn.classList.add('on');
+  else document.getElementById('bn-more')?.classList.add('on');      /* rubrique rangée dans « Plus » */
+  if(typeof mobMore==='function') mobMore(false);
   // Persist active tab
   try{localStorage.setItem(TAB_PERSIST_KEY,id);}catch(e){}
   // Side effects

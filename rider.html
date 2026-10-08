@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
 <script>/* iOS zoome automatiquement sur tout champ < 16px et ne dézoome pas : on
    l'en empêche (iOS laisse quand même zoomer au pincement). Android n'est pas concerné. */
 (function(){var m=document.querySelector('meta[name=viewport]');if(m&&(/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)))m.setAttribute('content','width=device-width,initial-scale=1,maximum-scale=1');})();</script>
@@ -63,7 +63,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=3.90">
+<link rel="stylesheet" href="pf-app.css?v=3.91">
 </head>
 <body>
 
@@ -1027,35 +1027,34 @@ html.rider-boot #rider-splash{display:flex}
 
   </div><!-- /content -->
 
-  <!-- BOTTOM NAV (mobile) -->
-  <nav class="bottom-nav">
+  <!-- BOTTOM NAV (mobile) : quatre rubriques courantes, le reste dans « Plus » -->
+  <nav class="bottom-nav" aria-label="Navigation">
     <div class="bottom-nav-inner">
-      <button class="bn-tab on" id="bn-sessions" onclick="goTab('sessions',null)">
-        <i class="ti ti-calendar-event"></i><span>Sessions</span>
-      </button>
-      <button class="bn-tab" id="bn-fichiers" onclick="goTab('fichiers',null)">
-        <i class="ti ti-cloud"></i><span>Fichiers</span>
-      </button>
-      <button class="bn-tab" id="bn-inputlist" onclick="goTab('inputlist',null)">
-        <i class="ti ti-list-numbers"></i><span>Patch</span>
-      </button>
-      <button class="bn-tab" id="bn-showfiles" onclick="goTab('showfiles',null)">
-        <i class="ti ti-device-floppy"></i><span>Export</span>
-      </button>
-      <button class="bn-tab" id="bn-bon" onclick="goTab('bon',null)">
-        <i class="ti ti-clipboard-check"></i><span>Bon</span>
-      </button>
-      <button class="bn-tab" id="bn-synoptique" onclick="goTab('synoptique',null)">
-        <i class="ti ti-topology-star"></i><span>Syno</span>
-      </button>
-      <button class="bn-tab" id="bn-stage" onclick="goTab('stage',null)">
-        <i class="ti ti-map-2"></i><span>Plans</span>
-      </button>
-      <button class="bn-tab" id="bn-team" onclick="goTab('team',null)">
-        <i class="ti ti-users"></i><span>Équipe</span>
-      </button>
+      <button class="bn-tab on" id="bn-sessions" onclick="goTab('sessions',null)"><i class="ti ti-calendar-event"></i><span>Sessions</span></button>
+      <button class="bn-tab" id="bn-inputlist" onclick="goTab('inputlist',null)"><i class="ti ti-list-numbers"></i><span>Patch</span></button>
+      <button class="bn-tab" id="bn-stage" onclick="goTab('stage',null)"><i class="ti ti-map-2"></i><span>Plans</span></button>
+      <button class="bn-tab" id="bn-fichiers" onclick="goTab('fichiers',null)"><i class="ti ti-cloud"></i><span>Fichiers</span></button>
+      <button class="bn-tab" id="bn-more" onclick="mobMore(true)" aria-haspopup="dialog"><i class="ti ti-grid-dots"></i><span>Plus</span></button>
     </div>
   </nav>
+  <div class="mob-more" id="mob-more" onclick="if(event.target===this)mobMore(false)">
+    <div class="mob-more-sheet" role="dialog" aria-label="Toutes les rubriques">
+      <div class="mob-more-grip" onclick="mobMore(false)"></div>
+      <div class="mob-more-show" id="mob-more-show"></div>
+      <div class="mob-more-grid">
+        <button type="button" data-tab="overview" onclick="mobMore(false);goTab('overview',null)"><i class="ti ti-layout-dashboard"></i><span>Vue d'ensemble</span></button>
+        <button type="button" data-tab="inputlist" data-mode="out" onclick="mobMore(false);navIL('out')"><i class="ti ti-arrow-bar-to-right"></i><span>Output list</span></button>
+        <button type="button" data-tab="synoptique" onclick="mobMore(false);goTab('synoptique',null)"><i class="ti ti-topology-star"></i><span>Synoptique</span></button>
+        <button type="button" data-tab="stage" data-mode="scene" onclick="mobMore(false);navPlan('scene')"><i class="ti ti-layout-board"></i><span>Plan de scène</span></button>
+        <button type="button" data-tab="stage" data-mode="site" onclick="mobMore(false);navPlan('site')"><i class="ti ti-map-2"></i><span>Plan de site</span></button>
+        <button type="button" data-tab="showfiles" onclick="mobMore(false);goTab('showfiles',null)"><i class="ti ti-adjustments-alt"></i><span>Exports console</span></button>
+        <button type="button" data-tab="bon" onclick="mobMore(false);goTab('bon',null)"><i class="ti ti-clipboard-check"></i><span>Bon du loueur</span></button>
+        <button type="button" data-tab="team" onclick="mobMore(false);goTab('team',null)"><i class="ti ti-link"></i><span>Partage et équipe</span></button>
+        <button type="button" data-tab="settings" onclick="mobMore(false);openProfile()"><i class="ti ti-settings"></i><span>Paramètres</span></button>
+        <button type="button" data-tab="admin" class="adm-only" style="display:none" onclick="mobMore(false);goTab('admin',null)"><i class="ti ti-shield-lock"></i><span>Administration</span></button>
+      </div>
+    </div>
+  </div>
 
 </div><!-- /app -->
 
@@ -1508,7 +1507,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=4.31"></script>
+<script src="pf-app.js?v=4.32"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
   <div class="mob-plan-bar">
