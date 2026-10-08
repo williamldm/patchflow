@@ -11768,7 +11768,20 @@ const BandPlan=(()=>{
   // ---- LIGHT-THEME SVG instrument logos (72x72 viewBox) ----
   // Color palette: deep navy #1d3a5f (outlines), blue #1d9bf0 + orange #ff6b1a accents,
   // soft white/grey body fills — matches SynPro/SitePlan light theme.
-  function _vSVG(t){ var it=_itemOf(t); return _pfSymbol(t,(it&&it.n)||t); }
+  /* Échelle visuelle commune : les symboles n'occupent pas tous la même part de leur case de 72 (une DI 42 de large,
+     un kit 68). Chacun est recadré pour peser pareil à l'œil : 64 au plus dans sa grande dimension, et une surface
+     équivalente à un carré de 52. Les traits sont compensés pour garder la même épaisseur partout.
+     Encombrements [x,y,l,h] relevés sur les dessins de _pfSymbol : à remesurer si un symbole est redessiné. */
+  const _V_BOX={kick:[9,7,54,60],snare:[14,14,49,44],hihat:[13,11,46,56],toms:[7.5,18.5,56.5,31],cymbal:[7,7,58,58],cajon:[15,10,42,52],kit:[1.5,5,68.5,58.5],elec:[17.7,2,36.6,64],acou:[19.2,2,33.5,64],bass_g:[19.9,3,32.2,64],gamp:[11,12,50,48],bamp:[11,7,50,58],cab:[11,11,50,50],keyboard:[5,23,62,26],synth:[5,17,62,38],piano:[8,8,56,54],wurly:[7,18,58,36],mic_s:[12.6,4,46.8,64.4],mic_hf:[26,6,37,59],iem_p:[8,16,56,46],trumpet:[5,16,60,28],trombone:[4,8,60,36],sax:[19,4,41,50],horn:[5,9,64,49],timb:[7.5,9,57,44.5],conga:[9,14.5,55.5,42.5],marimba:[6,18,60,36],xyl:[10,3.5,52,48.5],foh:[5,14,62,44],mon:[9,16,54,40],stagebox:[7,19,58,34],di:[15,20,42,32],iem_r:[7,3.8,58,50.2],spk:[15,5,42,62],sub:[7,12,58,48],wedge:[7,20,58,43],chair:[12,10,48,52],stool:[14,14,44,44],txt_bp:[12,18,48,36],site_array:[15,3,53.2,60],site_delay:[20,4,32,61],site_amp:[4,20,64,32],site_con:[4,21,64,30],site_sw12:[4,23,64,26],site_sw8:[4,25,64,22],site_sw25:[4,23,64,26],site_wifi:[10,23.3,52,40.1],site_proc:[4,21,64,30],site_cdj:[9,5,54,62],site_laptop:[5,12,62,46],site_regie:[8,8,56,56],site_rack:[13,4,46,64],site_split:[5.5,8.5,59,55],site_power:[9,9,54,54],site_zone:[13,5,46,62],site_image:[7,11,58,50]};
+  function _vSVG(t){
+    var it=_itemOf(t), raw=_pfSymbol(t,(it&&it.n)||t), b=_V_BOX[t];
+    if(!b) return raw;
+    var s=Math.min(64/Math.max(b[2],b[3]), 52/Math.sqrt(b[2]*b[3]));
+    if(Math.abs(s-1)<0.02) s=1;
+    var tx=36-(b[0]+b[2]/2)*s, ty=36-(b[1]+b[3]/2)*s;
+    if(s!==1) raw=raw.replace(/stroke-width="([\d.]+)"/g,function(m,v){ return 'stroke-width="'+(+v/s).toFixed(2)+'"'; });
+    return '<g transform="translate('+tx.toFixed(2)+' '+ty.toFixed(2)+') scale('+s.toFixed(3)+')">'+raw+'</g>';
+  }
 
   /* Étiquette de canal d'un élément : entrée (orange) ou sortie (encre) */
   function _chTag(el){
