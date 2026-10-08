@@ -60,7 +60,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=3.87">
+<link rel="stylesheet" href="pf-app.css?v=3.88">
 </head>
 <body>
 
@@ -236,6 +236,7 @@ html.rider-boot #rider-splash{display:flex}
           <div class="user-dd-item" onclick="closeUD();openPlanModal()"><i class="ti ti-credit-card"></i>Mon abonnement</div>
           <div class="user-dd-item" onclick="closeUD();openPortal()"><i class="ti ti-receipt"></i>Facturation</div>
           <div class="user-dd-item" onclick="closeUD();openSupport()"><i class="ti ti-headset"></i>Support</div>
+          <div class="user-dd-item adm-only" style="display:none" onclick="closeUD();goTab('admin',null)"><i class="ti ti-shield-lock"></i>Administration</div>
           <div class="user-dd-sep"></div>
           <div class="user-dd-lbl">Thème</div>
           <div class="theme-seg" role="radiogroup" aria-label="Thème de l'interface">
@@ -467,6 +468,10 @@ html.rider-boot #rider-splash{display:flex}
     </div>
 
     <!-- SHOW FILES -->
+    <div class="panel" id="panel-admin">
+      <div id="adm-root"></div>
+    </div>
+
     <div class="panel" id="panel-bon">
       <input type="file" id="bon-file" accept="application/pdf,.pdf" hidden onchange="bonFile(this)">
       <div id="bon-root"></div>
@@ -1706,7 +1711,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=4.28"></script>
+<script src="pf-app.js?v=4.29"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
   <div class="mob-plan-bar">

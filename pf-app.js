@@ -216,6 +216,7 @@ async function doLogout(){
   /* Nettoyer les caches mémoire pour éviter les fuites de données entre comptes */
   try{
     SHOWS=[]; CUR_SHOW=null; CHS=[]; OUT_CHS=[]; PROFILE=null;
+    if(typeof _admReset==='function') _admReset();
     SHOW_SCENES={syno:[],stage:[],site:[]}; CUR_SCENES={syno:null,stage:null,site:null};
     SHARED_LINKS=new Set(); SHOW_STORAGE_MAP={}; SHOW_MEMBERS_MAP={};
     _storageCache=null;
@@ -542,6 +543,7 @@ async function loadProfile(){
   document.getElementById('u-email').textContent=ME.email;
   _refreshAllAvatars();
   _refreshPlanBadge();
+  _admCheck();          /* entrée « Administration » du menu : affichée seulement si la base le confirme */
   // Pre-fill PDF meta with profile
   document.getElementById('pdf-eng').value=PROFILE.full_name||'';
   document.getElementById('pdf-role').value=PROFILE.role||'';
@@ -16337,6 +16339,207 @@ function _bonCardHtml(){
 }
 
 /* ══════════════════════════════════════════════════════════════════
+   ADMINISTRATION — suivi des comptes, des abonnements et du stockage (lecture seule)
+   Le droit d'accès est vérifié par la base : chaque fonction admin_* refuse un compte qui n'est pas dans la
+   liste des administrateurs (table app_admins). IS_ADMIN ne sert qu'à afficher l'entrée du menu.
+   Tout ce qui s'affiche ici vient d'autres comptes (noms, sociétés, titres de sessions, noms de fichiers) :
+   chaque valeur passe par _bonE, et les identifiants par des attributs data, jamais dans un gestionnaire.
+   ══════════════════════════════════════════════════════════════════ */
+var IS_ADMIN=false;
+var ADM={view:'users', ov:null, list:null, q:'', plan:'', sort:'recent', off:0, open:null, detail:{}, err:'', listErr:'', t:null, seq:0};
+async function _admCheck(){
+  var ok=false;
+  try{ var r=await sb.rpc('is_app_admin'); ok=!!(r && !r.error && r.data===true); }catch(e){}
+  IS_ADMIN=ok; _admNav();
+}
+function _admNav(){ document.querySelectorAll('.adm-only').forEach(function(el){ el.style.display=IS_ADMIN?'':'none'; }); }
+function _admReset(){ IS_ADMIN=false; ADM={view:'users', ov:null, list:null, q:'', plan:'', sort:'recent', off:0, open:null, detail:{}, err:'', listErr:'', t:null, seq:0}; _admNav(); }
+async function _admRpc(fn,args){
+  var r=await sb.rpc(fn,args||{});
+  if(r && r.error){ var e=new Error(r.error.message||String(r.error)); e.code=r.error.code; throw e; }
+  return r?r.data:null;
+}
+function _admDate(v){ if(!v) return '—'; var d=new Date(v); return isNaN(d)?'—':d.toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}); }
+function _admAgo(v){
+  if(!v) return 'jamais';
+  var d=(Date.now()-new Date(v).getTime())/86400000; if(!(d>=0)) return _admDate(v);
+  return d<1?'aujourd\'hui':d<2?'hier':d<31?'il y a '+Math.floor(d)+' j':d<365?'il y a '+Math.floor(d/30.4)+' mois':'il y a '+Math.floor(d/365)+' an'+(d>=730?'s':'');
+}
+function _admNum(n){ return (Number(n)||0).toLocaleString('fr-FR'); }
+function _admSize(b){ b=Number(b)||0; return b?_fiSize(b):'0'; }
+const _ADM_SUB={active:['ok','Actif'],on_trial:['ok','Essai'],paused:['short','En pause'],cancelled:['short','Résilié'],past_due:['miss','Impayé'],unpaid:['miss','Impayé'],expired:['ext','Expiré']};
+function _admSub(st){ if(!st || st==='none') return '<span class="bonp-dash">—</span>'; var s=_ADM_SUB[st]||['ext',st]; return '<span class="bon-pill '+s[0]+'">'+_bonE(s[1])+'</span>'; }
+function _admPlan(p,ov){ return '<span class="plan-badge-pill '+(p==='pro'?'pro':'free')+'">'+(p==='pro'?'Pro':'Gratuit')+'</span>'+(ov?'<span class="adm-tag" title="Plan fixé à la main : le webhook de paiement ne le modifie pas">manuel</span>':''); }
+function _admErrHtml(msg){
+  var miss=/admin_|is_app_admin|schema cache|does not exist|PGRST202/i.test(msg);
+  return '<div class="bonp-empty"><i class="ti ti-alert-triangle"></i><b>'+(miss?'Le tableau de bord n\'est pas encore activé sur la base':'Lecture impossible')+'</b>'
+    +'<span>'+(miss?'La migration <code>20261008_admin_dashboard.sql</code> doit être appliquée dans Supabase, puis votre adresse ajoutée à la table <code>app_admins</code>.':'La base a refusé la demande.')+'</span>'
+    +'<span class="adm-err">'+_bonE(msg)+'</span></div>';
+}
+async function _admLoadUsers(){
+  var seq=++ADM.seq;
+  try{
+    var d=await _admRpc('admin_users',{p_search:ADM.q, p_plan:ADM.plan, p_sort:ADM.sort, p_limit:50, p_offset:ADM.off});
+    if(seq!==ADM.seq) return;                 /* une recherche plus récente est partie entre-temps */
+    ADM.list=d||{total:0,rows:[]}; ADM.listErr='';
+  }catch(e){ if(seq!==ADM.seq) return; ADM.list={total:0,rows:[]}; ADM.listErr=String(e&&e.message||e); }
+}
+async function renderAdmin(force){
+  var root=document.getElementById('adm-root'); if(!root) return;
+  if(!IS_ADMIN){
+    root.innerHTML='<div class="dt-empty"><i class="ti ti-shield-lock"></i><div class="dt-empty-t">Accès réservé</div><div class="dt-empty-s">Cette page est réservée à l\'administration de PatchFlow.</div></div>';
+    return;
+  }
+  if(!ADM.ov || force){
+    if(!ADM.ov) root.innerHTML=_admHead()+'<div class="loading"><div class="spinner"></div>Chargement…</div>';
+    try{ ADM.ov=await _admRpc('admin_overview'); ADM.err=''; }
+    catch(e){ ADM.ov=null; ADM.err=String(e&&e.message||e); }
+    if(!ADM.err) await _admLoadUsers();
+    if(force){ ADM.detail={}; ADM.open=null; }
+  }
+  _admPaint();
+}
+function admRefresh(){ var b=document.getElementById('adm-refresh'); if(b) b.disabled=true; renderAdmin(true).then(function(){ toast('✓ Données à jour'); }); }
+function admView(v){ ADM.view=v; _admPaint(); }
+function admSearch(v){ ADM.q=String(v||'').trim().slice(0,80); ADM.off=0; clearTimeout(ADM.t); ADM.t=setTimeout(function(){ _admLoadUsers().then(_admPaintUsers); },300); }
+function admFilter(k,v){ ADM[k]=v; ADM.off=0; _admLoadUsers().then(_admPaintUsers); }
+function admPage(d){ ADM.off=Math.max(0,ADM.off+d*50); ADM.open=null; _admLoadUsers().then(_admPaintUsers); }
+/* Depuis les abonnements ou les fichiers : retrouver le compte dans la liste */
+function admFind(email){ ADM.view='users'; ADM.q=String(email||''); ADM.plan=''; ADM.off=0; ADM.open=null; _admLoadUsers().then(_admPaint); }
+async function admOpen(id){
+  if(ADM.open===id){ ADM.open=null; _admPaintUsers(); return; }
+  ADM.open=id; _admPaintUsers();
+  if(ADM.detail[id]) return;
+  try{ ADM.detail[id]=await _admRpc('admin_user_detail',{p_user:id}); }
+  catch(e){ ADM.detail[id]={error:String(e&&e.message||e)}; }
+  if(ADM.open===id) _admPaintUsers();
+}
+function _admHead(){
+  return '<header class="bonp-head"><div><div class="bonp-eyebrow">PatchFlow</div><h1>Administration</h1>'
+    +'<p>Suivi des comptes, des abonnements et du stockage. Lecture seule : rien n\'est modifiable d\'ici.</p></div>'
+    +'<div class="bonp-act">'+(ADM.ov&&ADM.ov.generated_at?'<span class="bon-file"><i class="ti ti-clock"></i>'+_bonE(new Date(ADM.ov.generated_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}))+'</span>':'')
+    +'<button class="btn" id="adm-refresh" onclick="admRefresh()"><i class="ti ti-refresh"></i>Actualiser</button></div></header>';
+}
+function _admTile(icon,label,val,sub){ return '<div class="bonp-tile"><i class="ti '+icon+'"></i><span class="bonp-tile-l">'+label+'</span><b>'+val+'</b><span class="bonp-tile-s">'+sub+'</span></div>'; }
+function _admPaint(){
+  var root=document.getElementById('adm-root'); if(!root) return;
+  if(ADM.err || !ADM.ov){ root.innerHTML=_admHead()+_admErrHtml(ADM.err||'Aucune donnée reçue.'); return; }
+  var o=ADM.ov, u=o.users||{}, s=o.subs||{}, c=o.content||{}, f=o.files||{}, pl=function(n,a,b){ return _admNum(n)+' '+((Number(n)||0)>1?b:a); };
+  var h=_admHead()+'<div class="bonp-tiles adm-tiles">'
+    +_admTile('ti-users','Comptes',_admNum(u.total),'+'+_admNum(u.new_7d)+' sur 7 j · +'+_admNum(u.new_30d)+' sur 30 j')
+    +_admTile('ti-activity','Actifs sur 30 j',_admNum(u.active_30d),pl(u.active_7d,'connecté','connectés')+' sur 7 j')
+    +_admTile('ti-crown','Comptes Pro',_admNum(u.pro),(Number(u.pro_override)||0)?'dont '+pl(u.pro_override,'fixé à la main','fixés à la main'):pl((Number(u.total)||0)-(Number(u.pro)||0),'gratuit','gratuits'))
+    +_admTile('ti-credit-card','Abonnements actifs',_admNum(s.active),(Number(s.ending)||0)?pl(s.ending,'résilié, encore en cours','résiliés, encore en cours'):pl(s.total,'abonnement en tout','abonnements en tout'))
+    +_admTile('ti-calendar-event','Sessions',_admNum(c.shows),'+'+_admNum(c.shows_30d)+' sur 30 j · '+pl(c.channels,'canal','canaux'))
+    +_admTile('ti-cloud','Fichiers stockés',_admSize(f.bytes),pl(f.count,'fichier','fichiers')+' · +'+_admSize(f.added_30d_bytes)+' sur 30 j')
+    +'</div>';
+  var V=[['users','ti-users','Comptes'],['subs','ti-credit-card','Abonnements'],['files','ti-cloud','Fichiers']];
+  h+='<div class="bonp-switch adm-switch">'+V.map(function(v){ return '<button type="button" class="'+(ADM.view===v[0]?'on':'')+'" onclick="admView(\''+v[0]+'\')"><i class="ti '+v[1]+'"></i>'+v[2]+'</button>'; }).join('')+'</div>';
+  if(ADM.view==='subs') h+=_admSubsHtml(o);
+  else if(ADM.view==='files') h+=_admFilesHtml(o);
+  else h+=_admUsersShell(o);
+  root.innerHTML=h;
+  if(ADM.view==='users') _admPaintUsers();
+}
+/* Comptes : la barre de recherche reste en place, seule la liste est redessinée (la saisie garde le curseur) */
+function _admUsersShell(o){
+  var E=_bonE, sg=o.signups||[], mx=Math.max.apply(null,[1].concat(sg.map(function(w){ return Number(w.n)||0; })));
+  var opt=function(cur,list){ return list.map(function(x){ return '<option value="'+x[0]+'"'+(cur===x[0]?' selected':'')+'>'+x[1]+'</option>'; }).join(''); };
+  return '<section class="ov-card bon-card"><div class="ov-card-hd"><h2>Inscriptions</h2><span class="bon-reco-n">12 dernières semaines'+((Number((o.users||{}).unconfirmed)||0)?' · '+_admNum(o.users.unconfirmed)+' adresse'+(o.users.unconfirmed>1?'s':'')+' non confirmée'+(o.users.unconfirmed>1?'s':''):'')+'</span></div>'
+    +'<div class="adm-bars">'+sg.map(function(w){ var n=Number(w.n)||0; return '<div title="Semaine du '+E(_admDate(w.week))+' : '+n+'"><i style="height:'+Math.round(n/mx*100)+'%"></i><span>'+n+'</span></div>'; }).join('')+'</div></section>'
+    +'<section class="ov-card bon-card"><div class="adm-bar"><div class="adm-search"><i class="ti ti-search"></i><input type="search" id="adm-q" placeholder="Adresse, nom ou société" value="'+E(ADM.q)+'" oninput="admSearch(this.value)" autocomplete="off"></div>'
+    +'<select class="adm-sel" onchange="admFilter(\'plan\',this.value)" title="Plan">'+opt(ADM.plan,[['','Tous les plans'],['pro','Pro'],['free','Gratuit']])+'</select>'
+    +'<select class="adm-sel" onchange="admFilter(\'sort\',this.value)" title="Tri">'+opt(ADM.sort,[['recent','Inscription récente'],['active','Dernière connexion'],['storage','Stockage'],['shows','Nombre de sessions']])+'</select></div>'
+    +'<div id="adm-users"></div></section>';
+}
+function _admPaintUsers(){
+  var box=document.getElementById('adm-users'); if(!box) return;
+  var E=_bonE, L=ADM.list||{total:0,rows:[]}, rows=L.rows||[];
+  if(ADM.listErr){ box.innerHTML='<div class="ov-none">Lecture impossible : '+E(ADM.listErr)+'</div>'; return; }
+  if(!rows.length){ box.innerHTML='<div class="ov-none">Aucun compte ne correspond.</div>'; return; }
+  var h='<div class="bonp-scroll"><table class="bon-tbl adm-tbl"><thead><tr><th>Compte</th><th>Plan</th><th>Inscription</th><th>Dernière connexion</th><th class="r">Sessions</th><th class="r">Canaux</th><th class="r">Fichiers</th><th>Abonnement</th></tr></thead><tbody>';
+  rows.forEach(function(r){
+    var on=ADM.open===r.id;
+    h+='<tr class="adm-row'+(on?' on':'')+'" data-id="'+E(r.id)+'" onclick="admOpen(this.dataset.id)" title="Voir le détail">'
+      +'<td><b>'+E(r.full_name||r.email||'—')+'</b>'+((r.full_name||r.company)?'<span class="bon-hit w">'+[r.full_name?r.email:'',r.company].filter(Boolean).map(E).join(' · ')+'</span>':'')+(r.confirmed===false?'<span class="adm-tag warn">adresse non confirmée</span>':'')+'</td>'
+      +'<td>'+_admPlan(r.plan,r.plan_override)+'</td>'
+      +'<td>'+E(_admDate(r.created_at))+(r.provider&&r.provider!=='email'?'<span class="bon-hit w">via '+E(r.provider)+'</span>':'')+'</td>'
+      +'<td>'+E(_admAgo(r.last_sign_in_at))+'</td>'
+      +'<td class="r">'+_admNum(r.shows)+'</td><td class="r">'+_admNum(r.channels)+'</td>'
+      +'<td class="r">'+((Number(r.files)||0)?_admSize(r.files_bytes)+'<span class="bon-hit w">'+_admNum(r.files)+' fichier'+(r.files>1?'s':'')+'</span>':'<span class="bonp-dash">—</span>')+'</td>'
+      +'<td>'+_admSub(r.sub_status)+(r.sub_status==='cancelled'&&r.sub_ends_at?'<span class="bon-hit w">jusqu\'au '+E(_admDate(r.sub_ends_at))+'</span>':(r.sub_status==='active'||r.sub_status==='on_trial')&&r.sub_renews_at?'<span class="bon-hit w">renouv. '+E(_admDate(r.sub_renews_at))+'</span>':'')+'</td></tr>';
+    if(on) h+='<tr class="adm-detail"><td colspan="8">'+_admDetailHtml(r.id)+'</td></tr>';
+  });
+  h+='</tbody></table></div>';
+  var a=ADM.off+1, b=ADM.off+rows.length, tot=Number(L.total)||rows.length;
+  h+='<div class="adm-pager"><span>'+_admNum(a)+'–'+_admNum(b)+' sur '+_admNum(tot)+'</span>'
+    +'<button type="button" class="btn sm" onclick="admPage(-1)"'+(ADM.off<=0?' disabled':'')+'><i class="ti ti-chevron-left"></i>Précédents</button>'
+    +'<button type="button" class="btn sm" onclick="admPage(1)"'+(b>=tot?' disabled':'')+'>Suivants<i class="ti ti-chevron-right"></i></button></div>';
+  box.innerHTML=h;
+}
+function _admDetailHtml(id){
+  var E=_bonE, d=ADM.detail[id];
+  if(!d) return '<div class="loading"><div class="spinner"></div>Chargement…</div>';
+  if(d.error) return '<div class="ov-none">Lecture impossible : '+E(d.error)+'</div>';
+  var u=d.user||{}, shows=d.shows||[], subs=d.subscriptions||[], pd=d.pending_deletion;
+  var fact=function(l,v){ return '<div><span>'+l+'</span><b>'+v+'</b></div>'; };
+  var live=shows.filter(function(s){ return !s.deleted_at; });
+  var h='<div class="adm-facts">'
+    +fact('Identifiant','<code>'+E(u.id||id)+'</code>')
+    +fact('Connexion',E(u.provider||'email')+(u.confirmed===false?' · non confirmée':''))
+    +fact('Société',E(u.company||'—'))+fact('Rôle',E(u.role||'—'))
+    +fact('Invité sur',_admNum(d.member_of)+' session'+((Number(d.member_of)||0)>1?'s':'')+' d\'autres comptes')
+    +fact('Stockage',_admSize(shows.reduce(function(t,s){ return t+(Number(s.files_bytes)||0); },0))+' de fichiers · '+_admSize(shows.reduce(function(t,s){ return t+(Number(s.db_bytes)||0); },0))+' de plans')
+    +(pd && !pd.executed_at && !pd.cancelled_at?fact('Suppression programmée','<span class="adm-tag warn">le '+E(_admDate(pd.scheduled_at))+'</span>'):'')
+    +'</div>';
+  h+='<div class="bon-lbl">Abonnement</div>';
+  if(!subs.length) h+='<div class="bon-note">Aucun abonnement enregistré'+(u.plan==='pro'?' : plan Pro '+(u.plan_override?'fixé à la main.':'sans abonnement, à vérifier.'):'.')+'</div>';
+  else h+='<table class="bon-tbl"><thead><tr><th>État</th><th>Formule</th><th>Renouvellement</th><th>Fin</th><th>Créé le</th><th>Lemon Squeezy</th></tr></thead><tbody>'
+    +subs.map(function(s){ return '<tr><td>'+_admSub(s.status)+'</td><td>'+E(s.plan||'—')+(s.ls_variant_id?'<span class="bon-hit w">variante '+E(s.ls_variant_id)+'</span>':'')+'</td><td>'+E(_admDate(s.renews_at))+'</td><td>'+E(_admDate(s.ends_at))+'</td><td>'+E(_admDate(s.created_at))+'</td>'
+      +'<td><span class="bon-hit">abonnement '+E(s.ls_subscription_id||'—')+'</span><span class="bon-hit">client '+E(s.ls_customer_id||'—')+'</span></td></tr>'; }).join('')+'</tbody></table>';
+  h+='<div class="bon-lbl" style="margin-top:16px">Sessions ('+live.length+(shows.length>live.length?' · '+(shows.length-live.length)+' à la corbeille':'')+')</div>';
+  if(!shows.length) h+='<div class="bon-note">Aucune session.</div>';
+  else h+='<div class="bonp-scroll"><table class="bon-tbl"><thead><tr><th>Session</th><th>Date</th><th class="r">Canaux</th><th class="r">Fichiers</th><th class="r">Plans</th><th class="r">Équipe</th><th class="r">Liens</th><th>Créée le</th></tr></thead><tbody>'
+    +shows.map(function(s){ return '<tr'+(s.deleted_at?' class="skip"':'')+'><td><b>'+E(s.name||'Sans nom')+'</b>'+(s.venue?'<span class="bon-hit w">'+E(s.venue)+'</span>':'')+(s.deleted_at?'<span class="adm-tag">corbeille</span>':'')+'</td>'
+      +'<td>'+E(s.show_date?_admDate(s.show_date):'—')+'</td><td class="r">'+_admNum(s.channels)+'</td>'
+      +'<td class="r">'+((Number(s.files)||0)?_admSize(s.files_bytes)+'<span class="bon-hit w">'+_admNum(s.files)+'</span>':'<span class="bonp-dash">—</span>')+'</td>'
+      +'<td class="r">'+_admSize(s.db_bytes)+'</td><td class="r">'+_admNum(s.members)+'</td><td class="r">'+_admNum(s.riders)+'</td><td>'+E(_admDate(s.created_at))+'</td></tr>'; }).join('')+'</tbody></table></div>';
+  return h;
+}
+function _admWho(x){ var E=_bonE; return '<button type="button" class="adm-who" data-email="'+E(x.email||'')+'" onclick="admFind(this.dataset.email)" title="Voir ce compte"><b>'+E(x.full_name||x.email||'—')+'</b>'+(x.full_name&&x.email?'<span class="bon-hit w">'+E(x.email)+'</span>':'')+'</button>'; }
+function _admSubsHtml(o){
+  var E=_bonE, s=o.subs||{}, list=s.list||[], man=s.pro_without_sub||[];
+  var h='<section class="ov-card bon-card"><div class="ov-card-hd"><h2>États</h2><span class="bon-reco-n">'+_admNum(s.total)+' abonnement'+((Number(s.total)||0)>1?'s':'')+' enregistré'+((Number(s.total)||0)>1?'s':'')+'</span></div>'
+    +((s.by_status||[]).length?'<div class="adm-chips">'+s.by_status.map(function(x){ return '<span>'+_admSub(x.status)+'<b>'+_admNum(x.n)+'</b></span>'; }).join('')
+       +(s.by_variant||[]).map(function(x){ return '<span class="v">variante '+E(x.variant)+'<b>'+_admNum(x.n)+'</b></span>'; }).join('')+'</div>'
+      :'<div class="ov-none">Aucun abonnement enregistré. Tant que le webhook Lemon Squeezy n\'écrit pas dans la base, cette liste reste vide.</div>')+'</section>';
+  h+='<section class="ov-card bon-card"><div class="ov-card-hd"><h2>Abonnements</h2><span class="bon-reco-n">les '+Math.min(list.length,200)+' modifiés le plus récemment</span></div>';
+  if(!list.length) h+='<div class="ov-none">Rien à afficher.</div>';
+  else h+='<div class="bonp-scroll"><table class="bon-tbl adm-tbl"><thead><tr><th>Compte</th><th>État</th><th>Formule</th><th>Renouvellement</th><th>Fin</th><th>Créé le</th><th>Modifié</th></tr></thead><tbody>'
+    +list.map(function(x){ return '<tr><td>'+_admWho(x)+'</td><td>'+_admSub(x.status)+'</td><td>'+E(x.plan||'—')+(x.ls_variant_id?'<span class="bon-hit w">variante '+E(x.ls_variant_id)+'</span>':'')+'</td><td>'+E(_admDate(x.renews_at))+'</td><td>'+E(_admDate(x.ends_at))+'</td><td>'+E(_admDate(x.created_at))+'</td><td>'+E(_admAgo(x.updated_at))+'</td></tr>'; }).join('')+'</tbody></table></div>';
+  h+='</section><section class="ov-card bon-card"><div class="ov-card-hd"><h2>Comptes Pro sans abonnement en cours</h2><span class="bon-reco-n">octrois manuels, comptes de test</span></div>';
+  if(!man.length) h+='<div class="ov-none">Aucun : chaque compte Pro a un abonnement actif.</div>';
+  else h+='<table class="bon-tbl adm-tbl"><tbody>'+man.map(function(x){ return '<tr><td>'+_admWho(x)+'</td><td>'+(x.plan_override?'<span class="adm-tag">fixé à la main</span>':'<span class="adm-tag warn">sans abonnement ni octroi : à vérifier</span>')+'</td></tr>'; }).join('')+'</tbody></table>';
+  return h+'</section>';
+}
+function _admFilesHtml(o){
+  var E=_bonE, f=o.files||{}, c=o.content||{}, ty=f.by_type||[], ow=f.by_owner||[], top=f.top||[], tot=Number(f.bytes)||0;
+  var bar=function(b){ return '<span class="adm-meter"><i style="width:'+(tot?Math.max(1,Math.round((Number(b)||0)/tot*100)):0)+'%"></i></span>'; };
+  var h='<div class="bonp-two"><section class="ov-card bon-card"><div class="ov-card-hd"><h2>Par type</h2><span class="bon-reco-n">'+_admSize(tot)+' · '+_admNum(f.count)+' fichier'+((Number(f.count)||0)>1?'s':'')+'</span></div>';
+  if(!ty.length) h+='<div class="ov-none">Aucun fichier stocké.</div>';
+  else h+='<table class="bon-tbl"><thead><tr><th>Type</th><th class="r">Fichiers</th><th class="r">Taille</th><th></th></tr></thead><tbody>'+ty.map(function(x){ return '<tr><td><b>.'+E(x.ext)+'</b></td><td class="r">'+_admNum(x.n)+'</td><td class="r">'+_admSize(x.bytes)+'</td><td class="adm-mc">'+bar(x.bytes)+'</td></tr>'; }).join('')+'</tbody></table>';
+  h+='<div class="bon-note">Plans, synoptiques et scènes enregistrés dans la base : '+_admSize(c.db_bytes)+'. '+_admNum(c.riders)+' lien'+((Number(c.riders)||0)>1?'s':'')+' de partage · '+_admNum(c.shows_deleted)+' session'+((Number(c.shows_deleted)||0)>1?'s':'')+' à la corbeille.</div></section>';
+  h+='<section class="ov-card bon-card"><div class="ov-card-hd"><h2>Comptes qui stockent le plus</h2><span class="bon-reco-n">20 premiers</span></div>';
+  if(!ow.length) h+='<div class="ov-none">Aucun fichier stocké.</div>';
+  else h+='<table class="bon-tbl adm-tbl"><thead><tr><th>Compte</th><th>Plan</th><th class="r">Fichiers</th><th class="r">Taille</th><th></th></tr></thead><tbody>'+ow.map(function(x){ return '<tr><td>'+_admWho(x)+'</td><td>'+_admPlan(x.plan,false)+'</td><td class="r">'+_admNum(x.n)+'</td><td class="r">'+_admSize(x.bytes)+'</td><td class="adm-mc">'+bar(x.bytes)+'</td></tr>'; }).join('')+'</tbody></table>';
+  h+='</section></div><section class="ov-card bon-card"><div class="ov-card-hd"><h2>Plus gros fichiers</h2><span class="bon-reco-n">30 premiers</span></div>';
+  if(!top.length) h+='<div class="ov-none">Aucun fichier stocké.</div>';
+  else h+='<div class="bonp-scroll"><table class="bon-tbl adm-tbl"><thead><tr><th>Fichier</th><th>Session</th><th>Compte</th><th class="r">Taille</th><th>Ajouté le</th></tr></thead><tbody>'
+    +top.map(function(x){ return '<tr><td><b>'+E(_fichDisplayName(String(x.name||'')))+'</b></td><td>'+E(x.show_name||'—')+'</td><td>'+_admWho(x)+'</td><td class="r">'+_admSize(x.size)+'</td><td>'+E(_admDate(x.created_at))+'</td></tr>'; }).join('')+'</tbody></table></div>';
+  return h+'</section>';
+}
+
+/* ══════════════════════════════════════════════════════════════════
    VUE D'ENSEMBLE DU SHOW
    ══════════════════════════════════════════════════════════════════ */
 var _ovCache={id:null,files:null,linksAsked:false};
@@ -19845,6 +20048,7 @@ function goTab(id,el){
   if(id==='team'){_initRiderBuilder();}
   if(id==='showfiles') renderShowfiles();
   if(id==='bon') renderBon();
+  if(id==='admin') renderAdmin();
   if(typeof _ilSelSync==='function') _ilSelSync();
   var _fs=document.querySelector('.panel.pf-fs'); if(_fs && _fs.id!=='panel-'+id) pfFullscreen(_fs.id==='panel-synoptique'?'syno':'plan',false);
 }
