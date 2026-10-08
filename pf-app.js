@@ -6072,7 +6072,7 @@ function _ilPdfRender(msg){
     +'</tbody></table></div>'
     +(orphan.length?'<div class="ilpdf-new"><i class="ti ti-columns-3"></i><span><b>'+orphan.map(function(o){ return '« '+E(o.c.label)+' »'; }).join(', ')+'</b> '+(orphan.length>1?'n\'existent':'n\'existe')+' pas dans PatchFlow.</span>'
        +'<button type="button" class="btn sm" onclick="ilPdfNewAll()"><i class="ti ti-plus"></i>Créer '+(orphan.length>1?'ces colonnes':'cette colonne')+(canDo('multi_scenes')?'':'<span class="plan-badge-pill pro">Pro</span>')+'</button></div>':'')
-    +'<div class="bon-note">'+(nNew?nNew+' colonne'+(nNew>1?'s seront créées':' sera créée')+' à l\'import. ':'')+(CHS.length?'':'Les colonnes de PatchFlow absentes du PDF seront masquées (menu Colonnes pour les réafficher). ')+'Les lignes grisées ne sont pas importées.</div>';
+    +'<div class="bon-note">'+(nNew?nNew+' colonne'+(nNew>1?'s seront créées':' sera créée')+' à l\'import. ':'')+'Les colonnes de PatchFlow absentes du PDF seront masquées (menu Colonnes pour les réafficher). '+'Les lignes grisées ne sont pas importées.</div>';
 }
 function ilPdfNewAll(){
   if(!canDo('multi_scenes')){ showUpgradeModal('custom_cols'); return; }
@@ -6118,7 +6118,7 @@ async function ilPdfApply(){
   var rows=_ilPdfBuild(); if(!rows.length || _ilPdf.busy) return;
   _ilPdf.busy=true;
   var go=document.getElementById('ilpdf-go'); if(go){ go.disabled=true; go.textContent='Import…'; }
-  var cols=_ilPdf.cols||[], wasEmpty=CHS.length===0;
+  var cols=_ilPdf.cols||[];
   try{
     /* Colonnes à créer : ajoutées aux colonnes personnalisées de la session, visibles d'office */
     var ids={}, made=[], list=_getCustomCols().slice();
@@ -6134,11 +6134,11 @@ async function ilPdfApply(){
       return o;
     }));
     if(n>0){
-      /* Colonnes : celles que le PDF remplit sont affichées ; dans un patch vide, celles qu'il n'a pas sont masquées */
+      /* Colonnes : celles que le PDF remplit sont affichées, toutes les autres (natives ou personnalisées) sont masquées, même si le patch a déjà des canaux */
       var got={short:1,long:1}, hid=[];
       cols.forEach(function(c){ if(_ILPDF_TO_COL[c.f]) got[_ILPDF_TO_COL[c.f]]=1; if(c.f.indexOf('cc:')===0) got[c.f.slice(3)]=1; });
       Object.keys(got).forEach(function(id){ visCol.add(id); });
-      if(wasEmpty) COLS.forEach(function(c){ if(!got[c.id] && visCol.has(c.id)){ visCol.delete(c.id); hid.push(c.label); } });
+      _orderedColIds().forEach(function(id){ if(!got[id] && visCol.has(id)){ visCol.delete(id); var d=_colDefById(id); hid.push(d?d.label:id); } });
       _saveILLayout(); renderTable(); loadColChips(); updateColBtn();
       if(typeof _renderCustomColList==='function') try{ _renderCustomColList(); }catch(e){}
       toast('✓ '+_ilPl(n)+' importé'+(n>1?'s':'')+' depuis la page '+_ilPdf.page+(made.length?' · '+made.length+' colonne'+(made.length>1?'s créées':' créée'):'')+(hid.length?' · masquées : '+hid.join(', '):''));
