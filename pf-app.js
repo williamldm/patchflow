@@ -15318,7 +15318,7 @@ function _bonMatch(model, pool){
    patch est donc découpé en éléments ; il est présent si chaque élément l'est, en quantité suffisante.
    Idem « ULXD1 - DPA 4099 » : un émetteur et un DPA. Les quantités du bon sont consommées au fur et à mesure,
    pour qu'une même ligne ne serve pas deux fois. */
-const _BON_TX=/^(ulx[dp]?\d\w*|qlx[d]?\d\w*|slx[d]?\d\w*|blx\d\w*|glx[d]?\d\w*|axt\d\w*|adx?\d\w*|ew[a-z]*\d+\w*|skm?\d+\w*|bodypack|pocket|emetteur)$/i;
+const _BON_TX=/^(ulx[dp]?\d*\w*|qlxd?\d*\w*|slxd?\d*\w*|blx\d*\w*|glxd?\d*\w*|axt\d+\w*|adx?\d\w*|ew[a-z]*\d+\w*|skm?\d+\w*|bodypack|pocket|emetteur|liaison)$/i;
 function _bonParts(model){
   var t=String(model).normalize('NFD').replace(/[̀-ͯ]/g,'');
   var hf=/\b(hf|sans fil|wireless)\b/i.test(t);
@@ -15356,7 +15356,7 @@ function _bonCompare(){
     if(part.tx){ var n=_bonNorm(part.t); return gear.filter(function(i){ return i._k==='tx' && (_bonNorm(i.ref).indexOf(n)>=0 || _bonNorm(i.name).indexOf(n)>=0); }); }
     var hits=_bonMatch(part.t, gear.filter(function(i){ return i._k==='gear' || i._k==='caps'; }));
     var caps=hits.filter(function(i){return i._k==='caps';}), plain=hits.filter(function(i){return i._k!=='caps';});
-    return hf ? (caps.length?caps:plain) : plain;     /* une capsule seule n'est pas un micro filaire */
+    return hf ? caps.concat(plain) : plain;     /* tête HF : capsule ou micro ; une capsule seule n'est pas un micro filaire */
   };
   /* Les montages HF et composés d'abord : ils ont le moins de lignes possibles sur le bon */
   var models=Object.keys(need).map(function(m){ return {model:m, need:need[m], p:_bonParts(m)}; });
@@ -15366,19 +15366,28 @@ function _bonCompare(){
     if(ext) parts=[];
     else if(o) parts=[{t:x.model, lines:gear.filter(function(i){return i.ref===o;})}];
     else parts=x.p.parts.map(function(pt){ return {t:pt.t, tx:pt.tx, lines:find(pt,x.p.hf)}; });
+    /* Micro HF : c'est la tête (capsule ou micro) qui décide. L'émetteur n'est ni exigé ni décompté :
+       les liaisons se partagent et s'écrivent de mille façons ; on rappelle seulement de les vérifier. */
+    var txs=parts.filter(function(pt){return pt.tx;}), heads=parts.filter(function(pt){return !pt.tx;});
+    if(x.p.hf && !o && !ext){ if(!heads.length){ heads=txs; txs=[]; } parts=heads; }
     parts.forEach(function(pt){ pt.total=pt.lines.reduce(function(sum,i){return sum+i.qty;},0); pt.got=take(pt.lines,x.need); });
     var have=parts.length ? Math.min.apply(null,parts.map(function(pt){return pt.got;})) : 0;
-    return {model:x.model, need:x.need, have:have, parts:parts, hf:x.p.hf, manual:!!o, ext:ext,
+    var txLines=[]; if(x.p.hf){ txs.forEach(function(pt){ pt.lines.forEach(function(i){ if(txLines.indexOf(i)<0) txLines.push(i); }); }); if(!txLines.length) txLines=gear.filter(function(i){return i._k==='tx';}); }
+    return {model:x.model, need:x.need, have:have, parts:parts, hf:x.p.hf, txLines:txLines, manual:!!o, ext:ext,
             /* Absent : un élément n'a aucune ligne sur le bon. Insuffisant : tout y est, mais pas en quantité */
-            st:ext?'ext':have>=x.need?'ok':(have>0 || (parts.length && parts.every(function(pt){return pt.total>0;})))?'short':'miss'};
+            /* Micro HF reconnu sur le bon (tête ou émetteur) : validé, avec rappel de vérifier la liaison */
+            st:ext?'ext':(x.p.hf && !o)?((parts.some(function(pt){return pt.total>0;}) || txLines.length)?'hf':'miss')
+              :have>=x.need?'ok':(have>0 || (parts.length && parts.every(function(pt){return pt.total>0;})))?'short':'miss'};
   });
-  var ORD={miss:0,short:1,ok:2,ext:3}; mics.sort(function(a,c){ return ORD[a.st]-ORD[c.st] || c.need-a.need || a.model.localeCompare(c.model); });
+  var ORD={miss:0,short:1,hf:2,ok:3,ext:4}; mics.sort(function(a,c){ return ORD[a.st]-ORD[c.st] || c.need-a.need || a.model.localeCompare(c.model); });
   var sh={}; stands.forEach(function(i){ var r=_bonStandsOf(i); Object.keys(r).forEach(function(k){ sh[k]=(sh[k]||0)+r[k]; }); });
   var kinds=['grand','petit','ronde','table','autre'].filter(function(k){ return sneed[k]||sh[k]; });
   var st=kinds.map(function(k){ var n=sneed[k]||0, h=sh[k]||0; return {kind:k, need:n, have:h, st:!n?'extra':h>=n?'ok':h>0?'short':'miss'}; });
   var totN=kinds.reduce(function(sum,k){return sum+(sneed[k]||0);},0), totH=kinds.reduce(function(sum,k){return sum+(sh[k]||0);},0);
   var unused=gear.filter(function(i){ return i._left>0 && (i._k==='caps' || (i._k==='gear' && /\bmicro\b|\bdi\b|boitier de direct/i.test(i.name))); });
-  return {mics:mics, stands:st, standLines:stands, pince:sneed.pince||0, totN:totN, totH:totH, unused:unused, gear:gear};
+  return {mics:mics, stands:st, standLines:stands, pince:sneed.pince||0, totN:totN, totH:totH, unused:unused, gear:gear,
+          hf:mics.filter(function(m){return m.hf && !m.ext;}).reduce(function(sum,m){return sum+m.need;},0),
+          txAll:gear.filter(function(i){return i._k==='tx';}), rxAll:gear.filter(function(i){ return /\brecepteur\b/.test(String(i.name).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()); })};
 }
 function bonPick(){
   if(!canDo('recap_matos')){ showUpgradeModal('recap_matos'); return; }
@@ -15406,15 +15415,18 @@ function _bonCardHtml(){
   if(!c) return hd+'<button class="ov-link" onclick="bonPick()">Importer</button></div>'
     +'<div class="bon-empty"><i class="ti ti-clipboard-check"></i><div><b>Vérifiez le matériel avant le départ</b><span>Importez le bon de préparation ou de livraison du loueur (PDF). PatchFlow contrôle que les micros, DI et pieds de micro de l\'input list y figurent, en quantité suffisante.</span></div>'
     +'<button type="button" class="btn pri" onclick="bonPick()"><i class="ti ti-upload"></i>Importer le bon (PDF)</button></div></section>';
-  var nOk=c.mics.filter(function(m){return m.st==='ok';}).length, nShort=c.mics.filter(function(m){return m.st==='short';}).length, nMiss=c.mics.filter(function(m){return m.st==='miss';}).length;
+  var nOk=c.mics.filter(function(m){return m.st==='ok'||m.st==='hf';}).length, nShort=c.mics.filter(function(m){return m.st==='short';}).length, nMiss=c.mics.filter(function(m){return m.st==='miss';}).length;
   var sBad=c.stands.filter(function(x){return x.st==='short'||x.st==='miss';}).length;
-  var PILL={ok:['ok','Présent'],short:['short','Insuffisant'],miss:['miss','Absent du bon'],ext:['ext','Fourni par ailleurs'],extra:['ext','En plus']};
+  var PILL={ok:['ok','Présent'],short:['short','Insuffisant'],miss:['miss','Absent du bon'],hf:['ok hfp','Présent · HF'],ext:['ext','Fourni par ailleurs'],extra:['ext','En plus']};
   var pill=function(k){ return '<span class="bon-pill '+PILL[k][0]+'">'+PILL[k][1]+'</span>'; };
   var h=hd+'<span class="bon-file" title="'+E(b.file)+'"><i class="ti ti-file-text"></i>'+E(b.file)+'</span><button class="ov-link" onclick="bonPick()">Remplacer</button><button class="ov-link" onclick="bonClear()">Retirer</button></div>';
   var all=!nShort&&!nMiss&&!sBad;
   h+='<div class="bon-sum'+(all?' ok':'')+'"><i class="ti ti-'+(all?'circle-check':'alert-triangle')+'"></i><span>'
     +(all?'Tout le matériel du patch figure sur le bon.':'<b>'+(nMiss+nShort+sBad)+' point'+(nMiss+nShort+sBad>1?'s':'')+' à régler</b> avant le départ.')
     +'</span><em>'+nOk+' modèle'+(nOk>1?'s':'')+' conforme'+(nOk>1?'s':'')+(nShort?' · '+nShort+' insuffisant'+(nShort>1?'s':''):'')+(nMiss?' · '+nMiss+' absent'+(nMiss>1?'s':''):'')+'</em></div>';
+  if(c.hf) h+='<div class="bon-hfnote"><i class="ti ti-antenna-bars-5"></i><span><b>'+c.hf+' micro'+(c.hf>1?'s':'')+' HF dans le patch.</b> Les têtes sont contrôlées ci-dessous ; vérifiez vous-même que les liaisons y sont : '
+    +(c.txAll.length?'émetteurs '+c.txAll.map(function(i){return E(i.ref)+' ×'+i.qty;}).join(', '):'aucun émetteur trouvé sur le bon')
+    +(c.rxAll.length?' ; récepteurs '+c.rxAll.map(function(i){return E(i.ref)+' ×'+i.qty;}).join(', '):'')+'.</span></div>';
   /* Micros et DI */
   var opts=function(m){
     /* Le modèle vient de l'input list (saisie partagée) : il passe par un attribut data échappé, jamais dans le code du gestionnaire */
@@ -15429,12 +15441,13 @@ function _bonCardHtml(){
     +c.mics.map(function(m){
       return '<tr class="'+m.st+'"><td><b>'+E(m.model)+'</b>'
         +m.parts.map(function(pt){
-            var multi=m.parts.length>1, lab=multi?'<i>'+E(pt.t)+(pt.tx?' (émetteur)':'')+'</i> ':'';
-            if(!pt.lines.length) return multi?'<span class="bon-hit bad">'+lab+'absent du bon</span>':'';
+            var multi=m.parts.length>1, lab=multi?'<i>'+E(pt.t)+'</i> ':'';
+            if(!pt.lines.length) return (multi||m.st==='hf')?'<span class="bon-hit'+(m.st==='hf'?'':' bad')+'"><i>'+E(pt.t)+'</i> : tête non trouvée sur le bon</span>':'';
+            if(m.st==='hf') return '<span class="bon-hit">'+lab+pt.lines.map(function(i){return E(i.ref||i.name)+' ×'+i.qty;}).join(' · ')+'</span>';
             return '<span class="bon-hit'+(pt.got<m.need?' bad':'')+'">'+lab+pt.lines.map(function(i){return E(i.ref||i.name)+' ×'+i.qty;}).join(' · ')+(pt.got<m.need?' — '+(pt.got?'il n\'en reste que '+pt.got:'déjà pris par un autre modèle du patch'):'')+'</span>';
           }).join('')
 
-        +opts(m)+'</td><td class="r">'+m.need+'</td><td class="r">'+(m.ext?'—':m.have)+'</td><td>'+pill(m.st)+'</td></tr>';
+        +opts(m)+'</td><td class="r">'+m.need+'</td><td class="r">'+(m.ext?'—':m.st==='hf'?(m.parts.reduce(function(sum,pt){return Math.max(sum,pt.total);},0)||'—'):m.have)+'</td><td>'+pill(m.st)+'</td></tr>';
     }).join('')+'</tbody></table>';
   h+='</div><div><div class="bon-lbl">Pieds de micro</div>';
   if(!c.stands.length) h+='<div class="ov-none">Aucun pied dans l\'input list ni sur le bon.</div>';

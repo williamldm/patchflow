@@ -2938,8 +2938,10 @@ body.pf-fs-on{overflow:hidden}
 .bon-sum.ok{background:rgba(34,214,160,.09)}.bon-sum.ok>i{color:var(--grn)}
 .bon-sum em{margin-left:auto;font-style:normal;font-size:12.5px;color:var(--muted)}
 .bon-card{overflow:hidden}
-.bon-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));gap:24px 28px;margin-top:18px}
-.bon-cols>div{min-width:0;overflow-x:auto}
+.bon-cols{display:flex;flex-wrap:wrap;gap:24px 28px;margin-top:18px}
+.bon-cols>div{min-width:0;overflow-x:auto;flex:2 1 300px}
+.bon-cols>div:first-child{flex:3 1 420px}
+.bon-tbl td:last-child,.bon-tbl th:last-child{width:1%;white-space:nowrap}
 .bon-lbl{margin-bottom:6px;font:650 11.5px var(--f);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .bon-tbl{width:100%;border-collapse:collapse;font-size:13.5px}
 .bon-tbl th{height:32px;padding:0 8px;text-align:left;border-bottom:1px solid var(--bdr);color:var(--muted);font:650 11px var(--f);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
@@ -2951,6 +2953,11 @@ body.pf-fs-on{overflow:hidden}
 .bon-hit{display:block;margin-top:2px;font:400 11.5px var(--m);color:var(--muted)}
 .bon-hit i{font-style:normal;font-family:var(--f);font-weight:600;color:var(--txt2)}
 .bon-hit.bad{color:var(--err)}
+.bon-hit.hf{display:flex;align-items:baseline;gap:5px;font-family:var(--f);font-size:12px;color:var(--txt2)}
+.bon-hit.hf i{font-size:13px;color:var(--ora);font-weight:400}
+.bon-hfnote{display:flex;gap:10px;margin-top:10px;padding:10px 14px;border-radius:10px;background:var(--surf2);box-shadow:inset 0 0 0 1px var(--bdr);font-size:13px;line-height:1.5;color:var(--txt2)}
+.bon-hfnote>i{font-size:17px;color:var(--ora);flex-shrink:0;margin-top:1px}
+.bon-hfnote b{color:var(--txt);font-weight:600}
 .bon-hit.bad i{color:var(--err)}
 .bon-map{display:none;margin-top:6px;width:100%;max-width:340px;height:28px;padding:0 24px 0 8px;border:0;border-radius:7px;background-color:var(--surf2);box-shadow:inset 0 0 0 1px var(--bdr2);color:var(--txt2);font:400 12px var(--f)}
 .bon-tbl tr:hover .bon-map,.bon-tbl tr.miss .bon-map,.bon-tbl tr.short .bon-map,.bon-map:focus{display:block}
