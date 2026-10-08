@@ -3091,3 +3091,7 @@ button.bonp-empty{cursor:pointer}
 .il-selbar-del{background:rgba(255,77,106,.14);color:var(--err);box-shadow:none}
 .il-selbar-del:hover{background:var(--err);color:#fff}
 @media(max-width:768px){ .il-selbar{bottom:74px;max-width:calc(100vw - 16px);overflow-x:auto} .il-ck{margin-right:4px} }
+.ilpdf-new{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;padding:9px 12px;border-radius:10px;background:var(--ora-d);font-size:13px;color:var(--txt2)}
+.ilpdf-new>i{font-size:17px;color:var(--ora)}
+.ilpdf-new span{flex:1;min-width:200px}
+.ilpdf-new b{color:var(--txt);font-weight:600}

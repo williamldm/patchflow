@@ -5842,8 +5842,9 @@ async function ilAiPlace(chs){
       short_name:(c.short_name||'').slice(0,10),
       long_name:c.long_name||'', source:c.source||'', mic:c.mic||'',
       gain:Number(c.gain)||0, phantom:!!c.phantom, iem_group:c.iem_group||'',
-      foh:true, mon:false, bc:false, note:c.note||''
+      foh:c.foh!=null?!!c.foh:true, mon:!!c.mon, bc:!!c.bc, note:c.note||''
     };
+    if(c.custom_data) row.custom_data=c.custom_data;
     if(_patchColReady) row.patch_id=CUR_PATCH_ID;
     const {data,error}=await sb.from('channels').insert(row).select().single();
     if(error){ toast('Erreur canal '+(i+1)+' : '+error.message); break; }
@@ -5869,6 +5870,10 @@ const _ILPDF_COLS=[
   ['short',  /^(court|nomcourt|short|shortname|abrev|abreviation)$/],
   ['phantom',/^(48v|48|phantom|fantome|alim)$/],
   ['note',   /^(remarque|remarques|note|notes|commentaire|commentaires|comment|comments|info|infos|insert|inserts|divers)$/],
+  ['iem',    /^(iem|ear|ears|inear|groupeiem)$/],
+  ['foh',    /^(foh|face|facade)$/],
+  ['mon',    /^(mon|retour|retours|monitor|monitors)$/],
+  ['bc',     /^(bc|broadcast|captation)$/],
   ['name',   /^(instrument|instruments|nom|nomlong|name|longname|designation|description|libelle|label)$/]
 ];
 function _ilPl(n){ return n+' '+(n>1?'canaux':'canal'); }
@@ -5936,7 +5941,9 @@ async function _ilPdfLines(p){
 }
 /* Lecture brute du tableau : ses colonnes telles qu'elles sont dans le PDF, chacune avec le champ PatchFlow
    deviné. C'est l'utilisateur qui décide ensuite, colonne par colonne, où va chaque donnée (_ilPdfBuild). */
-const _ILPDF_FIELDS=[['','Ignorer'],['ch','N° de voie'],['short','Nom court'],['name','Nom long'],['src','Source'],['mic','Micro / DI'],['stand','Pied'],['phantom','48V'],['gain','Gain'],['note','Remarque (avec le pied)']];
+const _ILPDF_FIELDS=[['','Ignorer'],['ch','N° de voie'],['short','Nom court'],['name','Nom long'],['src','Source'],['mic','Micro / DI'],['stand','Pied'],['phantom','48V'],['gain','Gain'],['iem','IEM'],['foh','FOH'],['mon','MON'],['bc','BC'],['note','Remarque (avec le pied)']];
+/* Champ de l'import -> colonne de l'input list, pour afficher ou masquer les colonnes après l'import */
+const _ILPDF_TO_COL={short:'short',name:'long',src:'src',mic:'mic',stand:'note',note:'note',phantom:'phantom',gain:'gain',iem:'iem',foh:'foh',mon:'mon',bc:'bc'};
 function _ilPdfParse(rows){
   var key=function(s){ return _bonNorm(s); }, NUM=/^(?:ch\.?\s*)?(\d{1,3})\.?$/i;
   var guess=function(s){ var k=key(s); for(var c=0;c<_ILPDF_COLS.length;c++){ if(_ILPDF_COLS[c][1].test(k)) return _ILPDF_COLS[c][0]; } return /^gain$/.test(k)?'gain':''; };
@@ -5974,7 +5981,12 @@ function _ilPdfBuild(){
   var yes=function(s){ return /^(x|o|oui|yes|on|\+?48\s*v|48|✓|✔|•|1)$/i.test(String(s||'').trim()); };
   raw.forEach(function(r){
     r.st='skip';
-    var cell={}; cols.forEach(function(c,j){ if(c.f && r.c[j]) cell[c.f]=(cell[c.f]?cell[c.f]+' ':'')+r.c[j]; });
+    var cell={}, extra={};
+    cols.forEach(function(c,j){
+      if(!c.f || !r.c[j]) return;
+      if(c.f==='new' || c.f.indexOf('cc:')===0){ var ek=c.f==='new'?'new:'+j:c.f; extra[ek]=(extra[ek]?extra[ek]+' ':'')+r.c[j]; return; }   /* colonne personnalisée, existante ou à créer */
+      cell[c.f]=(cell[c.f]?cell[c.f]+' ':'')+r.c[j];
+    });
     var m=hasCh?String(cell.ch||'').match(NUM):null, near=prevY!=null && Math.abs(prevY-r.y)<16; prevY=r.y;
     if(r.off){ last=null; r.st='off'; return; }
     if(hasCh && !m){
@@ -5985,7 +5997,8 @@ function _ilPdfBuild(){
     }
     if(!cell.name && !cell.short && !cell.mic){ last=null; return; }
     var g=parseFloat(String(cell.gain||'').replace(',','.'));
-    last={ch:m?+m[1]:out.length+1, name:cell.name||'', short:cell.short||'', src:cell.src||'', mic:cell.mic||'', stand:cell.stand||'', note:cell.note||'', phantom:yes(cell.phantom), gain:isFinite(g)?g:0};
+    last={ch:m?+m[1]:out.length+1, name:cell.name||'', short:cell.short||'', src:cell.src||'', mic:cell.mic||'', stand:cell.stand||'', note:cell.note||'', phantom:yes(cell.phantom), gain:isFinite(g)?g:0, iem:cell.iem||'', extra:extra};
+    ['foh','mon','bc'].forEach(function(k){ if(cols.some(function(c){ return c.f===k; })) last[k]=yes(cell[k]); });
     out.push(last); r.st='ch';
   });
   return out;
@@ -6014,15 +6027,29 @@ function _ilPdfRender(msg){
     return;
   }
   var sel=function(c,j){ return '<select class="ilpdf-map'+(c.f?'':' none')+'" onchange="ilPdfMap('+j+',this.value)" title="Où ranger cette colonne">'
-    +_ILPDF_FIELDS.map(function(f){ return '<option value="'+f[0]+'"'+(c.f===f[0]?' selected':'')+'>'+f[1]+'</option>'; }).join('')+'</select>'; };
+    +_ILPDF_FIELDS.map(function(f){ return '<option value="'+f[0]+'"'+(c.f===f[0]?' selected':'')+'>'+f[1]+'</option>'; }).join('')
+    +_getCustomCols().map(function(cc){ return '<option value="cc:'+E(cc.id)+'"'+(c.f==='cc:'+cc.id?' selected':'')+'>Colonne « '+E(cc.label)+' »</option>'; }).join('')
+    +(_ilPdf.ai?'':'<option value="new"'+(c.f==='new'?' selected':'')+'>+ Créer la colonne « '+E(String(c.label).slice(0,30))+' »</option>')+'</select>'; };
+  /* Colonnes du PDF sans équivalent dans PatchFlow : on propose de les créer */
+  var orphan=_ilPdf.ai?[]:cols.map(function(c,j){ return {c:c,j:j}; }).filter(function(o){ return !o.c.f && raw.some(function(r){ return r.st==='ch' && r.c[o.j]; }); });
+  var nNew=cols.filter(function(c){ return c.f==='new'; }).length;
   res.innerHTML='<div class="ilpdf-top"><span><b>Page '+_ilPdf.page+'</b> · '+_ilPl(n)+' reconnu'+(n>1?'s':'')+(_ilPdf.ai?' par l\'IA':'')+'. Choisissez où va chaque colonne.</span>'+(_ilPdf.ai?'':ai)+'</div>'
     +'<div class="ilpdf-scroll"><table class="bon-tbl ilpdf-tbl"><thead><tr>'+cols.map(function(c,j){ return '<th><span>'+E(c.label)+'</span>'+sel(c,j)+'</th>'; }).join('')+'<th></th></tr></thead><tbody>'
     +raw.map(function(r,i){ return '<tr class="'+r.st+'">'+cols.map(function(c,j){ return '<td'+(c.f?'':' class="ign"')+'>'+E(r.c[j])+'</td>'; }).join('')
       +'<td><button type="button" class="ov-link" onclick="ilPdfDrop('+i+')" title="'+(r.off?'Reprendre cette ligne':'Ne pas importer')+'"><i class="ti ti-'+(r.off?'arrow-back-up':'x')+'"></i></button></td></tr>'; }).join('')
-    +'</tbody></table></div><div class="bon-note">Les lignes grisées ne sont pas importées. Tout se corrige ensuite dans l\'input list.</div>';
+    +'</tbody></table></div>'
+    +(orphan.length?'<div class="ilpdf-new"><i class="ti ti-columns-3"></i><span><b>'+orphan.map(function(o){ return '« '+E(o.c.label)+' »'; }).join(', ')+'</b> '+(orphan.length>1?'n\'existent':'n\'existe')+' pas dans PatchFlow.</span>'
+       +'<button type="button" class="btn sm" onclick="ilPdfNewAll()"><i class="ti ti-plus"></i>Créer '+(orphan.length>1?'ces colonnes':'cette colonne')+(canDo('multi_scenes')?'':'<span class="plan-badge-pill pro">Pro</span>')+'</button></div>':'')
+    +'<div class="bon-note">'+(nNew?nNew+' colonne'+(nNew>1?'s seront créées':' sera créée')+' à l\'import. ':'')+(CHS.length?'':'Les colonnes de PatchFlow absentes du PDF seront masquées (menu Colonnes pour les réafficher). ')+'Les lignes grisées ne sont pas importées.</div>';
+}
+function ilPdfNewAll(){
+  if(!canDo('multi_scenes')){ showUpgradeModal('custom_cols'); return; }
+  (_ilPdf.cols||[]).forEach(function(c,j){ if(!c.f && (_ilPdf.raw||[]).some(function(r){ return r.st==='ch' && r.c[j]; })) c.f='new'; });
+  _ilPdfRender();
 }
 function ilPdfMap(j,f){
   var cols=_ilPdf.cols||[]; if(!cols[j]) return;
+  if(f==='new' && !canDo('multi_scenes')){ showUpgradeModal('custom_cols'); _ilPdfRender(); return; }
   /* Le numéro de voie et le 48V ne viennent que d'une colonne ; les textes peuvent en réunir plusieurs */
   if(f==='ch'||f==='phantom'||f==='gain') cols.forEach(function(c){ if(c.f===f) c.f=''; });
   cols[j].f=f; _ilPdfRender();
@@ -6059,14 +6086,33 @@ async function ilPdfApply(){
   var rows=_ilPdfBuild(); if(!rows.length || _ilPdf.busy) return;
   _ilPdf.busy=true;
   var go=document.getElementById('ilpdf-go'); if(go){ go.disabled=true; go.textContent='Import…'; }
+  var cols=_ilPdf.cols||[], wasEmpty=CHS.length===0;
   try{
+    /* Colonnes à créer : ajoutées aux colonnes personnalisées de la session, visibles d'office */
+    var ids={}, made=[], list=_getCustomCols().slice();
+    cols.forEach(function(c,j){ if(c.f!=='new') return; var id='cc_'+Date.now().toString(36)+j; list.push({id:id, label:String(c.label).slice(0,40), type:'text'}); ids['new:'+j]=id; made.push(id); });
+    if(made.length){ await _saveCustomCols(list); made.forEach(function(id){ if(colOrder.indexOf(id)<0) colOrder.push(id); visCol.add(id); }); }
     var n=await ilAiPlace(rows.slice().sort(function(a,b){ return a.ch-b.ch; }).map(function(r){
-      var nm=String(r.name||'').trim(), sh=String(r.short||'').trim();
-      return {short_name:(sh||nm).toUpperCase().slice(0,10), long_name:nm, source:String(r.src||'').trim(), mic:String(r.mic||'').trim(), gain:r.gain||0, phantom:!!r.phantom,
+      var nm=String(r.name||'').trim(), sh=String(r.short||'').trim(), cd=null;
+      Object.keys(r.extra||{}).forEach(function(k){ var id=k.indexOf('cc:')===0?k.slice(3):ids[k]; if(id){ cd=cd||{}; cd[id]=String(r.extra[k]).trim(); } });
+      var o={short_name:(sh||nm).toUpperCase().slice(0,10), long_name:nm, source:String(r.src||'').trim(), mic:String(r.mic||'').trim(), gain:r.gain||0, phantom:!!r.phantom, iem_group:String(r.iem||'').trim(),
               note:[r.stand,r.note].map(function(s){ return String(s||'').trim(); }).filter(Boolean).join(' · ')};
+      if(cd) o.custom_data=cd;
+      ['foh','mon','bc'].forEach(function(k){ if(r[k]!=null) o[k]=r[k]; });
+      return o;
     }));
-    if(n>0){ toast('✓ '+_ilPl(n)+' importé'+(n>1?'s':'')+' depuis la page '+_ilPdf.page); _ilPdf.busy=false; ilPdfClose(); return; }
-  }catch(e){ toast('Import impossible : '+(e&&e.message||e)); }
+    if(n>0){
+      /* Colonnes : celles que le PDF remplit sont affichées ; dans un patch vide, celles qu'il n'a pas sont masquées */
+      var got={short:1,long:1}, hid=[];
+      cols.forEach(function(c){ if(_ILPDF_TO_COL[c.f]) got[_ILPDF_TO_COL[c.f]]=1; if(c.f.indexOf('cc:')===0) got[c.f.slice(3)]=1; });
+      Object.keys(got).forEach(function(id){ visCol.add(id); });
+      if(wasEmpty) COLS.forEach(function(c){ if(!got[c.id] && visCol.has(c.id)){ visCol.delete(c.id); hid.push(c.label); } });
+      _saveILLayout(); renderTable(); loadColChips(); updateColBtn();
+      if(typeof _renderCustomColList==='function') try{ _renderCustomColList(); }catch(e){}
+      toast('✓ '+_ilPl(n)+' importé'+(n>1?'s':'')+' depuis la page '+_ilPdf.page+(made.length?' · '+made.length+' colonne'+(made.length>1?'s créées':' créée'):'')+(hid.length?' · masquées : '+hid.join(', '):''));
+      _ilPdf.busy=false; ilPdfClose(); return;
+    }
+  }catch(e){ console.error('ilPdfApply:',e); toast('Import impossible : '+(e&&e.message||e)); }
   _ilPdf.busy=false; _ilPdfRender();
 }
 
