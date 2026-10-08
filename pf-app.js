@@ -15312,6 +15312,34 @@ function _bonMatch(model, pool){
     return toks.length>0 && toks.every(function(t){ return t.length>=3 && (r.indexOf(t)>=0 || d.indexOf(t)>=0); }) && n.replace(/\d/g,'').length<=2;
   });
 }
+/* ── Micros HF et montages composés ──
+   Dans un patch, « ULXD1 - SM58 » ou « SM58 HF » désigne un micro HF : un émetteur et une tête. Le loueur les
+   liste sur deux lignes (« ULXD1K51 Émetteur Pocket », « CAPSSM58 Capsule SM58 pour HF main »). Le modèle du
+   patch est donc découpé en éléments ; il est présent si chaque élément l'est, en quantité suffisante.
+   Idem « ULXD1 - DPA 4099 » : un émetteur et un DPA. Les quantités du bon sont consommées au fur et à mesure,
+   pour qu'une même ligne ne serve pas deux fois. */
+const _BON_TX=/^(ulx[dp]?\d\w*|qlx[d]?\d\w*|slx[d]?\d\w*|blx\d\w*|glx[d]?\d\w*|axt\d\w*|adx?\d\w*|ew[a-z]*\d+\w*|skm?\d+\w*|bodypack|pocket|emetteur)$/i;
+function _bonParts(model){
+  var t=String(model).normalize('NFD').replace(/[̀-ͯ]/g,'');
+  var hf=/\b(hf|sans fil|wireless)\b/i.test(t);
+  var out=[];
+  t.replace(/\b(hf|sans fil|wireless)\b/ig,' ').split(/\s+-\s*|\s*-\s+|\s*[\/+&]\s*|\s+(?:en|sur|avec)\s+/i).forEach(function(p){
+    var w=p.trim().split(/\s+/).filter(Boolean), rest=[];
+    w.forEach(function(x){ if(_BON_TX.test(x)) out.push({t:x, tx:true}); else rest.push(x); });   /* émetteur écrit sans séparateur : « ULXD2 SM58 » */
+    if(rest.length) out.push({t:rest.join(' '), tx:false});
+  });
+  if(out.some(function(p){return p.tx;})) hf=true;
+  if(!out.length) out=[{t:String(model), tx:false}];
+  return {parts:out, hf:hf};
+}
+/* Nature d'une ligne du bon : accessoire (jamais un micro), émetteur HF, capsule pour HF main, ou matériel ordinaire */
+function _bonKind(it){
+  var n=String(it.name||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase(), r=String(it.ref||'').toLowerCase();
+  if(/\bcaps?ule\b|\bcaspule\b/.test(n) || /^caps/.test(r)) return 'caps';
+  if(/\bemetteur\b|\btransmitter\b|\bbodypack\b/.test(n)) return 'tx';
+  if(/\bpince\b|\badapt|\bpiles?\b|\bcable\b|\bantenne\b|\bflight\b|\bhousse\b|\brecepteur\b|\bchargeur\b|\bmultipaire\b/.test(n)) return 'acc';
+  return 'gear';
+}
 function _bonCompare(){
   var b=_bonLoad(); if(!b) return null;
   var chs=(typeof CHS!=='undefined'&&CHS)?CHS:[], need={}, sneed={};
@@ -15319,21 +15347,37 @@ function _bonCompare(){
     var m=String(c.mic||'').trim(); if(m) need[m]=(need[m]||0)+1;
     var st=String(c.note||'').trim(); if(st){ var k=_bonStandKind(st); sneed[k]=(sneed[k]||0)+1; }
   });
-  var stands=b.items.filter(_bonIsStand), gear=b.items.filter(function(i){return !_bonIsStand(i);}), used={};
+  var stands=b.items.filter(_bonIsStand), gear=b.items.filter(function(i){return !_bonIsStand(i);});
+  gear.forEach(function(i){ i._k=_bonKind(i); i._left=i.qty; });
   var map=b.map||{};
-  var mics=Object.keys(need).sort(function(a,c){ return need[c]-need[a]||a.localeCompare(c); }).map(function(m){
-    var o=map[m], ext=o==='__ext', hits=ext?[]:(o?gear.filter(function(i){return i.ref===o;}):_bonMatch(m,gear));
-    hits.forEach(function(i){ used[i.ref+'|'+i.name]=1; });
-    var have=hits.reduce(function(s,i){return s+i.qty;},0);
-    return {model:m, need:need[m], have:have, hits:hits, manual:!!o, ext:ext, st:ext?'ext':have>=need[m]?'ok':have>0?'short':'miss'};
+  /* Prend jusqu'à n unités sur une liste de lignes, et dit combien ont été trouvées */
+  var take=function(lines,n){ var got=0; lines.forEach(function(i){ var q=Math.min(i._left,n-got); if(q>0){ i._left-=q; got+=q; } }); return got; };
+  var find=function(part,hf){
+    if(part.tx){ var n=_bonNorm(part.t); return gear.filter(function(i){ return i._k==='tx' && (_bonNorm(i.ref).indexOf(n)>=0 || _bonNorm(i.name).indexOf(n)>=0); }); }
+    var hits=_bonMatch(part.t, gear.filter(function(i){ return i._k==='gear' || i._k==='caps'; }));
+    var caps=hits.filter(function(i){return i._k==='caps';}), plain=hits.filter(function(i){return i._k!=='caps';});
+    return hf ? (caps.length?caps:plain) : plain;     /* une capsule seule n'est pas un micro filaire */
+  };
+  /* Les montages HF et composés d'abord : ils ont le moins de lignes possibles sur le bon */
+  var models=Object.keys(need).map(function(m){ return {model:m, need:need[m], p:_bonParts(m)}; });
+  models.sort(function(a,c){ return (c.p.parts.length+(c.p.hf?1:0))-(a.p.parts.length+(a.p.hf?1:0)) || c.need-a.need || a.model.localeCompare(c.model); });
+  var mics=models.map(function(x){
+    var o=map[x.model], ext=o==='__ext', parts;
+    if(ext) parts=[];
+    else if(o) parts=[{t:x.model, lines:gear.filter(function(i){return i.ref===o;})}];
+    else parts=x.p.parts.map(function(pt){ return {t:pt.t, tx:pt.tx, lines:find(pt,x.p.hf)}; });
+    parts.forEach(function(pt){ pt.total=pt.lines.reduce(function(sum,i){return sum+i.qty;},0); pt.got=take(pt.lines,x.need); });
+    var have=parts.length ? Math.min.apply(null,parts.map(function(pt){return pt.got;})) : 0;
+    return {model:x.model, need:x.need, have:have, parts:parts, hf:x.p.hf, manual:!!o, ext:ext,
+            /* Absent : un élément n'a aucune ligne sur le bon. Insuffisant : tout y est, mais pas en quantité */
+            st:ext?'ext':have>=x.need?'ok':(have>0 || (parts.length && parts.every(function(pt){return pt.total>0;})))?'short':'miss'};
   });
-  /* Ce qui pose problème d'abord */
   var ORD={miss:0,short:1,ok:2,ext:3}; mics.sort(function(a,c){ return ORD[a.st]-ORD[c.st] || c.need-a.need || a.model.localeCompare(c.model); });
   var sh={}; stands.forEach(function(i){ var r=_bonStandsOf(i); Object.keys(r).forEach(function(k){ sh[k]=(sh[k]||0)+r[k]; }); });
   var kinds=['grand','petit','ronde','table','autre'].filter(function(k){ return sneed[k]||sh[k]; });
   var st=kinds.map(function(k){ var n=sneed[k]||0, h=sh[k]||0; return {kind:k, need:n, have:h, st:!n?'extra':h>=n?'ok':h>0?'short':'miss'}; });
-  var totN=kinds.reduce(function(s,k){return s+(sneed[k]||0);},0), totH=kinds.reduce(function(s,k){return s+(sh[k]||0);},0);
-  var unused=gear.filter(function(i){ return !used[i.ref+'|'+i.name] && /\bmicro\b|capsule|\bdi\b|boitier de direct/i.test(i.name) && !/pince|adapt|pile|c[aâ]ble/i.test(i.name); });
+  var totN=kinds.reduce(function(sum,k){return sum+(sneed[k]||0);},0), totH=kinds.reduce(function(sum,k){return sum+(sh[k]||0);},0);
+  var unused=gear.filter(function(i){ return i._left>0 && (i._k==='caps' || (i._k==='gear' && /\bmicro\b|\bdi\b|boitier de direct/i.test(i.name))); });
   return {mics:mics, stands:st, standLines:stands, pince:sneed.pince||0, totN:totN, totH:totH, unused:unused, gear:gear};
 }
 function bonPick(){
@@ -15384,7 +15428,12 @@ function _bonCardHtml(){
   else h+='<table class="bon-tbl"><thead><tr><th>Modèle du patch</th><th class="r">Besoin</th><th class="r">Sur le bon</th><th>État</th></tr></thead><tbody>'
     +c.mics.map(function(m){
       return '<tr class="'+m.st+'"><td><b>'+E(m.model)+'</b>'
-        +(m.hits.length?'<span class="bon-hit">'+m.hits.map(function(i){return E(i.ref||i.name)+' ×'+i.qty;}).join(' · ')+'</span>':'')
+        +m.parts.map(function(pt){
+            var multi=m.parts.length>1, lab=multi?'<i>'+E(pt.t)+(pt.tx?' (émetteur)':'')+'</i> ':'';
+            if(!pt.lines.length) return multi?'<span class="bon-hit bad">'+lab+'absent du bon</span>':'';
+            return '<span class="bon-hit'+(pt.got<m.need?' bad':'')+'">'+lab+pt.lines.map(function(i){return E(i.ref||i.name)+' ×'+i.qty;}).join(' · ')+(pt.got<m.need?' — '+(pt.got?'il n\'en reste que '+pt.got:'déjà pris par un autre modèle du patch'):'')+'</span>';
+          }).join('')
+
         +opts(m)+'</td><td class="r">'+m.need+'</td><td class="r">'+(m.ext?'—':m.have)+'</td><td>'+pill(m.st)+'</td></tr>';
     }).join('')+'</tbody></table>';
   h+='</div><div><div class="bon-lbl">Pieds de micro</div>';
@@ -15394,7 +15443,7 @@ function _bonCardHtml(){
     +'<tr class="tot"><td><b>Total</b></td><td class="r">'+c.totN+'</td><td class="r">'+c.totH+'</td><td>'+(c.totH>=c.totN?pill('ok'):pill('short'))+'</td></tr></tbody></table>';
   if(c.standLines.length) h+='<div class="bon-note">Lignes du bon : '+c.standLines.map(function(i){return E(i.ref)+' ×'+i.qty+(i.more?' '+E(i.more):'');}).join(' · ')+'</div>';
   if(c.pince) h+='<div class="bon-note">'+c.pince+' pince'+(c.pince>1?'s':'')+' dans le patch : non comparée'+(c.pince>1?'s':'')+', à vérifier à la main.</div>';
-  if(c.unused.length) h+='<div class="bon-lbl" style="margin-top:18px">Micros du bon non utilisés dans le patch</div><div class="bon-note">'+c.unused.map(function(i){return '<b>'+E(i.ref||i.name)+'</b> ×'+i.qty;}).join(' · ')+'</div>';
+  if(c.unused.length) h+='<div class="bon-lbl" style="margin-top:18px">Micros du bon non utilisés dans le patch</div><div class="bon-note">'+c.unused.map(function(i){return '<b>'+E(i.ref||i.name)+'</b> ×'+i._left;}).join(' · ')+'</div>';
   return h+'</div></div></section>';
 }
 
