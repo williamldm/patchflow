@@ -16435,50 +16435,80 @@ function _bonCardHtml(){
 
 /* ══════════════════════════════════════════════════════════════════
    RACKS — dessiner les racks 19 pouces à faire préparer par le loueur
-   Un rack : un nom, une hauteur en U, des appareils posés face avant ou face arrière. L'unité 1 est en bas,
-   comme sur les montants. Les racks sont enregistrés dans la session (shows.stage_data.racks).
-   Le matériel créé par l'utilisateur est gardé sur son compte (profiles.tours.rack_gear) et dans le navigateur :
-   il se retrouve dans toutes ses sessions.
-   Le catalogue fourni ne donne que la hauteur des appareils, seule donnée sûre ; poids, consommation et
-   profondeur se renseignent à la main et s'enregistrent avec le matériel.
+   Un rack : un nom, une hauteur en U, une à trois baies côte à côte, des appareils posés face avant ou arrière.
+   L'unité 1 est en bas dans les données ; l'affichage peut numéroter depuis le haut.
+   Trois vues : avant, arrière (baies inversées, comme en faisant le tour du rack) et coupe de côté par baie,
+   où se lisent les profondeurs et les appareils qui se touchent dos à dos.
+   Un seul dessin, en SVG, sert à l'écran et au PDF (_rkSvg, _rkSideSvg) : les façades y sont tracées au trait
+   selon la famille de l'appareil ; les panneaux de patch sont dessinés connecteur par connecteur.
+   Racks et groupes sont enregistrés dans la session (stage_data.racks, stage_data.rack_groups).
+   Le matériel créé par l'utilisateur est gardé sur son compte (profiles.tours.rack_gear) et dans le navigateur.
+   Le catalogue fourni ne donne que la hauteur et la famille des appareils, seules données sûres ; poids,
+   consommation et profondeur se renseignent à la main et s'enregistrent avec le matériel.
    ══════════════════════════════════════════════════════════════════ */
-var RK={showId:null, racks:[], cur:null, sel:null, face:'f', q:'', form:false, t:null};
+var RK={showId:null, racks:[], groups:[], cur:null, sel:null, view:'f', cut:0, q:'', form:false, t:null, zoom:1};
 var RK_LIB=null;                 /* matériel de l'utilisateur ; null tant qu'il n'a pas été lu sur le compte */
-const RK_UH=30;                  /* hauteur d'une unité à l'écran, en pixels */
+var RK_OPT={simple:false, num:true, frame:true, grp:true, ghost:true};
+try{ Object.assign(RK_OPT, JSON.parse(localStorage.getItem('pf_rk_opt')||'{}')); }catch(e){}
+const RK_UH=32, RK_BW=348, RK_GAP=10, RK_CASE=16, RK_NUMW=30, RK_EAR=15;     /* 348 / 32 : proportions d'une façade 19 pouces */
 const _RK_HUES=['#ff6b1a','#1a8fff','#22d6a0','#9b6aff','#f5c542','#ff4d6a','#5ab0ff','#8b95a7'];
+const _RK_KINDS=[['gen','Façade simple'],['rx','Récepteur ou émetteur HF'],['amp','Amplificateur'],['io','Stagebox, interface'],['proc','Processeur, effet'],['pc','Ordinateur, serveur'],['sw','Switch réseau'],
+  ['pdu','Bandeau de prises'],['ups','Onduleur'],['patch','Panneau de patch'],['drawer','Tiroir'],['shelf','Tablette'],['vent','Grille de ventilation'],['blank','Plaque obturatrice'],['door','Capot, porte'],['light','Éclairage']];
+const _RK_CONN=[['xlrf','XLR femelle',16],['xlrm','XLR mâle',16],['nl4','Speakon',16],['rj45','RJ45 / etherCON',16],['pcon','powerCON',16],['bnc','BNC',24],['jack','Jack',24],['opti','Fibre',16],['vide','Vide',16]];
 const _RK_CAT=[
-  {g:'Liaisons HF', items:[['Shure ULXD4D',1],['Shure ULXD4Q',1],['Shure AD4D',1],['Shure AD4Q',1],['Shure UA844+ (distribution d\'antennes)',1],['Shure PSM1000 P10T',1],['Shure PA821B (combineur)',1],['Sennheiser EM 6000',1],['Sennheiser SR 2050 IEM',1]]},
-  {g:'Amplis', items:[['L-Acoustics LA12X',2],['L-Acoustics LA4X',2],['L-Acoustics LA8',2],['d&b D80',2],['d&b D20',2],['Powersoft X8',2],['Powersoft X4',1],['Lab Gruppen PLM 20K44',2]]},
-  {g:'Stageboxes', items:[['Behringer S16',2],['Behringer S32',3],['Midas DL16',2],['Midas DL32',3],['Yamaha Rio1608-D2',3],['Yamaha Rio3224-D2',5]]},
-  {g:'Réseau et énergie', items:[['Switch réseau',1],['Panneau de brassage RJ45',1],['Bandeau de prises',1],['Onduleur',2]]},
-  {g:'Accessoires', items:[['Tiroir 2U',2],['Tiroir 3U',3],['Tablette',1],['Plaque obturatrice 1U',1],['Plaque obturatrice 2U',2],['Grille de ventilation',1],['Panneau de patch XLR',1],['Éclairage de rack',1]]}
+  {g:'Liaisons HF', items:[['Shure ULXD4D',1,'rx'],['Shure ULXD4Q',1,'rx'],['Shure AD4D',1,'rx'],['Shure AD4Q',1,'rx'],['Shure UA844+ (distribution d\'antennes)',1,'rx'],['Shure PSM1000 P10T',1,'rx'],['Shure PA821B (combineur)',1,'rx'],['Sennheiser EM 6000',1,'rx'],['Sennheiser SR 2050 IEM',1,'rx']]},
+  {g:'Amplis', items:[['L-Acoustics LA12X',2,'amp'],['L-Acoustics LA4X',2,'amp'],['L-Acoustics LA8',2,'amp'],['d&b D80',2,'amp'],['d&b D20',2,'amp'],['Powersoft X8',2,'amp'],['Powersoft X4',1,'amp'],['Lab Gruppen PLM 20K44',2,'amp']]},
+  {g:'Stageboxes', items:[['Behringer S16',2,'io'],['Behringer S32',3,'io'],['Midas DL16',2,'io'],['Midas DL32',3,'io'],['Yamaha Rio1608-D2',3,'io'],['Yamaha Rio3224-D2',5,'io']]},
+  {g:'Régie et réseau', items:[['Processeur',1,'proc'],['Ordinateur en rack',2,'pc'],['Serveur',1,'pc'],['Switch réseau',1,'sw'],['Panneau de brassage RJ45',1,'patch']]},
+  {g:'Énergie', items:[['Bandeau de prises',1,'pdu'],['Onduleur',2,'ups']]},
+  {g:'Patch et accessoires', items:[['Panneau de patch sur mesure',1,'patch'],['Tiroir 2U',2,'drawer'],['Tiroir 3U',3,'drawer'],['Tiroir 4U',4,'drawer'],['Tablette',1,'shelf'],['Plaque obturatrice 1U',1,'blank'],['Plaque obturatrice 2U',2,'blank'],['Grille de ventilation',1,'vent'],['Capot 4U',4,'door'],['Éclairage de rack',1,'light']]}
 ];
 function _rkId(){ return 'k'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 function _rkNum(v,min,max,def){ var n=parseFloat(String(v==null?'':v).replace(',','.')); if(!isFinite(n)) return def; return Math.max(min,Math.min(max,n)); }
 function _rkCur(){ return RK.racks.filter(function(r){ return r.id===RK.cur; })[0]||RK.racks[0]||null; }
 function _rkItem(id){ var r=_rkCur(); return r?r.items.filter(function(i){ return i.id===id; })[0]||null:null; }
+function _rkKind(k){ return _RK_KINDS.some(function(x){ return x[0]===k; })?k:'gen'; }
+function _rkGroup(id){ return RK.groups.filter(function(g){ return g.id===id; })[0]||null; }
+/* Panneau de patch : des rangées de connecteurs, une par unité au plus */
+function _rkPP(pp,h){
+  var rows=(pp && Array.isArray(pp.rows)?pp.rows:[]).filter(function(x){ return x && typeof x==='object'; }).slice(0,Math.max(1,h||1)).map(function(x){
+    var c=_RK_CONN.filter(function(k){ return k[0]===x.t; })[0]||_RK_CONN[0];
+    return {t:c[0], n:Math.round(_rkNum(x.n,1,c[2],8)), p:String(x.p==null?'':x.p).slice(0,10), s:Math.round(_rkNum(x.s,0,999,1))};
+  });
+  return {rows:rows.length?rows:[{t:'xlrf',n:8,p:'',s:1}]};
+}
 /* Nettoie ce qui vient de la base ou d'un autre compte : rien n'est affiché sans être borné */
 function _rkClean(list){
   return (Array.isArray(list)?list:[]).filter(function(r){ return r && typeof r==='object'; }).slice(0,30).map(function(r){
-    var units=Math.round(_rkNum(r.units,1,60,12));
-    return {id:String(r.id||_rkId()).slice(0,24), name:String(r.name||'Rack').slice(0,60), units:units, depth:Math.round(_rkNum(r.depth,0,2000,0)), note:String(r.note||'').slice(0,600),
-      items:(Array.isArray(r.items)?r.items:[]).filter(function(i){ return i && typeof i==='object'; }).slice(0,120).map(function(i){
-        var h=Math.round(_rkNum(i.h,1,units,1));
-        return {id:String(i.id||_rkId()).slice(0,24), n:String(i.n||'Appareil').slice(0,80), h:h, u:Math.round(_rkNum(i.u,1,units-h+1,1)), side:i.side==='r'?'r':'f',
+    var units=Math.round(_rkNum(r.units,1,60,12)), bays=Math.round(_rkNum(r.bays,1,3,1));
+    return {id:String(r.id||_rkId()).slice(0,24), name:String(r.name||'Rack').slice(0,60), units:units, bays:bays, depth:Math.round(_rkNum(r.depth,0,2000,0)), note:String(r.note||'').slice(0,600),
+      top:!!r.top, casters:!!r.casters,
+      items:(Array.isArray(r.items)?r.items:[]).filter(function(i){ return i && typeof i==='object'; }).slice(0,180).map(function(i){
+        var h=Math.round(_rkNum(i.h,1,units,1)), kind=_rkKind(i.kind);
+        var o={id:String(i.id||_rkId()).slice(0,24), n:String(i.n||'Appareil').slice(0,80), lbl:String(i.lbl||'').slice(0,40), h:h, u:Math.round(_rkNum(i.u,1,units-h+1,1)), bay:Math.round(_rkNum(i.bay,0,bays-1,0)),
+                side:i.side==='r'?'r':'f', kind:kind, grp:String(i.grp||'').slice(0,24),
                 kg:_rkNum(i.kg,0,500,0), w:Math.round(_rkNum(i.w,0,20000,0)), d:Math.round(_rkNum(i.d,0,2000,0)), note:String(i.note||'').slice(0,200)};
+        if(kind==='patch') o.pp=_rkPP(i.pp,h);
+        return o;
       })};
+  });
+}
+function _rkGroupsClean(list){
+  return (Array.isArray(list)?list:[]).filter(function(g){ return g && String(g.name||'').trim(); }).slice(0,24).map(function(g,i){
+    return {id:String(g.id||_rkId()).slice(0,24), name:String(g.name).trim().slice(0,30), color:(typeof _safeColor==='function'&&_safeColor(g.color))||_RK_HUES[i%_RK_HUES.length]};
   });
 }
 function _rkLoad(){
   var id=CUR_SHOW&&CUR_SHOW.id;
   if(RK.showId===id) return;
-  RK.showId=id; RK.sel=null; RK.face='f';
-  RK.racks=_rkClean(CUR_SHOW&&CUR_SHOW.stage_data&&CUR_SHOW.stage_data.racks);
+  var sd=(CUR_SHOW&&CUR_SHOW.stage_data)||{};
+  RK.showId=id; RK.sel=null; RK.view='f'; RK.cut=0;
+  RK.racks=_rkClean(sd.racks); RK.groups=_rkGroupsClean(sd.rack_groups);
   RK.cur=RK.racks.length?RK.racks[0].id:null;
 }
 function _rkSave(){
   if(!CUR_SHOW) return;
-  CUR_SHOW.stage_data=Object.assign({},CUR_SHOW.stage_data||{v:2},{racks:JSON.parse(JSON.stringify(RK.racks))});
+  CUR_SHOW.stage_data=Object.assign({},CUR_SHOW.stage_data||{v:2},{racks:JSON.parse(JSON.stringify(RK.racks)), rack_groups:JSON.parse(JSON.stringify(RK.groups))});
   clearTimeout(RK.t);
   RK.t=setTimeout(async function(){
     if(!CUR_SHOW || CUR_SHOW.id!==RK.showId) return;
@@ -16493,7 +16523,10 @@ function _rkSave(){
 function _rkLibKey(){ return 'pf_rack_gear_'+((ME&&ME.id)||''); }
 function _rkLibClean(list){
   return (Array.isArray(list)?list:[]).filter(function(g){ return g && String(g.n||'').trim(); }).slice(0,300).map(function(g){
-    return {id:String(g.id||_rkId()).slice(0,24), n:String(g.n).trim().slice(0,80), h:Math.round(_rkNum(g.h,1,60,1)), kg:_rkNum(g.kg,0,500,0), w:Math.round(_rkNum(g.w,0,20000,0)), d:Math.round(_rkNum(g.d,0,2000,0))};
+    var h=Math.round(_rkNum(g.h,1,60,1)), kind=_rkKind(g.kind);
+    var o={id:String(g.id||_rkId()).slice(0,24), n:String(g.n).trim().slice(0,80), h:h, kind:kind, kg:_rkNum(g.kg,0,500,0), w:Math.round(_rkNum(g.w,0,20000,0)), d:Math.round(_rkNum(g.d,0,2000,0))};
+    if(kind==='patch') o.pp=_rkPP(g.pp,h);
+    return o;
   });
 }
 function _rkLibLocal(){ try{ return _rkLibClean(JSON.parse(localStorage.getItem(_rkLibKey())||'[]')); }catch(e){ return []; } }
@@ -16508,27 +16541,150 @@ function _rkLibSave(){
   if(typeof _pushToursSoon==='function') _pushToursSoon();
 }
 /* ── Calculs ── */
-function _rkFree(r,u,h,side,skip){
-  if(u<1 || u+h-1>r.units) return false;
-  return !r.items.some(function(i){ return i.id!==skip && i.side===side && u<=i.u+i.h-1 && i.u<=u+h-1; });
+function _rkFree(r,u,h,side,bay,skip){
+  if(u<1 || u+h-1>r.units || bay<0 || bay>=(r.bays||1)) return false;
+  return !r.items.some(function(i){ return i.id!==skip && i.side===side && (i.bay||0)===bay && u<=i.u+i.h-1 && i.u<=u+h-1; });
 }
-function _rkSlot(r,h,side){ for(var u=r.units-h+1;u>=1;u--){ if(_rkFree(r,u,h,side,null)) return u; } return 0; }
+function _rkSlot(r,h,side,bay){
+  var order=[]; for(var b=0;b<(r.bays||1);b++) order.push(b);
+  if(bay!=null) order.sort(function(a,c){ return (a===bay?-1:0)-(c===bay?-1:0); });
+  for(var k=0;k<order.length;k++) for(var u=r.units-h+1;u>=1;u--){ if(_rkFree(r,u,h,side,order[k],null)) return {u:u,bay:order[k]}; }
+  return null;
+}
+function _rkDepth(r){ return r.depth || Math.max(600, r.items.reduce(function(m,i){ return Math.max(m,i.d||0); },0)); }
 function _rkStats(r){
   var occ={}, kg=0, w=0, clash=[];
-  r.items.forEach(function(i){ kg+=i.kg||0; w+=i.w||0; if(i.side==='f') for(var u=i.u;u<i.u+i.h;u++) occ[u]=1; });
-  /* Deux appareils dos à dos sur les mêmes unités : leurs profondeurs ne doivent pas dépasser celle du rack */
+  r.items.forEach(function(i){ kg+=i.kg||0; w+=i.w||0; if(i.side==='f') for(var u=i.u;u<i.u+i.h;u++) occ[(i.bay||0)+':'+u]=1; });
+  /* Deux appareils dos à dos, même baie, mêmes unités : leurs profondeurs ne doivent pas dépasser celle du rack */
   if(r.depth) r.items.filter(function(i){ return i.side==='f' && i.d; }).forEach(function(f){
-    r.items.filter(function(b){ return b.side==='r' && b.d && f.u<=b.u+b.h-1 && b.u<=f.u+f.h-1; }).forEach(function(b){ if(f.d+b.d>r.depth) clash.push([f,b]); });
+    r.items.filter(function(b){ return b.side==='r' && b.d && (b.bay||0)===(f.bay||0) && f.u<=b.u+b.h-1 && b.u<=f.u+f.h-1; }).forEach(function(b){ if(f.d+b.d>r.depth) clash.push([f,b]); });
   });
   var deep=r.depth?r.items.filter(function(i){ return i.d>r.depth; }):[];
-  return {used:Object.keys(occ).length, kg:kg, w:w, a:w/230, clash:clash, deep:deep};
+  return {n:r.items.length, used:Object.keys(occ).length, total:r.units*(r.bays||1), kg:kg, w:w, a:w/230, clash:clash, deep:deep};
 }
-/* ── Actions ── */
+function _rkULabel(r,u){ return r.top ? r.units-u+1 : u; }
+function _rkPos(r,i){ var a=_rkULabel(r,i.u), b=_rkULabel(r,i.u+i.h-1); return 'U'+Math.min(a,b)+(i.h>1?'–'+Math.max(a,b):''); }
+/* ── Dessin ──
+   P : la palette. À l'écran ce sont des variables CSS (le dessin suit le thème) ; pour le PDF, des couleurs fixes. */
+const _RK_PAL_PDF={ink:'#1c2433', line:'#b9c0cb', fill:'#f6f7f9', bg:'#ffffff', txt:'#1c2433', mut:'#7a8494', acc:'#ff6b1a', err:'#e11d48', cs:'#e9ecf1'};
+const _RK_PAL_UI ={ink:'var(--txt2)', line:'var(--bdr3,var(--bdr2))', fill:'var(--surf2)', bg:'var(--bg)', txt:'var(--txt)', mut:'var(--muted)', acc:'var(--ora)', err:'var(--err)', cs:'var(--surf)'};
+function _rkConnSvg(t,x,y,P){
+  var s=' fill="none" stroke="'+P.ink+'" stroke-width="1"';
+  if(t==='vide') return '<circle cx="'+x+'" cy="'+y+'" r="7"'+s+' stroke-dasharray="2 2" opacity=".5"/>';
+  if(t==='rj45') return '<rect x="'+(x-6.5)+'" y="'+(y-6)+'" width="13" height="11" rx="1"'+s+'/><rect x="'+(x-2.5)+'" y="'+(y+5)+'" width="5" height="2.4"'+s+'/>';
+  if(t==='opti') return '<rect x="'+(x-7)+'" y="'+(y-4.5)+'" width="14" height="9" rx="2"'+s+'/><circle cx="'+(x-3)+'" cy="'+y+'" r="1.6" fill="'+P.ink+'"/><circle cx="'+(x+3)+'" cy="'+y+'" r="1.6" fill="'+P.ink+'"/>';
+  if(t==='bnc') return '<circle cx="'+x+'" cy="'+y+'" r="4.6"'+s+'/><circle cx="'+x+'" cy="'+y+'" r="1.4" fill="'+P.ink+'"/>';
+  if(t==='jack') return '<circle cx="'+x+'" cy="'+y+'" r="5"'+s+'/><circle cx="'+x+'" cy="'+y+'" r="2.4"'+s+'/>';
+  var h='<circle cx="'+x+'" cy="'+y+'" r="7.6"'+s+'/>';
+  if(t==='nl4') return h+'<circle cx="'+x+'" cy="'+y+'" r="4.6"'+s+'/><rect x="'+(x-1.2)+'" y="'+(y-7.6)+'" width="2.4" height="3"'+' fill="'+P.ink+'"/>';
+  if(t==='pcon') return h+'<circle cx="'+x+'" cy="'+y+'" r="3.4"'+s+'/><rect x="'+(x+3.6)+'" y="'+(y-1.2)+'" width="3.6" height="2.4" fill="'+P.ink+'"/>';
+  var d=t==='xlrm'?'':' fill="'+P.ink+'"', pin=function(a,b){ return '<circle cx="'+(x+a)+'" cy="'+(y+b)+'" r="1.25"'+(t==='xlrm'?s:d)+'/>'; };
+  return h+pin(-3,-1.6)+pin(3,-1.6)+pin(0,3.2)+(t==='xlrf'?'<rect x="'+(x-1.6)+'" y="'+(y-7.6)+'" width="3.2" height="2.6" fill="'+P.ink+'"/>':'');
+}
+/* Façade d'un appareil, dans un repère local (0,0)–(w,h). Trait fin : le nom, posé par-dessus, doit rester lisible. */
+function _rkFaceSvg(it,w,h,P){
+  var s=' fill="none" stroke="'+P.ink+'" stroke-width="1"', f=' fill="'+P.ink+'"', o='', U=RK_UH, x0=RK_EAR+6, x1=w-RK_EAR-6, bw=x1-x0, k=it.kind||'gen', u, i;
+  var R=function(x,y,ww,hh,rx,a){ return '<rect x="'+x+'" y="'+y+'" width="'+ww+'" height="'+hh+'" rx="'+(rx||0)+'"'+(a||s)+'/>'; };
+  var C=function(x,y,r,a){ return '<circle cx="'+x+'" cy="'+y+'" r="'+r+'"'+(a||s)+'/>'; };
+  var L=function(xa,ya,xb,yb){ return '<line x1="'+xa+'" y1="'+ya+'" x2="'+xb+'" y2="'+yb+'"'+s+'/>'; };
+  var units=Math.round(h/U);
+  if(k==='rx'){ for(u=0;u<units;u++){ var y=u*U; o+=R(x0+4,y+8,bw*0.2,U-16,2)+C(x0+bw*0.2+22,y+U/2,5.5)+R(x1-bw*0.2-4,y+8,bw*0.2,U-16,2); for(i=0;i<4;i++) o+=R(x0+bw*0.36+i*16,y+11,10,U-22,1); o+=C(x1-bw*0.2-20,y+U/2,3,f); } }
+  else if(k==='amp'){ o+=R(x0+bw*0.36,h/2-11,bw*0.28,22,2); for(i=0;i<4;i++) o+=C(x0+bw*0.39+i*(bw*0.22/3),h/2+18>h-6?h/2:h-9,2.2,f); for(var yy=7;yy<h-5;yy+=5){ o+=L(x0,yy,x0+bw*0.31,yy)+L(x1-bw*0.31,yy,x1,yy); } }
+  else if(k==='io'){ for(u=0;u<units;u++) for(i=0;i<16;i++) o+=C(x0+8+i*((bw-16)/15),u*U+U/2,6)+C(x0+8+i*((bw-16)/15),u*U+U/2,1.4,f); }
+  else if(k==='sw'){ for(u=0;u<units;u++){ for(i=0;i<12;i++){ o+=R(x0+2+i*17,u*U+5,13,9,1)+R(x0+2+i*17,u*U+17,13,9,1); } o+=R(x1-52,u*U+8,20,U-16,1)+R(x1-26,u*U+8,20,U-16,1); } }
+  else if(k==='pdu'){ for(i=0;i<8;i++){ var cx=x0+16+i*((bw-70)/7); o+=C(cx,h/2,9)+C(cx-3.4,h/2,1.3,f)+C(cx+3.4,h/2,1.3,f); } o+=R(x1-30,h/2-8,22,16,2)+L(x1-19,h/2-8,x1-19,h/2+8); }
+  else if(k==='ups'){ o+=R(x0+4,h/2-12,bw*0.24,24,2)+C(x0+bw*0.24+22,h/2,5); for(var yv=8;yv<h-6;yv+=5) o+=L(x0+bw*0.45,yv,x1,yv); }
+  else if(k==='drawer'){ o+=R(x0-2,5,bw+4,h-10,3)+R(w/2-34,h/2-6,68,12,6); }
+  else if(k==='vent'){ for(var yr=7;yr<h-5;yr+=6) for(var xr=x0+((yr/6)%2?6:0);xr<x1-8;xr+=13) o+=R(xr,yr,9,2.6,1.3); }
+  else if(k==='shelf'){ o+=L(x0-4,h-6,x1+4,h-6)+L(x0-4,h-3,x1+4,h-3)+L(x0-4,6,x0-4,h-6)+L(x1+4,6,x1+4,h-6); }
+  else if(k==='pc'){ o+=R(x1-bw*0.34,h/2-9,bw*0.3,18,2)+C(x0+bw*0.5,h/2,4.5)+R(x0+bw*0.56,h/2-4,9,3.4,0.5)+R(x0+bw*0.56,h/2+1.4,9,3.4,0.5); for(var yp=8;yp<h-6;yp+=5) o+=L(x0,yp,x0+bw*0.36,yp); }
+  else if(k==='proc'){ o+=R(x0+4,h/2-10,bw*0.3,20,2); for(i=0;i<5;i++) o+=C(x0+bw*0.42+i*26,h/2,6.5)+L(x0+bw*0.42+i*26,h/2,x0+bw*0.42+i*26+3.6,h/2-4.4); for(i=0;i<6;i++) o+=R(x1-52+i*8,h/2-9,4,18,0.8); }
+  else if(k==='door'){ o+=R(x0-4,6,bw+8,h-12,4)+C(x0+18,h/2,7)+C(x1-18,h/2,7)+L(x0+11,h/2,x0+25,h/2)+L(x1-25,h/2,x1-11,h/2); }
+  else if(k==='light'){ o+=R(x0+10,h/2-3,bw-20,6,3); for(i=0;i<18;i++) o+=C(x0+18+i*((bw-36)/17),h/2,1.2,f); }
+  else if(k==='patch'){ (_rkPP(it.pp,units).rows).forEach(function(row,ri){ var n=row.n, step=bw/Math.max(n,1), y=ri*U+U/2-(U>26?3:0);
+      for(i=0;i<n;i++){ var cx2=x0+step/2+i*step; o+=_rkConnSvg(row.t,cx2,y,P); if(row.t!=='vide') o+='<text x="'+cx2+'" y="'+(ri*U+U-2.2)+'" text-anchor="middle" font-size="5.6" font-family="Helvetica,Arial,sans-serif" fill="'+P.mut+'">'+_bonE(row.p+(row.s+i))+'</text>'; } }); }
+  return o;
+}
+/* Un appareil dans le rack : plaque, oreilles et vis, façade, bande de groupe, nom */
+function _rkDevSvg(r,it,x,y,P,o){
+  var w=RK_BW, h=it.h*RK_UH, g=_rkGroup(it.grp), col=g?g.color:'', E=_bonE, sel=o.sel===it.id, name=it.lbl||it.n;
+  var s='<g class="rk-dev'+(sel?' on':'')+'" data-id="'+E(it.id)+'" transform="translate('+x+' '+y+')"'+(o.edit?' onpointerdown="rkDown(event,this.dataset.id)"':'')+'><title>'+E(it.n+(it.lbl?' — '+it.lbl:'')+' · '+_rkPos(r,it))+'</title>';
+  s+='<rect x="0.5" y="0.5" width="'+(w-1)+'" height="'+(h-1)+'" rx="2.5" fill="'+P.fill+'" stroke="'+(sel?P.acc:P.ink)+'" stroke-width="'+(sel?2.2:1.1)+'"/>';
+  if(col && RK_OPT.grp) s+='<rect x="1" y="1" width="'+(w-2)+'" height="'+(h-2)+'" rx="2" fill="'+col+'" opacity=".13"/>';
+  for(var u=0;u<it.h;u++){ [7,RK_UH-7].forEach(function(dy){ s+='<circle cx="7.5" cy="'+(u*RK_UH+dy)+'" r="2" fill="none" stroke="'+P.ink+'" stroke-width=".9"/><circle cx="'+(w-7.5)+'" cy="'+(u*RK_UH+dy)+'" r="2" fill="none" stroke="'+P.ink+'" stroke-width=".9"/>'; }); }
+  s+='<line x1="'+RK_EAR+'" y1="1" x2="'+RK_EAR+'" y2="'+(h-1)+'" stroke="'+P.ink+'" stroke-width=".7" opacity=".6"/><line x1="'+(w-RK_EAR)+'" y1="1" x2="'+(w-RK_EAR)+'" y2="'+(h-1)+'" stroke="'+P.ink+'" stroke-width=".7" opacity=".6"/>';
+  if(!RK_OPT.simple) s+='<g opacity=".62">'+_rkFaceSvg(it,w,h,P)+'</g>';
+  if(col) s+='<rect x="1" y="1" width="4" height="'+(h-2)+'" rx="1.5" fill="'+col+'"/>';
+  /* Nom : sur une étiquette, pour rester lisible par-dessus le dessin */
+  var fs=RK_OPT.simple?13:11.5, max=Math.floor((w-2*RK_EAR-26)/(fs*0.56)), txt=name.length>max?name.slice(0,max-1)+'…':name, tw=Math.min(w-2*RK_EAR-10,txt.length*fs*0.58+16);
+  var sub=RK_OPT.simple?[it.lbl?it.n:'', it.h+' U', it.kg?_rkFmt(it.kg,'kg'):'', it.w?it.w+' W':''].filter(Boolean).join(' · '):'';
+  var cy=(sub&&h>RK_UH)?h/2-7:h/2, patch=it.kind==='patch' && !RK_OPT.simple;
+  if(patch){ /* un panneau de patch se lit par ses connecteurs et leurs étiquettes : son nom reste dans l'info-bulle et la liste */ }
+  else{
+    if(!RK_OPT.simple) s+='<rect x="'+(w/2-tw/2)+'" y="'+(cy-9)+'" width="'+tw+'" height="18" rx="4" fill="'+P.fill+'" opacity=".93"/>';
+    s+='<text x="'+(w/2)+'" y="'+(cy+fs*0.36)+'" text-anchor="middle" font-size="'+fs+'" font-weight="700" font-family="Archivo,Helvetica,Arial,sans-serif" fill="'+P.txt+'">'+E(txt)+'</text>';
+    if(sub && h>RK_UH) s+='<text x="'+(w/2)+'" y="'+(cy+21)+'" text-anchor="middle" font-size="10.5" font-family="Archivo,Helvetica,Arial,sans-serif" fill="'+P.mut+'">'+E(sub.slice(0,max+8))+'</text>';
+  }
+  return s+'</g>';
+}
+/* Vue avant ou arrière d'un rack. De l'arrière, les baies sont inversées. */
+function _rkSvg(r,view,P,o){
+  o=o||{}; var E=_bonE, bays=r.bays||1, num=RK_OPT.num?RK_NUMW:0, cs=RK_OPT.frame?RK_CASE:2, iw=bays*RK_BW+(bays-1)*RK_GAP, ih=r.units*RK_UH;
+  var W=num+cs*2+iw+(num?4:0), H=cs*2+ih+(r.casters&&RK_OPT.frame?44:0), ox=num+cs, oy=cs, s='';
+  var bx=function(b){ return ox+(view==='r'?bays-1-b:b)*(RK_BW+RK_GAP); }, uy=function(u,h){ return oy+(r.units-(u+h-1))*RK_UH; };
+  if(RK_OPT.frame){
+    s+='<rect x="'+(num+1)+'" y="1" width="'+(iw+cs*2-2)+'" height="'+(ih+cs*2-2)+'" rx="5" fill="'+P.cs+'" stroke="'+P.ink+'" stroke-width="1.6"/>';
+    [[num+1,1],[num+iw+cs*2-13,1],[num+1,ih+cs*2-13],[num+iw+cs*2-13,ih+cs*2-13]].forEach(function(c){ s+='<rect x="'+c[0]+'" y="'+c[1]+'" width="12" height="12" rx="3" fill="'+P.cs+'" stroke="'+P.ink+'" stroke-width="1.2"/>'; });
+    if(r.casters) [num+cs+28,num+cs+iw-28].forEach(function(cx){ s+='<path d="M'+(cx-11)+' '+(ih+cs*2)+'h22l-3 14h-16z" fill="'+P.cs+'" stroke="'+P.ink+'" stroke-width="1.2"/><circle cx="'+cx+'" cy="'+(ih+cs*2+27)+'" r="14" fill="'+P.cs+'" stroke="'+P.ink+'" stroke-width="1.6"/><circle cx="'+cx+'" cy="'+(ih+cs*2+27)+'" r="4" fill="none" stroke="'+P.ink+'" stroke-width="1.2"/>'; });
+  }
+  for(var b=0;b<bays;b++){
+    var x=bx(b);
+    s+='<rect x="'+x+'" y="'+oy+'" width="'+RK_BW+'" height="'+ih+'" fill="'+P.bg+'" stroke="'+P.ink+'" stroke-width="1.2"/>';
+    for(var u=1;u<=r.units;u++){ var y=uy(u,1); if(u<r.units) s+='<line x1="'+x+'" y1="'+y+'" x2="'+(x+RK_BW)+'" y2="'+y+'" stroke="'+P.line+'" stroke-width=".7" stroke-dasharray="3 3"/>';
+      [7,RK_UH-7].forEach(function(dy){ s+='<circle cx="'+(x+7.5)+'" cy="'+(y+dy)+'" r="1.5" fill="'+P.line+'"/><circle cx="'+(x+RK_BW-7.5)+'" cy="'+(y+dy)+'" r="1.5" fill="'+P.line+'"/>'; }); }
+    if(bays>1) s+='<text x="'+(x+RK_BW/2)+'" y="'+(oy-4)+'" text-anchor="middle" font-size="9" font-family="Helvetica,Arial,sans-serif" fill="'+P.mut+'">Baie '+(b+1)+'</text>';
+  }
+  if(num) for(var n=1;n<=r.units;n++) s+='<text x="'+(num-6)+'" y="'+(uy(n,1)+RK_UH/2+3.6)+'" text-anchor="end" font-size="10.5" font-family="Helvetica,Arial,sans-serif" fill="'+P.mut+'">'+_rkULabel(r,n)+'</text>';
+  /* Empreinte des appareils montés sur l'autre face */
+  if(RK_OPT.ghost) r.items.filter(function(i){ return i.side!==view; }).forEach(function(i){
+    var gx=bx(i.bay||0), gy=uy(i.u,i.h), gh=i.h*RK_UH;
+    s+='<g class="rk-ghost" opacity=".55"><rect x="'+(gx+4)+'" y="'+(gy+3)+'" width="'+(RK_BW-8)+'" height="'+(gh-6)+'" rx="3" fill="none" stroke="'+P.mut+'" stroke-width="1" stroke-dasharray="5 4"/>'
+      +'<text x="'+(gx+RK_BW/2)+'" y="'+(gy+gh/2+3.5)+'" text-anchor="middle" font-size="10" font-style="italic" font-family="Helvetica,Arial,sans-serif" fill="'+P.mut+'">'+E((i.lbl||i.n).slice(0,34))+' ('+(view==='f'?'arrière':'avant')+')</text></g>';
+  });
+  r.items.filter(function(i){ return i.side===view; }).forEach(function(i){ s+=_rkDevSvg(r,i,bx(i.bay||0),uy(i.u,i.h),P,o); });
+  return {w:W, h:H, svg:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" data-ox="'+ox+'">'+s+'</svg>'};
+}
+/* Coupe de côté d'une baie : l'avant à gauche, l'arrière à droite, les profondeurs à l'échelle */
+function _rkSideSvg(r,bay,P){
+  var E=_bonE, D=_rkDepth(r), k=380/D, num=RK_OPT.num?RK_NUMW:0, cs=RK_CASE, iw=Math.round(D*k), ih=r.units*RK_UH, W=num+cs*2+iw+4, H=cs*2+ih+22, ox=num+cs, oy=cs+16, s='';
+  var uy=function(u,h){ return oy+(r.units-(u+h-1))*RK_UH; };
+  s+='<text x="'+ox+'" y="11" font-size="9.5" font-weight="700" font-family="Helvetica,Arial,sans-serif" fill="'+P.mut+'">AVANT</text><text x="'+(ox+iw)+'" y="11" text-anchor="end" font-size="9.5" font-weight="700" font-family="Helvetica,Arial,sans-serif" fill="'+P.mut+'">ARRIÈRE</text>';
+  s+='<text x="'+(ox+iw/2)+'" y="11" text-anchor="middle" font-size="9.5" font-family="Helvetica,Arial,sans-serif" fill="'+P.mut+'">'+(r.depth?r.depth+' mm':'profondeur du rack non renseignée')+'</text>';
+  s+='<rect x="'+(ox-cs+1)+'" y="'+(oy-cs+1)+'" width="'+(iw+cs*2-2)+'" height="'+(ih+cs*2-2)+'" rx="5" fill="'+P.cs+'" stroke="'+P.ink+'" stroke-width="1.6"/><rect x="'+ox+'" y="'+oy+'" width="'+iw+'" height="'+ih+'" fill="'+P.bg+'" stroke="'+P.ink+'" stroke-width="1.2"/>';
+  for(var u=1;u<=r.units;u++){ if(u<r.units) s+='<line x1="'+ox+'" y1="'+uy(u,1)+'" x2="'+(ox+iw)+'" y2="'+uy(u,1)+'" stroke="'+P.line+'" stroke-width=".7" stroke-dasharray="3 3"/>'; if(num) s+='<text x="'+(num-6)+'" y="'+(uy(u,1)+RK_UH/2+3.6)+'" text-anchor="end" font-size="10.5" font-family="Helvetica,Arial,sans-serif" fill="'+P.mut+'">'+_rkULabel(r,u)+'</text>'; }
+  var its=r.items.filter(function(i){ return (i.bay||0)===bay; });
+  its.forEach(function(i){
+    var known=i.d>0, dw=Math.max(18,Math.min(iw,(known?i.d:D*0.3)*k)), x=i.side==='f'?ox:ox+iw-dw, y=uy(i.u,i.h), h=i.h*RK_UH, g=_rkGroup(i.grp);
+    s+='<rect x="'+(x+0.5)+'" y="'+(y+1.5)+'" width="'+(dw-1)+'" height="'+(h-3)+'" rx="2" fill="'+P.fill+'" stroke="'+P.ink+'" stroke-width="1.1"'+(known?'':' stroke-dasharray="4 3"')+'/>';
+    if(g) s+='<rect x="'+(i.side==='f'?x+1:x+dw-5)+'" y="'+(y+2)+'" width="4" height="'+(h-4)+'" fill="'+g.color+'"/>';
+    var nm=(i.lbl||i.n), max=Math.max(3,Math.floor((dw-14)/6)), t=nm.length>max?nm.slice(0,max-1)+'…':nm;
+    s+='<text x="'+(x+dw/2)+'" y="'+(y+h/2+(h>RK_UH?-2:3.6))+'" text-anchor="middle" font-size="10" font-weight="700" font-family="Helvetica,Arial,sans-serif" fill="'+P.txt+'">'+E(t)+'</text>';
+    if(h>RK_UH) s+='<text x="'+(x+dw/2)+'" y="'+(y+h/2+11)+'" text-anchor="middle" font-size="9" font-family="Helvetica,Arial,sans-serif" fill="'+P.mut+'">'+(known?i.d+' mm':'profondeur ?')+'</text>';
+  });
+  /* Appareils qui se rejoignent : la zone commune est hachurée */
+  its.filter(function(f){ return f.side==='f' && f.d; }).forEach(function(f){ its.filter(function(b){ return b.side==='r' && b.d && f.u<=b.u+b.h-1 && b.u<=f.u+f.h-1; }).forEach(function(b){
+    var over=f.d+b.d-D; if(over<=0) return;
+    var ua=Math.max(f.u,b.u), ub=Math.min(f.u+f.h,b.u+b.h)-1, x=ox+Math.max(0,(D-b.d))*k, w2=Math.max(6,Math.min(f.d,D)*k-Math.max(0,(D-b.d))*k);
+    s+='<rect x="'+x+'" y="'+(uy(ub,1)+1)+'" width="'+w2+'" height="'+((ub-ua+1)*RK_UH-2)+'" fill="'+P.err+'" opacity=".38"/><rect x="'+x+'" y="'+(uy(ub,1)+1)+'" width="'+w2+'" height="'+((ub-ua+1)*RK_UH-2)+'" fill="none" stroke="'+P.err+'" stroke-width="1.6"/>';
+  }); });
+  return {w:W, h:H, svg:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'">'+s+'</svg>'};
+}
+/* ── Actions sur les racks ── */
 function rkNew(){
-  var n=RK.racks.length+1, r={id:_rkId(), name:'Rack '+n, units:12, depth:0, note:'', items:[]};
-  RK.racks.push(r); RK.cur=r.id; RK.sel=null; _rkSave(); renderRacks();
+  var n=RK.racks.length+1, r={id:_rkId(), name:'Rack '+n, units:12, bays:1, depth:0, note:'', top:false, casters:false, items:[]};
+  RK.racks.push(r); RK.cur=r.id; RK.sel=null; RK.cut=0; _rkSave(); renderRacks();
 }
-function rkPick(id){ RK.cur=id; RK.sel=null; renderRacks(); }
+function rkPick(id){ RK.cur=id; RK.sel=null; RK.cut=0; renderRacks(); }
 function rkDup(){
   var r=_rkCur(); if(!r) return;
   var c=JSON.parse(JSON.stringify(r)); c.id=_rkId(); c.name=(r.name+' (copie)').slice(0,60); c.items.forEach(function(i){ i.id=_rkId(); });
@@ -16544,51 +16700,75 @@ function rkRack(f,v){
   if(f==='name') r.name=String(v||'').trim().slice(0,60)||'Rack';
   else if(f==='note') r.note=String(v||'').slice(0,600);
   else if(f==='depth') r.depth=Math.round(_rkNum(v,0,2000,0));
+  else if(f==='top' || f==='casters') r[f]=!!v;
   else if(f==='units'){
     var n=Math.round(_rkNum(v,1,60,r.units)), top=r.items.reduce(function(m,i){ return Math.max(m,i.u+i.h-1); },0);
     if(n<top){ toast('Impossible : un appareil occupe l\'unité '+top+'. Déplacez-le ou retirez-le d\'abord.'); renderRacks(); return; }
     r.units=n;
   }
+  else if(f==='bays'){
+    var nb=Math.round(_rkNum(v,1,3,r.bays||1)), last=r.items.reduce(function(m,i){ return Math.max(m,i.bay||0); },0);
+    if(nb<=last){ toast('Impossible : la baie '+(last+1)+' contient des appareils. Déplacez-les d\'abord.'); renderRacks(); return; }
+    r.bays=nb; RK.cut=Math.min(RK.cut,nb-1);
+  }
   _rkSave(); renderRacks();
 }
-function rkFace(f){ RK.face=f; renderRacks(); }
+function rkView(v){ RK.view=v; renderRacks(); }
+function rkCut(b){ RK.cut=Math.round(_rkNum(b,0,2,0)); renderRacks(); }
+function rkOpt(k,v){ RK_OPT[k]=!!v; try{ localStorage.setItem('pf_rk_opt',JSON.stringify(RK_OPT)); }catch(e){} renderRacks(); }
+function rkZoom(d){ RK.zoom=d===0?1:Math.max(0.5,Math.min(2,Math.round((RK.zoom+d*0.15)*100)/100)); renderRacks(); }
+/* ── Appareils ── */
 function rkAdd(src,idx,sub){
   var r=_rkCur(); if(!r){ toast('Créez d\'abord un rack.'); return; }
-  var g=src==='lib' ? (RK_LIB||[])[idx] : (function(){ var c=(_RK_CAT[idx]||{}).items||[]; return c[sub]?{n:c[sub][0],h:c[sub][1]}:null; })();
+  var g=src==='lib' ? (RK_LIB||[])[idx] : (function(){ var c=(_RK_CAT[idx]||{}).items||[]; return c[sub]?{n:c[sub][0],h:c[sub][1],kind:c[sub][2]}:null; })();
   if(!g) return;
-  var side=RK.face==='r'?'r':'f', h=Math.min(g.h||1,r.units), u=_rkSlot(r,h,side);
-  if(!u){ toast('Plus de place en face '+(side==='r'?'arrière':'avant')+' pour '+h+' U. Agrandissez le rack ou libérez des unités.'); return; }
-  var it={id:_rkId(), n:g.n, h:h, u:u, side:side, kg:g.kg||0, w:g.w||0, d:g.d||0, note:''};
+  var side=RK.view==='r'?'r':'f', h=Math.min(g.h||1,r.units), cur=_rkItem(RK.sel), at=_rkSlot(r,h,side,cur?cur.bay:(RK.view==='s'?RK.cut:null));
+  if(!at){ toast('Plus de place en face '+(side==='r'?'arrière':'avant')+' pour '+h+' U. Agrandissez le rack ou libérez des unités.'); return; }
+  var it={id:_rkId(), n:g.n, lbl:'', h:h, u:at.u, bay:at.bay, side:side, kind:_rkKind(g.kind), grp:'', kg:g.kg||0, w:g.w||0, d:g.d||0, note:''};
+  if(it.kind==='patch') it.pp=_rkPP(g.pp,h);
   r.items.push(it); RK.sel=it.id; _rkSave(); renderRacks();
 }
 function rkSel(id){ RK.sel=RK.sel===id?null:id; renderRacks(); }
 function rkSet(f,v){
   var r=_rkCur(), it=_rkItem(RK.sel); if(!r||!it) return;
+  var others={units:r.units,bays:r.bays,items:r.items.filter(function(x){ return x.id!==it.id; })};
   if(f==='n') it.n=String(v||'').trim().slice(0,80)||'Appareil';
+  else if(f==='lbl') it.lbl=String(v||'').trim().slice(0,40);
   else if(f==='note') it.note=String(v||'').slice(0,200);
   else if(f==='kg') it.kg=_rkNum(v,0,500,0);
   else if(f==='w') it.w=Math.round(_rkNum(v,0,20000,0));
   else if(f==='d') it.d=Math.round(_rkNum(v,0,2000,0));
+  else if(f==='grp') it.grp=_rkGroup(v)?v:'';
+  else if(f==='kind'){ it.kind=_rkKind(v); if(it.kind==='patch') it.pp=_rkPP(it.pp,it.h); else delete it.pp; }
   else if(f==='h'){
     var h=Math.round(_rkNum(v,1,r.units,it.h));
-    if(_rkFree(r,it.u,h,it.side,it.id)) it.h=h;
-    else { var u=_rkSlot({units:r.units,items:r.items.filter(function(x){return x.id!==it.id;})},h,it.side); if(u){ it.h=h; it.u=u; toast('Appareil déplacé en U'+u+' pour tenir sur '+h+' U.'); } else toast('Pas assez de place pour '+h+' U sur cette face.'); }
+    if(_rkFree(r,it.u,h,it.side,it.bay,it.id)) it.h=h;
+    else { var at=_rkSlot(others,h,it.side,it.bay); if(at){ it.h=h; it.u=at.u; it.bay=at.bay; toast('Appareil déplacé pour tenir sur '+h+' U.'); } else toast('Pas assez de place pour '+h+' U sur cette face.'); }
+    if(it.pp) it.pp=_rkPP(it.pp,it.h);
   }
-  else if(f==='u'){ var nu=Math.round(_rkNum(v,1,r.units,it.u)); if(_rkFree(r,nu,it.h,it.side,it.id)) it.u=nu; else toast('Cet emplacement est déjà pris.'); }
-  else if(f==='side'){ var s=v==='r'?'r':'f'; if(s!==it.side){ if(_rkFree(r,it.u,it.h,s,it.id)) it.side=s; else { var u2=_rkSlot(r,it.h,s); if(u2){ it.side=s; it.u=u2; } else toast('Pas de place sur l\'autre face.'); } if(RK.face!=='b') RK.face=it.side; } }
+  else if(f==='u'){ var nu=Math.round(_rkNum(v,1,r.units,_rkULabel(r,it.u))); if(r.top) nu=r.units-nu+1-(it.h-1); if(_rkFree(r,nu,it.h,it.side,it.bay,it.id)) it.u=nu; else toast('Cet emplacement est déjà pris.'); }
+  else if(f==='bay'){ var nb=Math.round(_rkNum(v,0,(r.bays||1)-1,it.bay)); if(_rkFree(r,it.u,it.h,it.side,nb,it.id)) it.bay=nb; else { var a2=_rkSlot(others,it.h,it.side,nb); if(a2 && a2.bay===nb){ it.bay=nb; it.u=a2.u; } else toast('Pas de place dans cette baie.'); } }
+  else if(f==='side'){ var s=v==='r'?'r':'f'; if(s!==it.side){ if(_rkFree(r,it.u,it.h,s,it.bay,it.id)) it.side=s; else { var a3=_rkSlot(others,it.h,s,it.bay); if(a3){ it.side=s; it.u=a3.u; it.bay=a3.bay; } else toast('Pas de place sur l\'autre face.'); } if(RK.view!=='s') RK.view=it.side; } }
   _rkSave(); renderRacks();
 }
-function rkMove(d){ var r=_rkCur(), it=_rkItem(RK.sel); if(!r||!it) return; var u=it.u+d; while(u>=1 && u+it.h-1<=r.units){ if(_rkFree(r,u,it.h,it.side,it.id)){ it.u=u; _rkSave(); renderRacks(); return; } u+=d; } toast(d>0?'Plus de place au-dessus.':'Plus de place en dessous.'); }
+function rkMove(d){ var r=_rkCur(), it=_rkItem(RK.sel); if(!r||!it) return; var u=it.u+d; while(u>=1 && u+it.h-1<=r.units){ if(_rkFree(r,u,it.h,it.side,it.bay,it.id)){ it.u=u; _rkSave(); renderRacks(); return; } u+=d; } toast(d>0?'Plus de place au-dessus.':'Plus de place en dessous.'); }
 function rkRemove(){ var r=_rkCur(); if(!r||!RK.sel) return; r.items=r.items.filter(function(i){ return i.id!==RK.sel; }); RK.sel=null; _rkSave(); renderRacks(); }
-/* Glisser un appareil dans le rack : il s'aimante aux unités et ne passe pas à travers les autres */
+function rkClone(){
+  var r=_rkCur(), it=_rkItem(RK.sel); if(!r||!it) return;
+  var at=_rkSlot(r,it.h,it.side,it.bay); if(!at){ toast('Plus de place pour une copie sur cette face.'); return; }
+  var c=JSON.parse(JSON.stringify(it)); c.id=_rkId(); c.u=at.u; c.bay=at.bay; r.items.push(c); RK.sel=c.id; _rkSave(); renderRacks();
+}
+/* Glisser un appareil : il s'aimante aux unités et aux baies, et ne passe pas à travers les autres */
 function rkDown(ev,id){
   if(ev.button>0) return;
-  var r=_rkCur(), it=_rkItem(id), el=ev.currentTarget; if(!r||!it) return;
-  var y0=ev.clientY, u0=it.u, moved=false;
+  var r=_rkCur(), it=_rkItem(id), el=ev.currentTarget, svg=el.ownerSVGElement; if(!r||!it||!svg) return;
+  var box=svg.getBoundingClientRect(), k=box.width/(svg.viewBox.baseVal.width||box.width), y0=ev.clientY, x0=ev.clientX, u0=it.u, b0=it.bay||0, moved=false, base=el.getAttribute('transform');
+  var m=/translate\(([-\d.]+) ([-\d.]+)\)/.exec(base)||[0,0,0], bx0=+m[1], by0=+m[2], dir=RK.view==='r'?-1:1;
   try{ el.setPointerCapture(ev.pointerId); }catch(e){}
   var mv=function(e){
-    var nu=Math.max(1,Math.min(r.units-it.h+1,u0+Math.round((y0-e.clientY)/RK_UH)));
-    if(nu!==it.u && _rkFree(r,nu,it.h,it.side,it.id)){ it.u=nu; moved=true; el.style.top=((r.units-(it.u+it.h-1))*RK_UH)+'px'; el.classList.add('drag'); }
+    var nu=Math.max(1,Math.min(r.units-it.h+1,u0+Math.round((y0-e.clientY)/(RK_UH*k))));
+    var nb=Math.max(0,Math.min((r.bays||1)-1,b0+dir*Math.round((e.clientX-x0)/((RK_BW+RK_GAP)*k))));
+    if((nu!==it.u || nb!==it.bay) && _rkFree(r,nu,it.h,it.side,nb,it.id)){ it.u=nu; it.bay=nb; moved=true; el.setAttribute('transform','translate('+(bx0+dir*(nb-b0)*(RK_BW+RK_GAP))+' '+(by0-(nu-u0)*RK_UH)+')'); el.classList.add('drag'); }
   };
   var up=function(){
     el.removeEventListener('pointermove',mv); el.removeEventListener('pointerup',up); el.removeEventListener('pointercancel',up);
@@ -16596,57 +16776,112 @@ function rkDown(ev,id){
   };
   el.addEventListener('pointermove',mv); el.addEventListener('pointerup',up); el.addEventListener('pointercancel',up);
 }
-/* Matériel personnel */
+/* ── Panneau de patch de l'appareil sélectionné ── */
+function rkPP(ri,f,v){
+  var it=_rkItem(RK.sel); if(!it||it.kind!=='patch') return; it.pp=_rkPP(it.pp,it.h);
+  var row=it.pp.rows[ri]; if(!row) return;
+  if(f==='t'){ row.t=v; it.pp=_rkPP(it.pp,it.h); }
+  else if(f==='n') row.n=Math.round(_rkNum(v,1,24,row.n));
+  else if(f==='p') row.p=String(v||'').slice(0,10);
+  else if(f==='s') row.s=Math.round(_rkNum(v,0,999,1));
+  it.pp=_rkPP(it.pp,it.h); _rkSave(); renderRacks();
+}
+function rkPPAdd(){
+  var r=_rkCur(), it=_rkItem(RK.sel); if(!r||!it||it.kind!=='patch') return;
+  var rows=_rkPP(it.pp,it.h).rows;
+  if(rows.length>=it.h){ if(!_rkFree(r,it.u,it.h+1,it.side,it.bay,it.id) && !_rkFree(r,it.u-1,it.h+1,it.side,it.bay,it.id)){ toast('Une rangée de plus demande une unité de plus : libérez de la place au-dessus ou en dessous.'); return; } if(!_rkFree(r,it.u,it.h+1,it.side,it.bay,it.id)) it.u-=1; it.h+=1; }
+  var last=rows[rows.length-1]; rows.push({t:last.t,n:last.n,p:last.p,s:last.s+last.n}); it.pp=_rkPP({rows:rows},it.h); _rkSave(); renderRacks();
+}
+function rkPPDel(ri){ var it=_rkItem(RK.sel); if(!it||!it.pp||it.pp.rows.length<2) return; it.pp.rows.splice(ri,1); _rkSave(); renderRacks(); }
+/* ── Groupes ── */
+function rkGroupAdd(){ if(RK.groups.length>=24) return; RK.groups.push({id:_rkId(), name:'Groupe '+(RK.groups.length+1), color:_RK_HUES[RK.groups.length%_RK_HUES.length]}); _rkSave(); renderRacks(); }
+function rkGroupSet(id,f,v){ var g=_rkGroup(id); if(!g) return; if(f==='name') g.name=String(v||'').trim().slice(0,30)||g.name; else g.color=(typeof _safeColor==='function'&&_safeColor(v))||g.color; _rkSave(); renderRacks(); }
+function rkGroupDel(id){ RK.groups=RK.groups.filter(function(g){ return g.id!==id; }); RK.racks.forEach(function(r){ r.items.forEach(function(i){ if(i.grp===id) i.grp=''; }); }); _rkSave(); renderRacks(); }
+/* ── Matériel personnel ── */
 function rkForm(on){ RK.form=!!on; renderRacks(); if(on){ var i=document.getElementById('rk-f-n'); if(i) i.focus(); } }
 function rkGearSave(){
   var v=function(id){ return (document.getElementById(id)||{}).value||''; }, n=v('rk-f-n').trim();
   if(!n){ toast('Donnez un nom au matériel.'); return; }
   if(RK_LIB===null) RK_LIB=_rkLibLocal();
-  RK_LIB.unshift({id:_rkId(), n:n.slice(0,80), h:Math.round(_rkNum(v('rk-f-h'),1,60,1)), kg:_rkNum(v('rk-f-kg'),0,500,0), w:Math.round(_rkNum(v('rk-f-w'),0,20000,0)), d:Math.round(_rkNum(v('rk-f-d'),0,2000,0))});
+  RK_LIB.unshift(_rkLibClean([{n:n, h:v('rk-f-h'), kind:v('rk-f-k'), kg:v('rk-f-kg'), w:v('rk-f-w'), d:v('rk-f-d')}])[0]);
   _rkLibSave(); RK.form=false; toast('✓ « '+n+' » enregistré dans votre matériel'); renderRacks();
 }
 function rkGearKeep(){
   var it=_rkItem(RK.sel); if(!it) return;
   if(RK_LIB===null) RK_LIB=_rkLibLocal();
-  var same=RK_LIB.filter(function(g){ return g.n.toLowerCase()===it.n.toLowerCase(); })[0];
-  if(same){ same.h=it.h; same.kg=it.kg; same.w=it.w; same.d=it.d; toast('✓ « '+it.n+' » mis à jour dans votre matériel'); }
-  else { RK_LIB.unshift({id:_rkId(), n:it.n, h:it.h, kg:it.kg, w:it.w, d:it.d}); toast('✓ « '+it.n+' » enregistré dans votre matériel'); }
+  var fresh=_rkLibClean([{n:it.n, h:it.h, kind:it.kind, kg:it.kg, w:it.w, d:it.d, pp:it.pp}])[0], at=-1;
+  RK_LIB.forEach(function(g,i){ if(g.n.toLowerCase()===it.n.toLowerCase()) at=i; });
+  if(at>=0){ fresh.id=RK_LIB[at].id; RK_LIB[at]=fresh; toast('✓ « '+it.n+' » mis à jour dans votre matériel'); }
+  else { RK_LIB.unshift(fresh); toast('✓ « '+it.n+' » enregistré dans votre matériel'); }
   _rkLibSave(); renderRacks();
 }
 function rkGearDel(idx){ var g=(RK_LIB||[])[idx]; if(!g || !confirm('Retirer « '+g.n+' » de votre matériel ? Les racks déjà dessinés ne changent pas.')) return; RK_LIB.splice(idx,1); _rkLibSave(); renderRacks(); }
 function rkSearch(v){ RK.q=String(v||'').slice(0,60); var b=document.getElementById('rk-lib-list'); if(b) b.innerHTML=_rkLibHtml(); }
 /* ── Affichage ── */
-function _rkHue(n){ var s=_bonNorm(n), h=0; for(var i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0; return _RK_HUES[h%_RK_HUES.length]; }
 function _rkFmt(n,unit){ return n?(Math.round(n*10)/10).toLocaleString('fr-FR')+' '+unit:'—'; }
 function _rkLibHtml(){
-  var E=_bonE, q=_bonNorm(RK.q), lib=RK_LIB||[], h='';
+  var E=_bonE, q=_bonNorm(RK.q), lib=RK_LIB||[], h='', any=false;
   var ok=function(n){ return !q || _bonNorm(n).indexOf(q)>=0; };
   var mine=lib.map(function(g,i){ return {g:g,i:i}; }).filter(function(x){ return ok(x.g.n); });
   h+='<div class="rk-lib-g">Mon matériel<button type="button" class="ov-link" onclick="rkForm(true)">Créer</button></div>';
   if(RK.form) h+='<div class="rk-form"><input class="set-inp" id="rk-f-n" placeholder="Nom du matériel" maxlength="80">'
+    +'<select class="set-inp" id="rk-f-k" title="Aspect de la façade">'+_RK_KINDS.map(function(k){ return '<option value="'+k[0]+'">'+k[1]+'</option>'; }).join('')+'</select>'
     +'<div class="rk-form-g"><label><span>Hauteur (U)</span><input class="set-inp" id="rk-f-h" type="number" min="1" max="60" value="1"></label><label><span>Poids (kg)</span><input class="set-inp" id="rk-f-kg" type="number" min="0" step="0.1" placeholder="—"></label>'
     +'<label><span>Conso (W)</span><input class="set-inp" id="rk-f-w" type="number" min="0" placeholder="—"></label><label><span>Profondeur (mm)</span><input class="set-inp" id="rk-f-d" type="number" min="0" placeholder="—"></label></div>'
     +'<div class="rk-form-a"><button type="button" class="btn sm" onclick="rkForm(false)">Annuler</button><button type="button" class="btn pri sm" onclick="rkGearSave()"><i class="ti ti-check"></i>Enregistrer</button></div></div>';
   if(!lib.length && !RK.form) h+='<div class="rk-lib-none">Créez vos appareils une fois : ils restent disponibles dans toutes vos sessions.</div>';
-  mine.forEach(function(x){ var g=x.g; h+='<div class="rk-gear"><button type="button" class="rk-gear-b" onclick="rkAdd(\'lib\','+x.i+')" title="Ajouter au rack"><b>'+E(g.n)+'</b><span>'+g.h+' U'+(g.kg?' · '+_rkFmt(g.kg,'kg'):'')+(g.w?' · '+g.w+' W':'')+'</span></button>'
+  mine.forEach(function(x){ var g=x.g; any=true; h+='<div class="rk-gear"><button type="button" class="rk-gear-b" onclick="rkAdd(\'lib\','+x.i+')" title="Ajouter au rack"><b>'+E(g.n)+'</b><span>'+g.h+' U'+(g.kg?' · '+_rkFmt(g.kg,'kg'):'')+(g.w?' · '+g.w+' W':'')+'</span></button>'
     +'<button type="button" class="rk-gear-x" onclick="rkGearDel('+x.i+')" title="Retirer de mon matériel"><i class="ti ti-x"></i></button></div>'; });
   _RK_CAT.forEach(function(c,ci){
     var its=c.items.map(function(it,si){ return {it:it,si:si}; }).filter(function(x){ return ok(x.it[0]); }); if(!its.length) return;
     h+='<div class="rk-lib-g">'+E(c.g)+'</div>';
-    its.forEach(function(x){ h+='<div class="rk-gear"><button type="button" class="rk-gear-b" onclick="rkAdd(\'cat\','+ci+','+x.si+')" title="Ajouter au rack"><b>'+E(x.it[0])+'</b><span>'+x.it[1]+' U</span></button></div>'; });
+    its.forEach(function(x){ any=true; h+='<div class="rk-gear"><button type="button" class="rk-gear-b" onclick="rkAdd(\'cat\','+ci+','+x.si+')" title="Ajouter au rack"><b>'+E(x.it[0])+'</b><span>'+x.it[1]+' U</span></button></div>'; });
   });
-  if(q && !mine.length && h.indexOf('rk-gear-b')<0) h+='<div class="rk-lib-none">Rien ne correspond. Créez ce matériel avec le bouton « Créer ».</div>';
+  if(q && !any) h+='<div class="rk-lib-none">Rien ne correspond. Créez ce matériel avec le bouton « Créer ».</div>';
   return h;
 }
-function _rkElevHtml(r,side,edit){
-  var E=_bonE, h='<div class="rk-elev'+(side==='r'?' rear':'')+'"><div class="rk-elev-t">'+(side==='r'?'Face arrière':'Face avant')+'</div><div class="rk-frame" style="height:'+(r.units*RK_UH)+'px">';
-  for(var u=r.units;u>=1;u--) h+='<div class="rk-u" style="top:'+((r.units-u)*RK_UH)+'px"><span>'+u+'</span><i></i><span>'+u+'</span></div>';
-  r.items.filter(function(i){ return i.side===side; }).forEach(function(i){
-    h+='<div class="rk-it'+(RK.sel===i.id?' on':'')+(i.h===1?' one':'')+'" data-id="'+E(i.id)+'" '+(edit?'onpointerdown="rkDown(event,this.dataset.id)"':'')
-      +' style="top:'+((r.units-(i.u+i.h-1))*RK_UH)+'px;height:'+(i.h*RK_UH)+'px;--rk:'+_rkHue(i.n)+'" title="'+E(i.n)+' · U'+i.u+(i.h>1?'–'+(i.u+i.h-1):'')+'">'
-      +'<b>'+E(i.n)+'</b><span>'+i.h+' U'+(i.kg?' · '+_rkFmt(i.kg,'kg'):'')+(i.w?' · '+i.w+' W':'')+(i.note?' · '+E(i.note):'')+'</span></div>';
+function _rkInspHtml(r,it){
+  var E=_bonE;
+  if(!it) return '<div class="rk-hint"><i class="ti ti-hand-click"></i><b>Ajoutez un appareil</b><span>Cliquez un matériel de la bibliothèque : il se place dans le premier emplacement libre, en partant du haut. Glissez-le ensuite à sa place, ou cliquez-le pour le régler.</span></div>';
+  var h='<div class="bon-lbl">Appareil sélectionné</div>'
+    +'<label class="set-fld"><span>Modèle</span><input class="set-inp" value="'+E(it.n)+'" maxlength="80" onchange="rkSet(\'n\',this.value)"></label>'
+    +'<label class="set-fld"><span>Nom affiché</span><input class="set-inp" value="'+E(it.lbl)+'" maxlength="40" placeholder="HF chant, Waves, Outils…" onchange="rkSet(\'lbl\',this.value)"></label>'
+    +'<div class="rk-form-g"><label><span>Hauteur (U)</span><input class="set-inp" type="number" min="1" max="'+r.units+'" value="'+it.h+'" onchange="rkSet(\'h\',this.value)"></label>'
+    +'<label><span>Unité '+(r.top?'du haut':'du bas')+'</span><input class="set-inp" type="number" min="1" max="'+r.units+'" value="'+(r.top?_rkULabel(r,it.u+it.h-1):it.u)+'" onchange="rkSet(\'u\',this.value)"></label>'
+    +'<label><span>Face</span><select class="set-inp" onchange="rkSet(\'side\',this.value)"><option value="f"'+(it.side==='f'?' selected':'')+'>Avant</option><option value="r"'+(it.side==='r'?' selected':'')+'>Arrière</option></select></label>'
+    +((r.bays||1)>1?'<label><span>Baie</span><select class="set-inp" onchange="rkSet(\'bay\',this.value)">'+[0,1,2].slice(0,r.bays).map(function(b){ return '<option value="'+b+'"'+(it.bay===b?' selected':'')+'>Baie '+(b+1)+'</option>'; }).join('')+'</select></label>':'<label><span>Groupe</span><select class="set-inp" onchange="rkSet(\'grp\',this.value)"><option value="">Aucun</option>'+RK.groups.map(function(g){ return '<option value="'+E(g.id)+'"'+(it.grp===g.id?' selected':'')+'>'+E(g.name)+'</option>'; }).join('')+'</select></label>')
+    +'<label><span>Poids (kg)</span><input class="set-inp" type="number" min="0" step="0.1" value="'+(it.kg||'')+'" placeholder="—" onchange="rkSet(\'kg\',this.value)"></label>'
+    +'<label><span>Conso (W)</span><input class="set-inp" type="number" min="0" value="'+(it.w||'')+'" placeholder="—" onchange="rkSet(\'w\',this.value)"></label>'
+    +'<label><span>Profondeur (mm)</span><input class="set-inp" type="number" min="0" step="10" value="'+(it.d||'')+'" placeholder="—" onchange="rkSet(\'d\',this.value)"></label>'
+    +'<label><span>Aspect</span><select class="set-inp" onchange="rkSet(\'kind\',this.value)">'+_RK_KINDS.map(function(k){ return '<option value="'+k[0]+'"'+(it.kind===k[0]?' selected':'')+'>'+k[1]+'</option>'; }).join('')+'</select></label></div>'
+    +((r.bays||1)>1?'<label class="set-fld"><span>Groupe</span><select class="set-inp" onchange="rkSet(\'grp\',this.value)"><option value="">Aucun</option>'+RK.groups.map(function(g){ return '<option value="'+E(g.id)+'"'+(it.grp===g.id?' selected':'')+'>'+E(g.name)+'</option>'; }).join('')+'</select></label>':'')
+    +'<label class="set-fld"><span>Remarque</span><input class="set-inp" value="'+E(it.note)+'" maxlength="200" placeholder="Fréquences, canal, étiquette…" onchange="rkSet(\'note\',this.value)"></label>';
+  if(it.kind==='patch'){
+    h+='<div class="bon-lbl">Connecteurs du panneau</div>';
+    _rkPP(it.pp,it.h).rows.forEach(function(row,ri){
+      var mx=(_RK_CONN.filter(function(c){ return c[0]===row.t; })[0]||_RK_CONN[0])[2];
+      h+='<div class="rk-pp"><select class="set-inp" onchange="rkPP('+ri+',\'t\',this.value)" title="Connecteur">'+_RK_CONN.map(function(c){ return '<option value="'+c[0]+'"'+(row.t===c[0]?' selected':'')+'>'+c[1]+'</option>'; }).join('')+'</select>'
+        +'<input class="set-inp" type="number" min="1" max="'+mx+'" value="'+row.n+'" onchange="rkPP('+ri+',\'n\',this.value)" title="Nombre (jusqu\'à '+mx+')">'
+        +'<input class="set-inp" value="'+E(row.p)+'" maxlength="10" placeholder="Préfixe" onchange="rkPP('+ri+',\'p\',this.value)" title="Préfixe des étiquettes : IN, OUT, A…">'
+        +'<input class="set-inp" type="number" min="0" max="999" value="'+row.s+'" onchange="rkPP('+ri+',\'s\',this.value)" title="Premier numéro">'
+        +(it.pp.rows.length>1?'<button type="button" class="rk-gear-x" onclick="rkPPDel('+ri+')" title="Retirer cette rangée"><i class="ti ti-x"></i></button>':'<span></span>')+'</div>';
+    });
+    h+='<button type="button" class="btn sm rk-wide" onclick="rkPPAdd()"><i class="ti ti-plus"></i>Ajouter une rangée</button>';
+  }
+  return h+'<div class="rk-insp-a"><button type="button" class="btn sm" onclick="rkMove(1)" title="Monter"><i class="ti ti-arrow-up"></i>Monter</button><button type="button" class="btn sm" onclick="rkMove(-1)" title="Descendre"><i class="ti ti-arrow-down"></i>Descendre</button></div>'
+    +'<button type="button" class="btn sm rk-wide" onclick="rkClone()"><i class="ti ti-copy"></i>Dupliquer dans le rack</button>'
+    +'<button type="button" class="btn sm rk-wide" onclick="rkGearKeep()"><i class="ti ti-bookmark-plus"></i>Enregistrer dans mon matériel</button>'
+    +'<button type="button" class="btn sm rk-wide rk-danger" onclick="rkRemove()"><i class="ti ti-trash"></i>Retirer du rack</button>';
+}
+function _rkGroupsHtml(){
+  var E=_bonE, h='<div class="rk-grp"><div class="rk-lib-g" style="margin-top:0">Groupes<button type="button" class="ov-link" onclick="rkGroupAdd()">Ajouter</button></div>';
+  if(!RK.groups.length) h+='<div class="rk-lib-none">Regroupez les appareils par usage (HF, réseau, énergie…) : chaque groupe a sa couleur sur le dessin et dans le PDF.</div>';
+  RK.groups.forEach(function(g){
+    var n=RK.racks.reduce(function(t,r){ return t+r.items.filter(function(i){ return i.grp===g.id; }).length; },0);
+    h+='<div class="rk-grp-r"><input type="color" value="'+E(g.color)+'" data-id="'+E(g.id)+'" onchange="rkGroupSet(this.dataset.id,\'color\',this.value)" title="Couleur"><input class="set-inp" value="'+E(g.name)+'" maxlength="30" data-id="'+E(g.id)+'" onchange="rkGroupSet(this.dataset.id,\'name\',this.value)"><span>'+n+'</span>'
+      +'<button type="button" class="rk-gear-x" data-id="'+E(g.id)+'" onclick="rkGroupDel(this.dataset.id)" title="Supprimer le groupe"><i class="ti ti-x"></i></button></div>';
   });
-  return h+'</div></div>';
+  return h+'</div>';
 }
 function renderRacks(){
   var root=document.getElementById('rk-root'); if(!root) return;
@@ -16658,103 +16893,147 @@ function renderRacks(){
   _rkLoad(); if(RK_LIB===null) RK_LIB=_rkLibLocal();
   var r=_rkCur();
   var h='<header class="bonp-head"><div><div class="bonp-eyebrow">'+E(CUR_SHOW.name||'')+'</div><h1>Racks</h1>'
-    +'<p>Dessinez les racks à faire préparer par le loueur : appareils, emplacements, faces avant et arrière, poids et consommation.</p></div>'
-    +'<div class="bonp-act">'+(RK.racks.length?'<button class="btn pri" onclick="rackPdf()"><i class="ti ti-file-type-pdf"></i>Exporter en PDF</button>':'')+'</div></header>';
+    +'<p>Dessinez les racks à faire préparer par le loueur : appareils, emplacements, faces avant et arrière, coupe de côté, poids et consommation.</p></div>'
+    +'<div class="bonp-act">'+(RK.racks.length?'<button class="btn pri" onclick="rackPdf()"><i class="ti ti-file-type-pdf"></i>Dossier PDF</button>':'')+'</div></header>';
   if(!r){
     root.innerHTML=h+'<div class="bonp-empty"><i class="ti ti-server"></i><b>Aucun rack pour cette session</b>'
-      +'<span>Créez un rack, choisissez sa hauteur, puis ajoutez les appareils depuis la bibliothèque ou créez les vôtres. Le PDF donne au loueur le dessin et la liste, unité par unité.</span>'
+      +'<span>Créez un rack, choisissez sa hauteur, puis ajoutez les appareils depuis la bibliothèque ou créez les vôtres. Le dossier PDF donne au loueur les dessins et la liste, unité par unité.</span>'
       +'<button type="button" class="btn pri" onclick="rkNew()"><i class="ti ti-plus"></i>Créer un rack</button></div>';
     return;
   }
-  var st=_rkStats(r), it=_rkItem(RK.sel), rear=r.items.some(function(i){ return i.side==='r'; });
-  h+='<div class="rk-tabs">'+RK.racks.map(function(x){ return '<button type="button" class="'+(x.id===r.id?'on':'')+'" data-id="'+E(x.id)+'" onclick="rkPick(this.dataset.id)">'+E(x.name)+'<span>'+x.units+' U</span></button>'; }).join('')
+  var st=_rkStats(r), it=_rkItem(RK.sel), bays=r.bays||1;
+  if(RK.cut>=bays) RK.cut=0;
+  h+='<div class="rk-tabs">'+RK.racks.map(function(x){ return '<button type="button" class="'+(x.id===r.id?'on':'')+'" data-id="'+E(x.id)+'" onclick="rkPick(this.dataset.id)">'+E(x.name)+'<span>'+x.units+' U'+((x.bays||1)>1?' × '+x.bays:'')+'</span></button>'; }).join('')
     +'<button type="button" class="add" onclick="rkNew()" title="Nouveau rack"><i class="ti ti-plus"></i>Rack</button></div>';
   h+='<div class="rk-wrap"><aside class="rk-lib"><div class="adm-search"><i class="ti ti-search"></i><input type="search" placeholder="Chercher un matériel" value="'+E(RK.q)+'" oninput="rkSearch(this.value)" autocomplete="off"></div><div id="rk-lib-list">'+_rkLibHtml()+'</div></aside>';
   h+='<main class="rk-stage"><div class="rk-bar"><input class="set-inp rk-name" value="'+E(r.name)+'" maxlength="60" onchange="rkRack(\'name\',this.value)" aria-label="Nom du rack">'
     +'<label class="rk-mini"><span>Hauteur</span><input class="set-inp" type="number" min="1" max="60" value="'+r.units+'" onchange="rkRack(\'units\',this.value)"><em>U</em></label>'
+    +'<label class="rk-mini"><span>Baies</span><select class="set-inp" onchange="rkRack(\'bays\',this.value)">'+[1,2,3].map(function(n){ return '<option'+(bays===n?' selected':'')+'>'+n+'</option>'; }).join('')+'</select></label>'
     +'<label class="rk-mini"><span>Profondeur</span><input class="set-inp" type="number" min="0" max="2000" step="10" value="'+(r.depth||'')+'" placeholder="—" onchange="rkRack(\'depth\',this.value)"><em>mm</em></label>'
-    +'<div class="bonp-switch rk-face">'+[['f','Avant'],['r','Arrière'],['b','Les deux']].map(function(f){ return '<button type="button" class="'+(RK.face===f[0]?'on':'')+'" onclick="rkFace(\''+f[0]+'\')">'+f[1]+'</button>'; }).join('')+'</div>'
     +'<span class="il-bar-sp"></span><button type="button" class="btn sm" onclick="rkDup()" title="Dupliquer ce rack"><i class="ti ti-copy"></i>Dupliquer</button><button type="button" class="btn sm rk-danger" onclick="rkDel()" title="Supprimer ce rack"><i class="ti ti-trash"></i></button></div>';
-  h+='<div class="rk-stats"><span><b>'+st.used+' / '+r.units+' U</b>occupés en façade</span><span><b>'+_rkFmt(st.kg,'kg')+'</b>de matériel</span><span><b>'+(st.w?st.w.toLocaleString('fr-FR')+' W':'—')+'</b>'+(st.w?'soit '+(Math.round(st.a*10)/10).toLocaleString('fr-FR')+' A sous 230 V':'consommation')+'</span></div>';
+  h+='<div class="rk-bar"><div class="bonp-switch rk-face">'+[['f','Avant'],['r','Arrière'],['s','Coupe de côté']].map(function(f){ return '<button type="button" class="'+(RK.view===f[0]?'on':'')+'" onclick="rkView(\''+f[0]+'\')">'+f[1]+'</button>'; }).join('')+'</div>'
+    +(RK.view==='s'&&bays>1?'<label class="rk-mini"><span>Baie</span><select class="set-inp" onchange="rkCut(this.value)">'+[0,1,2].slice(0,bays).map(function(b){ return '<option value="'+b+'"'+(RK.cut===b?' selected':'')+'>'+(b+1)+'</option>'; }).join('')+'</select></label>':'')
+    +'<span class="il-bar-sp"></span><div class="rk-zoom"><button type="button" onclick="rkZoom(-1)" title="Réduire"><i class="ti ti-zoom-out"></i></button><button type="button" onclick="rkZoom(0)" title="Taille réelle">'+Math.round(RK.zoom*100)+' %</button><button type="button" onclick="rkZoom(1)" title="Agrandir"><i class="ti ti-zoom-in"></i></button></div></div>';
+  var ck=function(k,l,t){ return '<label class="rk-ck" title="'+t+'"><input type="checkbox" class="cb"'+(RK_OPT[k]?' checked':'')+' onchange="rkOpt(\''+k+'\',this.checked)">'+l+'</label>'; };
+  h+='<div class="rk-opts">'+ck('simple','Vue simplifiée','Des blocs avec le nom, sans le dessin des façades')+ck('num','Numéros d\'unité','Numéroter les unités sur le côté')+ck('frame','Châssis','Dessiner le flight-case autour des baies')
+    +ck('grp','Couleurs de groupe','Teinter chaque appareil de la couleur de son groupe')+ck('ghost','Empreinte de l\'autre face','Montrer en pointillé les appareils montés de l\'autre côté')
+    +'<label class="rk-ck" title="L\'unité 1 est en haut du rack"><input type="checkbox" class="cb"'+(r.top?' checked':'')+' onchange="rkRack(\'top\',this.checked)">Numéroter depuis le haut</label>'
+    +'<label class="rk-ck" title="Dessiner le rack sur roulettes"><input type="checkbox" class="cb"'+(r.casters?' checked':'')+' onchange="rkRack(\'casters\',this.checked)">Roulettes</label></div>';
+  h+='<div class="rk-stats"><span><b>'+st.n+'</b>appareil'+(st.n>1?'s':'')+'</span><span><b>'+st.used+' / '+st.total+' U</b>occupés en façade</span><span><b>'+_rkFmt(st.kg,'kg')+'</b>de matériel</span><span><b>'+(st.w?st.w.toLocaleString('fr-FR')+' W':'—')+'</b>'+(st.w?'soit '+(Math.round(st.a*10)/10).toLocaleString('fr-FR')+' A sous 230 V':'consommation')+'</span></div>';
   if(st.a>16) h+='<div class="set-warn"><i class="ti ti-bolt"></i><span>Plus de 16 A : ce rack demande plus d\'une ligne 16 A, ou une alimentation 32 A.</span></div>';
-  st.clash.forEach(function(c){ h+='<div class="set-warn"><i class="ti ti-arrows-horizontal"></i><span>« '+E(c[0].n)+' » (avant, '+c[0].d+' mm) et « '+E(c[1].n)+' » (arrière, '+c[1].d+' mm) se font face : '+(c[0].d+c[1].d)+' mm pour un rack de '+r.depth+' mm.</span></div>'; });
-  st.deep.forEach(function(i){ h+='<div class="set-warn"><i class="ti ti-arrows-horizontal"></i><span>« '+E(i.n)+' » fait '+i.d+' mm de profondeur, le rack '+r.depth+' mm.</span></div>'; });
-  h+='<div class="rk-elevs">'+(RK.face!=='r'?_rkElevHtml(r,'f',true):'')+(RK.face!=='f'?_rkElevHtml(r,'r',true):'')+'</div>'
-    +(RK.face==='f'&&rear?'<div class="bon-note">Ce rack a aussi des appareils en face arrière : voyez « Arrière » ou « Les deux ».</div>':'')
-    +'<label class="set-fld rk-note"><span>Consignes pour le loueur</span><textarea class="set-inp set-txt" maxlength="600" placeholder="Câblage interne, étiquetage, alimentation, roulettes, capots…" onchange="rkRack(\'note\',this.value)">'+E(r.note)+'</textarea></label></main>';
-  h+='<aside class="rk-insp">';
-  if(!it) h+='<div class="rk-hint"><i class="ti ti-hand-click"></i><b>Ajoutez un appareil</b><span>Cliquez un matériel de la bibliothèque : il se place dans le premier emplacement libre, en partant du haut. Glissez-le ensuite à sa place, ou cliquez-le pour le régler.</span></div>';
-  else h+='<div class="bon-lbl">Appareil sélectionné</div>'
-    +'<label class="set-fld"><span>Nom</span><input class="set-inp" value="'+E(it.n)+'" maxlength="80" onchange="rkSet(\'n\',this.value)"></label>'
-    +'<div class="rk-form-g"><label><span>Hauteur (U)</span><input class="set-inp" type="number" min="1" max="'+r.units+'" value="'+it.h+'" onchange="rkSet(\'h\',this.value)"></label>'
-    +'<label><span>Unité du bas</span><input class="set-inp" type="number" min="1" max="'+r.units+'" value="'+it.u+'" onchange="rkSet(\'u\',this.value)"></label>'
-    +'<label><span>Poids (kg)</span><input class="set-inp" type="number" min="0" step="0.1" value="'+(it.kg||'')+'" placeholder="—" onchange="rkSet(\'kg\',this.value)"></label>'
-    +'<label><span>Conso (W)</span><input class="set-inp" type="number" min="0" value="'+(it.w||'')+'" placeholder="—" onchange="rkSet(\'w\',this.value)"></label>'
-    +'<label><span>Profondeur (mm)</span><input class="set-inp" type="number" min="0" step="10" value="'+(it.d||'')+'" placeholder="—" onchange="rkSet(\'d\',this.value)"></label>'
-    +'<label><span>Face</span><select class="set-inp" onchange="rkSet(\'side\',this.value)"><option value="f"'+(it.side==='f'?' selected':'')+'>Avant</option><option value="r"'+(it.side==='r'?' selected':'')+'>Arrière</option></select></label></div>'
-    +'<label class="set-fld"><span>Remarque</span><input class="set-inp" value="'+E(it.note)+'" maxlength="200" placeholder="Fréquences, canal, étiquette…" onchange="rkSet(\'note\',this.value)"></label>'
-    +'<div class="rk-insp-a"><button type="button" class="btn sm" onclick="rkMove(1)" title="Monter"><i class="ti ti-arrow-up"></i>Monter</button><button type="button" class="btn sm" onclick="rkMove(-1)" title="Descendre"><i class="ti ti-arrow-down"></i>Descendre</button></div>'
-    +'<button type="button" class="btn sm rk-wide" onclick="rkGearKeep()"><i class="ti ti-bookmark-plus"></i>Enregistrer dans mon matériel</button>'
-    +'<button type="button" class="btn sm rk-wide rk-danger" onclick="rkRemove()"><i class="ti ti-trash"></i>Retirer du rack</button>';
-  root.innerHTML=h+'</aside></div>';
+  if(st.clash.length) h+='<div class="set-warn"><i class="ti ti-alert-triangle"></i><span>'+st.clash.map(function(c){ return '« '+E(c[0].lbl||c[0].n)+' » et « '+E(c[1].lbl||c[1].n)+' » se touchent ('+(c[0].d+c[1].d)+' mm pour '+r.depth+' mm)'; }).join(' ; ')+'.</span>'
+    +(RK.view!=='s'?'<button type="button" class="btn sm" data-b="'+(st.clash[0][0].bay||0)+'" onclick="RK.cut=+this.dataset.b;rkView(\'s\')">Voir la coupe</button>':'')+'</div>';
+  st.deep.forEach(function(i){ h+='<div class="set-warn"><i class="ti ti-arrows-horizontal"></i><span>« '+E(i.lbl||i.n)+' » fait '+i.d+' mm de profondeur, le rack '+r.depth+' mm.</span></div>'; });
+  var d=RK.view==='s'?_rkSideSvg(r,RK.cut,_RK_PAL_UI):_rkSvg(r,RK.view,_RK_PAL_UI,{edit:true,sel:RK.sel});
+  /* À 100 %, le dessin ne dépasse jamais la largeur disponible ; au-delà, il défile */
+  h+='<div class="rk-canvas"><div class="rk-draw'+(RK.zoom<=1?' fit':'')+'" style="width:'+Math.round(d.w*RK.zoom)+'px">'+d.svg+'</div></div>';
+  var used=RK.groups.filter(function(g){ return r.items.some(function(i){ return i.grp===g.id; }); });
+  if(used.length) h+='<div class="rk-legend">'+used.map(function(g){ return '<span><i style="background:'+E(g.color)+'"></i>'+E(g.name)+'</span>'; }).join('')+'</div>';
+  if(RK.view==='s') h+='<div class="bon-note">Les appareils se règlent et se déplacent dans les vues avant et arrière. Un contour en pointillé signale une profondeur non renseignée.</div>';
+  h+='<label class="set-fld rk-note"><span>Consignes pour le loueur</span><textarea class="set-inp set-txt" maxlength="600" placeholder="Câblage interne, étiquetage, alimentation, capots…" onchange="rkRack(\'note\',this.value)">'+E(r.note)+'</textarea></label></main>';
+  root.innerHTML=h+'<aside class="rk-insp">'+_rkInspHtml(r,it)+_rkGroupsHtml()+'</aside></div>';
 }
-/* ── PDF pour le loueur : une page par rack, le dessin puis la liste du haut vers le bas ── */
+/* ── Dossier PDF pour le loueur ──
+   Page 1 : le récapitulatif de tous les racks. Puis, par rack : les vues avant et arrière, la coupe de côté,
+   la liste du haut vers le bas, le détail des panneaux de patch et les consignes.
+   Les dessins sont ceux de l'écran, repris en image avec des couleurs d'impression. */
+function _rkPng(d,scale){
+  return new Promise(function(res){
+    var img=new Image(), url='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(d.svg);
+    img.onload=function(){ try{ var c=document.createElement('canvas'); c.width=Math.round(d.w*scale); c.height=Math.round(d.h*scale); var x=c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,c.width,c.height); x.drawImage(img,0,0,c.width,c.height); res(c.toDataURL('image/png')); }catch(e){ res(null); } };
+    img.onerror=function(){ res(null); }; img.src=url;
+  });
+}
 async function rackPdf(){
   _rkLoad(); if(!RK.racks.length){ toast('Aucun rack à exporter.'); return; }
-  toast('Génération PDF…');
+  toast('Génération du dossier…');
+  var keep=Object.assign({},RK_OPT);
   try{
+    RK_OPT.num=true; RK_OPT.frame=true;                 /* le dossier porte toujours numéros et châssis */
     var JsPDF=await _loadAutoTable(), doc=new JsPDF({orientation:'portrait',unit:'mm',format:'a4'});
     var PW=doc.internal.pageSize.getWidth(), PH=doc.internal.pageSize.getHeight(), K=_PDFK, M=K.M, brand=_pdfBrand(), acc=_hex2rgb(brand.color||'#ff6b1a');
     var pf=null; try{ pf=await _pfLogoPng('#FF6B2B'); }catch(e){}
-    var logo=await _pdfLogoInfo(brand.logo), s=CUR_SHOW||{}, BOT=_pdfFootH(false)+4, TOP=30;
-    var who=(typeof PROFILE!=='undefined'&&PROFILE&&PROFILE.full_name)||'', mail=(typeof ME!=='undefined'&&ME&&ME.email)||'', first=[];
-    var draw=function(r,side,x,y,w,uh){
-      doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(K.muted[0],K.muted[1],K.muted[2]); doc.text(side==='r'?'FACE ARRIÈRE':'FACE AVANT',x+6,y-1.8);
-      doc.setDrawColor(K.ink[0],K.ink[1],K.ink[2]); doc.setLineWidth(0.5); doc.setFillColor(255,255,255); doc.rect(x+6,y,w-12,r.units*uh,'FD');
-      doc.setFont('helvetica','normal'); doc.setFontSize(Math.min(6.5,uh*1.7)); doc.setLineWidth(0.1); doc.setDrawColor(K.line[0],K.line[1],K.line[2]);
-      for(var u=r.units;u>=1;u--){ var yy=y+(r.units-u)*uh; if(u<r.units) doc.line(x+6,yy,x+w-6,yy); doc.setTextColor(K.muted[0],K.muted[1],K.muted[2]); doc.text(String(u),x+4.6,yy+uh/2+0.9,{align:'right'}); doc.text(String(u),x+w-4.6,yy+uh/2+0.9); }
-      r.items.filter(function(i){ return i.side===side; }).forEach(function(i){
-        var yy=y+(r.units-(i.u+i.h-1))*uh, hh=i.h*uh, c=_hex2rgb(_rkHue(i.n));
-        doc.setFillColor(246,247,249); doc.setDrawColor(K.ink[0],K.ink[1],K.ink[2]); doc.setLineWidth(0.3); doc.rect(x+6.4,yy+0.3,w-12.8,hh-0.6,'FD');
-        doc.setFillColor(c[0],c[1],c[2]); doc.rect(x+6.4,yy+0.3,1.4,hh-0.6,'F');
-        var fs=Math.min(8.5,Math.max(5,uh*1.9)); doc.setFont('helvetica','bold'); doc.setFontSize(fs); doc.setTextColor(K.ink[0],K.ink[1],K.ink[2]);
-        var nm=doc.splitTextToSize(String(i.n),w-20)[0]||''; doc.text(nm,x+9.6,yy+(hh>uh*1.6?uh*0.72:hh/2+fs*0.13));
-        if(hh>uh*1.6){ doc.setFont('helvetica','normal'); doc.setFontSize(Math.max(5,fs-1.8)); doc.setTextColor(K.txt2[0],K.txt2[1],K.txt2[2]); doc.text(doc.splitTextToSize([i.h+' U',i.note].filter(Boolean).join(' · '),w-20)[0]||'',x+9.6,yy+uh*0.72+fs*0.42); }
-      });
-    };
-    RK.racks.forEach(function(r,ri){
-      if(ri) doc.addPage();
-      first.push(doc.internal.getNumberOfPages());
-      var st=_rkStats(r), rear=r.items.some(function(i){ return i.side==='r'; });
-      var y=_pdfHead(doc,{acc:acc,pf:pf,brand:brand.co||'PatchFlow',docType:'Rack à préparer',title:r.name,sub:s.name||'',logo:logo,
-        rightLines:['Édité le '+new Date().toLocaleDateString('fr-FR')],
-        meta:[['Hauteur',r.units+' U'+(r.depth?' · '+r.depth+' mm':'')],['Poids du matériel',st.kg?_rkFmt(st.kg,'kg'):''],['Consommation',st.w?st.w+' W · '+(Math.round(st.a*10)/10).toLocaleString('fr-FR')+' A':''],['Demandé par',who],['Contact',mail]]})+6;
-      /* Dessin : une ou deux faces côte à côte, hauteur d'unité bornée pour laisser la place à la liste */
-      var uh=Math.max(2.6,Math.min(7,(PH*0.46-y)/r.units)), colW=rear?(PW-2*M-8)/2:Math.min(110,PW-2*M), x0=rear?M:(PW-colW)/2;
-      draw(r,'f',x0,y,colW,uh); if(rear) draw(r,'r',x0+colW+8,y,colW,uh);
-      y+=r.units*uh+8;
-      var rows=r.items.slice().sort(function(a,b){ return (b.u+b.h)-(a.u+a.h) || (a.side<b.side?-1:1); }).map(function(i){
-        return ['U'+i.u+(i.h>1?'–'+(i.u+i.h-1):''), i.h+' U', i.side==='r'?'Arrière':'Avant', i.n, i.note||'', i.kg?_rkFmt(i.kg,'kg'):'', i.w?i.w+' W':'']; });
-      if(rows.length) doc.autoTable({head:[['EMPLACEMENT','HAUTEUR','FACE','APPAREIL','REMARQUE','POIDS','CONSO']],body:rows,startY:y,theme:'plain',margin:{left:M,right:M,top:TOP,bottom:BOT},
-        styles:{font:'helvetica',fontSize:8.6,cellPadding:{top:1.5,bottom:1.5,left:1.8,right:1.8},textColor:K.ink,lineColor:K.line,lineWidth:{bottom:0.2},valign:'middle',overflow:'linebreak'},
-        headStyles:{fontSize:6.5,fontStyle:'bold',textColor:K.muted,lineColor:K.ink,lineWidth:{bottom:0.35}},
-        columnStyles:{0:{fontStyle:'bold',textColor:acc,cellWidth:24},1:{cellWidth:17},2:{cellWidth:16},3:{fontStyle:'bold'},4:{textColor:K.txt2,fontSize:8},5:{halign:'right',cellWidth:18},6:{halign:'right',cellWidth:18}}});
-      y=(rows.length?doc.lastAutoTable.finalY:y)+7;
-      if(String(r.note).trim()){
-        if(y>PH-BOT-16){ doc.addPage(); y=TOP; }
-        doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(K.ink[0],K.ink[1],K.ink[2]); doc.text('Consignes',M,y+3); y+=7;
-        doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(K.txt2[0],K.txt2[1],K.txt2[2]);
-        doc.splitTextToSize(String(r.note),PW-2*M).forEach(function(l){ if(y>PH-BOT-6){ doc.addPage(); y=TOP; } doc.text(l,M,y+3); y+=4.4; });
+    var logo=await _pdfLogoInfo(brand.logo), s=CUR_SHOW||{}, BOT=_pdfFootH(false)+4, TOP=30, title=s.name||'Show';
+    var who=(typeof PROFILE!=='undefined'&&PROFILE&&PROFILE.full_name)||'', mail=(typeof ME!=='undefined'&&ME&&ME.email)||'', full=[1];
+    var TS={font:'helvetica',fontSize:8.6,cellPadding:{top:1.5,bottom:1.5,left:1.8,right:1.8},textColor:K.ink,lineColor:K.line,lineWidth:{bottom:0.2},valign:'middle',overflow:'linebreak'};
+    var HS={fontSize:6.5,fontStyle:'bold',textColor:K.muted,lineColor:K.ink,lineWidth:{bottom:0.35}};
+    var hd=function(t,y){ doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(K.ink[0],K.ink[1],K.ink[2]); doc.text(t,M,y+3.6); return y+6.5; };
+    var room=function(y,need){ if(y>PH-BOT-need){ doc.addPage(); return TOP; } return y; };
+    /* Récapitulatif */
+    var all=RK.racks.map(function(r){ return {r:r, st:_rkStats(r)}; }), tk=0, tw=0, tn=0;
+    all.forEach(function(x){ tk+=x.st.kg; tw+=x.st.w; tn+=x.st.n; });
+    var y=_pdfHead(doc,{acc:acc,pf:pf,brand:brand.co||'PatchFlow',docType:'Dossier racks',title:title,sub:'',logo:logo,rightLines:['Édité le '+new Date().toLocaleDateString('fr-FR')],
+      meta:[['Lieu',s.venue],['Date',_pdfDateFr(_showDateISO(s.show_date))],['Racks',String(RK.racks.length)],['Demandé par',who],['Contact',mail]]})+5;
+    y=hd('Racks à préparer',y);
+    doc.autoTable({head:[['RACK','HAUTEUR','BAIES','PROFONDEUR','APPAREILS','POIDS','CONSO']],
+      body:all.map(function(x){ return [x.r.name,x.r.units+' U',String(x.r.bays||1),x.r.depth?x.r.depth+' mm':'—',String(x.st.n),x.st.kg?_rkFmt(x.st.kg,'kg'):'—',x.st.w?x.st.w+' W · '+(Math.round(x.st.a*10)/10).toLocaleString('fr-FR')+' A':'—']; }),
+      foot:[['Total','','','',String(tn),tk?_rkFmt(tk,'kg'):'—',tw?tw+' W · '+(Math.round(tw/23)/10).toLocaleString('fr-FR')+' A':'—']],
+      startY:y,theme:'plain',margin:{left:M,right:M,top:TOP,bottom:BOT},styles:TS,headStyles:HS,footStyles:{fontStyle:'bold',fontSize:8.6,textColor:K.ink,lineColor:K.ink,lineWidth:{top:0.35}},columnStyles:{0:{fontStyle:'bold'},4:{halign:'right'},5:{halign:'right'},6:{halign:'right'}},
+      didParseCell:function(c){ if(c.section!=='body' && c.column.index>=4) c.cell.styles.halign='right'; }});
+    y=doc.lastAutoTable.finalY+8;
+    /* Tout le matériel, regroupé : la liste à sortir du dépôt */
+    var by={}; RK.racks.forEach(function(r){ r.items.forEach(function(i){ var k=_bonNorm(i.n); var g=by[k]||(by[k]={n:i.n,q:0,h:i.h,w:[]}); g.q++; if(g.w.indexOf(r.name)<0) g.w.push(r.name); }); });
+    var gear=Object.keys(by).map(function(k){ return by[k]; }).sort(function(a,b){ return b.q-a.q || a.n.localeCompare(b.n); });
+    if(gear.length){ y=room(y,30); y=hd('Matériel à sortir',y);
+      doc.autoTable({head:[['QTÉ','APPAREIL','HAUTEUR','RACKS']],body:gear.map(function(g){ return [String(g.q),g.n,g.h+' U',g.w.join(' · ')]; }),startY:y,theme:'plain',margin:{left:M,right:M,top:TOP,bottom:BOT},styles:TS,headStyles:HS,
+        columnStyles:{0:{halign:'right',fontStyle:'bold',textColor:acc,cellWidth:14},1:{fontStyle:'bold'},2:{cellWidth:20},3:{textColor:K.txt2,fontSize:8}}});
+      y=doc.lastAutoTable.finalY+8; }
+    if(RK.groups.length){ y=room(y,16); y=hd('Groupes',y); var gx=M;
+      RK.groups.forEach(function(g){ var c=_hex2rgb(g.color), wd=doc.getTextWidth(g.name)+9; if(gx+wd>PW-M){ gx=M; y+=6; } doc.setFillColor(c[0],c[1],c[2]); doc.rect(gx,y,3,3,'F'); doc.setFont('helvetica','normal'); doc.setFontSize(8.6); doc.setTextColor(K.ink[0],K.ink[1],K.ink[2]); doc.text(g.name,gx+4.5,y+2.7); gx+=wd+4; });
+    }
+    /* Une section par rack */
+    for(var ri=0;ri<RK.racks.length;ri++){
+      var r=RK.racks[ri], st=_rkStats(r), bays=r.bays||1, rear=r.items.some(function(i){ return i.side==='r'; });
+      doc.addPage(); full.push(doc.internal.getNumberOfPages());
+      y=_pdfHead(doc,{acc:acc,pf:pf,brand:brand.co||'PatchFlow',docType:'Rack '+(ri+1)+' / '+RK.racks.length,title:r.name,sub:title,logo:logo,rightLines:['Édité le '+new Date().toLocaleDateString('fr-FR')],
+        meta:[['Hauteur',r.units+' U'+(bays>1?' × '+bays+' baies':'')],['Profondeur',r.depth?r.depth+' mm':''],['Appareils',String(st.n)],['Poids du matériel',st.kg?_rkFmt(st.kg,'kg'):''],['Consommation',st.w?st.w+' W · '+(Math.round(st.a*10)/10).toLocaleString('fr-FR')+' A':'']]})+5;
+      var views=[['f','Face avant']]; if(rear) views.push(['r','Face arrière']);
+      var imgs=[]; for(var v=0;v<views.length;v++){ var d=_rkSvg(r,views[v][0],_RK_PAL_PDF,{}); imgs.push({t:views[v][1],d:d,png:await _rkPng(d,2.4)}); }
+      /* Les vues tiennent côte à côte quand le rack n'a qu'une baie, sinon l'une sous l'autre */
+      var side=(bays===1 && imgs.length===2), maxW=side?(PW-2*M-8)/2:PW-2*M, maxH=side?PH*0.44:(PH-y-BOT-10)/(imgs.length>1?1.02:1);
+      for(var q=0;q<imgs.length;q++){
+        var im=imgs[q], sc=Math.min(maxW/im.d.w, Math.min(maxH,PH*0.5)/im.d.h, 0.33), w=im.d.w*sc, hh=im.d.h*sc;
+        if(!side){ y=room(y,hh+10); }
+        var x=side?M+q*(maxW+8)+(maxW-w)/2:(PW-w)/2;
+        doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(K.muted[0],K.muted[1],K.muted[2]); doc.text(im.t.toUpperCase(),x,y+2.4);
+        if(im.png) doc.addImage(im.png,'PNG',x,y+4,w,hh);
+        if(!side) y+=hh+9; else if(q===imgs.length-1) y+=Math.max.apply(null,imgs.map(function(z){ return z.d.h*Math.min(maxW/z.d.w, Math.min(maxH,PH*0.5)/z.d.h, 0.33); }))+9;
       }
-    });
-    var n=doc.internal.getNumberOfPages(), title=s.name||'Show';
+      /* Coupes de côté : dès qu'une profondeur est connue */
+      if(r.items.some(function(i){ return i.d; }) || r.depth){
+        for(var b=0;b<bays;b++){ if(!r.items.some(function(i){ return (i.bay||0)===b; })) continue;
+          var sd=_rkSideSvg(r,b,_RK_PAL_PDF), sp=await _rkPng(sd,2.4), ss=Math.min((PW-2*M)*0.62/sd.w, PH*0.4/sd.h, 0.33), sw=sd.w*ss, sh=sd.h*ss;
+          y=room(y,sh+10); doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(K.muted[0],K.muted[1],K.muted[2]); doc.text('COUPE DE CÔTÉ'+(bays>1?' · BAIE '+(b+1):''),(PW-sw)/2,y+2.4);
+          if(sp) doc.addImage(sp,'PNG',(PW-sw)/2,y+4,sw,sh); y+=sh+9; }
+      }
+      if(st.clash.length || st.deep.length){ y=room(y,12); doc.setFont('helvetica','bold'); doc.setFontSize(8.6); doc.setTextColor(225,29,72);
+        st.clash.forEach(function(c){ doc.text('À vérifier : « '+(c[0].lbl||c[0].n)+' » et « '+(c[1].lbl||c[1].n)+' » se touchent ('+(c[0].d+c[1].d)+' mm pour '+r.depth+' mm).',M,y+3); y+=5; });
+        st.deep.forEach(function(i){ doc.text('À vérifier : « '+(i.lbl||i.n)+' » ('+i.d+' mm) dépasse la profondeur du rack ('+r.depth+' mm).',M,y+3); y+=5; }); y+=3; }
+      var rows=r.items.slice().sort(function(a,b2){ return (a.bay||0)-(b2.bay||0) || (b2.u+b2.h)-(a.u+a.h) || (a.side<b2.side?-1:1); }).map(function(i){
+        var g=_rkGroup(i.grp); return [_rkPos(r,i)+(bays>1?' · B'+((i.bay||0)+1):''), i.h+' U', i.side==='r'?'Arrière':'Avant', i.n, [i.lbl,g?g.name:'',i.note].filter(Boolean).join(' · '), i.d?i.d+' mm':'', i.kg?_rkFmt(i.kg,'kg'):'', i.w?i.w+' W':'']; });
+      if(rows.length){ y=room(y,26); y=hd('Appareils, du haut vers le bas',y);
+        doc.autoTable({head:[['EMPLACEMENT','HAUTEUR','FACE','APPAREIL','NOM, GROUPE, REMARQUE','PROF.','POIDS','CONSO']],body:rows,startY:y,theme:'plain',margin:{left:M,right:M,top:TOP,bottom:BOT},styles:TS,headStyles:HS,
+          columnStyles:{0:{fontStyle:'bold',textColor:acc,cellWidth:25},1:{cellWidth:15},2:{cellWidth:15},3:{fontStyle:'bold'},4:{textColor:K.txt2,fontSize:8},5:{halign:'right',cellWidth:15},6:{halign:'right',cellWidth:16},7:{halign:'right',cellWidth:16}}});
+        y=doc.lastAutoTable.finalY+7; }
+      var pps=r.items.filter(function(i){ return i.kind==='patch'; });
+      if(pps.length){ var pr=[]; pps.forEach(function(i){ _rkPP(i.pp,i.h).rows.forEach(function(row,k){ if(row.t==='vide') return; var c=_RK_CONN.filter(function(z){ return z[0]===row.t; })[0];
+          pr.push([k?'':(i.lbl||i.n), k?'':_rkPos(r,i)+' · '+(i.side==='r'?'arrière':'avant'), String(k+1), row.n+' × '+c[1], row.p+row.s+(row.n>1?' à '+row.p+(row.s+row.n-1):'')]); }); });
+        if(pr.length){ y=room(y,24); y=hd('Panneaux de patch',y);
+          doc.autoTable({head:[['PANNEAU','EMPLACEMENT','RANGÉE','CONNECTEURS','ÉTIQUETTES']],body:pr,startY:y,theme:'plain',margin:{left:M,right:M,top:TOP,bottom:BOT},styles:TS,headStyles:HS,columnStyles:{0:{fontStyle:'bold'},2:{cellWidth:16,halign:'center'},4:{textColor:K.txt2}}});
+          y=doc.lastAutoTable.finalY+7; } }
+      if(String(r.note).trim()){ y=room(y,16); y=hd('Consignes',y);
+        doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(K.txt2[0],K.txt2[1],K.txt2[2]);
+        doc.splitTextToSize(String(r.note),PW-2*M).forEach(function(l){ if(y>PH-BOT-6){ doc.addPage(); y=TOP; } doc.text(l,M,y+3); y+=4.4; }); }
+    }
+    var n=doc.internal.getNumberOfPages();
     for(var p=1;p<=n;p++){
       doc.setPage(p);
-      if(first.indexOf(p)<0) _pdfHead(doc,{acc:acc,pf:pf,brand:brand.co||'PatchFlow',docType:'Rack à préparer',title:title,compact:true});
+      if(full.indexOf(p)<0) _pdfHead(doc,{acc:acc,pf:pf,brand:brand.co||'PatchFlow',docType:'Dossier racks',title:title,compact:true});
       _pdfFoot(doc,{acc:acc,pf:pf,credit:_pdfCreditFree(),creditWhat:'fiche technique',qr:null,url:'',stamp:title,page:p,pages:n});
     }
     await _pdfDeliver(doc,(_pdfSlug(title)||'patchflow')+'-racks.pdf');
   }catch(e){ console.error('rackPdf:',e); toast('Export impossible : '+(e&&e.message||e)); }
+  Object.assign(RK_OPT,keep);
 }
 
 /* ══════════════════════════════════════════════════════════════════
