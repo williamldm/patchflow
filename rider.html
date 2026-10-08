@@ -63,7 +63,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=3.89">
+<link rel="stylesheet" href="pf-app.css?v=3.90">
 </head>
 <body>
 
@@ -141,7 +141,7 @@ html.rider-boot #rider-splash{display:flex}
           <div class="user-dd-email" id="u-email">…</div>
           <div class="user-dd-plan"><span>Abonnement</span><span id="u-plan-badge"><span class="plan-badge-pill free">Gratuit</span></span></div>
           <div class="user-dd-sep"></div>
-          <div class="user-dd-item" onclick="openProfile()"><i class="ti ti-user-edit"></i>Mon profil</div>
+          <div class="user-dd-item" onclick="closeUD();openProfile()"><i class="ti ti-settings"></i>Paramètres</div>
           <div class="user-dd-item" onclick="closeUD();openPlanModal()"><i class="ti ti-credit-card"></i>Mon abonnement</div>
           <div class="user-dd-item" onclick="closeUD();openPortal()"><i class="ti ti-receipt"></i>Facturation</div>
           <div class="user-dd-item" onclick="closeUD();openSupport()"><i class="ti ti-headset"></i>Support</div>
@@ -373,6 +373,193 @@ html.rider-boot #rider-splash{display:flex}
     </div>
 
     <!-- SHOW FILES -->
+    <!-- PARAMÈTRES : profil, compte, abonnement, facturation, support (une seule page, à la place des anciennes fenêtres) -->
+    <div class="panel" id="panel-settings">
+      <header class="bonp-head set-head"><div><div class="bonp-eyebrow">PatchFlow</div><h1>Paramètres</h1></div></header>
+      <div class="set-wrap">
+        <nav class="set-nav" id="set-nav" aria-label="Rubriques des paramètres">
+          <button type="button" data-sec="profil" onclick="setNav('profil')"><i class="ti ti-user-circle"></i>Profil</button>
+          <button type="button" data-sec="compte" onclick="setNav('compte')"><i class="ti ti-shield-lock"></i>Compte et sécurité</button>
+          <button type="button" data-sec="abo" onclick="setNav('abo')"><i class="ti ti-credit-card"></i>Abonnement</button>
+          <button type="button" data-sec="fact" onclick="setNav('fact')"><i class="ti ti-receipt"></i>Facturation</button>
+          <button type="button" data-sec="support" onclick="setNav('support')"><i class="ti ti-headset"></i>Support</button>
+          <button type="button" class="adm-only" style="display:none" onclick="goTab('admin',null)"><i class="ti ti-layout-dashboard"></i>Administration</button>
+        </nav>
+        <div class="set-main">
+
+          <!-- Profil -->
+          <section class="set-sec" id="profile-modal" data-sec="profil">
+            <div class="set-card set-id">
+              <div id="p-avatar-ring">
+                <div class="prof-avatar" id="p-avatar" onclick="document.getElementById('avatar-file-input').click()" title="Changer la photo">
+                  <span id="p-avatar-init">??</span>
+                  <div class="prof-avatar-camera"><i class="ti ti-camera"></i></div>
+                </div>
+              </div>
+              <input type="file" id="avatar-file-input" accept="image/*" style="display:none" onchange="uploadAvatar(this)"/>
+              <div class="set-id-t">
+                <b id="p-display-name">—</b>
+                <span id="p-display-email">—</span>
+              </div>
+              <button type="button" class="btn" onclick="document.getElementById('avatar-file-input').click()"><i class="ti ti-camera"></i>Changer la photo</button>
+            </div>
+            <div class="set-card">
+              <div class="set-card-hd"><h2>Informations professionnelles</h2><p>Elles figurent sur vos exports PDF et auprès de votre équipe.</p></div>
+              <div class="set-grid">
+                <label class="set-fld"><span>Nom complet</span><input class="set-inp" id="p-name" placeholder="Jean Dupont" autocomplete="name"/></label>
+                <label class="set-fld"><span>Rôle</span><input class="set-inp" id="p-role" placeholder="Ingénieur façade"/></label>
+                <label class="set-fld"><span>Société</span><input class="set-inp" id="p-co" placeholder="Nom de la société" autocomplete="organization"/></label>
+                <label class="set-fld"><span>Téléphone</span><input class="set-inp" id="p-tel" placeholder="+33 6 00 00 00 00" autocomplete="tel"/></label>
+              </div>
+              <div id="p-info-msg" class="prof-msg"></div>
+              <div class="set-act"><button class="btn pri" onclick="saveProfile()"><i class="ti ti-check"></i>Enregistrer</button></div>
+            </div>
+          </section>
+
+          <!-- Compte et sécurité -->
+          <section class="set-sec" id="set-compte" data-sec="compte">
+            <div class="set-card">
+              <div class="set-card-hd"><h2>Adresse e-mail</h2><p>Un lien de confirmation est envoyé à la nouvelle adresse.</p></div>
+              <div class="set-row">
+                <label class="set-fld"><span>Nouvelle adresse</span><input class="set-inp" id="p-new-email" type="email" placeholder="nouvelle@adresse.fr" autocomplete="email"/></label>
+                <button class="btn" onclick="changeEmail()"><i class="ti ti-mail-forward"></i>Changer l'adresse</button>
+              </div>
+              <div id="p-email-msg" class="prof-msg"></div>
+            </div>
+            <div class="set-card">
+              <div class="set-card-hd"><h2>Mot de passe</h2><p>Huit caractères au minimum.</p></div>
+              <div class="set-grid">
+                <label class="set-fld"><span>Nouveau mot de passe</span><input class="set-inp" id="p-pwd1" type="password" placeholder="••••••••" autocomplete="new-password"/></label>
+                <label class="set-fld"><span>Confirmation</span><input class="set-inp" id="p-pwd2" type="password" placeholder="••••••••" autocomplete="new-password"/></label>
+              </div>
+              <div id="p-pwd-msg" class="prof-msg"></div>
+              <div class="set-act"><button class="btn" onclick="changePassword()"><i class="ti ti-key"></i>Changer le mot de passe</button></div>
+            </div>
+            <div class="set-card">
+              <div class="set-card-hd"><h2>Apparence</h2><p>Le thème « Auto » suit celui de votre appareil.</p></div>
+              <div class="theme-seg set-theme" role="radiogroup" aria-label="Thème de l'interface">
+                <button type="button" role="radio" data-theme-opt="dark" onclick="setTheme('dark')"><i class="ti ti-moon"></i>Sombre</button>
+                <button type="button" role="radio" data-theme-opt="light" onclick="setTheme('light')"><i class="ti ti-sun"></i>Clair</button>
+                <button type="button" role="radio" data-theme-opt="auto" onclick="setTheme('auto')"><i class="ti ti-device-desktop"></i>Auto</button>
+              </div>
+            </div>
+            <div class="set-card set-out">
+              <div class="set-card-hd"><h2>Session</h2><p>Vous déconnecte de cet appareil uniquement.</p></div>
+              <button class="btn set-danger" onclick="doLogout()"><i class="ti ti-logout"></i>Se déconnecter</button>
+            </div>
+          </section>
+
+          <!-- Abonnement -->
+          <section class="set-sec" id="plan-modal" data-sec="abo">
+            <div class="set-card set-plan" id="plan-current-bar">
+              <div class="set-plan-ico" id="plan-cur-icon"><i class="ti ti-user"></i></div>
+              <div class="set-plan-t">
+                <b id="sub-current-label">Plan Gratuit</b>
+                <span id="sub-current-desc">—</span>
+              </div>
+              <span class="set-chip" id="plan-billing-chip">Gratuit</span>
+            </div>
+
+            <!-- Abonnement en cours (Pro) -->
+            <div class="set-card" id="sub-active-block" style="display:none">
+              <div class="set-card-hd set-hd-row"><h2>Abonnement Pro<span class="set-status" id="sub-status-badge">Actif</span></h2>
+                <button class="btn sm" onclick="openPortal()"><i class="ti ti-external-link"></i>Gérer</button></div>
+              <div class="set-facts">
+                <div><span>Renouvellement</span><b id="sub-renew-date">—</b></div>
+                <div><span>Moyen de paiement</span><b id="sub-card-info">—</b></div>
+                <div><span>Période</span><b id="sub-period-info">—</b></div>
+                <div><span>Prochaine facture</span><b id="sub-next-invoice">—</b></div>
+              </div>
+              <div class="set-warn" id="sub-cancel-warn" style="display:none"><i class="ti ti-alert-triangle"></i><span id="sub-cancel-msg"></span></div>
+            </div>
+
+            <!-- Utilisation -->
+            <div class="set-card">
+              <div class="set-card-hd"><h2>Utilisation</h2></div>
+              <div class="set-use" id="sub-storage-section">
+                <div class="set-use-hd"><span><i class="ti ti-cloud"></i>Stockage</span><em id="sub-storage-total">Calcul en cours…</em></div>
+                <div class="set-meter"><i id="sub-storage-bar" style="width:0%"></i></div>
+                <div class="set-legend" id="sub-storage-detail">
+                  <span><i style="background:var(--ora)"></i>Fichiers <b id="sub-s-b2">—</b></span>
+                  <span><i style="background:var(--blu2)"></i>Patchs, plans et images <b id="sub-s-db">—</b></span>
+                </div>
+              </div>
+              <div class="set-use" id="sub-sharelinks-row">
+                <div class="set-use-hd"><span><i class="ti ti-link"></i>Liens de partage</span><em id="sub-sl-val">—</em></div>
+                <div class="set-meter"><i id="sub-sl-bar" style="width:0%"></i></div>
+                <div class="set-hint" id="sub-sl-hint">Input list, output, synoptique, plans, rider : tout type de lien compte.</div>
+              </div>
+            </div>
+
+            <!-- Offres -->
+            <div class="set-card">
+              <div class="set-card-hd set-hd-row"><h2>Offres</h2>
+                <div class="set-period" id="sub-billing-toggle">
+                  <button class="bp-toggle-btn on" data-bp="monthly" onclick="setBillingPeriod('monthly')">Mensuel</button>
+                  <button class="bp-toggle-btn" data-bp="yearly" onclick="setBillingPeriod('yearly')">Annuel<span>2 mois offerts</span></button>
+                </div></div>
+              <div class="sub-plans-grid" id="sub-plans-grid"></div>
+              <p class="set-fine">14 jours d'essai offerts · sans engagement · résiliable à tout moment</p>
+            </div>
+
+            <!-- Stockage en option (Pro) -->
+            <div class="set-card" id="sub-extra-storage-block" style="display:none">
+              <div class="set-card-hd"><h2>Stockage supplémentaire</h2><p>En option, ajouté à votre abonnement et annulable à tout moment.</p></div>
+              <div class="set-stor">
+                <button type="button" class="sub-storage-opt" onclick="buyExtraStorage(50,'1')" data-gb="50"><b>+50 Go</b><span>Riders, show files, plans</span><em>1 €<small>/mois</small></em></button>
+                <button type="button" class="sub-storage-opt popular" onclick="buyExtraStorage(500,'3.50')" data-gb="500"><b>+500 Go</b><span>Sessions, multipistes, archives</span><em>3,50 €<small>/mois</small></em></button>
+                <button type="button" class="sub-storage-opt" onclick="buyExtraStorage(1000,'7.50')" data-gb="1000"><b>+1 To</b><span>Tournées complètes</span><em>7,50 €<small>/mois</small></em></button>
+              </div>
+            </div>
+          </section>
+
+          <!-- Facturation -->
+          <section class="set-sec" id="portal-modal" data-sec="fact">
+            <div class="set-card set-plan">
+              <div class="set-plan-ico" id="portal-cur-icon"><i class="ti ti-user"></i></div>
+              <div class="set-plan-t">
+                <b id="portal-cur-name">Plan Gratuit</b>
+                <span id="portal-cur-desc">Actif</span>
+              </div>
+              <span class="set-chip" id="portal-billing-chip">Gratuit</span>
+            </div>
+            <div class="set-card">
+              <div class="set-card-hd"><h2>Factures et paiement</h2><p>Les paiements sont gérés par Lemon Squeezy, notre prestataire.</p></div>
+              <div id="portal-invoice-list">
+                <div class="portal-invoice-empty">
+                  <i class="ti ti-file-invoice"></i>
+                  <p>Aucune facture pour le moment.<br>Elles apparaîtront ici après votre premier paiement.</p>
+                </div>
+              </div>
+              <button class="portal-pay-btn" onclick="toast('Redirection vers le portail de paiement…')">
+                <i class="ti ti-credit-card"></i>
+                <span>Modifier le moyen de paiement</span>
+                <i class="ti ti-chevron-right"></i>
+              </button>
+            </div>
+          </section>
+
+          <!-- Support -->
+          <section class="set-sec" id="support-modal" data-sec="support">
+            <div class="set-card">
+              <div class="set-card-hd"><h2>Contacter le support</h2><p>Nous répondons par e-mail, à l'adresse de votre compte.</p></div>
+              <label class="set-fld"><span>Sujet</span>
+                <select class="set-inp" id="support-subject">
+                  <option value="Question abonnement">Question sur l'abonnement</option>
+                  <option value="Bug technique">Problème technique</option>
+                  <option value="Demande de fonctionnalite">Demande de fonctionnalité</option>
+                  <option value="Autre">Autre</option>
+                </select></label>
+              <label class="set-fld"><span>Message</span><textarea class="set-inp set-txt" id="support-msg" placeholder="Décrivez votre question ou le problème rencontré…"></textarea></label>
+              <div class="set-act"><button class="btn pri" onclick="submitSupport()"><i class="ti ti-send"></i>Envoyer le message</button></div>
+              <p class="set-fine">Vous pouvez aussi écrire à <a href="mailto:support@patchflow.fr">support@patchflow.fr</a></p>
+            </div>
+          </section>
+
+        </div>
+      </div>
+    </div>
+
     <div class="panel" id="panel-admin">
       <div id="adm-root"></div>
     </div>
@@ -1170,93 +1357,6 @@ html.rider-boot #rider-splash{display:flex}
   </div>
 </div>
 
-<div class="modal-ov" id="profile-modal">
-  <div class="modal-box profile-box">
-    <div class="modal-head">
-      <i class="ti ti-user-circle" style="font-size:15px;color:var(--ora)"></i>
-      <div class="modal-title">Mon Profil</div>
-      <button class="btn ghost sm" onclick="closeProfile()"><i class="ti ti-x"></i></button>
-    </div>
-    <div class="modal-body" style="padding:0 20px 20px">
-
-      <!-- Avatar + email -->
-      <div class="prof-avatar-wrap">
-        <div id="p-avatar-ring">
-          <div class="prof-avatar" id="p-avatar" onclick="document.getElementById('avatar-file-input').click()" title="Changer la photo">
-            <span id="p-avatar-init">??</span>
-            <div class="prof-avatar-camera"><i class="ti ti-camera"></i></div>
-          </div>
-        </div>
-        <input type="file" id="avatar-file-input" accept="image/*" style="display:none" onchange="uploadAvatar(this)"/>
-        <div style="text-align:center">
-          <div style="font-size:13px;font-weight:700;color:var(--txt)" id="p-display-name">—</div>
-          <div class="prof-email-lbl" id="p-display-email">—</div>
-        </div>
-      </div>
-
-      <!-- Section : Informations -->
-      <div class="prof-section">
-        <div class="prof-section-title"><i class="ti ti-id-badge"></i>Informations professionnelles</div>
-        <div class="prof-grid">
-          <div class="prof-fld">
-            <label class="prof-lbl">Nom complet</label>
-            <input class="prof-inp" id="p-name" placeholder="Jean Dupont"/>
-          </div>
-          <div class="prof-fld">
-            <label class="prof-lbl">Rôle</label>
-            <input class="prof-inp" id="p-role" placeholder="FOH Engineer"/>
-          </div>
-          <div class="prof-fld">
-            <label class="prof-lbl">Société</label>
-            <input class="prof-inp" id="p-co" placeholder="Sound Co."/>
-          </div>
-          <div class="prof-fld">
-            <label class="prof-lbl">Téléphone</label>
-            <input class="prof-inp" id="p-tel" placeholder="+33 6 00 00 00 00"/>
-          </div>
-        </div>
-        <div id="p-info-msg" class="prof-msg"></div>
-        <div class="prof-action-row">
-          <button class="btn pri sm" onclick="saveProfile()"><i class="ti ti-check"></i>Sauvegarder</button>
-        </div>
-      </div>
-
-      <!-- Section : Changer l'email -->
-      <div class="prof-section">
-        <div class="prof-section-title"><i class="ti ti-mail"></i>Adresse email</div>
-        <div class="prof-fld full" style="margin-bottom:10px">
-          <label class="prof-lbl">Nouvel email</label>
-          <input class="prof-inp" id="p-new-email" type="email" placeholder="nouveau@email.com"/>
-        </div>
-        <div id="p-email-msg" class="prof-msg"></div>
-        <div class="prof-action-row">
-          <button class="btn sm" onclick="changeEmail()"><i class="ti ti-mail-forward"></i>Changer l'email</button>
-        </div>
-      </div>
-
-      <!-- Section : Changer le mot de passe -->
-      <div class="prof-section">
-        <div class="prof-section-title"><i class="ti ti-lock"></i>Mot de passe</div>
-        <div class="prof-grid">
-          <div class="prof-fld">
-            <label class="prof-lbl">Nouveau mot de passe</label>
-            <input class="prof-inp" id="p-pwd1" type="password" placeholder="••••••••"/>
-          </div>
-          <div class="prof-fld">
-            <label class="prof-lbl">Confirmer</label>
-            <input class="prof-inp" id="p-pwd2" type="password" placeholder="••••••••"/>
-          </div>
-        </div>
-        <div id="p-pwd-msg" class="prof-msg"></div>
-        <div class="prof-action-row">
-          <button class="btn sm" onclick="changePassword()"><i class="ti ti-key"></i>Changer le mot de passe</button>
-        </div>
-      </div>
-
-    </div>
-  </div>
-</div>
-
 <!-- GATE / UPGRADE MODAL -->
 <!-- Cable type modal -->
 <div class="modal-ov" id="cable-type-modal" onclick="if(event.target===this)closeCableTypeModal()">
@@ -1351,15 +1451,15 @@ html.rider-boot #rider-splash{display:flex}
   <div class="modal-box gate-modal-box">
     <div class="modal-head">
       <i class="ti ti-lock" style="font-size:15px;color:var(--ora)"></i>
-      <span class="modal-title">Fonctionnalite reservee</span>
+      <span class="modal-title">Fonctionnalité réservée</span>
       <button class="btn ghost sm" onclick="closeGateModal()"><i class="ti ti-x"></i></button>
     </div>
     <div class="modal-body" style="padding-top:22px">
       <div class="gate-icon-wrap"><i id="gate-icon" class="ti ti-lock" style="color:var(--ora)"></i></div>
-      <div class="gate-title" id="gate-title">Fonctionnalite reservee</div>
-      <div class="gate-desc" id="gate-desc">Cette fonctionnalite n'est pas disponible dans votre offre actuelle.</div>
+      <div class="gate-title" id="gate-title">Fonctionnalité réservée</div>
+      <div class="gate-desc" id="gate-desc">Cette fonctionnalité n'est pas disponible dans votre offre actuelle.</div>
       <div class="gate-plan-needed">
-        <span>Disponible a partir du plan</span>
+        <span>Disponible à partir du plan</span>
         <span class="gate-plan-pill" id="gate-plan-pill">Pro</span>
       </div>
       <div class="gate-feats" id="gate-feats"></div>
@@ -1367,183 +1467,6 @@ html.rider-boot #rider-splash{display:flex}
     <div class="modal-foot">
       <button class="btn ghost sm" onclick="closeGateModal()"><i class="ti ti-x"></i>Plus tard</button>
       <button class="btn pri sm" onclick="closeGateModal();openPlanModal()"><i class="ti ti-rocket"></i>Voir les offres</button>
-    </div>
-  </div>
-</div>
-
-<!-- PLAN / ABONNEMENT MODAL -->
-<div class="modal-ov" id="plan-modal">
-  <div class="modal-box plan-modal-box">
-    <div class="modal-head">
-      <i class="ti ti-credit-card" style="font-size:15px;color:var(--ora)"></i>
-      <span class="modal-title">Mon abonnement</span>
-      <button class="btn ghost sm" onclick="closePlanModal()"><i class="ti ti-x"></i></button>
-    </div>
-    <div class="modal-body">
-      <!-- Plan actuel -->
-      <div class="plan-current-bar" id="plan-current-bar">
-        <div class="plan-cur-icon" id="plan-cur-icon">✦</div>
-        <div class="plan-cur-meta">
-          <div class="plan-cur-name" id="sub-current-label">Plan Gratuit</div>
-          <div class="plan-cur-desc" id="sub-current-desc">Passez au Pro pour debloquer les exports.</div>
-        </div>
-        <div class="plan-billing-chip" id="plan-billing-chip">Gratuit</div>
-      </div>
-      <!-- Bloc abonnement actif (affiché uniquement pour les Pro) -->
-      <div id="sub-active-block" style="display:none;margin-bottom:16px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;overflow:hidden">
-        <div style="padding:12px 16px;border-bottom:1px solid var(--bdr)">
-          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-            <div style="display:flex;align-items:center;gap:8px">
-              <i class="ti ti-bolt" style="color:var(--ora);font-size:15px"></i>
-              <span style="font-size:12px;font-weight:700">Abonnement Pro actif</span>
-              <span id="sub-status-badge" style="font-size:9px;font-family:var(--m);padding:2px 8px;border-radius:8px;background:rgba(34,214,160,.12);color:var(--grn);border:1px solid rgba(34,214,160,.25)">Actif</span>
-            </div>
-            <button onclick="openPortal()" style="background:var(--surf3);border:1px solid var(--bdr2);color:var(--txt2);font-size:10px;font-weight:600;padding:5px 12px;border-radius:6px;cursor:pointer;font-family:var(--f);display:flex;align-items:center;gap:5px"><i class="ti ti-settings" style="font-size:11px"></i>Gérer</button>
-          </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
-          <div style="padding:10px 16px;border-right:1px solid var(--bdr);border-bottom:1px solid var(--bdr)">
-            <div style="font-size:12px;font-family:var(--f);color:var(--muted);margin-bottom:3px;font-weight:500">Renouvellement</div>
-            <div id="sub-renew-date" style="font-size:12px;font-weight:600;color:var(--txt)">—</div>
-          </div>
-          <div style="padding:10px 16px;border-bottom:1px solid var(--bdr)">
-            <div style="font-size:12px;font-family:var(--f);color:var(--muted);margin-bottom:3px;font-weight:500">Moyen de paiement</div>
-            <div id="sub-card-info" style="font-size:12px;font-weight:600;color:var(--txt)">—</div>
-          </div>
-          <div style="padding:10px 16px">
-            <div style="font-size:12px;font-family:var(--f);color:var(--muted);margin-bottom:3px;font-weight:500">Période</div>
-            <div id="sub-period-info" style="font-size:12px;font-weight:600;color:var(--txt)">—</div>
-          </div>
-          <div style="padding:10px 16px">
-            <div style="font-size:12px;font-family:var(--f);color:var(--muted);margin-bottom:3px;font-weight:500">Prochaine facture</div>
-            <div id="sub-next-invoice" style="font-size:12px;font-weight:600;color:var(--txt)">—</div>
-          </div>
-        </div>
-        <div id="sub-cancel-warn" style="display:none;padding:10px 16px;background:rgba(251,191,36,.07);border-top:1px solid rgba(251,191,36,.2)">
-          <i class="ti ti-alert-triangle" style="color:#f59e0b;font-size:12px;margin-right:5px"></i>
-          <span id="sub-cancel-msg" style="font-size:11px;color:#f59e0b"></span>
-        </div>
-      </div>
-      <!-- Option stockage supplémentaire (Pro uniquement) -->
-      <div id="sub-extra-storage-block" style="display:none;margin-bottom:16px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;padding:14px 16px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-          <div style="display:flex;align-items:center;gap:7px">
-            <i class="ti ti-database-plus" style="color:var(--muted);font-size:15px"></i>
-            <span style="font-size:12px;font-weight:600">Stockage supplémentaire</span>
-          </div>
-          <span style="font-size:10px;font-family:var(--m);color:var(--muted)">En option · à partir de 1€/mois</span>
-        </div>
-        <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.5">Riders, show files, sessions, archives de tournée — stockez tout ce qui fait votre production.</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-          <div class="sub-storage-opt" onclick="buyExtraStorage(50,'1')" data-gb="50">
-            <div style="font-size:16px;font-weight:800;color:var(--txt)">+50 Go</div>
-            <div style="font-size:10px;color:var(--muted);font-family:var(--m);margin:2px 0 8px">Riders, show files, plans</div>
-            <div style="font-size:13px;font-weight:700;color:var(--txt)">1€<span style="font-size:9px;color:var(--muted);font-weight:400">/mois</span></div>
-          </div>
-          <div class="sub-storage-opt popular" onclick="buyExtraStorage(500,'3.50')" data-gb="500">
-                        <div style="font-size:16px;font-weight:800;color:var(--txt)">+500 Go</div>
-            <div style="font-size:10px;color:var(--muted);font-family:var(--m);margin:2px 0 8px">Sessions, multitracks, archives</div>
-            <div style="font-size:13px;font-weight:700;color:var(--txt)">3,50€<span style="font-size:9px;color:var(--muted);font-weight:400">/mois</span></div>
-          </div>
-          <div class="sub-storage-opt" onclick="buyExtraStorage(1000,'7.50')" data-gb="1000">
-            <div style="font-size:16px;font-weight:800;color:var(--txt)">+1 To</div>
-            <div style="font-size:10px;color:var(--muted);font-family:var(--m);margin:2px 0 8px">Tournées complètes, backline</div>
-            <div style="font-size:13px;font-weight:700;color:var(--txt)">7,50€<span style="font-size:9px;color:var(--muted);font-weight:400">/mois</span></div>
-          </div>
-        </div>
-        <div style="font-size:10px;color:var(--muted2);margin-top:8px;text-align:center">Facturé sur votre abonnement existant · Annulable à tout moment</div>
-      </div>
-      <!-- Stockage -->
-      <div id="sub-storage-section" style="margin-bottom:16px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;padding:14px 16px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-          <div style="display:flex;align-items:center;gap:7px">
-            <i class="ti ti-cloud" style="color:var(--ora);font-size:15px"></i>
-            <span style="font-size:12px;font-weight:600">Stockage</span>
-          </div>
-          <span id="sub-storage-total" style="font-size:11px;font-family:var(--m);color:var(--muted)">Calcul en cours…</span>
-        </div>
-        <div style="height:6px;background:var(--surf3);border-radius:3px;overflow:hidden;margin-bottom:8px">
-          <div id="sub-storage-bar" style="height:100%;background:var(--ora);border-radius:3px;transition:width .8s ease;width:0%"></div>
-        </div>
-        <div id="sub-storage-detail" style="display:flex;gap:16px;flex-wrap:wrap">
-          <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)">
-            <div style="width:8px;height:8px;border-radius:50%;background:var(--ora);flex-shrink:0"></div>
-            <span>Fichiers cloud</span>
-            <span id="sub-s-b2" style="font-family:var(--m);color:var(--txt2)">—</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)">
-            <div style="width:8px;height:8px;border-radius:50%;background:var(--blu2);flex-shrink:0"></div>
-            <span>Données (patches, plans, images)</span>
-            <span id="sub-s-db" style="font-family:var(--m);color:var(--txt2)">—</span>
-          </div>
-        </div>
-      </div>
-      <!-- Liens de partage (push abonnement) -->
-      <div id="sub-sharelinks-row" style="margin-bottom:16px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;padding:14px 16px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-          <div style="display:flex;align-items:center;gap:7px">
-            <i class="ti ti-link" style="color:var(--ora);font-size:15px"></i>
-            <span style="font-size:12px;font-weight:600">Liens de partage</span>
-          </div>
-          <span id="sub-sl-val" style="font-size:11px;font-family:var(--m);color:var(--muted)">—</span>
-        </div>
-        <div style="height:6px;background:var(--surf3);border-radius:3px;overflow:hidden;margin-bottom:8px">
-          <div id="sub-sl-bar" style="height:100%;background:var(--ora);border-radius:3px;transition:width .8s ease;width:0%"></div>
-        </div>
-        <div id="sub-sl-hint" style="font-size:10px;color:var(--muted)">Input list, output, synoptique, plans, rider — tout type de lien compte.</div>
-      </div>
-      <!-- Sélecteur période de facturation (masqué pour les abonnés Pro) -->
-      <div id="sub-billing-toggle" style="display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:14px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;padding:3px;width:fit-content;margin-left:auto;margin-right:auto">
-        <button class="bp-toggle-btn on" data-bp="monthly" onclick="setBillingPeriod('monthly')" style="border:none;background:none;color:var(--txt2);font-size:11px;font-weight:600;padding:6px 16px;border-radius:6px;cursor:pointer;font-family:var(--f);transition:all .15s">Mensuel</button>
-        <button class="bp-toggle-btn" data-bp="yearly" onclick="setBillingPeriod('yearly')" style="border:none;background:none;color:var(--txt2);font-size:11px;font-weight:600;padding:6px 16px;border-radius:6px;cursor:pointer;font-family:var(--f);transition:all .15s">Annuel <span style="font-size:9px;color:var(--grn);background:var(--grn-d);border-radius:6px;padding:1px 5px;margin-left:3px">-17%</span></button>
-      </div>
-      <!-- Comparatif plans -->
-      <div class="sub-plans-grid" id="sub-plans-grid"></div>
-      <!-- Liens de bas de page -->
-      <div class="plan-footer-links">
-        <span>14 jours d'essai offerts</span>
-        <span>·</span>
-        <button onclick="closePlanModal();openPortal()"><i class="ti ti-receipt" style="margin-right:3px"></i>Historique de facturation</button>
-        <span>·</span>
-        <button onclick="closePlanModal();openSupport()"><i class="ti ti-headset" style="margin-right:3px"></i>Support</button>
-      </div>
-    </div>
-    <div class="modal-foot">
-      <button class="btn ghost sm" onclick="closePlanModal()">Fermer</button>
-    </div>
-  </div>
-</div>
-
-<!-- Portail facturation -->
-<div class="modal-ov" id="portal-modal">
-  <div class="modal-box portal-box">
-    <div class="modal-head">
-      <span class="modal-title"><i class="ti ti-receipt" style="margin-right:6px"></i>Historique de facturation</span>
-      <button class="modal-close" onclick="closePortal()"><i class="ti ti-x"></i></button>
-    </div>
-    <div class="modal-body">
-      <div class="sub-current-bar" style="margin-bottom:16px">
-        <div class="plan-cur-icon" id="portal-cur-icon" style="background:var(--surf3)">🎙️</div>
-        <div class="plan-cur-meta">
-          <div class="plan-cur-name" id="portal-cur-name">Plan Gratuit</div>
-          <div class="plan-cur-desc" id="portal-cur-desc">Actif</div>
-        </div>
-        <div class="plan-billing-chip" id="portal-billing-chip">Gratuit</div>
-      </div>
-      <div id="portal-invoice-list">
-        <div class="portal-invoice-empty">
-          <i class="ti ti-file-invoice"></i>
-          <p>Aucune facture disponible pour le moment.<br>Vos factures apparaitront ici apres votre premier paiement.</p>
-        </div>
-      </div>
-      <button class="portal-pay-btn" onclick="toast('Redirection vers le portail de paiement...')">
-        <i class="ti ti-credit-card" style="font-size:16px;color:var(--ora)"></i>
-        <span>Modifier le moyen de paiement</span>
-        <i class="ti ti-chevron-right" style="margin-left:auto;color:var(--muted)"></i>
-      </button>
-    </div>
-    <div class="modal-foot">
-      <button class="btn ghost sm" onclick="closePortal()">Fermer</button>
     </div>
   </div>
 </div>
@@ -1578,35 +1501,6 @@ html.rider-boot #rider-splash{display:flex}
   </div>
 </div>
 
-<div class="modal-ov" id="support-modal">
-  <div class="modal-box support-box">
-    <div class="modal-head">
-      <span class="modal-title"><i class="ti ti-headset" style="margin-right:6px"></i>Contacter le support</span>
-      <button class="modal-close" onclick="closeSupport()"><i class="ti ti-x"></i></button>
-    </div>
-    <div class="modal-body">
-      <div class="support-field">
-        <label>Sujet</label>
-        <select class="support-sel" id="support-subject">
-          <option value="Question abonnement">Question abonnement</option>
-          <option value="Bug technique">Bug technique</option>
-          <option value="Demande de fonctionnalite">Demande de fonctionnalité</option>
-          <option value="Autre">Autre</option>
-        </select>
-      </div>
-      <div class="support-field">
-        <label>Message</label>
-        <textarea class="support-txt" id="support-msg" placeholder="Décrivez votre problème ou votre question…"></textarea>
-      </div>
-      <button class="btn pri" style="width:100%" onclick="submitSupport()"><i class="ti ti-send"></i>Envoyer le message</button>
-      <p class="support-note">Vous pouvez aussi nous écrire directement à <a href="mailto:support@patchflow.fr">support@patchflow.fr</a></p>
-    </div>
-    <div class="modal-foot">
-      <button class="btn ghost sm" onclick="closeSupport()">Fermer</button>
-    </div>
-  </div>
-</div>
-
 <div id="toast"></div>
 
 <!-- Supabase SDK : chargé juste avant le script principal qui l'utilise, plutôt
@@ -1614,7 +1508,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=4.30"></script>
+<script src="pf-app.js?v=4.31"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
   <div class="mob-plan-bar">

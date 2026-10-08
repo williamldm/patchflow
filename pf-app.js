@@ -17558,9 +17558,25 @@ function openProfile(){
   ['p-info-msg','p-email-msg','p-pwd-msg'].forEach(function(id){
     var el=document.getElementById(id);if(el){el.style.display='none';el.textContent='';}
   });
-  document.getElementById('profile-modal').className='modal-ov show';
+  _setGo('profil');
 }
-function closeProfile(){document.getElementById('profile-modal').className='modal-ov';}
+function closeProfile(){}
+/* ── Page Paramètres : profil, compte, abonnement, facturation et support y sont des rubriques.
+   Les fonctions d'ouverture historiques (openProfile, openPlanModal, openPortal, openSupport) remplissent leur
+   rubrique puis l'affichent ; leurs fonctions de fermeture ne font plus rien. ── */
+function _setGo(sec){
+  document.querySelectorAll('#panel-settings .set-sec').forEach(function(el){ el.classList.toggle('on',el.dataset.sec===sec); });
+  document.querySelectorAll('#set-nav button[data-sec]').forEach(function(b){ b.classList.toggle('on',b.dataset.sec===sec); });
+  var cur=document.querySelector('.panel.on');
+  if(!cur || cur.id!=='panel-settings') goTab('settings',null);
+  var c=document.querySelector('.content'); if(c) c.scrollTop=0;
+}
+function setNav(sec){
+  if(sec==='abo') openPlanModal();
+  else if(sec==='fact') openPortal();
+  else if(sec==='support') openSupport();
+  else { openProfile(); if(sec==='compte') _setGo('compte'); }
+}
 function _profMsg(id,text,isErr){
   var el=document.getElementById(id);if(!el)return;
   el.textContent=text;el.className='prof-msg '+(isErr?'err':'ok');el.style.display='block';
@@ -20117,6 +20133,7 @@ function goTab(id,el){
   if(id==='showfiles') renderShowfiles();
   if(id==='bon') renderBon();
   if(id==='admin') renderAdmin();
+  if(id==='settings' && !document.querySelector('#panel-settings .set-sec.on')) setNav('profil');
   if(typeof _ilSelSync==='function') _ilSelSync();
   var _fs=document.querySelector('.panel.pf-fs'); if(_fs && _fs.id!=='panel-'+id) pfFullscreen(_fs.id==='panel-synoptique'?'syno':'plan',false);
 }
@@ -20492,7 +20509,7 @@ async function openPortal() {
   if(cd) cd.textContent = 'Actif';
   var cc = document.getElementById('portal-billing-chip');
   if(cc) cc.textContent = chips[cur]||'Gratuit';
-  document.getElementById('portal-modal').className = 'modal-ov show';
+  _setGo('fact');
 
   /* Charger les détails de l'abonnement Lemon Squeezy */
   var payBtn = document.querySelector('.portal-pay-btn');
@@ -20520,21 +20537,18 @@ async function openPortal() {
         payBtn.querySelector('span').textContent = 'Gérer mon abonnement / paiement';
       }
       if(invList && portalUrl){
-        invList.innerHTML = '<div style="padding:14px;text-align:center;font-size:12px;color:var(--muted)">'
-          +'<i class="ti ti-external-link" style="font-size:24px;color:var(--ora);display:block;margin-bottom:8px"></i>'
-          +'Vos factures et reçus sont disponibles dans le portail client sécurisé Lemon Squeezy.'
-          +'<br><a href="'+_h(portalUrl)+'" target="_blank" rel="noopener noreferrer" style="color:var(--ora);text-decoration:underline;font-family:var(--m);font-size:11px;display:inline-block;margin-top:8px">Ouvrir le portail →</a></div>';
+        invList.innerHTML = '<div class="portal-invoice-empty"><i class="ti ti-external-link"></i>'
+          +'<p>Vos factures et reçus sont dans le portail client sécurisé Lemon Squeezy.</p>'
+          +'<a class="btn" href="'+_h(portalUrl)+'" target="_blank" rel="noopener noreferrer"><i class="ti ti-external-link"></i>Ouvrir le portail</a></div>';
       }
     }
   }catch(e){ console.warn('portal:',e); }
 }
-function closePortal() { document.getElementById('portal-modal').className = 'modal-ov'; }
+function closePortal() {}
 
 /* ── Support ── */
-function openSupport() {
-  document.getElementById('support-modal').className = 'modal-ov show';
-}
-function closeSupport() { document.getElementById('support-modal').className = 'modal-ov'; }
+function openSupport() { closeUD(); _setGo('support'); }
+function closeSupport() {}
 async function submitSupport() {
   var subj    = document.getElementById('support-subject');
   var msg     = document.getElementById('support-msg');
@@ -20654,7 +20668,7 @@ async function buyExtraStorage(gb, priceEur) {
 function openPlanModal() {
   const cur = userPlan();
   const descs = {
-    free:   'Passez au Pro pour débloquer le PDF sans filigrane, le multi-patches, l\'équipe illimitée et bien plus.',
+    free:   'Passez au Pro pour les PDF à votre logo, les multi-patchs, l\'équipe illimitée et les exports console.',
     pro:    'Vous avez accès à toutes les fonctionnalités de PatchFlow.',
   };
   const icons = { free:'<i class="ti ti-user"></i>', pro:'<i class="ti ti-star"></i>' };
@@ -20668,31 +20682,19 @@ function openPlanModal() {
   const chipEl = document.getElementById('plan-billing-chip');
   if(chipEl){chipEl.textContent=chips[cur]||'Actif';}
   const FEATS = {
-    free:   [['Canaux/show','26',false],['Shows actifs','3',false],['Membres/show','1',false],['Export PDF','Filigrane',false],['Lien partage','Oui',false],['Multi-patches','Non',true]],
-    pro:    [['Canaux/show','Illimites',false],['Shows actifs','Illimites',false],['Membres/show','Illimites',false],['Export PDF','Sans filigrane',false],['Multi-scenes & patches','Oui',false],['Exports a votre logo','Oui',false]],
+    free: ['3 sessions, 26 canaux par session','Input list, plans et synoptique','5 liens de partage','PDF avec la mention PatchFlow','500 Mo de fichiers','Bon du loueur : 1 contrôle par mois'],
+    pro:  ['Sessions et canaux illimités','Équipe illimitée, avec rôles','PDF à votre logo, sans mention','Exports console (X32, WING, dLive, Yamaha…)','Multi-patchs et plusieurs plans','Reprise d\'une liste par IA','50 Go de fichiers','Bon du loueur illimité'],
   };
   const grid = document.getElementById('sub-plans-grid');
   grid.innerHTML = ['free','pro'].map(function(p) {
-    const pm = PLAN_META[p];
-    const isCur = p === cur;
-    const isUp  = ['free','pro'].indexOf(p) > ['free','pro'].indexOf(cur);
-    const isPopular = p === 'pro';
-    const rows = (FEATS[p] || []).map(function(r) {
-      const ko = r[2];
-      return '<li><i class="' + (ko ? 'off ti ti-minus' : 'ok ti ti-check') + '"></i><span>' + r[0] + ' — <strong>' + r[1] + '</strong></span></li>';
-    }).join('');
-    const ctaLabel = isCur ? 'Plan actuel' : (isUp ? 'Passer au ' + pm.label : 'Downgrader');
-    const ctaCls   = isCur ? '' : (isUp ? ' upgrade-cta' : '');
-    const priceId  = p==='pro' ? ' id="sub-pro-price"'  : '';
-    const periodId = p==='pro' ? ' id="sub-pro-period"' : '';
-    return '<div class="sub-plan-card' + (isCur ? ' current' : '') + (isPopular && !isCur ? ' popular' : '') + '">' +
-      (isCur ? '<div class="sub-current-badge">Actuel</div>' : '') +
-      '<div class="sub-plan-name">' + pm.label + '</div>' +
-      '<div class="sub-plan-price"'+priceId+' style="color:' + (p === 'free' ? 'var(--txt)' : pm.color) + '">' + pm.price + '</div>' +
-      '<div class="sub-plan-period"'+periodId+'>' + pm.period + '</div>' +
-      '<ul class="sub-plan-feats">' + rows + '</ul>' +
-      '<button class="sub-plan-cta' + ctaCls + '"' + (isCur ? ' disabled' : ' onclick="subCTA(\'' + p + '\')"') + '>' +
-      (isCur ? '<i class="ti ti-check"></i> ' : (isUp ? '<i class="ti ti-rocket"></i> ' : '')) + ctaLabel + '</button></div>';
+    const pm = PLAN_META[p], isCur = p === cur, isUp = p === 'pro' && cur !== 'pro';
+    return '<div class="sub-plan-card' + (isCur ? ' current' : '') + (p === 'pro' ? ' popular' : '') + '">'
+      + '<div class="sub-plan-name">' + pm.label + (isCur ? '<span class="sub-current-badge">Votre plan</span>' : '') + '</div>'
+      + '<div class="sub-plan-price"' + (p === 'pro' ? ' id="sub-pro-price"' : '') + '>' + pm.price + '</div>'
+      + '<div class="sub-plan-period"' + (p === 'pro' ? ' id="sub-pro-period"' : '') + '>' + pm.period + '</div>'
+      + '<button class="sub-plan-cta' + (isUp ? ' upgrade-cta' : '') + '"' + (isCur ? ' disabled' : ' onclick="subCTA(\'' + p + '\')"') + '>'
+      + (isCur ? '<i class="ti ti-check"></i>Plan actuel' : isUp ? '<i class="ti ti-rocket"></i>Passer au Pro' : 'Repasser en Gratuit') + '</button>'
+      + '<ul class="sub-plan-feats">' + FEATS[p].map(function(t){ return '<li><i class="ok ti ti-check"></i><span>' + t + '</span></li>'; }).join('') + '</ul></div>';
   }).join('');
   // Masquer le sélecteur de période pour les abonnés Pro (déjà abonnés)
   var bpToggle = document.getElementById('sub-billing-toggle');
@@ -20703,7 +20705,7 @@ function openPlanModal() {
   if(activeBlock) activeBlock.style.display = (cur==='pro') ? 'block' : 'none';
   if(extraBlock)  extraBlock.style.display  = (cur==='pro') ? 'block' : 'none';
   setBillingPeriod(_billingPeriod); // applique les prix selon la période
-  document.getElementById('plan-modal').className = 'modal-ov show';
+  _setGo('abo');
   // Load storage stats async
   _loadSubStorageStats();
   // Compteur de liens de partage
@@ -20720,7 +20722,7 @@ function openPlanModal() {
     }
   }
 }
-function closePlanModal() { document.getElementById('plan-modal').className = 'modal-ov'; }
+function closePlanModal() {}
 
 async function _loadSubStorageStats(){
   const set = (id, txt) => { const el=document.getElementById(id); if(el)el.textContent=txt; };
@@ -20981,9 +20983,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.getElementB
 document.getElementById('pdf-modal').addEventListener('click',function(e){if(e.target===this)closePDF();});
 document.getElementById('site-pdf-modal').addEventListener('click',function(e){if(e.target===this)closeSitePDF();});
 document.getElementById('fich-viewer-modal').addEventListener('click',function(e){if(e.target.classList.contains('fich-viewer-ov'))closeFichierViewer();});
-document.getElementById('profile-modal').addEventListener('click',function(e){if(e.target===this)closeProfile();});
 document.getElementById('gate-modal').addEventListener('click',function(e){if(e.target===this)closeGateModal();});
-document.getElementById('plan-modal').addEventListener('click',function(e){if(e.target===this)closePlanModal();});
 document.getElementById('bp-pdf-modal').addEventListener('click',function(e){if(e.target===this)closeBpPDF();});
 document.getElementById('bp-share-modal').addEventListener('click',function(e){if(e.target===this)closeBpShare();});
 // ══════════════════════════════════════
