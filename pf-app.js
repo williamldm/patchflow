@@ -713,7 +713,7 @@ async function loadShows(){
   /* Restore last active tab after everything is loaded */
   try{
     const lastTab=localStorage.getItem(TAB_PERSIST_KEY);
-    const validTabs=['sessions','overview','fichiers','inputlist','showfiles','bon','synoptique','stage','team'];
+    const validTabs=['sessions','overview','fichiers','inputlist','showfiles','bon','racks','synoptique','stage','team'];
     if(lastTab&&validTabs.includes(lastTab)&&lastTab!=='sessions'){
       goTab(lastTab,null);
     }
@@ -8063,8 +8063,7 @@ async function saveStage(){
   var siteData = SitePlan.hasContent()
     ? SitePlan.getData()
     : (existing.site || SitePlan.getData()); // fallback : existing si SitePlan est vide
-  const data={v:2,planMode:PLAN_MODE,band:BandPlan.getData(),site:siteData,chs:chsSnap};
-  if(existing.rider)data.rider=existing.rider;
+  const data=Object.assign({},existing,{v:2,planMode:PLAN_MODE,band:BandPlan.getData(),site:siteData,chs:chsSnap});   /* garde racks, colonnes et réglages rangés à côté des plans */
   CUR_SHOW.stage_data=data;
   clearTimeout(saveStageTimer);
   saveStageTimer=setTimeout(async()=>{
@@ -15100,7 +15099,10 @@ function _pushToursSoon(){
 async function _pushTours(){
   if(_toursServer===false || !ME) return;
   try{
-    var res=await sb.from('profiles').update({tours:{folders:SESS_FOLDERS,assign:SESS_ASSIGN}}).eq('id',ME.id);
+    /* Le matériel de rack vit dans le même champ : il n'est écrit que s'il a été lu, pour ne jamais l'effacer */
+    var tours={folders:SESS_FOLDERS,assign:SESS_ASSIGN};
+    if(typeof RK_LIB!=='undefined' && RK_LIB!==null) tours.rack_gear=RK_LIB;
+    var res=await sb.from('profiles').update({tours:tours}).eq('id',ME.id);
     if(res&&res.error){ console.warn('[tournées] enregistrement :',res.error.message); if(/tours|column|schema/i.test(res.error.message||'')) _toursServer=false; }
     else _toursServer=true;
   }catch(e){ console.warn('[tournées]',e); }
@@ -15113,6 +15115,7 @@ async function _syncToursFromServer(){
     if(!res || res.error){ _toursServer=false; if(res&&res.error) console.warn('[tournées] colonne profiles.tours absente — stockage local :',res.error.message); return; }
     _toursServer=true;
     var t=res.data&&res.data.tours;
+    if(typeof _rkLibFromServer==='function') _rkLibFromServer(t);
     var has=t&&Array.isArray(t.folders)&&t.folders.length;
     if(has){
       SESS_FOLDERS=t.folders.filter(function(f){return f&&f.id&&f.name;}).map(function(f){ return {id:String(f.id),name:String(f.name).slice(0,40),color:(typeof _safeColor==='function'&&_safeColor(f.color))||_SESS_FOLDER_COLORS[0]}; });
@@ -16261,6 +16264,14 @@ function _demBuild(){
   var site=merge(docs.site.map(function(d){ return group((d.data.elements||[]).filter(function(e){ return e && !_BON_SKIP[e.type] && String(e.label||_BON_SITE_LBL[e.type]||'').trim(); })
     .map(function(e){ return {label:String(e.label||_BON_SITE_LBL[e.type]).trim(),where:(_BON_SITE_LBL[e.type] && _bonNorm(_BON_SITE_LBL[e.type])!==_bonNorm(_bonQty(e.label||'').name))?_BON_SITE_LBL[e.type]:''}; })); }));
   S('site','Implantation','Plan de site',Object.keys(site).filter(function(k){ return !syn[k]; }).map(function(k){ return {key:'site:'+k,name:site[k].name,det:site[k].w.join(' · '),qty:site[k].n}; }));
+  /* Racks : le châssis et son contenu, regroupé par appareil */
+  var rkRows=[], rkG={};
+  (typeof _rkClean==='function'?_rkClean(CUR_SHOW&&CUR_SHOW.stage_data&&CUR_SHOW.stage_data.racks):[]).forEach(function(r){
+    rkRows.push({key:'rk:f'+_bonNorm(r.id),name:'Rack '+r.units+' U',det:r.name+(r.depth?' · '+r.depth+' mm':''),qty:1});
+    r.items.forEach(function(i){ var k=_bonNorm(i.n); if(!k) return; var g=rkG[k]||(rkG[k]={name:i.n,n:0,w:[]}); g.n++; if(g.w.indexOf(r.name)<0) g.w.push(r.name); });
+  });
+  Object.keys(rkG).forEach(function(k){ rkRows.push({key:'rk:'+k,name:rkG[k].name,det:rkG[k].w.join(' · '),qty:rkG[k].n}); });
+  S('racks','Racks','Racks',rkRows);
   /* Câbles tracés sur le plan de site, avec leurs longueurs */
   var cab={};
   docs.site.forEach(function(d){
@@ -16420,6 +16431,330 @@ function _bonCardHtml(){
     +'<button type="button" class="btn pri" onclick="bonPick()"><i class="ti ti-'+(_bonCanImport()?'upload':'lock')+'"></i>Importer le bon (PDF)</button></div></section>';
   return hd+'<span class="bon-file" title="'+_bonE(BON.file)+'"><i class="ti ti-file-text"></i>'+_bonE(BON.file)+'</span><button class="ov-link" onclick="goTab(\'bon\',null)">Ouvrir le contrôle</button></div>'
     +_bonSumHtml(c)+_bonTilesHtml(c,false)+'</section>';
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   RACKS — dessiner les racks 19 pouces à faire préparer par le loueur
+   Un rack : un nom, une hauteur en U, des appareils posés face avant ou face arrière. L'unité 1 est en bas,
+   comme sur les montants. Les racks sont enregistrés dans la session (shows.stage_data.racks).
+   Le matériel créé par l'utilisateur est gardé sur son compte (profiles.tours.rack_gear) et dans le navigateur :
+   il se retrouve dans toutes ses sessions.
+   Le catalogue fourni ne donne que la hauteur des appareils, seule donnée sûre ; poids, consommation et
+   profondeur se renseignent à la main et s'enregistrent avec le matériel.
+   ══════════════════════════════════════════════════════════════════ */
+var RK={showId:null, racks:[], cur:null, sel:null, face:'f', q:'', form:false, t:null};
+var RK_LIB=null;                 /* matériel de l'utilisateur ; null tant qu'il n'a pas été lu sur le compte */
+const RK_UH=30;                  /* hauteur d'une unité à l'écran, en pixels */
+const _RK_HUES=['#ff6b1a','#1a8fff','#22d6a0','#9b6aff','#f5c542','#ff4d6a','#5ab0ff','#8b95a7'];
+const _RK_CAT=[
+  {g:'Liaisons HF', items:[['Shure ULXD4D',1],['Shure ULXD4Q',1],['Shure AD4D',1],['Shure AD4Q',1],['Shure UA844+ (distribution d\'antennes)',1],['Shure PSM1000 P10T',1],['Shure PA821B (combineur)',1],['Sennheiser EM 6000',1],['Sennheiser SR 2050 IEM',1]]},
+  {g:'Amplis', items:[['L-Acoustics LA12X',2],['L-Acoustics LA4X',2],['L-Acoustics LA8',2],['d&b D80',2],['d&b D20',2],['Powersoft X8',2],['Powersoft X4',1],['Lab Gruppen PLM 20K44',2]]},
+  {g:'Stageboxes', items:[['Behringer S16',2],['Behringer S32',3],['Midas DL16',2],['Midas DL32',3],['Yamaha Rio1608-D2',3],['Yamaha Rio3224-D2',5]]},
+  {g:'Réseau et énergie', items:[['Switch réseau',1],['Panneau de brassage RJ45',1],['Bandeau de prises',1],['Onduleur',2]]},
+  {g:'Accessoires', items:[['Tiroir 2U',2],['Tiroir 3U',3],['Tablette',1],['Plaque obturatrice 1U',1],['Plaque obturatrice 2U',2],['Grille de ventilation',1],['Panneau de patch XLR',1],['Éclairage de rack',1]]}
+];
+function _rkId(){ return 'k'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function _rkNum(v,min,max,def){ var n=parseFloat(String(v==null?'':v).replace(',','.')); if(!isFinite(n)) return def; return Math.max(min,Math.min(max,n)); }
+function _rkCur(){ return RK.racks.filter(function(r){ return r.id===RK.cur; })[0]||RK.racks[0]||null; }
+function _rkItem(id){ var r=_rkCur(); return r?r.items.filter(function(i){ return i.id===id; })[0]||null:null; }
+/* Nettoie ce qui vient de la base ou d'un autre compte : rien n'est affiché sans être borné */
+function _rkClean(list){
+  return (Array.isArray(list)?list:[]).filter(function(r){ return r && typeof r==='object'; }).slice(0,30).map(function(r){
+    var units=Math.round(_rkNum(r.units,1,60,12));
+    return {id:String(r.id||_rkId()).slice(0,24), name:String(r.name||'Rack').slice(0,60), units:units, depth:Math.round(_rkNum(r.depth,0,2000,0)), note:String(r.note||'').slice(0,600),
+      items:(Array.isArray(r.items)?r.items:[]).filter(function(i){ return i && typeof i==='object'; }).slice(0,120).map(function(i){
+        var h=Math.round(_rkNum(i.h,1,units,1));
+        return {id:String(i.id||_rkId()).slice(0,24), n:String(i.n||'Appareil').slice(0,80), h:h, u:Math.round(_rkNum(i.u,1,units-h+1,1)), side:i.side==='r'?'r':'f',
+                kg:_rkNum(i.kg,0,500,0), w:Math.round(_rkNum(i.w,0,20000,0)), d:Math.round(_rkNum(i.d,0,2000,0)), note:String(i.note||'').slice(0,200)};
+      })};
+  });
+}
+function _rkLoad(){
+  var id=CUR_SHOW&&CUR_SHOW.id;
+  if(RK.showId===id) return;
+  RK.showId=id; RK.sel=null; RK.face='f';
+  RK.racks=_rkClean(CUR_SHOW&&CUR_SHOW.stage_data&&CUR_SHOW.stage_data.racks);
+  RK.cur=RK.racks.length?RK.racks[0].id:null;
+}
+function _rkSave(){
+  if(!CUR_SHOW) return;
+  CUR_SHOW.stage_data=Object.assign({},CUR_SHOW.stage_data||{v:2},{racks:JSON.parse(JSON.stringify(RK.racks))});
+  clearTimeout(RK.t);
+  RK.t=setTimeout(async function(){
+    if(!CUR_SHOW || CUR_SHOW.id!==RK.showId) return;
+    try{ if(typeof setSaving==='function') setSaving(true);
+      var r=await sb.from('shows').update({stage_data:CUR_SHOW.stage_data}).eq('id',CUR_SHOW.id);
+      if(r && r.error) toast('Racks non enregistrés : '+r.error.message);
+    }catch(e){ toast('Racks non enregistrés : '+(e&&e.message||e)); }
+    if(typeof setSaving==='function') setSaving(false);
+  },600);
+}
+/* ── Matériel de l'utilisateur ── */
+function _rkLibKey(){ return 'pf_rack_gear_'+((ME&&ME.id)||''); }
+function _rkLibClean(list){
+  return (Array.isArray(list)?list:[]).filter(function(g){ return g && String(g.n||'').trim(); }).slice(0,300).map(function(g){
+    return {id:String(g.id||_rkId()).slice(0,24), n:String(g.n).trim().slice(0,80), h:Math.round(_rkNum(g.h,1,60,1)), kg:_rkNum(g.kg,0,500,0), w:Math.round(_rkNum(g.w,0,20000,0)), d:Math.round(_rkNum(g.d,0,2000,0))};
+  });
+}
+function _rkLibLocal(){ try{ return _rkLibClean(JSON.parse(localStorage.getItem(_rkLibKey())||'[]')); }catch(e){ return []; } }
+/* Appelé à la lecture de profiles.tours : le compte fait foi, le navigateur sert de copie */
+function _rkLibFromServer(t){
+  var srv=t && Array.isArray(t.rack_gear) ? _rkLibClean(t.rack_gear) : null;
+  RK_LIB=srv || _rkLibLocal();
+  try{ localStorage.setItem(_rkLibKey(),JSON.stringify(RK_LIB)); }catch(e){}
+}
+function _rkLibSave(){
+  try{ localStorage.setItem(_rkLibKey(),JSON.stringify(RK_LIB||[])); }catch(e){}
+  if(typeof _pushToursSoon==='function') _pushToursSoon();
+}
+/* ── Calculs ── */
+function _rkFree(r,u,h,side,skip){
+  if(u<1 || u+h-1>r.units) return false;
+  return !r.items.some(function(i){ return i.id!==skip && i.side===side && u<=i.u+i.h-1 && i.u<=u+h-1; });
+}
+function _rkSlot(r,h,side){ for(var u=r.units-h+1;u>=1;u--){ if(_rkFree(r,u,h,side,null)) return u; } return 0; }
+function _rkStats(r){
+  var occ={}, kg=0, w=0, clash=[];
+  r.items.forEach(function(i){ kg+=i.kg||0; w+=i.w||0; if(i.side==='f') for(var u=i.u;u<i.u+i.h;u++) occ[u]=1; });
+  /* Deux appareils dos à dos sur les mêmes unités : leurs profondeurs ne doivent pas dépasser celle du rack */
+  if(r.depth) r.items.filter(function(i){ return i.side==='f' && i.d; }).forEach(function(f){
+    r.items.filter(function(b){ return b.side==='r' && b.d && f.u<=b.u+b.h-1 && b.u<=f.u+f.h-1; }).forEach(function(b){ if(f.d+b.d>r.depth) clash.push([f,b]); });
+  });
+  var deep=r.depth?r.items.filter(function(i){ return i.d>r.depth; }):[];
+  return {used:Object.keys(occ).length, kg:kg, w:w, a:w/230, clash:clash, deep:deep};
+}
+/* ── Actions ── */
+function rkNew(){
+  var n=RK.racks.length+1, r={id:_rkId(), name:'Rack '+n, units:12, depth:0, note:'', items:[]};
+  RK.racks.push(r); RK.cur=r.id; RK.sel=null; _rkSave(); renderRacks();
+}
+function rkPick(id){ RK.cur=id; RK.sel=null; renderRacks(); }
+function rkDup(){
+  var r=_rkCur(); if(!r) return;
+  var c=JSON.parse(JSON.stringify(r)); c.id=_rkId(); c.name=(r.name+' (copie)').slice(0,60); c.items.forEach(function(i){ i.id=_rkId(); });
+  RK.racks.push(c); RK.cur=c.id; RK.sel=null; _rkSave(); renderRacks();
+}
+function rkDel(){
+  var r=_rkCur(); if(!r) return;
+  if(!confirm('Supprimer le rack « '+r.name+' » et ses '+r.items.length+' appareil'+(r.items.length>1?'s':'')+' ?')) return;
+  RK.racks=RK.racks.filter(function(x){ return x.id!==r.id; }); RK.cur=RK.racks.length?RK.racks[0].id:null; RK.sel=null; _rkSave(); renderRacks();
+}
+function rkRack(f,v){
+  var r=_rkCur(); if(!r) return;
+  if(f==='name') r.name=String(v||'').trim().slice(0,60)||'Rack';
+  else if(f==='note') r.note=String(v||'').slice(0,600);
+  else if(f==='depth') r.depth=Math.round(_rkNum(v,0,2000,0));
+  else if(f==='units'){
+    var n=Math.round(_rkNum(v,1,60,r.units)), top=r.items.reduce(function(m,i){ return Math.max(m,i.u+i.h-1); },0);
+    if(n<top){ toast('Impossible : un appareil occupe l\'unité '+top+'. Déplacez-le ou retirez-le d\'abord.'); renderRacks(); return; }
+    r.units=n;
+  }
+  _rkSave(); renderRacks();
+}
+function rkFace(f){ RK.face=f; renderRacks(); }
+function rkAdd(src,idx,sub){
+  var r=_rkCur(); if(!r){ toast('Créez d\'abord un rack.'); return; }
+  var g=src==='lib' ? (RK_LIB||[])[idx] : (function(){ var c=(_RK_CAT[idx]||{}).items||[]; return c[sub]?{n:c[sub][0],h:c[sub][1]}:null; })();
+  if(!g) return;
+  var side=RK.face==='r'?'r':'f', h=Math.min(g.h||1,r.units), u=_rkSlot(r,h,side);
+  if(!u){ toast('Plus de place en face '+(side==='r'?'arrière':'avant')+' pour '+h+' U. Agrandissez le rack ou libérez des unités.'); return; }
+  var it={id:_rkId(), n:g.n, h:h, u:u, side:side, kg:g.kg||0, w:g.w||0, d:g.d||0, note:''};
+  r.items.push(it); RK.sel=it.id; _rkSave(); renderRacks();
+}
+function rkSel(id){ RK.sel=RK.sel===id?null:id; renderRacks(); }
+function rkSet(f,v){
+  var r=_rkCur(), it=_rkItem(RK.sel); if(!r||!it) return;
+  if(f==='n') it.n=String(v||'').trim().slice(0,80)||'Appareil';
+  else if(f==='note') it.note=String(v||'').slice(0,200);
+  else if(f==='kg') it.kg=_rkNum(v,0,500,0);
+  else if(f==='w') it.w=Math.round(_rkNum(v,0,20000,0));
+  else if(f==='d') it.d=Math.round(_rkNum(v,0,2000,0));
+  else if(f==='h'){
+    var h=Math.round(_rkNum(v,1,r.units,it.h));
+    if(_rkFree(r,it.u,h,it.side,it.id)) it.h=h;
+    else { var u=_rkSlot({units:r.units,items:r.items.filter(function(x){return x.id!==it.id;})},h,it.side); if(u){ it.h=h; it.u=u; toast('Appareil déplacé en U'+u+' pour tenir sur '+h+' U.'); } else toast('Pas assez de place pour '+h+' U sur cette face.'); }
+  }
+  else if(f==='u'){ var nu=Math.round(_rkNum(v,1,r.units,it.u)); if(_rkFree(r,nu,it.h,it.side,it.id)) it.u=nu; else toast('Cet emplacement est déjà pris.'); }
+  else if(f==='side'){ var s=v==='r'?'r':'f'; if(s!==it.side){ if(_rkFree(r,it.u,it.h,s,it.id)) it.side=s; else { var u2=_rkSlot(r,it.h,s); if(u2){ it.side=s; it.u=u2; } else toast('Pas de place sur l\'autre face.'); } if(RK.face!=='b') RK.face=it.side; } }
+  _rkSave(); renderRacks();
+}
+function rkMove(d){ var r=_rkCur(), it=_rkItem(RK.sel); if(!r||!it) return; var u=it.u+d; while(u>=1 && u+it.h-1<=r.units){ if(_rkFree(r,u,it.h,it.side,it.id)){ it.u=u; _rkSave(); renderRacks(); return; } u+=d; } toast(d>0?'Plus de place au-dessus.':'Plus de place en dessous.'); }
+function rkRemove(){ var r=_rkCur(); if(!r||!RK.sel) return; r.items=r.items.filter(function(i){ return i.id!==RK.sel; }); RK.sel=null; _rkSave(); renderRacks(); }
+/* Glisser un appareil dans le rack : il s'aimante aux unités et ne passe pas à travers les autres */
+function rkDown(ev,id){
+  if(ev.button>0) return;
+  var r=_rkCur(), it=_rkItem(id), el=ev.currentTarget; if(!r||!it) return;
+  var y0=ev.clientY, u0=it.u, moved=false;
+  try{ el.setPointerCapture(ev.pointerId); }catch(e){}
+  var mv=function(e){
+    var nu=Math.max(1,Math.min(r.units-it.h+1,u0+Math.round((y0-e.clientY)/RK_UH)));
+    if(nu!==it.u && _rkFree(r,nu,it.h,it.side,it.id)){ it.u=nu; moved=true; el.style.top=((r.units-(it.u+it.h-1))*RK_UH)+'px'; el.classList.add('drag'); }
+  };
+  var up=function(){
+    el.removeEventListener('pointermove',mv); el.removeEventListener('pointerup',up); el.removeEventListener('pointercancel',up);
+    if(moved){ RK.sel=id; _rkSave(); renderRacks(); } else rkSel(id);
+  };
+  el.addEventListener('pointermove',mv); el.addEventListener('pointerup',up); el.addEventListener('pointercancel',up);
+}
+/* Matériel personnel */
+function rkForm(on){ RK.form=!!on; renderRacks(); if(on){ var i=document.getElementById('rk-f-n'); if(i) i.focus(); } }
+function rkGearSave(){
+  var v=function(id){ return (document.getElementById(id)||{}).value||''; }, n=v('rk-f-n').trim();
+  if(!n){ toast('Donnez un nom au matériel.'); return; }
+  if(RK_LIB===null) RK_LIB=_rkLibLocal();
+  RK_LIB.unshift({id:_rkId(), n:n.slice(0,80), h:Math.round(_rkNum(v('rk-f-h'),1,60,1)), kg:_rkNum(v('rk-f-kg'),0,500,0), w:Math.round(_rkNum(v('rk-f-w'),0,20000,0)), d:Math.round(_rkNum(v('rk-f-d'),0,2000,0))});
+  _rkLibSave(); RK.form=false; toast('✓ « '+n+' » enregistré dans votre matériel'); renderRacks();
+}
+function rkGearKeep(){
+  var it=_rkItem(RK.sel); if(!it) return;
+  if(RK_LIB===null) RK_LIB=_rkLibLocal();
+  var same=RK_LIB.filter(function(g){ return g.n.toLowerCase()===it.n.toLowerCase(); })[0];
+  if(same){ same.h=it.h; same.kg=it.kg; same.w=it.w; same.d=it.d; toast('✓ « '+it.n+' » mis à jour dans votre matériel'); }
+  else { RK_LIB.unshift({id:_rkId(), n:it.n, h:it.h, kg:it.kg, w:it.w, d:it.d}); toast('✓ « '+it.n+' » enregistré dans votre matériel'); }
+  _rkLibSave(); renderRacks();
+}
+function rkGearDel(idx){ var g=(RK_LIB||[])[idx]; if(!g || !confirm('Retirer « '+g.n+' » de votre matériel ? Les racks déjà dessinés ne changent pas.')) return; RK_LIB.splice(idx,1); _rkLibSave(); renderRacks(); }
+function rkSearch(v){ RK.q=String(v||'').slice(0,60); var b=document.getElementById('rk-lib-list'); if(b) b.innerHTML=_rkLibHtml(); }
+/* ── Affichage ── */
+function _rkHue(n){ var s=_bonNorm(n), h=0; for(var i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0; return _RK_HUES[h%_RK_HUES.length]; }
+function _rkFmt(n,unit){ return n?(Math.round(n*10)/10).toLocaleString('fr-FR')+' '+unit:'—'; }
+function _rkLibHtml(){
+  var E=_bonE, q=_bonNorm(RK.q), lib=RK_LIB||[], h='';
+  var ok=function(n){ return !q || _bonNorm(n).indexOf(q)>=0; };
+  var mine=lib.map(function(g,i){ return {g:g,i:i}; }).filter(function(x){ return ok(x.g.n); });
+  h+='<div class="rk-lib-g">Mon matériel<button type="button" class="ov-link" onclick="rkForm(true)">Créer</button></div>';
+  if(RK.form) h+='<div class="rk-form"><input class="set-inp" id="rk-f-n" placeholder="Nom du matériel" maxlength="80">'
+    +'<div class="rk-form-g"><label><span>Hauteur (U)</span><input class="set-inp" id="rk-f-h" type="number" min="1" max="60" value="1"></label><label><span>Poids (kg)</span><input class="set-inp" id="rk-f-kg" type="number" min="0" step="0.1" placeholder="—"></label>'
+    +'<label><span>Conso (W)</span><input class="set-inp" id="rk-f-w" type="number" min="0" placeholder="—"></label><label><span>Profondeur (mm)</span><input class="set-inp" id="rk-f-d" type="number" min="0" placeholder="—"></label></div>'
+    +'<div class="rk-form-a"><button type="button" class="btn sm" onclick="rkForm(false)">Annuler</button><button type="button" class="btn pri sm" onclick="rkGearSave()"><i class="ti ti-check"></i>Enregistrer</button></div></div>';
+  if(!lib.length && !RK.form) h+='<div class="rk-lib-none">Créez vos appareils une fois : ils restent disponibles dans toutes vos sessions.</div>';
+  mine.forEach(function(x){ var g=x.g; h+='<div class="rk-gear"><button type="button" class="rk-gear-b" onclick="rkAdd(\'lib\','+x.i+')" title="Ajouter au rack"><b>'+E(g.n)+'</b><span>'+g.h+' U'+(g.kg?' · '+_rkFmt(g.kg,'kg'):'')+(g.w?' · '+g.w+' W':'')+'</span></button>'
+    +'<button type="button" class="rk-gear-x" onclick="rkGearDel('+x.i+')" title="Retirer de mon matériel"><i class="ti ti-x"></i></button></div>'; });
+  _RK_CAT.forEach(function(c,ci){
+    var its=c.items.map(function(it,si){ return {it:it,si:si}; }).filter(function(x){ return ok(x.it[0]); }); if(!its.length) return;
+    h+='<div class="rk-lib-g">'+E(c.g)+'</div>';
+    its.forEach(function(x){ h+='<div class="rk-gear"><button type="button" class="rk-gear-b" onclick="rkAdd(\'cat\','+ci+','+x.si+')" title="Ajouter au rack"><b>'+E(x.it[0])+'</b><span>'+x.it[1]+' U</span></button></div>'; });
+  });
+  if(q && !mine.length && h.indexOf('rk-gear-b')<0) h+='<div class="rk-lib-none">Rien ne correspond. Créez ce matériel avec le bouton « Créer ».</div>';
+  return h;
+}
+function _rkElevHtml(r,side,edit){
+  var E=_bonE, h='<div class="rk-elev'+(side==='r'?' rear':'')+'"><div class="rk-elev-t">'+(side==='r'?'Face arrière':'Face avant')+'</div><div class="rk-frame" style="height:'+(r.units*RK_UH)+'px">';
+  for(var u=r.units;u>=1;u--) h+='<div class="rk-u" style="top:'+((r.units-u)*RK_UH)+'px"><span>'+u+'</span><i></i><span>'+u+'</span></div>';
+  r.items.filter(function(i){ return i.side===side; }).forEach(function(i){
+    h+='<div class="rk-it'+(RK.sel===i.id?' on':'')+(i.h===1?' one':'')+'" data-id="'+E(i.id)+'" '+(edit?'onpointerdown="rkDown(event,this.dataset.id)"':'')
+      +' style="top:'+((r.units-(i.u+i.h-1))*RK_UH)+'px;height:'+(i.h*RK_UH)+'px;--rk:'+_rkHue(i.n)+'" title="'+E(i.n)+' · U'+i.u+(i.h>1?'–'+(i.u+i.h-1):'')+'">'
+      +'<b>'+E(i.n)+'</b><span>'+i.h+' U'+(i.kg?' · '+_rkFmt(i.kg,'kg'):'')+(i.w?' · '+i.w+' W':'')+(i.note?' · '+E(i.note):'')+'</span></div>';
+  });
+  return h+'</div></div>';
+}
+function renderRacks(){
+  var root=document.getElementById('rk-root'); if(!root) return;
+  var E=_bonE;
+  if(!CUR_SHOW){
+    root.innerHTML='<div class="dt-empty"><i class="ti ti-calendar-event"></i><div class="dt-empty-t">Aucun show ouvert</div><div class="dt-empty-s">Choisissez une session pour dessiner ses racks.</div><button class="btn pri" onclick="goTab(\'sessions\',null)">Voir les sessions</button></div>';
+    return;
+  }
+  _rkLoad(); if(RK_LIB===null) RK_LIB=_rkLibLocal();
+  var r=_rkCur();
+  var h='<header class="bonp-head"><div><div class="bonp-eyebrow">'+E(CUR_SHOW.name||'')+'</div><h1>Racks</h1>'
+    +'<p>Dessinez les racks à faire préparer par le loueur : appareils, emplacements, faces avant et arrière, poids et consommation.</p></div>'
+    +'<div class="bonp-act">'+(RK.racks.length?'<button class="btn pri" onclick="rackPdf()"><i class="ti ti-file-type-pdf"></i>Exporter en PDF</button>':'')+'</div></header>';
+  if(!r){
+    root.innerHTML=h+'<div class="bonp-empty"><i class="ti ti-server"></i><b>Aucun rack pour cette session</b>'
+      +'<span>Créez un rack, choisissez sa hauteur, puis ajoutez les appareils depuis la bibliothèque ou créez les vôtres. Le PDF donne au loueur le dessin et la liste, unité par unité.</span>'
+      +'<button type="button" class="btn pri" onclick="rkNew()"><i class="ti ti-plus"></i>Créer un rack</button></div>';
+    return;
+  }
+  var st=_rkStats(r), it=_rkItem(RK.sel), rear=r.items.some(function(i){ return i.side==='r'; });
+  h+='<div class="rk-tabs">'+RK.racks.map(function(x){ return '<button type="button" class="'+(x.id===r.id?'on':'')+'" data-id="'+E(x.id)+'" onclick="rkPick(this.dataset.id)">'+E(x.name)+'<span>'+x.units+' U</span></button>'; }).join('')
+    +'<button type="button" class="add" onclick="rkNew()" title="Nouveau rack"><i class="ti ti-plus"></i>Rack</button></div>';
+  h+='<div class="rk-wrap"><aside class="rk-lib"><div class="adm-search"><i class="ti ti-search"></i><input type="search" placeholder="Chercher un matériel" value="'+E(RK.q)+'" oninput="rkSearch(this.value)" autocomplete="off"></div><div id="rk-lib-list">'+_rkLibHtml()+'</div></aside>';
+  h+='<main class="rk-stage"><div class="rk-bar"><input class="set-inp rk-name" value="'+E(r.name)+'" maxlength="60" onchange="rkRack(\'name\',this.value)" aria-label="Nom du rack">'
+    +'<label class="rk-mini"><span>Hauteur</span><input class="set-inp" type="number" min="1" max="60" value="'+r.units+'" onchange="rkRack(\'units\',this.value)"><em>U</em></label>'
+    +'<label class="rk-mini"><span>Profondeur</span><input class="set-inp" type="number" min="0" max="2000" step="10" value="'+(r.depth||'')+'" placeholder="—" onchange="rkRack(\'depth\',this.value)"><em>mm</em></label>'
+    +'<div class="bonp-switch rk-face">'+[['f','Avant'],['r','Arrière'],['b','Les deux']].map(function(f){ return '<button type="button" class="'+(RK.face===f[0]?'on':'')+'" onclick="rkFace(\''+f[0]+'\')">'+f[1]+'</button>'; }).join('')+'</div>'
+    +'<span class="il-bar-sp"></span><button type="button" class="btn sm" onclick="rkDup()" title="Dupliquer ce rack"><i class="ti ti-copy"></i>Dupliquer</button><button type="button" class="btn sm rk-danger" onclick="rkDel()" title="Supprimer ce rack"><i class="ti ti-trash"></i></button></div>';
+  h+='<div class="rk-stats"><span><b>'+st.used+' / '+r.units+' U</b>occupés en façade</span><span><b>'+_rkFmt(st.kg,'kg')+'</b>de matériel</span><span><b>'+(st.w?st.w.toLocaleString('fr-FR')+' W':'—')+'</b>'+(st.w?'soit '+(Math.round(st.a*10)/10).toLocaleString('fr-FR')+' A sous 230 V':'consommation')+'</span></div>';
+  if(st.a>16) h+='<div class="set-warn"><i class="ti ti-bolt"></i><span>Plus de 16 A : ce rack demande plus d\'une ligne 16 A, ou une alimentation 32 A.</span></div>';
+  st.clash.forEach(function(c){ h+='<div class="set-warn"><i class="ti ti-arrows-horizontal"></i><span>« '+E(c[0].n)+' » (avant, '+c[0].d+' mm) et « '+E(c[1].n)+' » (arrière, '+c[1].d+' mm) se font face : '+(c[0].d+c[1].d)+' mm pour un rack de '+r.depth+' mm.</span></div>'; });
+  st.deep.forEach(function(i){ h+='<div class="set-warn"><i class="ti ti-arrows-horizontal"></i><span>« '+E(i.n)+' » fait '+i.d+' mm de profondeur, le rack '+r.depth+' mm.</span></div>'; });
+  h+='<div class="rk-elevs">'+(RK.face!=='r'?_rkElevHtml(r,'f',true):'')+(RK.face!=='f'?_rkElevHtml(r,'r',true):'')+'</div>'
+    +(RK.face==='f'&&rear?'<div class="bon-note">Ce rack a aussi des appareils en face arrière : voyez « Arrière » ou « Les deux ».</div>':'')
+    +'<label class="set-fld rk-note"><span>Consignes pour le loueur</span><textarea class="set-inp set-txt" maxlength="600" placeholder="Câblage interne, étiquetage, alimentation, roulettes, capots…" onchange="rkRack(\'note\',this.value)">'+E(r.note)+'</textarea></label></main>';
+  h+='<aside class="rk-insp">';
+  if(!it) h+='<div class="rk-hint"><i class="ti ti-hand-click"></i><b>Ajoutez un appareil</b><span>Cliquez un matériel de la bibliothèque : il se place dans le premier emplacement libre, en partant du haut. Glissez-le ensuite à sa place, ou cliquez-le pour le régler.</span></div>';
+  else h+='<div class="bon-lbl">Appareil sélectionné</div>'
+    +'<label class="set-fld"><span>Nom</span><input class="set-inp" value="'+E(it.n)+'" maxlength="80" onchange="rkSet(\'n\',this.value)"></label>'
+    +'<div class="rk-form-g"><label><span>Hauteur (U)</span><input class="set-inp" type="number" min="1" max="'+r.units+'" value="'+it.h+'" onchange="rkSet(\'h\',this.value)"></label>'
+    +'<label><span>Unité du bas</span><input class="set-inp" type="number" min="1" max="'+r.units+'" value="'+it.u+'" onchange="rkSet(\'u\',this.value)"></label>'
+    +'<label><span>Poids (kg)</span><input class="set-inp" type="number" min="0" step="0.1" value="'+(it.kg||'')+'" placeholder="—" onchange="rkSet(\'kg\',this.value)"></label>'
+    +'<label><span>Conso (W)</span><input class="set-inp" type="number" min="0" value="'+(it.w||'')+'" placeholder="—" onchange="rkSet(\'w\',this.value)"></label>'
+    +'<label><span>Profondeur (mm)</span><input class="set-inp" type="number" min="0" step="10" value="'+(it.d||'')+'" placeholder="—" onchange="rkSet(\'d\',this.value)"></label>'
+    +'<label><span>Face</span><select class="set-inp" onchange="rkSet(\'side\',this.value)"><option value="f"'+(it.side==='f'?' selected':'')+'>Avant</option><option value="r"'+(it.side==='r'?' selected':'')+'>Arrière</option></select></label></div>'
+    +'<label class="set-fld"><span>Remarque</span><input class="set-inp" value="'+E(it.note)+'" maxlength="200" placeholder="Fréquences, canal, étiquette…" onchange="rkSet(\'note\',this.value)"></label>'
+    +'<div class="rk-insp-a"><button type="button" class="btn sm" onclick="rkMove(1)" title="Monter"><i class="ti ti-arrow-up"></i>Monter</button><button type="button" class="btn sm" onclick="rkMove(-1)" title="Descendre"><i class="ti ti-arrow-down"></i>Descendre</button></div>'
+    +'<button type="button" class="btn sm rk-wide" onclick="rkGearKeep()"><i class="ti ti-bookmark-plus"></i>Enregistrer dans mon matériel</button>'
+    +'<button type="button" class="btn sm rk-wide rk-danger" onclick="rkRemove()"><i class="ti ti-trash"></i>Retirer du rack</button>';
+  root.innerHTML=h+'</aside></div>';
+}
+/* ── PDF pour le loueur : une page par rack, le dessin puis la liste du haut vers le bas ── */
+async function rackPdf(){
+  _rkLoad(); if(!RK.racks.length){ toast('Aucun rack à exporter.'); return; }
+  toast('Génération PDF…');
+  try{
+    var JsPDF=await _loadAutoTable(), doc=new JsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+    var PW=doc.internal.pageSize.getWidth(), PH=doc.internal.pageSize.getHeight(), K=_PDFK, M=K.M, brand=_pdfBrand(), acc=_hex2rgb(brand.color||'#ff6b1a');
+    var pf=null; try{ pf=await _pfLogoPng('#FF6B2B'); }catch(e){}
+    var logo=await _pdfLogoInfo(brand.logo), s=CUR_SHOW||{}, BOT=_pdfFootH(false)+4, TOP=30;
+    var who=(typeof PROFILE!=='undefined'&&PROFILE&&PROFILE.full_name)||'', mail=(typeof ME!=='undefined'&&ME&&ME.email)||'', first=[];
+    var draw=function(r,side,x,y,w,uh){
+      doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(K.muted[0],K.muted[1],K.muted[2]); doc.text(side==='r'?'FACE ARRIÈRE':'FACE AVANT',x+6,y-1.8);
+      doc.setDrawColor(K.ink[0],K.ink[1],K.ink[2]); doc.setLineWidth(0.5); doc.setFillColor(255,255,255); doc.rect(x+6,y,w-12,r.units*uh,'FD');
+      doc.setFont('helvetica','normal'); doc.setFontSize(Math.min(6.5,uh*1.7)); doc.setLineWidth(0.1); doc.setDrawColor(K.line[0],K.line[1],K.line[2]);
+      for(var u=r.units;u>=1;u--){ var yy=y+(r.units-u)*uh; if(u<r.units) doc.line(x+6,yy,x+w-6,yy); doc.setTextColor(K.muted[0],K.muted[1],K.muted[2]); doc.text(String(u),x+4.6,yy+uh/2+0.9,{align:'right'}); doc.text(String(u),x+w-4.6,yy+uh/2+0.9); }
+      r.items.filter(function(i){ return i.side===side; }).forEach(function(i){
+        var yy=y+(r.units-(i.u+i.h-1))*uh, hh=i.h*uh, c=_hex2rgb(_rkHue(i.n));
+        doc.setFillColor(246,247,249); doc.setDrawColor(K.ink[0],K.ink[1],K.ink[2]); doc.setLineWidth(0.3); doc.rect(x+6.4,yy+0.3,w-12.8,hh-0.6,'FD');
+        doc.setFillColor(c[0],c[1],c[2]); doc.rect(x+6.4,yy+0.3,1.4,hh-0.6,'F');
+        var fs=Math.min(8.5,Math.max(5,uh*1.9)); doc.setFont('helvetica','bold'); doc.setFontSize(fs); doc.setTextColor(K.ink[0],K.ink[1],K.ink[2]);
+        var nm=doc.splitTextToSize(String(i.n),w-20)[0]||''; doc.text(nm,x+9.6,yy+(hh>uh*1.6?uh*0.72:hh/2+fs*0.13));
+        if(hh>uh*1.6){ doc.setFont('helvetica','normal'); doc.setFontSize(Math.max(5,fs-1.8)); doc.setTextColor(K.txt2[0],K.txt2[1],K.txt2[2]); doc.text(doc.splitTextToSize([i.h+' U',i.note].filter(Boolean).join(' · '),w-20)[0]||'',x+9.6,yy+uh*0.72+fs*0.42); }
+      });
+    };
+    RK.racks.forEach(function(r,ri){
+      if(ri) doc.addPage();
+      first.push(doc.internal.getNumberOfPages());
+      var st=_rkStats(r), rear=r.items.some(function(i){ return i.side==='r'; });
+      var y=_pdfHead(doc,{acc:acc,pf:pf,brand:brand.co||'PatchFlow',docType:'Rack à préparer',title:r.name,sub:s.name||'',logo:logo,
+        rightLines:['Édité le '+new Date().toLocaleDateString('fr-FR')],
+        meta:[['Hauteur',r.units+' U'+(r.depth?' · '+r.depth+' mm':'')],['Poids du matériel',st.kg?_rkFmt(st.kg,'kg'):''],['Consommation',st.w?st.w+' W · '+(Math.round(st.a*10)/10).toLocaleString('fr-FR')+' A':''],['Demandé par',who],['Contact',mail]]})+6;
+      /* Dessin : une ou deux faces côte à côte, hauteur d'unité bornée pour laisser la place à la liste */
+      var uh=Math.max(2.6,Math.min(7,(PH*0.46-y)/r.units)), colW=rear?(PW-2*M-8)/2:Math.min(110,PW-2*M), x0=rear?M:(PW-colW)/2;
+      draw(r,'f',x0,y,colW,uh); if(rear) draw(r,'r',x0+colW+8,y,colW,uh);
+      y+=r.units*uh+8;
+      var rows=r.items.slice().sort(function(a,b){ return (b.u+b.h)-(a.u+a.h) || (a.side<b.side?-1:1); }).map(function(i){
+        return ['U'+i.u+(i.h>1?'–'+(i.u+i.h-1):''), i.h+' U', i.side==='r'?'Arrière':'Avant', i.n, i.note||'', i.kg?_rkFmt(i.kg,'kg'):'', i.w?i.w+' W':'']; });
+      if(rows.length) doc.autoTable({head:[['EMPLACEMENT','HAUTEUR','FACE','APPAREIL','REMARQUE','POIDS','CONSO']],body:rows,startY:y,theme:'plain',margin:{left:M,right:M,top:TOP,bottom:BOT},
+        styles:{font:'helvetica',fontSize:8.6,cellPadding:{top:1.5,bottom:1.5,left:1.8,right:1.8},textColor:K.ink,lineColor:K.line,lineWidth:{bottom:0.2},valign:'middle',overflow:'linebreak'},
+        headStyles:{fontSize:6.5,fontStyle:'bold',textColor:K.muted,lineColor:K.ink,lineWidth:{bottom:0.35}},
+        columnStyles:{0:{fontStyle:'bold',textColor:acc,cellWidth:24},1:{cellWidth:17},2:{cellWidth:16},3:{fontStyle:'bold'},4:{textColor:K.txt2,fontSize:8},5:{halign:'right',cellWidth:18},6:{halign:'right',cellWidth:18}}});
+      y=(rows.length?doc.lastAutoTable.finalY:y)+7;
+      if(String(r.note).trim()){
+        if(y>PH-BOT-16){ doc.addPage(); y=TOP; }
+        doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(K.ink[0],K.ink[1],K.ink[2]); doc.text('Consignes',M,y+3); y+=7;
+        doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(K.txt2[0],K.txt2[1],K.txt2[2]);
+        doc.splitTextToSize(String(r.note),PW-2*M).forEach(function(l){ if(y>PH-BOT-6){ doc.addPage(); y=TOP; } doc.text(l,M,y+3); y+=4.4; });
+      }
+    });
+    var n=doc.internal.getNumberOfPages(), title=s.name||'Show';
+    for(var p=1;p<=n;p++){
+      doc.setPage(p);
+      if(first.indexOf(p)<0) _pdfHead(doc,{acc:acc,pf:pf,brand:brand.co||'PatchFlow',docType:'Rack à préparer',title:title,compact:true});
+      _pdfFoot(doc,{acc:acc,pf:pf,credit:_pdfCreditFree(),creditWhat:'fiche technique',qr:null,url:'',stamp:title,page:p,pages:n});
+    }
+    await _pdfDeliver(doc,(_pdfSlug(title)||'patchflow')+'-racks.pdf');
+  }catch(e){ console.error('rackPdf:',e); toast('Export impossible : '+(e&&e.message||e)); }
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -20217,6 +20552,7 @@ function goTab(id,el){
   if(id==='showfiles') renderShowfiles();
   if(id==='bon') renderBon();
   if(id==='admin') renderAdmin();
+  if(id==='racks') renderRacks();
   if(id==='settings' && !document.querySelector('#panel-settings .set-sec.on')) setNav('profil');
   if(typeof _ilSelSync==='function') _ilSelSync();
   var _fs=document.querySelector('.panel.pf-fs'); if(_fs && _fs.id!=='panel-'+id) pfFullscreen(_fs.id==='panel-synoptique'?'syno':'plan',false);
