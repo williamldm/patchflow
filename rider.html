@@ -261,6 +261,7 @@ html.rider-boot #rider-splash{display:flex}
             <button class="btn" onclick="openOLAssist()" title="Saisir plusieurs sorties d'un coup"><i class="ti ti-wand"></i>Assistant</button>
             <span class="il-sep"></span>
             <span class="il-lbl">Importer</span>
+            <button class="btn" onclick="olPdfImport()" title="Reprendre les sorties d'un rider en PDF, page par page"><i class="ti ti-file-type-pdf"></i>PDF</button>
             <button class="btn" onclick="importOutCSVClick()" title="Importer un fichier CSV"><i class="ti ti-table-import"></i>CSV</button>
             <span class="il-bar-sp"></span>
             <button class="btn" id="out-exp-btn" onclick="openPDFModal('out')"><i class="ti ti-file-export"></i>Exporter</button>
@@ -1506,7 +1507,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=4.33"></script>
+<script src="pf-app.js?v=4.34"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
   <div class="mob-plan-bar">
