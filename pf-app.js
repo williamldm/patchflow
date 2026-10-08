@@ -543,6 +543,8 @@ async function loadProfile(){
   document.getElementById('u-email').textContent=ME.email;
   _refreshAllAvatars();
   _refreshPlanBadge();
+  /* Un Pro offert arrivé à échéance est soldé à la connexion ; la base renvoie le plan à jour */
+  try{ Promise.resolve(sb.rpc('refresh_my_plan')).then(function(r){ if(r && !r.error && typeof r.data==='string' && PROFILE && r.data!==PROFILE.plan){ PROFILE.plan=r.data; _refreshPlanBadge(); } }).catch(function(){}); }catch(e){}
   _admCheck();          /* entrée « Administration » du menu : affichée seulement si la base le confirme */
   // Pre-fill PDF meta with profile
   document.getElementById('pdf-eng').value=PROFILE.full_name||'';
@@ -16339,21 +16341,21 @@ function _bonCardHtml(){
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   ADMINISTRATION — suivi des comptes, des abonnements et du stockage (lecture seule)
+   ADMINISTRATION — suivi des comptes, des abonnements et du stockage (octroi du plan Pro)
    Le droit d'accès est vérifié par la base : chaque fonction admin_* refuse un compte qui n'est pas dans la
    liste des administrateurs (table app_admins). IS_ADMIN ne sert qu'à afficher l'entrée du menu.
    Tout ce qui s'affiche ici vient d'autres comptes (noms, sociétés, titres de sessions, noms de fichiers) :
    chaque valeur passe par _bonE, et les identifiants par des attributs data, jamais dans un gestionnaire.
    ══════════════════════════════════════════════════════════════════ */
 var IS_ADMIN=false;
-var ADM={view:'users', ov:null, list:null, q:'', plan:'', sort:'recent', off:0, open:null, detail:{}, err:'', listErr:'', t:null, seq:0};
+var ADM={view:'users', ov:null, list:null, gr:null, grErr:'', q:'', plan:'', sort:'recent', off:0, open:null, detail:{}, err:'', listErr:'', t:null, seq:0};
 async function _admCheck(){
   var ok=false;
   try{ var r=await sb.rpc('is_app_admin'); ok=!!(r && !r.error && r.data===true); }catch(e){}
   IS_ADMIN=ok; _admNav();
 }
 function _admNav(){ document.querySelectorAll('.adm-only').forEach(function(el){ el.style.display=IS_ADMIN?'':'none'; }); }
-function _admReset(){ IS_ADMIN=false; ADM={view:'users', ov:null, list:null, q:'', plan:'', sort:'recent', off:0, open:null, detail:{}, err:'', listErr:'', t:null, seq:0}; _admNav(); }
+function _admReset(){ IS_ADMIN=false; ADM={view:'users', ov:null, list:null, gr:null, grErr:'', q:'', plan:'', sort:'recent', off:0, open:null, detail:{}, err:'', listErr:'', t:null, seq:0}; _admNav(); }
 async function _admRpc(fn,args){
   var r=await sb.rpc(fn,args||{});
   if(r && r.error){ var e=new Error(r.error.message||String(r.error)); e.code=r.error.code; throw e; }
@@ -16384,6 +16386,59 @@ async function _admLoadUsers(){
     ADM.list=d||{total:0,rows:[]}; ADM.listErr='';
   }catch(e){ if(seq!==ADM.seq) return; ADM.list={total:0,rows:[]}; ADM.listErr=String(e&&e.message||e); }
 }
+/* Octrois du Pro et échéances (migration 20261009). Sans elle, le reste du tableau de bord fonctionne. */
+async function _admLoadGrants(){
+  try{ ADM.gr=await _admRpc('admin_grants_overview')||{grants:[],upcoming:[]}; ADM.grErr=''; }
+  catch(e){ ADM.gr={grants:[],upcoming:[]}; ADM.grErr=String(e&&e.message||e); }
+}
+function _admGrant(id){ var g=(ADM.gr&&ADM.gr.grants)||[]; for(var i=0;i<g.length;i++){ if(g[i].user_id===id) return g[i]; } return null; }
+function _admDays(v){ var d=Math.ceil((new Date(v).getTime()-Date.now())/86400000); return d<=0?'aujourd\'hui':d===1?'demain':'dans '+d+' j'; }
+/* Offrir ou prolonger le Pro. Une prolongation part de la fin actuelle, pas d'aujourd'hui. */
+async function admGrant(id){
+  var dur=(document.getElementById('adm-g-dur')||{}).value||'1', note=((document.getElementById('adm-g-note')||{}).value||'').trim().slice(0,300), until=null, g=_admGrant(id);
+  if(dur==='date'){
+    var dv=(document.getElementById('adm-g-date')||{}).value; if(!dv){ toast('Choisissez une date de fin.'); return; }
+    until=new Date(dv+'T23:59:59'); if(isNaN(until) || until<=new Date()){ toast('La date de fin doit être dans le futur.'); return; }
+  } else if(dur!=='0'){
+    var from=(g && g.expires_at && new Date(g.expires_at)>new Date())?new Date(g.expires_at):new Date();
+    until=new Date(from); until.setMonth(until.getMonth()+(+dur||1));
+  }
+  var who=((ADM.list&&ADM.list.rows)||[]).filter(function(r){ return r.id===id; })[0]||{};
+  if(!confirm('Offrir le plan Pro à '+(who.email||'ce compte')+(until?' jusqu\'au '+_admDate(until):' sans date de fin')+' ?')) return;
+  try{
+    await _admRpc('admin_grant_pro',{p_user:id, p_until:until?until.toISOString():null, p_note:note});
+    toast('✓ Pro offert'+(until?' jusqu\'au '+_admDate(until):' sans date de fin'));
+  }catch(e){ toast('Octroi impossible : '+(e&&e.message||e)); return; }
+  await _admAfterWrite(id);
+}
+async function admRevoke(id){
+  var who=((ADM.list&&ADM.list.rows)||[]).filter(function(r){ return r.id===id; })[0]||{};
+  if(!confirm('Retirer le Pro offert à '+(who.email||'ce compte')+' ?\nS\'il a un abonnement payant en cours il reste Pro, sinon il repasse en Gratuit.')) return;
+  try{ var r=await _admRpc('admin_revoke_pro',{p_user:id}); toast('✓ Pro offert retiré : compte '+(r&&r.plan==='pro'?'toujours Pro (abonnement payant)':'repassé en Gratuit')); }
+  catch(e){ toast('Retrait impossible : '+(e&&e.message||e)); return; }
+  await _admAfterWrite(id);
+}
+async function _admAfterWrite(id){
+  delete ADM.detail[id];
+  try{ ADM.ov=await _admRpc('admin_overview'); }catch(e){}
+  await _admLoadGrants(); await _admLoadUsers();
+  _admPaint();
+  if(ADM.open===id){ try{ ADM.detail[id]=await _admRpc('admin_user_detail',{p_user:id}); }catch(e){ ADM.detail[id]={error:String(e&&e.message||e)}; } _admPaintUsers(); }
+}
+function _admGrantHtml(id,u){
+  var E=_bonE, g=_admGrant(id);
+  if(ADM.grErr) return '<div class="bon-note">Octroi du Pro indisponible : la migration <code>20261009_admin_grants.sql</code> doit être appliquée. <span class="adm-err">'+E(ADM.grErr)+'</span></div>';
+  var h='<div class="adm-grant">';
+  if(g) h+='<div class="adm-grant-now"><i class="ti ti-gift"></i><span><b>Pro offert '+(g.expires_at?'jusqu\'au '+E(_admDate(g.expires_at))+' ('+E(_admDays(g.expires_at))+')':'sans date de fin')+'</b>'
+    +'<em>'+[g.note, g.granted_by?'par '+g.granted_by:'', g.granted_at?'le '+_admDate(g.granted_at):''].filter(Boolean).map(E).join(' · ')+'</em></span>'
+    +'<button type="button" class="btn sm adm-danger" data-id="'+E(id)+'" onclick="admRevoke(this.dataset.id)"><i class="ti ti-x"></i>Retirer</button></div>';
+  h+='<div class="adm-grant-form"><select class="adm-sel" id="adm-g-dur" onchange="document.getElementById(\'adm-g-date\').style.display=this.value===\'date\'?\'\':\'none\'" title="Durée">'
+    +[['1','1 mois'],['3','3 mois'],['6','6 mois'],['12','1 an'],['date','Jusqu\'à une date'],['0','Sans date de fin']].map(function(o){ return '<option value="'+o[0]+'">'+(g&&/^\d+$/.test(o[0])&&o[0]!=='0'?'+ ':'')+o[1]+'</option>'; }).join('')+'</select>'
+    +'<input type="date" class="adm-sel" id="adm-g-date" style="display:none" min="'+new Date(Date.now()+86400000).toISOString().slice(0,10)+'">'
+    +'<input type="text" class="adm-sel adm-g-note" id="adm-g-note" maxlength="300" placeholder="Motif (partenaire, test, geste commercial…)" value="'+E(g?g.note:'')+'">'
+    +'<button type="button" class="btn pri sm" data-id="'+E(id)+'" onclick="admGrant(this.dataset.id)"><i class="ti ti-gift"></i>'+(g?'Prolonger':'Offrir le Pro')+'</button></div></div>';
+  return h;
+}
 async function renderAdmin(force){
   var root=document.getElementById('adm-root'); if(!root) return;
   if(!IS_ADMIN){
@@ -16394,7 +16449,7 @@ async function renderAdmin(force){
     if(!ADM.ov) root.innerHTML=_admHead()+'<div class="loading"><div class="spinner"></div>Chargement…</div>';
     try{ ADM.ov=await _admRpc('admin_overview'); ADM.err=''; }
     catch(e){ ADM.ov=null; ADM.err=String(e&&e.message||e); }
-    if(!ADM.err) await _admLoadUsers();
+    if(!ADM.err){ await _admLoadUsers(); await _admLoadGrants(); }
     if(force){ ADM.detail={}; ADM.open=null; }
   }
   _admPaint();
@@ -16416,7 +16471,7 @@ async function admOpen(id){
 }
 function _admHead(){
   return '<header class="bonp-head"><div><div class="bonp-eyebrow">PatchFlow</div><h1>Administration</h1>'
-    +'<p>Suivi des comptes, des abonnements et du stockage. Lecture seule : rien n\'est modifiable d\'ici.</p></div>'
+    +'<p>Suivi des comptes, des abonnements et du stockage. Seule action possible : offrir ou retirer le plan Pro d\'un compte.</p></div>'
     +'<div class="bonp-act">'+(ADM.ov&&ADM.ov.generated_at?'<span class="bon-file"><i class="ti ti-clock"></i>'+_bonE(new Date(ADM.ov.generated_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}))+'</span>':'')
     +'<button class="btn" id="adm-refresh" onclick="admRefresh()"><i class="ti ti-refresh"></i>Actualiser</button></div></header>';
 }
@@ -16462,7 +16517,7 @@ function _admPaintUsers(){
     var on=ADM.open===r.id;
     h+='<tr class="adm-row'+(on?' on':'')+'" data-id="'+E(r.id)+'" onclick="admOpen(this.dataset.id)" title="Voir le détail">'
       +'<td><b>'+E(r.full_name||r.email||'—')+'</b>'+((r.full_name||r.company)?'<span class="bon-hit w">'+[r.full_name?r.email:'',r.company].filter(Boolean).map(E).join(' · ')+'</span>':'')+(r.confirmed===false?'<span class="adm-tag warn">adresse non confirmée</span>':'')+'</td>'
-      +'<td>'+_admPlan(r.plan,r.plan_override)+'</td>'
+      +'<td>'+_admPlan(r.plan,r.plan_override&&!_admGrant(r.id))+(function(g){ return g?'<span class="bon-hit w">offert '+(g.expires_at?'jusqu\'au '+E(_admDate(g.expires_at)):'sans date de fin')+'</span>':''; })(_admGrant(r.id))+'</td>'
       +'<td>'+E(_admDate(r.created_at))+(r.provider&&r.provider!=='email'?'<span class="bon-hit w">via '+E(r.provider)+'</span>':'')+'</td>'
       +'<td>'+E(_admAgo(r.last_sign_in_at))+'</td>'
       +'<td class="r">'+_admNum(r.shows)+'</td><td class="r">'+_admNum(r.channels)+'</td>'
@@ -16492,7 +16547,8 @@ function _admDetailHtml(id){
     +fact('Stockage',_admSize(shows.reduce(function(t,s){ return t+(Number(s.files_bytes)||0); },0))+' de fichiers · '+_admSize(shows.reduce(function(t,s){ return t+(Number(s.db_bytes)||0); },0))+' de plans')
     +(pd && !pd.executed_at && !pd.cancelled_at?fact('Suppression programmée','<span class="adm-tag warn">le '+E(_admDate(pd.scheduled_at))+'</span>'):'')
     +'</div>';
-  h+='<div class="bon-lbl">Abonnement</div>';
+  h+='<div class="bon-lbl">Plan Pro offert</div>'+_admGrantHtml(id,u);
+  h+='<div class="bon-lbl" style="margin-top:16px">Abonnement payant</div>';
   if(!subs.length) h+='<div class="bon-note">Aucun abonnement enregistré'+(u.plan==='pro'?' : plan Pro '+(u.plan_override?'fixé à la main.':'sans abonnement, à vérifier.'):'.')+'</div>';
   else h+='<table class="bon-tbl"><thead><tr><th>État</th><th>Formule</th><th>Renouvellement</th><th>Fin</th><th>Créé le</th><th>Lemon Squeezy</th></tr></thead><tbody>'
     +subs.map(function(s){ return '<tr><td>'+_admSub(s.status)+'</td><td>'+E(s.plan||'—')+(s.ls_variant_id?'<span class="bon-hit w">variante '+E(s.ls_variant_id)+'</span>':'')+'</td><td>'+E(_admDate(s.renews_at))+'</td><td>'+E(_admDate(s.ends_at))+'</td><td>'+E(_admDate(s.created_at))+'</td>'
@@ -16513,13 +16569,25 @@ function _admSubsHtml(o){
     +((s.by_status||[]).length?'<div class="adm-chips">'+s.by_status.map(function(x){ return '<span>'+_admSub(x.status)+'<b>'+_admNum(x.n)+'</b></span>'; }).join('')
        +(s.by_variant||[]).map(function(x){ return '<span class="v">variante '+E(x.variant)+'<b>'+_admNum(x.n)+'</b></span>'; }).join('')+'</div>'
       :'<div class="ov-none">Aucun abonnement enregistré. Tant que le webhook Lemon Squeezy n\'écrit pas dans la base, cette liste reste vide.</div>')+'</section>';
+  var up=(ADM.gr&&ADM.gr.upcoming)||[], gr=(ADM.gr&&ADM.gr.grants)||[], KIND={grant_end:['short','Fin du Pro offert'],sub_end:['miss','Fin d\'abonnement résilié'],sub_renew:['ok','Renouvellement']};
+  h+='<div class="bonp-two"><section class="ov-card bon-card"><div class="ov-card-hd"><h2>Échéances</h2><span class="bon-reco-n">60 prochains jours</span></div>';
+  if(ADM.grErr) h+='<div class="ov-none">Indisponible : migration <code>20261009_admin_grants.sql</code> à appliquer.</div>';
+  else if(!up.length) h+='<div class="ov-none">Rien n\'arrive à échéance dans les 60 jours.</div>';
+  else h+='<table class="bon-tbl adm-tbl"><thead><tr><th>Date</th><th>Compte</th><th>Échéance</th></tr></thead><tbody>'
+    +up.map(function(x){ var k=KIND[x.kind]||['ext',x.kind]; return '<tr><td><b>'+E(_admDate(x.at))+'</b><span class="bon-hit w">'+E(_admDays(x.at))+'</span></td><td>'+_admWho(x)+'</td><td><span class="bon-pill '+k[0]+'">'+E(k[1])+'</span></td></tr>'; }).join('')+'</tbody></table>';
+  h+='</section><section class="ov-card bon-card"><div class="ov-card-hd"><h2>Pro offerts</h2><span class="bon-reco-n">'+gr.length+' en cours</span></div>';
+  if(ADM.grErr) h+='<div class="ov-none">Indisponible.</div>';
+  else if(!gr.length) h+='<div class="ov-none">Aucun. Ouvrez un compte dans l\'onglet Comptes pour lui offrir le Pro.</div>';
+  else h+='<table class="bon-tbl adm-tbl"><thead><tr><th>Compte</th><th>Fin</th><th>Motif</th></tr></thead><tbody>'
+    +gr.map(function(x){ return '<tr><td>'+_admWho(x)+'</td><td>'+(x.expires_at?'<b>'+E(_admDate(x.expires_at))+'</b><span class="bon-hit w">'+E(_admDays(x.expires_at))+'</span>':'<span class="adm-tag">sans date de fin</span>')+'</td><td>'+E(x.note||'—')+'<span class="bon-hit w">'+E([x.granted_by?'par '+x.granted_by:'',x.granted_at?'le '+_admDate(x.granted_at):''].filter(Boolean).join(' · '))+'</span></td></tr>'; }).join('')+'</tbody></table>';
+  h+='</section></div>';
   h+='<section class="ov-card bon-card"><div class="ov-card-hd"><h2>Abonnements</h2><span class="bon-reco-n">les '+Math.min(list.length,200)+' modifiés le plus récemment</span></div>';
   if(!list.length) h+='<div class="ov-none">Rien à afficher.</div>';
   else h+='<div class="bonp-scroll"><table class="bon-tbl adm-tbl"><thead><tr><th>Compte</th><th>État</th><th>Formule</th><th>Renouvellement</th><th>Fin</th><th>Créé le</th><th>Modifié</th></tr></thead><tbody>'
     +list.map(function(x){ return '<tr><td>'+_admWho(x)+'</td><td>'+_admSub(x.status)+'</td><td>'+E(x.plan||'—')+(x.ls_variant_id?'<span class="bon-hit w">variante '+E(x.ls_variant_id)+'</span>':'')+'</td><td>'+E(_admDate(x.renews_at))+'</td><td>'+E(_admDate(x.ends_at))+'</td><td>'+E(_admDate(x.created_at))+'</td><td>'+E(_admAgo(x.updated_at))+'</td></tr>'; }).join('')+'</tbody></table></div>';
-  h+='</section><section class="ov-card bon-card"><div class="ov-card-hd"><h2>Comptes Pro sans abonnement en cours</h2><span class="bon-reco-n">octrois manuels, comptes de test</span></div>';
+  h+='</section><section class="ov-card bon-card"><div class="ov-card-hd"><h2>Comptes Pro sans abonnement payant</h2><span class="bon-reco-n">Pro offerts et plans fixés hors tableau de bord</span></div>';
   if(!man.length) h+='<div class="ov-none">Aucun : chaque compte Pro a un abonnement actif.</div>';
-  else h+='<table class="bon-tbl adm-tbl"><tbody>'+man.map(function(x){ return '<tr><td>'+_admWho(x)+'</td><td>'+(x.plan_override?'<span class="adm-tag">fixé à la main</span>':'<span class="adm-tag warn">sans abonnement ni octroi : à vérifier</span>')+'</td></tr>'; }).join('')+'</tbody></table>';
+  else h+='<table class="bon-tbl adm-tbl"><tbody>'+man.map(function(x){ return '<tr><td>'+_admWho(x)+'</td><td>'+(_admGrant(x.user_id)?'<span class="adm-tag">Pro offert</span>':x.plan_override?'<span class="adm-tag">fixé à la main, hors tableau de bord</span>':'<span class="adm-tag warn">sans abonnement ni octroi : à vérifier</span>')+'</td></tr>'; }).join('')+'</tbody></table>';
   return h+'</section>';
 }
 function _admFilesHtml(o){
