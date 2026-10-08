@@ -13,22 +13,24 @@
 <meta property="og:locale" content="fr_FR"/>
 <meta property="og:url" content="https://patchflow.fr/"/>
 <meta property="og:title" content="PatchFlow — Le patch au propre, avant la balance"/>
-<meta property="og:description" content="Input list, plans et fichiers d'une date au même endroit, et un lien toujours à jour pour toute l'équipe."/>
-<meta property="og:image" content="https://patchflow.fr/img/lp-hero-il.jpg?v=2"/>
+<meta property="og:description" content="Patch, plans, racks et matériel d'une date au même endroit, et un lien toujours à jour pour toute l'équipe."/>
+<meta property="og:image" content="https://patchflow.fr/img/lp-hero-il.jpg?v=3"/>
 <meta name="twitter:card" content="summary_large_image"/>
 <meta name="twitter:title" content="PatchFlow — Le patch au propre, avant la balance"/>
 <meta name="twitter:description" content="Input list, plans de scène et rider partagé pour les ingés son."/>
-<meta name="twitter:image" content="https://patchflow.fr/img/lp-hero-il.jpg?v=2"/>
+<meta name="twitter:image" content="https://patchflow.fr/img/lp-hero-il.jpg?v=3"/>
 <script>document.documentElement.classList.add('js');setTimeout(function(){if(!window.__rv)document.documentElement.classList.remove('js')},2500);</script>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet"/>
-<link rel="preload" as="image" href="img/lp-hero-il.avif?v=2" type="image/avif" media="(min-width:761px)" fetchpriority="high"/>
-<link rel="preload" as="image" href="img/lp-m-il.avif?v=1" type="image/avif" media="(max-width:760px)" fetchpriority="high"/>
+<link rel="preload" as="image" href="img/lp-hero-il.avif?v=3" type="image/avif" media="(min-width:761px)" fetchpriority="high"/>
+<link rel="preload" as="image" href="img/lp-m-il.avif?v=2" type="image/avif" media="(max-width:760px)" fetchpriority="high"/>
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"SoftwareApplication","name":"PatchFlow","applicationCategory":"BusinessApplication","operatingSystem":"Web","inLanguage":"fr",
-"description":"Input list, output list, plans de scène, de site et synoptique de signal pour les ingés son, avec partage par lien en lecture seule.",
-"url":"https://patchflow.fr/","image":"https://patchflow.fr/img/lp-hero-il.jpg?v=2",
+"description":"Input list, output list, plans de scène, de site, synoptique, racks et bon du loueur pour les techniciens son, avec partage par lien en lecture seule.",
+"author":{"@type":"Person","name":"William Lopes Da Mota"},
+"featureList":["Input list et output list","Plan de scène et plan de site","Synoptique de signal","Dessin de racks 19 pouces","Demande de matériel et contrôle du bon du loueur","Import d'un patch depuis un PDF","Exports console X32, M32, WING, dLive, SQ, Yamaha","Rider partagé par lien"],
+"url":"https://patchflow.fr/","image":"https://patchflow.fr/img/lp-hero-il.jpg?v=3",
 "offers":[{"@type":"Offer","name":"Gratuit","price":"0","priceCurrency":"EUR"},{"@type":"Offer","name":"Pro mensuel","price":"11.99","priceCurrency":"EUR"},{"@type":"Offer","name":"Pro annuel","price":"119","priceCurrency":"EUR"}]}
 </script>
 <style>
@@ -412,6 +414,48 @@ html[data-view=mobile] .notes h3{margin-top:0}
   .addon b{margin-left:0}
   .faq details p{padding-right:8px}
 }
+
+/* ── Tour d'horizon sous le titre : ce que fait l'outil, en huit cases ── */
+.scope{margin-bottom:clamp(40px,5vw,64px)}
+.scope-hd{display:flex;align-items:baseline;justify-content:space-between;gap:8px 32px;flex-wrap:wrap;margin-bottom:16px}
+.scope-hd h2{font-size:clamp(19px,2vw,23px);letter-spacing:-.01em}
+.scope-hd p{font-size:15px;color:var(--ink3)}
+.scope ul{list-style:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;border-radius:18px;overflow:hidden;background:var(--rule2);box-shadow:0 0 0 1px var(--rule2)}
+.scope a{display:grid;gap:4px;height:100%;padding:18px 20px 20px;background:var(--card);text-decoration:none;transition:background .15s}
+.scope a:hover{background:var(--bg)}
+.scope b{font-size:16px;font-weight:650;letter-spacing:-.005em}
+.scope span{font-size:14.5px;line-height:1.45;color:var(--ink2)}
+/* ── Matériel : trois blocs texte + capture, en alternance ── */
+.mat{display:grid;grid-template-columns:minmax(0,4fr) minmax(0,7fr);gap:clamp(32px,5vw,72px);align-items:center}
+.mat+.mat{margin-top:clamp(64px,8vw,120px)}
+.mat.rev .mat-t{order:2}
+.mat.rev{grid-template-columns:minmax(0,7fr) minmax(0,4fr)}
+.mat-t .kicker{margin-bottom:12px}
+.mat-t h3{font-size:clamp(24px,2.6vw,32px);line-height:1.15;letter-spacing:-.015em;margin-bottom:16px}
+.mat-t>p{color:var(--ink2)}
+.mat-t .fine{margin-top:14px;font-size:14px;color:var(--ink3)}
+.ticks{list-style:none;margin-top:22px;border-top:1px solid var(--rule2)}
+.ticks li{position:relative;padding:12px 0 12px 28px;border-bottom:1px solid var(--rule2);font-size:15.5px;color:var(--ink)}
+.ticks li::before{content:'';position:absolute;left:3px;top:19px;width:11px;height:6px;border-left:2px solid var(--acc);border-bottom:2px solid var(--acc);transform:rotate(-45deg)}
+/* ── L'auteur ── */
+.auteur-in{display:grid;grid-template-columns:minmax(0,6fr) minmax(0,6fr);gap:clamp(32px,6vw,96px);align-items:start}
+.auteur-id{display:flex;gap:24px;align-items:flex-start}
+.auteur .mono{flex-shrink:0;display:grid;place-items:center;width:72px;height:72px;border-radius:50%;background:var(--night);color:#fff;font-size:24px;font-weight:700;letter-spacing:.02em;box-shadow:inset 0 0 0 2px var(--acc)}
+.auteur h2{font-size:clamp(28px,3.4vw,44px);line-height:1.1;letter-spacing:-.02em}
+.auteur-t p+p{margin-top:18px;color:var(--ink2)}
+.auteur-t a{color:var(--acc-ink);font-weight:600}
+@media(max-width:1000px){
+  .scope ul{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .mat,.mat.rev{grid-template-columns:minmax(0,1fr);gap:28px}
+  .mat.rev .mat-t{order:0}
+  .auteur-in{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:560px){
+  .scope a{padding:14px 14px 16px}
+  .scope b{font-size:15px}
+  .scope span{font-size:13.5px}
+  .auteur-id{flex-direction:column;gap:16px}
+}
 </style>
 </head>
 <body>
@@ -425,6 +469,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
     </a>
     <nav class="menu" aria-label="Sections">
       <a href="#fonctions">Fonctionnalités</a>
+      <a href="#materiel">Matériel</a>
       <a href="#partage">Partage</a>
       <a href="#tarifs">Tarifs</a>
       <a href="#questions">Questions</a>
@@ -439,6 +484,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
   </div>
   <div class="drawer" id="drawer">
     <a href="#fonctions">Fonctionnalités</a>
+    <a href="#materiel">Matériel</a>
     <a href="#partage">Partage</a>
     <a href="#tarifs">Tarifs</a>
     <a href="#questions">Questions</a>
@@ -457,7 +503,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
     <div class="hero-grid">
       <h1 class="display">Le patch au propre, avant la balance.</h1>
       <div>
-        <p class="lede">L'outil de préparation des ingés son&nbsp;: input list, plans et fichiers de prod d'une date au même endroit — et un lien toujours à jour pour le régisseur, le backline et le groupe.</p>
+        <p class="lede">L'outil de préparation des techniciens son&nbsp;: patch, plans, racks et matériel d'une date au même endroit — et un lien toujours à jour pour le régisseur, le loueur et le groupe.</p>
         <div class="ctas">
           <a class="btn btn-lg" href="app.html">Essayer gratuitement</a>
           <a class="more" href="#partage">Voir un rider partagé <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10h12M11 5l5 5-5 5"/></svg></a>
@@ -466,24 +512,41 @@ html[data-view=mobile] .notes h3{margin-top:0}
       </div>
     </div>
 
+    <div class="scope">
+      <div class="scope-hd">
+        <h2>Ce que PatchFlow fait pour votre date</h2>
+        <p>Pour l'ingé façade, l'ingé retours, le régisseur son et le prestataire.</p>
+      </div>
+      <ul>
+        <li><a href="#accueil"><b>Input et output list</b><span>Le patch, les retours, les fréquences HF.</span></a></li>
+        <li><a href="#plans"><b>Plans de scène et de site</b><span>Canaux et sorties placés sur le plateau.</span></a></li>
+        <li><a href="#plans"><b>Synoptique</b><span>Le trajet du signal, réseau par réseau.</span></a></li>
+        <li><a href="#materiel"><b>Racks</b><span>Dessinés unité par unité, pour le loueur.</span></a></li>
+        <li><a href="#materiel"><b>Bon du loueur</b><span>La demande de matériel, puis le contrôle du bon reçu.</span></a></li>
+        <li><a href="#materiel"><b>Reprise d'un rider</b><span>Le patch du groupe importé depuis son PDF.</span></a></li>
+        <li><a href="#preparation"><b>Exports console</b><span>X32, M32, WING, dLive, SQ, Yamaha.</span></a></li>
+        <li><a href="#partage"><b>Lien toujours à jour</b><span>Un seul lien pour toute l'équipe, sans compte.</span></a></li>
+      </ul>
+    </div>
+
     <div class="shot-bar"><div class="view-sw" role="group" aria-label="Format d'affichage de l'app"><button type="button" data-view="desktop" aria-pressed="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="10" rx="1.5"/><path d="M7 16.5h6M10 13.5v3"/></svg>Ordinateur</button><button type="button" data-view="mobile" aria-pressed="false"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="2" width="9" height="16" rx="2"/><path d="M9 15h2"/></svg>Mobile</button></div></div>
     <figure class="dsk shot" data-x="0">
       <div class="shot-in">
         <picture>
-          <source type="image/avif" srcset="img/lp-hero-il.avif?v=2"/>
-          <img src="img/lp-hero-il.jpg?v=2" width="2880" height="1640" loading="lazy" decoding="async"
-            alt="L'input list de PatchFlow&nbsp;: 24 canaux avec nom court, nom long, source, micro, gain, +48V, envois façade et retours, pied de micro."/>
+          <source type="image/avif" srcset="img/lp-hero-il.avif?v=3"/>
+          <img src="img/lp-hero-il.jpg?v=3" width="2880" height="1640" loading="lazy" decoding="async"
+            alt="L'input list de PatchFlow&nbsp;: 24 canaux groupés par source, avec nom court, nom long, micro, gain, +48V, envois façade et retours ; au-dessus, les boutons d'import PDF, CSV et IA."/>
         </picture>
-        <span class="pin" style="left:80.9%;top:14.6%" aria-hidden="true">1</span>
-        <span class="pin" style="left:62.4%;top:25%" aria-hidden="true">2</span>
-        <span class="pin" style="left:73.6%;top:3.1%" aria-hidden="true">3</span>
+        <span class="pin" style="left:40.6%;top:16.4%" aria-hidden="true">1</span>
+        <span class="pin" style="left:66%;top:23.3%" aria-hidden="true">2</span>
+        <span class="pin" style="left:91.2%;top:7.4%" aria-hidden="true">3</span>
       </div>
     </figure>
     <figure class="mshot">
       <div class="mphone">
         <picture>
-          <source type="image/avif" srcset="img/lp-m-il.avif?v=1"/>
-          <img src="img/lp-m-il.jpg?v=1" width="1170" height="2532" loading="lazy" decoding="async"
+          <source type="image/avif" srcset="img/lp-m-il.avif?v=2"/>
+          <img src="img/lp-m-il.jpg?v=2" width="1170" height="2532" loading="lazy" decoding="async"
             alt="L'input list sur téléphone&nbsp;: canaux, noms, sources, avec la barre d'onglets en bas de l'écran."/>
         </picture>
       </div>
@@ -513,8 +576,8 @@ html[data-view=mobile] .notes h3{margin-top:0}
     <figure class="dsk shot bleed" data-x="0">
       <div class="shot-in">
         <picture>
-          <source type="image/avif" srcset="img/lp-output.avif?v=2"/>
-          <img src="img/lp-output.jpg?v=2" width="2360" height="1280" loading="lazy" decoding="async"
+          <source type="image/avif" srcset="img/lp-output.avif?v=3"/>
+          <img src="img/lp-output.jpg?v=3" width="2880" height="1560" loading="lazy" decoding="async"
             alt="L'output list&nbsp;: wedges, départs in-ear avec fréquence HF, side fills en matrice, sub batteur et effet."/>
         </picture>
       </div>
@@ -522,8 +585,8 @@ html[data-view=mobile] .notes h3{margin-top:0}
     <figure class="mshot">
       <div class="mphone">
         <picture>
-          <source type="image/avif" srcset="img/lp-m-output.avif?v=1"/>
-          <img src="img/lp-m-output.jpg?v=1" width="1170" height="2532" loading="lazy" decoding="async"
+          <source type="image/avif" srcset="img/lp-m-output.avif?v=2"/>
+          <img src="img/lp-m-output.jpg?v=2" width="1170" height="2532" loading="lazy" decoding="async"
             alt="L'output list sur téléphone&nbsp;: sorties, noms et types en couleur."/>
         </picture>
       </div>
@@ -555,20 +618,20 @@ html[data-view=mobile] .notes h3{margin-top:0}
       <figure class="dsk shot" data-x="0.42">
         <div class="shot-in">
           <picture>
-          <source type="image/avif" srcset="img/lp-plan-scene.avif?v=2"/>
-            <img src="img/lp-plan-scene.jpg?v=2" width="2880" height="1760" loading="lazy" decoding="async"
+          <source type="image/avif" srcset="img/lp-plan-scene.avif?v=3"/>
+            <img src="img/lp-plan-scene.jpg?v=3" width="2880" height="1760" loading="lazy" decoding="async"
               alt="Le plan de scène&nbsp;: batterie, amplis, claviers, micros et wedges, chacun avec son numéro de canal ou de sortie&nbsp;; le chant lead est sélectionné et relié au canal 19."/>
           </picture>
-          <span class="pin" style="left:55%;top:62.6%" aria-hidden="true">1</span>
-          <span class="pin" style="left:70.1%;top:75.7%" aria-hidden="true">2</span>
-          <span class="pin" style="left:27.3%;top:13.9%" aria-hidden="true">3</span>
+          <span class="pin" style="left:50%;top:34.6%" aria-hidden="true">1</span>
+          <span class="pin" style="left:57.2%;top:59.9%" aria-hidden="true">2</span>
+          <span class="pin" style="left:22.7%;top:5.4%" aria-hidden="true">3</span>
         </div>
       </figure>
       <figure class="mshot">
         <div class="mphone">
           <picture>
-            <source type="image/avif" srcset="img/lp-m-plan-scene.avif?v=1"/>
-            <img src="img/lp-m-plan-scene.jpg?v=1" width="1170" height="2532" loading="lazy" decoding="async"
+            <source type="image/avif" srcset="img/lp-m-plan-scene.avif?v=2"/>
+            <img src="img/lp-m-plan-scene.jpg?v=2" width="1170" height="2532" loading="lazy" decoding="async"
               alt="Le plan de scène sur téléphone, en lecture, avec zoom au doigt."/>
           </picture>
         </div>
@@ -584,20 +647,20 @@ html[data-view=mobile] .notes h3{margin-top:0}
       <figure class="dsk shot" data-x="0.3">
         <div class="shot-in">
           <picture>
-          <source type="image/avif" srcset="img/lp-plan-site.avif?v=2"/>
-            <img src="img/lp-plan-site.jpg?v=2" width="2880" height="1760" loading="lazy" decoding="async"
+          <source type="image/avif" srcset="img/lp-plan-site.avif?v=3"/>
+            <img src="img/lp-plan-site.jpg?v=3" width="2880" height="1760" loading="lazy" decoding="async"
               alt="Le plan de site&nbsp;: line arrays, subs, front fill, délais et régie façade, reliés par des câbles Dante, Speakon et XLR avec leur métrage&nbsp;; la liaison Dante est sélectionnée."/>
           </picture>
-          <span class="pin" style="left:49.6%;top:58.2%" aria-hidden="true">1</span>
-          <span class="pin" style="left:27.4%;top:86.6%" aria-hidden="true">2</span>
-          <span class="pin" style="left:13.9%;top:22.3%" aria-hidden="true">3</span>
+          <span class="pin" style="left:64.7%;top:58.8%" aria-hidden="true">1</span>
+          <span class="pin" style="left:40.3%;top:80.5%" aria-hidden="true">2</span>
+          <span class="pin" style="left:16.6%;top:19.9%" aria-hidden="true">3</span>
         </div>
       </figure>
       <figure class="mshot">
         <div class="mphone">
           <picture>
-            <source type="image/avif" srcset="img/lp-m-plan-site.avif?v=1"/>
-            <img src="img/lp-m-plan-site.jpg?v=1" width="1170" height="2532" loading="lazy" decoding="async"
+            <source type="image/avif" srcset="img/lp-m-plan-site.avif?v=2"/>
+            <img src="img/lp-m-plan-site.jpg?v=2" width="1170" height="2532" loading="lazy" decoding="async"
               alt="Le plan de site sur téléphone, en lecture, avec zoom au doigt."/>
           </picture>
         </div>
@@ -613,20 +676,20 @@ html[data-view=mobile] .notes h3{margin-top:0}
       <figure class="dsk shot" data-x="0.3">
         <div class="shot-in">
           <picture>
-          <source type="image/avif" srcset="img/lp-plan-syno.avif?v=2"/>
-            <img src="img/lp-plan-syno.jpg?v=2" width="2880" height="1760" loading="lazy" decoding="async"
+          <source type="image/avif" srcset="img/lp-plan-syno.avif?v=3"/>
+            <img src="img/lp-plan-syno.jpg?v=3" width="2880" height="1760" loading="lazy" decoding="async"
               alt="Le synoptique&nbsp;: deux stageboxes, consoles façade et retours, amplis et enceintes, reliés par des liaisons Dante, AES, gigaACE et Speakon."/>
           </picture>
-          <span class="pin" style="left:11.9%;top:69.5%" aria-hidden="true">1</span>
-          <span class="pin" style="left:50.8%;top:36.1%" aria-hidden="true">2</span>
-          <span class="pin" style="left:89.9%;top:11.8%" aria-hidden="true">3</span>
+          <span class="pin" style="left:20.1%;top:69.7%" aria-hidden="true">1</span>
+          <span class="pin" style="left:44.9%;top:49.1%" aria-hidden="true">2</span>
+          <span class="pin" style="left:86.4%;top:3%" aria-hidden="true">3</span>
         </div>
       </figure>
       <figure class="mshot">
         <div class="mphone">
           <picture>
-            <source type="image/avif" srcset="img/lp-m-plan-syno.avif?v=1"/>
-            <img src="img/lp-m-plan-syno.jpg?v=1" width="1170" height="2532" loading="lazy" decoding="async"
+            <source type="image/avif" srcset="img/lp-m-plan-syno.avif?v=2"/>
+            <img src="img/lp-m-plan-syno.jpg?v=2" width="1170" height="2532" loading="lazy" decoding="async"
               alt="Le synoptique sur téléphone, en lecture, avec zoom au doigt."/>
           </picture>
         </div>
@@ -636,6 +699,87 @@ html[data-view=mobile] .notes h3{margin-top:0}
         <li><span class="n" aria-hidden="true">2</span><div><h3>Réseau par réseau</h3><p>Dante, AES, MADI, gigaACE, fibre&nbsp;: chaque liaison a sa couleur et son sens.</p></div></li>
         <li><span class="n" aria-hidden="true">3</span><div><h3>Prêt à envoyer</h3><p>Export PDF avec la légende des réseaux, pour le presta ou la fiche technique.</p></div></li>
       </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ MATÉRIEL ══════════ -->
+<section class="chapter band" id="materiel">
+  <div class="w">
+    <div class="head">
+      <div>
+        <p class="kicker">Matériel</p>
+        <h2>Du patch au camion, sans rien oublier.</h2>
+      </div>
+      <p class="lede">Ce que vous avez dessiné devient la liste du loueur. Et quand son bon revient, PatchFlow vérifie que tout y est.</p>
+    </div>
+
+    <div class="mat">
+      <div class="mat-t">
+        <p class="kicker">Racks</p>
+        <h3>Le rack tel qu'il doit sortir du dépôt.</h3>
+        <p>Posez les appareils unité par unité, en face avant ou arrière, sur une, deux ou trois baies. La coupe de côté montre les profondeurs et signale ce qui se touche.</p>
+        <ul class="ticks">
+          <li>Poids, consommation et ampérage calculés</li>
+          <li>Panneaux de patch dessinés connecteur par connecteur</li>
+          <li>Votre matériel enregistré pour les prochaines dates</li>
+          <li>Un dossier PDF par rack, prêt à envoyer au loueur</li>
+        </ul>
+      </div>
+      <figure class="shot">
+        <div class="shot-in">
+          <picture>
+            <source type="image/avif" srcset="img/lp-racks.avif?v=1"/>
+            <img src="img/lp-racks.jpg?v=1" width="2120" height="1610" loading="lazy" decoding="async"
+              alt="Un rack de régie à deux baies&nbsp;: récepteurs HF, panneau de patch, tiroir, amplis, switch et onduleur, avec les groupes en couleur et les totaux de poids et de consommation."/>
+          </picture>
+        </div>
+      </figure>
+    </div>
+
+    <div class="mat rev">
+      <div class="mat-t">
+        <p class="kicker">Bon du loueur</p>
+        <h3>Le bon est contrôlé avant le départ.</h3>
+        <p>Importez le bon de préparation du loueur&nbsp;: micros, DI, pieds, équipements du synoptique et du plan de site sont comparés ligne par ligne, quantités comprises.</p>
+        <ul class="ticks">
+          <li>Présent, insuffisant ou absent, en un coup d'œil</li>
+          <li>Conseils&nbsp;: câbles XLR trop justes, pieds sans marge</li>
+          <li>Dans l'autre sens&nbsp;: la demande de matériel en PDF, tirée de vos documents</li>
+        </ul>
+        <p class="fine">Un contrôle par mois en Gratuit, illimité en Pro</p>
+      </div>
+      <figure class="shot">
+        <div class="shot-in">
+          <picture>
+            <source type="image/avif" srcset="img/lp-bon.avif?v=1"/>
+            <img src="img/lp-bon.jpg?v=1" width="2360" height="1500" loading="lazy" decoding="async"
+              alt="Le contrôle du bon du loueur&nbsp;: nombre de points à régler, compteurs pour les micros, les pieds, le synoptique et le plan de site, et deux préconisations."/>
+          </picture>
+        </div>
+      </figure>
+    </div>
+
+    <div class="mat">
+      <div class="mat-t">
+        <p class="kicker">Reprise d'un rider</p>
+        <h3>Le patch du groupe, sans le retaper.</h3>
+        <p>Ouvrez le PDF de la fiche technique, choisissez la page du patch&nbsp;: le tableau est lu sur place, et vous décidez où va chaque colonne. Pareil pour les sorties.</p>
+        <ul class="ticks">
+          <li>Aperçu avant import, lignes à écarter d'un clic</li>
+          <li>Les colonnes absentes de PatchFlow peuvent être créées<span class="tag">Pro</span></li>
+          <li>PDF scanné ou photo&nbsp;: lecture par IA<span class="tag">Pro</span></li>
+        </ul>
+      </div>
+      <figure class="shot">
+        <div class="shot-in">
+          <picture>
+            <source type="image/avif" srcset="img/lp-import.avif?v=1"/>
+            <img src="img/lp-import.jpg?v=1" width="2096" height="1540" loading="lazy" decoding="async"
+              alt="L'import d'un patch depuis un PDF&nbsp;: les pages en vignettes, le tableau reconnu, et un menu sous chaque colonne pour choisir sa destination."/>
+          </picture>
+        </div>
+      </figure>
     </div>
   </div>
 </section>
@@ -702,8 +846,8 @@ html[data-view=mobile] .notes h3{margin-top:0}
       <article class="card">
         <div class="card-img">
           <picture>
-            <source type="image/avif" srcset="img/lp-card-files.avif?v=2"/>
-            <img src="img/lp-card-files.jpg?v=2" width="880" height="550" loading="lazy" decoding="async"
+            <source type="image/avif" srcset="img/lp-card-files.avif?v=3"/>
+            <img src="img/lp-card-files.jpg?v=3" width="880" height="550" loading="lazy" decoding="async"
               alt="Les fichiers du show&nbsp;: plan de scène en PDF, rider technique vérifié par un membre de l'équipe, show file dLive."/>
           </picture>
         </div>
@@ -716,8 +860,8 @@ html[data-view=mobile] .notes h3{margin-top:0}
       <article class="card">
         <div class="card-img">
           <picture>
-            <source type="image/avif" srcset="img/lp-card-export.avif?v=2"/>
-            <img src="img/lp-card-export.jpg?v=2" width="666" height="416" loading="lazy" decoding="async"
+            <source type="image/avif" srcset="img/lp-card-export.avif?v=3"/>
+            <img src="img/lp-card-export.jpg?v=3" width="666" height="416" loading="lazy" decoding="async"
               alt="L'export console&nbsp;: scène native .scn pour Behringer X32 et Midas M32, avec noms, couleurs, gains et +48V."/>
           </picture>
         </div>
@@ -730,8 +874,8 @@ html[data-view=mobile] .notes h3{margin-top:0}
       <article class="card">
         <div class="card-img">
           <picture>
-            <source type="image/avif" srcset="img/lp-card-team.avif?v=2"/>
-            <img src="img/lp-card-team.jpg?v=2" width="880" height="562" loading="lazy" decoding="async"
+            <source type="image/avif" srcset="img/lp-card-team.avif?v=3"/>
+            <img src="img/lp-card-team.jpg?v=3" width="880" height="562" loading="lazy" decoding="async"
               alt="L'équipe du show&nbsp;: l'administrateur propriétaire et un membre en lecture seule."/>
           </picture>
         </div>
@@ -751,7 +895,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
         <li>Reprise d'une liste par IA<span class="tag">Pro</span></li>
         <li>Multi-patches A/B<span class="tag">Pro</span></li>
         <li>Recap micros et pieds<span class="tag">Pro</span></li>
-        <li>Contrôle du bon du loueur</li>
+        <li>Sélection et suppression groupée</li>
         <li>Import et export CSV</li>
         <li>Export PDF à votre logo<span class="tag">Pro</span></li>
         <li>Mode clair et sombre</li>
@@ -786,6 +930,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
           <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>Plan de scène, plan de site, synoptique</li>
           <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>5 liens de partage</li>
           <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>Export PDF avec filigrane</li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>Racks, demande de matériel, import d'un rider PDF</li>
           <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>Contrôle du bon du loueur : 1 session par mois</li>
           <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>500 Mo de fichiers · 5 templates</li>
         </ul>
@@ -865,6 +1010,23 @@ html[data-view=mobile] .notes h3{margin-top:0}
 </section>
 
 <!-- ══════════ FIN ══════════ -->
+<!-- ══════════ L'AUTEUR ══════════ -->
+<section class="chapter auteur" id="auteur">
+  <div class="w auteur-in">
+    <div class="auteur-id">
+      <span class="mono" aria-hidden="true">WL</span>
+      <div>
+        <p class="kicker">Fait par un technicien</p>
+        <h2>Conçu par William Lopes Da Mota, technicien passionné.</h2>
+      </div>
+    </div>
+    <div class="auteur-t">
+      <p class="lede">PatchFlow est né sur le terrain. Chaque fonction répond à un besoin rencontré en préparation de date&nbsp;: un patch qui change la veille, un plan à renvoyer, un rack à faire monter, un bon à vérifier avant de charger.</p>
+      <p>L'outil est conçu et développé par William, et il avance au rythme des retours des techniciens qui s'en servent. Une idée, un manque, un format de console à ajouter&nbsp;? <a href="mailto:contact@patchflow.fr">Écrivez-lui</a>.</p>
+    </div>
+  </div>
+</section>
+
 <section class="night final" id="demarrer">
   <div class="w">
     <h2>Votre prochaine date, préparée au propre.</h2>
@@ -891,7 +1053,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
       <a href="#questions">Questions</a>
       <a href="mailto:contact@patchflow.fr">Contact</a>
     </nav>
-    <small>© 2026 PatchFlow — par des techniciens, pour des techniciens.</small>
+    <small>© 2026 PatchFlow — conçu par William Lopes Da Mota, technicien, pour les techniciens.</small>
   </div>
 </footer>
 
