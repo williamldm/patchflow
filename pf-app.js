@@ -15205,6 +15205,199 @@ function _ilStats(){
   el.innerHTML=h;
 }
 
+
+/* ══════════════════════════════════════════════════════════════════
+   BON DU LOUEUR — contrôle du matériel
+   On importe le bon de préparation / de livraison du loueur (PDF) et on
+   vérifie que les micros, DI et pieds de micro du patch y figurent, en
+   quantité suffisante. Le PDF est lu dans le navigateur ; seules les lignes
+   de matériel (référence, désignation, quantité) sont gardées, sur cet
+   appareil. L'en-tête du bon (client, adresse, téléphone) n'est pas lu.
+   ══════════════════════════════════════════════════════════════════ */
+var BON=null, _bonShowId=null;
+function _bonKey(){ return 'pf_bon_'+((CUR_SHOW&&CUR_SHOW.id)||''); }
+function _bonLoad(){
+  var id=CUR_SHOW&&CUR_SHOW.id; if(_bonShowId===id) return BON;
+  _bonShowId=id; BON=null;
+  try{ var j=JSON.parse(localStorage.getItem(_bonKey())||'null'); if(j&&Array.isArray(j.items)) BON=j; }catch(e){}
+  return BON;
+}
+function _bonSave(){ try{ if(BON) localStorage.setItem(_bonKey(),JSON.stringify(BON)); else localStorage.removeItem(_bonKey()); }catch(e){} }
+function _bonNorm(t){ return String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,''); }
+
+/* Lecture du PDF : les textes sont regroupés par ligne (même hauteur), puis rangés en colonnes.
+   Une ligne de matériel porte une quantité ; les lignes de texte qui suivent complètent sa désignation.
+   Repères de colonnes pris sur la ligne de titres (Référence / Désignation / Qté louée) quand elle existe. */
+async function _bonParse(buf){
+  var pdfjs=await _loadPdfJs();
+  var pdf=await pdfjs.getDocument({data:buf, isEvalSupported:false}).promise;
+  var items=[], NUM=/^\d{1,5}(?:[.,]\d{1,2})?$/;
+  for(var p=1;p<=pdf.numPages;p++){
+    var pg=await pdf.getPage(p), tc=await pg.getTextContent(), raw=[];
+    tc.items.forEach(function(it){ var t=String(it.str||'').trim(); if(t) raw.push({x:it.transform[4], y:it.transform[5], t:t}); });
+    raw.sort(function(a,b){ return b.y-a.y || a.x-b.x; });
+    var rows=[];
+    raw.forEach(function(it){ var r=rows[rows.length-1]; if(r && Math.abs(r.y-it.y)<=3) r.it.push(it); else rows.push({y:it.y, it:[it]}); });
+    var hDes=raw.find(function(i){return /^d[ée]signation$/i.test(i.t);}), hRef=raw.find(function(i){return /^r[ée]f[ée]rence$/i.test(i.t);}), hQty=raw.find(function(i){return /^qt[ée] lou[ée]e$|^quantit[ée]$/i.test(i.t);})
+           || raw.filter(function(i){return /^qt[ée]$/i.test(i.t);}).sort(function(a,b){return a.x-b.x;})[0];   /* plusieurs colonnes « Qté » : celle de gauche */
+    var top=hDes?hDes.y-12:1e9, refMax=hRef?hRef.x+30:null, qtyMin=hQty?hQty.x-25:250;
+    var last=null;
+    for(var k=0;k<rows.length;k++){
+      var r=rows[k]; if(r.y>top) continue;
+      var line=r.it.slice().sort(function(a,b){return a.x-b.x;}), txt=line.map(function(i){return i.t;}).join(' ');
+      if(/^page suivante|^page \d+ ?\/ ?\d+/i.test(txt) || r.y<60){ if(hDes) break; else continue; }
+      if(/^[-_=\s]{6,}$/.test(txt)){ last=null; continue; }
+      var q=line.find(function(i){ return NUM.test(i.t) && i.x>=qtyMin; });
+      var rest=line.filter(function(i){ return i!==q && !(NUM.test(i.t) && i.x>=qtyMin) && !/^-\d+$/.test(i.t); });
+      var ref='', name='';
+      if(rest.length){
+        var f=rest[0], isRef=(refMax!==null) ? f.x<refMax : (rest.length>1 && /^[\/.]?[A-Z0-9][A-Z0-9\/.,+_-]{2,}$/.test(f.t));
+        if(isRef){ ref=f.t; rest=rest.slice(1); }
+        name=rest.filter(function(i){ return !q || i.x<q.x; }).map(function(i){return i.t;}).join(' ');
+      }
+      if(q && (ref||name)){
+        var sub=/^\//.test(ref) || /^\./.test(name);
+        last={ref:ref.replace(/^\//,''), name:name.replace(/^\.\s*/,''), more:'', qty:parseFloat(q.t.replace(',','.'))||0, sub:sub};
+        items.push(last);
+      } else if(!q && name && last && !last.more && name.length<90 && !/:$/.test(name)){
+        last.more=name.replace(/^\.\s*/,'');           /* ligne de précision, juste sous la désignation */
+      } else if(!q){ last=null; }
+    }
+  }
+  /* Une ligne de détail qui répète la référence de la ligne au-dessus (contenu d'un kit) ne compte pas deux fois */
+  var out=[];
+  items.forEach(function(it){
+    var prev=out[out.length-1];
+    if(it.sub && prev && _bonNorm(prev.ref) && _bonNorm(prev.ref)===_bonNorm(it.ref)){ if(!prev.name) prev.name=it.name; return; }
+    if(!it.name && prev && !prev.ref){ prev.ref=it.ref; if(!prev.qty) prev.qty=it.qty; return; }
+    out.push(it);
+  });
+  return out.filter(function(i){ return i.qty>0 && (i.ref||i.name); });
+}
+
+/* Pieds de micro : type reconnu dans le texte (grand, petit, embase ronde, table) */
+function _bonStandKind(t){
+  var n=' '+String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase()+' ';
+  if(/pince/.test(n)) return 'pince';
+  if(/embase ronde|\bronde?\b|\ber\b|droit/.test(n)) return 'ronde';
+  if(/table/.test(n)) return 'table';
+  if(/grand|\bgp\b|\bgm\b|long|perch/.test(n)) return 'grand';
+  if(/petit|\bpp\b|\bpm\b|court/.test(n)) return 'petit';
+  return 'autre';
+}
+const _BON_STAND={grand:'Grand pied', petit:'Petit pied', ronde:'Embase ronde', table:'Pied de table', autre:'Pied (type non précisé)', pince:'Pince'};
+function _bonIsStand(it){ var n=_bonNorm(it.name+' '+it.more); return /pied/.test(n) && /mic/.test(n); }
+/* Pieds fournis par une ligne du bon. Un flight de pieds détaille souvent son contenu : « (8GM - 4PM - 1 PM embase ronde) » */
+function _bonStandsOf(it){
+  var t=(it.name+' '+it.more), r={}, hit=false, m;
+  var re=/(\d+)\s*(GM|PM)(\s*embase\s*ronde)?/gi;
+  while((m=re.exec(t))){ hit=true; var k=m[3]?'ronde':(m[2].toUpperCase()==='GM'?'grand':'petit'); r[k]=(r[k]||0)+parseInt(m[1],10)*it.qty; }
+  if(!hit){ var kd=_bonStandKind(_bonNorm(it.ref).indexOf('gm')>=0?it.name+' grand':it.name+' '+it.more); r[kd==='pince'?'autre':kd]=it.qty; }
+  return r;
+}
+/* Rapprochement d'un modèle du patch avec les lignes du bon : la référence ou la désignation contient le modèle
+   (« C414 » dans « C414XLS », « Beta 91A » dans « BETA91A »), sinon tous les mots chiffrés du modèle s'y retrouvent. */
+function _bonMatch(model, pool){
+  var n=_bonNorm(model); if(n.length<2) return [];
+  var toks=String(model).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().match(/[a-z]*\d+[a-z0-9]*/g)||[];
+  return pool.filter(function(it){
+    var r=_bonNorm(it.ref), d=_bonNorm(it.name+' '+it.more);
+    /* Nom court (« D6 », « e22 ») : il doit être un mot entier, sinon il se retrouve par hasard dans d'autres références */
+    if(n.length<4){
+      var words=String(it.ref+' '+it.name).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().split(/[^a-z0-9]+/);
+      return r===n || words.indexOf(n)>=0;
+    }
+    if(r.indexOf(n)>=0 || d.indexOf(n)>=0) return true;
+    if(r.length>=4 && n.indexOf(r)>=0) return true;
+    return toks.length>0 && toks.every(function(t){ return t.length>=3 && (r.indexOf(t)>=0 || d.indexOf(t)>=0); }) && n.replace(/\d/g,'').length<=2;
+  });
+}
+function _bonCompare(){
+  var b=_bonLoad(); if(!b) return null;
+  var chs=(typeof CHS!=='undefined'&&CHS)?CHS:[], need={}, sneed={};
+  chs.forEach(function(c){
+    var m=String(c.mic||'').trim(); if(m) need[m]=(need[m]||0)+1;
+    var st=String(c.note||'').trim(); if(st){ var k=_bonStandKind(st); sneed[k]=(sneed[k]||0)+1; }
+  });
+  var stands=b.items.filter(_bonIsStand), gear=b.items.filter(function(i){return !_bonIsStand(i);}), used={};
+  var map=b.map||{};
+  var mics=Object.keys(need).sort(function(a,c){ return need[c]-need[a]||a.localeCompare(c); }).map(function(m){
+    var o=map[m], ext=o==='__ext', hits=ext?[]:(o?gear.filter(function(i){return i.ref===o;}):_bonMatch(m,gear));
+    hits.forEach(function(i){ used[i.ref+'|'+i.name]=1; });
+    var have=hits.reduce(function(s,i){return s+i.qty;},0);
+    return {model:m, need:need[m], have:have, hits:hits, manual:!!o, ext:ext, st:ext?'ext':have>=need[m]?'ok':have>0?'short':'miss'};
+  });
+  /* Ce qui pose problème d'abord */
+  var ORD={miss:0,short:1,ok:2,ext:3}; mics.sort(function(a,c){ return ORD[a.st]-ORD[c.st] || c.need-a.need || a.model.localeCompare(c.model); });
+  var sh={}; stands.forEach(function(i){ var r=_bonStandsOf(i); Object.keys(r).forEach(function(k){ sh[k]=(sh[k]||0)+r[k]; }); });
+  var kinds=['grand','petit','ronde','table','autre'].filter(function(k){ return sneed[k]||sh[k]; });
+  var st=kinds.map(function(k){ var n=sneed[k]||0, h=sh[k]||0; return {kind:k, need:n, have:h, st:!n?'extra':h>=n?'ok':h>0?'short':'miss'}; });
+  var totN=kinds.reduce(function(s,k){return s+(sneed[k]||0);},0), totH=kinds.reduce(function(s,k){return s+(sh[k]||0);},0);
+  var unused=gear.filter(function(i){ return !used[i.ref+'|'+i.name] && /\bmicro\b|capsule|\bdi\b|boitier de direct/i.test(i.name) && !/pince|adapt|pile|c[aâ]ble/i.test(i.name); });
+  return {mics:mics, stands:st, standLines:stands, pince:sneed.pince||0, totN:totN, totH:totH, unused:unused, gear:gear};
+}
+function bonPick(){
+  if(!canDo('recap_matos')){ showUpgradeModal('recap_matos'); return; }
+  var i=document.getElementById('bon-file'); if(i){ i.value=''; i.click(); }
+}
+async function bonFile(inp){
+  var f=inp.files&&inp.files[0]; if(!f) return;
+  toast('Lecture du bon…');
+  try{
+    var items=await _bonParse(await f.arrayBuffer());
+    if(!items.length){ toast('Aucune ligne de matériel trouvée dans ce PDF (bon scanné en image ?)'); return; }
+    _bonLoad(); BON={file:f.name, at:new Date().toISOString(), items:items, map:{}}; _bonSave();
+    toast('✓ Bon importé : '+items.length+' lignes de matériel');
+  }catch(e){ console.error('bonFile:',e); toast('Lecture du bon impossible : '+(e&&e.message||e)); }
+  renderOverview();
+}
+function bonClear(){ if(!confirm('Retirer le bon du loueur de cette session ?')) return; _bonLoad(); BON=null; _bonSave(); renderOverview(); }
+function bonSetMap(model,val){ var b=_bonLoad(); if(!b) return; b.map=b.map||{}; if(val) b.map[model]=val; else delete b.map[model]; _bonSave(); renderOverview(); }
+function _bonCardHtml(){
+  var E=function(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
+  var J=function(t){return String(t).replace(/\\/g,'\\\\').replace(/'/g,"\\'");};
+  var hd='<section class="ov-card ov-span2 bon-card"><input type="file" id="bon-file" accept="application/pdf,.pdf" hidden onchange="bonFile(this)">'
+    +'<div class="ov-card-hd"><h2>Bon du loueur</h2>';
+  if(!canDo('recap_matos')) return hd+'</div><button type="button" class="ov-none ov-upsell" onclick="showUpgradeModal(\'recap_matos\')"><i class="ti ti-clipboard-check"></i>Contrôler les micros et les pieds avec le bon du loueur<span class="plan-badge-pill pro">Pro</span></button></section>';
+  var c=_bonCompare(), b=BON;
+  if(!c) return hd+'<button class="ov-link" onclick="bonPick()">Importer</button></div>'
+    +'<div class="bon-empty"><i class="ti ti-clipboard-check"></i><div><b>Vérifiez le matériel avant le départ</b><span>Importez le bon de préparation ou de livraison du loueur (PDF). PatchFlow contrôle que les micros, DI et pieds de micro de l\'input list y figurent, en quantité suffisante.</span></div>'
+    +'<button type="button" class="btn pri" onclick="bonPick()"><i class="ti ti-upload"></i>Importer le bon (PDF)</button></div></section>';
+  var nOk=c.mics.filter(function(m){return m.st==='ok';}).length, nShort=c.mics.filter(function(m){return m.st==='short';}).length, nMiss=c.mics.filter(function(m){return m.st==='miss';}).length;
+  var sBad=c.stands.filter(function(x){return x.st==='short'||x.st==='miss';}).length;
+  var PILL={ok:['ok','Présent'],short:['short','Insuffisant'],miss:['miss','Absent du bon'],ext:['ext','Fourni par ailleurs'],extra:['ext','En plus']};
+  var pill=function(k){ return '<span class="bon-pill '+PILL[k][0]+'">'+PILL[k][1]+'</span>'; };
+  var h=hd+'<span class="bon-file" title="'+E(b.file)+'"><i class="ti ti-file-text"></i>'+E(b.file)+'</span><button class="ov-link" onclick="bonPick()">Remplacer</button><button class="ov-link" onclick="bonClear()">Retirer</button></div>';
+  var all=!nShort&&!nMiss&&!sBad;
+  h+='<div class="bon-sum'+(all?' ok':'')+'"><i class="ti ti-'+(all?'circle-check':'alert-triangle')+'"></i><span>'
+    +(all?'Tout le matériel du patch figure sur le bon.':'<b>'+(nMiss+nShort+sBad)+' point'+(nMiss+nShort+sBad>1?'s':'')+' à régler</b> avant le départ.')
+    +'</span><em>'+nOk+' modèle'+(nOk>1?'s':'')+' conforme'+(nOk>1?'s':'')+(nShort?' · '+nShort+' insuffisant'+(nShort>1?'s':''):'')+(nMiss?' · '+nMiss+' absent'+(nMiss>1?'s':''):'')+'</em></div>';
+  /* Micros et DI */
+  var opts=function(m){
+    return '<select class="bon-map" onchange="bonSetMap(\''+J(m.model)+'\',this.value)" title="Associer ce modèle à une ligne du bon">'
+      +'<option value=""'+(!m.manual?' selected':'')+'>Rapprochement automatique</option>'
+      +'<option value="__ext"'+(m.ext?' selected':'')+'>Fourni par ailleurs (hors bon)</option>'
+      +c.gear.filter(function(i){return i.ref;}).map(function(i){ return '<option value="'+E(i.ref)+'"'+(m.manual&&!m.ext&&BON.map[m.model]===i.ref?' selected':'')+'>'+E(i.ref)+' · '+E(i.name).slice(0,42)+' ×'+i.qty+'</option>'; }).join('')+'</select>';
+  };
+  h+='<div class="bon-cols"><div><div class="bon-lbl">Micros et DI</div>';
+  if(!c.mics.length) h+='<div class="ov-none">Aucun micro renseigné dans l\'input list.</div>';
+  else h+='<table class="bon-tbl"><thead><tr><th>Modèle du patch</th><th class="r">Besoin</th><th class="r">Sur le bon</th><th>État</th></tr></thead><tbody>'
+    +c.mics.map(function(m){
+      return '<tr class="'+m.st+'"><td><b>'+E(m.model)+'</b>'
+        +(m.hits.length?'<span class="bon-hit">'+m.hits.map(function(i){return E(i.ref||i.name)+' ×'+i.qty;}).join(' · ')+'</span>':'')
+        +opts(m)+'</td><td class="r">'+m.need+'</td><td class="r">'+(m.ext?'—':m.have)+'</td><td>'+pill(m.st)+'</td></tr>';
+    }).join('')+'</tbody></table>';
+  h+='</div><div><div class="bon-lbl">Pieds de micro</div>';
+  if(!c.stands.length) h+='<div class="ov-none">Aucun pied dans l\'input list ni sur le bon.</div>';
+  else h+='<table class="bon-tbl"><thead><tr><th>Type</th><th class="r">Besoin</th><th class="r">Sur le bon</th><th>État</th></tr></thead><tbody>'
+    +c.stands.map(function(x){ return '<tr class="'+x.st+'"><td><b>'+_BON_STAND[x.kind]+'</b></td><td class="r">'+x.need+'</td><td class="r">'+x.have+'</td><td>'+pill(x.st)+'</td></tr>'; }).join('')
+    +'<tr class="tot"><td><b>Total</b></td><td class="r">'+c.totN+'</td><td class="r">'+c.totH+'</td><td>'+(c.totH>=c.totN?pill('ok'):pill('short'))+'</td></tr></tbody></table>';
+  if(c.standLines.length) h+='<div class="bon-note">Lignes du bon : '+c.standLines.map(function(i){return E(i.ref)+' ×'+i.qty+(i.more?' '+E(i.more):'');}).join(' · ')+'</div>';
+  if(c.pince) h+='<div class="bon-note">'+c.pince+' pince'+(c.pince>1?'s':'')+' dans le patch : non comparée'+(c.pince>1?'s':'')+', à vérifier à la main.</div>';
+  if(c.unused.length) h+='<div class="bon-lbl" style="margin-top:18px">Micros du bon non utilisés dans le patch</div><div class="bon-note">'+c.unused.map(function(i){return '<b>'+E(i.ref||i.name)+'</b> ×'+i.qty;}).join(' · ')+'</div>';
+  return h+'</div></div></section>';
+}
+
 /* ══════════════════════════════════════════════════════════════════
    VUE D'ENSEMBLE DU SHOW
    ══════════════════════════════════════════════════════════════════ */
@@ -15256,6 +15449,9 @@ function renderOverview(){
       :(micList.length?'<div class="ov-mics">'+micList.slice(0,8).map(function(m){ return '<span><b>'+_e(m)+'</b> ×'+mics[m]+'</span>'; }).join('')+(micList.length>8?'<span>+ '+(micList.length-8)+' autres</span>':'')+'</div>'
                     :'<div class="ov-none">Renseignez les micros dans l\'input list pour obtenir le récapitulatif du matériel.</div>'))
     +'</section>';
+
+  /* Bon du loueur : contrôle des micros et des pieds */
+  h+=_bonCardHtml();
 
   /* Riders envoyés */
   var links=(typeof _proLinks!=='undefined'&&_lastLinksShowId===s.id)?_proLinks:null;

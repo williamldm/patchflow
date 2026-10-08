@@ -2924,3 +2924,36 @@ body.pf-fs-on{overflow:hidden}
 .xp-sw input:checked+i::after{transform:translateX(16px);background:#fff}
 .xp-sw input:focus-visible+i{outline:2px solid var(--ora);outline-offset:2px}
 @media(max-width:640px){ .xp-opt{flex-wrap:wrap;gap:8px} .xp-opt .xp-seg{width:100%} .xp-opt .xp-seg-b{flex:1;padding:0 6px} }
+
+/* ── Bon du loueur : contrôle du matériel (vue d'ensemble) ── */
+.bon-card .ov-card-hd h2{margin-right:auto}
+.bon-file{display:inline-flex;align-items:center;gap:6px;max-width:38%;font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bon-empty{display:flex;align-items:center;gap:16px;padding:6px 0 2px;flex-wrap:wrap}
+.bon-empty>i{font-size:26px;color:var(--muted);flex-shrink:0}
+.bon-empty>div{flex:1;min-width:240px;display:grid;gap:3px}
+.bon-empty b{font-size:14px;font-weight:650;color:var(--txt)}
+.bon-empty span{font-size:13px;color:var(--muted);line-height:1.5}
+.bon-sum{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:11px 14px;border-radius:10px;background:var(--ora-d);font-size:13.5px;color:var(--txt)}
+.bon-sum>i{font-size:18px;color:var(--ora)}
+.bon-sum.ok{background:rgba(34,214,160,.09)}.bon-sum.ok>i{color:var(--grn)}
+.bon-sum em{margin-left:auto;font-style:normal;font-size:12.5px;color:var(--muted)}
+.bon-cols{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:28px;margin-top:18px}
+.bon-lbl{margin-bottom:6px;font:650 11.5px var(--f);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.bon-tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+.bon-tbl th{height:32px;padding:0 8px;text-align:left;border-bottom:1px solid var(--bdr);color:var(--muted);font:650 11px var(--f);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+.bon-tbl td{padding:8px;border-bottom:1px solid var(--bdr);color:var(--txt2);vertical-align:top}
+.bon-tbl .r{text-align:right;font-variant-numeric:tabular-nums;width:74px}
+.bon-tbl td b{display:block;font-weight:600;color:var(--txt)}
+.bon-cols>div:last-child .bon-tbl td:first-child{white-space:nowrap}
+.bon-tbl tr.tot td{border-bottom:0}
+.bon-hit{display:block;margin-top:2px;font:400 11.5px var(--m);color:var(--muted)}
+.bon-map{display:none;margin-top:6px;width:100%;max-width:340px;height:28px;padding:0 24px 0 8px;border:0;border-radius:7px;background-color:var(--surf2);box-shadow:inset 0 0 0 1px var(--bdr2);color:var(--txt2);font:400 12px var(--f)}
+.bon-tbl tr:hover .bon-map,.bon-tbl tr.miss .bon-map,.bon-tbl tr.short .bon-map,.bon-map:focus{display:block}
+.bon-pill{display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:6px;font:600 11.5px var(--f);white-space:nowrap}
+.bon-pill.ok{background:rgba(34,214,160,.12);color:var(--grn)}
+.bon-pill.short{background:var(--ora-d);color:var(--ora)}
+.bon-pill.miss{background:rgba(255,77,106,.12);color:var(--err)}
+.bon-pill.ext{background:var(--surf2);color:var(--muted)}
+.bon-note{margin-top:8px;font-size:12.5px;line-height:1.5;color:var(--muted)}
+.bon-note b{color:var(--txt2);font-weight:600}
+@media(max-width:900px){ .bon-cols{grid-template-columns:minmax(0,1fr);gap:20px} .bon-file{display:none} .bon-sum em{margin-left:0;width:100%} }
