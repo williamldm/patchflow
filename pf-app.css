@@ -3033,3 +3033,21 @@ button.bonp-empty{cursor:pointer}
 .bon-reco li b{font-size:13.5px;font-weight:650;color:var(--txt)}
 .bon-reco li span{font-size:13px;line-height:1.5;color:var(--txt2)}
 .bon-reco li span b{font-size:inherit}
+/* Bon du loueur : bascule contrôle / demande, et liste de la demande */
+.bonp-switch{display:inline-flex;gap:4px;margin-bottom:16px;padding:4px;border-radius:11px;background:var(--surf);box-shadow:inset 0 0 0 1px var(--bdr)}
+.bonp-switch button{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 14px;border:0;border-radius:8px;background:transparent;color:var(--txt2);font:600 13px var(--f);cursor:pointer}
+.bonp-switch button:hover{color:var(--txt)}
+.bonp-switch button.on{background:var(--ora);color:#1f0d02}
+.bonp-switch i{font-size:16px}
+.dem-tbl td{vertical-align:middle}
+.dem-tbl tr:last-child td{border-bottom:0}
+.dem-tbl td b{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dem-tbl tr.off td b,.dem-tbl tr.off .bon-hit{color:var(--muted);text-decoration:line-through}
+.dem-ck{width:1%;white-space:nowrap}
+.dem-q{width:68px;height:32px;padding:0 8px;border:0;border-radius:8px;background:var(--surf2);box-shadow:inset 0 0 0 1px var(--bdr2);color:var(--txt);font:600 14px var(--f);text-align:right;font-variant-numeric:tabular-nums}
+.dem-q:disabled{opacity:.4}
+.dem-xn,.dem-note{width:100%;border:0;border-radius:8px;background:var(--surf2);box-shadow:inset 0 0 0 1px var(--bdr2);color:var(--txt);font:400 13.5px var(--f)}
+.dem-xn{height:32px;padding:0 10px}
+.dem-note{min-height:84px;padding:10px 12px;line-height:1.5;resize:vertical}
+.dem-q:focus,.dem-xn:focus,.dem-note:focus{outline:0;box-shadow:inset 0 0 0 1.5px var(--ora)}
+@media(max-width:900px){ .bonp-switch{display:flex} .bonp-switch button{flex:1;justify-content:center;padding:0 8px;font-size:12.5px} }

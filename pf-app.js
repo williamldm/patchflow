@@ -15697,6 +15697,158 @@ function _bonLinesHtml(c){
         +(u.length?u.map(function(x){ return '<span class="bon-pill ext">'+x[1]+'</span>'; }).join(' '):'<span class="bonp-dash">—</span>')+'</td></tr>';
     }).join('')+'</tbody></table></div></details>';
 }
+/* ══ Demande de matériel : le chemin inverse du contrôle ══
+   La liste à envoyer au loueur est calculée depuis les documents de la session (input list, output list,
+   synoptique, plan de site), puis ajustée à la main : quantités, lignes écartées, lignes libres, remarques.
+   Les réglages sont gardés par session dans le navigateur. */
+var BON_VIEW='ctrl', DEM=null, _demShowId=null;
+function _demLoad(){
+  var id=CUR_SHOW&&CUR_SHOW.id; if(_demShowId===id && DEM) return DEM;
+  _demShowId=id; DEM={q:{},off:{},extra:[],note:''};
+  try{ var j=JSON.parse(localStorage.getItem('pf_dem_'+(id||''))||'null'); if(j&&typeof j==='object'){ DEM.q=j.q||{}; DEM.off=j.off||{}; DEM.extra=Array.isArray(j.extra)?j.extra:[]; DEM.note=String(j.note||''); } }catch(e){}
+  return DEM;
+}
+function _demSave(){ try{ localStorage.setItem('pf_dem_'+((CUR_SHOW&&CUR_SHOW.id)||''),JSON.stringify(DEM)); }catch(e){} }
+function _demBuild(){
+  var D=_demLoad(), secs=[], chs=(typeof CHS!=='undefined'&&CHS)?CHS:[], outs=(typeof OUT_CHS!=='undefined'&&OUT_CHS)?OUT_CHS:[];
+  var S=function(id,title,src,rows){ if(rows.length) secs.push({id:id,title:title,src:src,rows:rows}); };
+  var pl=function(n,one,many){ return n+' '+(n>1?many:one); };
+  /* Input list : micros, DI et pieds */
+  var need={}, sneed={};
+  chs.forEach(function(c){
+    var m=String(c.mic||'').trim(); if(m){ var k=_bonNorm(m); (need[k]=need[k]||{name:m,n:0,ch:[]}).n++; need[k].ch.push(c.ch); }
+    var st=String(c.note||'').trim(); if(st){ var sk=_bonStandKind(st); sneed[sk]=(sneed[sk]||0)+1; }
+  });
+  var src=Object.keys(need).reduce(function(sum,k){ return sum+need[k].n; },0);
+  S('mics','Micros et DI','Input list',Object.keys(need).map(function(k){ var x=need[k]; return {key:'mic:'+k,name:x.name,det:'voie'+(x.ch.length>1?'s':'')+' '+x.ch.join(', '),qty:x.n}; })
+    .sort(function(a,b){ return b.qty-a.qty || a.name.localeCompare(b.name); }));
+  var nStands=0;
+  S('stands','Pieds de micro','Input list',['grand','petit','ronde','table','autre','pince'].filter(function(k){ return sneed[k]; }).map(function(k){ if(k!=='pince') nStands+=sneed[k]; return {key:'std:'+k,name:_BON_STAND[k],det:'',qty:sneed[k]}; }));
+  /* Output list : retours, liaisons ears, subs. Les bus (main, groupes, matrices, effets) ne sont pas du matériel. */
+  var wd=outs.filter(function(o){ return o.type==='mon'; }), sb2=outs.filter(function(o){ return o.type==='sub'; });
+  var ears={}; outs.filter(function(o){ return o.type==='iem'; }).forEach(function(o){ var n=String(o.short_name||o.long_name||'IEM').replace(/\s*[-_ ]?(L|R|G|D)$/i,'').trim(); ears[_bonNorm(n)||'iem']=n; });
+  var nm=function(l){ return l.map(function(o){ return String(o.short_name||o.long_name||'').trim(); }).filter(Boolean).join(', '); };
+  var orow=[];
+  if(wd.length) orow.push({key:'out:mon',name:'Retour de scène (wedge)',det:nm(wd),qty:wd.length});
+  if(Object.keys(ears).length) orow.push({key:'out:iem',name:'Liaison ear monitor (émetteur + pack)',det:Object.keys(ears).map(function(k){ return ears[k]; }).join(', '),qty:Object.keys(ears).length});
+  if(sb2.length) orow.push({key:'out:sub',name:'Sub de scène',det:nm(sb2),qty:sb2.length});
+  S('outs','Retours','Output list',orow);
+  /* Synoptique et plan de site : par modèle, le plus grand besoin d'une scène à l'autre. Un appareil déjà compté
+     sur le synoptique n'est pas redemandé par le plan de site. */
+  var docs=_bonDocs(), lab=function(n){ return String(n.label||n.name||'').replace(/\s*\n\s*/g,' ').trim(); };
+  var group=function(list){ var by={}; list.forEach(function(e){ var q=_bonQty(e.label), k=_bonNorm(q.name); if(!k) return; var g=by[k]||(by[k]={name:q.name,n:0,w:[]}); g.n+=q.qty; if(e.where && g.w.indexOf(e.where)<0) g.w.push(e.where); }); return by; };
+  var merge=function(all){ var out={}; all.forEach(function(by){ Object.keys(by).forEach(function(k){ if(!out[k] || by[k].n>out[k].n) out[k]=by[k]; }); }); return out; };
+  var syn=merge(docs.syn.map(function(d){ return group((d.data.nodes||[]).filter(function(n){ return n && !_BON_SKIP[n.type] && lab(n); }).map(function(n){ return {label:lab(n),where:String(n.sub||'').trim()}; })); }));
+  S('syn','Système et régie','Synoptique',Object.keys(syn).map(function(k){ return {key:'syn:'+k,name:syn[k].name,det:syn[k].w.join(' · '),qty:syn[k].n}; }));
+  var site=merge(docs.site.map(function(d){ return group((d.data.elements||[]).filter(function(e){ return e && !_BON_SKIP[e.type] && String(e.label||_BON_SITE_LBL[e.type]||'').trim(); })
+    .map(function(e){ return {label:String(e.label||_BON_SITE_LBL[e.type]).trim(),where:(_BON_SITE_LBL[e.type] && _bonNorm(_BON_SITE_LBL[e.type])!==_bonNorm(_bonQty(e.label||'').name))?_BON_SITE_LBL[e.type]:''}; })); }));
+  S('site','Implantation','Plan de site',Object.keys(site).filter(function(k){ return !syn[k]; }).map(function(k){ return {key:'site:'+k,name:site[k].name,det:site[k].w.join(' · '),qty:site[k].n}; }));
+  /* Câbles tracés sur le plan de site, avec leurs longueurs */
+  var cab={};
+  docs.site.forEach(function(d){
+    var ct={}; (d.data.cableTypes||[]).concat(d.data.customCableTypes||[]).forEach(function(t){ if(t&&t.id) ct[t.id]=t.label; });
+    var mine={}; (d.data.cables||[]).forEach(function(k){ var id=k.type||'x', g=mine[id]||(mine[id]={name:ct[id]||_BON_CABLE_LBL[id]||id,n:0,len:[]}); g.n++; var L=String(k.length||'').trim(); if(L) g.len.push(L); });
+    Object.keys(mine).forEach(function(id){ if(!cab[id] || mine[id].n>cab[id].n) cab[id]=mine[id]; });
+  });
+  var crow=Object.keys(cab).map(function(id){ var g=cab[id]; return {key:'cab:'+_bonNorm(id),name:'Liaison '+g.name,det:g.len.length?'longueurs : '+g.len.join(', '):'longueur à préciser',qty:g.n}; });
+  /* Conseils : câblage XLR selon le nombre de sources, pieds en spare */
+  if(src>0){ var goal=src>=8?Math.ceil(src*1.5):src+2; crow.push({key:'adv:xlr',name:'Câble XLR (modules)',det:'conseillé pour '+pl(src,'source','sources')+' : '+(src>=8?'un câble et demi par source':'deux de marge'),qty:goal,adv:true}); }
+  if(nStands>0) crow.push({key:'adv:stand',name:'Pied de micro en spare',det:'conseillé : casse, micro d\'ordre, antennes HF',qty:2,adv:true});
+  S('cab','Câblage et spares','Plan de site et conseils',crow);
+  secs.forEach(function(s){ s.rows.forEach(function(r){ r.auto=r.qty; if(D.q[r.key]!=null) r.qty=D.q[r.key]; r.off=!!D.off[r.key]; }); });
+  var extra=D.extra.filter(function(x){ return x && String(x.n||'').trim(); });
+  return {secs:secs, extra:extra, note:D.note, lines:secs.reduce(function(sum,s){ return sum+s.rows.filter(function(r){ return !r.off && r.qty>0; }).length; },0)+extra.length};
+}
+function bonView(v){ BON_VIEW=v; renderBon(); }
+function demQty(key,val){ var D=_demLoad(), n=Math.max(0,Math.min(999,parseInt(val,10)||0)); D.q[key]=n; _demSave(); }
+function demToggle(key,on){ var D=_demLoad(); if(on) delete D.off[key]; else D.off[key]=1; _demSave(); renderBon(); }
+function demAdd(){ var D=_demLoad(); D.extra.push({n:'',q:1}); _demSave(); renderBon(); var l=document.querySelectorAll('.dem-xn'); if(l.length) l[l.length-1].focus(); }
+function demExtra(i,f,val){ var D=_demLoad(), x=D.extra[i]; if(!x) return; if(f==='q') x.q=Math.max(1,Math.min(999,parseInt(val,10)||1)); else x.n=String(val).slice(0,120); _demSave(); }
+function demDel(i){ var D=_demLoad(); D.extra.splice(i,1); _demSave(); renderBon(); }
+function demNote(val){ _demLoad().note=String(val).slice(0,1500); _demSave(); }
+function demReset(){ if(!confirm('Revenir à la liste calculée ? Vos quantités, lignes écartées et lignes ajoutées seront effacées.')) return; _demLoad(); DEM={q:{},off:{},extra:[],note:''}; _demSave(); renderBon(); }
+function _bonSwitchHtml(){
+  return '<div class="bonp-switch" role="tablist"><button type="button" class="'+(BON_VIEW==='ctrl'?'on':'')+'" onclick="bonView(\'ctrl\')"><i class="ti ti-clipboard-check"></i>Contrôler un bon reçu</button>'
+    +'<button type="button" class="'+(BON_VIEW==='dem'?'on':'')+'" onclick="bonView(\'dem\')"><i class="ti ti-send"></i>Demande au loueur</button></div>';
+}
+function _demHtml(){
+  var E=_bonE, d=_demBuild(), D=_demLoad();
+  if(!d.secs.length && !D.extra.length) return '<div class="bonp-empty"><i class="ti ti-send"></i><b>Rien à demander pour l\'instant</b>'
+    +'<span>La demande se remplit toute seule à partir de l\'input list (micros, DI, pieds), de l\'output list (retours, ears), du synoptique et du plan de site.</span>'
+    +'<button type="button" class="btn pri" onclick="navIL(\'in\')"><i class="ti ti-list-numbers"></i>Ouvrir l\'input list</button></div>';
+  var h='<div class="bon-sum ok"><i class="ti ti-send"></i><span><b>'+d.lines+' ligne'+(d.lines>1?'s':'')+' à demander.</b> Ajustez les quantités, décochez ce que vous fournissez vous-même, puis exportez.</span>'
+    +'<em>Calculé depuis vos documents, mis à jour à chaque ouverture</em></div>';
+  d.secs.forEach(function(s){
+    h+='<section class="ov-card bon-card"><div class="ov-card-hd"><h2>'+s.title+'</h2><span class="bon-reco-n">'+s.src+'</span></div><table class="bon-tbl dem-tbl"><tbody>'
+      +s.rows.map(function(r){
+        return '<tr class="'+(r.off?'off':'')+'"><td class="dem-ck"><input type="checkbox" class="cb" data-k="'+E(r.key)+'"'+(r.off?'':' checked')+' onchange="demToggle(this.dataset.k,this.checked)" title="Inclure dans la demande"></td>'
+          +'<td><b>'+E(r.name)+(r.adv?'<span class="bon-pill ext">Conseil</span>':'')+'</b>'+(r.det?'<span class="bon-hit w">'+E(r.det)+'</span>':'')+'</td>'
+          +'<td class="r"><input type="number" class="dem-q" min="0" max="999" value="'+r.qty+'" data-k="'+E(r.key)+'"'+(r.off?' disabled':'')+' onchange="demQty(this.dataset.k,this.value)" title="Calculé : '+r.auto+'"></td></tr>';
+      }).join('')+'</tbody></table></section>';
+  });
+  h+='<section class="ov-card bon-card"><div class="ov-card-hd"><h2>Lignes ajoutées</h2><button class="ov-link" onclick="demAdd()">Ajouter une ligne</button></div>';
+  if(!D.extra.length) h+='<div class="ov-none">Console, multipaire, praticables, énergie… tout ce qui ne figure pas dans vos documents.</div>';
+  else h+='<table class="bon-tbl dem-tbl"><tbody>'+D.extra.map(function(x,i){
+      return '<tr><td><input type="text" class="dem-xn" maxlength="120" placeholder="Désignation" value="'+E(x.n)+'" onchange="demExtra('+i+',\'n\',this.value)"></td>'
+        +'<td class="r"><input type="number" class="dem-q" min="1" max="999" value="'+(+x.q||1)+'" onchange="demExtra('+i+',\'q\',this.value)"></td>'
+        +'<td class="dem-ck"><button type="button" class="ov-link" onclick="demDel('+i+')" title="Supprimer"><i class="ti ti-x"></i></button></td></tr>';
+    }).join('')+'</tbody></table>';
+  h+='<div class="bon-lbl" style="margin-top:18px">Remarques pour le loueur</div><textarea class="dem-note" maxlength="1500" placeholder="Horaires de retrait et de retour, livraison, accès, contact sur place…" onchange="demNote(this.value)">'+E(D.note)+'</textarea></section>';
+  return h;
+}
+/* PDF de la demande, à la charte des autres exports */
+async function demPdf(){
+  var d=_demBuild();
+  if(!d.lines){ toast('Aucune ligne à demander.'); return; }
+  toast('Génération PDF…');
+  try{
+    var JsPDF=await _loadAutoTable(), doc=new JsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+    var PW=doc.internal.pageSize.getWidth(), PH=doc.internal.pageSize.getHeight(), K=_PDFK, M=K.M, brand=_pdfBrand(), acc=_hex2rgb(brand.color||'#ff6b1a');
+    var pf=null; try{ pf=await _pfLogoPng('#FF6B2B'); }catch(e){}
+    var logo=await _pdfLogoInfo(brand.logo), s=CUR_SHOW||{}, title=s.name||'Show', BOT=_pdfFootH(false)+4, TOP=30;
+    var who=(typeof PROFILE!=='undefined'&&PROFILE&&PROFILE.full_name)||'', mail=(typeof ME!=='undefined'&&ME&&ME.email)||'';
+    var y=_pdfHead(doc,{acc:acc,pf:pf,brand:brand.co||'PatchFlow',docType:'Demande de matériel',title:title,sub:'',logo:logo,
+      rightLines:['Édité le '+new Date().toLocaleDateString('fr-FR')],
+      meta:[['Lieu',s.venue],['Date',_pdfDateFr(_showDateISO(s.show_date))],['Demandé par',who],['Contact',mail]]})+3;
+    var put=function(t,sub){
+      if(y>PH-BOT-28){ doc.addPage(); y=TOP; }
+      doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(K.ink[0],K.ink[1],K.ink[2]); doc.text(t,M,y+4);
+      if(sub){ var tw=doc.getTextWidth(t); doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(K.muted[0],K.muted[1],K.muted[2]); doc.text(sub,M+tw+2.5,y+4); }
+      y+=6;
+    };
+    var tbl=function(body){
+      doc.autoTable({head:[['QTÉ','DÉSIGNATION','PRÉCISIONS']],body:body,startY:y,theme:'plain',margin:{left:M,right:M,top:TOP,bottom:BOT},
+        styles:{font:'helvetica',fontSize:9,cellPadding:{top:1.7,bottom:1.7,left:1.8,right:1.8},textColor:K.ink,lineColor:K.line,lineWidth:{bottom:0.2},valign:'middle',overflow:'linebreak'},
+        headStyles:{fontSize:6.5,fontStyle:'bold',textColor:K.muted,lineColor:K.ink,lineWidth:{bottom:0.35}},
+        columnStyles:{0:{halign:'right',fontStyle:'bold',textColor:acc,cellWidth:14},1:{fontStyle:'bold',cellWidth:(PW-2*M-14)*0.46},2:{textColor:K.txt2,fontSize:8}}});
+      y=doc.lastAutoTable.finalY+7;
+    };
+    var total=0;
+    d.secs.forEach(function(sec){
+      var rows=sec.rows.filter(function(r){ return !r.off && r.qty>0; }); if(!rows.length) return;
+      put(sec.title,'d\'après '+sec.src.toLowerCase());
+      tbl(rows.map(function(r){ total+=r.qty; return [String(r.qty),r.name,r.det||'']; }));
+    });
+    if(d.extra.length){ put('Autres demandes',''); tbl(d.extra.map(function(x){ total+=(+x.q||1); return [String(+x.q||1),String(x.n),'']; })); }
+    if(String(d.note).trim()){
+      put('Remarques','');
+      doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(K.txt2[0],K.txt2[1],K.txt2[2]);
+      doc.splitTextToSize(String(d.note),PW-2*M).forEach(function(l){ if(y>PH-BOT-6){ doc.addPage(); y=TOP; } doc.text(l,M,y+3); y+=4.4; });
+      y+=4;
+    }
+    if(y>PH-BOT-8){ doc.addPage(); y=TOP; }
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(K.muted[0],K.muted[1],K.muted[2]);
+    doc.text(d.lines+' ligne'+(d.lines>1?'s':'')+'   ·   '+total+' article'+(total>1?'s':'')+'   ·   Merci de confirmer la disponibilité et de signaler tout équivalent proposé.',M,y+2);
+    var n=doc.internal.getNumberOfPages();
+    for(var p=1;p<=n;p++){
+      doc.setPage(p);
+      if(p>1) _pdfHead(doc,{acc:acc,pf:pf,brand:brand.co||'PatchFlow',docType:'Demande de matériel',title:title,compact:true,right:[s.venue,_pdfDateFr(_showDateISO(s.show_date))].filter(Boolean).join(' · ')});
+      _pdfFoot(doc,{acc:acc,pf:pf,credit:_pdfCreditOn(),creditWhat:'fiche technique',qr:null,url:'',stamp:p===1?'':title,page:p,pages:n});
+    }
+    await _pdfDeliver(doc,(_pdfSlug(title)||'patchflow')+'-demande-materiel.pdf');
+  }catch(e){ console.error('demPdf:',e); toast('Export impossible : '+(e&&e.message||e)); }
+}
+
 /* Onglet « Bon du loueur » */
 function renderBon(){
   var root=document.getElementById('bon-root'); if(!root) return;
@@ -15706,8 +15858,13 @@ function renderBon(){
     return;
   }
   var hd=function(act){ return '<header class="bonp-head"><div><div class="bonp-eyebrow">'+E(CUR_SHOW.name||'')+'</div><h1>Bon du loueur</h1>'
-    +'<p>Contrôlez que le matériel de l\'input list, du synoptique et du plan de site figure sur le bon du loueur, en quantité suffisante.</p></div>'
-    +'<div class="bonp-act">'+act+'</div></header>'; };
+    +'<p>'+(BON_VIEW==='dem'?'Préparez la liste de matériel à envoyer au loueur, à partir de l\'input list, de l\'output list, du synoptique et du plan de site.'
+         :'Contrôlez que le matériel de l\'input list, du synoptique et du plan de site figure sur le bon du loueur, en quantité suffisante.')+'</p></div>'
+    +'<div class="bonp-act">'+act+'</div></header>'+_bonSwitchHtml(); };
+  if(BON_VIEW==='dem'){
+    root.innerHTML=hd('<button class="btn" onclick="demReset()"><i class="ti ti-restore"></i>Recalculer</button><button class="btn pri" onclick="demPdf()"><i class="ti ti-file-type-pdf"></i>Exporter en PDF</button>')+_demHtml();
+    return;
+  }
   var c=_bonAll(), b=BON, can=_bonCanImport();
   if(!c){
     root.innerHTML=hd('')+_bonFreeHtml()+'<div class="bonp-empty"><i class="ti ti-clipboard-check"></i><b>Vérifiez le matériel avant le départ</b>'
