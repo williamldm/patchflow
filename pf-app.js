@@ -15501,7 +15501,74 @@ function _bonAll(){
        syn:{tot:sr.length, bad:bad(sr)}, site:{tot:pr.length, bad:bad(pr)}};
   c.bad=c.n.mics.bad+c.n.stands.bad+c.n.syn.bad+c.n.site.bad;
   c.free=b.items.filter(function(i){ return !i._u.il && !i._u.syn && !i._u.site; });
+  c.reco=_bonReco(c);
   return c;
+}
+
+/* ── Offre Gratuite : une session contrôlée par mois (illimité en Pro) ──
+   Le mois consommé est gardé sur le compte (métadonnées utilisateur) et dans le navigateur. Tant que le mois
+   court, le bon de cette même session peut être remplacé ; le résultat déjà obtenu reste consultable. */
+function _bonMonth(){ var d=new Date(); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2); }
+function _bonFree(){
+  var u=null, id=(typeof ME!=='undefined' && ME && ME.id) || '';
+  try{ u=JSON.parse(localStorage.getItem('pf_bon_free_'+id)||'null'); }catch(e){}
+  var m=(typeof ME!=='undefined' && ME && ME.user_metadata && ME.user_metadata.pf_bon) || null;
+  if(m && m.m && (!u || !u.m || m.m>u.m)) u=m;
+  return (u && u.m===_bonMonth()) ? u : null;
+}
+function _bonCanImport(){ if(canDo('recap_matos')) return true; var u=_bonFree(); return !u || u.show===(CUR_SHOW && CUR_SHOW.id); }
+function _bonFreeMark(){
+  if(canDo('recap_matos') || !CUR_SHOW) return;
+  var u={m:_bonMonth(), show:CUR_SHOW.id};
+  try{ localStorage.setItem('pf_bon_free_'+((ME && ME.id)||''), JSON.stringify(u)); }catch(e){}
+  try{ if(ME) ME.user_metadata=Object.assign({}, ME.user_metadata, {pf_bon:u}); Promise.resolve(sb.auth.updateUser({data:{pf_bon:u}})).catch(function(){}); }catch(e){}
+}
+function _bonFreeHtml(){
+  if(canDo('recap_matos')) return '';
+  var u=_bonFree(), d=new Date(), nx=new Date(d.getFullYear(), d.getMonth()+1, 1).toLocaleDateString('fr-FR',{day:'numeric',month:'long'}).replace(/^1 /,'1er ');
+  return '<div class="bonp-free"><i class="ti ti-gift"></i><span><b>Offre Gratuite : une session contrôlée par mois.</b> '
+    +(!u?'Votre contrôle de ce mois est disponible.'
+       :u.show===(CUR_SHOW && CUR_SHOW.id)?'Contrôle du mois utilisé pour cette session : vous pouvez encore remplacer son bon. Prochaine session le '+nx+'.'
+       :'Contrôle du mois déjà utilisé sur une autre session. Prochain contrôle le '+nx+'.')
+    +'</span><button type="button" class="ov-link" onclick="showUpgradeModal(\'bon_loueur\')">Illimité en Pro</button></div>';
+}
+
+/* ── Préconisations ──
+   Ce que le bon couvre tout juste : le câblage XLR face au nombre de sources, et les pieds sans marge.
+   Ce sont des conseils, pas des manques : ils ne comptent pas dans les points à régler. */
+function _bonReco(c){
+  var out=[], W=function(i){ return _bonWords(i.ref+' '+i.name); };
+  var src=c.mics.filter(function(m){ return !m.ext; }).reduce(function(sum,m){ return sum+m.need; },0);
+  var xl=BON.items.filter(function(i){ var w=W(i); return w.some(function(x){ return /^xlr\d?$/.test(x); }) && !w.some(function(x){ return /^(multi|multipaire|paires?|adapt\w*|harting|splitter|patch|boitier)$/.test(x); }); });
+  var have=xl.reduce(function(sum,i){ return sum+i.qty; },0);
+  var mp=BON.items.filter(function(i){ var w=W(i); return w.some(function(x){ return /^multi(paire)?$/.test(x); }) && w.some(function(x){ return /^(xlr\d?|paires?)$/.test(x); }); });
+  var pairs=mp.reduce(function(sum,i){ var m=String(i.name).match(/(\d+)\s*paires?/i); return sum+(m?+m[1]:0)*i.qty; },0);
+  var multi=pairs?' Les multipaires du bon ('+pairs+' paires) prolongent les lignes, ils ne remplacent pas un câble par source.':'';
+  /* Kit micro important : environ un câble et demi par source (rallonges, spares). Petit kit : deux de marge. */
+  var goal=src>=8?Math.ceil(src*1.5):src+2;
+  if(src>0 && have<goal){
+    var add=goal-have, t=!have?'Aucun câble XLR sur le bon'
+      :have<src?'Kit XLR insuffisant : '+have+' câble'+(have>1?'s':'')+' pour '+src+' source'+(src>1?'s':'')
+      :'Kit XLR léger : '+have+' câble'+(have>1?'s':'')+' pour '+src+' source'+(src>1?'s':'');
+    out.push({icon:'ti-plug-connected', warn:have<src, t:t,
+      d:(!have?'L\'input list compte '+src+' source'+(src>1?'s':'')+' à câbler (micros et DI). Si le loueur ne fournit pas le câblage, demandez '
+               :'Sans compter les retours ni les rallonges. Ajoutez ')
+        +'environ <b>'+add+' XLR</b> pour atteindre '+goal+' ('+(src>=8?'un câble et demi par source':'deux de marge')+').'+multi});
+  }
+  /* Pieds : pile le compte, ou pas de quoi porter les antennes HF */
+  var ant=BON.items.filter(function(i){ return W(i).indexOf('antenne')>=0 || W(i).indexOf('antennes')>=0; });
+  var nAnt=c.hf?ant.reduce(function(sum,i){ return sum+i.qty; },0):0, margin=c.totH-c.totN;
+  if(c.totN>0 && margin===0) out.push({icon:'ti-microphone-2', t:'Pieds de micro : pile le compte',
+    d:c.totH+' pied'+(c.totH>1?'s':'')+' sur le bon pour '+c.totN+' dans le patch, sans aucune marge. Ajoutez-en <b>'+(2+nAnt)+'</b> : 2 en spare (casse, micro d\'ordre, ajout de dernière minute)'
+      +(nAnt?' et '+nAnt+' pour les antennes HF ('+ant.map(function(i){ return _bonE(i.ref||i.name)+' ×'+i.qty; }).join(', ')+')':c.hf?', et pensez aux antennes HF si elles sont déportées':'')+'.'});
+  else if(c.totN>0 && margin>0 && nAnt>margin) out.push({icon:'ti-antenna', t:'Antennes HF : pieds à prévoir',
+    d:nAnt+' antenne'+(nAnt>1?'s':'')+' HF sur le bon ('+ant.map(function(i){ return _bonE(i.ref||i.name)+' ×'+i.qty; }).join(', ')+') et seulement '+margin+' pied'+(margin>1?'s':'')+' de marge. Ajoutez-en <b>'+(nAnt-margin)+'</b> pour les déporter.'});
+  return out;
+}
+function _bonRecoHtml(c){
+  if(!c.reco.length) return '';
+  return '<section class="ov-card bon-card bon-reco" id="bon-sec-reco"><div class="ov-card-hd"><h2>Préconisations</h2><span class="bon-reco-n">'+c.reco.length+' conseil'+(c.reco.length>1?'s':'')+'</span></div><ul>'
+    +c.reco.map(function(r){ return '<li'+(r.warn?' class="warn"':'')+'><i class="ti '+r.icon+'"></i><div><b>'+_bonE(r.t)+'</b><span>'+r.d+'</span></div></li>'; }).join('')+'</ul></section>';
 }
 
 /* ── Interface ── */
@@ -15513,16 +15580,17 @@ function _bonRefresh(){
   if(document.getElementById('panel-overview')?.classList.contains('on')) renderOverview();
 }
 function bonPick(){
-  if(!canDo('recap_matos')){ showUpgradeModal('recap_matos'); return; }
+  if(!_bonCanImport()){ showUpgradeModal('bon_loueur'); return; }
   var i=document.getElementById('bon-file'); if(i){ i.value=''; i.click(); }
 }
 async function bonFile(inp){
   var f=inp.files&&inp.files[0]; if(!f) return;
+  if(!_bonCanImport()){ showUpgradeModal('bon_loueur'); return; }
   toast('Lecture du bon…');
   try{
     var items=await _bonParse(await f.arrayBuffer());
     if(!items.length){ toast('Aucune ligne de matériel trouvée dans ce PDF (bon scanné en image ?)'); return; }
-    _bonLoad(); BON={file:f.name, at:new Date().toISOString(), items:items, map:{}}; _bonSave();
+    _bonLoad(); BON={file:f.name, at:new Date().toISOString(), items:items, map:{}}; _bonSave(); _bonFreeMark();
     toast('✓ Bon importé : '+items.length+' lignes de matériel');
   }catch(e){ console.error('bonFile:',e); toast('Lecture du bon impossible : '+(e&&e.message||e)); }
   if(BON && !document.getElementById('panel-bon')?.classList.contains('on')) goTab('bon',null); else _bonRefresh();
@@ -15542,7 +15610,7 @@ function _bonSumHtml(c){
   var all=!c.bad, okN=c.n.mics.tot+c.n.stands.tot+c.n.syn.tot+c.n.site.tot-c.bad;
   return '<div class="bon-sum'+(all?' ok':'')+'"><i class="ti ti-'+(all?'circle-check':'alert-triangle')+'"></i><span>'
     +(all?'Tout le matériel contrôlé figure sur le bon.':'<b>'+c.bad+' point'+(c.bad>1?'s':'')+' à régler</b> avant le départ.')
-    +'</span><em>'+okN+' contrôle'+(okN>1?'s':'')+' conforme'+(okN>1?'s':'')+' · '+BON.items.length+' ligne'+(BON.items.length>1?'s':'')+' sur le bon</em></div>';
+    +'</span><em>'+okN+' contrôle'+(okN>1?'s':'')+' conforme'+(okN>1?'s':'')+' · '+BON.items.length+' ligne'+(BON.items.length>1?'s':'')+' sur le bon'+(c.reco.length?' · '+c.reco.length+' préconisation'+(c.reco.length>1?'s':''):'')+'</em></div>';
 }
 function _bonTilesHtml(c, jump){
   var T=[['mics','ti-microphone','Micros et DI',c.n.mics,'Input list sans micro'],['stands','ti-microphone-2','Pieds de micro',c.n.stands,'Aucun pied demandé'],
@@ -15625,24 +15693,20 @@ function renderBon(){
   var hd=function(act){ return '<header class="bonp-head"><div><div class="bonp-eyebrow">'+E(CUR_SHOW.name||'')+'</div><h1>Bon du loueur</h1>'
     +'<p>Contrôlez que le matériel de l\'input list, du synoptique et du plan de site figure sur le bon du loueur, en quantité suffisante.</p></div>'
     +'<div class="bonp-act">'+act+'</div></header>'; };
-  if(!canDo('recap_matos')){
-    root.innerHTML=hd('')+'<button type="button" class="bonp-empty" onclick="showUpgradeModal(\'recap_matos\')"><i class="ti ti-clipboard-check"></i><b>Contrôle du matériel avec le bon du loueur</b>'
-      +'<span>Importez le bon de préparation du loueur : PatchFlow vérifie que rien ne manque.</span><span class="plan-badge-pill pro">Pro</span></button>';
-    return;
-  }
-  var c=_bonAll(), b=BON;
+  var c=_bonAll(), b=BON, can=_bonCanImport();
   if(!c){
-    root.innerHTML=hd('')+'<div class="bonp-empty"><i class="ti ti-clipboard-check"></i><b>Vérifiez le matériel avant le départ</b>'
+    root.innerHTML=hd('')+_bonFreeHtml()+'<div class="bonp-empty"><i class="ti ti-clipboard-check"></i><b>Vérifiez le matériel avant le départ</b>'
       +'<span>Importez le bon de préparation ou de livraison du loueur (PDF). Chaque document de la session est comparé au bon.</span>'
       +'<ul><li><i class="ti ti-list-numbers"></i><b>Input list</b> micros, DI et pieds de micro</li>'
       +'<li><i class="ti ti-topology-star"></i><b>Synoptique</b> consoles, stageboxes, amplis, enceintes, réseau</li>'
       +'<li><i class="ti ti-map-2"></i><b>Plan de site</b> diffusion, amplis, consoles, réseau</li></ul>'
-      +'<button type="button" class="btn pri" onclick="bonPick()"><i class="ti ti-upload"></i>Importer le bon (PDF)</button></div>';
+      +(can?'<button type="button" class="btn pri" onclick="bonPick()"><i class="ti ti-upload"></i>Importer le bon (PDF)</button>'
+           :'<button type="button" class="btn pri" onclick="showUpgradeModal(\'bon_loueur\')"><i class="ti ti-lock"></i>Contrôler aussi cette session</button>')+'</div>';
     return;
   }
   var h=hd('<span class="bon-file" title="'+E(b.file)+'"><i class="ti ti-file-text"></i>'+E(b.file)+'</span>'
     +'<button class="btn" onclick="bonPick()"><i class="ti ti-refresh"></i>Remplacer</button><button class="btn" onclick="bonClear()"><i class="ti ti-trash"></i>Retirer</button>');
-  h+=_bonSumHtml(c)+_bonTilesHtml(c,true);
+  h+=_bonFreeHtml()+_bonSumHtml(c)+_bonTilesHtml(c,true)+_bonRecoHtml(c);
   h+='<section class="ov-card bon-card" id="bon-sec-mics"><div class="ov-card-hd"><h2>Input list</h2><button class="ov-link" onclick="navIL(\'in\')">Ouvrir</button></div>'+_bonIlHtml(c)+'</section>';
   h+='<div class="bonp-two">'
     +'<section class="ov-card bon-card" id="bon-sec-syn"><div class="ov-card-hd"><h2>Synoptique</h2><button class="ov-link" onclick="goTab(\'synoptique\',null)">Ouvrir</button></div>'
@@ -15656,11 +15720,10 @@ function renderBon(){
 /* Carte de la vue d'ensemble : l'état en un coup d'œil, le détail est dans l'onglet */
 function _bonCardHtml(){
   var hd='<section class="ov-card ov-span2 bon-card"><div class="ov-card-hd"><h2>Bon du loueur</h2>';
-  if(!canDo('recap_matos')) return hd+'</div><button type="button" class="ov-none ov-upsell" onclick="showUpgradeModal(\'recap_matos\')"><i class="ti ti-clipboard-check"></i>Contrôler le matériel avec le bon du loueur<span class="plan-badge-pill pro">Pro</span></button></section>';
   var c=_bonAll();
   if(!c) return hd+'<button class="ov-link" onclick="goTab(\'bon\',null)">Ouvrir</button></div>'
     +'<div class="bon-empty"><i class="ti ti-clipboard-check"></i><div><b>Vérifiez le matériel avant le départ</b><span>Importez le bon du loueur (PDF) : PatchFlow contrôle que le matériel de l\'input list, du synoptique et du plan de site y figure.</span></div>'
-    +'<button type="button" class="btn pri" onclick="bonPick()"><i class="ti ti-upload"></i>Importer le bon (PDF)</button></div></section>';
+    +'<button type="button" class="btn pri" onclick="bonPick()"><i class="ti ti-'+(_bonCanImport()?'upload':'lock')+'"></i>Importer le bon (PDF)</button></div></section>';
   return hd+'<span class="bon-file" title="'+_bonE(BON.file)+'"><i class="ti ti-file-text"></i>'+_bonE(BON.file)+'</span><button class="ov-link" onclick="goTab(\'bon\',null)">Ouvrir le contrôle</button></div>'
     +_bonSumHtml(c)+_bonTilesHtml(c,false)+'</section>';
 }
@@ -19486,6 +19549,7 @@ const GATE_META = {
   multi_patches:  { icon:'ti-layers-subtract',  title:'Multi-patches & multi-scenes', desc:'Creez plusieurs variantes de patch (A/B, festival) et plusieurs synoptiques / plans par show.', plan:'pro', feats:['Variantes A/B, festival, acoustique','Plusieurs synoptiques et plans par show','Inclus dans le plan Pro'] },
   custom_exports: { icon:'ti-photo',            title:'Exports personnalises',        desc:'Ajoutez votre logo et les informations de votre societe sur tous les exports PDF.', plan:'pro', feats:['Logo sur chaque page PDF','Entete avec vos coordonnees','Charte graphique de votre societe'] },
   vintage_view:   { icon:'ti-photo-film',       title:'Affichage Vintage',            desc:'Mode theatral avec les instruments dessines en vue de dessus sur un plateau sombre.', plan:'pro', feats:['Vue en plongee de chaque instrument','Fond de scene theatral avec parquet','Inclus dans le plan Pro'] },
+  bon_loueur:     { icon:'ti-clipboard-check',  title:'Bon du loueur',                desc:'Le plan Gratuit comprend une session contrôlée par mois. Passez au Pro pour contrôler toutes vos sessions avec le bon du loueur.', plan:'pro', feats:['Contrôles illimités, sur toutes vos sessions','Micros, DI, pieds, synoptique et plan de site','Préconisations : câblage XLR, pieds en spare'] },
   recap_matos:    { icon:'ti-clipboard-list',   title:'Recap materiels',              desc:'Obtenez le decompte exact de chaque micro et pied necessaires — indispensable avant un show pour ne rien oublier.', plan:'pro', feats:['Decompte par modele de micro ou DI','Decompte par type de pied','Total consolide sur tous les patches'] },
   recent_activity:{ icon:'ti-history',          title:'Activite recente',             desc:'Visualisez les derniers canaux modifies par votre equipe en temps reel — utile pour savoir qui a touche a quoi.', plan:'pro', feats:['5 derniers canaux modifies','Horodatage relatif (il y a X min)','Inclus dans le plan Pro'] },
   export_pdf_pro: { icon:'ti-file-type-pdf',    title:'Export PDF complet',           desc:'Retirez le filigrane et ajoutez societe, contact, venue, date, revision et notes techniques.', plan:'pro', feats:['PDF sans filigrane','Coordonnees completes en en-tete','Notes techniques sur chaque export'] },

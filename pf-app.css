@@ -3019,3 +3019,17 @@ button.bonp-empty{cursor:pointer}
 .bonp-dash{color:var(--muted)}
 .bon-hit.w{font-family:var(--f)}
 @media(max-width:900px){ #panel-bon{padding:18px 14px 28px} .bonp-tiles{grid-template-columns:repeat(2,minmax(0,1fr))} .bonp-head h1{font-size:22px} .bonp-act .bon-file{display:none} }
+.bonp-free{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;border-radius:10px;background:var(--surf);box-shadow:inset 0 0 0 1px var(--bdr);font-size:13px;line-height:1.5;color:var(--txt2)}
+.bonp-free>i{font-size:17px;color:var(--ora)}
+.bonp-free span{flex:1;min-width:220px}
+.bonp-free b{color:var(--txt);font-weight:600}
+.bonp-free .ov-link{color:var(--ora);font-weight:600}
+.bon-reco-n{font-size:12.5px;color:var(--muted)}
+.bon-reco ul{display:grid;gap:10px;margin:0;padding:0;list-style:none}
+.bon-reco li{display:flex;gap:12px;padding:12px 14px;border-radius:10px;background:var(--surf2);box-shadow:inset 0 0 0 1px var(--bdr)}
+.bon-reco li>i{font-size:18px;color:var(--blu2,var(--ora));flex-shrink:0;margin-top:1px}
+.bon-reco li.warn>i{color:var(--ora)}
+.bon-reco li div{display:grid;gap:2px;min-width:0}
+.bon-reco li b{font-size:13.5px;font-weight:650;color:var(--txt)}
+.bon-reco li span{font-size:13px;line-height:1.5;color:var(--txt2)}
+.bon-reco li span b{font-size:inherit}
