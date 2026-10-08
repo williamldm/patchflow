@@ -60,7 +60,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=3.91">
+<link rel="stylesheet" href="pf-app.css?v=3.92">
 </head>
 <body>
 
@@ -305,62 +305,61 @@ html.rider-boot #rider-splash{display:flex}
 
       <div class="pbar il-bar">
         <label class="il-filter"><i class="ti ti-search"></i><input id="il-q" placeholder="Filtrer les canaux" oninput="_ilFilter()" autocomplete="off" aria-label="Filtrer la liste"/></label>
-        <!-- Boutons spécifiques IN -->
+        <!-- Entrées : tout est visible, rien dans un menu « Plus ». Ligne 1 : créer, importer, sortir. Ligne 2 : affichage. -->
         <span id="il-in-btns" style="display:contents">
-          <button class="btn ghost mob-hide" id="col-btn" onclick="toggleColPanel()"><i class="ti ti-columns"></i>Colonnes</button>
-          <button class="btn ghost" id="il-group-btn" onclick="toggleILGroup()" aria-pressed="true" title="Regrouper les canaux qui se suivent par source"><i class="ti ti-list-tree"></i>Grouper par source</button>
-          <span class="il-bar-sp"></span>
-          <button type="button" class="btn ghost sm" data-undo="il" onclick="undoSection('il')" title="Annuler (Ctrl/⌘+Z)" style="display:none"><i class="ti ti-arrow-back-up"></i></button>
-          <button class="btn ghost mob-hide" onclick="openILAssist()"><i class="ti ti-wand"></i>Assistant</button>
-          <div class="tpl-dd-wrap" id="tpl-dd-wrap">
-            <button class="btn ghost" onclick="toggleTplDd(event)"><i class="ti ti-template"></i>Template <i class="ti ti-chevron-down" style="font-size:10px;margin-left:1px"></i></button>
-            <div class="tpl-dd-menu" id="tpl-dd-menu">
-              <div class="tpl-dd-hd">
-                <span>Templates</span>
-                <div class="tpl-dd-mode" title="Remplacer la liste actuelle, ou ajouter les canaux à la suite">
-                  <button type="button" id="tpl-mode-replace" class="active" onclick="setTplMode('replace')">Remplacer</button>
-                  <button type="button" id="tpl-mode-append" onclick="setTplMode('append')">Ajouter</button>
+          <div class="il-row a">
+            <button class="btn pri" onclick="addRow()"><i class="ti ti-plus"></i>Canal</button>
+            <button class="btn" onclick="openILAssist()" title="Saisir plusieurs canaux d'un coup"><i class="ti ti-wand"></i>Assistant</button>
+            <div class="tpl-dd-wrap" id="tpl-dd-wrap">
+              <button class="btn" onclick="toggleTplDd(event)" title="Partir d'une liste type"><i class="ti ti-template"></i>Template<i class="ti ti-chevron-down il-chev"></i></button>
+              <div class="tpl-dd-menu" id="tpl-dd-menu">
+                <div class="tpl-dd-hd">
+                  <span>Templates</span>
+                  <div class="tpl-dd-mode" title="Remplacer la liste actuelle, ou ajouter les canaux à la suite">
+                    <button type="button" id="tpl-mode-replace" class="active" onclick="setTplMode('replace')">Remplacer</button>
+                    <button type="button" id="tpl-mode-append" onclick="setTplMode('append')">Ajouter</button>
+                  </div>
                 </div>
+                <div class="tpl-dd-list" id="tpl-quick-list"></div>
+                <button type="button" class="tpl-dd-save" onclick="closeTplDd();saveAsTemplate()"><i class="ti ti-bookmark-plus"></i>Enregistrer la liste actuelle comme template</button>
               </div>
-              <div class="tpl-dd-list" id="tpl-quick-list"></div>
-              <button type="button" class="tpl-dd-save" onclick="closeTplDd();saveAsTemplate()"><i class="ti ti-bookmark-plus"></i>Enregistrer la liste actuelle comme template</button>
             </div>
+            <span class="il-sep"></span>
+            <span class="il-lbl">Importer</span>
+            <button class="btn" onclick="ilPdfImport()" title="Reprendre le patch d'un rider en PDF, page par page"><i class="ti ti-file-type-pdf"></i>PDF</button>
+            <button class="btn" onclick="importCSVClick()" title="Importer un fichier CSV"><i class="ti ti-table-import"></i>CSV</button>
+            <button class="btn" id="il-ai-btn" onclick="ilAiImport()" title="Photo, PDF scanné ou Word : la liste est lue par l'IA"><i class="ti ti-sparkles"></i>Par IA</button>
+            <span class="il-bar-sp"></span>
+            <button type="button" class="btn" data-undo="il" onclick="undoSection('il')" title="Annuler (Ctrl/⌘+Z)" style="display:none"><i class="ti ti-arrow-back-up"></i>Annuler</button>
+            <button class="btn" onclick="copyILShareLink()" title="Copier le lien de partage de cette input list"><i class="ti ti-link"></i>Lien de partage</button>
+            <button class="btn" id="il-exp-btn" onclick="openPDFModal('in')"><i class="ti ti-file-export"></i>Exporter</button>
+          </div>
+          <div class="il-row b">
+            <button class="btn" id="col-btn" onclick="toggleColPanel()"><i class="ti ti-columns"></i>Colonnes</button>
+            <button class="btn" id="il-group-btn" onclick="toggleILGroup()" aria-pressed="true" title="Regrouper les canaux qui se suivent par source"><i class="ti ti-list-tree"></i>Grouper par source</button>
+            <button class="btn" id="il-stageplan-btn" onclick="openStagePlanPicker()" title="Plan de scène ouvert depuis les liens partagés de cette liste"><i class="ti ti-map-2"></i>Plan de scène lié</button>
+            <span class="il-bar-sp"></span>
+            <button class="btn il-danger" onclick="clearAllRows()" title="Supprimer tous les canaux de ce patch"><i class="ti ti-trash"></i>Tout supprimer</button>
           </div>
           <!-- Hidden file inputs -->
           <input type="file" id="csv-import-input" accept=".csv,.txt" style="display:none" onchange="importCSVLoad(this)">
           <input type="file" id="il-ai-file" accept=".pdf,.csv,.txt,.doc,.docx,image/png,image/jpeg,image/webp,image/gif,application/pdf,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="display:none" onchange="ilAiHandleFile(this)">
-          <!-- ⋯ Plus : actions secondaires regroupées -->
-          <div class="exp-wrap">
-            <button class="btn ghost" id="il-more-btn" onclick="toggleExpMenu('il-more-menu','il-more-btn')"><i class="ti ti-dots"></i>Plus</button>
-            <div class="exp-menu" id="il-more-menu">
-              <button class="exp-item mob-only" onclick="openILAssist();closeExpMenu('il-more-menu')"><i class="ti ti-wand"></i>Assistant de saisie</button>
-              <button class="exp-item" onclick="importCSVClick();closeExpMenu('il-more-menu')"><i class="ti ti-upload"></i>Importer un CSV</button>
-              <button class="exp-item" onclick="ilPdfImport();closeExpMenu('il-more-menu')"><i class="ti ti-file-type-pdf"></i>Importer un PDF</button>
-              <button class="exp-item" id="il-ai-btn" onclick="ilAiImport();closeExpMenu('il-more-menu')"><i class="ti ti-sparkles" style="color:var(--ora)"></i>Adapter une liste (IA)</button>
-              <button class="exp-item mob-only" onclick="closeExpMenu('il-more-menu');toggleColPanel()"><i class="ti ti-columns"></i>Colonnes affichées</button>
-              <button class="exp-item" id="il-stageplan-btn" onclick="openStagePlanPicker();closeExpMenu('il-more-menu')"><i class="ti ti-map-2"></i>Plan de scène</button>
-              <button class="exp-item" onclick="copyILShareLink();closeExpMenu('il-more-menu')"><i class="ti ti-link"></i>Copier le lien de partage</button>
-              <div class="exp-sep"></div>
-              <button class="exp-item" style="color:var(--err)" onclick="clearAllRows();closeExpMenu('il-more-menu')"><i class="ti ti-trash"></i>Tout supprimer</button>
-            </div>
-          </div>
-          <button class="btn ghost" id="il-exp-btn" onclick="openPDFModal('in')"><i class="ti ti-file-export"></i>Exporter</button>
-          <button class="btn pri" onclick="addRow()"><i class="ti ti-plus"></i>Canal</button>
         </span>
-        <!-- Boutons spécifiques OUT -->
+        <!-- Sorties -->
         <span id="il-out-btns" style="display:none">
-          <span class="il-bar-sp"></span>
-          <button class="btn ghost" onclick="openOLAssist()"><i class="ti ti-wand"></i>Assistant</button>
-          <div class="exp-wrap">
-            <button class="btn ghost" id="out-more-btn" onclick="toggleExpMenu('out-more-menu','out-more-btn')"><i class="ti ti-dots"></i>Plus</button>
-            <div class="exp-menu" id="out-more-menu">
-              <button class="exp-item" onclick="importOutCSVClick();closeExpMenu('out-more-menu')"><i class="ti ti-upload"></i>Importer un CSV</button>
-              <div class="exp-sep"></div>
-              <button class="exp-item" style="color:var(--err)" onclick="clearAllOutRows();closeExpMenu('out-more-menu')"><i class="ti ti-trash"></i>Tout supprimer</button>
-            </div>
+          <div class="il-row a">
+            <button class="btn pri" onclick="addOutRow()"><i class="ti ti-plus"></i>Sortie</button>
+            <button class="btn" onclick="openOLAssist()" title="Saisir plusieurs sorties d'un coup"><i class="ti ti-wand"></i>Assistant</button>
+            <span class="il-sep"></span>
+            <span class="il-lbl">Importer</span>
+            <button class="btn" onclick="importOutCSVClick()" title="Importer un fichier CSV"><i class="ti ti-table-import"></i>CSV</button>
+            <span class="il-bar-sp"></span>
+            <button class="btn" id="out-exp-btn" onclick="openPDFModal('out')"><i class="ti ti-file-export"></i>Exporter</button>
           </div>
-          <button class="btn ghost" id="out-exp-btn" onclick="openPDFModal('out')"><i class="ti ti-file-export"></i>Exporter</button>
-          <button class="btn pri" onclick="addOutRow()"><i class="ti ti-plus"></i>Sortie</button>
+          <div class="il-row b">
+            <span class="il-bar-sp"></span>
+            <button class="btn il-danger" onclick="clearAllOutRows()" title="Supprimer toutes les sorties"><i class="ti ti-trash"></i>Tout supprimer</button>
+          </div>
         </span>
       </div>
 
@@ -1604,7 +1603,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=4.32"></script>
+<script src="pf-app.js?v=4.33"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
   <div class="mob-plan-bar">

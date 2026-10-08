@@ -3320,3 +3320,41 @@ button.bonp-empty{cursor:pointer}
   .btn{min-height:38px}
   .btn.sm{min-height:32px}
 }
+
+/* ── Input list : barre d'outils sur deux lignes, tout est visible (plus de menu « Plus ») ── */
+#panel-inputlist .il-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 8px;padding-bottom:14px}
+#panel-inputlist .il-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-width:0}
+#panel-inputlist .il-row.a{order:1;flex:1 1 100%}
+#panel-inputlist .il-filter{order:2;margin:0;height:36px}
+#panel-inputlist .il-row.b{order:3;flex:1 1 0}
+#panel-inputlist .il-bar .il-row .btn{height:36px;min-height:36px;padding:0 12px;border:0;border-radius:9px;font-size:13px;font-weight:550;white-space:nowrap}
+#panel-inputlist .il-bar .il-row .btn:not(.pri){background:var(--surf);box-shadow:inset 0 0 0 1px var(--bdr);color:var(--txt)}
+#panel-inputlist .il-bar .il-row .btn:not(.pri):hover{background:var(--surf2);box-shadow:inset 0 0 0 1px var(--bdr2)}
+#panel-inputlist .il-bar .il-row .btn:not(.pri)>i:first-child{color:var(--txt2);font-size:16px}
+#panel-inputlist .il-bar .il-row .btn.pri{margin:0;padding:0 16px;font-weight:650}
+#panel-inputlist .il-bar .il-row .btn.on{box-shadow:inset 0 0 0 1.5px var(--ora);color:var(--txt)}
+#panel-inputlist .il-bar .il-row .btn.on>i:first-child{color:var(--ora)}
+#panel-inputlist .il-bar .il-row #il-ai-btn>i:first-child{color:var(--ora)}
+#panel-inputlist .il-bar .il-row .btn.il-danger{color:var(--err);background:transparent;box-shadow:none}
+#panel-inputlist .il-bar .il-row .btn.il-danger>i:first-child{color:var(--err)}
+#panel-inputlist .il-bar .il-row .btn.il-danger:hover{background:rgba(255,77,106,.1)}
+#panel-inputlist .il-chev{font-size:11px;margin-left:2px;color:var(--muted)}
+#panel-inputlist .il-sep{width:1px;height:22px;margin:0 4px;background:var(--bdr2)}
+#panel-inputlist .il-lbl{font:650 11px var(--f);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+#panel-inputlist .il-bar .btn-count{margin-left:2px;padding:0 6px;border-radius:6px;background:var(--surf2);font-size:11.5px;color:var(--txt2)}
+@media(max-width:640px){
+  /* Téléphone : chaque ligne défile sur le côté, les libellés restent lisibles */
+  #panel-inputlist .il-bar{gap:8px}
+  #panel-inputlist .il-row{flex:1 1 100%!important;flex-wrap:nowrap;overflow-x:auto;gap:6px;margin:0 -14px;padding:0 14px 2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  #panel-inputlist .il-row::-webkit-scrollbar{display:none}
+  #panel-inputlist .il-row.a{order:1}
+  #panel-inputlist .il-filter{order:2;flex:1 1 100%;height:40px}
+  #panel-inputlist .il-row.b{order:3}
+  #panel-inputlist .il-bar .il-row .btn{flex:0 0 auto;height:38px;min-height:38px;order:0!important;gap:7px}
+  /* Le bord droit s'estompe : la ligne continue sur le côté */
+  #panel-inputlist .il-row{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 34px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 34px),transparent)}
+  #panel-inputlist .il-bar .il-row .tpl-dd-wrap{order:0!important;flex:0 0 auto}
+  #panel-inputlist .il-bar .il-row .il-bar-sp{display:none}
+  #panel-inputlist .il-sep{flex:0 0 1px}
+  #panel-inputlist .il-lbl{flex:0 0 auto}
+}
