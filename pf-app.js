@@ -5952,7 +5952,7 @@ async function _ilPdfLines(p){
 }
 /* Lecture brute du tableau : ses colonnes telles qu'elles sont dans le PDF, chacune avec le champ PatchFlow
    deviné. C'est l'utilisateur qui décide ensuite, colonne par colonne, où va chaque donnée (_ilPdfBuild). */
-const _ILPDF_FIELDS=[['','Ignorer'],['ch','N° de voie'],['short','Nom court'],['name','Nom long'],['src','Source'],['mic','Micro / DI'],['stand','Pied'],['phantom','48V'],['gain','Gain'],['iem','IEM'],['foh','FOH'],['mon','MON'],['bc','BC'],['note','Remarque (avec le pied)']];
+const _ILPDF_FIELDS=[['','Ignorer'],['ch','N° de voie'],['short','Nom court'],['name','Nom long'],['src','Source'],['mic','Micro / DI'],['stand','Pied micro'],['phantom','48V'],['gain','Gain'],['iem','IEM'],['foh','FOH'],['mon','MON'],['bc','BC'],['note','Remarque (ajoutée au pied micro)']];
 /* Champ de l'import -> colonne de l'input list, pour afficher ou masquer les colonnes après l'import */
 const _ILPDF_TO_COL={short:'short',name:'long',src:'src',mic:'mic',stand:'note',note:'note',phantom:'phantom',gain:'gain',iem:'iem',foh:'foh',mon:'mon',bc:'bc'};
 function _ilPdfParse(rows){
