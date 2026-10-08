@@ -3074,3 +3074,20 @@ button.bonp-empty{cursor:pointer}
 .ilpdf-scroll{flex:1;min-height:0;overflow:auto}
 .ilpdf-scroll thead th{position:sticky;top:0;background:var(--surf)}
 @media(max-width:760px){ .ilpdf-box{height:92vh} .ilpdf-body{grid-template-columns:minmax(0,1fr);grid-template-rows:150px minmax(0,1fr)} .ilpdf-pages{border-right:0;border-bottom:1px solid var(--bdr);padding:10px} .ilpdf-thumbs{display:flex;overflow-x:auto} .ilpdf-thumb{flex:0 0 84px;min-height:0} .ilpdf-pages .bon-lbl{display:none} }
+.ilpdf-tbl th{height:auto;padding:6px 8px;vertical-align:bottom;white-space:normal;min-width:128px}
+.ilpdf-tbl th span{display:block;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
+.ilpdf-map{width:100%;height:28px;padding:0 22px 0 8px;border:0;border-radius:7px;background-color:var(--surf2);box-shadow:inset 0 0 0 1px var(--ora);color:var(--txt);font:600 12px var(--f);text-transform:none;letter-spacing:0}
+.ilpdf-map.none{box-shadow:inset 0 0 0 1px var(--bdr2);color:var(--muted);font-weight:400}
+.ilpdf-tbl td{white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis}
+.ilpdf-tbl td.ign,.ilpdf-tbl tr.skip td,.ilpdf-tbl tr.off td{color:var(--muted);opacity:.55}
+.ilpdf-tbl tr.off td{text-decoration:line-through}
+.ilpdf-tbl tr.more td{font-style:italic}
+/* Input list : cases de sélection et barre d'actions */
+.il-ck{display:inline-flex;vertical-align:middle;margin-right:8px;cursor:pointer}
+.il-ck input{margin:0}
+#il-body tr.il-on>td{background:var(--ora-d)}
+.il-selbar{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:250;display:flex;align-items:center;gap:8px;padding:8px 10px 8px 16px;border-radius:13px;background:var(--surf);box-shadow:0 0 0 1px var(--bdr2),0 12px 36px rgba(0,0,0,.35);font-size:13.5px;color:var(--txt);white-space:nowrap}
+.il-selbar b{margin-right:6px;font-weight:650}
+.il-selbar-del{background:rgba(255,77,106,.14);color:var(--err);box-shadow:none}
+.il-selbar-del:hover{background:var(--err);color:#fff}
+@media(max-width:768px){ .il-selbar{bottom:74px;max-width:calc(100vw - 16px);overflow-x:auto} .il-ck{margin-right:4px} }

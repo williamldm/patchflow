@@ -2290,7 +2290,7 @@ const _IL_COL_LABELS={short:'Court',long:'Nom long',src:'Source',mic:'Micro/DI',
 function _renderColHead(){
   var head=document.getElementById('il-head');
   if(!head) return;
-  var html='<th>CH</th>';
+  var html='<th class="il-th-ch"><label class="il-ck" title="Tout sélectionner"><input type="checkbox" class="cb" id="il-sel-all" onchange="ilSelAll(this.checked)"></label>CH</th>';
   _orderedColIds().forEach(function(id){
     var def=_colDefById(id); if(!def) return;
     var label=_IL_COL_LABELS[id]||def.label||id;
@@ -2421,7 +2421,7 @@ function renderTable(){
     document.getElementById('il-body').innerHTML=CHS.map((r,i)=>(runs&&runs[i]?`
     <tr class="il-grp"><td colspan="99"><div class="il-grp-in"><span class="il-grp-sw" style="background:${runs[i].color}"></span><span class="il-grp-n">${_oh(runs[i].name)}</span><span class="il-grp-c">${runs[i].n}</span></div></td></tr>`:'')+`
     <tr data-rid="${r.id}" draggable="true">
-      <td class="ch-num">${r.ch}</td>
+      <td class="ch-num"><label class="il-ck" title="Sélectionner (Maj + clic : une plage)"><input type="checkbox" class="cb" data-id="${_oh(r.id)}" onclick="ilSelToggle(this.dataset.id,this.checked,event)"></label>${r.ch}</td>
       ${cols.map(function(id){return _ilCellFor(id,r);}).join('')}
       <td class="il-actions-cell" style="white-space:nowrap">
         <i class="ti ti-grip-vertical drag-handle" title="Glisser pour déplacer"></i>
@@ -2434,6 +2434,7 @@ function renderTable(){
   _ilGroupBtn(); _ilFilter();
   applyColVis();renderPills();updateStats();
   _saveChsSnapshot();
+  _ilSelSync();
 }
 
 // ══════════════════════════════════════
@@ -5859,7 +5860,7 @@ async function ilAiPlace(chs){
    est un canal. Un PDF scanné n'a pas de texte : la page peut alors être lue par l'IA (Pro).
    Les canaux sont ajoutés à la suite du patch, où ils se modifient comme les autres.
    ══════════════════════════════════════ */
-var _ilPdf={doc:null, page:0, rows:[], busy:false, name:''};
+var _ilPdf={doc:null, page:0, rows:[], cols:[], raw:[], busy:false, name:''};
 const _ILPDF_COLS=[
   ['ch',     /^(ch|chan|channel|canal|voie|n|no|num|numero|patch|in|input|entree|ligne|line|#)$/],
   ['mic',    /^(micro|micros|mic|mics|microphone|capteur|capteurs|di|micdi|microdi|microsdi|micro48v)$/],
@@ -5933,84 +5934,107 @@ async function _ilPdfLines(p){
   rows.forEach(function(r){ r.it.sort(function(a,b){ return a.x-b.x; }); });
   return rows;
 }
+/* Lecture brute du tableau : ses colonnes telles qu'elles sont dans le PDF, chacune avec le champ PatchFlow
+   deviné. C'est l'utilisateur qui décide ensuite, colonne par colonne, où va chaque donnée (_ilPdfBuild). */
+const _ILPDF_FIELDS=[['','Ignorer'],['ch','N° de voie'],['short','Nom court'],['name','Nom long'],['src','Source'],['mic','Micro / DI'],['stand','Pied'],['phantom','48V'],['gain','Gain'],['note','Remarque (avec le pied)']];
 function _ilPdfParse(rows){
-  var key=function(s){ return _bonNorm(s); }, NUM=/^(?:ch\.?\s*)?(\d{1,3})\.?$/i, out=[];
+  var key=function(s){ return _bonNorm(s); }, NUM=/^(?:ch\.?\s*)?(\d{1,3})\.?$/i;
+  var guess=function(s){ var k=key(s); for(var c=0;c<_ILPDF_COLS.length;c++){ if(_ILPDF_COLS[c][1].test(k)) return _ILPDF_COLS[c][0]; } return /^gain$/.test(k)?'gain':''; };
   /* Ligne de titres : celle qui reconnaît le plus de colonnes (au moins deux) */
   var best=null, heads={};
   rows.forEach(function(r,ri){
-    var cols=[], seen={};
-    r.it.forEach(function(it){ var k=key(it.s); for(var c=0;c<_ILPDF_COLS.length;c++){ var id=_ILPDF_COLS[c][0]; if(!seen[id] && _ILPDF_COLS[c][1].test(k)){ seen[id]=1; cols.push({id:id, x:it.x}); break; } } });
-    if(cols.length>=2) heads[ri]=1;
-    if(cols.length>=2 && (!best || cols.length>best.cols.length)) best={ri:ri, cols:cols, all:r.it.map(function(it){ return it.x; })};
+    var seen={}, n=0;
+    r.it.forEach(function(it){ var g=guess(it.s); if(g && !seen[g]){ seen[g]=1; n++; } });
+    if(n>=2){ heads[ri]=1; if(!best || n>best.n) best={ri:ri, n:n}; }
   });
-  var yes=function(s){ return /^(x|o|oui|yes|on|48v|\+48v|48|✓|✔|•|1)$/i.test(String(s||'').trim()); };
   if(best){
-    /* Toutes les colonnes de la ligne de titres bornent les cellules, même celles qu'on n'importe pas */
-    var xs=best.all.slice().sort(function(a,b){ return a-b; }), idAt={};
-    best.cols.forEach(function(c){ idAt[c.x]=c.id; });
-    var colOf=function(x){ var j=0; for(var i=0;i<xs.length;i++){ if(x>=xs[i]-10) j=i; } return idAt[xs[j]]||''; };
-    var hasCh=best.cols.some(function(c){ return c.id==='ch'; }), last=null;
+    var hd=rows[best.ri].it, used={};
+    var cols=hd.map(function(it){ var g=guess(it.s); if(used[g]) g=''; if(g) used[g]=1; return {label:it.s, f:g, x:it.x}; });
+    var colOf=function(x){ var j=0; for(var i=0;i<cols.length;i++){ if(x>=cols[i].x-10) j=i; } return j; };
+    var raw=[];
     for(var i=best.ri+1;i<rows.length;i++){
       if(heads[i]) break;                      /* autre tableau sur la page (output list…) : on s'arrête là */
-      var cell={}; rows[i].it.forEach(function(it){ var id=colOf(it.x); if(id) cell[id]=(cell[id]?cell[id]+' ':'')+it.s; });
-      var m=hasCh?String(cell.ch||'').match(NUM):null;
-      if(hasCh && !m){
-        /* Ligne sans numéro : suite de la précédente si elle est proche, sinon hors tableau */
-        if(last && rows[i-1].y-rows[i].y<16){ ['name','short','mic','stand','note'].forEach(function(k){ if(cell[k]) last[k]=(last[k]?last[k]+' ':'')+cell[k]; }); }
-        else last=null;                        /* trop loin : pied de page, légende */
-        continue;
-      }
-      if(!hasCh && !cell.name && !cell.short && !cell.mic) continue;
-      last={ch:m?+m[1]:out.length+1, name:cell.name||cell.short||'', short:cell.name?(cell.short||''):'', src:cell.src||'', mic:cell.mic||'', stand:cell.stand||'', note:cell.note||'', phantom:yes(cell.phantom)};
-      if(last.name || last.mic) out.push(last); else last=null;
+      var c=cols.map(function(){ return ''; });
+      rows[i].it.forEach(function(it){ var j=colOf(it.x); c[j]=(c[j]?c[j]+' ':'')+it.s; });
+      raw.push({c:c, y:rows[i].y});
     }
-    return {rows:out, mode:'titres'};
+    return {cols:cols, raw:raw, mode:'titres'};
   }
-  /* Sans titres : numéro de voie en tête de ligne, puis nom, puis micro */
-  rows.forEach(function(r){
-    var m=r.it.length>=2 && r.it[0].s.match(NUM); if(!m) return;
-    var rest=r.it.slice(1).map(function(it){ return it.s; });
-    out.push({ch:+m[1], name:rest[0]||'', mic:rest[1]||'', stand:'', note:rest.slice(2).join(' '), phantom:rest.some(function(s){ return /^\+?48\s*v$/i.test(s); })});
+  /* Sans titres : les lignes qui commencent par un numéro de voie, colonnes prises dans l'ordre */
+  var lines=rows.filter(function(r){ return r.it.length>=2 && NUM.test(r.it[0].s); });
+  if(lines.length<3) return {cols:[], raw:[], mode:'numeros'};        /* numéros isolés : dates, pagination */
+  var n=Math.min(8, Math.max.apply(null,lines.map(function(r){ return r.it.length; })));
+  var G=['ch','name','mic'], cols2=[]; for(var k=0;k<n;k++) cols2.push({label:'Colonne '+(k+1), f:G[k]||''});
+  return {cols:cols2, mode:'numeros', raw:lines.map(function(r){ var c=cols2.map(function(){ return ''; }); r.it.forEach(function(it,j){ var q=Math.min(j,n-1); c[q]=(c[q]?c[q]+' ':'')+it.s; }); return {c:c, y:r.y}; })};
+}
+/* Applique le choix des colonnes : une ligne brute devient un canal, ou complète le précédent, ou est écartée */
+function _ilPdfBuild(){
+  var cols=_ilPdf.cols||[], raw=_ilPdf.raw||[], NUM=/^(?:ch\.?\s*)?(\d{1,3})\.?$/i, out=[], last=null, prevY=null;
+  var hasCh=cols.some(function(c){ return c.f==='ch'; });
+  var yes=function(s){ return /^(x|o|oui|yes|on|\+?48\s*v|48|✓|✔|•|1)$/i.test(String(s||'').trim()); };
+  raw.forEach(function(r){
+    r.st='skip';
+    var cell={}; cols.forEach(function(c,j){ if(c.f && r.c[j]) cell[c.f]=(cell[c.f]?cell[c.f]+' ':'')+r.c[j]; });
+    var m=hasCh?String(cell.ch||'').match(NUM):null, near=prevY!=null && Math.abs(prevY-r.y)<16; prevY=r.y;
+    if(r.off){ last=null; r.st='off'; return; }
+    if(hasCh && !m){
+      /* Ligne sans numéro : suite de la précédente si elle est proche, sinon hors tableau (pied de page, légende) */
+      if(last && near && !_ilPdf.ai){ ['name','short','mic','stand','note','src'].forEach(function(k){ if(cell[k]) last[k]=(last[k]?last[k]+' ':'')+cell[k]; }); r.st='more'; }
+      else last=null;
+      return;
+    }
+    if(!cell.name && !cell.short && !cell.mic){ last=null; return; }
+    var g=parseFloat(String(cell.gain||'').replace(',','.'));
+    last={ch:m?+m[1]:out.length+1, name:cell.name||'', short:cell.short||'', src:cell.src||'', mic:cell.mic||'', stand:cell.stand||'', note:cell.note||'', phantom:yes(cell.phantom), gain:isFinite(g)?g:0};
+    out.push(last); r.st='ch';
   });
-  /* Une vraie liste se suit : on écarte les numéros isolés (dates, pagination) */
-  if(out.length<3) out=[];
-  return {rows:out, mode:'numeros'};
+  return out;
 }
 async function ilPdfPick(p){
   if(!_ilPdf.doc) return;
-  _ilPdf.page=p; _ilPdf.rows=[];
+  _ilPdf.page=p; _ilPdf.cols=[]; _ilPdf.raw=[]; _ilPdf.ai=false;
   document.querySelectorAll('.ilpdf-thumb').forEach(function(b){ b.classList.toggle('on',+b.dataset.p===p); });
   var res=document.getElementById('ilpdf-res'); if(res) res.innerHTML='<div class="ilpdf-hint"><div class="spinner"></div>Lecture de la page '+p+'…</div>';
   try{
     var lines=await _ilPdfLines(p); if(_ilPdf.page!==p) return;
-    var r=_ilPdfParse(lines); _ilPdf.rows=r.rows; _ilPdf.scan=!lines.length;
-  }catch(e){ console.error('ilPdfPick:',e); _ilPdf.rows=[]; }
+    var r=_ilPdfParse(lines); _ilPdf.cols=r.cols; _ilPdf.raw=r.raw; _ilPdf.scan=!lines.length;
+  }catch(e){ console.error('ilPdfPick:',e); }
   _ilPdfRender();
 }
 function _ilPdfRender(msg){
   var res=document.getElementById('ilpdf-res'), go=document.getElementById('ilpdf-go'), info=document.getElementById('ilpdf-info'); if(!res) return;
-  var E=_bonE, rows=_ilPdf.rows, n=rows.length;
+  var E=_bonE, chs=_ilPdfBuild(), n=chs.length, cols=_ilPdf.cols||[], raw=_ilPdf.raw||[];
+  _ilPdf.rows=chs;
   var ai='<button type="button" class="btn sm" onclick="ilPdfAi()"><i class="ti ti-sparkles" style="color:var(--ora)"></i>Lire cette page avec l\'IA'+(canDo('ai_inputlist')?'':'<span class="plan-badge-pill pro">Pro</span>')+'</button>';
   if(go){ go.disabled=!n; go.textContent=n?'Importer '+_ilPl(n):'Importer'; }
   if(info) info.textContent=n?'Ajoutés à la suite du patch ('+_ilPl(CHS.length)+' aujourd\'hui).':'';
-  if(!n){
+  if(!raw.length){
     res.innerHTML='<div class="ilpdf-hint"><i class="ti ti-'+(_ilPdf.scan?'photo-scan':'table-off')+'"></i><b>'+(msg||(_ilPdf.scan?'Cette page est une image : aucun texte à lire.':'Aucun tableau de patch reconnu sur la page '+_ilPdf.page+'.'))+'</b>'
       +'<span>'+(_ilPdf.scan?'C\'est le cas des PDF scannés ou photographiés.':'Essayez une autre page, ou laissez l\'IA lire celle-ci.')+'</span>'+ai+'</div>';
     return;
   }
-  res.innerHTML='<div class="ilpdf-top"><span><b>Page '+_ilPdf.page+'</b> · '+_ilPl(n)+' reconnu'+(n>1?'s':'')+(_ilPdf.ai?' par l\'IA':'')+'</span>'+(_ilPdf.ai?'':ai)+'</div>'
-    +'<div class="ilpdf-scroll"><table class="bon-tbl"><thead><tr><th class="r">CH</th><th>Nom</th><th>Micro / DI</th><th>Pied</th><th>48V</th><th></th></tr></thead><tbody>'
-    +rows.map(function(r,i){ return '<tr><td class="r"><b>'+E(r.ch)+'</b></td><td>'+E(r.name)+'</td><td>'+E(r.mic)+'</td><td>'+E(r.stand)+'</td><td>'+(r.phantom?'+48V':'')+'</td>'
-      +'<td><button type="button" class="ov-link" onclick="ilPdfDrop('+i+')" title="Ne pas importer"><i class="ti ti-x"></i></button></td></tr>'; }).join('')
-    +'</tbody></table></div><div class="bon-note">Vérifiez l\'aperçu : tout se corrige ensuite dans l\'input list.</div>';
+  var sel=function(c,j){ return '<select class="ilpdf-map'+(c.f?'':' none')+'" onchange="ilPdfMap('+j+',this.value)" title="Où ranger cette colonne">'
+    +_ILPDF_FIELDS.map(function(f){ return '<option value="'+f[0]+'"'+(c.f===f[0]?' selected':'')+'>'+f[1]+'</option>'; }).join('')+'</select>'; };
+  res.innerHTML='<div class="ilpdf-top"><span><b>Page '+_ilPdf.page+'</b> · '+_ilPl(n)+' reconnu'+(n>1?'s':'')+(_ilPdf.ai?' par l\'IA':'')+'. Choisissez où va chaque colonne.</span>'+(_ilPdf.ai?'':ai)+'</div>'
+    +'<div class="ilpdf-scroll"><table class="bon-tbl ilpdf-tbl"><thead><tr>'+cols.map(function(c,j){ return '<th><span>'+E(c.label)+'</span>'+sel(c,j)+'</th>'; }).join('')+'<th></th></tr></thead><tbody>'
+    +raw.map(function(r,i){ return '<tr class="'+r.st+'">'+cols.map(function(c,j){ return '<td'+(c.f?'':' class="ign"')+'>'+E(r.c[j])+'</td>'; }).join('')
+      +'<td><button type="button" class="ov-link" onclick="ilPdfDrop('+i+')" title="'+(r.off?'Reprendre cette ligne':'Ne pas importer')+'"><i class="ti ti-'+(r.off?'arrow-back-up':'x')+'"></i></button></td></tr>'; }).join('')
+    +'</tbody></table></div><div class="bon-note">Les lignes grisées ne sont pas importées. Tout se corrige ensuite dans l\'input list.</div>';
 }
-function ilPdfDrop(i){ _ilPdf.rows.splice(i,1); _ilPdfRender(); }
+function ilPdfMap(j,f){
+  var cols=_ilPdf.cols||[]; if(!cols[j]) return;
+  /* Le numéro de voie et le 48V ne viennent que d'une colonne ; les textes peuvent en réunir plusieurs */
+  if(f==='ch'||f==='phantom'||f==='gain') cols.forEach(function(c){ if(c.f===f) c.f=''; });
+  cols[j].f=f; _ilPdfRender();
+}
+function ilPdfDrop(i){ var r=(_ilPdf.raw||[])[i]; if(r){ r.off=!r.off; _ilPdfRender(); } }
 /* Page rendue en image et confiée à la lecture par IA (même service que « Adapter une liste ») */
 async function ilPdfAi(){
   if(!canDo('ai_inputlist')){ showUpgradeModal('ai_inputlist'); return; }
   if(_ilPdf.busy || !_ilPdf.doc || !_ilPdf.page) return;
   _ilPdf.busy=true;
   var res=document.getElementById('ilpdf-res'); if(res) res.innerHTML='<div class="ilpdf-hint"><div class="spinner"></div>Lecture de la page '+_ilPdf.page+' par l\'IA…</div>';
+  var fail=function(t){ _ilPdf.cols=[]; _ilPdf.raw=[]; _ilPdf.scan=false; _ilPdfRender(t); };
   try{
     var pg=await _ilPdf.doc.getPage(_ilPdf.page), vp=pg.getViewport({scale:1}), v=pg.getViewport({scale:1600/Math.max(vp.width,vp.height)});
     var cv=document.createElement('canvas'); cv.width=Math.round(v.width); cv.height=Math.round(v.height);
@@ -6021,26 +6045,70 @@ async function ilPdfAi(){
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+(sess?.access_token||''),'apikey':SB_KEY},
       body:JSON.stringify({kind:'image', imageBase64:cv.toDataURL('image/jpeg',0.85).split(',')[1]||'', mediaType:'image/jpeg'})});
     var data=await r.json().catch(function(){ return {}; });
-    if(!r.ok){ if(data&&data.code==='pro_only') showUpgradeModal('ai_inputlist'); _ilPdf.rows=[]; _ilPdfRender('IA : '+((data&&data.error)||('erreur '+r.status))); return; }
+    if(!r.ok){ if(data&&data.code==='pro_only') showUpgradeModal('ai_inputlist'); fail('IA : '+((data&&data.error)||('erreur '+r.status))); return; }
+    var chs=(data&&data.channels)||[];
+    if(!chs.length){ fail('L\'IA n\'a reconnu aucun canal sur cette page.'); return; }
     _ilPdf.ai=true;
-    _ilPdf.rows=((data&&data.channels)||[]).map(function(c,i){ return {ch:i+1, name:c.long_name||c.short_name||'', short:c.short_name||'', mic:c.mic||'', stand:c.note||'', note:'', phantom:!!c.phantom, src:c.source||'', gain:c.gain}; });
-    _ilPdfRender(_ilPdf.rows.length?'':'L\'IA n\'a reconnu aucun canal sur cette page.');
-  }catch(e){ _ilPdf.rows=[]; _ilPdfRender('Erreur réseau : '+(e&&e.message||e)); }
+    _ilPdf.cols=[['CH','ch'],['Court','short'],['Nom','name'],['Source','src'],['Micro','mic'],['Pied','stand'],['48V','phantom'],['Gain','gain']].map(function(c){ return {label:c[0], f:c[1]}; });
+    _ilPdf.raw=chs.map(function(c,i){ return {y:0, c:[String(i+1), c.short_name||'', c.long_name||'', c.source||'', c.mic||'', c.note||'', c.phantom?'48V':'', c.gain?String(c.gain):'']}; });
+    _ilPdfRender();
+  }catch(e){ fail('Erreur réseau : '+(e&&e.message||e)); }
   finally{ _ilPdf.busy=false; }
 }
 async function ilPdfApply(){
-  var rows=_ilPdf.rows; if(!rows.length || _ilPdf.busy) return;
+  var rows=_ilPdfBuild(); if(!rows.length || _ilPdf.busy) return;
   _ilPdf.busy=true;
   var go=document.getElementById('ilpdf-go'); if(go){ go.disabled=true; go.textContent='Import…'; }
   try{
     var n=await ilAiPlace(rows.slice().sort(function(a,b){ return a.ch-b.ch; }).map(function(r){
-      var nm=String(r.name||'').trim();
-      return {short_name:(r.short||nm).toUpperCase().slice(0,10), long_name:nm, source:r.src||'', mic:String(r.mic||'').trim(), gain:r.gain||0, phantom:!!r.phantom,
+      var nm=String(r.name||'').trim(), sh=String(r.short||'').trim();
+      return {short_name:(sh||nm).toUpperCase().slice(0,10), long_name:nm, source:String(r.src||'').trim(), mic:String(r.mic||'').trim(), gain:r.gain||0, phantom:!!r.phantom,
               note:[r.stand,r.note].map(function(s){ return String(s||'').trim(); }).filter(Boolean).join(' · ')};
     }));
     if(n>0){ toast('✓ '+_ilPl(n)+' importé'+(n>1?'s':'')+' depuis la page '+_ilPdf.page); _ilPdf.busy=false; ilPdfClose(); return; }
   }catch(e){ toast('Import impossible : '+(e&&e.message||e)); }
   _ilPdf.busy=false; _ilPdfRender();
+}
+
+/* ══════════════════════════════════════
+   SÉLECTION DE CANAUX — une case par ligne (clic avec Maj pour une plage), une case « tout » dans l'en-tête,
+   et une barre d'actions qui apparaît dès qu'un canal est coché.
+   ══════════════════════════════════════ */
+var IL_SEL=new Set(), _ilSelLast=null;
+function _ilSelSync(){
+  var ids={}; CHS.forEach(function(r){ ids[r.id]=1; });
+  IL_SEL.forEach(function(id){ if(!ids[id]) IL_SEL.delete(id); });
+  document.querySelectorAll('#il-body tr[data-rid]').forEach(function(tr){ var on=IL_SEL.has(tr.dataset.rid); tr.classList.toggle('il-on',on); var c=tr.querySelector('.il-ck input'); if(c) c.checked=on; });
+  var all=document.getElementById('il-sel-all'); if(all){ all.checked=CHS.length>0 && IL_SEL.size===CHS.length; all.indeterminate=IL_SEL.size>0 && IL_SEL.size<CHS.length; }
+  var bar=document.getElementById('il-selbar'), n=IL_SEL.size;
+  if(!n || (typeof CUR_IL_MODE!=='undefined' && CUR_IL_MODE==='out') || !document.getElementById('panel-inputlist')?.classList.contains('on')){ if(bar) bar.remove(); return; }
+  if(!bar){ bar=document.createElement('div'); bar.id='il-selbar'; bar.className='il-selbar'; document.body.appendChild(bar); }
+  bar.innerHTML='<b>'+_ilPl(n)+' sélectionné'+(n>1?'s':'')+'</b>'
+    +(n<CHS.length?'<button type="button" class="btn sm" onclick="ilSelAll(true)">Tout sélectionner ('+CHS.length+')</button>':'')
+    +'<button type="button" class="btn sm il-selbar-del" onclick="ilSelDelete()"><i class="ti ti-trash"></i>Supprimer</button>'
+    +'<button type="button" class="btn ghost sm" onclick="ilSelAll(false)" title="Annuler la sélection"><i class="ti ti-x"></i></button>';
+}
+function ilSelToggle(id,on,ev){
+  if(ev && ev.shiftKey && _ilSelLast){
+    var a=CHS.findIndex(function(r){ return r.id===_ilSelLast; }), b=CHS.findIndex(function(r){ return r.id===id; });
+    if(a>=0 && b>=0) for(var i=Math.min(a,b);i<=Math.max(a,b);i++){ if(on) IL_SEL.add(CHS[i].id); else IL_SEL.delete(CHS[i].id); }
+  } else if(on) IL_SEL.add(id); else IL_SEL.delete(id);
+  _ilSelLast=id; _ilSelSync();
+}
+function ilSelAll(on){ IL_SEL.clear(); if(on) CHS.forEach(function(r){ IL_SEL.add(r.id); }); _ilSelLast=null; _ilSelSync(); }
+async function ilSelDelete(){
+  var ids=CHS.filter(function(r){ return IL_SEL.has(r.id); }).map(function(r){ return r.id; }), n=ids.length; if(!n) return;
+  var all=n===CHS.length;
+  if(!confirm(all?'Supprimer les '+n+' canaux de ce patch ? Cette action est irréversible.':'Supprimer '+_ilPl(n)+' ? Les canaux restants seront renumérotés.')) return;
+  CHS=CHS.filter(function(r){ return !IL_SEL.has(r.id); });
+  var moved=[]; CHS.forEach(function(r,i){ if(r.ch!==i+1){ r.ch=i+1; moved.push(r); } });
+  IL_SEL.clear(); renderTable(); setSaving(true);
+  try{
+    for(var i=0;i<ids.length;i+=100) await sb.from('channels').delete().in('id',ids.slice(i,i+100));
+    for(var j=0;j<moved.length;j+=20) await Promise.all(moved.slice(j,j+20).map(function(r){ return sb.from('channels').update({ch:r.ch}).eq('id',r.id); }));
+  }catch(e){ toast('Erreur : '+(e&&e.message||e)); }
+  setSaving(false);
+  toast(_ilPl(n)+' supprimé'+(n>1?'s':'')+'.');
 }
 
 /* ══════════════════════════════════════
@@ -19604,6 +19672,7 @@ function goTab(id,el){
   if(id==='team'){_initRiderBuilder();}
   if(id==='showfiles') renderShowfiles();
   if(id==='bon') renderBon();
+  if(typeof _ilSelSync==='function') _ilSelSync();
   var _fs=document.querySelector('.panel.pf-fs'); if(_fs && _fs.id!=='panel-'+id) pfFullscreen(_fs.id==='panel-synoptique'?'syno':'plan',false);
 }
 
