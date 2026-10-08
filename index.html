@@ -415,16 +415,26 @@ html[data-view=mobile] .notes h3{margin-top:0}
   .faq details p{padding-right:8px}
 }
 
-/* ── Tour d'horizon sous le titre : ce que fait l'outil, en huit cases ── */
-.scope{margin-bottom:clamp(40px,5vw,64px)}
-.scope-hd{display:flex;align-items:baseline;justify-content:space-between;gap:8px 32px;flex-wrap:wrap;margin-bottom:16px}
-.scope-hd h2{font-size:clamp(19px,2vw,23px);letter-spacing:-.01em}
+/* ── Tour d'horizon sous le titre : quatre temps de la préparation, deux outils chacun ── */
+.scope{margin-bottom:clamp(44px,5.5vw,72px)}
+.scope-hd{display:flex;align-items:baseline;justify-content:space-between;gap:6px 40px;flex-wrap:wrap;margin-bottom:22px}
+.scope-hd h2{font-size:clamp(20px,2.1vw,26px);line-height:1.2;letter-spacing:-.015em}
 .scope-hd p{font-size:15px;color:var(--ink3)}
-.scope ul{list-style:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;border-radius:18px;overflow:hidden;background:var(--rule2);box-shadow:0 0 0 1px var(--rule2)}
-.scope a{display:grid;gap:4px;height:100%;padding:18px 20px 20px;background:var(--card);text-decoration:none;transition:background .15s}
-.scope a:hover{background:var(--bg)}
-.scope b{font-size:16px;font-weight:650;letter-spacing:-.005em}
-.scope span{font-size:14.5px;line-height:1.45;color:var(--ink2)}
+.scope-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-radius:20px;background:var(--card);
+  box-shadow:0 0 0 1px rgba(18,19,23,.07),0 1px 2px rgba(18,19,23,.04),0 24px 48px -28px rgba(18,19,23,.22)}
+.scope-col{padding:22px 10px 12px;min-width:0}
+.scope-col+.scope-col{border-left:1px solid var(--rule)}
+.scope-k{display:flex;align-items:center;gap:10px;padding:0 12px 12px;font-size:12px;font-weight:650;letter-spacing:.09em;text-transform:uppercase;color:var(--ink3)}
+.scope-k span{font-variant-numeric:tabular-nums;color:var(--acc-ink)}
+.scope-col a{display:grid;grid-template-columns:40px minmax(0,1fr) 18px;align-items:center;gap:14px;padding:12px;border-radius:14px;text-decoration:none;transition:background .18s}
+.scope-col a:hover{background:var(--bg)}
+.sc-i{width:40px;height:40px;padding:9px;border-radius:11px;background:var(--bg);color:var(--ink);box-shadow:inset 0 0 0 1px var(--rule);transition:background .18s,color .18s,box-shadow .18s}
+.scope-col a:hover .sc-i{background:var(--acc);color:#fff;box-shadow:none}
+.sc-t{display:grid;gap:2px;min-width:0}
+.sc-t b{font-size:15.5px;font-weight:650;line-height:1.25;letter-spacing:-.005em}
+.sc-t span{font-size:13.5px;line-height:1.4;color:var(--ink2)}
+.sc-a{width:18px;height:18px;color:var(--ink3);opacity:0;transform:translateX(-4px);transition:opacity .18s,transform .18s}
+.scope-col a:hover .sc-a{opacity:1;transform:none}
 /* ── Matériel : trois blocs texte + capture, en alternance ── */
 .mat{display:grid;grid-template-columns:minmax(0,4fr) minmax(0,7fr);gap:clamp(32px,5vw,72px);align-items:center}
 .mat+.mat{margin-top:clamp(64px,8vw,120px)}
@@ -445,15 +455,19 @@ html[data-view=mobile] .notes h3{margin-top:0}
 .auteur-t p+p{margin-top:18px;color:var(--ink2)}
 .auteur-t a{color:var(--acc-ink);font-weight:600}
 @media(max-width:1000px){
-  .scope ul{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .scope-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .scope-col:nth-child(3){border-left:0}
+  .scope-col:nth-child(n+3){border-top:1px solid var(--rule)}
   .mat,.mat.rev{grid-template-columns:minmax(0,1fr);gap:28px}
   .mat.rev .mat-t{order:0}
   .auteur-in{grid-template-columns:minmax(0,1fr)}
 }
 @media(max-width:560px){
-  .scope a{padding:14px 14px 16px}
-  .scope b{font-size:15px}
-  .scope span{font-size:13.5px}
+  .scope-grid{grid-template-columns:minmax(0,1fr)}
+  .scope-col{padding:18px 8px 8px}
+  .scope-col+.scope-col{border-left:0;border-top:1px solid var(--rule)}
+  .sc-a{display:none}
+  .scope-col a{grid-template-columns:40px minmax(0,1fr)}
   .auteur-id{flex-direction:column;gap:16px}
 }
 </style>
@@ -514,19 +528,31 @@ html[data-view=mobile] .notes h3{margin-top:0}
 
     <div class="scope">
       <div class="scope-hd">
-        <h2>Ce que PatchFlow fait pour votre date</h2>
+        <h2>Toute la préparation d'une date, dans un seul outil.</h2>
         <p>Pour l'ingé façade, l'ingé retours, le régisseur son et le prestataire.</p>
       </div>
-      <ul>
-        <li><a href="#accueil"><b>Input et output list</b><span>Le patch, les retours, les fréquences HF.</span></a></li>
-        <li><a href="#plans"><b>Plans de scène et de site</b><span>Canaux et sorties placés sur le plateau.</span></a></li>
-        <li><a href="#plans"><b>Synoptique</b><span>Le trajet du signal, réseau par réseau.</span></a></li>
-        <li><a href="#materiel"><b>Racks</b><span>Dessinés unité par unité, pour le loueur.</span></a></li>
-        <li><a href="#materiel"><b>Bon du loueur</b><span>La demande de matériel, puis le contrôle du bon reçu.</span></a></li>
-        <li><a href="#materiel"><b>Reprise d'un rider</b><span>Le patch du groupe importé depuis son PDF.</span></a></li>
-        <li><a href="#preparation"><b>Exports console</b><span>X32, M32, WING, dLive, SQ, Yamaha.</span></a></li>
-        <li><a href="#partage"><b>Lien toujours à jour</b><span>Un seul lien pour toute l'équipe, sans compte.</span></a></li>
-      </ul>
+      <div class="scope-grid">
+        <div class="scope-col">
+          <p class="scope-k"><span>01</span>Le patch</p>
+          <a href="#accueil"><svg class="sc-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg><span class="sc-t"><b>Input et output list</b><span>Canaux, retours, fréquences HF</span></span><svg class="sc-a" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 10h10M11 6l4 4-4 4"/></svg></a>
+          <a href="#materiel"><svg class="sc-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 18v-6M9.5 14.5 12 12l2.5 2.5"/></svg><span class="sc-t"><b>Reprise d'un rider</b><span>Le patch du groupe, importé du PDF</span></span><svg class="sc-a" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 10h10M11 6l4 4-4 4"/></svg></a>
+        </div>
+        <div class="scope-col">
+          <p class="scope-k"><span>02</span>Les plans</p>
+          <a href="#plans"><svg class="sc-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg><span class="sc-t"><b>Plans de scène, de site</b><span>Canaux et sorties posés sur le plateau</span></span><svg class="sc-a" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 10h10M11 6l4 4-4 4"/></svg></a>
+          <a href="#plans"><svg class="sc-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M7 6h10M6.2 7.6l4.7 8.6M17.8 7.6l-4.7 8.6"/></svg><span class="sc-t"><b>Synoptique</b><span>Le trajet du signal, réseau par réseau</span></span><svg class="sc-a" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 10h10M11 6l4 4-4 4"/></svg></a>
+        </div>
+        <div class="scope-col">
+          <p class="scope-k"><span>03</span>Le matériel</p>
+          <a href="#materiel"><svg class="sc-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16M4 15h16M8 6h.01M8 12h.01M8 18h.01"/></svg><span class="sc-t"><b>Racks</b><span>Dessinés unité par unité pour le loueur</span></span><svg class="sc-a" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 10h10M11 6l4 4-4 4"/></svg></a>
+          <a href="#materiel"><svg class="sc-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 12.5l2 2 4-4.5"/></svg><span class="sc-t"><b>Bon du loueur</b><span>La demande, puis le contrôle du bon reçu</span></span><svg class="sc-a" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 10h10M11 6l4 4-4 4"/></svg></a>
+        </div>
+        <div class="scope-col">
+          <p class="scope-k"><span>04</span>La sortie</p>
+          <a href="#preparation"><svg class="sc-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4v6M6 14v6M12 4v2M12 10v10M18 4v9M18 17v3"/><circle cx="6" cy="12" r="2"/><circle cx="12" cy="8" r="2"/><circle cx="18" cy="15" r="2"/></svg><span class="sc-t"><b>Exports console</b><span>X32, M32, WING, dLive, SQ, Yamaha</span></span><svg class="sc-a" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 10h10M11 6l4 4-4 4"/></svg></a>
+          <a href="#partage"><svg class="sc-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg><span class="sc-t"><b>Lien toujours à jour</b><span>Un seul lien pour l'équipe, sans compte</span></span><svg class="sc-a" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 10h10M11 6l4 4-4 4"/></svg></a>
+        </div>
+      </div>
     </div>
 
     <div class="shot-bar"><div class="view-sw" role="group" aria-label="Format d'affichage de l'app"><button type="button" data-view="desktop" aria-pressed="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="10" rx="1.5"/><path d="M7 16.5h6M10 13.5v3"/></svg>Ordinateur</button><button type="button" data-view="mobile" aria-pressed="false"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="2" width="9" height="16" rx="2"/><path d="M9 15h2"/></svg>Mobile</button></div></div>
