@@ -63,7 +63,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=3.79">
+<link rel="stylesheet" href="pf-app.css?v=3.80">
 </head>
 <body>
 
@@ -115,6 +115,7 @@ html.rider-boot #rider-splash{display:flex}
         <div class="nav-sec">Production</div>
         <div class="tab" data-tab="fichiers" onclick="goTab('fichiers',this)" title="Fichiers"><i class="ti ti-cloud"></i><span class="tab-l">Fichiers</span><span class="tab-n" id="nav-n-files"></span></div>
         <div class="tab" data-tab="showfiles" onclick="goTab('showfiles',this)" title="Exports console"><i class="ti ti-adjustments-alt"></i><span class="tab-l">Exports console</span></div>
+        <div class="tab" data-tab="bon" onclick="goTab('bon',this)" title="Bon du loueur"><i class="ti ti-clipboard-check"></i><span class="tab-l">Bon du loueur</span></div>
         <div class="tab" data-tab="team" onclick="goTab('team',this)" title="Partage et équipe"><i class="ti ti-link"></i><span class="tab-l">Partage &amp; équipe</span></div>
       </div>
     </div>
@@ -370,6 +371,11 @@ html.rider-boot #rider-splash{display:flex}
     </div>
 
     <!-- SHOW FILES -->
+    <div class="panel" id="panel-bon">
+      <input type="file" id="bon-file" accept="application/pdf,.pdf" hidden onchange="bonFile(this)">
+      <div id="bon-root"></div>
+    </div>
+
     <div class="panel" id="panel-showfiles">
       <header class="sfx-head">
         <div><div class="sfx-eyebrow" id="sn-sf">…</div><h1 class="sfx-title">Exports console</h1></div>
@@ -842,6 +848,9 @@ html.rider-boot #rider-splash{display:flex}
       </button>
       <button class="bn-tab" id="bn-showfiles" onclick="goTab('showfiles',null)">
         <i class="ti ti-device-floppy"></i><span>Export</span>
+      </button>
+      <button class="bn-tab" id="bn-bon" onclick="goTab('bon',null)">
+        <i class="ti ti-clipboard-check"></i><span>Bon</span>
       </button>
       <button class="bn-tab" id="bn-synoptique" onclick="goTab('synoptique',null)">
         <i class="ti ti-topology-star"></i><span>Syno</span>
@@ -1599,7 +1608,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=4.14"></script>
+<script src="pf-app.js?v=4.15"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
   <div class="mob-plan-bar">

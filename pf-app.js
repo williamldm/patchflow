@@ -709,7 +709,7 @@ async function loadShows(){
   /* Restore last active tab after everything is loaded */
   try{
     const lastTab=localStorage.getItem(TAB_PERSIST_KEY);
-    const validTabs=['sessions','overview','fichiers','inputlist','showfiles','synoptique','stage','team'];
+    const validTabs=['sessions','overview','fichiers','inputlist','showfiles','bon','synoptique','stage','team'];
     if(lastTab&&validTabs.includes(lastTab)&&lastTab!=='sessions'){
       goTab(lastTab,null);
     }
@@ -11034,7 +11034,7 @@ const SynPro = (() => {
     setTimeout(fitView, 80);
     return true;
   }
-  return { init, show, render, resetLoaded, isLoaded, getData, setData, cancelCable, _saveNow, buildExportSvg: _buildExportSvg, specSize, specIo, importDiagram, openExport: _openPdfMetaModal, exportPng: _exportPng, exportSvg: _exportSvg, setSceneId, setSceneData, loadSceneDirect, getIconByType, uploadNodeIcon, clearNodeIcon, adjImgPx,
+  return { libDef:function(t){ return LIB.find(function(d){ return d.type===t; })||null; }, init, show, render, resetLoaded, isLoaded, getData, setData, cancelCable, _saveNow, buildExportSvg: _buildExportSvg, specSize, specIo, importDiagram, openExport: _openPdfMetaModal, exportPng: _exportPng, exportSvg: _exportSvg, setSceneId, setSceneData, loadSceneDirect, getIconByType, uploadNodeIcon, clearNodeIcon, adjImgPx,
            loadBg, setBgOpacity, setBgRotation, rotateBg, scaleBg, toggleBgEdit, clearBg };
 })();
 
@@ -15222,7 +15222,7 @@ function _bonLoad(){
   try{ var j=JSON.parse(localStorage.getItem(_bonKey())||'null'); if(j&&Array.isArray(j.items)) BON=j; }catch(e){}
   return BON;
 }
-function _bonSave(){ try{ if(BON) localStorage.setItem(_bonKey(),JSON.stringify(BON)); else localStorage.removeItem(_bonKey()); }catch(e){} }
+function _bonSave(){ try{ if(BON) localStorage.setItem(_bonKey(),JSON.stringify(BON,function(k,v){ return k.charAt(0)==='_'?undefined:v; })); else localStorage.removeItem(_bonKey()); }catch(e){} }
 function _bonNorm(t){ return String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,''); }
 
 /* Lecture du PDF : les textes sont regroupés par ligne (même hauteur), puis rangés en colonnes.
@@ -15389,6 +15389,129 @@ function _bonCompare(){
           hf:mics.filter(function(m){return m.hf && !m.ext;}).reduce(function(sum,m){return sum+m.need;},0),
           txAll:gear.filter(function(i){return i._k==='tx';}), rxAll:gear.filter(function(i){ return /\brecepteur\b/.test(String(i.name).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()); })};
 }
+/* ── Synoptique et plan de site ──
+   Même contrôle que pour les micros : chaque équipement posé sur le synoptique ou le plan de site est cherché
+   sur le bon. Les libellés y sont libres (« K2 ×12 », « Stagebox 1 », « Line array jardin ») : la quantité est
+   lue dans le libellé, puis le nom est rapproché par mots ; à défaut on essaie le modèle du catalogue.
+   Chaque document est contrôlé pour lui-même : un même appareil figure souvent sur le synoptique et sur le plan. */
+const _BON_SKIP={note:1,text_label:1,image_frame:1,zone_lbl:1,text_lbl:1,regie_foh:1,regie_mon:1};
+const _BON_STOP=/^(de|du|des|la|le|les|et|en|a|au|aux|l|r|g|d|x|n|no|jardin|cour|face|foh|mon|retours?|centre|gauche|droite|lointain|scene|salle|regie|plateau|main)$/;
+const _BON_SITE_LBL={main_array:'Line Array',sub:'Sub',frontfill:'Front fill',delay:'Delay',wedge:'Retour',iem_tx:'Émetteur IEM',
+  linus14:'LINUS 14',linus12:'LINUS 12',linus14d:'LINUS 14D',linus12c:'LINUS 12C',linus10:'LINUS 10',linuscon:'LINUS CON',
+  lmx14r:'Luminex 14R',lmx10p:'Luminex 10PoE',lmx25g:'Luminex 25G',sw_dante:'Switch',wifi_ap:'Wi-Fi',
+  console_foh:'Console',console_mon:'Console',processor:'Processeur',cdj:'CDJ',laptop:'Ordinateur',
+  rack:'Rack',stagebox:'Stagebox',splitter:'Splitter',distrib:'Distribution secteur'};
+const _BON_CABLE_LBL={speakon:'Speakon',xlr:'XLR / Multipaire',rj45:'RJ45',dante:'Ethernet Dante',luminex:'Réseau Luminex',fiber:'Fibre optique','100v':'Ligne 100V',power:'Secteur',multi:'Multi-paire'};
+/* « K2 ×12 », « KS28 x8 », « 8 x KS28 », « X15 (5) » : nom et quantité. Un X majuscule collé à un chiffre reste un modèle (« Powersoft X4 »). */
+function _bonQty(label){
+  var t=String(label||'').replace(/\s*\n\s*/g,' ').trim(), q=1, m;
+  if((m=t.match(/^(.*\S)\s*[×✕]\s*(\d{1,3})$/)) || (m=t.match(/^(.*\S)\s+x\s?(\d{1,3})$/)) || (m=t.match(/^(.*\S)\s*\(\s*[x×]?\s*(\d{1,3})\s*\)$/))){ t=m[1]; q=+m[2]; }
+  else if((m=t.match(/^(\d{1,3})\s*[x×]\s+(.+)$/i))){ q=+m[1]; t=m[2]; }
+  return {name:t.trim(), qty:Math.max(1,q)};
+}
+function _bonWords(t){ return String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean); }
+function _bonMatchGear(name,pool){
+  var hits=_bonMatch(name,pool); if(hits.length) return hits;
+  var toks=_bonWords(name).filter(function(w){ return !_BON_STOP.test(w) && !/^\d{1,2}$/.test(w); });
+  if(!toks.length) return [];
+  return pool.filter(function(it){
+    var words=_bonWords(it.ref+' '+it.name+' '+it.more), flat=words.join('');
+    return toks.every(function(t){ return (t.length>=4 || (/\d/.test(t) && t.length>=3)) ? flat.indexOf(t)>=0 : words.indexOf(t)>=0; });
+  });
+}
+/* Documents à contrôler : toutes les scènes du synoptique et du plan de site. La scène ouverte est lue en direct. */
+function _bonDocs(){
+  var J=function(d){ if(typeof d==='string'){ try{ d=JSON.parse(d); }catch(e){ d=null; } } return d||null; };
+  var syn=[], site=[];
+  var live=(typeof SynPro!=='undefined' && SynPro.isLoaded && SynPro.isLoaded()) ? SynPro.getData() : null;
+  var ss=(typeof SHOW_SCENES!=='undefined' && SHOW_SCENES.syno) || [];
+  if(ss.length) ss.forEach(function(s){ syn.push({name:s.name, data:(s.id===CUR_SCENES.syno && live) ? live : J(s.data)}); });
+  else syn.push({name:'', data:live || J(CUR_SHOW && CUR_SHOW.synoptique_data)});
+  var liveS=(typeof SitePlan!=='undefined' && SitePlan.hasContent && SitePlan.hasContent()) ? SitePlan.getData() : null;
+  var ps=(typeof SHOW_SCENES!=='undefined' && SHOW_SCENES.site) || [];
+  if(ps.length) ps.forEach(function(s){ var d=J(s.data); site.push({name:s.name, data:(s.id===CUR_SCENES.site && liveS) ? liveS : (d && d.site) || null}); });
+  else site.push({name:'', data:liveS || (CUR_SHOW && CUR_SHOW.stage_data && CUR_SHOW.stage_data.site) || null});
+  var ok=function(x){ return x.data && typeof x.data==='object'; };
+  return {syn:syn.filter(ok), site:site.filter(ok)};
+}
+/* Regroupe les équipements par modèle, les rapproche du bon, puis décompte les quantités */
+function _bonCover(src, list, pool, map){
+  var by={}, rows=[];
+  list.forEach(function(e){
+    var q=_bonQty(e.label), k=_bonNorm(q.name); if(!k) return;
+    var g=by[k]; if(!g){ g=by[k]={model:q.name, key:src+':'+k, need:0, alts:[], where:[]}; rows.push(g); }
+    g.need+=q.qty;
+    if(e.alt && _bonNorm(e.alt)!==k && g.alts.indexOf(e.alt)<0) g.alts.push(e.alt);
+    if(e.where && g.where.indexOf(e.where)<0) g.where.push(e.where);
+  });
+  pool.forEach(function(i){ i._l2=i.qty; });
+  rows.forEach(function(g){
+    var o=map[g.key]; g.ext=o==='__ext'; g.manual=!!o; g.lines=[];
+    if(g.ext) return;
+    if(o){ g.lines=pool.filter(function(i){ return i.ref===o; }); return; }
+    g.lines=_bonMatchGear(g.model,pool);
+    for(var a=0; !g.lines.length && a<g.alts.length; a++) g.lines=_bonMatchGear(g.alts[a],pool);
+  });
+  /* Les modèles qui n'ont qu'une ligne possible se servent d'abord */
+  rows.slice().sort(function(a,c){ return a.lines.length-c.lines.length; }).forEach(function(g){
+    var got=0; g.total=g.lines.reduce(function(sum,i){ return sum+i.qty; },0);
+    g.lines.forEach(function(i){ var q=Math.min(i._l2,g.need-got); if(q>0){ i._l2-=q; got+=q; } i._u=i._u||{}; i._u[src]=1; });
+    g.have=got; g.st=g.ext?'ext':got>=g.need?'ok':g.lines.length?'short':'miss';
+  });
+  var ORD={miss:0,short:1,ok:2,ext:3};
+  return rows.sort(function(a,c){ return ORD[a.st]-ORD[c.st] || c.need-a.need || a.model.localeCompare(c.model); });
+}
+/* Contrôle complet : input list, synoptique, plan de site, et usage de chaque ligne du bon */
+function _bonAll(){
+  var c=_bonCompare(); if(!c) return null;
+  var b=BON, map=b.map||{}, pool=c.gear, docs=_bonDocs();
+  b.items.forEach(function(i){ i._u={}; });
+  pool.forEach(function(i){ if(i._left<i.qty) i._u.il=1; });
+  if(c.hf) c.txAll.concat(c.rxAll).forEach(function(i){ i._u.il=1; });
+  if(c.totN) c.standLines.forEach(function(i){ i._u.il=1; });
+  var nm=function(n){ return String(n.label||n.name||'').replace(/\s*\n\s*/g,' ').trim(); };
+  c.syn=docs.syn.map(function(d){
+    var nodes=(d.data.nodes||[]).filter(function(n){ return n && !_BON_SKIP[n.type] && nm(n); }), byId={};
+    nodes.forEach(function(n){ byId[n.id]=n; });
+    var nets={}; (d.data.cables||[]).forEach(function(k){ if(byId[k.from] && byId[k.to]) nets[k.network||'']=(nets[k.network||'']||0)+1; });
+    var names={}; (d.data.networks||[]).forEach(function(n){ names[n.id]=n.name; });
+    return {name:d.name,
+      rows:_bonCover('syn', nodes.map(function(n){
+        var def=(typeof SynPro!=='undefined' && SynPro.libDef) ? SynPro.libDef(n.type) : null;
+        return {label:nm(n), where:String(n.sub||'').trim(), alt:(def && def.subcat && def.subcat!=='Generique' && !def.hidden) ? def.label : ''};
+      }), pool, map),
+      links:Object.keys(nets).map(function(k){ return {label:names[k]||k||'Liaison', n:nets[k]}; }).sort(function(a,z){ return z.n-a.n; })};
+  }).filter(function(s){ return s.rows.length || s.links.length; });
+  c.site=docs.site.map(function(d){
+    var els=(d.data.elements||[]).filter(function(e){ return e && !_BON_SKIP[e.type] && String(e.label||_BON_SITE_LBL[e.type]||'').trim(); });
+    var ct={}; (d.data.cableTypes||[]).concat(d.data.customCableTypes||[]).forEach(function(t){ if(t && t.id) ct[t.id]=t.label; });
+    var cab={}; (d.data.cables||[]).forEach(function(k){
+      var id=k.type||'', g=cab[id]||(cab[id]={label:ct[id]||_BON_CABLE_LBL[id]||id||'Liaison', n:0, len:[], m:0});
+      g.n++; var L=String(k.length||'').trim(); if(L){ g.len.push(L); var v=parseFloat(L.replace(',','.')); if(isFinite(v)) g.m+=v; }
+    });
+    return {name:d.name,
+      rows:_bonCover('site', els.map(function(e){ var def=_BON_SITE_LBL[e.type]||''; return {label:String(e.label||def).trim(), alt:def, where:''}; }), pool, map),
+      links:Object.keys(cab).map(function(k){ return cab[k]; }).sort(function(a,z){ return z.n-a.n; })};
+  }).filter(function(s){ return s.rows.length || s.links.length; });
+  var bad=function(rows){ return rows.filter(function(r){ return r.st==='miss' || r.st==='short'; }).length; };
+  var flat=function(secs){ return secs.reduce(function(a,s){ return a.concat(s.rows); },[]); };
+  var sr=flat(c.syn), pr=flat(c.site);
+  c.pool=pool;
+  c.n={mics:{tot:c.mics.length, bad:bad(c.mics)}, stands:{tot:c.stands.filter(function(x){return x.need;}).length, bad:bad(c.stands)},
+       syn:{tot:sr.length, bad:bad(sr)}, site:{tot:pr.length, bad:bad(pr)}};
+  c.bad=c.n.mics.bad+c.n.stands.bad+c.n.syn.bad+c.n.site.bad;
+  c.free=b.items.filter(function(i){ return !i._u.il && !i._u.syn && !i._u.site; });
+  return c;
+}
+
+/* ── Interface ── */
+function _bonE(t){ return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+const _BON_PILL={ok:['ok','Présent'],short:['short','Insuffisant'],miss:['miss','Absent du bon'],hf:['ok hfp','Présent · HF'],ext:['ext','Hors bon'],extra:['ext','En plus']};
+function _bonPill(k){ return '<span class="bon-pill '+_BON_PILL[k][0]+'">'+_BON_PILL[k][1]+'</span>'; }
+function _bonRefresh(){
+  if(document.getElementById('panel-bon')?.classList.contains('on')) renderBon();
+  if(document.getElementById('panel-overview')?.classList.contains('on')) renderOverview();
+}
 function bonPick(){
   if(!canDo('recap_matos')){ showUpgradeModal('recap_matos'); return; }
   var i=document.getElementById('bon-file'); if(i){ i.value=''; i.click(); }
@@ -15402,39 +15525,41 @@ async function bonFile(inp){
     _bonLoad(); BON={file:f.name, at:new Date().toISOString(), items:items, map:{}}; _bonSave();
     toast('✓ Bon importé : '+items.length+' lignes de matériel');
   }catch(e){ console.error('bonFile:',e); toast('Lecture du bon impossible : '+(e&&e.message||e)); }
-  renderOverview();
+  if(BON && !document.getElementById('panel-bon')?.classList.contains('on')) goTab('bon',null); else _bonRefresh();
 }
-function bonClear(){ if(!confirm('Retirer le bon du loueur de cette session ?')) return; _bonLoad(); BON=null; _bonSave(); renderOverview(); }
-function bonSetMap(model,val){ var b=_bonLoad(); if(!b) return; b.map=b.map||{}; if(val) b.map[model]=val; else delete b.map[model]; _bonSave(); renderOverview(); }
-function _bonCardHtml(){
-  var E=function(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
-  var hd='<section class="ov-card ov-span2 bon-card"><input type="file" id="bon-file" accept="application/pdf,.pdf" hidden onchange="bonFile(this)">'
-    +'<div class="ov-card-hd"><h2>Bon du loueur</h2>';
-  if(!canDo('recap_matos')) return hd+'</div><button type="button" class="ov-none ov-upsell" onclick="showUpgradeModal(\'recap_matos\')"><i class="ti ti-clipboard-check"></i>Contrôler les micros et les pieds avec le bon du loueur<span class="plan-badge-pill pro">Pro</span></button></section>';
-  var c=_bonCompare(), b=BON;
-  if(!c) return hd+'<button class="ov-link" onclick="bonPick()">Importer</button></div>'
-    +'<div class="bon-empty"><i class="ti ti-clipboard-check"></i><div><b>Vérifiez le matériel avant le départ</b><span>Importez le bon de préparation ou de livraison du loueur (PDF). PatchFlow contrôle que les micros, DI et pieds de micro de l\'input list y figurent, en quantité suffisante.</span></div>'
-    +'<button type="button" class="btn pri" onclick="bonPick()"><i class="ti ti-upload"></i>Importer le bon (PDF)</button></div></section>';
-  var nOk=c.mics.filter(function(m){return m.st==='ok'||m.st==='hf';}).length, nShort=c.mics.filter(function(m){return m.st==='short';}).length, nMiss=c.mics.filter(function(m){return m.st==='miss';}).length;
-  var sBad=c.stands.filter(function(x){return x.st==='short'||x.st==='miss';}).length;
-  var PILL={ok:['ok','Présent'],short:['short','Insuffisant'],miss:['miss','Absent du bon'],hf:['ok hfp','Présent · HF'],ext:['ext','Fourni par ailleurs'],extra:['ext','En plus']};
-  var pill=function(k){ return '<span class="bon-pill '+PILL[k][0]+'">'+PILL[k][1]+'</span>'; };
-  var h=hd+'<span class="bon-file" title="'+E(b.file)+'"><i class="ti ti-file-text"></i>'+E(b.file)+'</span><button class="ov-link" onclick="bonPick()">Remplacer</button><button class="ov-link" onclick="bonClear()">Retirer</button></div>';
-  var all=!nShort&&!nMiss&&!sBad;
-  h+='<div class="bon-sum'+(all?' ok':'')+'"><i class="ti ti-'+(all?'circle-check':'alert-triangle')+'"></i><span>'
-    +(all?'Tout le matériel du patch figure sur le bon.':'<b>'+(nMiss+nShort+sBad)+' point'+(nMiss+nShort+sBad>1?'s':'')+' à régler</b> avant le départ.')
-    +'</span><em>'+nOk+' modèle'+(nOk>1?'s':'')+' conforme'+(nOk>1?'s':'')+(nShort?' · '+nShort+' insuffisant'+(nShort>1?'s':''):'')+(nMiss?' · '+nMiss+' absent'+(nMiss>1?'s':''):'')+'</em></div>';
+function bonClear(){ if(!confirm('Retirer le bon du loueur de cette session ?')) return; _bonLoad(); BON=null; _bonSave(); _bonRefresh(); }
+function bonSetMap(model,val){ var b=_bonLoad(); if(!b) return; b.map=b.map||{}; if(val) b.map[model]=val; else delete b.map[model]; _bonSave(); _bonRefresh(); }
+function bonJump(id){ var el=document.getElementById('bon-sec-'+id); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); }
+/* Le libellé vient d'une saisie partagée (input list, synoptique, plan) : il passe par un attribut data échappé, jamais dans le code du gestionnaire */
+function _bonMapSel(key, row, pool){
+  var E=_bonE, cur=(BON.map||{})[key];
+  return '<select class="bon-map" data-model="'+E(key)+'" onchange="bonSetMap(this.dataset.model,this.value)" title="Associer à une ligne du bon">'
+    +'<option value=""'+(!row.manual?' selected':'')+'>Rapprochement automatique</option>'
+    +'<option value="__ext"'+(row.ext?' selected':'')+'>Hors bon : fourni par ailleurs, ou à ne pas contrôler</option>'
+    +pool.filter(function(i){ return i.ref; }).map(function(i){ return '<option value="'+E(i.ref)+'"'+(row.manual && !row.ext && cur===i.ref?' selected':'')+'>'+E(i.ref)+' · '+E(i.name).slice(0,42)+' ×'+i.qty+'</option>'; }).join('')+'</select>';
+}
+function _bonSumHtml(c){
+  var all=!c.bad, okN=c.n.mics.tot+c.n.stands.tot+c.n.syn.tot+c.n.site.tot-c.bad;
+  return '<div class="bon-sum'+(all?' ok':'')+'"><i class="ti ti-'+(all?'circle-check':'alert-triangle')+'"></i><span>'
+    +(all?'Tout le matériel contrôlé figure sur le bon.':'<b>'+c.bad+' point'+(c.bad>1?'s':'')+' à régler</b> avant le départ.')
+    +'</span><em>'+okN+' contrôle'+(okN>1?'s':'')+' conforme'+(okN>1?'s':'')+' · '+BON.items.length+' ligne'+(BON.items.length>1?'s':'')+' sur le bon</em></div>';
+}
+function _bonTilesHtml(c, jump){
+  var T=[['mics','ti-microphone','Micros et DI',c.n.mics,'Input list sans micro'],['stands','ti-microphone-2','Pieds de micro',c.n.stands,'Aucun pied demandé'],
+         ['syn','ti-topology-star','Synoptique',c.n.syn,'Synoptique vide'],['site','ti-map-2','Plan de site',c.n.site,'Plan de site vide']];
+  return '<div class="bonp-tiles">'+T.map(function(t){
+    var n=t[3], cls=!n.tot?'off':n.bad?'bad':'ok';
+    return '<button type="button" class="bonp-tile '+cls+'" onclick="'+(jump?'bonJump(\''+(t[0]==='stands'?'mics':t[0])+'\')':'goTab(\'bon\',null)')+'">'
+      +'<i class="ti '+t[1]+'"></i><span class="bonp-tile-l">'+t[2]+'</span>'
+      +'<b>'+(n.tot?(n.tot-n.bad)+'<small> / '+n.tot+'</small>':'—')+'</b>'
+      +'<span class="bonp-tile-s">'+(!n.tot?t[4]:n.bad?n.bad+' à régler':'Conforme')+'</span></button>';
+  }).join('')+'</div>';
+}
+function _bonIlHtml(c){
+  var E=_bonE, pill=_bonPill, h='';
   if(c.hf) h+='<div class="bon-hfnote"><i class="ti ti-antenna-bars-5"></i><span><b>'+c.hf+' micro'+(c.hf>1?'s':'')+' HF dans le patch.</b> Les têtes sont contrôlées ci-dessous ; vérifiez vous-même que les liaisons y sont : '
     +(c.txAll.length?'émetteurs '+c.txAll.map(function(i){return E(i.ref)+' ×'+i.qty;}).join(', '):'aucun émetteur trouvé sur le bon')
     +(c.rxAll.length?' ; récepteurs '+c.rxAll.map(function(i){return E(i.ref)+' ×'+i.qty;}).join(', '):'')+'.</span></div>';
-  /* Micros et DI */
-  var opts=function(m){
-    /* Le modèle vient de l'input list (saisie partagée) : il passe par un attribut data échappé, jamais dans le code du gestionnaire */
-    return '<select class="bon-map" data-model="'+E(m.model)+'" onchange="bonSetMap(this.dataset.model,this.value)" title="Associer ce modèle à une ligne du bon">'
-      +'<option value=""'+(!m.manual?' selected':'')+'>Rapprochement automatique</option>'
-      +'<option value="__ext"'+(m.ext?' selected':'')+'>Fourni par ailleurs (hors bon)</option>'
-      +c.gear.filter(function(i){return i.ref;}).map(function(i){ return '<option value="'+E(i.ref)+'"'+(m.manual&&!m.ext&&BON.map[m.model]===i.ref?' selected':'')+'>'+E(i.ref)+' · '+E(i.name).slice(0,42)+' ×'+i.qty+'</option>'; }).join('')+'</select>';
-  };
   h+='<div class="bon-cols"><div><div class="bon-lbl">Micros et DI</div>';
   if(!c.mics.length) h+='<div class="ov-none">Aucun micro renseigné dans l\'input list.</div>';
   else h+='<table class="bon-tbl"><thead><tr><th>Modèle du patch</th><th class="r">Besoin</th><th class="r">Sur le bon</th><th>État</th></tr></thead><tbody>'
@@ -15446,8 +15571,7 @@ function _bonCardHtml(){
             if(m.st==='hf') return '<span class="bon-hit">'+lab+pt.lines.map(function(i){return E(i.ref||i.name)+' ×'+i.qty;}).join(' · ')+'</span>';
             return '<span class="bon-hit'+(pt.got<m.need?' bad':'')+'">'+lab+pt.lines.map(function(i){return E(i.ref||i.name)+' ×'+i.qty;}).join(' · ')+(pt.got<m.need?' — '+(pt.got?'il n\'en reste que '+pt.got:'déjà pris par un autre modèle du patch'):'')+'</span>';
           }).join('')
-
-        +opts(m)+'</td><td class="r">'+m.need+'</td><td class="r">'+(m.ext?'—':m.st==='hf'?(m.parts.reduce(function(sum,pt){return Math.max(sum,pt.total);},0)||'—'):m.have)+'</td><td>'+pill(m.st)+'</td></tr>';
+        +_bonMapSel(m.model,m,c.pool)+'</td><td class="r">'+m.need+'</td><td class="r">'+(m.ext?'—':m.st==='hf'?(m.parts.reduce(function(sum,pt){return Math.max(sum,pt.total);},0)||'—'):m.have)+'</td><td>'+pill(m.st)+'</td></tr>';
     }).join('')+'</tbody></table>';
   h+='</div><div><div class="bon-lbl">Pieds de micro</div>';
   if(!c.stands.length) h+='<div class="ov-none">Aucun pied dans l\'input list ni sur le bon.</div>';
@@ -15457,7 +15581,88 @@ function _bonCardHtml(){
   if(c.standLines.length) h+='<div class="bon-note">Lignes du bon : '+c.standLines.map(function(i){return E(i.ref)+' ×'+i.qty+(i.more?' '+E(i.more):'');}).join(' · ')+'</div>';
   if(c.pince) h+='<div class="bon-note">'+c.pince+' pince'+(c.pince>1?'s':'')+' dans le patch : non comparée'+(c.pince>1?'s':'')+', à vérifier à la main.</div>';
   if(c.unused.length) h+='<div class="bon-lbl" style="margin-top:18px">Micros du bon non utilisés dans le patch</div><div class="bon-note">'+c.unused.map(function(i){return '<b>'+E(i.ref||i.name)+'</b> ×'+i._left;}).join(' · ')+'</div>';
-  return h+'</div></div></section>';
+  return h+'</div></div>';
+}
+/* Un document (synoptique ou plan de site) : une table par scène, puis les liaisons à prévoir */
+function _bonDocHtml(secs, c, o){
+  var E=_bonE, h='';
+  if(!secs.length) return '<div class="bonp-void"><i class="ti '+o.icon+'"></i><span>'+o.empty+'</span><button type="button" class="btn" onclick="'+o.go+'">'+o.open+'</button></div>';
+  secs.forEach(function(s){
+    if(secs.length>1) h+='<div class="bon-lbl bonp-scene">'+E(s.name||o.title)+'</div>';
+    if(s.rows.length) h+='<div class="bonp-scroll"><table class="bon-tbl"><thead><tr><th>'+o.col+'</th><th class="r">Besoin</th><th class="r">Sur le bon</th><th>État</th></tr></thead><tbody>'
+      +s.rows.map(function(g){
+        return '<tr class="'+g.st+'"><td><b>'+E(g.model)+'</b>'
+          +(g.where.length?'<span class="bon-hit w">'+E(g.where.join(' · '))+'</span>':'')
+          +(g.lines.length?'<span class="bon-hit'+(g.st==='short'?' bad':'')+'">'+g.lines.slice(0,4).map(function(i){return E(i.ref||i.name)+' ×'+i.qty;}).join(' · ')+(g.lines.length>4?' · + '+(g.lines.length-4):'')
+             +(g.st==='short'?' — '+(g.total>=g.need?'déjà pris par un autre équipement':'il en manque '+(g.need-g.have)):'')+'</span>':'')
+          +_bonMapSel(g.key,g,c.pool)+'</td><td class="r">'+g.need+'</td><td class="r">'+(g.ext?'—':g.have)+'</td><td>'+_bonPill(g.st)+'</td></tr>';
+      }).join('')+'</tbody></table></div>';
+    else h+='<div class="ov-none">Aucun équipement à contrôler.</div>';
+    if(s.links.length) h+='<div class="bon-note"><b>'+o.links+'</b> (non comparé, à vérifier à la main) : '
+      +s.links.map(function(l){ return E(l.label)+' ×'+l.n+((l.len&&l.len.length)?' ('+(l.m?Math.round(l.m*10)/10+' m au total':E(l.len.join(', ')))+')':''); }).join(' · ')+'</div>';
+  });
+  return h;
+}
+function _bonLinesHtml(c){
+  var E=_bonE, U=[['il','Patch'],['syn','Synoptique'],['site','Plan de site']];
+  return '<details class="bonp-lines"><summary><i class="ti ti-chevron-right"></i><b>Toutes les lignes du bon</b><span>'+BON.items.length+' ligne'+(BON.items.length>1?'s':'')
+    +(c.free.length?' · '+c.free.length+' sans emploi dans vos documents':'')+'</span></summary>'
+    +'<div class="bonp-scroll"><table class="bon-tbl"><thead><tr><th>Référence</th><th>Désignation</th><th class="r">Qté</th><th>Utilisé par</th></tr></thead><tbody>'
+    +BON.items.map(function(i){
+      var u=U.filter(function(x){ return i._u && i._u[x[0]]; });
+      return '<tr'+(u.length?'':' class="free"')+'><td><b>'+E(i.ref||'—')+'</b></td><td>'+E(i.name)+(i.more?'<span class="bon-hit w">'+E(i.more)+'</span>':'')+'</td><td class="r">'+i.qty+'</td><td>'
+        +(u.length?u.map(function(x){ return '<span class="bon-pill ext">'+x[1]+'</span>'; }).join(' '):'<span class="bonp-dash">—</span>')+'</td></tr>';
+    }).join('')+'</tbody></table></div></details>';
+}
+/* Onglet « Bon du loueur » */
+function renderBon(){
+  var root=document.getElementById('bon-root'); if(!root) return;
+  var E=_bonE;
+  if(!CUR_SHOW){
+    root.innerHTML='<div class="dt-empty"><i class="ti ti-calendar-event"></i><div class="dt-empty-t">Aucun show ouvert</div><div class="dt-empty-s">Choisissez une session pour contrôler son matériel.</div><button class="btn pri" onclick="goTab(\'sessions\',null)">Voir les sessions</button></div>';
+    return;
+  }
+  var hd=function(act){ return '<header class="bonp-head"><div><div class="bonp-eyebrow">'+E(CUR_SHOW.name||'')+'</div><h1>Bon du loueur</h1>'
+    +'<p>Contrôlez que le matériel de l\'input list, du synoptique et du plan de site figure sur le bon du loueur, en quantité suffisante.</p></div>'
+    +'<div class="bonp-act">'+act+'</div></header>'; };
+  if(!canDo('recap_matos')){
+    root.innerHTML=hd('')+'<button type="button" class="bonp-empty" onclick="showUpgradeModal(\'recap_matos\')"><i class="ti ti-clipboard-check"></i><b>Contrôle du matériel avec le bon du loueur</b>'
+      +'<span>Importez le bon de préparation du loueur : PatchFlow vérifie que rien ne manque.</span><span class="plan-badge-pill pro">Pro</span></button>';
+    return;
+  }
+  var c=_bonAll(), b=BON;
+  if(!c){
+    root.innerHTML=hd('')+'<div class="bonp-empty"><i class="ti ti-clipboard-check"></i><b>Vérifiez le matériel avant le départ</b>'
+      +'<span>Importez le bon de préparation ou de livraison du loueur (PDF). Chaque document de la session est comparé au bon.</span>'
+      +'<ul><li><i class="ti ti-list-numbers"></i><b>Input list</b> micros, DI et pieds de micro</li>'
+      +'<li><i class="ti ti-topology-star"></i><b>Synoptique</b> consoles, stageboxes, amplis, enceintes, réseau</li>'
+      +'<li><i class="ti ti-map-2"></i><b>Plan de site</b> diffusion, amplis, consoles, réseau</li></ul>'
+      +'<button type="button" class="btn pri" onclick="bonPick()"><i class="ti ti-upload"></i>Importer le bon (PDF)</button></div>';
+    return;
+  }
+  var h=hd('<span class="bon-file" title="'+E(b.file)+'"><i class="ti ti-file-text"></i>'+E(b.file)+'</span>'
+    +'<button class="btn" onclick="bonPick()"><i class="ti ti-refresh"></i>Remplacer</button><button class="btn" onclick="bonClear()"><i class="ti ti-trash"></i>Retirer</button>');
+  h+=_bonSumHtml(c)+_bonTilesHtml(c,true);
+  h+='<section class="ov-card bon-card" id="bon-sec-mics"><div class="ov-card-hd"><h2>Input list</h2><button class="ov-link" onclick="navIL(\'in\')">Ouvrir</button></div>'+_bonIlHtml(c)+'</section>';
+  h+='<div class="bonp-two">'
+    +'<section class="ov-card bon-card" id="bon-sec-syn"><div class="ov-card-hd"><h2>Synoptique</h2><button class="ov-link" onclick="goTab(\'synoptique\',null)">Ouvrir</button></div>'
+      +_bonDocHtml(c.syn,c,{icon:'ti-topology-star',title:'Synoptique',col:'Équipement du synoptique',links:'Liaisons',empty:'Aucun équipement sur le synoptique.',open:'Ouvrir le synoptique',go:'goTab(\'synoptique\',null)'})+'</section>'
+    +'<section class="ov-card bon-card" id="bon-sec-site"><div class="ov-card-hd"><h2>Plan de site</h2><button class="ov-link" onclick="navPlan(\'site\')">Ouvrir</button></div>'
+      +_bonDocHtml(c.site,c,{icon:'ti-map-2',title:'Plan de site',col:'Élément du plan',links:'Câbles tracés',empty:'Aucun élément sur le plan de site.',open:'Ouvrir le plan de site',go:'navPlan(\'site\')'})+'</section>'
+    +'</div>';
+  h+='<section class="ov-card bon-card">'+_bonLinesHtml(c)+'</section>';
+  root.innerHTML=h;
+}
+/* Carte de la vue d'ensemble : l'état en un coup d'œil, le détail est dans l'onglet */
+function _bonCardHtml(){
+  var hd='<section class="ov-card ov-span2 bon-card"><div class="ov-card-hd"><h2>Bon du loueur</h2>';
+  if(!canDo('recap_matos')) return hd+'</div><button type="button" class="ov-none ov-upsell" onclick="showUpgradeModal(\'recap_matos\')"><i class="ti ti-clipboard-check"></i>Contrôler le matériel avec le bon du loueur<span class="plan-badge-pill pro">Pro</span></button></section>';
+  var c=_bonAll();
+  if(!c) return hd+'<button class="ov-link" onclick="goTab(\'bon\',null)">Ouvrir</button></div>'
+    +'<div class="bon-empty"><i class="ti ti-clipboard-check"></i><div><b>Vérifiez le matériel avant le départ</b><span>Importez le bon du loueur (PDF) : PatchFlow contrôle que le matériel de l\'input list, du synoptique et du plan de site y figure.</span></div>'
+    +'<button type="button" class="btn pri" onclick="bonPick()"><i class="ti ti-upload"></i>Importer le bon (PDF)</button></div></section>';
+  return hd+'<span class="bon-file" title="'+_bonE(BON.file)+'"><i class="ti ti-file-text"></i>'+_bonE(BON.file)+'</span><button class="ov-link" onclick="goTab(\'bon\',null)">Ouvrir le contrôle</button></div>'
+    +_bonSumHtml(c)+_bonTilesHtml(c,false)+'</section>';
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -15512,7 +15717,7 @@ function renderOverview(){
                     :'<div class="ov-none">Renseignez les micros dans l\'input list pour obtenir le récapitulatif du matériel.</div>'))
     +'</section>';
 
-  /* Bon du loueur : contrôle des micros et des pieds */
+  /* Bon du loueur : état du contrôle, le détail est dans son onglet */
   h+=_bonCardHtml();
 
   /* Riders envoyés */
@@ -18968,6 +19173,7 @@ function goTab(id,el){
   if(id==='fichiers')renderFichiers();
   if(id==='team'){_initRiderBuilder();}
   if(id==='showfiles') renderShowfiles();
+  if(id==='bon') renderBon();
   var _fs=document.querySelector('.panel.pf-fs'); if(_fs && _fs.id!=='panel-'+id) pfFullscreen(_fs.id==='panel-synoptique'?'syno':'plan',false);
 }
 
