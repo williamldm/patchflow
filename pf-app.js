@@ -15355,7 +15355,6 @@ function bonClear(){ if(!confirm('Retirer le bon du loueur de cette session ?'))
 function bonSetMap(model,val){ var b=_bonLoad(); if(!b) return; b.map=b.map||{}; if(val) b.map[model]=val; else delete b.map[model]; _bonSave(); renderOverview(); }
 function _bonCardHtml(){
   var E=function(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
-  var J=function(t){return String(t).replace(/\\/g,'\\\\').replace(/'/g,"\\'");};
   var hd='<section class="ov-card ov-span2 bon-card"><input type="file" id="bon-file" accept="application/pdf,.pdf" hidden onchange="bonFile(this)">'
     +'<div class="ov-card-hd"><h2>Bon du loueur</h2>';
   if(!canDo('recap_matos')) return hd+'</div><button type="button" class="ov-none ov-upsell" onclick="showUpgradeModal(\'recap_matos\')"><i class="ti ti-clipboard-check"></i>Contrôler les micros et les pieds avec le bon du loueur<span class="plan-badge-pill pro">Pro</span></button></section>';
@@ -15374,7 +15373,8 @@ function _bonCardHtml(){
     +'</span><em>'+nOk+' modèle'+(nOk>1?'s':'')+' conforme'+(nOk>1?'s':'')+(nShort?' · '+nShort+' insuffisant'+(nShort>1?'s':''):'')+(nMiss?' · '+nMiss+' absent'+(nMiss>1?'s':''):'')+'</em></div>';
   /* Micros et DI */
   var opts=function(m){
-    return '<select class="bon-map" onchange="bonSetMap(\''+J(m.model)+'\',this.value)" title="Associer ce modèle à une ligne du bon">'
+    /* Le modèle vient de l'input list (saisie partagée) : il passe par un attribut data échappé, jamais dans le code du gestionnaire */
+    return '<select class="bon-map" data-model="'+E(m.model)+'" onchange="bonSetMap(this.dataset.model,this.value)" title="Associer ce modèle à une ligne du bon">'
       +'<option value=""'+(!m.manual?' selected':'')+'>Rapprochement automatique</option>'
       +'<option value="__ext"'+(m.ext?' selected':'')+'>Fourni par ailleurs (hors bon)</option>'
       +c.gear.filter(function(i){return i.ref;}).map(function(i){ return '<option value="'+E(i.ref)+'"'+(m.manual&&!m.ext&&BON.map[m.model]===i.ref?' selected':'')+'>'+E(i.ref)+' · '+E(i.name).slice(0,42)+' ×'+i.qty+'</option>'; }).join('')+'</select>';
