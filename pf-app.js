@@ -15847,7 +15847,7 @@ async function demPdf(){
     for(var p=1;p<=n;p++){
       doc.setPage(p);
       if(p>1) _pdfHead(doc,{acc:acc,pf:pf,brand:brand.co||'PatchFlow',docType:'Demande de matériel',title:title,compact:true,right:[s.venue,_pdfDateFr(_showDateISO(s.show_date))].filter(Boolean).join(' · ')});
-      _pdfFoot(doc,{acc:acc,pf:pf,credit:_pdfCreditOn(),creditWhat:'fiche technique',qr:p===1?qr:null,url:url,qrNote:'Scannez le code : input list, sorties, synoptique et plan de site, toujours à jour.',stamp:p===1?'':title,page:p,pages:n});
+      _pdfFoot(doc,{acc:acc,pf:pf,credit:_pdfCreditFree(),creditWhat:'fiche technique',qr:p===1?qr:null,url:url,qrNote:'Scannez le code : input list, sorties, synoptique et plan de site, toujours à jour.',stamp:p===1?'':title,page:p,pages:n});
     }
     await _pdfDeliver(doc,(_pdfSlug(title)||'patchflow')+'-demande-materiel.pdf');
   }catch(e){ console.error('demPdf:',e); toast('Export impossible : '+(e&&e.message||e)); }
