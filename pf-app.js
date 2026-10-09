@@ -2783,7 +2783,7 @@ async function processShowInvites() {
 }
 
 /* ── Rider link builder ── */
-var _riderSections={il:true,out:true,syno:true,stage:true,site:true,cloud:false};
+var _riderSections={il:true,out:true,syno:true,stage:true,site:true,racks:false,rf:false,cloud:false};
 var _riderPickedFiles=new Set();
 
 /* ══════════════════════════════════════
@@ -3324,7 +3324,7 @@ function _renderLinksManager(){
     list.innerHTML='<div style="font-size:11px;color:var(--muted);padding:6px 0 2px">Aucun lien créé. Créez votre premier lien de partage.</div>';
     return;
   }
-  var SEC_LABELS={il:'Input List',out:'Output',syno:'Synoptique',stage:'Scène',site:'Site',cloud:'Fichiers',files:'PJ'};
+  var SEC_LABELS={il:'Input List',out:'Output',syno:'Synoptique',stage:'Scène',site:'Site',racks:'Racks',rf:'HF',cloud:'Fichiers',files:'PJ'};
   var base=_riderBase();
   list.innerHTML=_proLinks.map(function(lnk){
     var code=lnk.code||lnk.id;
@@ -3566,7 +3566,7 @@ function selectRiderSection(key){
   _syncRiderBtns();
 }
 function _syncRiderBtns(){
-  ['il','out','syno','stage','site','cloud'].forEach(function(k){
+  ['il','out','syno','stage','site','racks','rf','cloud'].forEach(function(k){
     var btn=document.getElementById('sc-'+k);
     if(btn)btn.className='slink-check'+(_riderSections[k]?' checked':'');
   });
@@ -17389,7 +17389,7 @@ function renderOverview(){
 
   /* Riders envoyés */
   var links=(typeof _proLinks!=='undefined'&&_lastLinksShowId===s.id)?_proLinks:null;
-  var SEC={il:'Input list',out:'Output list',syno:'Synoptique',stage:'Scène',site:'Site',cloud:'Fichiers',files:'Pièces jointes'};
+  var SEC={il:'Input list',out:'Output list',syno:'Synoptique',stage:'Scène',site:'Site',racks:'Racks',rf:'Liaisons HF',cloud:'Fichiers',files:'Pièces jointes'};
   h+='<section class="ov-card"><div class="ov-card-hd"><h2>Riders envoyés</h2><button class="ov-link" onclick="goTab(\'team\',null)">Gérer</button></div>';
   if(links&&links.length){
     h+=links.slice(0,4).map(function(l){
@@ -22826,7 +22826,7 @@ function _svFs(imgId, title){
           var or=_prj.data.overrideRider;
           /* La sélection du propriétaire est respectée telle quelle : un lien
              « Input List seule » (['il']) affichait auparavant TOUTES les sections. */
-          sections=(Array.isArray(or.sections)&&or.sections.length)?or.sections.filter(function(x){return ['il','out','syno','stage','site','cloud'].indexOf(x)>=0;}):['il','out','syno','stage','site'];
+          sections=(Array.isArray(or.sections)&&or.sections.length)?or.sections.filter(function(x){return ['il','out','syno','stage','site','racks','rf','cloud'].indexOf(x)>=0;}):['il','out','syno','stage','site'];
           rTitle=or.title||'';rNote=or.note||'';rInfo=or.info||'';
           rFiles=or.files||[];
           /* Injecter les snapshots dans le preShow.stage_data.rider pour que
@@ -22850,7 +22850,7 @@ function _svFs(imgId, title){
     }
   }else{
     // Legacy ?view= URL params
-    const _VALID_SECS=new Set(['il','out','syno','stage','site','files']);
+    const _VALID_SECS=new Set(['il','out','syno','stage','site','racks','rf','files']);
     const legacyTab=p.get('tab');
     const rawSecs=p.get('sections');
     /* Mapper le tab legacy vers la bonne section (QR codes des exports PDF) */
@@ -22869,91 +22869,60 @@ function _svFs(imgId, title){
   document.getElementById('app').style.display='none';
 
   // ── Build shell ──
+  /* La vue partagée a sa propre palette sombre : on neutralise le thème clair éventuel du navigateur */
+  document.documentElement.removeAttribute('data-theme');
   var SV_LOGO='<svg width="28" height="28" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M70 60 C100 60 100 140 130 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round"/><path d="M130 60 C100 60 100 140 70 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round" opacity="0.45"/><circle cx="60" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="60" r="5" fill="#FF6B2B"/><circle cx="140" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="60" r="5" fill="#FF6B2B"/><circle cx="60" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="140" r="5" fill="#FF6B2B"/><circle cx="140" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="140" r="5" fill="#FF6B2B"/></svg>';
-  var SV_TABCSS='display:inline-flex;align-items:center;gap:'+(isMobile?'4':'6')+'px;padding:'+(isMobile?'10px 12px':'12px 18px')+';background:none;border:none;border-bottom:2px solid transparent;color:#5a6a80;font-family:DM Mono,monospace;font-size:'+(isMobile?'10':'11')+'px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;transition:all .15s;margin-bottom:-1px;white-space:nowrap;border-radius:8px 8px 0 0';
-  var SV_TABCSS_ON='display:inline-flex;align-items:center;gap:'+(isMobile?'4':'6')+'px;padding:'+(isMobile?'10px 12px':'12px 18px')+';background:linear-gradient(180deg,rgba(255,107,26,.1),transparent);border:none;border-bottom:2px solid #ff6b1a;color:#ff6b1a;font-family:DM Mono,monospace;font-size:'+(isMobile?'10':'11')+'px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;margin-bottom:-1px;white-space:nowrap;border-radius:8px 8px 0 0';
-
-  var secLabels={il:'Input List',out:'Output List',syno:'Synoptique',stage:'Plan de scène',site:'Plan de site',cloud:'Fichiers',files:'Pièces jointes'};
-  /* Icônes Tabler (même jeu que le builder) — plus pro que les symboles Unicode */
-  var secIcons={
-    il:'<i class="ti ti-list-numbers" style="font-size:15px"></i>',
-    out:'<i class="ti ti-list-letters" style="font-size:15px"></i>',
-    syno:'<i class="ti ti-topology-star-3" style="font-size:15px"></i>',
-    stage:'<i class="ti ti-map-2" style="font-size:15px"></i>',
-    site:'<i class="ti ti-building-stadium" style="font-size:15px"></i>',
-    cloud:'<i class="ti ti-folders" style="font-size:15px"></i>',
-    files:'<i class="ti ti-paperclip" style="font-size:15px"></i>'
-  };
-
-  var _VALID_SEC_SET=new Set(['il','out','syno','stage','site','cloud','files']);
+  var SV_LOGO_SM='<svg width="22" height="22" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M70 60 C100 60 100 140 130 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round"/><path d="M130 60 C100 60 100 140 70 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round" opacity=".45"/><circle cx="60" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="60" r="5" fill="#FF6B2B"/><circle cx="140" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="60" r="5" fill="#FF6B2B"/><circle cx="60" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="140" r="5" fill="#FF6B2B"/><circle cx="140" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="140" r="5" fill="#FF6B2B"/></svg>';
+  var secLabels={il:'Input list',out:'Output list',syno:'Synoptique',stage:'Plan de scène',site:'Plan de site',racks:'Racks',rf:'Liaisons HF',cloud:'Fichiers',files:'Pièces jointes'};
+  var secIcons={il:'ti-list-numbers',out:'ti-arrow-bar-to-right',syno:'ti-topology-star-3',stage:'ti-layout-board',site:'ti-map-2',racks:'ti-server',rf:'ti-antenna',cloud:'ti-folders',files:'ti-paperclip'};
+  var _VALID_SEC_SET=new Set(['il','out','syno','stage','site','racks','rf','cloud','files']);
 
   /* Nettoyer les sections et rFiles :
-     - Filtrer uniquement les sections valides
-     - 'cloud' : n'afficher que si explicitement coché (pas déduit)
-     - 'files' (pièces jointes) : 'files' n'est pas un toggle dans _riderSections,
-       c'est un bloc séparé. On ajoute automatiquement l'onglet si rFiles contient
-       des fichiers ET que 'files' n'est pas déjà dans sections. */
+     - uniquement les sections valides ;
+     - 'cloud' seulement si coché ;
+     - 'files' (pièces jointes) est un bloc à part : l'onglet apparaît dès que rFiles en contient. */
   var allSections=sections.filter(function(s){return _VALID_SEC_SET.has(s);});
-  /* Ajouter l'onglet pièces jointes si des fichiers ont été sélectionnés */
   if(rFiles.length && allSections.indexOf('files')<0) allSections.push('files');
-  /* Supprimer l'onglet si aucun fichier */
   if(!rFiles.length) allSections=allSections.filter(function(s){return s!=='files';});
   var tabsHtml='';
   if(allSections.length>1){
-    tabsHtml='<div id="sv-tabs" style="position:relative;flex-shrink:0;display:flex;border-bottom:1px solid #1e2a3a;margin-bottom:0;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;background:#080e1a;padding:0 '+(isMobile?'4px':'14px')+'">';
-    allSections.filter(function(s){return _VALID_SEC_SET.has(s);}).forEach(function(s,i){
-      var active=i===0;
-      tabsHtml+='<button id="svt-'+s+'" style="'+(active?SV_TABCSS_ON:SV_TABCSS)+'" onclick="_svSwitch(\''+_jsq(s)+'\')">'
-        +(secIcons[s]||'')+'<span>'+(secLabels[s]||'')+'</span></button>';
-    });
-    tabsHtml+='</div>';
+    tabsHtml='<nav class="sv-tabs" id="sv-tabs" aria-label="Sections du rider"><div class="sv-tabs-in">'
+      +allSections.map(function(s,i){
+        return '<button type="button" id="svt-'+s+'" class="sv-tab'+(i===0?' on':'')+'" onclick="_svSwitch(\''+_jsq(s)+'\')"><i class="ti '+(secIcons[s]||'')+'"></i><span>'+(secLabels[s]||'')+'</span></button>';
+      }).join('')
+      +'</div></nav>';
   }
 
   var wrap=document.createElement('div');
   wrap.id='share-view';
-  wrap.style.cssText='min-height:100vh;background:#0a0f1c;color:#e8edf8;font-family:Archivo,sans-serif;position:relative;display:flex;flex-direction:column';
-  /* Petit logo réutilisé (header mobile + bandeau bas de page) */
-  var SV_LOGO_SM='<svg width="22" height="22" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M70 60 C100 60 100 140 130 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round"/><path d="M130 60 C100 60 100 140 70 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round" opacity=".45"/><circle cx="60" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="60" r="5" fill="#FF6B2B"/><circle cx="140" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="60" r="5" fill="#FF6B2B"/><circle cx="60" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="140" r="5" fill="#FF6B2B"/><circle cx="140" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="140" r="5" fill="#FF6B2B"/></svg>';
-  /* Anti-doublon : si le titre du rider est identique au nom du show (déjà
-     affiché en gros dans le bandeau méta plus bas), on ne le répète pas
-     dans le bandeau du haut — on garde seulement note/infos s'il y en a. */
+  wrap.className='sv'+(isMobile?' sv-m':'');
+  /* Anti-doublon : si le titre du rider est le nom du show (affiché en grand plus bas), on ne le répète pas */
   var _bannerTitle=(rTitle&&_preShowName&&rTitle.trim().toLowerCase()===_preShowName.trim().toLowerCase())?'':rTitle;
   wrap.innerHTML=
-    '<style>@keyframes svPulse{0%,100%{opacity:1}50%{opacity:.3}}@keyframes svSpin{to{transform:rotate(360deg)}}</style>'
-    /* Halo orange discret en haut de page (même signature visuelle que la landing) */
-    +'<div style="position:absolute;top:0;left:50%;transform:translateX(-50%);width:920px;max-width:100vw;height:280px;background:radial-gradient(ellipse at 50% 0%,rgba(255,107,26,.08),transparent 65%);pointer-events:none"></div>'
-    /* ── Barre du haut ── */
-    +'<div style="position:relative;display:flex;align-items:center;min-height:'+(isMobile?'54':'62')+'px;background:rgba(8,11,18,.92);border-bottom:1px solid #1e2a3a;padding:0 '+(isMobile?'12':'24')+'px;gap:'+(isMobile?'8':'12')+'px">'
-    +(isMobile?SV_LOGO_SM:SV_LOGO)
-    +'<div style="font-size:'+(isMobile?'13':'15')+'px;font-weight:700">Patch<span style="color:#ff6b1a">Flow</span></div>'
-    +'<div style="font-size:9px;font-family:DM Mono,monospace;color:#ff8c42;background:rgba(255,107,26,.1);border:1px solid rgba(255,107,26,.25);border-radius:5px;padding:2px 8px;letter-spacing:1.5px;text-transform:uppercase">Rider</div>'
-    +'<div style="flex:1"></div>'
-    +'<div style="display:inline-flex;align-items:center;gap:6px;font-size:'+(isMobile?'9':'10')+'px;font-family:DM Mono,monospace;background:rgba(34,214,160,.1);color:#22d6a0;border:1px solid rgba(34,214,160,.25);border-radius:20px;padding:'+(isMobile?'3px 9px':'4px 12px')+'"><span style="width:6px;height:6px;border-radius:50%;background:#22d6a0;animation:svPulse 2s infinite;flex-shrink:0"></span>'+(isMobile?'Live':'À jour en temps réel')+'</div>'
-    +(isMobile?'':'<a href="/" style="display:inline-flex;align-items:center;gap:6px;background:#ff6b1a;color:#000;font-size:11.5px;font-weight:700;padding:7px 16px;border-radius:8px;text-decoration:none;font-family:Archivo,sans-serif;transition:background .15s" onmouseover="this.style.background=\'#ff8c42\'" onmouseout="this.style.background=\'#ff6b1a\'">Créer mon rider</a>')
-    +'</div>'
+    '<header class="sv-top">'
+      +'<a class="sv-brand" href="/" aria-label="PatchFlow">'+(isMobile?SV_LOGO_SM:SV_LOGO)+'<b>Patch<span>Flow</span></b></a>'
+      +'<span class="sv-kind">Rider partagé</span>'
+      +'<span class="sv-grow"></span>'
+      +'<span class="sv-live" title="Cette page affiche toujours la dernière version"><i></i>À jour</span>'
+      +(isMobile?'':'<a class="sv-cta" href="/">Créer mon rider<i class="ti ti-arrow-right"></i></a>')
+    +'</header>'
     +(_bannerTitle||rNote||rInfo?
-      '<div style="position:relative;background:linear-gradient(180deg,#0a1322,#080e1a);border-bottom:1px solid #1e2a3a;padding:'+(isMobile?'14px 14px':'18px 28px')+'">'
-      +(_bannerTitle?'<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><span style="width:4px;height:'+(isMobile?'16':'20')+'px;background:linear-gradient(180deg,#ff6b1a,#ff3d00);border-radius:2px;flex-shrink:0"></span><span style="font-size:'+(isMobile?'17':'20')+'px;font-weight:800;color:#f0f4ff;letter-spacing:-.3px">'+esc(_bannerTitle)+'</span></div>':'')
-      +(rNote?'<div style="font-size:'+(isMobile?'11':'12')+'px;color:#8899aa;line-height:1.6;white-space:pre-wrap;margin-bottom:'+(rInfo?'6px':'0')+'">'+esc(rNote)+'</div>':'')
-      +(rInfo?'<div style="font-size:10px;font-family:DM Mono,monospace;color:#5a7a9a;margin-top:4px">'+esc(rInfo)+'</div>':'')
-      +'</div>'
+      '<section class="sv-intro"><div class="sv-intro-in">'
+        +(_bannerTitle?'<h2>'+esc(_bannerTitle)+'</h2>':'')
+        +(rNote?'<p>'+esc(rNote)+'</p>':'')
+        +(rInfo?'<p class="sv-intro-i"><i class="ti ti-info-circle"></i>'+esc(rInfo)+'</p>':'')
+      +'</div></section>'
     :'')
     +tabsHtml
-    +'<div id="sv-body" style="position:relative;flex:1;width:100%;max-width:1100px;margin:0 auto;padding:'+(isMobile?'14px 10px':'28px 20px')+'">'
-    +'<div style="display:flex;flex-direction:column;align-items:center;gap:14px;margin-top:70px"><div style="width:26px;height:26px;border:2.5px solid #1e2a3a;border-top-color:#ff6b1a;border-radius:50%;animation:svSpin .8s linear infinite"></div><div style="color:#5a6a80;font-family:DM Mono,monospace;font-size:11px">Chargement du rider…</div></div>'
-    +'</div>'
-    /* ── Bandeau conversion : les destinataires du lien sont de futurs clients ── */
-    +'<div style="position:relative;width:100%;max-width:1100px;margin:8px auto 0;padding:'+(isMobile?'0 10px 30px':'0 20px 48px')+'">'
-      +'<div style="background:linear-gradient(135deg,rgba(255,107,26,.1),rgba(255,107,26,.02) 45%,#0d1424 100%);border:1px solid rgba(255,107,26,.22);border-radius:8px;padding:'+(isMobile?'20px 18px':'26px 30px')+';display:flex;align-items:center;gap:'+(isMobile?'14':'22')+'px;flex-wrap:wrap">'
-        +'<div style="width:46px;height:46px;border-radius:8px;background:rgba(255,107,26,.1);border:1px solid rgba(255,107,26,.25);display:flex;align-items:center;justify-content:center;flex-shrink:0">'+SV_LOGO_SM+'</div>'
-        +'<div style="flex:1;min-width:200px">'
-          +'<div style="font-size:'+(isMobile?'14':'16')+'px;font-weight:800;color:#f0f4ff;margin-bottom:5px">Ce rider est fait avec PatchFlow</div>'
-          +'<div style="font-size:'+(isMobile?'11.5':'12.5')+'px;color:#8899aa;line-height:1.65">Input List, plans, synoptique et fichiers de prod — créés et partagés en un lien, à jour en temps réel pour toute l\'équipe. Gratuit pour commencer.</div>'
-        +'</div>'
-        +'<a href="/" style="display:inline-flex;align-items:center;gap:8px;background:#ff6b1a;color:#000;font-size:13px;font-weight:700;padding:'+(isMobile?'11px 18px':'12px 22px')+';border-radius:8px;text-decoration:none;white-space:nowrap;font-family:Archivo,sans-serif;box-shadow:0 6px 24px rgba(255,107,26,.25);transition:background .15s" onmouseover="this.style.background=\'#ff8c42\'" onmouseout="this.style.background=\'#ff6b1a\'">Créer le mien — gratuit</a>'
+    +'<main id="sv-body" class="sv-body"><div class="sv-wait"><span></span>Chargement du rider…</div></main>'
+    +'<footer class="sv-foot">'
+      +'<div class="sv-promo">'
+        +'<span class="sv-promo-l">'+SV_LOGO_SM+'</span>'
+        +'<div><b>Ce rider est fait avec PatchFlow</b><p>Input list, plans, synoptique, racks, liaisons HF et fichiers de prod : créés et partagés en un lien, toujours à jour pour toute l\'équipe. Gratuit pour commencer.</p></div>'
+        +'<a class="sv-cta" href="/">Essayer PatchFlow<i class="ti ti-arrow-right"></i></a>'
       +'</div>'
-      +'<div style="text-align:center;margin-top:16px;font-size:10px;font-family:DM Mono,monospace;color:#3a4a5a;letter-spacing:.5px">PatchFlow — Par des techniciens, pour des techniciens</div>'
-    +'</div>';
+      +'<p class="sv-sign">PatchFlow — par des techniciens, pour des techniciens</p>'
+    +'</footer>';
   document.body.prepend(wrap);
   /* La vue rider est en place : on retire le splash de démarrage. */
   var _rspEl=document.getElementById('rider-splash'); if(_rspEl)_rspEl.remove();
@@ -23035,17 +23004,22 @@ function _svFs(imgId, title){
   // ── Section renderers ──
   var now=new Date().toLocaleString('fr-FR');
   /* Chips méta : style carte (cohérent avec la landing), icônes Tabler */
-  var _chipCss='display:inline-flex;align-items:center;gap:6px;font-size:'+(isMobile?'10':'11')+'px;font-family:DM Mono,monospace;color:#8899aa;background:#0d1424;border:1px solid #1e2a3a;border-radius:8px;padding:'+(isMobile?'4px 9px':'5px 12px')+'';
-  var _showMeta='<div style="margin-bottom:'+(isMobile?'18':'28')+'px">'
-    +'<div style="display:flex;align-items:center;gap:'+(isMobile?'9':'12')+'px;margin-bottom:'+(isMobile?'9':'12')+'px">'
-      +'<span style="width:4px;height:'+(isMobile?'20':'26')+'px;background:linear-gradient(180deg,#ff6b1a,#ff3d00);border-radius:2px;flex-shrink:0"></span>'
-      +'<span style="font-size:'+(isMobile?'19':'26')+'px;font-weight:800;letter-spacing:-.5px;line-height:1.15">'+esc(show.name||'')+'</span>'
-    +'</div>'
-    +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
-    +(show.venue?'<span style="'+_chipCss+'"><i class="ti ti-map-pin" style="color:#ff8c42;font-size:13px"></i>'+esc(show.venue)+'</span>':'')
-    +(show.show_date?'<span style="'+_chipCss+'"><i class="ti ti-calendar" style="color:#1a8fff;font-size:13px"></i>'+esc(_fmtShowDate(show.show_date))+'</span>':'')
-    +'<span style="'+_chipCss+';color:#22d6a0;background:rgba(34,214,160,.07);border-color:rgba(34,214,160,.2)"><i class="ti ti-refresh" style="font-size:13px"></i>'+now+'</span>'
+  /* En-tête de chaque section : le show, son lieu, sa date */
+  var _showMeta='<div class="sv-head">'
+    +'<h1>'+esc(show.name||'')+'</h1>'
+    +'<div class="sv-chips">'
+    +(show.venue?'<span><i class="ti ti-map-pin"></i>'+esc(show.venue)+'</span>':'')
+    +(show.show_date?'<span><i class="ti ti-calendar"></i>'+esc(_fmtShowDate(show.show_date))+'</span>':'')
+    +'<span class="sv-chip-t" title="Heure d\'ouverture de cette page"><i class="ti ti-refresh"></i>'+now+'</span>'
     +'</div></div>';
+  var _svPatchSel=function(fn){
+    if(!(IL_PATCHES&&IL_PATCHES.length>1)) return '';
+    return '<div class="sv-seg" role="tablist">'+IL_PATCHES.map(function(p){
+      return '<button type="button" class="'+(p.id===CUR_PATCH_ID?'on':'')+'" onclick="'+fn+'(\''+_jsq(jsq(p.id))+'\')">'+esc(p.name||'Patch')+'</button>';
+    }).join('')+'</div>';
+  };
+  var _svEmpty=function(icon,t,sub){ return '<div class="sv-empty"><i class="ti '+icon+'"></i><b>'+t+'</b>'+(sub?'<span>'+sub+'</span>':'')+'</div>'; };
+  var _svFoot=function(t){ return '<p class="sv-end">'+t+' · '+now+'</p>'; };
 
   /* Switch entre patches (Input List) — window pour accès global depuis onclick */
   window._svSelectPatch=function(patchId){
@@ -23174,12 +23148,10 @@ function _svFs(imgId, title){
 
   function _renderIL(){
     var h=_showMeta;
-    /* Fréquence HF (micros HF) : n'afficher la colonne que si au moins un
-       canal en porte une — garde le rider propre pour les shows sans HF. */
+    /* Colonnes facultatives : affichées seulement si au moins un canal les renseigne */
     var _hfOf=function(r){return (r.custom_data&&r.custom_data._hf)||'';};
     var hasHf=rows.some(function(r){return _hfOf(r);});
-    /* Colonnes personnalisées (stage_data.il_custom_cols) — affichées seulement
-       si au moins un canal porte une valeur, comme la colonne HF. */
+    var hasSrc=rows.some(function(r){return r.source;}), hasNote=rows.some(function(r){return r.note;});
     var _customCols=(show.stage_data&&show.stage_data.il_custom_cols)||[];
     var _cvalOf=function(r,id){return (r.custom_data&&r.custom_data[id]);};
     var _visCustom=_customCols.filter(function(c){
@@ -23187,85 +23159,29 @@ function _svFs(imgId, title){
     });
     var _custCell=function(c,r){
       var v=_cvalOf(r,c.id);
-      if(c.type==='bool') return v===true?'<span style="color:#22d6a0;font-size:15px;font-weight:700">&#10003;</span>':'';
+      if(c.type==='bool') return v===true?'<i class="ti ti-check sv-ok"></i>':'';
       return (v!==''&&v!=null)?esc(String(v)):'';
     };
-    /* Selector pour les patches s'il y en a plusieurs */
-    if(IL_PATCHES&&IL_PATCHES.length>1){
-      h+='<div style="margin-bottom:12px;display:flex;gap:6px;flex-wrap:wrap">';
-      IL_PATCHES.forEach(function(p){
-        var active=p.id===CUR_PATCH_ID;
-        h+='<button onclick="_svSelectPatch(\''+_jsq(jsq(p.id))+'\')" style="padding:6px 12px;border:1px solid '+(active?'#ff6b1a':'#1e2a3a')+';background:'+(active?'var(--ora-d)':'transparent')+';color:'+(active?'#ff6b1a':'#5a6a80')+';border-radius:6px;font-size:11px;font-weight:'+(active?'700':'500')+';cursor:pointer;font-family:var(--f);transition:all .1s">'+esc(p.name)+'</button>';
-      });
-      h+='</div>';
-    }
-    /* Bouton « Voir le plan de scène » en un clic (si un plan est disponible). */
-    if(_svPlanAvailable()){
-      h+='<button onclick="_svViewPlan()" style="margin-bottom:14px;display:inline-flex;align-items:center;gap:8px;background:#ff6b1a;border:none;color:#000;font-size:12px;font-weight:700;padding:10px 16px;border-radius:8px;cursor:pointer;font-family:var(--f);box-shadow:0 2px 10px rgba(255,107,26,.25)">'
-        +'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg>'
-        +'Voir le plan de scène</button>';
-    }
-    if(isMobile){
-      // Card layout for phones
-      h+='<div style="display:flex;flex-direction:column;gap:8px">';
-      rows.forEach(function(r){
-        var tags='';
-        if(r.phantom) tags+='<span style="background:rgba(245,197,66,.15);color:#f5c542;border:1px solid rgba(245,197,66,.3);border-radius:4px;font-size:9px;padding:2px 6px;font-family:DM Mono,monospace">+48V</span> ';
-        if(r.foh)    tags+='<span style="background:rgba(34,214,160,.12);color:#22d6a0;border:1px solid rgba(34,214,160,.25);border-radius:4px;font-size:9px;padding:2px 6px;font-family:DM Mono,monospace">FOH</span> ';
-        if(r.mon)    tags+='<span style="background:rgba(26,143,255,.12);color:#1a8fff;border:1px solid rgba(26,143,255,.25);border-radius:4px;font-size:9px;padding:2px 6px;font-family:DM Mono,monospace">MON</span> ';
-        if(_hfOf(r)) tags+='<span style="background:rgba(155,106,255,.12);color:#9b6aff;border:1px solid rgba(155,106,255,.25);border-radius:4px;font-size:9px;padding:2px 6px;font-family:DM Mono,monospace">HF '+esc(_hfOf(r))+'</span> ';
-        h+='<div style="background:#0d1220;border:1px solid #1e2a3a;border-radius:8px;padding:10px 12px;display:flex;align-items:flex-start;gap:10px">'
-          +'<span style="flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;background:#ff6b1a;color:#000;font-family:DM Mono,monospace;font-size:13px;font-weight:800;min-width:30px;height:30px;border-radius:6px;padding:0 5px;letter-spacing:-.3px">'+r.ch+'</span>'
-          +'<div style="flex:1;min-width:0">'
-            +'<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:2px">'
-              +(r.short_name?'<span style="font-weight:700;font-size:14px;color:#f0f4ff">'+esc(r.short_name)+'</span>':'')
-              +(r.long_name?'<span style="font-size:12px;color:#8899aa">'+esc(r.long_name)+'</span>':'')
-            +'</div>'
-            +(r.source||r.mic?'<div style="font-size:10px;color:#5a7a9a;font-family:DM Mono,monospace;margin-bottom:4px">'+(r.source?esc(r.source):'')+(r.source&&r.mic?' &bull; ':'')+( r.mic?esc(r.mic):'')+'</div>':'')
-            +(tags?'<div style="display:flex;gap:5px;flex-wrap:wrap">'+tags+'</div>':'')
-            +(function(){var s='';_visCustom.forEach(function(c){var cell=_custCell(c,r);if(cell)s+='<div style="margin-top:4px;font-size:10px;color:#8899aa"><span style="color:#5a6a80">'+esc(c.label||'')+' : </span>'+cell+'</div>';});return s;})()
-            +(r.note?'<div style="margin-top:5px;font-size:10px;color:#5a6a80;font-style:italic">'+esc(r.note)+'</div>':'')
-          +'</div>'
-          +'</div>';
-      });
-      h+='</div>';
-    } else {
-      // Table layout for desktop
-      h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">'
-        +'<thead><tr style="background:#111827;color:#8899aa;font-family:DM Mono,monospace;font-size:10px;text-transform:uppercase;letter-spacing:.8px">'
-        +'<th style="padding:8px 10px;text-align:center;border-bottom:1px solid #1e2a3a;width:52px">CH</th>'
-        +'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">Court</th>'
-        +'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">Nom</th>'
-        +'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">Source</th>'
-        +'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">Micro</th>'
-        +'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">+48V</th>'
-        +'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">FOH</th>'
-        +'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">MON</th>'
-        +(hasHf?'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">Fréq. HF</th>':'')
-        +_visCustom.map(function(c){return '<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">'+esc(c.label||'')+'</th>';}).join('')
-        +'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">Note</th>'
-        +'</tr></thead><tbody>';
-      rows.forEach(function(r,i){
-        var bg=i%2===0?'#0d1220':'#0a0f1c';
-        h+='<tr style="background:'+bg+';border-bottom:1px solid #141c2e">'
-          +'<td style="padding:6px 10px;text-align:center;vertical-align:middle">'
-          +'<span style="display:inline-flex;align-items:center;justify-content:center;background:#ff6b1a;color:#000;font-family:DM Mono,monospace;font-size:13px;font-weight:800;min-width:28px;height:22px;border-radius:5px;padding:0 6px;letter-spacing:-.3px;line-height:1">'
-          +r.ch+'</span></td>'
-          +'<td style="padding:8px 12px;font-weight:700;font-size:13px;color:#f0f4ff">'+esc(r.short_name||'')+'</td>'
-          +'<td style="padding:8px 12px;color:#c8d4e0;font-size:12px">'+esc(r.long_name||'')+'</td>'
-          +'<td style="padding:8px 12px;color:#7a8a9a;font-family:DM Mono,monospace;font-size:10px">'+esc(r.source||'')+'</td>'
-          +'<td style="padding:8px 12px;color:#7a8a9a;font-family:DM Mono,monospace;font-size:10px">'+esc(r.mic||'')+'</td>'
-          +'<td style="padding:8px 12px">'+(r.phantom?'<span style="background:rgba(245,197,66,.15);color:#f5c542;border:1px solid rgba(245,197,66,.3);border-radius:4px;font-size:9px;padding:2px 6px;font-family:DM Mono,monospace">+48V</span>':'')+'</td>'
-          +'<td style="padding:8px 12px;font-size:15px;font-weight:700">'+(r.foh?'<span style="color:#22d6a0">&#10003;</span>':'')+'</td>'
-          +'<td style="padding:8px 12px;font-size:15px;font-weight:700">'+(r.mon?'<span style="color:#1a8fff">&#10003;</span>':'')+'</td>'
-          +(hasHf?'<td style="padding:8px 12px;color:#9b6aff;font-family:DM Mono,monospace;font-size:10px">'+esc(_hfOf(r))+'</td>':'')
-          +_visCustom.map(function(c){return '<td style="padding:8px 12px;color:#c8d4e0;font-size:11px">'+_custCell(c,r)+'</td>';}).join('')
-          +'<td style="padding:8px 12px;color:#5a6a80;font-size:11px">'+esc(r.note||'')+'</td>'
-          +'</tr>';
-      });
-      h+='</tbody></table></div>';
-    }
-    h+='<div style="margin-top:20px;text-align:center;font-size:10px;color:#3a4a5a;font-family:DM Mono,monospace">PatchFlow — '+rows.length+' canaux — '+now+'</div>';
+    h+='<div class="sv-bar">'+_svPatchSel('_svSelectPatch')
+      +(_svPlanAvailable()?'<button type="button" class="sv-btn" onclick="_svViewPlan()"><i class="ti ti-layout-board"></i>Voir le plan de scène</button>':'')
+      +'<span class="sv-grow"></span><span class="sv-count"><b>'+rows.length+'</b> canaux'
+      +(rows.filter(function(r){return r.phantom;}).length?' · <b>'+rows.filter(function(r){return r.phantom;}).length+'</b> en 48 V':'')+'</span></div>';
+    if(!rows.length) return h+_svEmpty('ti-list-numbers','Aucun canal dans ce patch','');
+    h+='<div class="sv-card"><table class="sv-tbl sv-il"><thead><tr><th class="c">CH</th><th>Nom</th>'+(hasSrc?'<th>Source</th>':'')+'<th>Micro / DI</th><th>Envois</th>'
+      +(hasHf?'<th>Fréq. HF</th>':'')+_visCustom.map(function(c){return '<th>'+esc(c.label||'')+'</th>';}).join('')+(hasNote?'<th>Pied / note</th>':'')+'</tr></thead><tbody>';
+    rows.forEach(function(r){
+      var tags=(r.phantom?'<span class="sv-tag y">48V</span>':'')+(r.foh?'<span class="sv-tag g">FOH</span>':'')+(r.mon?'<span class="sv-tag b">MON</span>':'')+(r.iem_group?'<span class="sv-tag p">'+esc(r.iem_group)+'</span>':'');
+      h+='<tr><td class="sv-ch"><b>'+r.ch+'</b></td>'
+        +'<td class="sv-n"><b>'+esc(r.short_name||'')+'</b>'+(r.long_name?'<span>'+esc(r.long_name)+'</span>':'')+'</td>'
+        +(hasSrc?'<td class="sv-mu" data-l="Source">'+esc(r.source||'')+'</td>':'')
+        +'<td class="sv-mo" data-l="Micro">'+esc(r.mic||'')+'</td>'
+        +'<td class="sv-tags">'+tags+'</td>'
+        +(hasHf?'<td class="sv-f" data-l="HF">'+esc(_hfOf(r))+'</td>':'')
+        +_visCustom.map(function(c){return '<td data-l="'+esc(c.label||'')+'">'+_custCell(c,r)+'</td>';}).join('')
+        +(hasNote?'<td class="sv-mu" data-l="Pied / note">'+esc(r.note||'')+'</td>':'')
+        +'</tr>';
+    });
+    h+='</tbody></table></div>'+_svFoot(rows.length+' canaux');
     return h;
   }
 
@@ -23596,86 +23512,115 @@ function _svFs(imgId, title){
 
 
   function _renderOUT(){
-    // Try direct column first (only if non-empty), then rider snapshot
+    /* La colonne du show d'abord (si elle n'est pas vide), sinon la copie rangée avec le lien */
     var rider=show.stage_data&&show.stage_data.rider;
-    var _od=show.out_data;
-    var _snap=rider&&rider.out_snapshot;
-    // An empty {} is truthy but useless — fall through to snapshot in that case
-    var outData=(_od&&Object.keys(_od).length)?_od
-               :(_snap&&Object.keys(_snap).length)?_snap:{};
-    /* Sélecteur de patch (comme l'Input List) — chaque patch a ses sorties. */
-    var _selOut='';
-    if(IL_PATCHES&&IL_PATCHES.length>1){
-      _selOut='<div style="margin-bottom:12px;display:flex;gap:6px;flex-wrap:wrap">';
-      IL_PATCHES.forEach(function(p){
-        var active=p.id===CUR_PATCH_ID;
-        _selOut+='<button onclick="_svSelectOutPatch(\''+_jsq(jsq(p.id))+'\')" style="padding:6px 12px;border:1px solid '+(active?'#ff6b1a':'#1e2a3a')+';background:'+(active?'var(--ora-d)':'transparent')+';color:'+(active?'#ff6b1a':'#5a6a80')+';border-radius:6px;font-size:11px;font-weight:'+(active?'700':'500')+';cursor:pointer;font-family:var(--f);transition:all .1s">'+esc(p.name)+'</button>';
-      });
-      _selOut+='</div>';
-    }
-    /* Ne montrer que les sorties du patch courant. Fallback : si une seule clé
-       de patch, on la prend ; si plusieurs sans correspondance, on fusionne. */
-    var _opids=Object.keys(outData);
-    var allOuts;
+    var _od=show.out_data, _snap=rider&&rider.out_snapshot;
+    var outData=(_od&&Object.keys(_od).length)?_od:(_snap&&Object.keys(_snap).length)?_snap:{};
+    /* Seulement les sorties du patch courant. Une seule clé : on la prend ; plusieurs sans correspondance : on fusionne. */
+    var _opids=Object.keys(outData), allOuts;
     if(_opids.length>1 && outData[CUR_PATCH_ID]){ allOuts=(outData[CUR_PATCH_ID]||[]).slice(); }
     else if(_opids.length<=1){ allOuts=(outData[_opids[0]]||[]).slice(); }
     else { allOuts=[]; _opids.forEach(function(pid){(outData[pid]||[]).forEach(function(o){allOuts.push(o);});}); }
-    if(!allOuts.length) return _showMeta+_selOut+'<div style="text-align:center;color:#5a6a80;padding:40px;font-size:13px">Aucune sortie configuree pour ce patch.</div>';
-    /* Fréquence HF (ear monitors) : colonne affichée seulement si renseignée. */
-    var hasOutHf=allOuts.some(function(r){return r.hf;});
-    var OUT_COLORS={main:'#22d6a0',mon:'#1a8fff',iem:'#a855f7',fx:'#f5c542',matrix:'#f97316',other:'#5a6a80'};
-    var h=_showMeta+_selOut;
-    if(isMobile){
-      // Card layout for phones
-      h+='<div style="display:flex;flex-direction:column;gap:8px">';
-      allOuts.forEach(function(r,i){
-        var col=OUT_COLORS[r.type]||OUT_COLORS.other;
-        h+='<div style="background:#0d1220;border:1px solid #1e2a3a;border-radius:8px;padding:10px 12px;display:flex;align-items:flex-start;gap:10px">'
-          +'<span style="flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;background:'+col+'22;color:'+col+';border:1px solid '+col+'44;font-family:DM Mono,monospace;font-size:12px;font-weight:800;min-width:30px;height:30px;border-radius:6px;padding:0 5px">'+(r.ch||i+1)+'</span>'
-          +'<div style="flex:1;min-width:0">'
-            +'<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:2px">'
-              +(r.short_name?'<span style="font-weight:700;font-size:14px;color:#f0f4ff">'+esc(r.short_name)+'</span>':'')
-              +(r.long_name?'<span style="font-size:12px;color:#8899aa">'+esc(r.long_name)+'</span>':'')
-            +'</div>'
-            +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:3px">'
-              +'<span style="background:'+col+'22;color:'+col+';border:1px solid '+col+'44;border-radius:4px;font-size:9px;padding:2px 7px;font-family:DM Mono,monospace;text-transform:uppercase">'+esc((OUT_TYPES[r.type]&&OUT_TYPES[r.type].label)||r.type||'')+'</span>'
-              +(r.dest?'<span style="font-size:10px;color:#5a7a9a;font-family:DM Mono,monospace">'+esc(r.dest)+'</span>':'')
-              +(r.hf?'<span style="background:rgba(155,106,255,.12);color:#9b6aff;border:1px solid rgba(155,106,255,.25);border-radius:4px;font-size:9px;padding:2px 7px;font-family:DM Mono,monospace">HF '+esc(r.hf)+'</span>':'')
-            +'</div>'
-            +(r.note?'<div style="margin-top:5px;font-size:10px;color:#5a6a80;font-style:italic">'+esc(r.note)+'</div>':'')
-          +'</div>'
-          +'</div>';
-      });
-      h+='</div>';
-    } else {
-      h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">'
-        +'<thead><tr style="background:#111827;color:#8899aa;font-family:DM Mono,monospace;font-size:10px;text-transform:uppercase;letter-spacing:.8px">'
-        +'<th style="padding:8px 16px;text-align:center;border-bottom:1px solid #1e2a3a;width:80px">N°</th>'
-        +'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">Court</th>'
-        +'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">Nom</th>'
-        +'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">Type</th>'
-        +'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">Destination</th>'
-        +(hasOutHf?'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">Fréq. HF</th>':'')
-        +'<th style="padding:8px 12px;text-align:left;border-bottom:1px solid #1e2a3a">Note</th>'
-        +'</tr></thead><tbody>';
-      allOuts.forEach(function(r,i){
-        var bg=i%2===0?'#0d1220':'#0a0f1c';
-        var col=OUT_COLORS[r.type]||OUT_COLORS.other;
-        h+='<tr style="background:'+bg+';border-bottom:1px solid #141c2e">'
-          +'<td style="padding:8px 16px;text-align:center;font-family:DM Mono,monospace;font-weight:700;color:#5a6a80">'+(r.ch||i+1)+'</td>'
-          +'<td style="padding:8px 12px;font-weight:700;font-size:13px;color:#f0f4ff">'+esc(r.short_name||'')+'</td>'
-          +'<td style="padding:8px 12px;color:#c8d4e0">'+esc(r.long_name||'')+'</td>'
-          +'<td style="padding:8px 12px"><span style="background:'+col+'22;color:'+col+';border:1px solid '+col+'44;border-radius:4px;font-size:9px;padding:2px 7px;font-family:DM Mono,monospace;text-transform:uppercase">'+esc((OUT_TYPES[r.type]&&OUT_TYPES[r.type].label)||r.type||'')+'</span></td>'
-          +'<td style="padding:8px 12px;color:#7a8a9a;font-family:DM Mono,monospace;font-size:10px">'+esc(r.dest||'')+'</td>'
-          +(hasOutHf?'<td style="padding:8px 12px;color:#9b6aff;font-family:DM Mono,monospace;font-size:10px">'+esc(r.hf||'')+'</td>':'')
-          +'<td style="padding:8px 12px;color:#5a6a80;font-size:11px">'+esc(r.note||'')+'</td>'
-          +'</tr>';
-      });
-      h+='</tbody></table></div>';
-    }
-    h+='<div style="margin-top:20px;text-align:center;font-size:10px;color:#3a4a5a;font-family:DM Mono,monospace">PatchFlow — '+allOuts.length+' sortie'+(allOuts.length>1?'s':'')+' — '+now+'</div>';
+    var TYPES={main:['Façade','g'],mon:['Retour','b'],iem:['IEM','p'],fx:['Effet','y'],matrix:['Matrice','o'],other:['Autre','n']};
+    var h=_showMeta+'<div class="sv-bar">'+_svPatchSel('_svSelectOutPatch')+'<span class="sv-grow"></span><span class="sv-count"><b>'+allOuts.length+'</b> sortie'+(allOuts.length>1?'s':'')+'</span></div>';
+    if(!allOuts.length) return h+_svEmpty('ti-arrow-bar-to-right','Aucune sortie dans ce patch','');
+    var hasOutHf=allOuts.some(function(r){return r.hf;}), hasDest=allOuts.some(function(r){return r.dest;}), hasNote=allOuts.some(function(r){return r.note;});
+    h+='<div class="sv-card"><table class="sv-tbl sv-ol"><thead><tr><th class="c">OUT</th><th>Nom</th><th>Type</th>'+(hasDest?'<th>Destination</th>':'')+(hasOutHf?'<th>Fréq. HF</th>':'')+(hasNote?'<th>Note</th>':'')+'</tr></thead><tbody>';
+    allOuts.forEach(function(r,i){
+      var t=TYPES[r.type]||TYPES.other;
+      h+='<tr><td class="sv-ch t-'+t[1]+'"><b>'+(r.ch||i+1)+'</b></td>'
+        +'<td class="sv-n"><b>'+esc(r.short_name||'')+'</b>'+(r.long_name?'<span>'+esc(r.long_name)+'</span>':'')+'</td>'
+        +'<td class="sv-tags"><span class="sv-tag '+t[1]+'">'+t[0]+'</span></td>'
+        +(hasDest?'<td class="sv-mu" data-l="Destination">'+esc(r.dest||'')+'</td>':'')
+        +(hasOutHf?'<td class="sv-f" data-l="HF">'+esc(r.hf||'')+'</td>':'')
+        +(hasNote?'<td class="sv-mu" data-l="Note">'+esc(r.note||'')+'</td>':'')
+        +'</tr>';
+    });
+    h+='</tbody></table></div>'+_svFoot(allOuts.length+' sortie'+(allOuts.length>1?'s':''));
     return h;
   }
+
+  /* ── Racks : façades dessinées et contenu, pour le loueur ou l'équipe plateau ── */
+  function _renderRacks(){
+    var sd=show.stage_data||{}, h=_showMeta;
+    var racks=(typeof _rkClean==='function')?_rkClean(sd.racks):[];
+    if(!racks.length) return h+_svEmpty('ti-server','Aucun rack dans ce rider','Les racks du show apparaîtront ici dès qu\'ils seront dessinés.');
+    var groups=(typeof _rkGroupsClean==='function')?_rkGroupsClean(sd.rack_groups):[];
+    var keepG=RK.groups, keepO=Object.assign({},RK_OPT);
+    RK.groups=groups; RK_OPT.num=true; RK_OPT.frame=true;
+    var tot=0; racks.forEach(function(r){ tot+=r.items.length; });
+    h+='<div class="sv-bar"><span class="sv-grow"></span><span class="sv-count"><b>'+racks.length+'</b> rack'+(racks.length>1?'s':'')+' · <b>'+tot+'</b> appareil'+(tot>1?'s':'')+'</span></div>';
+    try{
+      racks.forEach(function(r){
+        var st=_rkStats(r), rear=r.items.some(function(i){return i.side==='r';});
+        var used=groups.filter(function(g){ return r.items.some(function(i){ return i.grp===g.id; }); });
+        var items=r.items.slice().sort(function(a,b){ return (a.bay||0)-(b.bay||0) || (a.side===b.side?0:(a.side==='f'?-1:1)) || b.u-a.u; });
+        h+='<section class="sv-card sv-rk"><header><h3>'+esc(r.name)+'</h3><div class="sv-chips">'
+          +'<span>'+r.units+' U'+((r.bays||1)>1?' × '+r.bays+' baies':'')+'</span>'+(r.depth?'<span>'+r.depth+' mm</span>':'')
+          +'<span>'+st.used+' / '+st.total+' U occupées</span>'+(st.kg?'<span>'+(Math.round(st.kg*10)/10).toLocaleString('fr-FR')+' kg</span>':'')+(st.w?'<span>'+st.w+' W</span>':'')
+          +'</div></header><div class="sv-rk-in"><div class="sv-rk-views">'
+          +'<figure><figcaption>Avant</figcaption><div class="sv-rk-draw">'+_rkSvg(r,'f',_RK_PAL_UI,{}).svg+'</div></figure>'
+          +(rear?'<figure><figcaption>Arrière</figcaption><div class="sv-rk-draw">'+_rkSvg(r,'r',_RK_PAL_UI,{}).svg+'</div></figure>':'')
+          +'</div><div class="sv-rk-list">'
+          +(used.length?'<div class="sv-rk-leg">'+used.map(function(g){ return '<span><i style="background:'+esc(g.color)+'"></i>'+esc(g.name)+'</span>'; }).join('')+'</div>':'')
+          +'<table class="sv-tbl sv-rkt"><thead><tr><th>Position</th><th>Appareil</th><th>Face</th></tr></thead><tbody>'
+          +items.map(function(i){ return '<tr><td class="sv-mo">'+((r.bays||1)>1?'B'+((i.bay||0)+1)+' · ':'')+esc(_rkPos(r,i))+'</td><td class="sv-n"><b>'+esc(i.n)+'</b>'+(i.lbl||i.note?'<span>'+esc([i.lbl,i.note].filter(Boolean).join(' · '))+'</span>':'')+'</td><td class="sv-mu">'+(i.side==='r'?'Arrière':'Avant')+'</td></tr>'; }).join('')
+          +'</tbody></table>'
+          +(String(r.note||'').trim()?'<p class="sv-rk-note"><i class="ti ti-note"></i>'+esc(r.note)+'</p>':'')
+          +'</div></div></section>';
+      });
+    }catch(e){ h+=_svEmpty('ti-alert-triangle','Racks illisibles',''); }
+    RK.groups=keepG; Object.assign(RK_OPT,keepO);
+    return h+_svFoot(racks.length+' rack'+(racks.length>1?'s':''));
+  }
+
+  /* ── Liaisons HF : fréquences par zone, avec une recherche pour retrouver vite un nom ── */
+  function _renderRf(){
+    var h=_showMeta;
+    if(typeof _rfClean!=='function') return h+_svEmpty('ti-antenna','Liaisons HF indisponibles','');
+    var d=_rfClean(show.stage_data&&show.stage_data.rf);
+    if(!d.ch.length) return h+_svEmpty('ti-antenna','Aucune liaison HF dans ce rider','Les fréquences du show apparaîtront ici dès qu\'elles seront saisies.');
+    var zs=d.zones.slice(); d.ch.forEach(function(c){ if(c.zone&&zs.indexOf(c.zone)<0) zs.push(c.zone); });
+    var hue=function(z){ var i=zs.indexOf(z); return i<0?'#8a8f9c':_RF_HUES[i%_RF_HUES.length]; };
+    var mics=d.ch.filter(function(c){return c.kind==='mic';}).length, iem=d.ch.filter(function(c){return c.kind==='iem';}).length;
+    var kind=function(c){ return c.kind==='iem'?'IEM':c.kind==='oth'?'Liaison':(c.tx==='hh'?'Micro main':c.tx==='bp'?'Micro ceinture':'Micro'); };
+    h+='<div class="sv-bar"><label class="sv-search"><i class="ti ti-search"></i><input type="search" placeholder="Nom, artiste ou fréquence" oninput="_svRfFilter(this.value)" autocomplete="off" aria-label="Rechercher une liaison"/></label>'
+      +'<span class="sv-grow"></span><span class="sv-count"><b>'+d.ch.length+'</b> liaison'+(d.ch.length>1?'s':'')+' · '+mics+' micro'+(mics>1?'s':'')+' · '+iem+' IEM</span></div>';
+    var spec='';
+    try{ var bw=Math.max(300,Math.min(1120,(document.getElementById('sv-body')||{}).clientWidth||900)-(isMobile?36:60)); spec=_rfSpecSvg(d,{by:{}},zs,bw); }catch(e){}
+    if(spec) h+='<div class="sv-card sv-rf-spec">'+spec+'<div class="sv-rk-leg">'+zs.map(function(z){ return '<span><i style="background:'+hue(z)+'"></i>'+esc(z)+'</span>'; }).join('')+'<span class="sv-rf-k"><i class="k-mic"></i>micro <i class="k-iem"></i>IEM</span></div></div>';
+    var order=d.ch.slice().sort(function(a,b){ var za=zs.indexOf(a.zone), zb=zs.indexOf(b.zone); return (za<0?999:za)-(zb<0?999:zb) || (a.kind===b.kind?0:(a.kind==='mic'?-1:1)) || String(a.dev).localeCompare(String(b.dev),'fr',{numeric:true}) || String(a.n).localeCompare(String(b.n),'fr',{numeric:true}); });
+    var last=null;
+    h+='<div class="sv-card"><table class="sv-tbl sv-rft" id="sv-rf-tbl"><thead><tr><th>Liaison</th><th>Type</th><th class="r">Fréquence</th><th>Bande</th><th>Appareil</th><th>Note</th></tr></thead><tbody>';
+    order.forEach(function(c){
+      if(c.zone!==last){ last=c.zone; var nz=d.ch.filter(function(x){return x.zone===c.zone;}).length; h+='<tr class="sv-grp" data-z="1"><td colspan="6"><i style="background:'+hue(c.zone)+'"></i>'+esc(c.zone||'Sans zone')+'<em>'+nz+' liaison'+(nz>1?'s':'')+'</em></td></tr>'; }
+      var f=_rfFmt(c.f), who=c.who||'', nm=c.n||c.dev||'Liaison', dev=c.dev||c.mdl||'';
+      h+='<tr data-q="'+esc(_rfNorm([nm,who,c.zone,c.mdl,c.dev,c.note,c.band].join(' ')))+'" data-f="'+f+'">'
+        +'<td class="sv-n"><b>'+esc(who||nm)+'</b>'+(who?'<span>'+esc(nm)+'</span>':'')+'</td>'
+        +'<td class="sv-tags"><span class="sv-tag '+(c.kind==='iem'?'p':'b')+'">'+kind(c)+'</span></td>'
+        +'<td class="sv-freq r">'+(f?f+'<small>MHz</small>':'<small>à définir</small>')+'</td>'
+        +'<td class="sv-mo" data-l="Bande">'+esc(c.band||'')+'</td>'
+        +'<td class="sv-mu" data-l="Appareil">'+esc(dev)+'</td>'
+        +'<td class="sv-mu" data-l="Note">'+esc(c.note||'')+'</td></tr>';
+    });
+    h+='</tbody></table><p class="sv-rf-none" id="sv-rf-none" style="display:none"><i class="ti ti-search-off"></i>Aucune liaison ne correspond.</p></div>';
+    if(d.spare.length) h+='<div class="sv-card sv-rf-spare"><h4>Fréquences de réserve</h4><div>'+d.spare.slice().sort(function(a,b){return a.f-b.f;}).map(function(x){ return '<span><b>'+_rfFmt(x.f)+'</b>'+esc([x.ser,x.band].filter(Boolean).join(' '))+'</span>'; }).join('')+'</div></div>';
+    return h+_svFoot(d.ch.length+' liaison'+(d.ch.length>1?'s':''));
+  }
+  /* Recherche dans les liaisons HF : par nom, artiste, zone, modèle, ou début de fréquence */
+  window._svRfFilter=function(v){
+    var t=document.getElementById('sv-rf-tbl'); if(!t||typeof _rfNorm!=='function') return;
+    var q=_rfNorm(v), qf=String(v||'').replace(',','.').trim(), n=0;
+    t.querySelectorAll('tbody tr').forEach(function(tr){
+      if(tr.dataset.z){ return; }
+      var ok=(!q&&!qf) || (/^\d/.test(qf)&&(tr.dataset.f||'').indexOf(qf)>=0) || (!!q&&(tr.dataset.q||'').indexOf(q)>=0);
+      tr.style.display=ok?'':'none'; if(ok) n++;
+    });
+    /* une ligne de zone ne reste que si elle a encore des liaisons affichées */
+    var rowsAll=[].slice.call(t.querySelectorAll('tbody tr'));
+    rowsAll.forEach(function(tr,i){ if(!tr.dataset.z) return; var any=false; for(var k=i+1;k<rowsAll.length&&!rowsAll[k].dataset.z;k++) if(rowsAll[k].style.display!=='none'){ any=true; break; } tr.style.display=any?'':'none'; });
+    var none=document.getElementById('sv-rf-none'); if(none) none.style.display=n?'none':'';
+  };
 
   function _renderSyno(){
     var rider=show.stage_data&&show.stage_data.rider;
@@ -24187,7 +24132,7 @@ function _svFs(imgId, title){
   window._svSwitch=function(sec){
     allSections.forEach(function(s){
       var t=document.getElementById('svt-'+s);
-      if(t) t.style.cssText=s===sec?SV_TABCSS_ON:SV_TABCSS;
+      if(t) t.classList.toggle('on',s===sec);
     });
     if(_paneCache[sec]!==undefined){
       var _cb=document.getElementById('sv-body');
@@ -24198,12 +24143,15 @@ function _svFs(imgId, title){
       if(sec==='cloud') _cloudBindEvents(_cb);
       return;
     }
-    document.getElementById('sv-body').innerHTML='<div style="text-align:center;color:#5a6a80;font-family:DM Mono,monospace;margin-top:60px">Chargement...</div>';
+    document.getElementById('sv-body').innerHTML='<div class="sv-wait"><span></span>Chargement…</div>';
+    var _act=document.getElementById('svt-'+sec); if(_act&&_act.scrollIntoView) try{ _act.scrollIntoView({block:'nearest',inline:'center'}); }catch(e){}
     if(sec==='il'){_paneCache.il=_renderIL();document.getElementById('sv-body').innerHTML=_paneCache.il;}
     else if(sec==='out'){_paneCache.out=_renderOUT();document.getElementById('sv-body').innerHTML=_paneCache.out;}
     else if(sec==='stage'){_renderStage(function(h){_paneCache.stage=h;document.getElementById('sv-body').innerHTML=h;});}
     else if(sec==='site'){_renderSite(function(h){_paneCache.site=h;document.getElementById('sv-body').innerHTML=h;});}
     else if(sec==='syno'){_paneCache.syno=_renderSyno();document.getElementById('sv-body').innerHTML=_paneCache.syno;}
+    else if(sec==='racks'){_paneCache.racks=_renderRacks();document.getElementById('sv-body').innerHTML=_paneCache.racks;}
+    else if(sec==='rf'){document.getElementById('sv-body').innerHTML=_renderRf();}
     else if(sec==='cloud'){
       _renderCloudPane(function(h){
         _paneCache.cloud=h;

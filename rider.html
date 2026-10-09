@@ -63,7 +63,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=4.05">
+<link rel="stylesheet" href="pf-app.css?v=4.06">
 </head>
 <body>
 
@@ -936,6 +936,12 @@ html.rider-boot #rider-splash{display:flex}
             <button class="slink-check" id="sc-site" onclick="selectRiderSection('site')">
               <i class="ti ti-building-stadium"></i>Plan de site
             </button>
+            <button class="slink-check" id="sc-racks" onclick="selectRiderSection('racks')">
+              <i class="ti ti-server"></i>Racks
+            </button>
+            <button class="slink-check" id="sc-rf" onclick="selectRiderSection('rf')">
+              <i class="ti ti-antenna"></i>Liaisons HF
+            </button>
             <button class="slink-check" id="sc-cloud" onclick="selectRiderSection('cloud')" style="display:none">
               <i class="ti ti-cloud"></i>Fichiers cloud <span style="font-size:9px;font-family:var(--m);color:var(--ora);margin-left:2px">Pro</span>
             </button>
@@ -1519,7 +1525,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=4.43"></script>
+<script src="pf-app.js?v=4.44"></script>
 <script src="pf-rf.js?v=1.10"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">

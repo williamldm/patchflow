@@ -84,6 +84,24 @@ async function fetchShowData(sbAdmin: ReturnType<typeof createClient>, showId: s
    qu'à l'affichage, donc un lien « Input List seule » exposait l'intégralité du
    show à qui lisait la réponse réseau. */
 const ALL_SECTIONS = ['il', 'out', 'syno', 'stage', 'site'];
+
+/* Liaisons HF : seulement ce qu'un destinataire du lien a besoin de lire. Le nom du fichier
+   d'origine, le scan du lieu, les versions, les réglages de calcul et les liens internes vers
+   l'input list ne sortent pas. */
+function publicRf(rf: any) {
+  if (!rf || typeof rf !== 'object' || !Array.isArray(rf.ch)) return null;
+  const keep = ['id', 'n', 'who', 'kind', 'tx', 'f', 'band', 'ser', 'mdl', 'mk', 'dev', 'zone', 'note', 'did', 'sh'];
+  return {
+    v: rf.v,
+    zones: Array.isArray(rf.zones) ? rf.zones : [],
+    ch: rf.ch.slice(0, 600).map((c: any) => {
+      const o: Record<string, unknown> = {};
+      if (c && typeof c === 'object') for (const k of keep) if (c[k] !== undefined) o[k] = c[k];
+      return o;
+    }),
+    spare: Array.isArray(rf.spare) ? rf.spare.slice(0, 200) : [],
+  };
+}
 function scopeToSections(
   show: Record<string, any>,
   channels: unknown[],
@@ -97,6 +115,12 @@ function scopeToSections(
   if (sd.rider) stage_data.rider = sd.rider;
   if (sec.has('stage') && sd.band) stage_data.band = sd.band;
   if (sec.has('site') && sd.site) stage_data.site = sd.site;
+  /* Racks et liaisons HF : sections à cocher explicitement, absentes d'un lien sans sélection */
+  if (sec.has('racks') && Array.isArray(sd.racks)) {
+    stage_data.racks = sd.racks;
+    if (Array.isArray(sd.rack_groups)) stage_data.rack_groups = sd.rack_groups;
+  }
+  if (sec.has('rf')) { const rf = publicRf(sd.rf); if (rf) stage_data.rf = rf; }
   // Le plan de scène affiche les numéros/noms de canaux liés aux éléments.
   const needChannels = sec.has('il') || sec.has('stage');
   if (needChannels && sd.chs) stage_data.chs = sd.chs;
