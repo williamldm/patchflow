@@ -482,12 +482,29 @@ function _showInitError(msg){
   setILBody(errHtml,true);
   var el=document.getElementById('cur-show-name');if(el)el.textContent='Erreur';
 }
+/* Au rechargement, la page où l'on était s'affiche tout de suite, sans repasser par les sessions pendant le
+   chargement des données ; la rubrique est ensuite remplie par goTab, une fois le show chargé. */
+const _TABS_OK=['sessions','overview','fichiers','inputlist','showfiles','bon','racks','synoptique','stage','team','settings'];
+function _preTab(){
+  try{
+    var id=localStorage.getItem(TAB_PERSIST_KEY);
+    if(!id || id==='sessions' || _TABS_OK.indexOf(id)<0) return;
+    var p=document.getElementById('panel-'+id); if(!p) return;
+    document.querySelectorAll('.panel').forEach(function(x){ x.classList.remove('on'); });
+    p.classList.add('on');
+    document.querySelectorAll('.tab').forEach(function(t){ t.classList.toggle('on',t.dataset.tab===id && (!t.dataset.mode || t.dataset.mode===(id==='stage'?'scene':'in'))); });
+    document.querySelectorAll('.bn-tab').forEach(function(b){ b.classList.remove('on'); });
+    (document.getElementById('bn-'+id)||document.getElementById('bn-more'))?.classList.add('on');
+    ['ov-root','bon-root','rk-root'].forEach(function(r){ var el=document.getElementById(r); if(el && !el.firstElementChild) el.innerHTML='<div class="loading"><div class="spinner"></div>Chargement…</div>'; });
+  }catch(e){}
+}
 async function initApp(){
   /* GUARD anti-concurrence : onAuthStateChange peut fire plusieurs fois
      (INITIAL_SESSION, SIGNED_IN, TOKEN_REFRESHED) → évite les initApp parallèles
      qui rechargeaient tout en double et provoquaient des races (auto-accept, etc). */
   if(window._initAppRunning) return;
   window._initAppRunning=true;
+  _preTab();
   setILBody('<div class="loading"><div class="spinner"></div>Connexion a Supabase…</div>',true);
   try{
     /* PARALLÉLISATION : profile et shows en // — sur connexion lente, on gagne
@@ -713,7 +730,7 @@ async function loadShows(){
   /* Restore last active tab after everything is loaded */
   try{
     const lastTab=localStorage.getItem(TAB_PERSIST_KEY);
-    const validTabs=['sessions','overview','fichiers','inputlist','showfiles','bon','racks','synoptique','stage','team'];
+    const validTabs=_TABS_OK;
     if(lastTab&&validTabs.includes(lastTab)&&lastTab!=='sessions'){
       goTab(lastTab,null);
     }
