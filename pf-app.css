@@ -3630,9 +3630,6 @@ button.bonp-empty{cursor:pointer}
 .rf-sbt{font:500 9px var(--f);fill:var(--muted)}
 .rf-sp{fill:none;stroke:var(--muted);stroke-width:1.1}
 .rf-mk{cursor:pointer}
-.rf-mk line{stroke-width:1.6}
-.rf-mk:hover line{stroke-width:3}
-.rf-mk.err line{stroke-dasharray:3 2}
 .rf-leg{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px}
 .rf-leg button{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px;border:0;border-radius:12px;background:var(--surf2);color:var(--txt2);font:500 12px var(--f);cursor:pointer}
 .rf-leg button:hover{color:var(--txt)}
@@ -4150,5 +4147,52 @@ button.rf-tile.act:hover{box-shadow:inset 0 0 0 1px var(--bdr3)}
 .rf-pop small{display:block;margin-top:1px;font:400 11.5px var(--f);color:var(--muted)}
 .rf-chev{font-size:14px;margin-left:2px;color:var(--muted)}
 .rf-from{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
-.rf-from input{width:104px}
+.rf-from input{width:122px}
 .rf-co-row .rf-from{margin-left:10px}
+
+/* RF : spectre (tracé, survol, zoom et déplacement) */
+.rf-sp-h{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+.rf-sp-h h3{margin:0}
+.rf-sp-h h3 small{font-family:var(--m);font-size:11.5px}
+.rf-sp-hint{font-size:11.5px;color:var(--muted2)}
+.rf-sp-z{display:flex;align-items:center;gap:2px;padding:2px;border-radius:9px;background:var(--surf2)}
+.rf-sp-z button{display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:26px;padding:0 7px;border:0;border-radius:7px;background:transparent;color:var(--txt2);font:500 12px var(--f);cursor:pointer}
+.rf-sp-z button:hover{background:var(--surf);color:var(--txt)}
+.rf-sp-z button i{font-size:16px}
+.rf-spw{position:relative;touch-action:pan-y;cursor:grab;user-select:none;-webkit-user-select:none}
+.rf-spw.drag{cursor:grabbing}
+.rf-spbg{fill:var(--surf2);fill-opacity:.55}
+.rf-sg2{stroke:var(--bdr);stroke-width:1;stroke-opacity:.5}
+.rf-sdb{font-size:9px;fill:var(--muted2)}
+.rf-tv{fill:var(--surf2);stroke:var(--bdr2);stroke-width:1}
+.rf-tv.on{fill:var(--err);fill-opacity:.22;stroke:var(--err);stroke-opacity:.5}
+.rf-tvt{font:500 8.5px var(--m);fill:var(--muted);pointer-events:none}
+.rf-tvt.on{fill:var(--err)}
+.rf-mk .rf-mks{stroke:currentColor;stroke-width:1.6}
+.rf-mk .rf-mkd{fill:currentColor}
+.rf-mk .rf-mkh{fill:transparent}
+.rf-mk .rf-mkw{fill:currentColor;fill-opacity:.13}
+.rf-mk .rf-mkl{stroke:currentColor;stroke-width:1;stroke-opacity:.3}
+.rf-mk .rf-mkt{font:500 10px var(--f);fill:var(--txt2);pointer-events:none}
+.rf-mk.err .rf-mks{stroke-dasharray:3 2}
+.rf-svg .rf-mk{transition:opacity .12s}
+.rf-svg.dim .rf-mk:not(.hi){opacity:.3}
+.rf-mk:hover .rf-mks,.rf-mk.hi .rf-mks{stroke-width:3}
+.rf-mk.hi{filter:drop-shadow(0 0 5px currentColor)}
+.rf-mk.hi .rf-mkw{fill-opacity:.3}
+.rf-mk.hi .rf-mkt{fill:var(--txt);font-weight:650}
+.rf-sp-tip{position:absolute;top:0;z-index:3;display:flex;align-items:baseline;gap:8px;max-width:100%;padding:5px 10px;border-radius:8px;background:var(--txt);color:var(--bg,#0b0d12);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;box-shadow:0 6px 18px rgba(0,0,0,.3)}
+.rf-sp-tip b{font-weight:650}
+.rf-sp-tip span{font-family:var(--m);font-size:11.5px;opacity:.75}
+.rf-sp-tip[hidden],.rf-sp-off[hidden]{display:none}
+.rf-sp-off{position:absolute;top:44px;z-index:3;max-width:60%;padding:4px 9px;border:0;border-radius:7px;background:var(--ora);color:#fff;font:600 11.5px var(--f);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.rf-sp-off.l{left:4px}
+.rf-sp-off.r{right:4px}
+.rf-spo{margin-top:4px;cursor:ew-resize;touch-action:none}
+.rf-spo svg{display:block;max-width:100%}
+.rf-spo line{stroke-width:1.2;stroke-opacity:.8}
+.rf-ov-bg{fill:var(--surf2)}
+.rf-ov-w{fill:var(--ora);fill-opacity:.14;stroke:var(--ora);stroke-width:1.2}
+.rf-r.sp-hi td{background:var(--ora-d)}
+.rf-r.sp-hi td:first-child{box-shadow:inset 3px 0 0 var(--ora)}
+@media(max-width:900px){ .rf-sp-hint{display:none} }

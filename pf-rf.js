@@ -858,7 +858,7 @@ function _rfLoad(){
   var id = CUR_SHOW && CUR_SHOW.id;
   if(RF.showId === id && RF.data) return;
   RF.showId = id; RF.data = _rfClean(CUR_SHOW && CUR_SHOW.stage_data && CUR_SHOW.stage_data.rf);
-  RF.q = ''; RF.fk = ''; RF.fz = ''; RF.fs = ''; RF.look = false; RF.lq = ''; RF.pend = null; RF.allAl = false; RF.sel = {}; RF.selLast = ''; RF.calcUndo = null;
+  RF.q = ''; RF.fk = ''; RF.fz = ''; RF.fs = ''; RF.look = false; RF.lq = ''; RF.pend = null; RF.allAl = false; RF.sel = {}; RF.selLast = ''; RF.calcUndo = null; RF.sp = null; RF.hi = ''; RF.hov = '';
 }
 function _rfSave(){
   if(!CUR_SHOW || !RF.data) return;
@@ -1003,12 +1003,21 @@ function _rfPaintSide(){
 
   var sp = document.getElementById('rf-spec');
   if(sp){
-    var svg = _rfSpecSvg(d, al, zs, Math.max(300, sp.clientWidth - 32));
     var cnt = {}; d.ch.forEach(function(c){ cnt[c.zone] = (cnt[c.zone] || 0) + 1; });
     sp.style.display = '';
-    sp.innerHTML = !svg ? '<h3>Spectre</h3>' + _rfScanBar() : '<h3>Spectre <small>fréquences du show, de la plus basse à la plus haute</small></h3>' + svg + _rfScanBar() +
+    RF.spAl = al;
+    sp.innerHTML = !_rfSpecWorld(d) ? '<h3>Spectre</h3>' + _rfScanBar() :
+      '<div class="rf-sp-h"><h3>Spectre <small id="rf-spr"></small></h3><span class="rf-sp-hint">glisser pour se déplacer · Ctrl ou ⌘ + molette, ou pincer, pour zoomer</span><span class="rf-grow"></span>' +
+        '<div class="rf-sp-z"><button type="button" onclick="rfSpecZoom(2)" title="Zoom arrière" aria-label="Zoom arrière"><i class="ti ti-zoom-out"></i></button>' +
+        '<button type="button" onclick="rfSpecZoom(0.5)" title="Zoom avant" aria-label="Zoom avant"><i class="ti ti-zoom-in"></i></button>' +
+        '<button type="button" class="t" onclick="rfSpecFit()" title="Cadrer sur les fréquences du show">Ajuster</button>' +
+        '<button type="button" class="t" onclick="rfSpecAll()" title="Voir les bandes entières des appareils">Tout</button></div></div>' +
+      '<div class="rf-spw" id="rf-spw"><div id="rf-spg"></div><div class="rf-sp-tip" id="rf-sptip" hidden></div>' +
+        '<button type="button" class="rf-sp-off" id="rf-spoff" hidden onclick="RF.hi=this.dataset.id;_rfSpecHi(true)" title="Hors de la vue : cliquer pour y aller"></button></div>' +
+      '<div class="rf-spo" id="rf-spo"></div>' + _rfScanBar() +
       '<div class="rf-leg">' + zs.map(function(z){ return '<button type="button" class="' + (RF.fz === z ? 'on' : '') + '" data-z="' + E(z) + '" onclick="rfFilter(\'fz\',RF.fz===this.dataset.z?\'\':this.dataset.z)"><i style="background:' + _rfHue(z, zs) + '"></i>' + E(z) + ' <em>' + (cnt[z] || 0) + '</em></button>'; }).join('') +
       '<span class="rf-leg-k"><i class="k-mic"></i>micro <i class="k-iem"></i>IEM' + (d.spare.length ? ' <i class="k-sp"></i>réserve' : '') + (_rfAvoid(d).ban.length ? ' <i class="k-ex"></i>à éviter' : '') + (d.scan ? ' <i class="k-sc"></i>scan' : '') + '</span></div>';
+    _rfSpecBind(); _rfSpecDraw();
   }
   /* Pastilles d'alerte des lignes déjà affichées */
   document.querySelectorAll('#rf-list .rf-al').forEach(function(s){
@@ -1019,54 +1028,240 @@ function _rfPaintSide(){
     var tr = s.closest('tr'); if(tr){ tr.classList.toggle('al-err', err); tr.classList.toggle('al-warn', a.length > 0 && !err); }
   });
 }
-/* Bandeau spectre : un trait par canal, les plages exclues en fond, les bandes connues en pied */
-function _rfSpecSvg(d, al, zs, W){
-  var on = d.ch.filter(function(c){ return c.f > 0; }), sc = d.scan, su = sc ? _rfScanData(sc) : null;
-  if(!on.length && !su) return '';
-  var E = _bonE, fs = on.map(function(c){ return c.f; }).concat(d.spare.map(function(s){ return s.f; }));
-  if(!fs.length) fs = [sc.a, sc.b];
+/* ── Spectre ───────────────────────────────────────────────────────────
+   Un trait par canal sur l'axe des fréquences, avec ce qui compte autour : plages à éviter, canaux TV,
+   scan du lieu, bandes des appareils. Sur la page RF le spectre se parcourt (glisser, molette, pincement,
+   bande de navigation) et répond au tableau : la ligne survolée ou cliquée est mise en avant, et
+   inversement. La même fonction dessine la version fixe du rider partagé. */
+var _RF_SP_MIN = 500;                    /* plus petite largeur de vue, en kHz */
+/* Étendue utile : « fit » serre les fréquences du show, « w » ajoute les bandes des appareils et le scan */
+function _rfSpecWorld(d){
+  var on = d.ch.filter(function(c){ return c.f > 0; }), sc = d.scan;
+  var fs = on.map(function(c){ return c.f; }).concat((d.spare || []).map(function(s){ return s.f; }));
+  if(!fs.length){ if(!sc) return null; fs = [sc.a, sc.b]; }
   var min = Math.min.apply(null, fs), max = Math.max.apply(null, fs), pad = Math.max(2000, (max - min) * 0.04);
-  var lo = Math.floor((min - pad) / 1000) * 1000, hi = Math.ceil((max + pad) / 1000) * 1000, H = 0, AX = 80;
+  var lo = Math.floor((min - pad) / 1000) * 1000, hi = Math.ceil((max + pad) / 1000) * 1000, wl = lo, wh = hi;
+  on.forEach(function(c){ var r = _rfRange(c); if(r){ wl = Math.min(wl, r[0] - 1000); wh = Math.max(wh, r[1] + 1000); } });
+  if(sc){ wl = Math.min(wl, sc.a); wh = Math.max(wh, sc.b); }
+  return { fit:[lo, hi], w:[Math.floor(wl / 1000) * 1000, Math.ceil(wh / 1000) * 1000] };
+}
+function _rfSpecSvg(d, al, zs, W, o){
+  o = o || {};
+  var wd = _rfSpecWorld(d); if(!wd) return '';
+  var on = d.ch.filter(function(c){ return c.f > 0; }), sc = d.scan, su = sc ? _rfScanData(sc) : null, E = _bonE, co = d.coord || _rfCoDef();
+  var lo = o.lo || wd.fit[0], hi = o.hi || wd.fit[1], tall = !!o.tall, live = !!o.live;
+  var T = tall ? 36 : 8, PH = tall ? 150 : 74, AX = T + PH, H = 0, g = '';
   var x = function(f){ return Math.round((f - lo) / (hi - lo) * W * 10) / 10; };
-  var step = 1000; [1, 2, 4, 8, 10, 20, 40, 50, 100, 200, 500].some(function(s){ step = s * 1000; return (hi - lo) / step <= Math.max(4, W / 70); });
-  var g = '';
-  if(su){                               /* tracé du scan : crête par pixel ; l'échelle va du bruit de fond au plus fort niveau visible */
-    var path = '', cols = Math.max(50, Math.round(W)), base = AX, topY = 14, c, lastY = null, vmin = 255, vmax = 0;
+  g += '<rect class="rf-spbg" x="0" y="' + T + '" width="' + W + '" height="' + PH + '" rx="4"/>';
+  /* Graduations : pas choisi pour garder des libellés lisibles, traits fins entre deux */
+  var steps = [25, 50, 100, 200, 500, 1000, 2000, 4000, 8000, 10000, 20000, 40000, 50000, 100000, 200000, 500000], step = 500000;
+  steps.some(function(s){ step = s; return (hi - lo) / s <= Math.max(4, W / 78); });
+  var dec = step % 1000 === 0 ? 0 : step % 100 === 0 ? 1 : step % 50 === 0 ? 2 : 3;
+  var sub = [5, 4, 2].map(function(k){ return step / k; }).filter(function(s){ return s % 25 === 0 && s / (hi - lo) * W >= 7; })[0] || 0, f;
+  if(sub) for(f = Math.ceil(lo / sub) * sub; f <= hi; f += sub){ if(f % step) g += '<line class="rf-sg2" x1="' + x(f) + '" y1="' + T + '" x2="' + x(f) + '" y2="' + AX + '"/>'; }
+  /* Tracé du scan : crête par pixel ; l'échelle va du bruit de fond au plus fort niveau visible */
+  if(su){
+    var path = '', cols = Math.max(50, Math.round(W)), base = AX, topY = T + 6, c, lastY = null, vmin = 255, vmax = 0;
     for(c = Math.max(0, Math.floor((lo - sc.a) / _RF_SCAN_STEP)); c <= Math.min(su.length - 1, Math.ceil((hi - sc.a) / _RF_SCAN_STEP)); c++){ if(su[c]){ if(su[c] < vmin) vmin = su[c]; if(su[c] > vmax) vmax = su[c]; } }
     var dbLo = (vmax ? _rfScanDb(vmin) : -110) - 2, dbHi = Math.max(vmax ? _rfScanDb(vmax) : -40, sc.th) + 6, dbR = Math.max(12, dbHi - dbLo);
+    var yDb = function(v){ return base - Math.max(0, Math.min(1, (v - dbLo) / dbR)) * (base - topY); };
+    if(tall) for(var db = Math.ceil(dbLo / 10) * 10; db < dbHi; db += 10){ var gy = yDb(db).toFixed(1); g += '<line class="rf-sg2" x1="0" y1="' + gy + '" x2="' + W + '" y2="' + gy + '"/><text class="rf-st rf-sdb" x="4" y="' + (+gy - 3) + '">' + db + ' dBm</text>'; }
     for(c = 0; c <= cols; c++){
       var f0 = lo + (hi - lo) * c / cols, f1 = lo + (hi - lo) * (c + 1) / cols, i0 = Math.max(0, Math.floor((f0 - sc.a) / _RF_SCAN_STEP)), i1 = Math.min(su.length - 1, Math.ceil((f1 - sc.a) / _RF_SCAN_STEP)), mv = 0;
       for(var q = i0; q <= i1; q++) if(su[q] > mv) mv = su[q];
       if(i1 < i0 || !mv){ if(lastY !== null){ path += 'L' + (c * W / cols).toFixed(1) + ' ' + base + 'Z'; lastY = null; } continue; }
-      var y = base - Math.max(0, Math.min(1, (_rfScanDb(mv) - dbLo) / dbR)) * (base - topY);
+      var y = yDb(_rfScanDb(mv));
       path += (lastY === null ? 'M' + (c * W / cols).toFixed(1) + ' ' + base + 'L' : 'L') + (c * W / cols).toFixed(1) + ' ' + y.toFixed(1); lastY = y;
     }
     if(lastY !== null) path += 'L' + W + ' ' + base + 'Z';
-    var ty = base - Math.max(0, Math.min(1, (sc.th - dbLo) / dbR)) * (base - topY);
+    var ty = yDb(sc.th);
     g += '<path class="rf-scp" d="' + path + '"/><line class="rf-sct" x1="0" y1="' + ty.toFixed(1) + '" x2="' + W + '" y2="' + ty.toFixed(1) + '"><title>Seuil ' + sc.th + ' dBm</title></line>';
   }
-  _rfAvoid(d).ban.forEach(function(e){ if(e.sc || e.b < lo || e.a > hi) return; var a = x(Math.max(lo, e.a)), b = x(Math.min(hi, e.b)); g += '<rect class="rf-sx" x="' + a + '" y="10" width="' + Math.max(1, b - a) + '" height="' + (AX - 10) + '"><title>À éviter' + (e.l ? ' : ' + E(e.l) : '') + '</title></rect>'; });
-  for(var f = Math.ceil(lo / step) * step; f <= hi; f += step){
-    g += '<line class="rf-sg" x1="' + x(f) + '" y1="10" x2="' + x(f) + '" y2="' + AX + '"/><text class="rf-st" x="' + x(f) + '" y="' + (AX + 13) + '" text-anchor="middle">' + (f / 1000) + '</text>';
+  _rfAvoid(d).ban.forEach(function(e){ if(e.sc || e.b < lo || e.a > hi) return; var a = x(Math.max(lo, e.a)), b = x(Math.min(hi, e.b)); g += '<rect class="rf-sx" x="' + a + '" y="' + T + '" width="' + Math.max(1, b - a) + '" height="' + PH + '"><title>À éviter' + (e.l ? ' : ' + E(e.l) : '') + '</title></rect>'; });
+  for(f = Math.ceil(lo / step) * step; f <= hi; f += step) g += '<line class="rf-sg" x1="' + x(f) + '" y1="' + T + '" x2="' + x(f) + '" y2="' + AX + '"/>';
+  /* Canaux TV sous l'axe, dès qu'ils ont la place d'être lus */
+  var tvh = 0, tvl = _rfTvList(co.tvw), tv0 = tvl.length ? _rfTvRange(tvl[0], co.tvw) : null;
+  if(tv0 && (tv0[1] - tv0[0]) / (hi - lo) * W >= 9){
+    tvl.forEach(function(n){
+      var r = _rfTvRange(n, co.tvw); if(r[1] <= lo || r[0] >= hi) return;
+      var a = x(Math.max(lo, r[0])), b = x(Math.min(hi, r[1])), ban = co.tv.indexOf(n) >= 0;
+      tvh = 14;
+      g += '<rect class="rf-tv' + (ban ? ' on' : '') + '" x="' + (a + 0.5) + '" y="' + (AX + 2) + '" width="' + Math.max(1, b - a - 1) + '" height="11" rx="2"><title>Canal TV ' + n + ' : ' + (r[0] / 1000) + ' à ' + (r[1] / 1000) + ' MHz' + (ban ? ' (à éviter)' : '') + '</title></rect>' +
+        (b - a >= 18 ? '<text class="rf-tvt' + (ban ? ' on' : '') + '" x="' + ((a + b) / 2) + '" y="' + (AX + 10.5) + '" text-anchor="middle">' + n + '</text>' : '');
+    });
   }
+  for(f = Math.ceil(lo / step) * step; f <= hi; f += step){ var lx = x(f); if(lx > 14 && lx < W - 14) g += '<text class="rf-st" x="' + lx + '" y="' + (AX + tvh + 13) + '" text-anchor="middle">' + (f / 1000).toFixed(dec) + '</text>'; }
   g += '<line class="rf-sa" x1="0" y1="' + AX + '" x2="' + W + '" y2="' + AX + '"/>';
   /* Bandes dont la plage est connue */
   var seen = {}, row = 0;
   on.forEach(function(c){
     var r = _rfRange(c), k = _rfNormSer(c.ser) + '|' + c.band;
-    if(!r || seen[k] || row >= 3) return; seen[k] = 1;
-    var a = x(Math.max(lo, r[0])), b = x(Math.min(hi, r[1])), y = AX + 32 + row * 14; row++;
+    if(!r || seen[k] || row >= 4 || r[1] < lo || r[0] > hi) return; seen[k] = 1;
+    var a = x(Math.max(lo, r[0])), b = x(Math.min(hi, r[1])), y = AX + tvh + 32 + row * 14; row++;
     g += '<rect class="rf-sb" x="' + a + '" y="' + y + '" width="' + Math.max(2, b - a) + '" height="3" rx="1.5"/><text class="rf-sbt" ' + (a > W * 0.6 ? 'text-anchor="end" x="' + (b - 1) : 'x="' + (a + 1)) + '" y="' + (y - 3) + '">' + E(c.ser + ' ' + c.band) + '</text>';
   });
-  d.spare.forEach(function(s){ var px = x(s.f); g += '<path class="rf-sp" d="M' + px + ' ' + (AX - 9) + 'l3.5 4.5l-3.5 4.5l-3.5 -4.5z"><title>Réserve ' + _rfFmt(s.f) + ' MHz</title></path>'; });
-  on.forEach(function(c){
-    var px = x(c.f), a = al.by[c.id] || [], err = a.some(function(q){ return q.lvl === 'err'; }), col = err ? 'var(--err)' : _rfHue(c.zone, zs), top = c.kind === 'iem' ? 40 : 22;
-    g += '<g class="rf-mk' + (err ? ' err' : '') + '" data-go="' + c.id + '" onclick="rfFocus(this.dataset.go)"><title>' + E((c.n || c.dev || 'Canal') + (c.who ? ' · ' + c.who : '') + ' · ' + _rfFmt(c.f) + ' MHz') + '</title>' +
-      '<line x1="' + px + '" y1="' + top + '" x2="' + px + '" y2="' + AX + '" stroke="' + col + '"/>' +
-      (c.kind === 'iem' ? '<rect x="' + (px - 3) + '" y="' + (top - 3) + '" width="6" height="6" rx="1" fill="' + col + '"/>' : '<circle cx="' + px + '" cy="' + top + '" r="3.4" fill="' + col + '"/>') + '</g>';
+  (d.spare || []).forEach(function(s){ if(s.f < lo || s.f > hi) return; var px = x(s.f); g += '<path class="rf-sp" d="M' + px + ' ' + (AX - 9) + 'l3.5 4.5l-3.5 4.5l-3.5 -4.5z"><title>Réserve ' + _rfFmt(s.f) + ' MHz</title></path>'; });
+  /* Canaux : trait, tête (rond = micro, carré = IEM), largeur occupée dès qu'elle se voit, nom s'il a la place */
+  var lab = [-1e9, -1e9], bw = 100 / (hi - lo) * W, mk = '';
+  on.slice().sort(function(a, b){ return a.f - b.f; }).forEach(function(c){
+    if(c.f < lo || c.f > hi) return;
+    var px = x(c.f), a = (al.by || {})[c.id] || [], err = a.some(function(q){ return q.lvl === 'err'; }), col = err ? 'var(--err)' : _rfHue(c.zone, zs);
+    var top = T + (c.kind === 'iem' ? (tall ? 30 : 32) : (tall ? 10 : 14)), name = c.n || c.dev || 'Canal', t = '';
+    if(tall){
+      var txt = name.length > 16 ? name.slice(0, 15) + '…' : name, w = txt.length * 5.6 + 6, tx = Math.max(w / 2, Math.min(W - w / 2, px));
+      for(var r = 0; r < 2; r++){ if(tx - w / 2 > lab[r] + 3){ lab[r] = tx + w / 2; t = '<line class="rf-mkl" x1="' + px + '" y1="' + (T - 3 - r * 13) + '" x2="' + px + '" y2="' + top + '"/><text class="rf-mkt" x="' + tx + '" y="' + (T - 6 - r * 13) + '" text-anchor="middle">' + E(txt) + '</text>'; break; } }
+    }
+    mk += '<g class="rf-mk' + (err ? ' err' : '') + '" style="color:' + col + '" data-id="' + c.id + '" data-x="' + px + '"' + (live ? '' : ' data-go="' + c.id + '" onclick="rfFocus(this.dataset.go)"') + '>' +
+      (live ? '' : '<title>' + E(name + (c.who ? ' · ' + c.who : '') + ' · ' + _rfFmt(c.f) + ' MHz') + '</title>') +
+      '<rect class="rf-mkh" x="' + (px - 5) + '" y="' + (top - 6) + '" width="10" height="' + (AX - top + 6) + '"/>' +
+      (bw * 2 >= 3 ? '<rect class="rf-mkw" x="' + (px - bw) + '" y="' + top + '" width="' + (bw * 2) + '" height="' + (AX - top) + '"/>' : '') + t +
+      '<line class="rf-mks" x1="' + px + '" y1="' + top + '" x2="' + px + '" y2="' + AX + '"/>' +
+      (c.kind === 'iem' ? '<rect class="rf-mkd" x="' + (px - 3.5) + '" y="' + (top - 3.5) + '" width="7" height="7" rx="1.2"/>' : '<circle class="rf-mkd" cx="' + px + '" cy="' + top + '" r="3.8"/>') + '</g>';
   });
-  H = AX + 20 + row * 14 + (row ? 6 : 0);
-  return '<svg class="rf-svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Fréquences du show sur le spectre, en MHz">' + g + '</svg>';
+  H = AX + tvh + 20 + row * 14 + (row ? 6 : 0);
+  return '<svg class="rf-svg' + (tall ? ' tall' : '') + '" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Fréquences du show sur le spectre, en MHz">' + g + mk + '</svg>';
+}
+/* Vue courante : celle choisie par l'utilisateur, ramenée dans l'étendue utile, sinon l'ajustement aux fréquences */
+function _rfSpecView(){
+  var wd = RF.data ? _rfSpecWorld(RF.data) : null; if(!wd) return null;
+  var v = RF.sp, lo = v ? v.lo : wd.fit[0], hi = v ? v.hi : wd.fit[1], full = wd.w[1] - wd.w[0];
+  var span = Math.max(Math.min(_RF_SP_MIN, full), Math.min(full, hi - lo));
+  lo = Math.max(wd.w[0], Math.min(wd.w[1] - span, lo));
+  return { lo:lo, hi:lo + span, w:wd.w, fit:wd.fit };
+}
+function _rfSpecSet(lo, hi){
+  RF.sp = { lo:Math.round(lo), hi:Math.round(hi) };
+  if(RF.spRaf) return;
+  RF.spRaf = setTimeout(function(){ RF.spRaf = 0; _rfSpecDraw(); }, 16);      /* un tracé par image au plus */
+}
+/* k < 1 : zoom avant, autour du point fx (0 à gauche, 1 à droite) */
+function _rfSpecZoomAt(k, fx){
+  var v = _rfSpecView(); if(!v) return;
+  var span = v.hi - v.lo, f0 = v.lo + span * fx, ns = Math.max(_RF_SP_MIN, Math.min(v.w[1] - v.w[0], span * k));
+  _rfSpecSet(f0 - ns * fx, f0 - ns * fx + ns);
+}
+function rfSpecZoom(k){ _rfSpecZoomAt(k, 0.5); }
+function rfSpecFit(){ RF.sp = null; _rfSpecDraw(); }
+function rfSpecAll(){ var v = _rfSpecView(); if(v) _rfSpecSet(v.w[0], v.w[1]); }
+function _rfSpecDraw(){
+  var wrap = document.getElementById('rf-spw'), box = document.getElementById('rf-spg'), v = _rfSpecView(); if(!wrap || !box || !v) return;
+  var W = Math.max(280, wrap.clientWidth), d = RF.data, zs = _rfZones();
+  box.innerHTML = _rfSpecSvg(d, RF.spAl || { by:{} }, zs, W, { lo:v.lo, hi:v.hi, tall:true, live:true });
+  var r = document.getElementById('rf-spr'); if(r) r.textContent = _rfFmt(v.lo) + ' à ' + _rfFmt(v.hi) + ' MHz';
+  var ov = document.getElementById('rf-spo');
+  if(ov){
+    var w0 = v.w[0], w1 = v.w[1], X = function(f){ return ((f - w0) / (w1 - w0) * W).toFixed(1); }, g = '';
+    d.ch.forEach(function(c){ if(c.f > 0) g += '<line x1="' + X(c.f) + '" y1="4" x2="' + X(c.f) + '" y2="14" stroke="' + _rfHue(c.zone, zs) + '"/>'; });
+    ov.innerHTML = '<svg width="' + W + '" height="18" viewBox="0 0 ' + W + ' 18" aria-hidden="true"><rect class="rf-ov-bg" x="0" y="3" width="' + W + '" height="12" rx="3"/>' + g +
+      '<rect class="rf-ov-w" x="' + X(v.lo) + '" y="1" width="' + Math.max(8, X(v.hi) - X(v.lo)) + '" height="16" rx="3.5"/></svg>';
+    ov.title = 'Vue dans ' + _rfFmt(w0) + ' à ' + _rfFmt(w1) + ' MHz : glisser pour se déplacer';
+  }
+  _rfSpecHi();
+}
+/* Met en avant le canal survolé (sinon le dernier cliqué), sur le spectre et dans le tableau.
+   reveal : amène la vue sur lui s'il est hors champ. */
+function _rfSpecHi(reveal){
+  var wrap = document.getElementById('rf-spw'); if(!wrap || !RF.data) return;
+  var id = RF.hov || RF.hi || '', c = id ? _rfGet(id) : null, svg = wrap.querySelector('.rf-svg'), tip = document.getElementById('rf-sptip'), off = document.getElementById('rf-spoff');
+  wrap.querySelectorAll('.rf-mk.hi').forEach(function(m){ m.classList.remove('hi'); });
+  document.querySelectorAll('#rf-list tr.sp-hi').forEach(function(t){ t.classList.remove('sp-hi'); });
+  if(svg) svg.classList.toggle('dim', !!(c && c.f));
+  if(tip) tip.hidden = true;
+  if(off) off.hidden = true;
+  if(!c) return;
+  var tr = document.querySelector('#rf-list tr[data-id="' + id + '"]'); if(tr) tr.classList.add('sp-hi');
+  if(!c.f || !svg || !tip) return;
+  var v = _rfSpecView(), name = c.n || c.dev || 'Canal';
+  if(c.f < v.lo || c.f > v.hi){
+    if(reveal){ var span = v.hi - v.lo; RF.sp = { lo:c.f - span / 2, hi:c.f + span / 2 }; _rfSpecDraw(); return; }
+    if(off){ off.hidden = false; off.className = 'rf-sp-off ' + (c.f < v.lo ? 'l' : 'r'); off.dataset.id = id; off.textContent = (c.f < v.lo ? '◀ ' : '') + name + ' · ' + _rfFmt(c.f) + (c.f > v.hi ? ' ▶' : ''); }
+    return;
+  }
+  var m = svg.querySelector('.rf-mk[data-id="' + id + '"]'); if(!m) return;
+  m.classList.add('hi');
+  if(m !== m.parentNode.lastElementChild) m.parentNode.appendChild(m);
+  tip.innerHTML = '<b>' + _bonE(name) + '</b><span>' + _rfFmt(c.f) + ' MHz' + _bonE([c.who, c.mdl || c.ser, c.zone].filter(Boolean).map(function(q){ return ' · ' + q; }).join('')) + '</span>';
+  tip.hidden = false;
+  var px = +m.dataset.x, tw = tip.offsetWidth, W = wrap.clientWidth;
+  tip.style.left = Math.max(0, Math.min(W - tw, px - tw / 2)) + 'px';
+}
+function rfSpecPick(id){ RF.hi = id; rfFocus(id); _rfSpecHi(); }
+/* Gestes sur le spectre : glisser = se déplacer, deux doigts ou Ctrl/⌘ + molette = zoomer, double clic = zoom avant */
+function _rfSpecBind(){
+  var wrap = document.getElementById('rf-spw'), ov = document.getElementById('rf-spo'); if(!wrap || wrap._rf) return;
+  wrap._rf = 1;
+  var pts = {}, drag = null, swallow = 0;
+  var fx = function(cx){ var r = wrap.getBoundingClientRect(); return Math.max(0, Math.min(1, (cx - r.left) / Math.max(1, r.width))); };
+  wrap.addEventListener('pointerdown', function(e){
+    if(e.pointerType === 'mouse' && e.button !== 0) return;
+    if(e.target.closest && e.target.closest('.rf-sp-off')) return;
+    pts[e.pointerId] = e.clientX;
+    var ids = Object.keys(pts), v = _rfSpecView(); if(!v) return;
+    if(ids.length === 1) drag = { x:e.clientX, lo:v.lo, hi:v.hi, on:false };
+    else if(ids.length === 2) drag = { pinch:true, d:Math.abs(pts[ids[0]] - pts[ids[1]]) || 1, c:(pts[ids[0]] + pts[ids[1]]) / 2, lo:v.lo, hi:v.hi, on:true };
+  });
+  wrap.addEventListener('pointermove', function(e){
+    if(pts[e.pointerId] === undefined || !drag) return;
+    pts[e.pointerId] = e.clientX;
+    var W = Math.max(1, wrap.clientWidth), span = drag.hi - drag.lo, v = _rfSpecView();
+    if(drag.pinch){
+      var ids = Object.keys(pts); if(ids.length < 2) return;
+      var k = drag.d / (Math.abs(pts[ids[0]] - pts[ids[1]]) || 1), p = fx(drag.c), f0 = drag.lo + span * p, ns = Math.max(_RF_SP_MIN, Math.min(v.w[1] - v.w[0], span * k));
+      _rfSpecSet(f0 - ns * p, f0 - ns * p + ns); return;
+    }
+    var dx = e.clientX - drag.x;
+    if(!drag.on){ if(Math.abs(dx) < 4) return; drag.on = true; try { wrap.setPointerCapture(e.pointerId); } catch(err){} wrap.classList.add('drag'); }
+    _rfSpecSet(drag.lo - dx / W * span, drag.hi - dx / W * span);
+  });
+  var end = function(e){
+    if(pts[e.pointerId] === undefined) return;
+    delete pts[e.pointerId];
+    if(drag && drag.on) swallow = Date.now();
+    var ids = Object.keys(pts), v = _rfSpecView();
+    if(!ids.length || !v){ drag = null; wrap.classList.remove('drag'); }
+    else drag = { x:pts[ids[0]], lo:v.lo, hi:v.hi, on:true };
+  };
+  wrap.addEventListener('pointerup', end); wrap.addEventListener('pointercancel', end);
+  wrap.addEventListener('click', function(e){
+    if(Date.now() - swallow < 350){ e.stopPropagation(); e.preventDefault(); return; }
+    var m = e.target.closest ? e.target.closest('.rf-mk') : null;
+    if(m) rfSpecPick(m.dataset.id);
+    else if(RF.hi && !(e.target.closest && e.target.closest('.rf-sp-off'))){ RF.hi = ''; _rfSpecHi(); }
+  }, true);
+  wrap.addEventListener('dblclick', function(e){ e.preventDefault(); _rfSpecZoomAt(0.5, fx(e.clientX)); });
+  wrap.addEventListener('wheel', function(e){
+    if(e.ctrlKey || e.metaKey){ e.preventDefault(); _rfSpecZoomAt(Math.exp(Math.max(-60, Math.min(60, e.deltaY)) * 0.012), fx(e.clientX)); }
+    else if(Math.abs(e.deltaX) > Math.abs(e.deltaY)){ e.preventDefault(); var v = _rfSpecView(), s = (v.hi - v.lo) * e.deltaX / Math.max(1, wrap.clientWidth); _rfSpecSet(v.lo + s, v.hi + s); }
+  }, { passive:false });
+  wrap.addEventListener('mouseover', function(e){
+    if(drag && drag.on) return;
+    var m = e.target.closest ? e.target.closest('.rf-mk') : null, id = m ? m.dataset.id : '';
+    if(id !== (RF.hov || '')){ RF.hov = id; _rfSpecHi(); }
+  });
+  wrap.addEventListener('mouseleave', function(){ if(RF.hov){ RF.hov = ''; _rfSpecHi(); } });
+  if(ov){
+    var od = null;
+    var at = function(e){ var r = ov.getBoundingClientRect(), v = _rfSpecView(); return v.w[0] + Math.max(0, Math.min(1, (e.clientX - r.left) / Math.max(1, r.width))) * (v.w[1] - v.w[0]); };
+    ov.addEventListener('pointerdown', function(e){
+      var v = _rfSpecView(); if(!v) return;
+      var f = at(e), span = v.hi - v.lo;
+      od = { off:f >= v.lo && f <= v.hi ? f - v.lo : span / 2, span:span };
+      try { ov.setPointerCapture(e.pointerId); } catch(err){}
+      _rfSpecSet(f - od.off, f - od.off + span);
+    });
+    ov.addEventListener('pointermove', function(e){ if(od){ var f = at(e); _rfSpecSet(f - od.off, f - od.off + od.span); } });
+    ov.addEventListener('pointerup', function(){ od = null; }); ov.addEventListener('pointercancel', function(){ od = null; });
+  }
+  if(!RF.spResize){ RF.spResize = 1; window.addEventListener('resize', function(){ if(document.getElementById('rf-spw')) _rfSpecDraw(); }); }
+}
+/* Le tableau répond au spectre : survol d'une ligne = canal mis en avant, clic ou saisie = il le reste */
+function _rfSpecRows(box){
+  if(!box || box._rfSp) return; box._rfSp = 1;
+  var rowId = function(e){ var tr = e.target.closest ? e.target.closest('tr.rf-r') : null; return tr ? tr.dataset.id : ''; };
+  box.addEventListener('mouseover', function(e){ var id = rowId(e); if(id !== (RF.hov || '')){ RF.hov = id; _rfSpecHi(); } });
+  box.addEventListener('mouseleave', function(){ if(RF.hov){ RF.hov = ''; _rfSpecHi(); } });
+  var pick = function(e){ var id = rowId(e); if(id && id !== RF.hi){ RF.hi = id; _rfSpecHi(true); } };
+  box.addEventListener('focusin', pick); box.addEventListener('click', pick);
 }
 function _rfPaintTable(){
   var box = document.getElementById('rf-list'); if(!box) return;
@@ -1099,6 +1294,7 @@ function _rfPaintTable(){
       '<td class="rf-c-x"><button type="button" class="rf-ib" onclick="rfDup(this)" title="Dupliquer"><i class="ti ti-copy"></i></button><button type="button" class="rf-ib" onclick="rfDel(this)" title="Supprimer"><i class="ti ti-trash"></i></button></td></tr>';
   });
   box.innerHTML = h + '</tbody></table></div>';
+  _rfSpecRows(box);
   _rfPaintSide(); _rfSelSync();
 }
 
