@@ -20020,8 +20020,8 @@ async function _openPdfJs(url, container, opts){
           '<span class="pv-sep"></span>' +
           '<button class="pv-ib" id="pv-undo" onclick="pvUndo()" title="Annuler (Ctrl+Z)"><i class="ti ti-arrow-back-up"></i></button>' +
           '<button class="pv-ib" id="pv-del" onclick="pvDelete()" title="Supprimer l\'annotation sélectionnée"><i class="ti ti-trash"></i></button>' +
-          '<span class="pv-grow"></span>' +
-          '<div class="fich-pdf-search">' +
+          '<span class="pv-name" id="pv-name"></span>' +
+          '<div class="fich-pdf-search" onclick="var i=this.querySelector(\'input\');if(i&&event.target!==i)i.focus()" title="Rechercher (Ctrl+F)">' +
             '<i class="ti ti-search"></i>' +
             '<input id="pdf-search-inp" type="text" placeholder="Rechercher…" ' +
               'oninput="_pdfSearchInput()" onkeydown="_pdfSearchKey(event)" autocomplete="off"/>' +
@@ -20030,6 +20030,8 @@ async function _openPdfJs(url, container, opts){
             '<button class="pv-ib" onclick="_pdfSearchNav(1)" title="Résultat suivant"><i class="ti ti-chevron-down"></i></button>' +
           '</div>' +
           '<button class="pv-export" id="pv-export" onclick="pvExport()" title="Télécharger le PDF avec vos annotations"><i class="ti ti-file-export"></i><span>PDF annoté</span><b id="pv-count"></b></button>' +
+          '<button class="pv-ib" onclick="var a=document.getElementById(\'fich-viewer-dl\');if(a)a.click()" title="Télécharger le fichier d\'origine"><i class="ti ti-download"></i></button>' +
+          '<button class="pv-ib pv-close" onclick="closeFichierViewer()" title="Fermer (Échap)"><i class="ti ti-x"></i></button>' +
         '</div>' +
         '<div class="pv-body">' +
           '<div class="pv-rail" id="pv-rail"></div>' +
@@ -20047,6 +20049,13 @@ async function _openPdfJs(url, container, opts){
           '</div>' +
         '</div>' +
       '</div>';
+
+    /* Une seule barre : le titre, le téléchargement et la fermeture y sont repris,
+       la barre de la fenêtre est masquée pour laisser la place au document. */
+    const nameEl = container.querySelector('#pv-name');
+    if(nameEl){ nameEl.textContent = PV.name; nameEl.title = PV.name; }
+    const modalEl = document.getElementById('fich-viewer-modal');
+    if(modalEl) modalEl.classList.add('pdf');
 
     const wrap  = container.querySelector('.fich-pdf-wrap');
     const inner = container.querySelector('.fich-pdf-inner');
@@ -20497,6 +20506,7 @@ async function _openPdfJs(url, container, opts){
     }
 
   } catch(e) {
+    const mEl = document.getElementById('fich-viewer-modal'); if(mEl) mEl.classList.remove('pdf');
     container.innerHTML = '<div class="fich-pdf-loading" style="flex-direction:column;gap:10px"><i class="ti ti-file-broken" style="font-size:36px;opacity:.4"></i><span style="font-size:12px;text-align:center">Impossible d\'ouvrir ce PDF<br/><span style="opacity:.6">' + _h(e && e.message || '') + '</span></span></div>';
   }
 }
@@ -21058,7 +21068,7 @@ function closeFichierViewer() {
   var modal   = document.getElementById('fich-viewer-modal');
   var content = document.getElementById('fich-viewer-content');
   if(typeof _pvClose === 'function') _pvClose();
-  if(modal)   modal.style.display = 'none';
+  if(modal){  modal.style.display = 'none'; modal.classList.remove('pdf'); }
   if(content) content.innerHTML   = '';
   if(window._pdfState){
     if(window._pdfState.observer) window._pdfState.observer.disconnect();

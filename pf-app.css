@@ -3570,3 +3570,36 @@ button.bonp-empty{cursor:pointer}
 }
 
 .fich-viewer-bar a.btn{text-decoration:none}
+
+/* PDF : une seule barre compacte, fenêtre bord à bord → un maximum de place pour le document */
+#fich-viewer-modal.pdf .fich-viewer-bar{display:none}
+#fich-viewer-modal.pdf .fich-viewer-win{top:0;left:0;right:0;bottom:0;border-radius:0;border:0}
+.pv-top{min-height:38px;gap:6px;padding:0 6px}
+.pv-top .pv-ib{width:28px;height:28px}
+.pv-seg{padding:2px;border-radius:9px}
+.pv-seg button{height:24px;padding:0 8px}
+.pv-step,.pv-step button{height:26px}
+.pv-export{height:28px;padding:0 9px}
+.pv-name{flex:1;min-width:0;padding:0 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:500;color:var(--muted);text-align:center}
+.fich-pdf-wrap{padding:12px 16px 72px}
+.pv-rail{padding-top:8px}
+/* Recherche repliée en loupe ; s'ouvre au clic, à Ctrl+F, ou tant qu'elle contient un mot */
+.fich-pdf-search{height:28px;padding:0 7px;gap:0;cursor:pointer;background:transparent;flex-shrink:0}
+.fich-pdf-search:hover{background:var(--surf2)}
+.fich-pdf-search>i{font-size:16px;color:var(--txt2)}
+.fich-pdf-search input{width:0;padding:0}
+.fich-pdf-search .pv-ib,.fich-pdf-search-count{display:none}
+.fich-pdf-search:focus-within,.fich-pdf-search:has(input:not(:placeholder-shown)){background:var(--surf2);gap:4px;cursor:default}
+.fich-pdf-search:focus-within input,.fich-pdf-search input:not(:placeholder-shown){width:128px;padding:4px 2px}
+.fich-pdf-search:focus-within .pv-ib,.fich-pdf-search:has(input:not(:placeholder-shown)) .pv-ib{display:inline-flex}
+.fich-pdf-search:focus-within .fich-pdf-search-count,.fich-pdf-search:has(input:not(:placeholder-shown)) .fich-pdf-search-count{display:block}
+@media(max-width:767px){
+  .pv-top{min-height:44px;gap:5px;padding:0 0 0 6px}
+  .pv-top .pv-ib{width:34px;height:34px}
+  .pv-seg button{height:30px;padding:0 9px}
+  .pv-step,.pv-step button{height:32px}
+  .pv-export{height:32px}
+  .pv-name{display:none}
+  .fich-pdf-search{height:32px}
+  .pv-top .pv-close{position:sticky;right:0;margin-left:auto;border-radius:0;height:44px;width:42px;background:var(--surf);box-shadow:-8px 0 10px -6px rgba(0,0,0,.35)}
+}
