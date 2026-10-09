@@ -845,13 +845,13 @@ function _rfScanSdb(u8){
    charte PDF…). Les données vivent dans CUR_SHOW.stage_data.rf : même
    enregistrement et mêmes droits que le reste du show.
    ══════════════════════════════════════════════════════════════════════ */
-var RF = { showId:null, data:null, q:'', fk:'', fz:'', fs:'', sort:'zone', look:false, lq:'', t:null, pend:null, allAl:false, co:null, onClose:null, gear:null, wwb:null };
+var RF = { showId:null, data:null, q:'', fk:'', fz:'', fs:'', sort:'zone', look:false, lq:'', t:null, pend:null, allAl:false, co:null, onClose:null, gear:null, wwb:null, sel:{}, selLast:'' };
 
 function _rfLoad(){
   var id = CUR_SHOW && CUR_SHOW.id;
   if(RF.showId === id && RF.data) return;
   RF.showId = id; RF.data = _rfClean(CUR_SHOW && CUR_SHOW.stage_data && CUR_SHOW.stage_data.rf);
-  RF.q = ''; RF.fk = ''; RF.fz = ''; RF.fs = ''; RF.look = false; RF.lq = ''; RF.pend = null; RF.allAl = false;
+  RF.q = ''; RF.fk = ''; RF.fz = ''; RF.fs = ''; RF.look = false; RF.lq = ''; RF.pend = null; RF.allAl = false; RF.sel = {}; RF.selLast = '';
 }
 function _rfSave(){
   if(!CUR_SHOW || !RF.data) return;
@@ -949,7 +949,7 @@ function renderRf(){
   if(RF.look){ _rfRenderLook(root); return; }
   var d = RF.data, n = d.ch.length;
   var src = d.src ? 'Session « ' + E(d.src.show || d.src.file) + ' » reprise de Wireless Workbench' + (d.src.at ? ' le ' + E(new Date(d.src.at).toLocaleDateString('fr-FR')) : '') + '.' : 'Importez un show Wireless Workbench ou saisissez vos canaux.';
-  var h = '<header class="bonp-head"><div><div class="bonp-eyebrow">' + E(CUR_SHOW.name || '') + '</div><h1>RF</h1><p>Les liaisons HF du show : fréquences, utilisateurs, état de préparation. ' + src + '</p></div>' +
+  var h = '<header class="bonp-head"><div><div class="bonp-eyebrow">' + E(CUR_SHOW.name || '') + '</div><h1>RF</h1><p>Les liaisons HF du show : fréquences, utilisateurs, verrouillage. ' + src + '</p></div>' +
     '<div class="rf-act">' +
       '<button class="btn pri" onclick="rfImport()"><i class="ti ti-file-import"></i>Importer un show WWB</button>' +
       '<button class="btn" onclick="rfGear()" title="Ajouter des appareils Shure ou Sennheiser depuis le catalogue"><i class="ti ti-antenna"></i>Matériel</button>' +
@@ -1088,17 +1088,17 @@ function _rfPaintTable(){
   var dl = '<datalist id="rf-dl-who">' + Object.keys(who).slice(0, 200).map(function(w){ return '<option value="' + E(w) + '"></option>'; }).join('') + '</datalist>' +
            '<datalist id="rf-dl-zone">' + zs.map(function(z){ return '<option value="' + E(z) + '"></option>'; }).join('') + '</datalist>';
   var lopt = function(rows, cur, pre){ return '<option value="">—</option>' + rows.map(function(r){ return '<option value="' + E(r.id) + '"' + (r.id === cur ? ' selected' : '') + '>' + E(pre + r.ch + ' · ' + (r.name || '')) + '</option>'; }).join(''); };
-  var h = dl + '<div class="bonp-scroll"><table class="rf-tbl"><thead><tr><th></th><th>Nom</th><th>Utilisateur</th><th>Type</th><th>Fréquence</th><th>Bande</th><th>Zone</th><th>Input list</th><th>Note</th><th></th></tr></thead><tbody>';
+  var h = dl + '<div class="bonp-scroll"><table class="rf-tbl"><thead><tr><th class="rf-c-lk"><label class="il-ck" title="Sélectionner toute la liste affichée"><input type="checkbox" class="cb" id="rf-ck-all" onclick="rfSelAll(this)" aria-label="Tout sélectionner"/></label></th><th>Nom</th><th>Utilisateur</th><th>Type</th><th>Fréquence</th><th>Bande</th><th>Zone</th><th>Input list</th><th>Note</th><th></th></tr></thead><tbody>';
   var last = null;
   list.forEach(function(c){
     if(RF.sort === 'zone' && c.zone !== last){
       last = c.zone;
       var nz = list.filter(function(x){ return x.zone === c.zone; }).length;
-      h += '<tr class="rf-g"><td colspan="10"><i style="background:' + _rfHue(c.zone, zs) + '"></i>' + E(c.zone || 'Sans zone') + '<em>' + _rfPl(nz) + '</em></td></tr>';
+      h += '<tr class="rf-g" data-z="' + E(c.zone) + '"><td colspan="10"><label class="il-ck" title="Sélectionner cette zone"><input type="checkbox" class="cb rf-ck-z" onclick="rfSelZone(this)" aria-label="Sélectionner la zone"/></label><i style="background:' + _rfHue(c.zone, zs) + '"></i>' + E(c.zone || 'Sans zone') + '<em>' + _rfPl(nz) + '</em></td></tr>';
     }
     var r = _rfRange(c), sub = [c.mk && c.mk !== 'Generic' && c.mdl.indexOf(c.mk) < 0 ? c.mk : '', c.mdl, _rfDevLbl(c), c.gc, c.pw ? c.pw + ' mW' : ''].filter(Boolean).join(' · ');
     h += '<tr class="rf-r" data-id="' + c.id + '">' +
-      '<td data-label="Verrou" class="rf-c-lk"><button type="button" class="rf-lock' + (c.lk ? ' on' : '') + '" onclick="rfLock(this)" title="' + (c.lk ? 'Fréquence verrouillée : le calcul et les imports n\'y touchent pas. Cliquer pour libérer.' : 'Verrouiller cette fréquence') + '" aria-pressed="' + (c.lk ? 'true' : 'false') + '"><i class="ti ' + (c.lk ? 'ti-lock' : 'ti-lock-open') + '"></i></button></td>' +
+      '<td data-label="Verrou" class="rf-c-lk"><label class="il-ck" title="Sélectionner (Maj + clic : une plage)"><input type="checkbox" class="cb rf-ck" data-id="' + c.id + '" onclick="rfSelToggle(this,event)" aria-label="Sélectionner ce canal"/></label><button type="button" class="rf-lock' + (c.lk ? ' on' : '') + '" onclick="rfLock(this)" title="' + (c.lk ? 'Fréquence verrouillée : le calcul et les imports n\'y touchent pas. Cliquer pour libérer.' : 'Verrouiller cette fréquence') + '" aria-pressed="' + (c.lk ? 'true' : 'false') + '"><i class="ti ' + (c.lk ? 'ti-lock' : 'ti-lock-open') + '"></i></button></td>' +
       '<td data-label="Nom" class="rf-c-n"><input class="rf-in b" value="' + E(c.n) + '" placeholder="Nom du canal" onchange="rfSet(this,\'n\')" maxlength="60"/>' + (sub ? '<small>' + E(sub) + '</small>' : '') + '</td>' +
       '<td data-label="Utilisateur"><input class="rf-in" list="rf-dl-who" value="' + E(c.who) + '" placeholder="Artiste, musicien…" onchange="rfSet(this,\'who\')" maxlength="60"/></td>' +
       '<td data-label="Type"><select class="rf-in" onchange="rfSet(this,\'kind\')">' + _RF_KINDS.map(function(k){ return '<option value="' + k[0] + '"' + (k[0] === _rfKindVal(c) ? ' selected' : '') + '>' + k[1] + '</option>'; }).join('') + '</select></td>' +
@@ -1110,7 +1110,7 @@ function _rfPaintTable(){
       '<td class="rf-c-x"><button type="button" class="rf-ib" onclick="rfDup(this)" title="Dupliquer"><i class="ti ti-copy"></i></button><button type="button" class="rf-ib" onclick="rfDel(this)" title="Supprimer"><i class="ti ti-trash"></i></button></td></tr>';
   });
   box.innerHTML = h + '</tbody></table></div>';
-  _rfPaintSide();
+  _rfPaintSide(); _rfSelSync();
 }
 
 /* ── Actions ── */
@@ -1159,6 +1159,81 @@ function rfDel(el){
   if(linked) _rfUnlink(c);
   RF.data.ch = RF.data.ch.filter(function(x){ return x !== c; });
   _rfSave(); if(linked) _rfIlRefresh(); renderRf();
+}
+/* ── Sélection de plusieurs canaux ─────────────────────────────────────
+   Case sur chaque ligne (Maj + clic : une plage), case de zone, case « tout » ;
+   une barre d'actions apparaît : verrouiller, libérer, niveau, zone, supprimer. */
+function _rfSelIds(){ return Object.keys(RF.sel || {}); }
+function _rfSelSync(){
+  var bar = document.getElementById('rf-selbar'), pn = document.getElementById('panel-rf'), live = !!(RF.data && pn && pn.classList.contains('on') && !RF.look);
+  var have = {}; if(RF.data) RF.data.ch.forEach(function(c){ have[c.id] = 1; });
+  Object.keys(RF.sel || {}).forEach(function(id){ if(!have[id]) delete RF.sel[id]; });       /* canaux supprimés ou restaurés autrement */
+  var n = _rfSelIds().length;
+  document.querySelectorAll('#rf-list .rf-ck').forEach(function(i){ var on = !!RF.sel[i.dataset.id]; i.checked = on; var tr = i.closest('tr'); if(tr) tr.classList.toggle('sel', on); });
+  var vis = live ? _rfVisible() : [], all = document.getElementById('rf-ck-all');
+  if(all){ var k = vis.filter(function(c){ return RF.sel[c.id]; }).length; all.checked = !!vis.length && k === vis.length; all.indeterminate = k > 0 && k < vis.length; }
+  document.querySelectorAll('#rf-list .rf-ck-z').forEach(function(z){
+    var g = z.closest('tr').dataset.z, mem = vis.filter(function(c){ return c.zone === g; }), k = mem.filter(function(c){ return RF.sel[c.id]; }).length;
+    z.checked = !!mem.length && k === mem.length; z.indeterminate = k > 0 && k < mem.length;
+  });
+  if(!live || !n){ if(bar) bar.remove(); return; }
+  var E = _bonE, zs = _rfZones(), lk = _rfSelIds().filter(function(id){ var c = _rfGet(id); return c && c.lk; }).length;
+  var html = '<b>' + n + '</b><span>sélectionné' + (n > 1 ? 's' : '') + (lk ? ' · ' + lk + ' verrouillé' + (lk > 1 ? 's' : '') : '') + '</span>' +
+    '<button type="button" class="btn sm" onclick="rfSelLock(true)"><i class="ti ti-lock"></i>Verrouiller</button>' +
+    '<button type="button" class="btn sm" onclick="rfSelLock(false)"><i class="ti ti-lock-open"></i>Libérer</button>' +
+    '<select class="rf-sel xs" onchange="rfSelLevel(this)" aria-label="Niveau de compatibilité"><option value="?">Niveau…</option><option value="">Par défaut</option>' + _RF_LVL.map(function(l){ return '<option value="' + l[0] + '">' + l[1] + '</option>'; }).join('') + '</select>' +
+    '<select class="rf-sel xs" onchange="rfSelZoneSet(this)" aria-label="Zone"><option value="?">Zone…</option>' + zs.map(function(z){ return '<option value="' + E(z) + '">' + E(z) + '</option>'; }).join('') + '<option value="__none">Sans zone</option><option value="__new">Nouvelle zone…</option></select>' +
+    '<button type="button" class="btn sm il-selbar-del" onclick="rfSelDel()"><i class="ti ti-trash"></i>Supprimer</button>' +
+    '<button type="button" class="rf-ib on" onclick="rfSelClear()" title="Tout désélectionner" aria-label="Tout désélectionner"><i class="ti ti-x"></i></button>';
+  if(!bar){ bar = document.createElement('div'); bar.id = 'rf-selbar'; bar.className = 'il-selbar rf-selbar'; document.body.appendChild(bar); }
+  bar.innerHTML = html;
+}
+function rfSelToggle(el, ev){
+  var id = el.dataset.id; if(!id || !RF.data) return;
+  var ids = _rfVisible().map(function(c){ return c.id; }), a = ids.indexOf(RF.selLast), b = ids.indexOf(id);
+  if(ev && ev.shiftKey && a >= 0 && b >= 0) ids.slice(Math.min(a, b), Math.max(a, b) + 1).forEach(function(i){ if(el.checked) RF.sel[i] = 1; else delete RF.sel[i]; });
+  else if(el.checked) RF.sel[id] = 1; else delete RF.sel[id];
+  RF.selLast = id; _rfSelSync();
+}
+function rfSelAll(el){ _rfVisible().forEach(function(c){ if(el.checked) RF.sel[c.id] = 1; else delete RF.sel[c.id]; }); _rfSelSync(); }
+function rfSelZone(el){
+  var tr = el.closest('tr'), g = tr ? tr.dataset.z : '';
+  _rfVisible().forEach(function(c){ if(c.zone === g){ if(el.checked) RF.sel[c.id] = 1; else delete RF.sel[c.id]; } });
+  _rfSelSync();
+}
+function rfSelClear(){ RF.sel = {}; RF.selLast = ''; _rfSelSync(); }
+function _rfSelList(){ return _rfSelIds().map(_rfGet).filter(Boolean); }
+function rfSelLock(on){
+  var list = _rfSelList(), n = 0, none = 0;
+  list.forEach(function(c){ if(on && !c.f){ none++; return; } if(!!c.lk !== !!on){ c.lk = !!on; n++; } });
+  _rfSave(); renderRf(); _rfSelSync();
+  toast(n ? n + ' fréquence' + (n > 1 ? 's ' : ' ') + (on ? 'verrouillée' : 'libérée') + (n > 1 ? 's' : '') + (none ? ' · ' + none + ' sans fréquence ignoré' + (none > 1 ? 's' : '') : '')
+          : (none ? 'Pas de fréquence à verrouiller sur ' + (none > 1 ? 'ces canaux.' : 'ce canal.') : 'Rien à changer.'));
+}
+function rfSelLevel(el){
+  var v = el.value; el.value = '?'; if(v === '?') return;
+  var list = _rfSelList(); list.forEach(function(c){ c.cm = (v === 'rob' || v === 'std' || v === 'more') ? v : ''; });
+  _rfSave(); renderRf(); _rfSelSync();
+  toast('Niveau ' + (v ? _rfLvlLbl(v) : 'par défaut') + ' pour ' + _rfPl(list.length));
+}
+function rfSelZoneSet(el){
+  var v = el.value; el.value = '?'; if(v === '?') return;
+  var z = v === '__none' ? '' : v;
+  if(v === '__new'){ z = _rfStr(prompt('Nom de la nouvelle zone :') || '', 40); if(!z) return; if(RF.data.zones.indexOf(z) < 0) RF.data.zones.push(z); }
+  var list = _rfSelList(); list.forEach(function(c){ c.zone = z; });
+  _rfSave(); renderRf(); _rfSelSync();
+  toast(_rfPl(list.length) + ' déplacé' + (list.length > 1 ? 's' : '') + ' vers ' + (z ? '« ' + z + ' »' : 'aucune zone'));
+}
+function rfSelDel(){
+  var list = _rfSelList(), n = list.length; if(!n) return;
+  var linked = list.filter(function(c){ return c.il || c.out; }).length, locked = list.filter(function(c){ return c.lk; }).length;
+  if(!confirm((n === RF.data.ch.length ? 'Supprimer les ' + n + ' canaux de l\'onglet RF ?' : 'Supprimer ' + _rfPl(n) + ' ?') + (locked ? '\n' + locked + ' ont une fréquence verrouillée.' : '') + (linked ? '\n' + linked + (linked > 1 ? ' lignes de l\'input list ne seront plus en HF.' : ' ligne de l\'input list ne sera plus en HF.') : ''))) return;
+  list.forEach(function(c){ if(c.il || c.out) _rfUnlink(c); });
+  var del = {}; list.forEach(function(c){ del[c.id] = 1; });
+  RF.data.ch = RF.data.ch.filter(function(c){ return !del[c.id]; });
+  RF.sel = {}; RF.selLast = '';
+  _rfSave(); if(linked) _rfIlRefresh(); renderRf(); _rfSelSync();
+  toast(_rfPl(n) + ' supprimé' + (n > 1 ? 's' : ''));
 }
 /* Verrou : une fréquence verrouillée n'est plus touchée par le calcul ni par un import, et ne se modifie plus à la main */
 function rfLock(el){
@@ -2017,7 +2092,7 @@ function _rfScanBar(){
 }
 
 /* ── Consultation : retrouver vite une fréquence ou un utilisateur pendant le show ── */
-function rfLook(on){ RF.look = !!on; RF.lq = ''; renderRf(); if(on){ var i = document.getElementById('rf-lq'); if(i) i.focus(); } }
+function rfLook(on){ RF.look = !!on; RF.lq = ''; renderRf(); _rfSelSync(); if(on){ var i = document.getElementById('rf-lq'); if(i) i.focus(); } }
 function _rfRenderLook(root){
   root.innerHTML = '<div class="rf-look"><div class="rf-look-top"><button class="btn" onclick="rfLook(false)"><i class="ti ti-arrow-left"></i>Retour</button>' +
     '<label class="rf-search big"><i class="ti ti-search"></i><input id="rf-lq" type="search" placeholder="Artiste, nom ou fréquence" value="' + _bonE(RF.lq) + '" oninput="RF.lq=this.value;_rfPaintLook()" autocomplete="off"/></label></div><div id="rf-look-list"></div></div>';

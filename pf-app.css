@@ -3935,3 +3935,21 @@ tr:hover .rf-hf,.rf-hf:focus-visible,.rf-hf.on,.rf-hf.hint{opacity:1}
 .rf-scan .rf-step button{width:26px;height:28px}
 .rf-scan .rf-step b{min-width:66px;font-size:12px}
 .rf-scan .rf-imp-c{font-size:12.5px;align-items:center}
+
+/* RF : sélection de plusieurs canaux */
+.rf-c-lk{white-space:nowrap}
+.rf-c-lk .il-ck{margin-right:2px}
+.rf-r.sel td{background:var(--ora-d)}
+.rf-g .il-ck{margin-right:10px}
+.rf-g td{white-space:nowrap}
+.rf-selbar span{font-size:12.5px;color:var(--muted)}
+.rf-selbar .rf-sel{max-width:130px}
+@media(max-width:900px){
+  .rf-tbl tr.rf-r td.rf-c-lk{order:0;grid-column:1/-1;display:flex;align-items:center;justify-content:space-between}
+  .rf-tbl tr.rf-r td.rf-c-lk::before{display:none}
+  .rf-tbl tr.rf-r.sel{box-shadow:inset 0 0 0 1.5px var(--ora)}
+  .rf-tbl tr.rf-r.sel td{background:transparent!important}
+  .rf-tbl thead{display:block}
+  .rf-tbl thead tr{display:flex;padding:0 2px 8px}
+  .rf-tbl thead th:not(.rf-c-lk){display:none}
+}

@@ -21494,6 +21494,7 @@ function goTab(id,el){
   if(id==='rf' && typeof renderRf==='function') renderRf();
   if(id==='settings' && !document.querySelector('#panel-settings .set-sec.on')) setNav('profil');
   if(typeof _ilSelSync==='function') _ilSelSync();
+  if(typeof _rfSelSync==='function') _rfSelSync();
   var _fs=document.querySelector('.panel.pf-fs'); if(_fs && _fs.id!=='panel-'+id) pfFullscreen(_fs.id==='panel-synoptique'?'syno':'plan',false);
 }
 
