@@ -68,6 +68,8 @@ function _rfNorm(s){ return String(s || '').toLowerCase().normalize('NFD').repla
 function _rfNormSer(s){ return String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
 var _RF_BMAP = null;
 function _rfBand(ser, band){
+  var cb = (typeof _rfCatBand === 'function') ? _rfCatBand(ser, band) : null;
+  if(cb) return [cb.a, cb.b];
   if(!_RF_BMAP){
     _RF_BMAP = {};
     Object.keys(_RF_BANDS_RAW).forEach(function(k){
@@ -100,7 +102,7 @@ function _rfCleanCh(c){
     dev: _rfStr(c.dev, 40), zone: _rfStr(c.zone, 40), tags: _rfStr(c.tags, 80), gc: _rfStr(c.gc, 20),
     pw: Math.max(0, Math.min(5000, _rfInt(c.pw))), sp: Math.max(0, Math.min(5000, _rfInt(c.sp))),
     note: _rfStr(c.note, 200), st: st, il: _rfStr(c.il, 60), out: _rfStr(c.out, 60),
-    cm: (c.cm === 'rob' || c.cm === 'std' || c.cm === 'more' || (c.cm === 'wwb' && pf)) ? c.cm : '', cd: (c.cd === 'up' || c.cd === 'down') ? c.cd : '', sh: _rfStr(c.sh, 60), pf: pf, nl: !!c.nl };
+    cm: (c.cm === 'rob' || c.cm === 'std' || c.cm === 'more' || (c.cm === 'wwb' && pf)) ? c.cm : '', cd: (c.cd === 'up' || c.cd === 'down') ? c.cd : '', sh: _rfStr(c.sh, 60), pf: pf, nl: !!c.nl, pn: _rfStr(c.pn, 30) };
 }
 function _rfClean(d){
   var o = _rfEmpty();
@@ -220,7 +222,7 @@ function _rfParseShw(text){
       mine.push({ src:(did ? sid : ''), did:did, n:_rfStr(_rfTxt(c, 'channel_name'), 60), dev:dev + (chans.length > 1 ? ' · ' + num : ''),
         mk:mk, ser:ser, mdl:mdl, band:band, zone:zone, tags:_rfStr(_rfTxt(c, 'tags'), 80), gc:gc,
         pw:Math.max(0, _rfInt(_rfTxt(c, 'tx_power'))), kind:kind, fi:fi, fc:fc,
-        sp:e ? spacing(e) : 0, lv:lvOf(e).lv, pf:lvOf(e).pf, sh:'' });
+        sp:e ? spacing(e) : 0, lv:lvOf(e).lv, pf:lvOf(e).pf, pn:e ? _rfStr(_rfTxt(_rfKid(e, 'compat_key'), 'mode'), 30) : '', sh:'' });
     });
     /* Émetteur large bande (Axient PSM) : ses canaux audio voyagent sur une seule porteuse. WWB n'en
        coordonne qu'une par appareil ; les canaux réglés sur la même fréquence la partagent. */
@@ -230,7 +232,7 @@ function _rfParseShw(text){
       Object.keys(grp).forEach(function(k){
         var g = grp[k]; if(g.length < 2) return;
         var lead = g.filter(function(m){ return m.fc; })[0];
-        g.forEach(function(m){ m.sh = did + '#' + k; if(lead && !m.fc){ m.fc = lead.fc; m.sp = lead.sp; m.lv = lead.lv; m.pf = lead.pf; } });
+        g.forEach(function(m){ m.sh = did + '#' + k; if(lead && !m.fc){ m.fc = lead.fc; m.sp = lead.sp; m.lv = lead.lv; m.pf = lead.pf; m.pn = lead.pn; } });
       });
     }
     var counted = {};
@@ -290,7 +292,7 @@ function _rfMerge(cur, parsed, opt){
     var m = (p.src && bySrc[p.src]) || null;
     if(!m){ var k = _rfDefaultName(p.n) ? '' : _rfNorm(p.n) + '|' + _rfNormSer(p.mdl); if(k && byKey[k] && !taken[byKey[k].id]) m = byKey[k]; }
     if(m && taken[m.id]) m = null;
-    var base = { src:p.src, did:p.did, n0:p.n, dev:p.dev, mk:p.mk, ser:p.ser, mdl:p.mdl, band:p.band, tags:p.tags, gc:p.gc, pw:p.pw, sp:p.sp, f:f, sh:p.sh || '', pf:p.pf || null };
+    var base = { src:p.src, did:p.did, n0:p.n, dev:p.dev, mk:p.mk, ser:p.ser, mdl:p.mdl, band:p.band, tags:p.tags, gc:p.gc, pw:p.pw, sp:p.sp, f:f, sh:p.sh || '', pf:p.pf || null, pn:p.pn || '' };
     if(m){
       taken[m.id] = 1;
       var what = [];
@@ -472,6 +474,11 @@ function _rfFam(c){
 function _rfProf(c, lvl){
   if(lvl === 'wwb' && c && c.pf) return { cc:c.pf[0], i3:c.pf[1], i5:c.pf[2], t3:c.pf[3], w:c.pf[4] * 1000, fam:_rfFam(c) };
   lvl = _rfLvl(lvl);
+  var cb = c ? _rfCatBand(c.ser, c.band) : null, pn = cb ? _rfCatProfName(cb, c.pn) : '';
+  if(pn){                       /* valeurs exactes de la série, de la bande et du profil RF */
+    var q = _RF_CAT.prof[cb.p[pn]][lvl === 'rob' ? 0 : lvl === 'std' ? 1 : 2];
+    return { cc:q[0], i3:q[1], i5:q[2], t3:q[5], w:q[6] * 1000, fam:_rfFam(c), cat:true, pn:pn };
+  }
   var fam = _rfFam(c), F = _RF_FAM[fam], v = F[lvl], cc = v[0];
   if(fam === 'gen' && c && c.sp > cc) cc = c.sp;
   return { cc:cc, i3:v[1], i5:v[2], t3:v[3], w:F.w[lvl === 'rob' ? 0 : lvl === 'std' ? 1 : 2] * 1000, fam:fam };
@@ -635,15 +642,64 @@ function _rfCoord(chs, opt){
   fixed.forEach(function(c){ add(c.f, norm(c), c.z || ''); });
   var ptr = {};
   todo.forEach(function(c){
-    var p = norm(c), z = c.z || '', down = c.dir === 'down', key = [c.lo, c.hi, p.cc, p.i3, p.i5, p.t3, p.w, down ? 'd' : 'u', z].join('|');
-    var lo = Math.ceil(c.lo / step) * step, hi = Math.floor(c.hi / step) * step;
+    var p = norm(c), z = c.z || '', down = c.dir === 'down', key = [c.lo, c.hi, p.cc, p.i3, p.i5, p.t3, p.w, down ? 'd' : 'u', z, c.step || 0].join('|');
+    var st = c.step > 0 ? Math.round(c.step) : step;                 /* pas d'accord propre à la bande, s'il est connu */
+    var lo = Math.ceil(c.lo / st) * st, hi = Math.floor(c.hi / st) * st;
     var f = ptr[key] === undefined ? (down ? hi : lo) : ptr[key], found = 0;
-    while(down ? f >= lo : f <= hi){ if(ok(f, p, z)){ found = f; break; } f += down ? -step : step; }
-    ptr[key] = found ? found + (down ? -step : step) : f;
+    while(down ? f >= lo : f <= hi){ if(ok(f, p, z)){ found = f; break; } f += down ? -st : st; }
+    ptr[key] = found ? found + (down ? -st : st) : f;
     if(found){ add(found, p, z); res.placed++; } else res.missed++;
     res.list.push({ id:c.id, f:found });
   });
   return res;
+}
+
+/* ── Catalogue de matériel ─────────────────────────────────────────────
+   pf-rf-catalog.json : toutes les séries Shure et Sennheiser connues de
+   Wireless Workbench 7 — modèles, nombre de canaux, bandes, plages
+   d'accord, pas d'accord, et pour chaque bande les écarts de compatibilité
+   de chaque profil RF aux trois niveaux. Il est chargé à l'ouverture de
+   l'onglet RF ; tant qu'il manque (hors ligne), les tables intégrées plus
+   haut (bandes courantes, écarts par famille) servent de repli. */
+var _RF_CAT = null, _RF_CAT_IDX = null, _RF_CAT_P = null;
+function _rfCatSet(cat){
+  if(!cat || !Array.isArray(cat.series) || !Array.isArray(cat.prof)) return false;
+  var idx = {};
+  cat.series.forEach(function(s){ (s.b || []).forEach(function(b){ idx[_rfNormSer(s.s) + '|' + b.n] = b; }); });
+  _RF_CAT = cat; _RF_CAT_IDX = idx; _RF_BMAP = null;
+  return true;
+}
+function _rfCatLoad(){
+  if(_RF_CAT) return Promise.resolve(true);
+  if(!_RF_CAT_P) _RF_CAT_P = fetch('pf-rf-catalog.json?v=1').then(function(r){ return r.ok ? r.json() : null; }).then(_rfCatSet).catch(function(){ _RF_CAT_P = null; return false; });
+  return _RF_CAT_P;
+}
+function _rfCatBand(ser, band){ return (_RF_CAT_IDX && _RF_CAT_IDX[_rfNormSer(ser) + '|' + String(band || '').trim()]) || null; }
+/* Profil RF d'une bande : celui du canal s'il existe, sinon Standard, sinon le premier */
+function _rfCatProfName(b, pn){
+  if(!b || !b.p) return '';
+  if(pn && b.p[pn] !== undefined) return pn;
+  if(b.p.Standard !== undefined) return 'Standard';
+  if(b.p['4-channel_wideband'] !== undefined) return '4-channel_wideband';
+  return Object.keys(b.p)[0] || '';
+}
+const _RF_PN_LBL = { 'Standard':'Standard', 'HD':'Haute densité', '4-channel_wideband':'Large bande 4 canaux', '2-channel_wideband':'Large bande 2 canaux', 'Narrowband':'Bande étroite',
+  'SC_narrowband':'Bande étroite (canal seul)', 'AD_Standard_PTP':'Standard point à point', 'Analog_FM':'FM analogique', 'AXT':'Axient', 'UHF-R':'UHF-R', 'MW':'MW' };
+/* Type d'un modèle du catalogue → nature du canal dans PatchFlow */
+const _RF_CAT_T = { rx:'Récepteur micro', iem:'Émetteur IEM', hh:'Émetteur main', bp:'Émetteur ceinture', iemrx:'Récepteur IEM', com:'Intercom', mic:'Micro', scan:'Scanner', dist:'Distributeur d\'antennes', chg:'Chargeur', ap:'Point d\'accès', oth:'Autre' };
+/* Canaux à créer pour n appareils d'un modèle. Pur : sert aussi aux tests. */
+function _rfGearChannels(o){
+  var out = [], ch = Math.max(1, Math.min(64, _rfInt(o.ch) || 1)), n = Math.max(1, Math.min(50, _rfInt(o.qty) || 1)), from = Math.max(1, _rfInt(o.from) || 1);
+  var kind = o.t === 'iem' || o.t === 'iemrx' ? 'iem' : o.t === 'com' || o.t === 'oth' ? 'oth' : 'mic';
+  var wide = /^4-channel_wideband$/.test(o.pn || '') ? 4 : /^2-channel_wideband$/.test(o.pn || '') ? 2 : 0;
+  for(var d = 0; d < n; d++){
+    var did = _rfId(), name = o.mdl + ' ' + (from + d);
+    for(var i = 0; i < ch; i++){
+      out.push(_rfCleanCh({ id:_rfId(), did:did, n:'', mk:o.mk, ser:o.ser, mdl:o.mdl, band:o.band, pn:o.pn || '', zone:o.zone || '', kind:kind,
+        dev:name + (ch > 1 ? ' · ' + (i + 1) : ''), sh:wide ? did + '#w' + Math.floor(i / wide) : '' }));
+    }
+  }
+  return out;
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -651,7 +707,7 @@ function _rfCoord(chs, opt){
    charte PDF…). Les données vivent dans CUR_SHOW.stage_data.rf : même
    enregistrement et mêmes droits que le reste du show.
    ══════════════════════════════════════════════════════════════════════ */
-var RF = { showId:null, data:null, q:'', fk:'', fz:'', fs:'', sort:'zone', look:false, lq:'', t:null, pend:null, allAl:false, co:null, onClose:null };
+var RF = { showId:null, data:null, q:'', fk:'', fz:'', fs:'', sort:'zone', look:false, lq:'', t:null, pend:null, allAl:false, co:null, onClose:null, gear:null };
 
 function _rfLoad(){
   var id = CUR_SHOW && CUR_SHOW.id;
@@ -752,6 +808,7 @@ function renderRf(){
     return;
   }
   _rfLoad(); _rfDropInit(root);
+  if(!_RF_CAT) _rfCatLoad().then(function(ok){ var pn = document.getElementById('panel-rf'); if(ok && pn && pn.classList.contains('on') && !document.getElementById('rf-modal') && !(document.activeElement && root.contains(document.activeElement))) renderRf(); });
   if(_rfFollowNames()) _rfSave();
   if(RF.look){ _rfRenderLook(root); return; }
   var d = RF.data, n = d.ch.length;
@@ -759,6 +816,7 @@ function renderRf(){
   var h = '<header class="bonp-head"><div><div class="bonp-eyebrow">' + E(CUR_SHOW.name || '') + '</div><h1>RF</h1><p>Les liaisons HF du show : fréquences, utilisateurs, état de préparation. ' + src + '</p></div>' +
     '<div class="rf-act">' +
       '<button class="btn pri" onclick="rfImport()"><i class="ti ti-file-import"></i>Importer un show WWB</button>' +
+      '<button class="btn" onclick="rfGear()" title="Ajouter des appareils Shure ou Sennheiser depuis le catalogue"><i class="ti ti-antenna"></i>Matériel</button>' +
       '<button class="btn" onclick="rfAdd()"><i class="ti ti-plus"></i>Canal</button>' +
       (n ? '<button class="btn" onclick="rfCoord()" title="Calculer des fréquences compatibles"><i class="ti ti-wave-sine"></i>Coordonner</button>' +
            '<button class="btn" onclick="rfLook(true)"><i class="ti ti-eye"></i>Consultation</button>' +
@@ -767,7 +825,7 @@ function renderRf(){
   if(!n){
     h += '<button type="button" class="bonp-empty rf-dropzone" onclick="rfImport()"><i class="ti ti-antenna"></i><b>Importer un show Wireless Workbench</b>' +
       '<span>Déposez un fichier .shw ici, ou cliquez pour le choisir. PatchFlow reprend les appareils, les canaux, les fréquences, les zones et les exclusions de la session.</span></button>' +
-      '<p class="rf-note" style="text-align:center;margin-top:14px">Pas de session ? <button type="button" class="ov-link" onclick="rfAdd()">Créer un canal à la main</button></p>';
+      '<p class="rf-note" style="text-align:center;margin-top:14px">Pas de session ? <button type="button" class="ov-link" onclick="rfGear()">Ajouter du matériel du catalogue</button> ou <button type="button" class="ov-link" onclick="rfAdd()">créer un canal à la main</button></p>';
     root.innerHTML = h; return;
   }
   var zs = _rfZones();
@@ -1321,7 +1379,7 @@ function _rfCoPlan(){
   _rfSorted().forEach(function(c){ var k = c.sh || c.id; if(!grp[k]){ grp[k] = []; reps.push(c); } grp[k].push(c); });
   var chs = reps.map(function(c){
     var r = _rfRange(c);
-    return { id:c.id, f:c.f, lo:r ? r[0] : co.lo, hi:r ? r[1] : co.hi, fixed:!grp[c.sh || c.id].some(_rfCoIn), p:_rfProf(c, c.cm || co.mode), dir:c.cd || co.dir, z:c.zone };
+    return { id:c.id, f:c.f, lo:r ? r[0] : co.lo, hi:r ? r[1] : co.hi, fixed:!grp[c.sh || c.id].some(_rfCoIn), p:_rfProf(c, c.cm || co.mode), dir:c.cd || co.dir, z:c.zone, step:(_rfCatBand(c.ser, c.band) || {}).st || 0 };
   });
   var res = _rfCoord(chs, { step:25, avoid:av.ban.map(function(b){ return [b.a, b.b]; }), include:av.inc, iso:d.iso });
   var byRep = {}, map = {}; res.list.forEach(function(x){ byRep[x.id] = x.f; });
@@ -1386,7 +1444,7 @@ function _rfCoordModal(){
     }
     var f = P.map[c.id], rg = _rfRange(c), p = _rfProf(c, c.cm || co.mode), ng = P.grp[c.sh || c.id].length;
     rows += '<div class="rf-co-r' + (f ? '' : ' miss') + '" data-id="' + c.id + '"><span class="n"><b>' + E(c.n || c.dev || 'Canal') + '</b>' + E(ng > 1 ? 'porteuse commune à ' + ng + ' canaux' : c.who) +
-      '<small>' + E((c.band || (rg ? '' : 'plage par défaut')) + ' · ' + _RF_FAM[p.fam].l + ' · ' + _rfProfTxt(p)) + '</small></span>' +
+      '<small>' + E((c.band || (rg ? '' : 'plage par défaut')) + ' · ' + (p.cat ? c.ser + (p.pn && p.pn !== 'Standard' ? ' ' + (_RF_PN_LBL[p.pn] || p.pn) : '') : _RF_FAM[p.fam].l) + ' · ' + _rfProfTxt(p)) + '</small></span>' +
       '<select class="rf-sel xs' + (c.cm ? ' set' : '') + '" onchange="rfCoordCh(this,\'cm\')" aria-label="Niveau de compatibilité">' + mOpt(c.cm, 'Défaut : ' + _rfLvlLbl(co.mode)) + (c.pf ? opt('wwb', 'Profil du show WWB', c.cm) : '') + '</select>' +
       '<select class="rf-sel xs' + (c.cd ? ' set' : '') + '" onchange="rfCoordCh(this,\'cd\')" aria-label="Sens">' + dOpt(c.cd, 'Défaut : ' + (co.dir === 'down' ? '↓' : '↑')) + '</select>' +
       '<span class="o">' + (_rfFmt(c.f) || '—') + '</span><i class="ti ti-arrow-right"></i><span class="f">' + (f ? _rfFmt(f) : 'pas de place') + '</span></div>';
@@ -1394,7 +1452,7 @@ function _rfCoordModal(){
   b += '<div class="rf-co-list">' + rows + '</div>';
   if(over) b += '<p class="rf-note">' + over + ' liaison' + (over > 1 ? 's ont' : ' a') + ' un réglage propre. <button type="button" class="ov-link" onclick="rfCoordReset()">Tout remettre par défaut</button></p>';
   if(P.after.t3skip) b += '<p class="rf-note">Plus de ' + _RF_T3_MAX + ' porteuses : les produits à trois émetteurs ne sont pas calculés.</p>';
-  b += '<p class="rf-note">Écarts alignés sur les profils Robust, Standard et More Frequencies de Wireless Workbench. Calcul simplifié, au pas de 25 kHz : il ignore les fréquences parasites propres aux appareils et le spectre réel du lieu. Validez par un scan sur place, puis réglez les appareils.' + (r.missed ? ' Les canaux sans place gardent leur fréquence actuelle.' : '') + '</p>';
+  b += '<p class="rf-note">Écarts alignés sur les profils Robust, Standard et More Frequencies de Wireless Workbench. Calcul simplifié, au pas d\'accord de chaque appareil : il ignore les fréquences parasites propres aux appareils et le spectre réel du lieu. Validez par un scan sur place, puis réglez les appareils.' + (r.missed ? ' Les canaux sans place gardent leur fréquence actuelle.' : '') + '</p>';
   _rfModal('Calculer les fréquences', 'ti-wave-sine', b,
     '<button class="btn ghost sm" onclick="rfCoordClose()">Fermer</button><button class="btn pri sm" onclick="rfCoordApply()"' + (r.placed ? '' : ' disabled') + '><i class="ti ti-check"></i>Appliquer ' + r.placed + ' fréquence' + (r.placed > 1 ? 's' : '') + '</button>', 820);
   RF.onClose = function(){ RF.co = null; renderRf(); };
@@ -1471,6 +1529,154 @@ function rfCoordApply(){
   RF.data = _rfClean(d); RF.co = null; RF.onClose = null;
   rfModalClose(); _rfSave(); _rfMirrorAll(); renderRf();
   toast(n + ' fréquence' + (n > 1 ? 's appliquées' : ' appliquée') + '. À régler sur les appareils ; l\'état précédent reste dans Versions.');
+}
+
+/* ── Ajouter du matériel depuis le catalogue ───────────────────────────
+   On choisit un modèle, sa bande, une quantité : les canaux sont créés avec
+   la bonne plage d'accord et le bon profil, prêts à être coordonnés.
+   « Mon parc » garde les configurations qu'on réutilise, sur le compte
+   (profiles.tours.rf_gear) et dans le navigateur. */
+var RF_GEAR = null;
+function _rfGearKey(){ return 'pf_rf_gear_' + ((typeof ME !== 'undefined' && ME && ME.id) || ''); }
+function _rfGearClean(list){
+  return (Array.isArray(list) ? list : []).filter(function(g){ return g && g.mdl && g.ser; }).slice(0, 60).map(function(g){
+    return { mk:_rfStr(g.mk, 30), ser:_rfStr(g.ser, 30), mdl:_rfStr(g.mdl, 30), band:_rfStr(g.band, 16), pn:_rfStr(g.pn, 30), ch:Math.max(1, Math.min(64, _rfInt(g.ch) || 1)),
+             t:_rfStr(g.t, 8), qty:Math.max(1, Math.min(50, _rfInt(g.qty) || 1)) };
+  });
+}
+function _rfGearLocal(){ try { return _rfGearClean(JSON.parse(localStorage.getItem(_rfGearKey()) || '[]')); } catch(e){ return []; } }
+/* Appelé par pf-app.js à la lecture de profiles.tours : le compte fait foi */
+function _rfGearFromServer(t){
+  var srv = t && Array.isArray(t.rf_gear) ? _rfGearClean(t.rf_gear) : null;
+  RF_GEAR = srv || _rfGearLocal();
+  try { localStorage.setItem(_rfGearKey(), JSON.stringify(RF_GEAR)); } catch(e){}
+}
+function _rfGearSave(){
+  try { localStorage.setItem(_rfGearKey(), JSON.stringify(RF_GEAR || [])); } catch(e){}
+  if(typeof _pushToursSoon === 'function') _pushToursSoon();
+}
+function rfGear(){
+  if(!CUR_SHOW) return;
+  _rfLoad();
+  if(RF_GEAR === null) RF_GEAR = _rfGearLocal();
+  RF.gear = { q:'', mk:'', t:'rx', sel:null, band:'', pn:'', qty:1, zone:RF.fz || '', keep:false };
+  if(!_RF_CAT){
+    _rfModal('Ajouter du matériel', 'ti-antenna', '<p class="rf-note">Chargement du catalogue…</p>', '<button class="btn ghost sm" onclick="rfModalClose()">Fermer</button>', 720);
+    _rfCatLoad().then(function(ok){
+      if(!RF.gear || !document.getElementById('rf-modal')) return;
+      if(ok) _rfGearModal();
+      else _rfModal('Ajouter du matériel', 'ti-alert-triangle', '<p class="rf-err"><i class="ti ti-alert-triangle"></i>Catalogue indisponible : vérifiez la connexion, puis réessayez.</p>', '<button class="btn pri sm" onclick="rfModalClose()">Fermer</button>', 520);
+    });
+    return;
+  }
+  _rfGearModal();
+}
+function _rfGearList(){
+  var g = RF.gear, q = _rfNorm(g.q), out = [];
+  _RF_CAT.series.forEach(function(s){
+    if(g.mk && s.mk !== g.mk) return;
+    s.m.forEach(function(m){
+      if(g.t === 'rx' ? m.t !== 'rx' : g.t === 'iem' ? m.t !== 'iem' : (m.t === 'rx' || m.t === 'iem')) return;
+      if(g.t === 'all' && !q) return;
+      if(q && _rfNorm(s.mk + ' ' + s.s + ' ' + m.n).indexOf(q) < 0) return;
+      out.push({ s:s, m:m });
+    });
+  });
+  return out;
+}
+function _rfGearBands(x){ return x.s.b.filter(function(b){ return !x.m.b || x.m.b.indexOf(b.n) >= 0; }); }
+function _rfGearModal(){
+  var g = RF.gear; if(!g) return;
+  var E = _bonE, old = document.getElementById('rf-modal'), sc = old && old.querySelector('.rf-gl') ? old.querySelector('.rf-gl').scrollTop : 0;
+  var seg = function(k, list){ return '<div class="rf-seg">' + list.map(function(x){ return '<button type="button" class="' + (g[k] === x[0] ? 'on' : '') + '" onclick="rfGearOpt(\'' + k + '\',\'' + x[0] + '\')">' + x[1] + '</button>'; }).join('') + '</div>'; };
+  var b = '';
+  if(RF_GEAR && RF_GEAR.length){
+    b += '<div class="rf-co-h">Mon parc</div><div class="rf-gp">' + RF_GEAR.map(function(p, i){
+      return '<span><button type="button" onclick="rfGearPark(' + i + ')" title="Ajouter au show"><b>' + p.qty + ' × ' + E(p.mdl) + '</b>' + E(p.band) + '</button><button type="button" class="x" onclick="rfGearParkDel(' + i + ')" title="Retirer de mon parc" aria-label="Retirer de mon parc"><i class="ti ti-x"></i></button></span>'; }).join('') + '</div>';
+  }
+  b += '<div class="rf-gbar"><label class="rf-search"><i class="ti ti-search"></i><input id="rf-gq" type="search" placeholder="Modèle ou série : ULXD4Q, AD4D, SR 2050…" value="' + E(g.q) + '" oninput="rfGearOpt(\'q\',this.value)" autocomplete="off"/></label>' +
+    seg('mk', [['', 'Toutes'], ['Shure', 'Shure'], ['Sennheiser', 'Sennheiser']]) + seg('t', [['rx', 'Récepteurs micro'], ['iem', 'Émetteurs IEM'], ['all', 'Tout le catalogue']]) + '</div>';
+  var list = _rfGearList();
+  b += '<div class="rf-gl">' + (list.length ? list.map(function(x){
+    var on = g.sel && g.sel.s === x.s.s && g.sel.m === x.m.n && g.sel.mk === x.s.mk, nb = _rfGearBands(x).length, add = x.m.t === 'rx' || x.m.t === 'iem';
+    return '<button type="button" class="' + (on ? 'on' : '') + (add ? '' : ' off') + '" data-mk="' + E(x.s.mk) + '" data-s="' + E(x.s.s) + '" data-m="' + E(x.m.n) + '" onclick="rfGearPick(this)"><b>' + E(x.m.n) + '</b><span>' + E(x.s.mk + (x.s.s ? ' · ' + x.s.s : '')) + '</span><em>' +
+      E(_RF_CAT_T[x.m.t] || '') + (x.m.ch > 1 ? ' · ' + x.m.ch + ' canaux' : '') + (nb ? ' · ' + nb + ' bande' + (nb > 1 ? 's' : '') : '') + '</em></button>'; }).join('')
+    : '<p class="rf-void"><i class="ti ti-search-off"></i>' + (g.t === 'all' && !g.q ? 'Saisissez un modèle ou une série pour chercher dans tout le catalogue.' : 'Aucun modèle ne correspond.') + '</p>') + '</div>';
+  var x = _rfGearSel(), n = 0;
+  if(x){
+    var bands = _rfGearBands(x), bd = bands.filter(function(q){ return q.n === g.band; })[0] || bands[0];
+    if(bd){
+      var pns = Object.keys(bd.p || {}), pn = _rfCatProfName(bd, g.pn), opt = function(v, l, cur){ return '<option value="' + E(v) + '"' + (v === cur ? ' selected' : '') + '>' + E(l) + '</option>'; };
+      var pr = pn ? _RF_CAT.prof[bd.p[pn]] : null; n = g.qty * x.m.ch;
+      b += '<div class="rf-gf"><div class="rf-gf-t"><b>' + E(x.s.mk + ' ' + x.m.n) + '</b><span>' + E(_RF_CAT_T[x.m.t] || '') + ' · ' + _rfPl(x.m.ch) + ' par appareil</span></div>' +
+        '<label>Bande<select class="rf-sel" onchange="rfGearOpt(\'band\',this.value)">' + bands.map(function(q){ return opt(q.n, q.n + '  ·  ' + _rfFmt(q.a) + ' à ' + _rfFmt(q.b) + ' MHz', bd.n); }).join('') + '</select></label>' +
+        (pns.length > 1 ? '<label>Profil RF<select class="rf-sel" onchange="rfGearOpt(\'pn\',this.value)">' + pns.map(function(q){ return opt(q, _RF_PN_LBL[q] || q, pn); }).join('') + '</select></label>' : '') +
+        '<label>Appareils<span class="rf-step"><button type="button" onclick="rfGearOpt(\'qty\',' + (g.qty - 1) + ')" aria-label="Moins"><i class="ti ti-minus"></i></button><b>' + g.qty + '</b><button type="button" onclick="rfGearOpt(\'qty\',' + (g.qty + 1) + ')" aria-label="Plus"><i class="ti ti-plus"></i></button></span></label>' +
+        '<label>Zone<input class="rf-co-in" list="rf-gz" value="' + E(g.zone) + '" placeholder="Plateau, accueil…" onchange="rfGearOpt(\'zone\',this.value)" maxlength="40"/><datalist id="rf-gz">' + _rfZones().map(function(z){ return '<option value="' + E(z) + '"></option>'; }).join('') + '</datalist></label>' +
+        (pr ? '<p class="rf-note">Pas d\'accord ' + bd.st + ' kHz. Écarts ' + ['robuste', 'standard', 'plus de fréquences'].map(function(l, i){ return l + ' ' + pr[i][0] + (pr[i][1] ? ' / IM3 ' + pr[i][1] : '') + (pr[i][5] ? ' / 3 ém. ' + pr[i][5] : ''); }).join(' · ') + ' kHz.</p>' : '') +
+        '<label class="rf-imp-c"><input type="checkbox" class="cb" ' + (g.keep ? 'checked' : '') + ' onchange="rfGearOpt(\'keep\',this.checked)"/><span>Garder cette configuration dans mon parc</span></label></div>';
+    } else b += '<div class="rf-gf"><p class="rf-note">' + E(x.m.n) + ' : ' + E(_RF_CAT_T[x.m.t] || 'appareil') + ' sans bande propre dans le catalogue.</p></div>';
+  }
+  _rfModal('Ajouter du matériel', 'ti-antenna', b,
+    '<button class="btn ghost sm" onclick="RF.gear=null;rfModalClose()">Fermer</button><button class="btn pri sm" onclick="rfGearAdd()"' + (n ? '' : ' disabled') + '><i class="ti ti-plus"></i>' + (n ? 'Ajouter ' + _rfPl(n) : 'Choisissez un modèle') + '</button>', 760);
+  var m = document.getElementById('rf-modal'), gl = m && m.querySelector('.rf-gl'); if(gl) gl.scrollTop = sc;
+}
+function _rfGearSel(){
+  var g = RF.gear; if(!g || !g.sel) return null;
+  var s = _RF_CAT.series.filter(function(q){ return q.s === g.sel.s && q.mk === g.sel.mk; })[0], m = s && s.m.filter(function(q){ return q.n === g.sel.m; })[0];
+  return m && (m.t === 'rx' || m.t === 'iem') ? { s:s, m:m } : (m ? { s:{ mk:s.mk, s:s.s, b:[] }, m:m } : null);
+}
+function rfGearOpt(k, v){
+  var g = RF.gear; if(!g) return;
+  if(k === 'q'){ g.q = String(v || ''); _rfGearModal(); var i = document.getElementById('rf-gq'); if(i){ i.focus(); try { i.setSelectionRange(g.q.length, g.q.length); } catch(e){} } return; }
+  if(k === 'mk') g.mk = v === 'Shure' || v === 'Sennheiser' ? v : '';
+  else if(k === 't') g.t = v === 'iem' || v === 'all' ? v : 'rx';
+  else if(k === 'band'){ g.band = String(v || ''); g.pn = ''; }
+  else if(k === 'pn') g.pn = String(v || '');
+  else if(k === 'qty') g.qty = Math.max(1, Math.min(50, _rfInt(v) || 1));
+  else if(k === 'zone') g.zone = _rfStr(v, 40);
+  else if(k === 'keep') g.keep = !!v;
+  _rfGearModal();
+}
+function rfGearPick(el){
+  var g = RF.gear; if(!g) return;
+  g.sel = { mk:el.dataset.mk, s:el.dataset.s, m:el.dataset.m }; g.band = ''; g.pn = ''; g.qty = 1;
+  _rfGearModal();
+}
+/* Numéro du prochain appareil de ce modèle dans le show (« ULXD4Q 3 ») */
+function _rfGearNext(mdl){
+  var ids = {}; RF.data.ch.forEach(function(c){ if(c.mdl === mdl) ids[c.did || c.id] = 1; });
+  return Object.keys(ids).length + 1;
+}
+function _rfGearPush(o){
+  var room = _RF_MAX_CH - RF.data.ch.length, list = _rfGearChannels(Object.assign({ from:_rfGearNext(o.mdl) }, o));
+  if(list.length > room){ toast('Limite de ' + _RF_MAX_CH + ' canaux atteinte.'); return 0; }
+  list.forEach(function(c){ RF.data.ch.push(c); });
+  if(o.zone && RF.data.zones.indexOf(o.zone) < 0) RF.data.zones.push(o.zone);
+  return list.length;
+}
+function rfGearAdd(){
+  var g = RF.gear, x = _rfGearSel(); if(!g || !x) return;
+  var bands = _rfGearBands(x), bd = bands.filter(function(q){ return q.n === g.band; })[0] || bands[0]; if(!bd) return;
+  var o = { mk:x.s.mk, ser:x.s.s, mdl:x.m.n, band:bd.n, pn:_rfCatProfName(bd, g.pn), ch:x.m.ch, t:x.m.t, qty:g.qty, zone:g.zone };
+  var n = _rfGearPush(o); if(!n) return;
+  if(g.keep){
+    RF_GEAR = (RF_GEAR || []).filter(function(p){ return !(p.mdl === o.mdl && p.band === o.band && p.pn === o.pn); });
+    RF_GEAR.unshift(_rfGearClean([o])[0]); RF_GEAR = RF_GEAR.slice(0, 60); _rfGearSave();
+  }
+  _rfSave(); g.qty = 1; g.keep = false;
+  _rfGearModal(); renderRf();
+  toast(_rfPl(n) + ' ajouté' + (n > 1 ? 's' : '') + ' : ' + o.mdl + ' ' + o.band + '. Coordonner leur donnera des fréquences.');
+}
+function rfGearPark(i){
+  var p = (RF_GEAR || [])[i]; if(!p || !RF.gear) return;
+  var n = _rfGearPush(Object.assign({}, p, { zone:RF.gear.zone })); if(!n) return;
+  _rfSave(); _rfGearModal(); renderRf();
+  toast(_rfPl(n) + ' ajouté' + (n > 1 ? 's' : '') + ' depuis mon parc : ' + p.qty + ' × ' + p.mdl);
+}
+function rfGearParkDel(i){
+  if(!RF_GEAR || !RF_GEAR[i]) return;
+  RF_GEAR.splice(i, 1); _rfGearSave(); _rfGearModal();
 }
 
 /* ── Consultation : retrouver vite une fréquence ou un utilisateur pendant le show ── */

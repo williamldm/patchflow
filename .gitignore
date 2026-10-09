@@ -11,6 +11,7 @@
 !pf-dm7-blank.dm7f
 !pf-app.css
 !pf-rf.js
+!pf-rf-catalog.json
 !tests/
 !tests/rf.html
 !tests/rf-fixtures.js

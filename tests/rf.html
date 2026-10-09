@@ -214,11 +214,39 @@
     eq('fréquence modifiée à la main : la porteuse n\'est plus commune', _rfCarriers(wm.ch).length, 4);
 
   } catch(e){ t('exception pendant les tests', false, String(e && e.stack || e)); }
-  var sum = document.getElementById('sum');
-  sum.className = failN ? 'ko' : 'ok';
-  sum.textContent = pass + ' réussis, ' + failN + ' en échec';
-  document.title = (failN ? 'ECHEC ' : 'OK ') + pass + '/' + (pass + failN);
-  window.__rfTests = { pass:pass, fail:failN, lines:lines };
+  function finish(){
+    var sum = document.getElementById('sum');
+    sum.className = failN ? 'ko' : 'ok';
+    sum.textContent = pass + ' réussis, ' + failN + ' en échec';
+    document.title = (failN ? 'ECHEC ' : 'OK ') + pass + '/' + (pass + failN);
+    window.__rfTests = { pass:pass, fail:failN, lines:lines, done:true };
+  }
+  /* 14. Catalogue Shure et Sennheiser (chargé à part, comme dans l'application) */
+  fetch('../pf-rf-catalog.json').then(function(r){ return r.json(); }).then(function(cat){
+    try {
+      var before = [_rfProf({ ser:'AD', band:'G56' }, 'std'), _rfProf({ ser:'PSM1000', band:'L8E' }, 'rob'), _rfProf({ ser:'SR 2050', band:'Gw' }, 'std')].map(function(q){ return [q.cc, q.i3, q.i5, q.t3, q.w]; });
+      t('catalogue accepté', _rfCatSet(cat) === true);
+      eq('refuse un fichier qui n\'est pas un catalogue', [_rfCatSet({}), _rfCatSet(null)], [false, false]);
+      var mk = {}, nm = 0, nb = 0; cat.series.forEach(function(s){ mk[s.mk] = 1; nm += s.m.length; nb += s.b.length; });
+      eq('deux marques, toutes les séries', [Object.keys(mk).sort(), cat.series.length >= 55, nm >= 130, nb >= 700], [['Sennheiser', 'Shure'], true, true, true]);
+      var after = [_rfProf({ ser:'AD', band:'G56' }, 'std'), _rfProf({ ser:'PSM1000', band:'L8E' }, 'rob'), _rfProf({ ser:'SR 2050', band:'Gw' }, 'std')].map(function(q){ return [q.cc, q.i3, q.i5, q.t3, q.w]; });
+      eq('les écarts du catalogue confirment les tables intégrées', after, before);
+      eq('bande absente des tables intégrées : connue du catalogue', [_rfBand('ULXD', 'Z16'), _rfBand('SLXD', 'G59') !== null || _rfBand('SLXD', 'G58') !== null, _rfBand('AD', 'ZZ9')], [[1240125, 1259875], true, null]);
+      eq('profil RF propre au canal', [_rfProf({ ser:'ULXD', band:'G51', pn:'HD' }, 'std').cc, _rfProf({ ser:'ULXD', band:'G51' }, 'std').cc, _rfProf({ ser:'ADPSM', band:'G56' }, 'std').cc, _rfProf({ ser:'ADPSM', band:'G56', pn:'Narrowband' }, 'std').cc], [125, 350, 800, 350]);
+      t('profil marqué comme issu du catalogue', _rfProf({ ser:'AD', band:'G56' }, 'std').cat === true && !_rfProf({ ser:'Lectro', band:'A1' }, 'std').cat);
+      var bad = []; cat.series.forEach(function(s){ s.b.forEach(function(b){ if(!(b.b > b.a) || !(b.st > 0)) bad.push(s.s + ' ' + b.n); Object.keys(b.p).forEach(function(k){ var q = cat.prof[b.p[k]]; if(!q || q.length !== 3 || q.some(function(l){ return l.length !== 7 || !(l[0] > 0); })) bad.push(s.s + ' ' + b.n + ' ' + k); }); }); s.m.forEach(function(m){ if(!m.n || !(m.ch >= 1)) bad.push(s.s + ' ' + m.n); (m.b || []).forEach(function(x){ if(!s.b.some(function(q){ return q.n === x; })) bad.push(m.n + ' → ' + x); }); }); });
+      eq('catalogue cohérent : plages, pas, profils, bandes des modèles', bad.slice(0, 5), []);
+      var g = _rfGearChannels({ mk:'Shure', ser:'ULXD', mdl:'ULXD4Q', band:'G51', pn:'Standard', ch:4, t:'rx', qty:2, zone:'Plateau', from:3 });
+      eq('2 ULXD4Q : 8 canaux, deux appareils, numérotés', [g.length, g[0].dev, g[7].dev, g[0].did === g[3].did, g[0].did !== g[4].did, g[0].kind, g[0].band, g[0].zone, g[0].sh], [8, 'ULXD4Q 3 · 1', 'ULXD4Q 4 · 4', true, true, 'mic', 'G51', 'Plateau', '']);
+      var w = _rfGearChannels({ mk:'Shure', ser:'ADPSM', mdl:'ADTQ', band:'G56', pn:'4-channel_wideband', ch:4, t:'iem', qty:1 });
+      eq('ADTQ large bande : 4 canaux, une porteuse', [w.length, w[0].kind, _rfCarriers(w).length, w[0].sh === w[3].sh && !!w[0].sh], [4, 'iem', 1, true]);
+      var chs = g.map(function(c){ var r = _rfRange(c); return { id:c.id, f:0, lo:r[0], hi:r[1], dir:'up', z:c.zone, p:_rfProf(c, 'std'), step:_rfCatBand(c.ser, c.band).st }; }), rr = _rfCoord(chs, {});
+      eq('matériel ajouté puis coordonné : dans la bande, sans conflit', [rr.placed, rr.list.every(function(x){ return x.f >= 470125 && x.f <= 534000; }), _rfCompat(rr.list.map(function(x, q){ return { id:x.id, f:x.f, z:'Plateau', p:chs[q].p }; })).list.length], [8, true, 0]);
+      var st5 = cat.series.filter(function(s){ return s.b.some(function(b){ return b.st === 5; }); })[0], b5 = st5 && st5.b.filter(function(b){ return b.st === 5; })[0];
+      if(b5){ var r5 = _rfCoord([{ id:'x', f:0, lo:b5.a + 1, hi:b5.b, dir:'up', p:_rfProf({ ser:st5.s, band:b5.n }, 'std'), step:5 }], {}); t('pas d\'accord de la bande respecté (5 kHz)', r5.list[0].f % 5 === 0 && r5.list[0].f > b5.a, r5.list); }
+    } catch(e){ t('exception pendant les tests du catalogue', false, String(e && e.stack || e)); }
+    finish();
+  }).catch(function(e){ t('catalogue illisible', false, String(e)); finish(); });
 })();
 </script>
 </body></html>

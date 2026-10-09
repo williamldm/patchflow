@@ -3886,3 +3886,31 @@ tr:hover .rf-hf,.rf-hf:focus-visible,.rf-hf.on,.rf-hf.hint{opacity:1}
 .rf-pop-l button b{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rf-pop-l button span{flex-shrink:0;font:400 11.5px var(--m);color:var(--muted)}
 .rf-chk s{color:var(--err);font-size:12px}
+
+/* RF : ajout de matériel depuis le catalogue */
+.rf-gbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:4px}
+.rf-gbar .rf-search{flex:1 1 240px}
+.rf-gl{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px;max-height:34vh;overflow:auto;margin-top:10px;padding:2px}
+.rf-gl button{display:grid;gap:1px;padding:9px 11px;border:0;border-radius:10px;background:var(--surf2);color:var(--txt);text-align:left;cursor:pointer;box-shadow:inset 0 0 0 1px transparent}
+.rf-gl button:hover{box-shadow:inset 0 0 0 1px var(--bdr3)}
+.rf-gl button.on{background:var(--ora-d);box-shadow:inset 0 0 0 1.5px var(--ora)}
+.rf-gl button.off{opacity:.6}
+.rf-gl b{font-size:13.5px;font-weight:650}
+.rf-gl span{font-size:11.5px;color:var(--txt2)}
+.rf-gl em{font-style:normal;font-size:11px;color:var(--muted)}
+.rf-gl .rf-void{grid-column:1/-1;padding:14px 4px}
+.rf-gf{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px 14px;margin-top:12px;padding:14px;border-radius:12px;box-shadow:inset 0 0 0 1px var(--bdr2)}
+.rf-gf-t,.rf-gf .rf-note,.rf-gf .rf-imp-c{grid-column:1/-1;margin:0}
+.rf-gf-t b{display:block;font-size:15px;font-weight:650}
+.rf-gf-t span{font-size:12px;color:var(--muted)}
+.rf-gf label:not(.rf-imp-c){display:grid;gap:4px;font-size:11.5px;font-weight:600;color:var(--txt2)}
+.rf-gf .rf-sel,.rf-gf .rf-co-in{width:100%}
+.rf-step{display:inline-flex;align-items:center;justify-self:start;height:32px;border-radius:9px;background:var(--surf2)}
+.rf-step button{width:32px;height:32px;border:0;background:transparent;color:var(--txt2);font-size:14px;cursor:pointer}
+.rf-step b{min-width:30px;text-align:center;font:600 13px var(--m);color:var(--txt)}
+.rf-gp{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 12px}
+.rf-gp>span{display:inline-flex;border-radius:9px;background:var(--surf2);overflow:hidden}
+.rf-gp button{display:inline-flex;align-items:baseline;gap:7px;padding:7px 10px;border:0;background:transparent;color:var(--muted);font:400 12px var(--f);cursor:pointer}
+.rf-gp button b{font-weight:600;color:var(--txt)}
+.rf-gp button:hover{background:var(--surf3)}
+.rf-gp button.x{padding:7px 8px;color:var(--muted2)}

@@ -15127,6 +15127,7 @@ async function _pushTours(){
     /* Le matériel de rack vit dans le même champ : il n'est écrit que s'il a été lu, pour ne jamais l'effacer */
     var tours={folders:SESS_FOLDERS,assign:SESS_ASSIGN};
     if(typeof RK_LIB!=='undefined' && RK_LIB!==null) tours.rack_gear=RK_LIB;
+    if(typeof RF_GEAR!=='undefined' && RF_GEAR!==null) tours.rf_gear=RF_GEAR;      /* parc HF (onglet RF) : même règle */
     var res=await sb.from('profiles').update({tours:tours}).eq('id',ME.id);
     if(res&&res.error){ console.warn('[tournées] enregistrement :',res.error.message); if(/tours|column|schema/i.test(res.error.message||'')) _toursServer=false; }
     else _toursServer=true;
@@ -15141,6 +15142,7 @@ async function _syncToursFromServer(){
     _toursServer=true;
     var t=res.data&&res.data.tours;
     if(typeof _rkLibFromServer==='function') _rkLibFromServer(t);
+    if(typeof _rfGearFromServer==='function') _rfGearFromServer(t);
     var has=t&&Array.isArray(t.folders)&&t.folders.length;
     if(has){
       SESS_FOLDERS=t.folders.filter(function(f){return f&&f.id&&f.name;}).map(function(f){ return {id:String(f.id),name:String(f.name).slice(0,40),color:(typeof _safeColor==='function'&&_safeColor(f.color))||_SESS_FOLDER_COLORS[0]}; });
