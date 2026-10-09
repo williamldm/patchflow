@@ -117,7 +117,7 @@ function _rfClean(d){
   o.ch.forEach(function(c){ if(seen[c.id]) c.id = _rfId(); seen[c.id] = 1; });
   var co = _rfCoDef(), dc = (d.coord && typeof d.coord === 'object') ? d.coord : {};
   var clo = _rfFreq(dc.lo), chi = _rfFreq(dc.hi);
-  co.mode = _rfLvl(dc.mode); co.dir = dc.dir === 'down' ? 'down' : 'up';
+  co.mode = _rfLvl(dc.mode); co.dir = dc.dir === 'down' ? 'down' : 'up'; co.from = _rfFreq(dc.from) || 0;
   if(clo && chi > clo){ co.lo = clo; co.hi = chi; }
   co.tvw = dc.tvw === 6 ? 6 : 8; co.sx = dc.sx !== false;
   var tvOk = _rfTvList(co.tvw);
@@ -498,7 +498,7 @@ function _rfParseRanges(s){
 /* Canal TV → plage en kHz. Canaux de 8 MHz (Europe, 21 = 470 MHz) ou de 6 MHz (Amériques, 14 = 470 MHz) */
 function _rfTvList(w){ var o = [], n; if(w === 6) for(n = 14; n <= 36; n++) o.push(n); else for(n = 21; n <= 48; n++) o.push(n); return o; }
 function _rfTvRange(n, w){ return w === 6 ? [470000 + (n - 14) * 6000, 470000 + (n - 13) * 6000] : [470000 + (n - 21) * 8000, 470000 + (n - 20) * 8000]; }
-function _rfCoDef(){ return { mode:'std', dir:'up', lo:470000, hi:694000, tv:[], tvw:8, sx:true, rules:[] }; }
+function _rfCoDef(){ return { mode:'std', dir:'up', from:0, lo:470000, hi:694000, tv:[], tvw:8, sx:true, rules:[] }; }
 /* Ce que le show demande d'éviter : exclusions de la session, canaux TV cochés, plages exclues ;
    et, s'il y en a, les seules plages où chercher (inclusions). */
 function _rfAvoid(rf){
@@ -569,6 +569,13 @@ function _rfCompat(list, iso, zim){
    Par zone, deux jeux de tables au kHz : où tombent les produits déjà créés (avec la distance du
    plus lointain des émetteurs en cause), et où une porteuse est protégée (avec la largeur de son
    filtre). Un produit gêne quand sa « portée » tient dans le filtre de la liaison touchée. */
+/* Départ du calcul à une fréquence choisie : vers le haut, la recherche commence à cette fréquence
+   (vers le bas, elle part d'elle) au lieu du bord de la bande. Hors de la bande d'un appareil, son bord
+   de bande reste le départ. */
+function _rfFromRange(r, from, dir){
+  if(!r || !(from > r[0]) || !(from < r[1])) return r;
+  return dir === 'down' ? [r[0], from] : [from, r[1]];
+}
 function _rfCoord(chs, opt){
   opt = opt || {};
   var step = opt.step > 0 ? Math.round(opt.step) : 25, U = 10;
@@ -952,10 +959,9 @@ function renderRf(){
   var h = '<header class="bonp-head"><div><div class="bonp-eyebrow">' + E(CUR_SHOW.name || '') + '</div><h1>RF</h1><p>Les liaisons HF du show : fréquences, utilisateurs, verrouillage. ' + src + '</p></div>' +
     '<div class="rf-act">' +
       '<button class="btn pri" onclick="rfImport()"><i class="ti ti-file-import"></i>Importer un show WWB</button>' +
-      '<button class="btn" onclick="rfGear()" title="Ajouter des appareils Shure ou Sennheiser depuis le catalogue"><i class="ti ti-antenna"></i>Matériel</button>' +
-      '<button class="btn" onclick="rfAdd()"><i class="ti ti-plus"></i>Canal</button>' +
-      (n ? '<button class="btn" onclick="rfLook(true)"><i class="ti ti-eye"></i>Consultation</button>' +
-           '<button class="btn" onclick="rfPdf()"><i class="ti ti-file-type-pdf"></i>Feuille RF</button>' : '') +
+      '<button class="btn" data-rfmenu="add" onclick="rfTopMenu(this,\'add\')"><i class="ti ti-plus"></i>Ajouter<i class="ti ti-chevron-down rf-chev"></i></button>' +
+      (n ? '<button class="btn" data-rfmenu="exp" onclick="rfTopMenu(this,\'exp\')"><i class="ti ti-download"></i>Exporter<i class="ti ti-chevron-down rf-chev"></i></button>' +
+           '<button class="btn" onclick="rfLook(true)"><i class="ti ti-eye"></i>Consultation</button>' : '') +
     '</div></header>';
   if(!n){
     h += '<button type="button" class="bonp-empty rf-dropzone" onclick="rfImport()"><i class="ti ti-antenna"></i><b>Importer un show Wireless Workbench</b>' +
@@ -973,12 +979,7 @@ function renderRf(){
     '<select class="rf-sel" onchange="rfFilter(\'fs\',this.value)" aria-label="Verrou">' + opt('', 'Verrouillées ou non', RF.fs) + opt('lk', 'Verrouillées', RF.fs) + opt('free', 'Libres', RF.fs) + '</select>' +
     '<select class="rf-sel" onchange="rfSort(this.value)" aria-label="Tri">' + [['zone', 'Tri : zone'], ['f', 'Tri : fréquence'], ['n', 'Tri : nom'], ['who', 'Tri : utilisateur'], ['st', 'Tri : verrou']].map(function(s){ return opt(s[0], s[1], RF.sort); }).join('') + '</select>' +
     '<span class="rf-grow"></span>' +
-    '<button class="btn sm" onclick="rfLockAll(true)" title="Verrouiller les fréquences de la liste affichée"><i class="ti ti-lock"></i>Tout verrouiller</button>' +
-    '<button class="btn sm" onclick="rfLockAll(false)" title="Libérer les fréquences de la liste affichée"><i class="ti ti-lock-open"></i>Tout libérer</button>' +
     '<button class="btn sm" onclick="rfAutoLink()" title="Proposer les liens entre liaisons et lignes de l\'input list portant le même nom"><i class="ti ti-link"></i>Associer à l\'input list</button>' +
-    '<button class="btn sm" onclick="rfWwb()" title="Renvoyer les fréquences vers Wireless Workbench"><i class="ti ti-file-export"></i>Vers Workbench</button>' +
-    '<button class="btn sm" onclick="rfCsv()" title="Exporter la liste en CSV"><i class="ti ti-file-spreadsheet"></i>CSV</button>' +
-    (d.vers.length ? '<button class="btn sm" onclick="rfVersions()" title="Versions précédentes"><i class="ti ti-history"></i>Versions</button>' : '') +
   '</div><div id="rf-list"></div>';
   if(d.spare.length){
     h += '<section class="rf-card rf-spare"><h3>Fréquences de réserve <small>coordonnées dans la session, sans appareil</small></h3><div class="rf-spare-l">' +
@@ -1159,6 +1160,23 @@ function _rfQuickScope(){
   else { list = _rfVisible(); list.forEach(function(c){ ids[c.id] = 1; }); }
   return { ids:ids, list:list, sel:sel.length > 0 };
 }
+/* Champ « à partir de », dans la bande Fréquences et dans Options */
+function _rfFromField(){
+  var co = RF.data.coord;
+  return '<label class="rf-from" title="Les fréquences se placent à partir de celle-ci (vers le haut ou vers le bas selon le sens), pas depuis le bord de la bande. Hors de la bande d\'un appareil, c\'est son bord de bande. S\'il manque de la place, la suite repart du bord de bande."><span>à partir de</span>' +
+    '<input class="rf-co-in s" inputmode="decimal" placeholder="bord de bande" value="' + (co.from ? _rfFmt(co.from) : '') + '" onchange="rfQuickFrom(this.value)" aria-label="Fréquence de départ en MHz"/><span>MHz</span></label>';
+}
+function rfQuickFrom(v){
+  var co = RF.data.coord, t = String(v || '').trim();
+  if(!t) co.from = 0;
+  else {
+    var f = _rfParseMHz(t);
+    if(!f){ toast('Fréquence illisible : écrivez-la en MHz, par exemple 600.000.'); _rfPaintQuick(); return; }
+    co.from = f;
+  }
+  _rfSave(); _rfPaintQuick();
+  if(RF.co && document.getElementById('rf-modal')) _rfCoordModal();
+}
 function _rfPaintQuick(){
   var box = document.getElementById('rf-quick'); if(!box || !RF.data) return;
   var d = RF.data, co = d.coord, sc = _rfQuickScope(), free = sc.list.filter(function(c){ return !(c.lk && c.f); }).length;
@@ -1169,6 +1187,7 @@ function _rfPaintQuick(){
   box.innerHTML = '<span class="rf-quick-t"><i class="ti ti-wave-sine"></i>Fréquences</span>' +
     seg('mode', lv, [['rob', 'Robuste', 'Écarts les plus larges'], ['std', 'Standard', 'Écarts recommandés'], ['more', 'Plus de fréquences', 'Écarts réduits']]) +
     seg('dir', dr, [['up', '<i class="ti ti-sort-ascending"></i>Croissant', 'Du bas de la bande vers le haut'], ['down', '<i class="ti ti-sort-descending"></i>Décroissant', 'Du haut de la bande vers le bas']]) +
+    _rfFromField() +
     '<button type="button" class="btn pri sm" onclick="rfQuickCalc()"' + (free ? '' : ' disabled') + '><i class="ti ti-calculator"></i>Calculer ' + (free ? free + ' fréquence' + (free > 1 ? 's' : '') : '') + '</button>' +
     (RF.calcUndo ? '<button type="button" class="btn sm" onclick="rfQuickUndo()"><i class="ti ti-arrow-back-up"></i>Annuler</button>' : '') +
     '<span class="rf-quick-s">' + (sc.sel ? 'sur les ' + _rfPl(sc.list.length) + ' cochés' : (RF.fk || RF.fz || RF.fs || RF.q ? 'sur la liste affichée' : 'sur tous les canaux')) + (sc.list.length - free ? ' · ' + (sc.list.length - free) + ' verrouillé' + (sc.list.length - free > 1 ? 's' : '') : '') + '</span>' +
@@ -1309,13 +1328,6 @@ function rfLock(el){
   if(!c.lk && !c.f){ toast('Pas de fréquence à verrouiller sur ce canal.'); return; }
   c.lk = !c.lk;
   _rfSave(); if(RF.look) _rfPaintLook(); else _rfPaintTable();
-}
-function rfLockAll(on){
-  var list = _rfVisible().filter(function(c){ return on ? c.f : true; }), n = 0;
-  list.forEach(function(c){ if(!!c.lk !== !!on){ c.lk = !!on; n++; } });
-  if(!n){ toast(on ? 'Rien à verrouiller : aucune fréquence libre dans la liste affichée.' : 'Aucune fréquence verrouillée dans la liste affichée.'); return; }
-  _rfSave(); renderRf();
-  toast(n + ' fréquence' + (n > 1 ? 's ' : ' ') + (on ? 'verrouillée' : 'libérée') + (n > 1 ? 's' : ''));
 }
 /* Liste des alertes, ouverte depuis la tuile « Alertes » */
 function rfAlerts(){
@@ -1498,8 +1510,40 @@ function rfPopClose(){
 }
 /* Le menu est posé à côté du bouton : il se ferme dès que la page défile sous lui */
 function _rfPopScroll(e){ var p = document.getElementById('rf-pop'); if(p && !p.contains(e.target)) rfPopClose(); }
-function _rfPopOut(e){ var p = document.getElementById('rf-pop'); if(p && !p.contains(e.target) && !(e.target.closest && e.target.closest('.rf-hf'))) rfPopClose(); }
+function _rfPopOut(e){ var p = document.getElementById('rf-pop'); if(p && !p.contains(e.target) && !(e.target.closest && e.target.closest('.rf-hf,[data-rfmenu]'))) rfPopClose(); }
 function _rfPopKey(e){ if(e.key === 'Escape'){ e.stopPropagation(); rfPopClose(); } }
+/* Menus « Ajouter » et « Exporter » de l'en-tête */
+var _RF_TOP = {
+  add:[['gear', 'ti-antenna', 'Matériel du catalogue', 'Récepteurs et émetteurs Shure ou Sennheiser, avec leur bande'],
+       ['new', 'ti-plus', 'Canal vide', 'À remplir à la main']],
+  exp:[['wwb', 'ti-file-export', 'Show Wireless Workbench', 'Remet les fréquences dans le .shw d\'origine'],
+       ['lists', 'ti-file-zip', 'Listes de fréquences', 'Une par série, bande et zone, pour Workbench'],
+       ['csv', 'ti-file-spreadsheet', 'Tableau CSV', 'Pour Excel ou Sheets'],
+       ['pdf', 'ti-file-type-pdf', 'Feuille RF en PDF', 'Fréquences par zone, à imprimer']]
+};
+function rfTopMenu(el, kind){
+  if(!CUR_SHOW || !el || !_RF_TOP[kind]) return;
+  var open = document.getElementById('rf-pop');
+  if(open && open.dataset.rf === 'top' && open.dataset.id === kind){ rfPopClose(); return; }
+  rfPopClose(); _rfLoad();
+  var E = _bonE, p = document.createElement('div');
+  p.id = 'rf-pop'; p.className = 'rf-pop rf-top'; p.dataset.rf = 'top'; p.dataset.id = kind;
+  p.innerHTML = _RF_TOP[kind].map(function(i){ return '<button type="button" data-act="' + i[0] + '"><i class="ti ' + i[1] + '"></i><span>' + E(i[2]) + '<small>' + E(i[3]) + '</small></span></button>'; }).join('');
+  p.onclick = function(e){
+    var b = e.target.closest ? e.target.closest('button[data-act]') : null; if(!b) return;
+    var a = b.dataset.act; rfPopClose();
+    if(a === 'gear') rfGear(); else if(a === 'new') rfAdd(); else if(a === 'wwb') rfWwb();
+    else if(a === 'lists') rfWwbLists(); else if(a === 'csv') rfCsv(); else if(a === 'pdf') rfPdf();
+  };
+  document.body.appendChild(p);
+  var r = el.getBoundingClientRect(), W = window.innerWidth, H = window.innerHeight;
+  p.style.left = Math.max(8, Math.min(r.left, W - p.offsetWidth - 8)) + 'px';
+  p.style.top = (r.bottom + 6 + p.offsetHeight > H - 8 ? Math.max(8, r.top - p.offsetHeight - 6) : r.bottom + 6) + 'px';
+  document.addEventListener('mousedown', _rfPopOut, true);
+  document.addEventListener('keydown', _rfPopKey, true);
+  window.addEventListener('scroll', _rfPopScroll, true);
+  window.addEventListener('resize', rfPopClose);
+}
 function rfRowMenu(el){
   if(!CUR_SHOW || !el) return;
   var open = document.getElementById('rf-pop'), kind = el.dataset.rf === 'out' ? 'out' : 'il', id = String(el.dataset.id || '');
@@ -1615,7 +1659,7 @@ function _rfImportModal(){
     b += '<div class="rf-imp-d"><b>Par rapport aux canaux déjà présents</b><span>' + m.add + ' nouveau' + (m.add > 1 ? 'x' : '') + ' · ' + m.upd + ' modifié' + (m.upd > 1 ? 's' : '') + ' · ' + m.same + ' inchangé' + (m.same > 1 ? 's' : '') + ' · ' + m.gone + ' absent' + (m.gone > 1 ? 's' : '') + ' de ce show</span>' +
       (m.diffs.length ? '<ul>' + m.diffs.slice(0, 10).map(function(x){ return '<li><b>' + E(x.n) + '</b> ' + E(x.what.join(', ')) + '</li>'; }).join('') + (m.diffs.length > 10 ? '<li>et ' + (m.diffs.length - 10) + ' autres…</li>' : '') + '</ul>' : '') +
       (m.gone ? '<label class="rf-imp-c"><input type="checkbox" class="cb" ' + (P.drop ? 'checked' : '') + ' onchange="rfImportOpt(\'drop\',this.checked)"/><span>Retirer les ' + m.gone + ' canaux absents de ce show</span></label>' : '') +
-      '<p class="rf-note">Utilisateurs, types d\'émetteur, états, notes et liaisons sont conservés. L\'état actuel reste récupérable dans Versions.</p></div>';
+      '<p class="rf-note">Utilisateurs, types d\'émetteur, états, notes et liaisons sont conservés.</p></div>';
   }
   var extra = [];
   if(p.spare.length) extra.push(p.spare.length + ' fréquence' + (p.spare.length > 1 ? 's' : '') + ' de réserve');
@@ -1659,7 +1703,7 @@ function rfVersions(){
 }
 function rfRestore(i){
   var d = RF.data, v = d.vers[i]; if(!v) return;
-  if(!confirm('Restaurer cette version (' + v.ch.length + ' canaux) ? Les canaux actuels restent disponibles dans Versions.')) return;
+  if(!confirm('Restaurer cette version (' + v.ch.length + ' canaux) ?')) return;
   var ch = JSON.parse(JSON.stringify(v.ch));
   d.vers.splice(i, 1);
   _rfSnapshot('Avant restauration');
@@ -1672,7 +1716,7 @@ function rfRestore(i){
    liaison, canaux TV, inclusions, exclusions) sont enregistrés au fil de
    l'eau : ils servent aussi aux contrôles et au bandeau spectre. Les
    fréquences, elles, ne sont qu'un aperçu : rien n'est écrit sans
-   « Appliquer », et l'état précédent reste dans Versions. */
+   « Appliquer », et l'état précédent est gardé en version. */
 function _rfProfTxt(p){
   return p.cc + ' kHz' + (p.i3 ? ' · IM3 ' + p.i3 : '') + (p.i5 ? ' · IM5 ' + p.i5 : '') + (p.t3 ? ' · 3 ém. ' + p.t3 : '');
 }
@@ -1701,10 +1745,17 @@ function _rfCoPlan(inFn){
   var d = RF.data, co = d.coord, av = _rfAvoid(d), grp = {}, reps = [];
   _rfSorted().forEach(function(c){ var k = c.sh || c.id; if(!grp[k]){ grp[k] = []; reps.push(c); } grp[k].push(c); });
   var chs = reps.map(function(c){
-    var r = _rfRange(c);
-    return { id:c.id, f:c.f, lo:r ? r[0] : co.lo, hi:r ? r[1] : co.hi, fixed:!grp[c.sh || c.id].some(inFn) || grp[c.sh || c.id].some(function(m){ return m.lk && m.f; }), p:_rfProf(c, c.cm || co.mode), dir:c.cd || co.dir, z:c.zone, step:(_rfCatBand(c.ser, c.band) || {}).st || 0 };
+    var r = _rfRange(c), dr = c.cd || co.dir, rr = r ? _rfFromRange(r, co.from, dr) : null;
+    return { id:c.id, f:c.f, lo:rr ? rr[0] : co.lo, hi:rr ? rr[1] : co.hi, lo0:r ? r[0] : co.lo, hi0:r ? r[1] : co.hi, fixed:!grp[c.sh || c.id].some(inFn) || grp[c.sh || c.id].some(function(m){ return m.lk && m.f; }), p:_rfProf(c, c.cm || co.mode), dir:dr, z:c.zone, step:(_rfCatBand(c.ser, c.band) || {}).st || 0 };
   });
-  var res = _rfCoord(chs, { step:25, avoid:av.ban.map(function(b){ return [b.a, b.b]; }), include:av.inc, iso:d.iso, zim:d.zim });
+  var opt = { step:25, avoid:av.ban.map(function(b){ return [b.a, b.b]; }), include:av.inc, iso:d.iso, zim:d.zim };
+  var res = _rfCoord(chs, opt);
+  /* Départ au milieu de la bande : ce qui n'y tient pas repart du bord de bande, autour de ce qui est placé */
+  if(co.from && res.missed){
+    var got = {}; res.list.forEach(function(x){ got[x.id] = x.f; });
+    var r2 = _rfCoord(chs.map(function(c){ return got[c.id] ? Object.assign({}, c, { fixed:true, f:got[c.id] }) : Object.assign({}, c, { lo:c.lo0, hi:c.hi0 }); }), opt);
+    res = { list:res.list.filter(function(l){ return l.f > 0; }).concat(r2.list), placed:res.placed + r2.placed, missed:r2.missed, err:res.err || r2.err };
+  }
   var byRep = {}, map = {}; res.list.forEach(function(x){ byRep[x.id] = x.f; });
   reps.forEach(function(c){ if(byRep[c.id] !== undefined) grp[c.sh || c.id].forEach(function(m){ map[m.id] = byRep[c.id]; }); });
   var after = d.ch.map(function(c){ return Object.assign({}, c, { f:map[c.id] || c.f }); });
@@ -1722,7 +1773,7 @@ function _rfCoordModal(){
   var opt = function(v, l, cur){ return '<option value="' + E(v) + '"' + (cur === v ? ' selected' : '') + '>' + E(l) + '</option>'; };
   var b = '<div class="rf-co">' +
     '<div class="rf-co-row"><span>Compatibilité</span>' + seg('mode', _RF_LVL) + '<small>pour tous les canaux concernés ; les écarts dépendent de chaque appareil, et se règlent ensuite liaison par liaison, plus bas. Les produits d\'intermodulation naissent entre émetteurs d\'une même zone et protègent les liaisons de toutes les zones ; l\'écart entre porteuses vaut entre toutes.</small></div>' +
-    '<div class="rf-co-row"><span>Sens</span>' + seg('dir', [['up', 'Croissant'], ['down', 'Décroissant']]) + '<small>pour tous les canaux concernés : ' + (co.dir === 'down' ? 'du haut de chaque bande vers le bas' : 'du bas de chaque bande vers le haut') + ', les liaisons les plus exigeantes d\'abord puis l\'ordre de la liste</small></div>' +
+    '<div class="rf-co-row"><span>Sens</span>' + seg('dir', [['up', 'Croissant'], ['down', 'Décroissant']]) + _rfFromField() + '<small>pour tous les canaux concernés : ' + (co.dir === 'down' ? 'du haut de chaque bande vers le bas' : 'du bas de chaque bande vers le haut') + ', les liaisons les plus exigeantes d\'abord puis l\'ordre de la liste</small></div>' +
     '<div class="rf-co-row"><span>Canaux</span><select class="rf-sel" onchange="rfCoordOpt(\'scope\',this.value)">' + opt('all', 'Tous les canaux (' + d.ch.length + ')', o.scope) +
       zs.map(function(z){ return opt('z:' + z, 'Zone ' + z + ' (' + nz(z) + ')', o.scope); }).join('') + (empty ? opt('empty', 'Seulement les canaux sans fréquence (' + empty + ')', o.scope) : '') + '</select>' +
       '<small>' + (o.scope === 'all' ? 'les fréquences libres sont recalculées' : 'les autres fréquences sont gardées et protégées') + ' ; les fréquences verrouillées ne bougent jamais</small></div>' +
@@ -1861,7 +1912,7 @@ function rfCoordApply(){
   d.ch.forEach(function(c){ var f = P.map[c.id]; if(f){ c.f = f; if(lock) c.lk = true; n++; } });
   RF.data = _rfClean(d); RF.co = null; RF.onClose = null;
   rfModalClose(); _rfSave(); _rfMirrorAll(); renderRf();
-  toast(n + ' fréquence' + (n > 1 ? 's appliquées' : ' appliquée') + '. À régler sur les appareils ; l\'état précédent reste dans Versions.');
+  toast(n + ' fréquence' + (n > 1 ? 's appliquées' : ' appliquée') + '. À régler sur les appareils.');
 }
 
 /* ── Ajouter du matériel depuis le catalogue ───────────────────────────

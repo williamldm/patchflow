@@ -132,9 +132,9 @@
     avd.coord.sx = false;
     eq('exclusions de la session désactivables', _rfAvoid(avd).ban.length, 2);
     eq('réglages nettoyés', _rfClean({ coord:{ mode:'zz', dir:'down', lo:900000, hi:100, tv:[21, 21, 99, '30'], tvw:8, sx:false, rules:[{ t:'in', a:500000, b:510000 }, { t:'x', a:5, b:1 }] } }).coord,
-      { mode:'std', dir:'down', lo:470000, hi:694000, tv:[21, 30], tvw:8, sx:false, rules:[{ t:'in', a:500000, b:510000 }] });
+      { mode:'std', dir:'down', from:0, lo:470000, hi:694000, tv:[21, 30], tvw:8, sx:false, rules:[{ t:'in', a:500000, b:510000 }] });
     eq('ancien champ « à éviter » repris en exclusions', _rfClean({ coord:{ avoid:'470-478' } }).coord.rules, [{ t:'ex', a:470000, b:478000 }]);
-    eq('réglages par défaut', _rfClean({}).coord, { mode:'std', dir:'up', lo:470000, hi:694000, tv:[], tvw:8, sx:true, rules:[] });
+    eq('réglages par défaut', _rfClean({}).coord, { mode:'std', dir:'up', from:0, lo:470000, hi:694000, tv:[], tvw:8, sx:true, rules:[] });
     eq('niveau et sens d\'une liaison', [_rfCleanCh({ cm:'rob', cd:'down' }).cm, _rfCleanCh({ cm:'rob', cd:'down' }).cd, _rfCleanCh({ cm:'x', cd:1 }).cm, _rfCleanCh({ cm:'x', cd:1 }).cd], ['rob', 'down', '', '']);
     eq('contrôle : fréquence dans un canal TV à éviter', codes({ ch:[mk({ f:545000 })], coord:{ tv:[30], tvw:8 } }), ['warn:excl']);
     eq('contrôle : fréquence hors des inclusions', codes({ ch:[mk({ f:600000 })], coord:{ rules:[{ t:'in', a:500000, b:560000 }] } }), ['warn:incl']);
@@ -176,6 +176,14 @@
     t('fréquences au pas de 25 kHz et dans la plage', up.fs.every(function(f){ return f % 25 === 0 && f >= 470150 && f <= 636000; }));
     var dn = run(N(24, { dir:'down' }));
     eq('sens décroissant : part du haut de la bande', [dn.placed, dn.fs[0], dn.fs.every(function(f, q){ return !q || f < dn.fs[q - 1]; }), _rfCompat(dn.all).list.length], [24, 636000, true, 0]);
+    /* Départ à une fréquence choisie (pas forcément le bord de bande) */
+    var bd = [470150, 636000];
+    eq('départ : vers le haut à partir de la fréquence, vers le bas jusqu\'à elle', [_rfFromRange(bd, 600000, 'up'), _rfFromRange(bd, 600000, 'down')], [[600000, 636000], [470150, 600000]]);
+    eq('départ hors bande ou nul : bord de bande gardé', [_rfFromRange(bd, 0, 'up'), _rfFromRange(bd, 400000, 'up'), _rfFromRange(bd, 700000, 'down')], [bd, bd, bd]);
+    var fu = run(N(10, { lo:600000, hi:636000 }));
+    eq('croissant depuis 600 MHz : tout est au-dessus, en montant', [fu.placed, fu.fs[0], fu.fs.every(function(f, q){ return f >= 600000 && (!q || f > fu.fs[q - 1]); }), _rfCompat(fu.all).list.length], [10, 600000, true, 0]);
+    var fd = run(N(10, { dir:'down', lo:470150, hi:600000 }));
+    eq('décroissant depuis 600 MHz : tout est en dessous, en descendant', [fd.placed, fd.fs[0], fd.fs.every(function(f, q){ return f <= 600000 && (!q || f < fd.fs[q - 1]); })], [10, 600000, true]);
     var mo = run(N(24, null, 'AD', 'more'));
     eq('AD « plus de fréquences » : simple pas de 350 kHz', [mo.fs[1] - mo.fs[0], mo.fs[23]], [350, 470150 + 23 * 350]);
     var rb = run(N(24, null, 'AD', 'rob'));

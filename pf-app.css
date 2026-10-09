@@ -4144,3 +4144,11 @@ button.rf-tile.act:hover{box-shadow:inset 0 0 0 1px var(--bdr3)}
 .rf-gf-n{display:block;padding:7px 0;font:600 13px var(--f);color:var(--txt)}
 @media(max-width:900px){ .rf-quick .rf-grow{display:none} .rf-quick-s{flex-basis:100%} }
 @media(max-width:768px){ .rf-selbar{flex-wrap:wrap;justify-content:center;width:calc(100vw - 16px);overflow-x:visible;padding:8px 10px;row-gap:6px} }
+
+/* RF : menus de l'en-tête, départ du calcul */
+.rf-pop.rf-top{width:310px}
+.rf-pop small{display:block;margin-top:1px;font:400 11.5px var(--f);color:var(--muted)}
+.rf-chev{font-size:14px;margin-left:2px;color:var(--muted)}
+.rf-from{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
+.rf-from input{width:104px}
+.rf-co-row .rf-from{margin-left:10px}
