@@ -8,7 +8,7 @@
    .shw, bandes, contrôles, fusion) ne dépend de rien d'autre que du
    navigateur : elle est testée seule par tests/rf.html.
 
-   Le calcul de fréquences (« Coordonner ») reprend les règles et les
+   Le calcul de fréquences reprend les règles et les
    écarts de Wireless Workbench (porteuses, intermodulation par zone et
    dans le filtre du récepteur), sans les fréquences parasites propres
    aux appareils ni le spectre du lieu. Il ne garantit pas une coordination
@@ -851,7 +851,7 @@ function _rfLoad(){
   var id = CUR_SHOW && CUR_SHOW.id;
   if(RF.showId === id && RF.data) return;
   RF.showId = id; RF.data = _rfClean(CUR_SHOW && CUR_SHOW.stage_data && CUR_SHOW.stage_data.rf);
-  RF.q = ''; RF.fk = ''; RF.fz = ''; RF.fs = ''; RF.look = false; RF.lq = ''; RF.pend = null; RF.allAl = false; RF.sel = {}; RF.selLast = '';
+  RF.q = ''; RF.fk = ''; RF.fz = ''; RF.fs = ''; RF.look = false; RF.lq = ''; RF.pend = null; RF.allAl = false; RF.sel = {}; RF.selLast = ''; RF.calcUndo = null;
 }
 function _rfSave(){
   if(!CUR_SHOW || !RF.data) return;
@@ -911,9 +911,9 @@ function _rfVisible(){
 function _rfAlerts(){
   var all = _rfChecks(RF.data, _rfIl()), by = {};
   all.forEach(function(a){ if(a.lvl === 'info') return; a.ids.forEach(function(id){ (by[id] = by[id] || []).push(a); }); });
-  /* Intermodulation : une seule ligne, le détail et le recalcul sont dans Coordonner */
+  /* Intermodulation : une seule ligne ; le recalcul est dans la bande « Fréquences », le détail dans ses Options */
   var cp = _rfCompat(_rfWithProf(RF.data.ch), RF.data.iso, RF.data.zim), imd = cp.list.filter(function(x){ return x.t !== 'cc'; }).length;
-  if(imd) all.push({ lvl:'info', code:'imd', ids:[], msg:'Intermodulation : ' + imd + (cp.more ? '+' : '') + ' conflit' + (imd > 1 ? 's' : '') + ' entre les fréquences actuelles, au niveau de compatibilité de chaque liaison (calcul simplifié). Ouvrir Coordonner.' });
+  if(imd) all.push({ lvl:'info', code:'imd', ids:[], msg:'Intermodulation : ' + imd + (cp.more ? '+' : '') + ' conflit' + (imd > 1 ? 's' : '') + ' entre les fréquences actuelles, au niveau de compatibilité de chaque liaison (calcul simplifié). Calculer leur trouve des fréquences compatibles.' });
   return { all:all, by:by };
 }
 
@@ -954,8 +954,7 @@ function renderRf(){
       '<button class="btn pri" onclick="rfImport()"><i class="ti ti-file-import"></i>Importer un show WWB</button>' +
       '<button class="btn" onclick="rfGear()" title="Ajouter des appareils Shure ou Sennheiser depuis le catalogue"><i class="ti ti-antenna"></i>Matériel</button>' +
       '<button class="btn" onclick="rfAdd()"><i class="ti ti-plus"></i>Canal</button>' +
-      (n ? '<button class="btn" onclick="rfCoord()" title="Calculer des fréquences compatibles"><i class="ti ti-wave-sine"></i>Coordonner</button>' +
-           '<button class="btn" onclick="rfLook(true)"><i class="ti ti-eye"></i>Consultation</button>' +
+      (n ? '<button class="btn" onclick="rfLook(true)"><i class="ti ti-eye"></i>Consultation</button>' +
            '<button class="btn" onclick="rfPdf()"><i class="ti ti-file-type-pdf"></i>Feuille RF</button>' : '') +
     '</div></header>';
   if(!n){
@@ -966,7 +965,7 @@ function renderRf(){
   }
   var zs = _rfZones();
   var opt = function(v, l, cur){ return '<option value="' + E(v) + '"' + (v === cur ? ' selected' : '') + '>' + E(l) + '</option>'; };
-  h += '<div class="bonp-tiles" id="rf-tiles"></div><section class="rf-card" id="rf-spec"></section><section id="rf-alerts"></section>';
+  h += '<div class="bonp-tiles" id="rf-tiles"></div><section class="rf-card" id="rf-spec"></section><div id="rf-quick"></div>';
   h += '<div class="rf-bar">' +
     '<label class="rf-search"><i class="ti ti-search"></i><input id="rf-q" type="search" placeholder="Nom, artiste, fréquence…" value="' + E(RF.q) + '" oninput="rfSearch(this.value)" autocomplete="off"/></label>' +
     '<div class="rf-seg">' + [['', 'Tous'], ['mic', 'Micros'], ['iem', 'IEM']].map(function(k){ return '<button type="button" class="' + (RF.fk === k[0] ? 'on' : '') + '" onclick="rfFilter(\'fk\',\'' + k[0] + '\')">' + k[1] + '</button>'; }).join('') + '</div>' +
@@ -993,13 +992,13 @@ function _rfPaintSide(){
   var mics = d.ch.filter(function(c){ return c.kind === 'mic'; }).length, iem = d.ch.filter(function(c){ return c.kind === 'iem'; }).length;
   var ok = d.ch.filter(function(c){ return c.lk; }).length, pb = 0;
   var errs = al.all.filter(function(a){ return a.lvl === 'err'; }).length, warns = al.all.filter(function(a){ return a.lvl === 'warn'; }).length;
-  var tile = function(cls, icon, l, b, s){ return '<div class="bonp-tile rf-tile ' + cls + '"><i class="ti ' + icon + '"></i><span class="bonp-tile-l">' + l + '</span><b>' + b + '</b><span class="bonp-tile-s">' + s + '</span></div>'; };
+  var tile = function(cls, icon, l, b, s, act){ var tg = act ? 'button type="button" onclick="' + act + '"' : 'div'; return '<' + tg + ' class="bonp-tile rf-tile ' + cls + (act ? ' act' : '') + '"><i class="ti ' + icon + '"></i><span class="bonp-tile-l">' + l + '</span><b>' + b + '</b><span class="bonp-tile-s">' + s + '</span></' + (act ? 'button' : 'div') + '>'; };
   var t = document.getElementById('rf-tiles');
   if(t) t.innerHTML =
     tile('', 'ti-antenna', 'Canaux', d.ch.length, mics + ' micro' + (mics > 1 ? 's' : '') + ' · ' + iem + ' IEM' + (d.ch.length - mics - iem ? ' · ' + (d.ch.length - mics - iem) + ' autre' : '')) +
     tile('', 'ti-map-pin', 'Zones', zs.length || '—', E(zs.slice(0, 3).join(' · ') + (zs.length > 3 ? '…' : '')) || 'aucune zone') +
     tile(ok === d.ch.length ? 'ok' : '', 'ti-lock', 'Verrouillées', ok + '<small> / ' + d.ch.length + '</small>', ok === d.ch.length ? 'toutes les fréquences sont figées' : (d.ch.length - ok) + ' libre' + (d.ch.length - ok > 1 ? 's' : '') + ' pour le calcul') +
-    tile(errs ? 'bad' : (warns ? '' : 'ok'), 'ti-alert-triangle', 'Alertes', errs + warns, errs + warns ? errs + ' bloquante' + (errs > 1 ? 's' : '') + ' · ' + warns + ' à vérifier' : 'aucune');
+    tile(errs ? 'bad' : (warns ? '' : 'ok'), 'ti-alert-triangle', 'Alertes', errs + warns, errs + warns ? errs + ' bloquante' + (errs > 1 ? 's' : '') + ' · ' + warns + ' à vérifier' : (al.all.length ? al.all.length + ' remarque' + (al.all.length > 1 ? 's' : '') : 'aucune'), al.all.length ? 'rfAlerts()' : '');
 
   var sp = document.getElementById('rf-spec');
   if(sp){
@@ -1009,17 +1008,6 @@ function _rfPaintSide(){
     sp.innerHTML = !svg ? '<h3>Spectre</h3>' + _rfScanBar() : '<h3>Spectre <small>fréquences du show, de la plus basse à la plus haute</small></h3>' + svg + _rfScanBar() +
       '<div class="rf-leg">' + zs.map(function(z){ return '<button type="button" class="' + (RF.fz === z ? 'on' : '') + '" data-z="' + E(z) + '" onclick="rfFilter(\'fz\',RF.fz===this.dataset.z?\'\':this.dataset.z)"><i style="background:' + _rfHue(z, zs) + '"></i>' + E(z) + ' <em>' + (cnt[z] || 0) + '</em></button>'; }).join('') +
       '<span class="rf-leg-k"><i class="k-mic"></i>micro <i class="k-iem"></i>IEM' + (d.spare.length ? ' <i class="k-sp"></i>réserve' : '') + (_rfAvoid(d).ban.length ? ' <i class="k-ex"></i>à éviter' : '') + (d.scan ? ' <i class="k-sc"></i>scan' : '') + '</span></div>';
-  }
-  var box = document.getElementById('rf-alerts');
-  if(box){
-    var list = RF.allAl ? al.all : al.all.slice(0, 6), ico = { err:'ti-alert-triangle', warn:'ti-alert-circle', info:'ti-info-circle' };
-    box.className = 'rf-card rf-alc' + (al.all.length ? '' : ' none');
-    box.innerHTML = (al.all.length
-      ? '<h3>Contrôles <small>' + al.all.length + ' point' + (al.all.length > 1 ? 's' : '') + '</small></h3><div class="rf-all">' +
-        list.map(function(a){ return '<button type="button" class="rf-alr ' + a.lvl + '"' + (a.code === 'imd' ? ' onclick="rfCoord()"' : a.code === 'ilhf' ? ' onclick="rfFromIl()"' : a.code === 'ilf' ? ' onclick="rfMirrorFix()"' : a.ids.length ? ' data-go="' + a.ids[0] + '" onclick="rfFocus(this.dataset.go)"' : ' disabled') + '><i class="ti ' + ico[a.lvl] + '"></i><span>' + E(a.msg) + '</span></button>'; }).join('') + '</div>' +
-        (al.all.length > 6 ? '<button type="button" class="ov-link" onclick="RF.allAl=!RF.allAl;_rfPaintSide()">' + (RF.allAl ? 'Réduire' : 'Tout afficher (' + al.all.length + ')') + '</button>' : '')
-      : '<p class="rf-okline"><i class="ti ti-circle-check"></i>Aucune alerte sur les contrôles simples.</p>') +
-      '<p class="rf-note">Contrôles simples sur les fréquences saisies : doublons, espacement du profil de la session, plage d\'accord, exclusions. Le calcul de fréquences compatibles (intermodulation comprise) est dans Coordonner ; il reste simplifié et se valide par un scan sur place.</p>';
   }
   /* Pastilles d'alerte des lignes déjà affichées */
   document.querySelectorAll('#rf-list .rf-al').forEach(function(s){
@@ -1096,7 +1084,7 @@ function _rfPaintTable(){
       var nz = list.filter(function(x){ return x.zone === c.zone; }).length;
       h += '<tr class="rf-g" data-z="' + E(c.zone) + '"><td colspan="10"><label class="il-ck" title="Sélectionner cette zone"><input type="checkbox" class="cb rf-ck-z" onclick="rfSelZone(this)" aria-label="Sélectionner la zone"/></label><i style="background:' + _rfHue(c.zone, zs) + '"></i>' + E(c.zone || 'Sans zone') + '<em>' + _rfPl(nz) + '</em></td></tr>';
     }
-    var r = _rfRange(c), sub = [c.mk && c.mk !== 'Generic' && c.mdl.indexOf(c.mk) < 0 ? c.mk : '', c.mdl, _rfDevLbl(c), c.gc, c.pw ? c.pw + ' mW' : ''].filter(Boolean).join(' · ');
+    var r = _rfRange(c), sub = [c.mk && c.mk !== 'Generic' && c.mdl.indexOf(c.mk) < 0 ? c.mk : '', c.mdl, _rfDevLbl(c), c.gc, c.pw ? c.pw + ' mW' : '', c.cm ? (c.cm === 'wwb' ? 'profil du show' : _rfLvlLbl(c.cm)) : '', c.cd ? (c.cd === 'down' ? 'décroissant' : 'croissant') : ''].filter(Boolean).join(' · ');
     h += '<tr class="rf-r" data-id="' + c.id + '">' +
       '<td data-label="Verrou" class="rf-c-lk"><label class="il-ck" title="Sélectionner (Maj + clic : une plage)"><input type="checkbox" class="cb rf-ck" data-id="' + c.id + '" onclick="rfSelToggle(this,event)" aria-label="Sélectionner ce canal"/></label><button type="button" class="rf-lock' + (c.lk ? ' on' : '') + '" onclick="rfLock(this)" title="' + (c.lk ? 'Fréquence verrouillée : le calcul et les imports n\'y touchent pas. Cliquer pour libérer.' : 'Verrouiller cette fréquence') + '" aria-pressed="' + (c.lk ? 'true' : 'false') + '"><i class="ti ' + (c.lk ? 'ti-lock' : 'ti-lock-open') + '"></i></button></td>' +
       '<td data-label="Nom" class="rf-c-n"><input class="rf-in b" value="' + E(c.n) + '" placeholder="Nom du canal" onchange="rfSet(this,\'n\')" maxlength="60"/>' + (sub ? '<small>' + E(sub) + '</small>' : '') + '</td>' +
@@ -1160,6 +1148,66 @@ function rfDel(el){
   RF.data.ch = RF.data.ch.filter(function(x){ return x !== c; });
   _rfSave(); if(linked) _rfIlRefresh(); renderRf();
 }
+/* ── Calcul des fréquences depuis la page ──────────────────────────────
+   Niveau, sens, puis « Calculer » : pas de fenêtre. Le calcul porte sur les canaux cochés, sinon
+   sur la liste affichée ; les fréquences verrouillées et celles hors périmètre sont gardées et
+   protégées. « Annuler » revient à l'état d'avant. Canaux TV, inclusions et exclusions restent
+   dans Options. */
+function _rfQuickScope(){
+  var sel = _rfSelIds(), ids = {}, list;
+  if(sel.length){ sel.forEach(function(id){ ids[id] = 1; }); list = sel.map(_rfGet).filter(Boolean); }
+  else { list = _rfVisible(); list.forEach(function(c){ ids[c.id] = 1; }); }
+  return { ids:ids, list:list, sel:sel.length > 0 };
+}
+function _rfPaintQuick(){
+  var box = document.getElementById('rf-quick'); if(!box || !RF.data) return;
+  var d = RF.data, co = d.coord, sc = _rfQuickScope(), free = sc.list.filter(function(c){ return !(c.lk && c.f); }).length;
+  var same = function(fn){ var v = null, ok = true; sc.list.forEach(function(c){ var x = fn(c); if(v === null) v = x; else if(v !== x) ok = false; }); return ok ? v : ''; };
+  var lv = sc.list.length ? same(function(c){ return c.cm || co.mode; }) : co.mode, dr = sc.list.length ? same(function(c){ return c.cd || co.dir; }) : co.dir;
+  var seg = function(k, cur, list){ return '<div class="rf-seg">' + list.map(function(x){ return '<button type="button" class="' + (cur === x[0] ? 'on' : '') + '" onclick="rfQuick(\'' + k + '\',\'' + x[0] + '\')" title="' + x[2] + '">' + x[1] + '</button>'; }).join('') + '</div>'; };
+  box.className = 'rf-quick';
+  box.innerHTML = '<span class="rf-quick-t"><i class="ti ti-wave-sine"></i>Fréquences</span>' +
+    seg('mode', lv, [['rob', 'Robuste', 'Écarts les plus larges'], ['std', 'Standard', 'Écarts recommandés'], ['more', 'Plus de fréquences', 'Écarts réduits']]) +
+    seg('dir', dr, [['up', '<i class="ti ti-sort-ascending"></i>Croissant', 'Du bas de la bande vers le haut'], ['down', '<i class="ti ti-sort-descending"></i>Décroissant', 'Du haut de la bande vers le bas']]) +
+    '<button type="button" class="btn pri sm" onclick="rfQuickCalc()"' + (free ? '' : ' disabled') + '><i class="ti ti-calculator"></i>Calculer ' + (free ? free + ' fréquence' + (free > 1 ? 's' : '') : '') + '</button>' +
+    (RF.calcUndo ? '<button type="button" class="btn sm" onclick="rfQuickUndo()"><i class="ti ti-arrow-back-up"></i>Annuler</button>' : '') +
+    '<span class="rf-quick-s">' + (sc.sel ? 'sur les ' + _rfPl(sc.list.length) + ' cochés' : (RF.fk || RF.fz || RF.fs || RF.q ? 'sur la liste affichée' : 'sur tous les canaux')) + (sc.list.length - free ? ' · ' + (sc.list.length - free) + ' verrouillé' + (sc.list.length - free > 1 ? 's' : '') : '') + '</span>' +
+    '<span class="rf-grow"></span><button type="button" class="btn sm" onclick="rfCoord()" title="Canaux TV, plages à éviter ou à réserver, aperçu avant d\'appliquer"><i class="ti ti-adjustments"></i>Options</button>';
+}
+/* Niveau ou sens : pour les canaux cochés s'il y en a, sinon pour toute la liste affichée */
+function rfQuick(k, v){
+  var d = RF.data, co = d.coord, sc = _rfQuickScope(), f = k === 'mode' ? 'cm' : 'cd';
+  var val = k === 'mode' ? _rfLvl(v) : (v === 'down' ? 'down' : 'up');
+  if(sc.sel) sc.list.forEach(function(c){ c[f] = val; });
+  else {
+    sc.list.forEach(function(c){ c[f] = ''; });
+    if(sc.list.length === d.ch.length) co[k] = val; else sc.list.forEach(function(c){ c[f] = val; });
+  }
+  _rfSave(); _rfPaintTable();
+}
+function rfQuickCalc(){
+  var d = RF.data, sc = _rfQuickScope();
+  var P = _rfCoPlan(function(c){ return !!sc.ids[c.id]; }), n = 0;
+  if(!P.todo){ toast('Rien à calculer : ces fréquences sont verrouillées.'); return; }
+  if(!P.res.placed){ toast('Aucune fréquence libre trouvée avec ces réglages : baissez le niveau, ou voyez Options.'); return; }
+  /* Un seul point de retour pour une série d'essais : les versions gardées ne sont pas chassées par dix calculs de suite */
+  var lbl = 'Avant le calcul des fréquences', last = d.vers[d.vers.length - 1], old = {};
+  if(!last || last.label !== lbl) _rfSnapshot(lbl);
+  d.ch.forEach(function(c){ var f = P.map[c.id]; if(f){ old[c.id] = c.f || 0; c.f = f; n++; } });
+  RF.calcUndo = old;
+  _rfSave(); _rfMirrorAll(); renderRf();
+  var left = P.after.list.length;
+  toast(n + ' fréquence' + (n > 1 ? 's calculées' : ' calculée') + (P.res.missed ? ' · ' + P.res.missed + ' sans place' : '') + (left ? ' · ' + left + (P.after.more ? '+' : '') + ' conflit' + (left > 1 ? 's' : '') + ' restant' + (left > 1 ? 's' : '') : ' · aucun conflit'));
+}
+/* Rend aux canaux calculés leur fréquence d'avant, sans toucher à ce qui a été modifié depuis */
+function rfQuickUndo(){
+  var old = RF.calcUndo, n = 0; if(!old) return;
+  RF.data.ch.forEach(function(c){ if(old[c.id] !== undefined && !c.lk){ c.f = old[c.id]; n++; } });
+  RF.calcUndo = null;
+  _rfSave(); _rfMirrorAll(); renderRf();
+  toast('Calcul annulé : ' + n + ' fréquence' + (n > 1 ? 's rétablies' : ' rétablie'));
+}
+
 /* ── Sélection de plusieurs canaux ─────────────────────────────────────
    Case sur chaque ligne (Maj + clic : une plage), case de zone, case « tout » ;
    une barre d'actions apparaît : verrouiller, libérer, niveau, zone, supprimer. */
@@ -1176,13 +1224,16 @@ function _rfSelSync(){
     var g = z.closest('tr').dataset.z, mem = vis.filter(function(c){ return c.zone === g; }), k = mem.filter(function(c){ return RF.sel[c.id]; }).length;
     z.checked = !!mem.length && k === mem.length; z.indeterminate = k > 0 && k < mem.length;
   });
+  if(live) _rfPaintQuick();
   if(!live || !n){ if(bar) bar.remove(); return; }
   var E = _bonE, zs = _rfZones(), lk = _rfSelIds().filter(function(id){ var c = _rfGet(id); return c && c.lk; }).length;
   var html = '<b>' + n + '</b><span>sélectionné' + (n > 1 ? 's' : '') + (lk ? ' · ' + lk + ' verrouillé' + (lk > 1 ? 's' : '') : '') + '</span>' +
     '<button type="button" class="btn sm" onclick="rfSelLock(true)"><i class="ti ti-lock"></i>Verrouiller</button>' +
     '<button type="button" class="btn sm" onclick="rfSelLock(false)"><i class="ti ti-lock-open"></i>Libérer</button>' +
     '<select class="rf-sel xs" onchange="rfSelLevel(this)" aria-label="Niveau de compatibilité"><option value="?">Niveau…</option><option value="">Par défaut</option>' + _RF_LVL.map(function(l){ return '<option value="' + l[0] + '">' + l[1] + '</option>'; }).join('') + '</select>' +
+    '<select class="rf-sel xs" onchange="rfSelDir(this)" aria-label="Sens du calcul"><option value="?">Sens…</option><option value="">Par défaut</option><option value="up">Croissant</option><option value="down">Décroissant</option></select>' +
     '<select class="rf-sel xs" onchange="rfSelZoneSet(this)" aria-label="Zone"><option value="?">Zone…</option>' + zs.map(function(z){ return '<option value="' + E(z) + '">' + E(z) + '</option>'; }).join('') + '<option value="__none">Sans zone</option><option value="__new">Nouvelle zone…</option></select>' +
+    '<button type="button" class="btn sm" onclick="rfSelGear()" title="Attribuer un modèle d\'appareil et une bande à ces canaux"><i class="ti ti-antenna"></i>Matériel</button>' +
     '<button type="button" class="btn sm il-selbar-del" onclick="rfSelDel()"><i class="ti ti-trash"></i>Supprimer</button>' +
     '<button type="button" class="rf-ib on" onclick="rfSelClear()" title="Tout désélectionner" aria-label="Tout désélectionner"><i class="ti ti-x"></i></button>';
   if(!bar){ bar = document.createElement('div'); bar.id = 'rf-selbar'; bar.className = 'il-selbar rf-selbar'; document.body.appendChild(bar); }
@@ -1216,6 +1267,23 @@ function rfSelLevel(el){
   _rfSave(); renderRf(); _rfSelSync();
   toast('Niveau ' + (v ? _rfLvlLbl(v) : 'par défaut') + ' pour ' + _rfPl(list.length));
 }
+function rfSelDir(el){
+  var v = el.value; el.value = '?'; if(v === '?') return;
+  var list = _rfSelList(); list.forEach(function(c){ c.cd = (v === 'up' || v === 'down') ? v : ''; });
+  _rfSave(); renderRf(); _rfSelSync();
+  toast('Sens ' + (v === 'down' ? 'décroissant' : v === 'up' ? 'croissant' : 'par défaut') + ' pour ' + _rfPl(list.length));
+}
+/* Attribuer du matériel du catalogue aux canaux cochés (lignes venues de l'input list, canaux saisis à la main…) */
+function rfSelGear(){
+  /* Ordre de rangement dans les appareils : celui de l'input list, puis des sorties, pour les canaux qui y sont liés
+     (ligne 1 = canal 1 du premier récepteur) ; les autres suivent, dans l'ordre du tableau. */
+  var il = _rfIl(), pos = {}, order = {};
+  il.chs.forEach(function(r, i){ pos['il:' + r.id] = i; }); il.outs.forEach(function(r, i){ pos['out:' + r.id] = 10000 + i; });
+  _rfSorted().forEach(function(c, i){ var k = c.il ? pos['il:' + c.il] : c.out ? pos['out:' + c.out] : undefined; order[c.id] = k === undefined ? 20000 + i : k; });
+  var ids = _rfSelIds().filter(function(id){ return order[id] !== undefined; }).sort(function(a, b){ return order[a] - order[b]; });
+  if(!ids.length) return;
+  rfGear(ids);
+}
 function rfSelZoneSet(el){
   var v = el.value; el.value = '?'; if(v === '?') return;
   var z = v === '__none' ? '' : v;
@@ -1248,6 +1316,17 @@ function rfLockAll(on){
   if(!n){ toast(on ? 'Rien à verrouiller : aucune fréquence libre dans la liste affichée.' : 'Aucune fréquence verrouillée dans la liste affichée.'); return; }
   _rfSave(); renderRf();
   toast(n + ' fréquence' + (n > 1 ? 's ' : ' ') + (on ? 'verrouillée' : 'libérée') + (n > 1 ? 's' : ''));
+}
+/* Liste des alertes, ouverte depuis la tuile « Alertes » */
+function rfAlerts(){
+  var al = _rfAlerts(), E = _bonE, ico = { err:'ti-alert-triangle', warn:'ti-alert-circle', info:'ti-info-circle' };
+  if(!al.all.length){ toast('Aucune alerte.'); return; }
+  _rfModal('Alertes', 'ti-alert-triangle',
+    '<div class="rf-all">' + al.all.map(function(a){
+      var act = a.code === 'imd' ? 'rfModalClose()' : a.code === 'ilhf' ? 'rfFromIl()' : a.code === 'ilf' ? 'rfModalClose();rfMirrorFix()' : a.ids.length ? 'rfModalClose();rfFocus(this.dataset.go)' : '';
+      return '<button type="button" class="rf-alr ' + a.lvl + '"' + (a.ids.length ? ' data-go="' + a.ids[0] + '"' : '') + (act ? ' onclick="' + act + '"' : ' disabled') + '><i class="ti ' + ico[a.lvl] + '"></i><span>' + E(a.msg) + '</span></button>'; }).join('') + '</div>' +
+    '<p class="rf-note">Doublons, écart entre porteuses, plage d\'accord, plages à éviter et intermodulation, au niveau de compatibilité de chaque liaison. Calcul simplifié : il se valide par un scan sur place.</p>',
+    '<button class="btn pri sm" onclick="rfModalClose()">Fermer</button>', 620);
 }
 function rfWhy(el){
   var a = _rfAlerts().by[_rfRowId(el)] || [];
@@ -1589,7 +1668,7 @@ function rfRestore(i){
 }
 
 /* ── Calcul des fréquences ─────────────────────────────────────────────
-   Fenêtre « Coordonner ». Les réglages (niveau et sens par défaut ou par
+   Fenêtre des options de calcul (bouton « Options » de la bande « Fréquences »). Les réglages (niveau et sens par défaut ou par
    liaison, canaux TV, inclusions, exclusions) sont enregistrés au fil de
    l'eau : ils servent aussi aux contrôles et au bandeau spectre. Les
    fréquences, elles, ne sont qu'un aperçu : rien n'est écrit sans
@@ -1617,12 +1696,13 @@ function rfCoord(){
 }
 function rfCoordClose(){ RF.co = null; rfModalClose(); renderRf(); }
 function _rfCoIn(c){ var s = RF.co.scope; return s === 'empty' ? !c.f : s.indexOf('z:') === 0 ? c.zone === s.slice(2) : true; }
-function _rfCoPlan(){
+function _rfCoPlan(inFn){
+  inFn = inFn || _rfCoIn;
   var d = RF.data, co = d.coord, av = _rfAvoid(d), grp = {}, reps = [];
   _rfSorted().forEach(function(c){ var k = c.sh || c.id; if(!grp[k]){ grp[k] = []; reps.push(c); } grp[k].push(c); });
   var chs = reps.map(function(c){
     var r = _rfRange(c);
-    return { id:c.id, f:c.f, lo:r ? r[0] : co.lo, hi:r ? r[1] : co.hi, fixed:!grp[c.sh || c.id].some(_rfCoIn) || grp[c.sh || c.id].some(function(m){ return m.lk && m.f; }), p:_rfProf(c, c.cm || co.mode), dir:c.cd || co.dir, z:c.zone, step:(_rfCatBand(c.ser, c.band) || {}).st || 0 };
+    return { id:c.id, f:c.f, lo:r ? r[0] : co.lo, hi:r ? r[1] : co.hi, fixed:!grp[c.sh || c.id].some(inFn) || grp[c.sh || c.id].some(function(m){ return m.lk && m.f; }), p:_rfProf(c, c.cm || co.mode), dir:c.cd || co.dir, z:c.zone, step:(_rfCatBand(c.ser, c.band) || {}).st || 0 };
   });
   var res = _rfCoord(chs, { step:25, avoid:av.ban.map(function(b){ return [b.a, b.b]; }), include:av.inc, iso:d.iso, zim:d.zim });
   var byRep = {}, map = {}; res.list.forEach(function(x){ byRep[x.id] = x.f; });
@@ -1808,13 +1888,15 @@ function _rfGearSave(){
   try { localStorage.setItem(_rfGearKey(), JSON.stringify(RF_GEAR || [])); } catch(e){}
   if(typeof _pushToursSoon === 'function') _pushToursSoon();
 }
-function rfGear(){
+function rfGear(assign){
   if(!CUR_SHOW) return;
   _rfLoad();
   if(RF_GEAR === null) RF_GEAR = _rfGearLocal();
-  RF.gear = { q:'', mk:'', t:'rx', sel:null, band:'', pn:'', qty:1, zone:RF.fz || '', keep:false };
+  assign = Array.isArray(assign) && assign.length ? assign : null;
+  var allIem = assign && assign.every(function(id){ var c = _rfGet(id); return c && c.kind === 'iem'; });
+  RF.gear = { q:'', mk:'', t:allIem ? 'iem' : 'rx', sel:null, band:'', pn:'', qty:1, zone:RF.fz || '', keep:false, assign:assign };
   if(!_RF_CAT){
-    _rfModal('Ajouter du matériel', 'ti-antenna', '<p class="rf-note">Chargement du catalogue…</p>', '<button class="btn ghost sm" onclick="rfModalClose()">Fermer</button>', 720);
+    _rfModal(RF.gear.assign ? 'Attribuer du matériel' : 'Ajouter du matériel', 'ti-antenna', '<p class="rf-note">Chargement du catalogue…</p>', '<button class="btn ghost sm" onclick="rfModalClose()">Fermer</button>', 720);
     _rfCatLoad().then(function(ok){
       if(!RF.gear || !document.getElementById('rf-modal')) return;
       if(ok) _rfGearModal();
@@ -1842,8 +1924,9 @@ function _rfGearModal(){
   var g = RF.gear; if(!g) return;
   var E = _bonE, old = document.getElementById('rf-modal'), sc = old && old.querySelector('.rf-gl') ? old.querySelector('.rf-gl').scrollTop : 0;
   var seg = function(k, list){ return '<div class="rf-seg">' + list.map(function(x){ return '<button type="button" class="' + (g[k] === x[0] ? 'on' : '') + '" onclick="rfGearOpt(\'' + k + '\',\'' + x[0] + '\')">' + x[1] + '</button>'; }).join('') + '</div>'; };
-  var b = '';
-  if(RF_GEAR && RF_GEAR.length){
+  var b = '', A = g.assign;
+  if(A) b += '<p class="rf-note" style="margin:0 0 10px">Choisissez le modèle et la bande à donner aux ' + _rfPl(A.length) + ' cochés. Leur nom, leur utilisateur, leur fréquence et leur lien avec l\'input list sont gardés.</p>';
+  if(!A && RF_GEAR && RF_GEAR.length){
     b += '<div class="rf-co-h">Mon parc</div><div class="rf-gp">' + RF_GEAR.map(function(p, i){
       return '<span><button type="button" onclick="rfGearPark(' + i + ')" title="Ajouter au show"><b>' + p.qty + ' × ' + E(p.mdl) + '</b>' + E(p.band) + '</button><button type="button" class="x" onclick="rfGearParkDel(' + i + ')" title="Retirer de mon parc" aria-label="Retirer de mon parc"><i class="ti ti-x"></i></button></span>'; }).join('') + '</div>';
   }
@@ -1864,14 +1947,16 @@ function _rfGearModal(){
       b += '<div class="rf-gf"><div class="rf-gf-t"><b>' + E(x.s.mk + ' ' + x.m.n) + '</b><span>' + E(_RF_CAT_T[x.m.t] || '') + ' · ' + _rfPl(x.m.ch) + ' par appareil</span></div>' +
         '<label>Bande<select class="rf-sel" onchange="rfGearOpt(\'band\',this.value)">' + bands.map(function(q){ return opt(q.n, q.n + '  ·  ' + _rfFmt(q.a) + ' à ' + _rfFmt(q.b) + ' MHz', bd.n); }).join('') + '</select></label>' +
         (pns.length > 1 ? '<label>Profil RF<select class="rf-sel" onchange="rfGearOpt(\'pn\',this.value)">' + pns.map(function(q){ return opt(q, _RF_PN_LBL[q] || q, pn); }).join('') + '</select></label>' : '') +
-        '<label>Appareils<span class="rf-step"><button type="button" onclick="rfGearOpt(\'qty\',' + (g.qty - 1) + ')" aria-label="Moins"><i class="ti ti-minus"></i></button><b>' + g.qty + '</b><button type="button" onclick="rfGearOpt(\'qty\',' + (g.qty + 1) + ')" aria-label="Plus"><i class="ti ti-plus"></i></button></span></label>' +
-        '<label>Zone<input class="rf-co-in" list="rf-gz" value="' + E(g.zone) + '" placeholder="Plateau, accueil…" onchange="rfGearOpt(\'zone\',this.value)" maxlength="40"/><datalist id="rf-gz">' + _rfZones().map(function(z){ return '<option value="' + E(z) + '"></option>'; }).join('') + '</datalist></label>' +
+        (A ? '<label>Appareils<b class="rf-gf-n">' + Math.ceil(A.length / x.m.ch) + ' × ' + E(x.m.n) + '</b></label>' : '<label>Appareils<span class="rf-step"><button type="button" onclick="rfGearOpt(\'qty\',' + (g.qty - 1) + ')" aria-label="Moins"><i class="ti ti-minus"></i></button><b>' + g.qty + '</b><button type="button" onclick="rfGearOpt(\'qty\',' + (g.qty + 1) + ')" aria-label="Plus"><i class="ti ti-plus"></i></button></span></label>') +
+        (A ? '' : '<label>Zone<input class="rf-co-in" list="rf-gz" value="' + E(g.zone) + '" placeholder="Plateau, accueil…" onchange="rfGearOpt(\'zone\',this.value)" maxlength="40"/><datalist id="rf-gz">' + _rfZones().map(function(z){ return '<option value="' + E(z) + '"></option>'; }).join('') + '</datalist></label>') +
         (pr ? '<p class="rf-note">Pas d\'accord ' + bd.st + ' kHz. Écarts ' + ['robuste', 'standard', 'plus de fréquences'].map(function(l, i){ return l + ' ' + pr[i][0] + (pr[i][1] ? ' / IM3 ' + pr[i][1] : '') + (pr[i][5] ? ' / 3 ém. ' + pr[i][5] : ''); }).join(' · ') + ' kHz.</p>' : '') +
-        '<label class="rf-imp-c"><input type="checkbox" class="cb" ' + (g.keep ? 'checked' : '') + ' onchange="rfGearOpt(\'keep\',this.checked)"/><span>Garder cette configuration dans mon parc</span></label></div>';
+        (A ? '' : '<label class="rf-imp-c"><input type="checkbox" class="cb" ' + (g.keep ? 'checked' : '') + ' onchange="rfGearOpt(\'keep\',this.checked)"/><span>Garder cette configuration dans mon parc</span></label>') + '</div>';
     } else b += '<div class="rf-gf"><p class="rf-note">' + E(x.m.n) + ' : ' + E(_RF_CAT_T[x.m.t] || 'appareil') + ' sans bande propre dans le catalogue.</p></div>';
   }
-  _rfModal('Ajouter du matériel', 'ti-antenna', b,
-    '<button class="btn ghost sm" onclick="RF.gear=null;rfModalClose()">Fermer</button><button class="btn pri sm" onclick="rfGearAdd()"' + (n ? '' : ' disabled') + '><i class="ti ti-plus"></i>' + (n ? 'Ajouter ' + _rfPl(n) : 'Choisissez un modèle') + '</button>', 760);
+  _rfModal(A ? 'Attribuer du matériel' : 'Ajouter du matériel', 'ti-antenna', b,
+    '<button class="btn ghost sm" onclick="RF.gear=null;rfModalClose()">Fermer</button>' + (A
+      ? '<button class="btn pri sm" onclick="rfGearAssign()"' + (n ? '' : ' disabled') + '><i class="ti ti-check"></i>' + (n ? 'Attribuer à ' + _rfPl(A.length) : 'Choisissez un modèle') + '</button>'
+      : '<button class="btn pri sm" onclick="rfGearAdd()"' + (n ? '' : ' disabled') + '><i class="ti ti-plus"></i>' + (n ? 'Ajouter ' + _rfPl(n) : 'Choisissez un modèle') + '</button>'), 760);
   var m = document.getElementById('rf-modal'), gl = m && m.querySelector('.rf-gl'); if(gl) gl.scrollTop = sc;
 }
 function _rfGearSel(){
@@ -1919,7 +2004,31 @@ function rfGearAdd(){
   }
   _rfSave(); g.qty = 1; g.keep = false;
   _rfGearModal(); renderRf();
-  toast(_rfPl(n) + ' ajouté' + (n > 1 ? 's' : '') + ' : ' + o.mdl + ' ' + o.band + '. Coordonner leur donnera des fréquences.');
+  toast(_rfPl(n) + ' ajouté' + (n > 1 ? 's' : '') + ' : ' + o.mdl + ' ' + o.band + '. Calculer leur donnera des fréquences.');
+}
+/* Donne le modèle et la bande choisis aux canaux cochés, en les rangeant dans autant d'appareils qu'il en faut
+   (6 canaux sur un récepteur 4 canaux = 2 appareils). Ce que l'utilisateur a saisi sur ces canaux est gardé. */
+function rfGearAssign(){
+  var g = RF.gear, x = _rfGearSel(); if(!g || !g.assign || !x) return;
+  var bands = _rfGearBands(x), bd = bands.filter(function(q){ return q.n === g.band; })[0] || bands[0]; if(!bd) return;
+  var pn = _rfCatProfName(bd, g.pn), per = x.m.ch, from = 0, did = '', n = 0, out = 0;
+  var wide = /^4-channel_wideband$/.test(pn) ? 4 : /^2-channel_wideband$/.test(pn) ? 2 : 0;
+  var mine = {}; g.assign.forEach(function(id){ mine[id] = 1; });
+  var ids = {}; RF.data.ch.forEach(function(c){ if(c.mdl === x.m.n && !mine[c.id]) ids[c.did || c.id] = 1; });
+  from = Object.keys(ids).length + 1;
+  g.assign.forEach(function(id, i){
+    var c = _rfGet(id); if(!c) return;
+    var slot = i % per, dev = Math.floor(i / per);
+    if(slot === 0) did = _rfId();
+    c.mk = x.s.mk; c.ser = x.s.s; c.mdl = x.m.n; c.band = bd.n; c.pn = pn; c.did = did;
+    c.dev = x.m.n + ' ' + (from + dev) + (per > 1 ? ' · ' + (slot + 1) : '');
+    c.sh = wide ? did + '#w' + Math.floor(slot / wide) : '';
+    if(c.f && (c.f < bd.a || c.f > bd.b)) out++;
+    n++;
+  });
+  RF.data = _rfClean(RF.data); RF.gear = null;
+  rfModalClose(); _rfSave(); renderRf();
+  toast(_rfPl(n) + ' sur ' + Math.ceil(n / per) + ' × ' + x.m.n + ' ' + bd.n + (out ? ' · ' + out + ' fréquence' + (out > 1 ? 's' : '') + ' hors de cette bande : recalculez-les' : ''));
 }
 function rfGearPark(i){
   var p = (RF_GEAR || [])[i]; if(!p || !RF.gear) return;
