@@ -18,7 +18,7 @@ var RF_FIX = (function(){
   function show(o){
     var zones = (o.zones || []).map(function(z, i){ return '<zone ordinal="' + i + '" color="#ffff00">' + z + '</zone>'; }).join('');
     var mat = (o.matrix || []).map(function(m){ return '<from zone="' + m[0] + '"><to zone="' + m[1] + '"><ch-ch>' + m[2] + '</ch-ch><ch-imd>' + m[2] + '</ch-imd></to></from>'; }).join('');
-    var profs = (o.profs || []).map(function(p){ return '<profile><band>' + p.band + '</band><series>' + p.ser + '</series><compat_profile id="' + p.id + '" name="Standard"><spacing freq_units="kHz"><ch_ch>' + p.sp + '</ch_ch></spacing></compat_profile></profile>'; }).join('');
+    var profs = (o.profs || []).map(function(p){ return '<profile><band>' + p.band + '</band><series>' + p.ser + '</series><compat_profile id="' + p.id + '" name="' + (p.name || 'Standard') + '"><spacing freq_units="kHz"><ch_ch>' + p.sp + '</ch_ch></spacing></compat_profile></profile>'; }).join('');
     var excl = (o.excl || []).map(function(e){ return '<range><frequency units="kHz"><start>' + e[0] + '</start><end>' + e[1] + '</end></frequency><source>' + (e[3] || 'User') + '</source><notes>' + (e[2] || '') + '</notes><exclude>' + (e[4] === false ? 0 : 1) + '</exclude></range>'; }).join('');
     var tv = (o.tv || []).map(function(t){ return '<channel><number>' + t[0] + '</number><tv_chann_start_freq>' + t[1] + '</tv_chann_start_freq><tv_chann_end_freq>' + t[2] + '</tv_chann_end_freq><exclude>' + (t[3] ? 'true' : 'false') + '</exclude></channel>'; }).join('');
     return '<show date="Mon Jan 05 2026" time="10:00:00" source="test.local" appl_version="7.8.0.66" version="1.0">' +
@@ -48,7 +48,7 @@ var RF_FIX = (function(){
       entry({ sid:'AAAA0004-0', ser:'SR 2050', band:'Gw', zone:'Accueil', f:560000, prof:'p-sr', types:IEM }),
       entry({ sid:'00000000-0000-0000-0000-000000000002', ser:'AD', band:'G56', zone:'Plateau', f:540475 })
     ],
-    profs:[{ id:'p-ad', ser:'AD', band:'G56', sp:350 }, { id:'p-ul', ser:'ULXD', band:'K51', sp:350 }, { id:'p-ps', ser:'PSM1000', band:'L8E', sp:325 }, { id:'p-sr', ser:'SR 2050', band:'Gw', sp:325 }],
+    profs:[{ id:'p-ad', ser:'AD', band:'G56', sp:350 }, { id:'p-ul', ser:'ULXD', band:'K51', sp:350, name:'Robust' }, { id:'p-ps', ser:'PSM1000', band:'L8E', sp:325, name:'More Frequencies*' }, { id:'p-sr', ser:'SR 2050', band:'Gw', sp:325, name:'SR perso' }],
     excl:[[480000, 488000, 'DVB local'], [700000, 710000, 'ignorée', 'User', false]],
     tv:[['21', '470,000 MHz', '478,000 MHz', false], ['30', '542,000 MHz', '550,000 MHz', true]] });
   /* Même parc, recoordonné et déployé : une fréquence change, un appareil disparaît, un autre arrive */
@@ -58,5 +58,14 @@ var RF_FIX = (function(){
       dev({ id:'AAAA0003', ser:'PSM1000', mdl:'PSM1000', name:'P10T 01', band:'L8E', zone:'Plateau', ch:[{ n:'IEM Lead', f:630000, pw:10 }, { n:'IEM Bat', f:631000, pw:50 }] }),
       dev({ id:'AAAA0009', ser:'AD', mdl:'AD4D-A', band:'G56', zone:'Plateau', ch:[{ n:'Spare 1', f:520000 }, { n:'Spare 2', f:521000 }] })
     ] });
-  return { show:show, dev:dev, entry:entry, festival:festival, festival2:festival2, RX:RX, IEM:IEM };
+  /* Émetteur IEM large bande : quatre canaux audio, une seule porteuse coordonnée */
+  var wideband = show({ name:'Large bande', zones:['Plateau'],
+    devices:[
+      dev({ id:'CCCC0001', ser:'ADPSM', mdl:'ADTQ', band:'G56', zone:'Plateau', ch:[{ n:'Mix 1', f:470400 }, { n:'Mix 2', f:470400 }, { n:'Mix 3', f:470400 }, { n:'Mix 4', f:470400 }] }),
+      dev({ id:'CCCC0002', ser:'AD', mdl:'AD4D-A', band:'G56', zone:'Plateau', ch:[{ n:'Vox 1', f:480000 }, { n:'Vox 2', f:480350 }] })
+    ],
+    entries:[ entry({ sid:'CCCC0001-0', ser:'ADPSM', band:'G56', zone:'Plateau', f:471375, prof:'p-w', types:IEM }),
+              entry({ sid:'CCCC0002-0', ser:'AD', band:'G56', zone:'Plateau', f:480000, prof:'p-a', types:RX }), entry({ sid:'CCCC0002-1', ser:'AD', band:'G56', zone:'Plateau', f:480350, prof:'p-a', types:RX }) ],
+    profs:[{ id:'p-w', ser:'ADPSM', band:'G56', sp:800 }, { id:'p-a', ser:'AD', band:'G56', sp:350 }] });
+  return { show:show, dev:dev, entry:entry, festival:festival, festival2:festival2, wideband:wideband, RX:RX, IEM:IEM };
 })();
