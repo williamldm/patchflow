@@ -5892,17 +5892,18 @@ async function ilAiPlace(chs){
    ══════════════════════════════════════ */
 var _ilPdf={doc:null, page:0, rows:[], cols:[], raw:[], busy:false, name:''};
 const _ILPDF_COLS=[
-  ['ch',     /^(ch|chan|channel|canal|voie|n|no|num|numero|patch|in|input|entree|ligne|line|#)$/],
-  ['mic',    /^(micro|micros|mic|mics|microphone|capteur|capteurs|di|micdi|microdi|microsdi|micro48v)$/],
+  ['ch',     /^(ch|chan|channel|channels|canal|canaux|voie|voies|n|no|nr|num|numero|patch|in|input|inputs|entree|entrees|ligne|line|piste|pistes|track|tracks|trk|chno|chnum|inputch|#)$/],
+  ['mic',    /^(micro|micros|mic|mics|microphone|microphones|capteur|capteurs|di|micdi|microdi|microsdi|micro48v|micline|micdibox|typemicro|typedemicro|capsule|transducteur)$/],
   ['src',    /^(source|sources|groupe|famille|section)$/],
-  ['stand',  /^(pied|pieds|piedmicro|piedsmicro|pieddemicro|stand|stands|micstand|support)$/],
+  ['stand',  /^(pied|pieds|piedmicro|piedsmicro|pieddemicro|piedmic|stand|stands|micstand|standmic|support|supports|boom|perche|perchette|statif|girafe)$/],
+  ['hf',     /^(hf|frequence|frequences|freq|freqhf|frequencehf|rf|frequency)$/],
   ['short',  /^(court|nomcourt|short|shortname|abrev|abreviation)$/],
   ['phantom',/^(48v|48|phantom|fantome|alim)$/],
   ['iem',    /^(iem|ear|ears|inear|groupeiem)$/],
   ['foh',    /^(foh|face|facade)$/],
   ['mon',    /^(mon|retour|retours|monitor|monitors)$/],
   ['bc',     /^(bc|broadcast|captation)$/],
-  ['name',   /^(instrument|instruments|nom|nomlong|name|longname|designation|description|libelle|label)$/]
+  ['name',   /^(instrument|instruments|nom|nomlong|name|names|longname|designation|description|libelle|label|labels|intitule|channelname|nomducanal|nomcanal|voix|musicien|musiciens)$/]
 ];
 function _ilPl(n){ return n+' '+(n>1?'canaux':'canal'); }
 /* Le même import sert aux sorties : la cible change les colonnes proposées et l'endroit où vont les lignes */
@@ -5982,14 +5983,15 @@ async function _ilPdfOpen(){
   }
 }
 /* Texte d'une page, rangé en lignes (haut en bas) d'éléments (gauche à droite) */
-async function _ilPdfLines(p){
-  var pg=await _ilPdf.doc.getPage(p), tc=await pg.getTextContent(), rows=[];
-  tc.items.forEach(function(it){
-    var s=String(it.str||'').replace(/\s+/g,' ').trim(); if(!s) return;
-    var x=it.transform[4], y=it.transform[5], r=null;
-    for(var i=0;i<rows.length;i++){ if(Math.abs(rows[i].y-y)<=3){ r=rows[i]; break; } }
-    if(!r){ r={y:y, it:[]}; rows.push(r); }
-    r.it.push({x:x, w:it.width||0, h:it.height||Math.abs(it.transform[3])||10, s:s});
+/* Morceaux de texte {x, y, w, h, s} → lignes du tableau. tol : écart vertical toléré dans une même ligne
+   (fixe pour le texte d'un PDF, proportionnel à la hauteur des lettres pour une image lue par OCR). */
+function _ilPdfRows(items, tol){
+  var rows=[];
+  items.forEach(function(it){
+    var r=null, t=typeof tol==='function'?tol(it):tol;
+    for(var i=0;i<rows.length;i++){ if(Math.abs(rows[i].y-it.y)<=t){ r=rows[i]; break; } }
+    if(!r){ r={y:it.y, it:[]}; rows.push(r); }
+    r.it.push({x:it.x, w:it.w, h:it.h, s:it.s});
   });
   rows.sort(function(a,b){ return b.y-a.y; });
   /* Certains PDF découpent un mot ou un nombre en plusieurs morceaux (« 1 » puis « 2 » pour 12, « KI » puis « CK »).
@@ -6007,11 +6009,91 @@ async function _ilPdfLines(p){
   });
   return rows;
 }
+async function _ilPdfLines(p){
+  var pg=await _ilPdf.doc.getPage(p), tc=await pg.getTextContent(), items=[];
+  tc.items.forEach(function(it){
+    var s=String(it.str||'').replace(/\s+/g,' ').trim(); if(!s) return;
+    items.push({x:it.transform[4], y:it.transform[5], w:it.width||0, h:it.height||Math.abs(it.transform[3])||10, s:s});
+  });
+  return _ilPdfRows(items,3);
+}
+/* ── Page en image (capture d'écran d'un tableur, scan, photo) ─────────
+   Aucun texte à lire dans le PDF : la page est dessinée puis lue par OCR, dans le navigateur
+   (Tesseract.js, chargé à la demande). Les mots retrouvés, avec leur position, passent ensuite par
+   le même analyseur de colonnes que le texte d'un PDF ordinaire. */
+const _OCR_VER='5.1.1', _OCR_CDN='https://cdn.jsdelivr.net/npm/';
+var _ocrWorker=null, _ocrProg=null;
+function _loadTesseract(){
+  if(window.Tesseract) return Promise.resolve(window.Tesseract);
+  return new Promise(function(resolve,reject){
+    var sc=document.createElement('script');
+    sc.src=_OCR_CDN+'tesseract.js@'+_OCR_VER+'/dist/tesseract.min.js';
+    sc.integrity='sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F'; sc.crossOrigin='anonymous';
+    sc.onload=function(){ window.Tesseract?resolve(window.Tesseract):reject(new Error('OCR indisponible')); };
+    sc.onerror=function(){ reject(new Error('OCR indisponible (connexion ?)')); };
+    document.head.appendChild(sc);
+  });
+}
+async function _ocrGet(){
+  if(_ocrWorker) return _ocrWorker;
+  var T=await _loadTesseract();
+  /* Modèle anglais : c'est lui qui lit le mieux les références de matériel (SM58, KM184, E609…) */
+  _ocrWorker=await T.createWorker('eng',1,{
+    workerPath:_OCR_CDN+'tesseract.js@'+_OCR_VER+'/dist/worker.min.js',
+    corePath:_OCR_CDN+'tesseract.js-core@'+_OCR_VER,
+    langPath:_OCR_CDN+'@tesseract.js-data/eng/4.0.0_best_int',
+    logger:function(m){ if(_ocrProg) try{ _ocrProg(m); }catch(e){} }
+  });
+  /* 6 : un bloc de texte uniforme — les lignes d'un tableau restent des lignes */
+  await _ocrWorker.setParameters({tessedit_pageseg_mode:'6', preserve_interword_spaces:'1'});
+  return _ocrWorker;
+}
+/* Mots lus par l'OCR → morceaux de texte, en points de la page. Les traits du tableau pris pour des
+   lettres et les mots lus sans assurance sont écartés ; dans un nombre, O, l et I redeviennent 0 et 1. */
+function _ilPdfOcrItems(words, scale, pageH){
+  var out=[];
+  (words||[]).forEach(function(w){
+    var s=String(w.text||'').replace(/[|¦]/g,' ').replace(/\s+/g,' ').trim(), b=w.bbox;
+    if(!s || !b || w.confidence<25 || /^[\-—_.,:;'"`~^=+*\\\/()\[\]{}<>]+$/.test(s)) return;
+    if(/^[\dOoIl]{1,3}\.?$/.test(s) && /\d/.test(s)) s=s.replace(/[Oo]/g,'0').replace(/[Il]/g,'1');
+    var h=(b.y1-b.y0)/scale;
+    out.push({x:b.x0/scale, y:pageH-((b.y0+b.y1)/2)/scale, w:(b.x1-b.x0)/scale, h:h, s:s});
+  });
+  return out;
+}
+/* Qualité d'une lecture : nombre de lignes qui commencent par un numéro de voie, et suite sans trou */
+function _ilPdfOcrScore(rows){
+  var nums=[];
+  rows.forEach(function(r){ if(r.it.length>=2 && /^\d{1,3}\.?$/.test(r.it[0].s)) nums.push(parseInt(r.it[0].s,10)); });
+  var uniq=nums.filter(function(v,i){ return nums.indexOf(v)===i; }).sort(function(a,b){ return a-b; });
+  var full=uniq.length>=3 && uniq[uniq.length-1]-uniq[0]+1===uniq.length;
+  return {n:uniq.length, full:full};
+}
+/* La même image ne se lit pas aussi bien à toutes les tailles : on essaie trois agrandissements et on garde
+   la lecture qui retrouve le plus de voies. Dès qu'une lecture donne une suite de numéros sans trou, on s'arrête. */
+async function _ilPdfOcrLines(p, onProg){
+  var pg=await _ilPdf.doc.getPage(p), v1=pg.getViewport({scale:1}), widths=[1800,2400,3000], best=null, w=await _ocrGet();
+  for(var k=0;k<widths.length;k++){
+    var scale=Math.max(1.5, Math.min(5, widths[k]/v1.width)), vp=pg.getViewport({scale:scale});
+    var cv=document.createElement('canvas'); cv.width=Math.round(vp.width); cv.height=Math.round(vp.height);
+    var cx=cv.getContext('2d'); cx.fillStyle='#fff'; cx.fillRect(0,0,cv.width,cv.height);
+    await pg.render({canvasContext:cx, viewport:vp}).promise;
+    _ocrProg=onProg?(function(i){ return function(m){ if(m.status==='recognizing text') onProg({status:m.status, progress:(i+m.progress)/widths.length}); else onProg(m); }; })(k):null;
+    var res=await w.recognize(cv);
+    _ocrProg=null;
+    var rows=_ilPdfRows(_ilPdfOcrItems(res.data&&res.data.words, scale, v1.height), function(it){ return Math.max(2.5, it.h*0.55); });
+    var sc=_ilPdfOcrScore(rows);
+    if(!best || sc.n>best.sc.n || (sc.n===best.sc.n && sc.full && !best.sc.full)) best={rows:rows, sc:sc};
+    if(sc.full && (k>0 || sc.n>=3)) break;
+    cv.width=cv.height=0;
+  }
+  return best?best.rows:[];
+}
 /* Lecture brute du tableau : ses colonnes telles qu'elles sont dans le PDF, chacune avec le champ PatchFlow
    deviné. C'est l'utilisateur qui décide ensuite, colonne par colonne, où va chaque donnée (_ilPdfBuild). */
-const _ILPDF_FIELDS=[['','Ignorer'],['ch','N° de voie'],['short','Nom court'],['name','Nom long'],['src','Source'],['mic','Micro / DI'],['stand','Pied micro'],['phantom','48V'],['gain','Gain'],['iem','IEM'],['foh','FOH'],['mon','MON'],['bc','BC'],['note','Remarque (ajoutée au pied micro)']];
+const _ILPDF_FIELDS=[['','Ignorer'],['ch','N° de voie'],['short','Nom court'],['name','Nom long'],['src','Source'],['mic','Micro / DI'],['stand','Pied micro'],['phantom','48V'],['gain','Gain'],['iem','IEM'],['foh','FOH'],['mon','MON'],['bc','BC'],['hf','Fréquence HF'],['note','Remarque (ajoutée au pied micro)']];
 /* Champ de l'import -> colonne de l'input list, pour afficher ou masquer les colonnes après l'import */
-const _ILPDF_TO_COL={short:'short',name:'long',src:'src',mic:'mic',stand:'note',note:'note',phantom:'phantom',gain:'gain',iem:'iem',foh:'foh',mon:'mon',bc:'bc'};
+const _ILPDF_TO_COL={short:'short',name:'long',src:'src',mic:'mic',stand:'note',note:'note',phantom:'phantom',gain:'gain',iem:'iem',foh:'foh',mon:'mon',bc:'bc',hf:'hf'};
 /* Colonnes d'après le corps du tableau : à chaque abscisse, le nombre de lignes qui y portent du texte.
    Une zone sans aucun texte sépare deux colonnes. Avec « pont », une zone qu'une seule ligne traverse entre deux
    zones denses sépare aussi : c'est une cellule qui déborde sur la colonne voisine (« (Petit Pied Perche) »).
@@ -6082,7 +6164,36 @@ function _ilPdfColOf(cols, it){
   }
   return best;
 }
-function _ilPdfParse(rows){
+/* Quand les titres ne disent pas tout : le numéro de voie et le nom se devinent au contenu des colonnes.
+   - numéro : une colonne de gauche presque toute en entiers qui se suivent (titre absent, « Nb », « Pistes »…) ;
+   - nom : sans colonne de nom, la « source » en tient lieu, sinon la première colonne de texte libre. */
+function _ilPdfInfer(res){
+  var cols=res.cols||[], raw=res.raw||[]; if(!cols.length || raw.length<3 || _ilPdf.out) return res;
+  var has=function(f){ return cols.some(function(c){ return c.f===f; }); };
+  var stat=function(j){
+    var v=raw.map(function(r){ return String(r.c[j]||'').trim(); }).filter(Boolean), ints=[], txt=0;
+    v.forEach(function(x){ var m=x.match(/^(\d{1,3})\.?$/); if(m) ints.push(+m[1]); else if(/[a-zA-Z]{2,}/.test(x)) txt++; });
+    var up=0; for(var i=1;i<ints.length;i++) if(ints[i]>ints[i-1] && ints[i]-ints[i-1]<=2) up++;
+    return {n:v.length, ints:ints.length, up:up, txt:txt};
+  };
+  if(!has('ch')){
+    for(var j=0;j<Math.min(2,cols.length);j++){
+      var st=stat(j);
+      if(st.n>=3 && st.ints>=st.n*0.7 && st.up>=(st.ints-1)*0.7 && (!cols[j].f || cols[j].auto)){ cols[j].f='ch'; break; }
+    }
+  }
+  if(!has('name') && !has('short')){
+    var src=cols.filter(function(c){ return c.f==='src'; })[0];
+    if(src) src.f='name';
+    else for(var k=0;k<cols.length;k++){
+      var s2=stat(k);
+      if(!cols[k].f && s2.n>=raw.length*0.5 && s2.txt>=s2.n*0.7){ cols[k].f='name'; break; }
+    }
+  }
+  return res;
+}
+function _ilPdfParse(rows){ return _ilPdfInfer(_ilPdfParse0(rows)); }
+function _ilPdfParse0(rows){
   var key=function(s){ return _bonNorm(s); }, NUM=/^(?:ch\.?\s*)?(\d{1,3})\.?$/i;
   /* Titre exact d'abord (« Micro »), puis titre composé (« Channel name / Instrument », « Pied de micro ») */
   var OUT=!!_ilPdf.out, KNOWN=OUT?_OLPDF_COLS:_ILPDF_COLS;
@@ -6211,14 +6322,42 @@ function _ilPdfBuild(){
 }
 async function ilPdfPick(p){
   if(!_ilPdf.doc) return;
-  _ilPdf.page=p; _ilPdf.cols=[]; _ilPdf.raw=[]; _ilPdf.ai=false;
+  _ilPdf.page=p; _ilPdf.cols=[]; _ilPdf.raw=[]; _ilPdf.ai=false; _ilPdf.ocr=false; _ilPdf.ocrErr='';
   document.querySelectorAll('.ilpdf-thumb').forEach(function(b){ b.classList.toggle('on',+b.dataset.p===p); });
   var res=document.getElementById('ilpdf-res'); if(res) res.innerHTML='<div class="ilpdf-hint"><div class="spinner"></div>Lecture de la page '+p+'…</div>';
+  var words=0;
   try{
     var lines=await _ilPdfLines(p); if(_ilPdf.page!==p) return;
-    var r=_ilPdfParse(lines); _ilPdf.cols=r.cols; _ilPdf.raw=r.raw; _ilPdf.scan=!lines.length;
+    lines.forEach(function(l){ words+=l.it.length; });
+    var r=_ilPdfParse(lines); _ilPdf.cols=r.cols; _ilPdf.raw=r.raw; _ilPdf.scan=words<25;
   }catch(e){ console.error('ilPdfPick:',e); }
+  /* Presque pas de texte et aucun tableau : la page est une image, on la lit */
+  if(!_ilPdf.raw.length && _ilPdf.scan){ await ilPdfOcr(); return; }
   _ilPdfRender();
+}
+/* Lecture de l'image de la page (OCR), à la demande ou d'office sur une page sans texte */
+async function ilPdfOcr(){
+  if(_ilPdf.busy || !_ilPdf.doc || !_ilPdf.page) return;
+  var p=_ilPdf.page, res=document.getElementById('ilpdf-res');
+  _ilPdf.busy=true; _ilPdf.ocrErr='';
+  var say=function(t,pc){ var r=document.getElementById('ilpdf-res'); if(r && _ilPdf.page===p) r.innerHTML='<div class="ilpdf-hint"><div class="spinner"></div><b>'+t+'</b><span>'+(pc!=null?Math.round(pc*100)+' %':'La page est une image : PatchFlow la lit pour retrouver le tableau.')+'</span></div>'; };
+  say('Lecture de l\'image de la page '+p+'…');
+  try{
+    _ilPdf.cache=_ilPdf.cache||{};
+    var lines=_ilPdf.cache[p] || await _ilPdfOcrLines(p,function(m){
+      if(m.status==='recognizing text') say('Lecture de l\'image de la page '+p+'…',m.progress);
+      else if(/load/.test(m.status||'')) say('Préparation de la lecture d\'image…');
+    });
+    _ilPdf.cache[p]=lines;
+    if(_ilPdf.page!==p){ _ilPdf.busy=false; return; }
+    var r=_ilPdfParse(lines), sc=_ilPdfOcrScore(lines);
+    /* Sans titres, une image quelconque (plan de scène, photo) donne quelques « numéros » au hasard :
+       on ne retient un tableau que si les numéros de voie sont assez nombreux et se suivent. */
+    if(r.mode==='numeros' && !(sc.n>=4 && (sc.full || sc.n>=8))) r={cols:[], raw:[], mode:'numeros'};
+    _ilPdf.cols=r.cols; _ilPdf.raw=r.raw; _ilPdf.ocr=true;
+  }catch(e){ console.error('ilPdfOcr:',e); _ilPdf.ocrErr=(e&&e.message)||'erreur'; _ilPdf.cols=[]; _ilPdf.raw=[]; }
+  _ilPdf.busy=false;
+  if(_ilPdf.page===p) _ilPdfRender();
 }
 function _ilPdfRender(msg){
   var res=document.getElementById('ilpdf-res'), go=document.getElementById('ilpdf-go'), info=document.getElementById('ilpdf-info'); if(!res) return;
@@ -6228,9 +6367,15 @@ function _ilPdfRender(msg){
   var ai=_ilPdf.out?'':'<button type="button" class="btn sm" onclick="ilPdfAi()"><i class="ti ti-sparkles" style="color:var(--ora)"></i>Lire cette page avec l\'IA'+(canDo('ai_inputlist')?'':'<span class="plan-badge-pill pro">Pro</span>')+'</button>';
   if(go){ go.disabled=!n; go.textContent=n?'Importer '+_ilPdfPl(n):'Importer'; }
   if(info) info.textContent=!n?'':_ilPdf.out?'Ajoutées à la suite de l\'output list ('+_ilPdfPl(OUT_CHS.length)+' aujourd\'hui).':'Ajoutés à la suite du patch ('+_ilPl(CHS.length)+' aujourd\'hui).';
+  var ocrBtn=_ilPdf.ocr?'':'<button type="button" class="btn sm" onclick="ilPdfOcr()"><i class="ti ti-photo-scan"></i>Lire l\'image de la page</button>';
   if(!raw.length){
+    if(_ilPdf.ocr || _ilPdf.ocrErr){
+      res.innerHTML='<div class="ilpdf-hint"><i class="ti ti-photo-scan"></i><b>'+(msg||(_ilPdf.ocrErr?'Lecture de l\'image impossible ('+E(_ilPdf.ocrErr)+').':'Image lue, mais aucun tableau '+(_ilPdf.out?'de sorties':'de patch')+' reconnu sur la page '+_ilPdf.page+'.'))+'</b>'
+        +'<span>'+(_ilPdf.ocrErr?'Vérifiez la connexion puis réessayez.':'Une image floue, penchée ou très petite se lit mal. Essayez une autre page'+(_ilPdf.out?'.':', ou laissez l\'IA lire celle-ci.'))+'</span>'+(_ilPdf.ocrErr?ocrBtn.replace('Lire l','Relire l'):'')+ai+'</div>';
+      return;
+    }
     res.innerHTML='<div class="ilpdf-hint"><i class="ti ti-'+(_ilPdf.scan?'photo-scan':'table-off')+'"></i><b>'+(msg||(_ilPdf.scan?'Cette page est une image : aucun texte à lire.':'Aucun tableau '+(_ilPdf.out?'de sorties':'de patch')+' reconnu sur la page '+_ilPdf.page+'.'))+'</b>'
-      +'<span>'+(_ilPdf.scan?'C\'est le cas des PDF scannés ou photographiés.':(_ilPdf.out?'Essayez une autre page.':'Essayez une autre page, ou laissez l\'IA lire celle-ci.'))+'</span>'+ai+'</div>';
+      +'<span>'+(_ilPdf.scan?'C\'est le cas des PDF scannés ou photographiés.':(_ilPdf.out?'Essayez une autre page.':'Essayez une autre page, lisez son image, ou laissez l\'IA la lire.'))+'</span>'+ocrBtn+ai+'</div>';
     return;
   }
   var sel=function(c,j){ return '<select class="ilpdf-map'+(c.f?'':' none')+'" onchange="ilPdfMap('+j+',this.value)" title="Où ranger cette colonne">'
@@ -6240,7 +6385,7 @@ function _ilPdfRender(msg){
   /* Colonnes du PDF sans équivalent dans PatchFlow : on propose de les créer */
   var orphan=(_ilPdf.ai||_ilPdf.out)?[]:cols.map(function(c,j){ return {c:c,j:j}; }).filter(function(o){ return !o.c.f && !o.c.auto && raw.some(function(r){ return r.st==='ch' && r.c[o.j]; }); });
   var nNew=cols.filter(function(c){ return c.f==='new'; }).length;
-  res.innerHTML='<div class="ilpdf-top"><span><b>Page '+_ilPdf.page+'</b> · '+_ilPdfPl(n)+' reconnu'+(_ilPdf.out?'e':'')+(n>1?'s':'')+(_ilPdf.ai?' par l\'IA':'')+'. Choisissez où va chaque colonne.</span>'+(_ilPdf.ai?'':ai)+'</div>'
+  res.innerHTML='<div class="ilpdf-top"><span><b>Page '+_ilPdf.page+'</b> · '+_ilPdfPl(n)+' reconnu'+(_ilPdf.out?'e':'')+(n>1?'s':'')+(_ilPdf.ai?' par l\'IA':_ilPdf.ocr?' dans l\'image':'')+'. Choisissez où va chaque colonne'+(_ilPdf.ocr?', et relisez : un mot lu dans une image peut être mal orthographié':'')+'.</span>'+(_ilPdf.ai?'':ai)+'</div>'
     +'<div class="ilpdf-scroll"><table class="bon-tbl ilpdf-tbl"><thead><tr>'+cols.map(function(c,j){ return '<th><span>'+E(c.label)+'</span>'+sel(c,j)+'</th>'; }).join('')+'<th></th></tr></thead><tbody>'
     +raw.map(function(r,i){ return '<tr class="'+r.st+'">'+cols.map(function(c,j){ return '<td'+(c.f?'':' class="ign"')+'>'+E(r.c[j])+'</td>'; }).join('')
       +'<td><button type="button" class="ov-link" onclick="ilPdfDrop('+i+')" title="'+(r.off?'Reprendre cette ligne':'Ne pas importer')+'"><i class="ti ti-'+(r.off?'arrow-back-up':'x')+'"></i></button></td></tr>'; }).join('')
@@ -6320,6 +6465,7 @@ async function ilPdfApply(){
       Object.keys(r.extra||{}).forEach(function(k){ var id=k.indexOf('cc:')===0?k.slice(3):ids[k]; if(id){ cd=cd||{}; cd[id]=String(r.extra[k]).trim(); } });
       var o={short_name:(sh||nm).toUpperCase().slice(0,10), long_name:nm, source:String(r.src||'').trim(), mic:String(r.mic||'').trim(), gain:r.gain||0, phantom:!!r.phantom, iem_group:String(r.iem||'').trim(),
               note:[r.stand,r.note].map(function(s){ return String(s||'').trim(); }).filter(Boolean).join(' · ')};
+      if(String(r.hf||'').trim()){ cd=cd||{}; cd._hf=String(r.hf).trim(); }
       if(cd) o.custom_data=cd;
       ['foh','mon','bc'].forEach(function(k){ if(r[k]!=null) o[k]=r[k]; });
       return o;
