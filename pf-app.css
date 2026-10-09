@@ -3862,3 +3862,27 @@ select.rf-in{padding:0 4px;cursor:pointer}
   .rf-co-r>i{display:none}
   .rf-co-r .f{text-align:right}
 }
+
+/* Ligne d'entrée ou de sortie en HF : bouton et menu de liaison avec l'onglet RF */
+.rf-hfw{display:flex;align-items:center;gap:2px}
+.rf-hfw .ilinp{flex:1;min-width:0}
+.rf-hf{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;padding:0;border:0;border-radius:5px;background:transparent;color:var(--muted2);font-size:13px;cursor:pointer;opacity:0;transition:opacity .12s,background .12s}
+tr:hover .rf-hf,.rf-hf:focus-visible,.rf-hf.on,.rf-hf.hint{opacity:1}
+.rf-hf:hover{background:var(--surf2);color:var(--txt)}
+.rf-hf.hint{color:var(--txt2);box-shadow:inset 0 0 0 1px var(--bdr3)}
+.rf-hf.on{background:var(--ora-d);color:var(--ora)}
+@media(hover:none){.rf-hf{opacity:.55}}
+.rf-pop{position:fixed;z-index:400;width:280px;max-width:calc(100vw - 16px);max-height:min(420px,calc(100vh - 16px));overflow:auto;padding:6px;border-radius:12px;background:var(--surf);border:1px solid var(--bdr2);box-shadow:0 14px 40px rgba(0,0,0,.4);animation:fadeIn .12s ease}
+.rf-pop-h{display:flex;gap:10px;align-items:center;padding:8px 10px 10px;margin-bottom:4px;border-bottom:1px solid var(--bdr)}
+.rf-pop-h>i{font-size:18px;color:var(--ora)}
+.rf-pop-h b{display:block;font-size:13px;font-weight:650}
+.rf-pop-h span{font:400 12px var(--m);color:var(--muted)}
+.rf-pop-t{padding:8px 10px 4px;font:650 10.5px var(--f);letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.rf-pop button{display:flex;align-items:center;gap:9px;width:100%;padding:8px 10px;border:0;border-radius:8px;background:transparent;color:var(--txt);font:400 13px var(--f);text-align:left;cursor:pointer}
+.rf-pop button:hover{background:var(--surf2)}
+.rf-pop button>i{font-size:15px;color:var(--muted)}
+.rf-pop-l{display:grid;max-height:210px;overflow:auto}
+.rf-pop-l button{justify-content:space-between}
+.rf-pop-l button b{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rf-pop-l button span{flex-shrink:0;font:400 11.5px var(--m);color:var(--muted)}
+.rf-chk s{color:var(--err);font-size:12px}

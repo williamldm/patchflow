@@ -100,7 +100,7 @@ function _rfCleanCh(c){
     dev: _rfStr(c.dev, 40), zone: _rfStr(c.zone, 40), tags: _rfStr(c.tags, 80), gc: _rfStr(c.gc, 20),
     pw: Math.max(0, Math.min(5000, _rfInt(c.pw))), sp: Math.max(0, Math.min(5000, _rfInt(c.sp))),
     note: _rfStr(c.note, 200), st: st, il: _rfStr(c.il, 60), out: _rfStr(c.out, 60),
-    cm: (c.cm === 'rob' || c.cm === 'std' || c.cm === 'more' || (c.cm === 'wwb' && pf)) ? c.cm : '', cd: (c.cd === 'up' || c.cd === 'down') ? c.cd : '', sh: _rfStr(c.sh, 60), pf: pf };
+    cm: (c.cm === 'rob' || c.cm === 'std' || c.cm === 'more' || (c.cm === 'wwb' && pf)) ? c.cm : '', cd: (c.cd === 'up' || c.cd === 'down') ? c.cd : '', sh: _rfStr(c.sh, 60), pf: pf, nl: !!c.nl };
 }
 function _rfClean(d){
   var o = _rfEmpty();
@@ -380,16 +380,16 @@ function _rfChecks(rf, il){
     (il.outs || []).forEach(function(r){ outs[r.id] = r; });
     ch.forEach(function(c){
       var r = c.il ? rows[c.il] : (c.out ? outs[c.out] : null), isOut = !c.il && !!c.out;
-      if((c.il || c.out) && !r){ push('info', 'lost', [c.id], '« ' + nm(c) + ' » était lié à une ligne qui n\'existe plus.'); return; }
+      if((c.il || c.out) && !r){ push('info', 'lost', [c.id], '« ' + nm(c) + ' » est lié à une ligne absente du patch affiché.'); return; }
       if(!r) return;
       linked[(isOut ? 'o' : 'i') + r.id] = 1;
       var h = _rfParseMHz(r.hf);
       if(c.f && String(r.hf || '').trim() && h !== c.f)
-        push('warn', 'ilf', [c.id], (isOut ? 'Sortie ' : 'Entrée ') + r.ch + ' « ' + (r.name || '') + ' » affiche ' + String(r.hf).trim() + ', le canal RF est sur ' + _rfFmt(c.f) + ' MHz.');
+        push('warn', 'ilf', [c.id], (isOut ? 'Sortie ' : 'Entrée ') + r.ch + ' « ' + (r.name || '') + ' » affiche ' + String(r.hf).trim() + ', sa liaison est sur ' + _rfFmt(c.f) + ' MHz. Cliquer pour aligner.');
     });
     var orphan = (il.chs || []).filter(function(r){ return !linked['i' + r.id] && _rfIsHfRow(r); });
-    if(orphan.length && ch.length) push('info', 'ilhf', [], orphan.length + (orphan.length > 1 ? ' micros HF de l\'input list sans canal RF : ' : ' micro HF de l\'input list sans canal RF : ') +
-      orphan.slice(0, 6).map(function(r){ return r.ch + ' ' + (r.name || ''); }).join(', ') + (orphan.length > 6 ? '…' : '') + '.');
+    if(orphan.length && ch.length) push('info', 'ilhf', [], orphan.length + (orphan.length > 1 ? ' micros HF de l\'input list sans liaison : ' : ' micro HF de l\'input list sans liaison : ') +
+      orphan.slice(0, 6).map(function(r){ return r.ch + ' ' + (r.name || ''); }).join(', ') + (orphan.length > 6 ? '…' : '') + '. Cliquer pour créer leurs liaisons.');
   }
   var w = { err:0, warn:1, info:2 };
   return out.sort(function(a, b){ return w[a.lvl] - w[b.lvl]; });
@@ -651,13 +651,13 @@ function _rfCoord(chs, opt){
    charte PDF…). Les données vivent dans CUR_SHOW.stage_data.rf : même
    enregistrement et mêmes droits que le reste du show.
    ══════════════════════════════════════════════════════════════════════ */
-var RF = { showId:null, data:null, q:'', fk:'', fz:'', fs:'', sort:'zone', look:false, lq:'', t:null, undo:null, pend:null, allAl:false, co:null, onClose:null };
+var RF = { showId:null, data:null, q:'', fk:'', fz:'', fs:'', sort:'zone', look:false, lq:'', t:null, pend:null, allAl:false, co:null, onClose:null };
 
 function _rfLoad(){
   var id = CUR_SHOW && CUR_SHOW.id;
   if(RF.showId === id && RF.data) return;
   RF.showId = id; RF.data = _rfClean(CUR_SHOW && CUR_SHOW.stage_data && CUR_SHOW.stage_data.rf);
-  RF.q = ''; RF.fk = ''; RF.fz = ''; RF.fs = ''; RF.look = false; RF.lq = ''; RF.undo = null; RF.pend = null; RF.allAl = false;
+  RF.q = ''; RF.fk = ''; RF.fz = ''; RF.fs = ''; RF.look = false; RF.lq = ''; RF.pend = null; RF.allAl = false;
 }
 function _rfSave(){
   if(!CUR_SHOW || !RF.data) return;
@@ -752,6 +752,7 @@ function renderRf(){
     return;
   }
   _rfLoad(); _rfDropInit(root);
+  if(_rfFollowNames()) _rfSave();
   if(RF.look){ _rfRenderLook(root); return; }
   var d = RF.data, n = d.ch.length;
   var src = d.src ? 'Session « ' + E(d.src.show || d.src.file) + ' » reprise de Wireless Workbench' + (d.src.at ? ' le ' + E(new Date(d.src.at).toLocaleDateString('fr-FR')) : '') + '.' : 'Importez un show Wireless Workbench ou saisissez vos canaux.';
@@ -779,9 +780,7 @@ function renderRf(){
     '<select class="rf-sel" onchange="rfFilter(\'fs\',this.value)" aria-label="État">' + opt('', 'Tous les états', RF.fs) + _RF_ST.map(function(s){ return opt(s[0], s[1], RF.fs); }).join('') + '</select>' +
     '<select class="rf-sel" onchange="rfSort(this.value)" aria-label="Tri">' + [['zone', 'Tri : zone'], ['f', 'Tri : fréquence'], ['n', 'Tri : nom'], ['who', 'Tri : utilisateur'], ['st', 'Tri : état']].map(function(s){ return opt(s[0], s[1], RF.sort); }).join('') + '</select>' +
     '<span class="rf-grow"></span>' +
-    (RF.undo ? '<button class="btn sm" onclick="rfSyncUndo()"><i class="ti ti-arrow-back-up"></i>Annuler le report</button>' : '') +
-    '<button class="btn sm" onclick="rfAutoLink()" title="Proposer les liaisons entre canaux RF et lignes de l\'input list portant le même nom"><i class="ti ti-link"></i>Associer</button>' +
-    '<button class="btn sm" onclick="rfSync()" title="Écrire les fréquences dans la colonne Fréq. HF de l\'input list, après confirmation"><i class="ti ti-arrow-bar-to-right"></i>Reporter les fréquences</button>' +
+    '<button class="btn sm" onclick="rfAutoLink()" title="Proposer les liens entre liaisons et lignes de l\'input list portant le même nom"><i class="ti ti-link"></i>Associer à l\'input list</button>' +
     '<button class="btn sm" onclick="rfCsv()" title="Exporter la liste en CSV"><i class="ti ti-file-spreadsheet"></i>CSV</button>' +
     (d.vers.length ? '<button class="btn sm" onclick="rfVersions()" title="Versions précédentes"><i class="ti ti-history"></i>Versions</button>' : '') +
   '</div><div id="rf-list"></div>';
@@ -820,7 +819,7 @@ function _rfPaintSide(){
     box.className = 'rf-card rf-alc' + (al.all.length ? '' : ' none');
     box.innerHTML = (al.all.length
       ? '<h3>Contrôles <small>' + al.all.length + ' point' + (al.all.length > 1 ? 's' : '') + '</small></h3><div class="rf-all">' +
-        list.map(function(a){ return '<button type="button" class="rf-alr ' + a.lvl + '"' + (a.code === 'imd' ? ' onclick="rfCoord()"' : a.ids.length ? ' data-go="' + a.ids[0] + '" onclick="rfFocus(this.dataset.go)"' : ' disabled') + '><i class="ti ' + ico[a.lvl] + '"></i><span>' + E(a.msg) + '</span></button>'; }).join('') + '</div>' +
+        list.map(function(a){ return '<button type="button" class="rf-alr ' + a.lvl + '"' + (a.code === 'imd' ? ' onclick="rfCoord()"' : a.code === 'ilhf' ? ' onclick="rfFromIl()"' : a.code === 'ilf' ? ' onclick="rfMirrorFix()"' : a.ids.length ? ' data-go="' + a.ids[0] + '" onclick="rfFocus(this.dataset.go)"' : ' disabled') + '><i class="ti ' + ico[a.lvl] + '"></i><span>' + E(a.msg) + '</span></button>'; }).join('') + '</div>' +
         (al.all.length > 6 ? '<button type="button" class="ov-link" onclick="RF.allAl=!RF.allAl;_rfPaintSide()">' + (RF.allAl ? 'Réduire' : 'Tout afficher (' + al.all.length + ')') + '</button>' : '')
       : '<p class="rf-okline"><i class="ti ti-circle-check"></i>Aucune alerte sur les contrôles simples.</p>') +
       '<p class="rf-note">Contrôles simples sur les fréquences saisies : doublons, espacement du profil de la session, plage d\'accord, exclusions. Le calcul de fréquences compatibles (intermodulation comprise) est dans Coordonner ; il reste simplifié et se valide par un scan sur place.</p>';
@@ -913,6 +912,7 @@ function rfSet(el, field){
     var k = _rfParseMHz(v);
     if(String(v).trim() && !k){ toast('Fréquence illisible : saisissez-la en MHz, par exemple 606.125'); el.value = _rfFmt(c.f); return; }
     c.f = k; el.value = _rfFmt(k);
+    if(_rfMirror(c)) _rfIlRefresh();                 /* la ligne liée suit */
   } else if(field === 'kind'){
     var p = String(v).split(':'), was = c.kind;
     c.kind = p[0] === 'iem' || p[0] === 'oth' ? p[0] : 'mic'; c.tx = c.kind === 'mic' && (p[1] === 'hh' || p[1] === 'bp') ? p[1] : '';
@@ -922,6 +922,7 @@ function rfSet(el, field){
     el.className = 'rf-stsel st-' + c.st;
   } else if(field === 'n' || field === 'who' || field === 'zone' || field === 'note'){
     c[field] = _rfStr(v, field === 'note' ? 200 : field === 'zone' ? 40 : 60); el.value = c[field];
+    if(field === 'n') c.nl = false;                  /* nom retouché ici : il ne suit plus la ligne */
   } else return;
   _rfSave(); _rfPaintSide();
 }
@@ -942,9 +943,11 @@ function rfDup(el){
 }
 function rfDel(el){
   var c = _rfGet(_rfRowId(el)); if(!c) return;
-  if(!confirm('Supprimer le canal « ' + (c.n || c.dev || 'sans nom') + ' » ?')) return;
+  if(!confirm('Supprimer le canal « ' + (c.n || c.dev || 'sans nom') + ' » ?' + (c.il || c.out ? '\nSa ligne dans l\'input list ne sera plus en HF.' : ''))) return;
+  var linked = !!(c.il || c.out);
+  if(linked) _rfUnlink(c);
   RF.data.ch = RF.data.ch.filter(function(x){ return x !== c; });
-  _rfSave(); renderRf();
+  _rfSave(); if(linked) _rfIlRefresh(); renderRf();
 }
 function rfWhy(el){
   var a = _rfAlerts().by[_rfRowId(el)] || [];
@@ -961,66 +964,14 @@ function rfFocus(id){
   row.classList.add('flash'); setTimeout(function(){ row.classList.remove('flash'); }, 1600);
 }
 
-/* ── Liaison avec l'input list ── */
-function _rfLinkGate(){
-  if(typeof canDo === 'function' && !canDo('rf_link')){ if(typeof showUpgradeModal === 'function') showUpgradeModal('rf_link'); return false; }
-  return true;
-}
-function rfLink(el){
-  var c = _rfGet(_rfRowId(el)); if(!c) return;
-  if(!_rfLinkGate()){ el.value = c.kind === 'iem' ? c.out : c.il; return; }
-  var v = String(el.value || ''), k = c.kind === 'iem' ? 'out' : 'il', moved = false;
-  if(v) RF.data.ch.forEach(function(x){ if(x !== c && x[k] === v){ x[k] = ''; moved = true; } });   /* une ligne = un seul canal RF */
-  c[k] = v; if(k === 'il') c.out = ''; else c.il = '';
-  _rfSave();
-  if(moved){ toast('Cette ligne était liée à un autre canal RF : la liaison a été déplacée.'); _rfPaintTable(); } else _rfPaintSide();
-}
-function rfAutoLink(){
-  if(!_rfLinkGate()) return;
-  var props = _rfMatchIl(RF.data.ch, _rfIl()), E = _bonE;
-  if(!props.length){ toast('Aucune correspondance sûre par nom. Liez les canaux à la main, colonne Input list.'); return; }
-  RF.pend = { link:props };
-  _rfModal('Associer à l\'input list', 'ti-link',
-    '<p class="rf-note">Canaux RF et lignes portant le même nom. Décochez ce qui ne convient pas ; rien d\'autre n\'est modifié.</p><div class="rf-chk">' +
-    props.map(function(p, i){ return '<label><input type="checkbox" class="cb" data-i="' + i + '" checked/><span><b>' + E(p.c.who || p.c.n) + '</b> ' + _rfFmt(p.c.f) + '</span><i class="ti ti-arrow-right"></i><span>' + (p.out ? 'Sortie ' : 'Entrée ') + E(p.r.ch + ' · ' + p.r.name) + '</span></label>'; }).join('') + '</div>',
-    '<button class="btn ghost sm" onclick="rfModalClose()">Annuler</button><button class="btn pri sm" onclick="rfAutoLinkApply()"><i class="ti ti-link"></i>Associer</button>');
-}
-function rfAutoLinkApply(){
-  var props = (RF.pend && RF.pend.link) || [], n = 0;
-  document.querySelectorAll('#rf-modal .rf-chk input:checked').forEach(function(cb){
-    var p = props[+cb.dataset.i], c = p && _rfGet(p.id); if(!c) return;
-    if(p.out){ c.out = p.to; c.il = ''; } else { c.il = p.to; c.out = ''; }
-    n++;
-  });
-  RF.pend = null; rfModalClose();
-  if(n){ _rfSave(); renderRf(); toast(_rfPl(n) + (n > 1 ? ' liés' : ' lié') + ' à l\'input list'); }
-}
-/* Report des fréquences vers la colonne « Fréq. HF » : liste des changements, confirmation, annulation possible */
-function _rfSyncList(){
-  var il = _rfIl(), rows = {}, outs = {}, list = [];
-  il.chs.forEach(function(r){ rows[r.id] = r; }); il.outs.forEach(function(r){ outs[r.id] = r; });
-  RF.data.ch.forEach(function(c){
-    var isOut = !c.il && !!c.out, r = c.il ? rows[c.il] : (c.out ? outs[c.out] : null);
-    if(!r || !c.f) return;
-    var cur = String(r.hf || '').trim();
-    if(_rfParseMHz(cur) === c.f) return;
-    list.push({ c:c, r:r, out:isOut, cur:cur, nv:_rfFmt(c.f) });
-  });
-  return list;
-}
-function rfSync(){
-  if(!_rfLinkGate()) return;
-  var E = _bonE;
-  if(!RF.data.ch.some(function(c){ return c.il || c.out; })){ toast('Aucun canal lié. Utilisez Associer, ou la colonne Input list.'); return; }
-  var list = _rfSyncList();
-  if(!list.length){ toast('Rien à reporter : les fréquences de l\'input list sont à jour.'); return; }
-  RF.pend = { sync:list };
-  var over = list.filter(function(x){ return x.cur; }).length;
-  _rfModal('Reporter les fréquences', 'ti-arrow-bar-to-right',
-    '<p class="rf-note">Les fréquences ci-dessous seront écrites dans la colonne « Fréq. HF ».' + (over ? ' <b>' + over + ' valeur' + (over > 1 ? 's existantes seront remplacées' : ' existante sera remplacée') + '.</b>' : '') + ' Vous pourrez annuler juste après.</p><div class="rf-chk">' +
-    list.map(function(x, i){ return '<label><input type="checkbox" class="cb" data-i="' + i + '" checked/><span>' + (x.out ? 'Sortie ' : 'Entrée ') + '<b>' + E(x.r.ch + ' · ' + x.r.name) + '</b></span><span class="rf-chg">' + (x.cur ? '<s>' + E(x.cur) + '</s>' : '') + '<b>' + x.nv + '</b></span></label>'; }).join('') + '</div>',
-    '<button class="btn ghost sm" onclick="rfModalClose()">Annuler</button><button class="btn pri sm" onclick="rfSyncApply()"><i class="ti ti-check"></i>Reporter</button>');
-}
+/* ── Liaison avec l'input list et les sorties ─────────────────────────
+   Une ligne d'entrée ou de sortie « en HF » est une ligne liée à une liaison
+   de l'onglet RF. Le lien est porté par la liaison (c.il ou c.out) : il se
+   pose aussi bien depuis l'onglet RF que depuis la ligne elle-même.
+   Une fois liées, la ligne suit la liaison : sa case « Fréq. HF » reprend la
+   fréquence de la liaison à chaque changement, et la modifier dans la ligne
+   modifie la liaison. Poser un lien qui remplacerait une fréquence déjà
+   saisie demande confirmation. */
 function _rfWriteHf(out, id, val){
   if(out){ if(typeof updateOutField === 'function') updateOutField(id, 'hf', val); }
   else if(typeof saveCustomCell === 'function') saveCustomCell(id, '_hf', val);
@@ -1029,25 +980,201 @@ function _rfIlRefresh(){
   try { if(typeof renderTable === 'function') renderTable(); } catch(e){}
   try { if(typeof renderOutTable === 'function') renderOutTable(); } catch(e){}
 }
-function rfSyncApply(){
-  var list = (RF.pend && RF.pend.sync) || [], undo = [];
+function _rfRow(kind, id){
+  var il = _rfIl(), list = kind === 'out' ? il.outs : il.chs;
+  return list.filter(function(r){ return r.id === String(id); })[0] || null;
+}
+function _rfLinked(kind, id){ return (RF.data ? RF.data.ch : []).filter(function(c){ return c[kind] === String(id); })[0] || null; }
+/* Recopie la fréquence d'une liaison dans sa ligne. Vrai si la ligne a changé. */
+function _rfMirror(c){
+  if(!c || !(c.il || c.out)) return false;
+  var kind = c.il ? 'il' : 'out', row = _rfRow(kind, c[kind]);
+  if(!row) return false;
+  var cur = String(row.hf || '').trim(), want = _rfFmt(c.f);
+  if(cur === want || (c.f && _rfParseMHz(cur) === c.f)) return false;
+  _rfWriteHf(kind === 'out', row.id, want);
+  return true;
+}
+function _rfMirrorAll(){
+  var n = 0;
+  RF.data.ch.forEach(function(c){ if(_rfMirror(c)) n++; });
+  if(n) _rfIlRefresh();
+  return n;
+}
+function rfMirrorFix(){
+  var n = _rfMirrorAll();
+  renderRf();
+  toast(n ? n + ' ligne' + (n > 1 ? 's alignées' : ' alignée') + ' sur sa liaison HF' : 'Les lignes liées sont déjà à jour.');
+}
+/* Les liaisons créées depuis une ligne portent son nom tant qu'il n'a pas été retouché dans l'onglet RF */
+function _rfFollowNames(){
+  var changed = false;
+  RF.data.ch.forEach(function(c){
+    if(!c.nl || !(c.il || c.out)) return;
+    var row = _rfRow(c.il ? 'il' : 'out', c.il || c.out), n = row ? _rfStr(row.long || row.name, 60) : '';
+    if(n && n !== c.n){ c.n = n; changed = true; }
+  });
+  return changed;
+}
+function _rfLinkGate(){
+  if(typeof canDo === 'function' && !canDo('rf_link')){ if(typeof showUpgradeModal === 'function') showUpgradeModal('rf_link'); return false; }
+  return true;
+}
+/* Pose le lien entre une liaison et une ligne. force : ne pas demander confirmation. */
+function _rfDoLink(c, kind, rowId, force){
+  var row = _rfRow(kind, rowId); if(!c || !row) return false;
+  var cur = String(row.hf || '').trim(), curK = _rfParseMHz(cur);
+  if(!force && c.f && cur && curK !== c.f &&
+     !confirm('Cette ligne affiche « ' + cur + ' » et la liaison est sur ' + _rfFmt(c.f) + ' MHz.\nUne fois liée, la ligne suit la liaison : elle passera à ' + _rfFmt(c.f) + '.\n\nContinuer ?')) return false;
+  RF.data.ch.forEach(function(x){ if(x !== c && x[kind] === row.id) x[kind] = ''; });      /* une ligne = une seule liaison */
+  c.il = ''; c.out = ''; c[kind] = row.id;
+  if(!c.f && curK) c.f = curK;                    /* liaison sans fréquence : elle reprend celle de la ligne */
+  _rfSave(); _rfMirror(c);
+  return true;
+}
+/* Défaire le lien : la ligne n'est plus en HF, sa case « Fréq. HF » (qui recopiait la liaison) est vidée */
+function _rfUnlink(c){
+  if(!c) return;
+  var kind = c.il ? 'il' : c.out ? 'out' : '', row = kind ? _rfRow(kind, c[kind]) : null;
+  if(row && String(row.hf || '').trim()) _rfWriteHf(kind === 'out', row.id, '');
+  c.il = ''; c.out = ''; c.nl = false; _rfSave();
+}
+/* Nouvelle liaison à partir d'une ligne : « cette entrée est en HF » */
+function _rfNewFromRow(kind, rowId){
+  var row = _rfRow(kind, rowId); if(!row) return null;
+  if(RF.data.ch.length >= _RF_MAX_CH){ toast('Limite de ' + _RF_MAX_CH + ' canaux atteinte.'); return null; }
+  var c = _rfCleanCh({ id:_rfId(), n:row.long || row.name || '', kind:kind === 'out' ? 'iem' : 'mic', f:_rfParseMHz(row.hf), nl:true });
+  c[kind] = row.id;
+  RF.data.ch.push(c);
+  _rfSave(); _rfMirror(c);
+  return c;
+}
+/* Onglet RF : colonne « Input list » */
+function rfLink(el){
+  var c = _rfGet(_rfRowId(el)); if(!c) return;
+  var kind = c.kind === 'iem' ? 'out' : 'il', v = String(el.value || '');
+  if(!_rfLinkGate()){ el.value = c[kind]; return; }
+  if(!v) _rfUnlink(c);
+  else if(!_rfDoLink(c, kind, v)){ el.value = c[kind]; return; }
+  _rfIlRefresh(); renderRf();
+}
+function rfAutoLink(){
+  if(!_rfLinkGate()) return;
+  var props = _rfMatchIl(RF.data.ch, _rfIl()), E = _bonE;
+  if(!props.length){ toast('Aucune correspondance sûre par nom. Liez les lignes à la main, ici ou depuis l\'input list.'); return; }
+  RF.pend = { link:props };
+  _rfModal('Associer à l\'input list', 'ti-link',
+    '<p class="rf-note">Liaisons et lignes portant le même nom. Décochez ce qui ne convient pas. Une ligne liée affiche ensuite la fréquence de sa liaison.</p><div class="rf-chk">' +
+    props.map(function(p, i){ return '<label><input type="checkbox" class="cb" data-i="' + i + '" checked/><span><b>' + E(p.c.who || p.c.n) + '</b> ' + _rfFmt(p.c.f) + '</span><i class="ti ti-arrow-right"></i><span>' + (p.out ? 'Sortie ' : 'Entrée ') + E(p.r.ch + ' · ' + p.r.name) + (String(p.r.hf || '').trim() && _rfParseMHz(p.r.hf) !== p.c.f ? ' <s>' + E(p.r.hf) + '</s>' : '') + '</span></label>'; }).join('') + '</div>',
+    '<button class="btn ghost sm" onclick="rfModalClose()">Annuler</button><button class="btn pri sm" onclick="rfAutoLinkApply()"><i class="ti ti-link"></i>Associer</button>');
+}
+function rfAutoLinkApply(){
+  var props = (RF.pend && RF.pend.link) || [], n = 0;
   document.querySelectorAll('#rf-modal .rf-chk input:checked').forEach(function(cb){
-    var x = list[+cb.dataset.i]; if(!x) return;
-    undo.push({ out:x.out, id:x.r.id, old:x.cur });
-    _rfWriteHf(x.out, x.r.id, x.nv);
+    var p = props[+cb.dataset.i], c = p && _rfGet(p.id);
+    if(c && _rfDoLink(c, p.out ? 'out' : 'il', p.to, true)) n++;
   });
   RF.pend = null; rfModalClose();
-  if(!undo.length) return;
-  RF.undo = undo; _rfIlRefresh(); renderRf();
-  var hidden = (typeof visCol !== 'undefined' && visCol && visCol.hf === false);
-  toast(undo.length + ' fréquence' + (undo.length > 1 ? 's reportées' : ' reportée') + ' dans l\'input list' + (hidden ? '. La colonne Fréq. HF y est masquée : affichez-la pour les voir.' : ''));
+  if(n){ _rfIlRefresh(); renderRf(); toast(_rfPl(n) + (n > 1 ? ' liés' : ' lié') + ' à l\'input list'); }
 }
-function rfSyncUndo(){
-  if(!RF.undo) return;
-  RF.undo.forEach(function(u){ _rfWriteHf(u.out, u.id, u.old); });
-  var n = RF.undo.length; RF.undo = null;
-  _rfIlRefresh(); renderRf();
-  toast('Report annulé : ' + n + ' valeur' + (n > 1 ? 's rétablies' : ' rétablie'));
+/* Onglet RF : créer d'un coup les liaisons des lignes qui ont l'air d'être en HF */
+function _rfOrphans(){
+  var il = _rfIl(), used = {};
+  RF.data.ch.forEach(function(c){ if(c.il) used[c.il] = 1; });
+  return il.chs.filter(function(r){ return !used[r.id] && _rfIsHfRow(r); });
+}
+function rfFromIl(){
+  if(!_rfLinkGate()) return;
+  var rows = _rfOrphans(), E = _bonE;
+  if(!rows.length){ toast('Toutes les lignes HF de l\'input list ont déjà leur liaison.'); return; }
+  RF.pend = { rows:rows };
+  _rfModal('Liaisons HF de l\'input list', 'ti-antenna',
+    '<p class="rf-note">Ces entrées ont l\'air d\'être en HF (micro sans fil ou fréquence saisie) et n\'ont pas de liaison dans l\'onglet RF. Cochez celles à créer.</p><div class="rf-chk">' +
+    rows.map(function(r, i){ return '<label><input type="checkbox" class="cb" data-i="' + i + '" checked/><span>Entrée <b>' + E(r.ch + ' · ' + (r.long || r.name)) + '</b></span><span class="rf-chg">' + E(r.mic || '') + (String(r.hf || '').trim() ? ' <b>' + E(r.hf) + '</b>' : '') + '</span></label>'; }).join('') + '</div>',
+    '<button class="btn ghost sm" onclick="rfModalClose()">Annuler</button><button class="btn pri sm" onclick="rfFromIlApply()"><i class="ti ti-plus"></i>Créer les liaisons</button>');
+}
+function rfFromIlApply(){
+  var rows = (RF.pend && RF.pend.rows) || [], n = 0;
+  document.querySelectorAll('#rf-modal .rf-chk input:checked').forEach(function(cb){ var r = rows[+cb.dataset.i]; if(r && _rfNewFromRow('il', r.id)) n++; });
+  RF.pend = null; rfModalClose();
+  if(n){ _rfIlRefresh(); renderRf(); toast(n + ' liaison' + (n > 1 ? 's HF créées' : ' HF créée')); }
+}
+
+/* ── Depuis l'input list et les sorties ── */
+/* Bouton HF d'une ligne (appelé par pf-app.js en dessinant les tableaux). r : la ligne. */
+function _rfIlBtn(kind, r){
+  if(!CUR_SHOW || !r) return '';
+  _rfLoad();
+  var E = _bonE, id = String(r.id), c = _rfLinked(kind, id);
+  var hint = !c && kind === 'il' && _rfIsHfRow({ mic:r.mic, name:r.short_name, hf:r.custom_data && r.custom_data._hf });
+  var title = c ? 'Liaison HF : ' + (c.n || c.dev || 'sans nom') + (c.f ? ' · ' + _rfFmt(c.f) + ' MHz' : '') : (kind === 'out' ? 'Sortie en HF : la lier à une liaison de l\'onglet RF' : 'Entrée en HF : la lier à une liaison de l\'onglet RF');
+  return '<button type="button" class="rf-hf' + (c ? ' on' : hint ? ' hint' : '') + '" data-rf="' + kind + '" data-id="' + E(id) + '" onclick="rfRowMenu(this)" title="' + E(title) + '" aria-label="' + E(title) + '"><i class="ti ti-antenna"></i></button>';
+}
+function rfPopClose(){
+  var p = document.getElementById('rf-pop'); if(p) p.remove();
+  document.removeEventListener('mousedown', _rfPopOut, true);
+  document.removeEventListener('keydown', _rfPopKey, true);
+  window.removeEventListener('scroll', _rfPopScroll, true);
+  window.removeEventListener('resize', rfPopClose);
+}
+/* Le menu est posé à côté du bouton : il se ferme dès que la page défile sous lui */
+function _rfPopScroll(e){ var p = document.getElementById('rf-pop'); if(p && !p.contains(e.target)) rfPopClose(); }
+function _rfPopOut(e){ var p = document.getElementById('rf-pop'); if(p && !p.contains(e.target) && !(e.target.closest && e.target.closest('.rf-hf'))) rfPopClose(); }
+function _rfPopKey(e){ if(e.key === 'Escape'){ e.stopPropagation(); rfPopClose(); } }
+function rfRowMenu(el){
+  if(!CUR_SHOW || !el) return;
+  var open = document.getElementById('rf-pop'), kind = el.dataset.rf === 'out' ? 'out' : 'il', id = String(el.dataset.id || '');
+  if(open && open.dataset.id === id && open.dataset.rf === kind){ rfPopClose(); return; }
+  rfPopClose(); _rfLoad();
+  var E = _bonE, c = _rfLinked(kind, id), h = '';
+  var item = function(act, icon, label, extra){ return '<button type="button" data-act="' + act + '"' + (extra || '') + '><i class="ti ' + icon + '"></i><span>' + label + '</span></button>'; };
+  if(c){
+    h = '<div class="rf-pop-h"><i class="ti ti-antenna"></i><div><b>' + E(c.n || c.dev || 'Liaison HF') + '</b><span>' + (c.f ? _rfFmt(c.f) + ' MHz' : 'sans fréquence') + E([c.mdl, c.zone].filter(Boolean).map(function(x){ return ' · ' + x; }).join('')) + '</span></div></div>' +
+      item('see', 'ti-arrow-right', 'Voir dans l\'onglet RF') + item('unlink', 'ti-unlink', 'Ce n\'est plus une ligne HF (délier)');
+  } else {
+    var free = RF.data.ch.filter(function(x){ return !x.il && !x.out && (kind === 'out' ? x.kind !== 'mic' : x.kind !== 'iem'); });
+    h = '<div class="rf-pop-t">' + (kind === 'out' ? 'Sortie en HF' : 'Entrée en HF') + '</div>' + item('new', 'ti-plus', 'Créer sa liaison dans l\'onglet RF');
+    if(free.length) h += '<div class="rf-pop-t">Ou la lier à une liaison existante</div><div class="rf-pop-l">' +
+      free.map(function(x){ return '<button type="button" data-act="link" data-c="' + x.id + '"><b>' + E(x.n || x.dev || 'Sans nom') + '</b><span>' + (x.f ? _rfFmt(x.f) : '—') + E(x.mdl ? ' · ' + x.mdl : '') + '</span></button>'; }).join('') + '</div>';
+  }
+  var p = document.createElement('div');
+  p.id = 'rf-pop'; p.className = 'rf-pop'; p.dataset.rf = kind; p.dataset.id = id; p.innerHTML = h;
+  p.onclick = function(e){ var b = e.target.closest ? e.target.closest('button[data-act]') : null; if(b) rfRowAct(b.dataset.act, kind, id, b.dataset.c || ''); };
+  document.body.appendChild(p);
+  var r = el.getBoundingClientRect(), W = window.innerWidth, H = window.innerHeight;
+  p.style.left = Math.max(8, Math.min(r.left, W - p.offsetWidth - 8)) + 'px';
+  p.style.top = (r.bottom + 6 + p.offsetHeight > H - 8 ? Math.max(8, r.top - p.offsetHeight - 6) : r.bottom + 6) + 'px';
+  document.addEventListener('mousedown', _rfPopOut, true);
+  document.addEventListener('keydown', _rfPopKey, true);
+  window.addEventListener('scroll', _rfPopScroll, true);
+  window.addEventListener('resize', rfPopClose);
+}
+function rfRowAct(act, kind, id, cid){
+  rfPopClose(); _rfLoad();
+  var c = _rfLinked(kind, id);
+  if(act === 'see'){ if(c){ goTab('rf', null); rfFocus(c.id); } return; }
+  if(act === 'unlink'){ if(c){ _rfUnlink(c); toast('Ligne déliée. La liaison reste dans l\'onglet RF.'); } }
+  else {
+    if(!_rfLinkGate()) return;
+    if(act === 'new'){ if(_rfNewFromRow(kind, id)) toast('Liaison HF créée : elle est dans l\'onglet RF.'); }
+    else if(act === 'link'){ if(!_rfDoLink(_rfGet(cid), kind, id)) return; toast('Ligne liée à sa liaison HF.'); }
+    else return;
+  }
+  _rfIlRefresh();
+  var on = document.getElementById('panel-rf'); if(on && on.classList.contains('on')) renderRf();
+}
+/* Case « Fréq. HF » d'une ligne modifiée à la main. Vrai si la ligne est liée : la liaison est alors
+   mise à jour, et c'est elle qui fait foi. */
+function rfIlFreq(kind, id, el){
+  if(!CUR_SHOW) return false;
+  _rfLoad();
+  var c = _rfLinked(kind, id); if(!c) return false;
+  var v = String(el.value || '').trim(), k = v ? _rfParseMHz(v) : 0;
+  if(v && !k){ toast('Fréquence illisible : saisissez-la en MHz, par exemple 606.125'); el.value = _rfFmt(c.f); return true; }
+  c.f = k; el.value = _rfFmt(k);
+  _rfWriteHf(kind === 'out', String(id), _rfFmt(k));
+  _rfSave();
+  return true;
 }
 
 /* ── Import d'un show WWB ── */
@@ -1140,7 +1267,7 @@ function rfImportApply(){
   if(!d.coord.tv.length) d.coord.tvw = p.tvw === 6 ? 6 : 8;
   d.src = { file:_rfStr(P.file, 120), show:p.show.name, app:p.show.app, at:new Date().toISOString(), mode:P.mode };
   RF.data = _rfClean(d); RF.pend = null; RF.q = ''; RF.fk = ''; RF.fz = ''; RF.fs = '';
-  rfModalClose(); _rfSave(); renderRf();
+  rfModalClose(); _rfSave(); _rfMirrorAll(); renderRf();
   toast(m.add + m.upd + m.same + ' canaux repris de Wireless Workbench');
 }
 function rfVersions(){
@@ -1157,7 +1284,7 @@ function rfRestore(i){
   d.vers.splice(i, 1);
   _rfSnapshot('Avant restauration');
   d.ch = ch; RF.data = _rfClean(d);
-  rfModalClose(); _rfSave(); renderRf(); toast('Version restaurée');
+  rfModalClose(); _rfSave(); _rfMirrorAll(); renderRf(); toast('Version restaurée');
 }
 
 /* ── Calcul des fréquences ─────────────────────────────────────────────
@@ -1342,7 +1469,7 @@ function rfCoordApply(){
   _rfSnapshot('Avant le calcul des fréquences');
   d.ch.forEach(function(c){ var f = P.map[c.id]; if(f){ c.f = f; n++; } });
   RF.data = _rfClean(d); RF.co = null; RF.onClose = null;
-  rfModalClose(); _rfSave(); renderRf();
+  rfModalClose(); _rfSave(); _rfMirrorAll(); renderRf();
   toast(n + ' fréquence' + (n > 1 ? 's appliquées' : ' appliquée') + '. À régler sur les appareils ; l\'état précédent reste dans Versions.');
 }
 

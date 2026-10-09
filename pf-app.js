@@ -1614,7 +1614,7 @@ function renderOutTable() {
       +'<td data-label="Nom long"><input class="ilinp" style="min-width:100px" value="'+_oh(r.long_name||'')+'" onchange="updateOutField(\''+_jsq(r.id)+'\',\'long_name\',this.value)"/></td>'
       +'<td data-label="Type"><span class="out-type"><i style="background:'+t.color+'"></i><select class="out-type-sel" onchange="updateOutField(\''+_jsq(r.id)+'\',\'type\',this.value)">'+opts+'</select></span></td>'
       +'<td data-label="Destination"><input class="ilinp" value="'+_oh(r.dest||'')+'" onchange="updateOutField(\''+_jsq(r.id)+'\',\'dest\',this.value)" placeholder="Ampli, zone, room..."/></td>'
-      +'<td data-label="Fréq. HF"><input class="ilinp m" style="color:var(--grn);width:74px" value="'+_oh(r.hf||'')+'" onchange="updateOutField(\''+_jsq(r.id)+'\',\'hf\',this.value)" placeholder="MHz"/></td>'
+      +'<td data-label="Fréq. HF"><span class="rf-hfw"><input class="ilinp m" style="color:var(--grn);width:74px" value="'+_oh(r.hf||'')+'" data-id="'+_oh(r.id)+'" onchange="_ilHfChange(\'out\',this)" placeholder="MHz"/>'+(typeof _rfIlBtn==='function'?_rfIlBtn('out',r):'')+'</span></td>'
       +'<td data-label="Note"><input class="ilinp" value="'+_oh(r.note||'')+'" onchange="updateOutField(\''+_jsq(r.id)+'\',\'note\',this.value)"/></td>'
       +'<td class="il-actions-cell" style="white-space:nowrap">'
       +'<button class="move-btn" onclick="moveOutRow(\''+_jsq(r.id)+'\',-1)"'+(i===0?' disabled':'')+' title="Monter"><i class="ti ti-chevron-up"></i></button>'
@@ -2296,11 +2296,11 @@ const _IL_CELL_RENDERERS={
   short:  r=>`<td data-col="short" data-label="Court"><input class="ilinp sh" maxlength="4" value="${_oh((r.short_name||'').trim())}" onchange="scheduleSave('${_jsq(r.id)}','short_name',this.value.toUpperCase().slice(0,4));renderPills()"/></td>`,
   long:   r=>`<td data-col="long" data-label="Nom long"><input class="ilinp" value="${_oh(r.long_name||'')}" onchange="scheduleSave('${_jsq(r.id)}','long_name',this.value);renderPills()"/></td>`,
   src:    r=>`<td data-col="src" data-label="Source"><input class="ilinp" style="color:var(--txt2)" value="${_oh(r.source||'')}" onchange="scheduleSave('${_jsq(r.id)}','source',this.value)"/></td>`,
-  mic:    r=>`<td data-col="mic" data-label="Micro/DI"><input class="ilinp m" value="${_oh(r.mic||'')}" onchange="scheduleSave('${_jsq(r.id)}','mic',this.value)"/></td>`,
+  mic:    r=>`<td data-col="mic" data-label="Micro/DI"><span class="rf-hfw"><input class="ilinp m" value="${_oh(r.mic||'')}" onchange="scheduleSave('${_jsq(r.id)}','mic',this.value)"/>${typeof _rfIlBtn==='function'?_rfIlBtn('il',r):''}</span></td>`,
   gain:   r=>`<td data-col="gain" data-label="Gain"><input class="ilinp m" type="number" style="width:42px" value="${r.gain||0}" min="-60" max="60" step="1" onchange="scheduleSave('${_jsq(r.id)}','gain',parseInt(this.value)||0)"/></td>`,
   phantom:r=>`<td data-col="phantom" data-label="+48V" style="text-align:center"><label class="il-tog" title="Alimentation fantôme +48V"><input type="checkbox" class="cb" ${r.phantom?'checked':''} onchange="scheduleSave('${_jsq(r.id)}','phantom',this.checked)"/><span>48V</span></label></td>`,
   iem:    r=>`<td data-col="iem" data-label="IEM"><input class="ilinp m" style="color:var(--grn);width:46px" value="${_oh(r.iem_group||'')}" onchange="scheduleSave('${_jsq(r.id)}','iem_group',this.value)" placeholder="GR1"/></td>`,
-  hf:     r=>`<td data-col="hf" data-label="Fréq. HF"><input class="ilinp m" style="color:var(--accent2,#9b6aff);width:74px" value="${_oh((r.custom_data&&r.custom_data._hf)||'')}" onchange="saveCustomCell('${_jsq(r.id)}','_hf',this.value)" placeholder="MHz"/></td>`,
+  hf:     r=>`<td data-col="hf" data-label="Fréq. HF"><input class="ilinp m" style="color:var(--accent2,#9b6aff);width:74px" value="${_oh((r.custom_data&&r.custom_data._hf)||'')}" data-id="${_oh(r.id)}" onchange="_ilHfChange('il',this)" placeholder="MHz"/></td>`,
   foh:    r=>`<td data-col="foh" data-label="FOH" style="text-align:center"><label class="il-dot blu" title="Envoyé en façade"><input type="checkbox" class="cb blu" ${r.foh?'checked':''} onchange="scheduleSave('${_jsq(r.id)}','foh',this.checked)"/><span></span></label></td>`,
   mon:    r=>`<td data-col="mon" data-label="MON" style="text-align:center"><label class="il-dot warn" title="Envoyé aux retours"><input type="checkbox" class="cb warn" ${r.mon?'checked':''} onchange="scheduleSave('${_jsq(r.id)}','mon',this.checked)"/><span></span></label></td>`,
   bc:     r=>`<td data-col="bc" data-label="BC" style="text-align:center"><label class="il-dot grn" title="Envoyé au broadcast"><input type="checkbox" class="cb grn" ${r.bc?'checked':''} onchange="scheduleSave('${_jsq(r.id)}','bc',this.checked)"/><span></span></label></td>`,
@@ -3786,6 +3786,13 @@ async function _saveCustomCols(cols){
 
 /* Sauvegarde la valeur d'une colonne custom dans channels.custom_data */
 var _customSaveTimers={};
+/* Case « Fréq. HF » d'une entrée ou d'une sortie : si la ligne est liée à une liaison de l'onglet RF,
+   c'est la liaison qui est modifiée (elle fait foi) ; sinon la valeur est simplement enregistrée. */
+function _ilHfChange(kind,el){
+  var id=el.dataset.id;
+  if(typeof rfIlFreq==='function' && rfIlFreq(kind,id,el)) return;
+  if(kind==='out') updateOutField(id,'hf',el.value); else saveCustomCell(id,'_hf',el.value);
+}
 function saveCustomCell(channelId,colId,val){
   const r=CHS.find(x=>x.id===channelId);
   if(r){ if(!r.custom_data)r.custom_data={}; r.custom_data[colId]=val; }
