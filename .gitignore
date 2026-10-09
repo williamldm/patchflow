@@ -10,6 +10,10 @@
 !pf-sq5-blank.dat
 !pf-dm7-blank.dm7f
 !pf-app.css
+!pf-rf.js
+!tests/
+!tests/rf.html
+!tests/rf-fixtures.js
 !index.html
 !favicon.svg
 !img/

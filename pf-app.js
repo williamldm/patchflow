@@ -484,7 +484,7 @@ function _showInitError(msg){
 }
 /* Au rechargement, la page où l'on était s'affiche tout de suite, sans repasser par les sessions pendant le
    chargement des données ; la rubrique est ensuite remplie par goTab, une fois le show chargé. */
-const _TABS_OK=['sessions','overview','fichiers','inputlist','showfiles','bon','racks','synoptique','stage','team','settings'];
+const _TABS_OK=['sessions','overview','fichiers','inputlist','showfiles','bon','racks','rf','synoptique','stage','team','settings'];
 function _preTab(){
   try{
     var id=localStorage.getItem(TAB_PERSIST_KEY);
@@ -1172,6 +1172,7 @@ async function switchShow(id, opts){
      "collée" d'un show à l'autre. */
   _fichPath = [];
   if(document.getElementById('panel-fichiers')?.classList.contains('on')) renderFichiers();
+  if(document.getElementById('panel-rf')?.classList.contains('on') && typeof renderRf==='function') renderRf();
   if(document.getElementById('panel-showfiles')?.classList.contains('on')){ renderPills(); updateStats(); }
   if(typeof _navSync==='function') _navSync();
 }
@@ -16289,6 +16290,8 @@ function _demBuild(){
   });
   Object.keys(rkG).forEach(function(k){ rkRows.push({key:'rk:'+k,name:rkG[k].name,det:rkG[k].w.join(' · '),qty:rkG[k].n}); });
   S('racks','Racks','Racks',rkRows);
+  /* Liaisons HF de l'onglet RF */
+  S('rf','Liaisons HF','RF',typeof _rfGearRows==='function'?_rfGearRows():[]);
   /* Câbles tracés sur le plan de site, avec leurs longueurs */
   var cab={};
   docs.site.forEach(function(d){
@@ -21479,6 +21482,7 @@ function goTab(id,el){
   if(id==='bon') renderBon();
   if(id==='admin') renderAdmin();
   if(id==='racks') renderRacks();
+  if(id==='rf' && typeof renderRf==='function') renderRf();
   if(id==='settings' && !document.querySelector('#panel-settings .set-sec.on')) setNav('profil');
   if(typeof _ilSelSync==='function') _ilSelSync();
   var _fs=document.querySelector('.panel.pf-fs'); if(_fs && _fs.id!=='panel-'+id) pfFullscreen(_fs.id==='panel-synoptique'?'syno':'plan',false);
@@ -21771,10 +21775,10 @@ function closeUD(){document.getElementById('user-dd').classList.remove('show');}
 const PLAN_PERMS = {
   free:   { max_shows:3,        max_channels:26,       max_members:1,        max_templates:5,        max_share_links:5,
             export_pdf:true,    share_link:true,       site_plan:true,       pdf_watermark:true,
-            storage:true,       multi_scenes:false,    multi_patches:false,  custom_exports:false,  vintage_view:false, recap_matos:false, recent_activity:false, console_export:false, ai_stage:false, ai_inputlist:false, bulk_link:false, recently_deleted:false },
+            storage:true,       multi_scenes:false,    multi_patches:false,  custom_exports:false,  vintage_view:false, recap_matos:false, recent_activity:false, console_export:false, ai_stage:false, ai_inputlist:false, bulk_link:false, rf_link:false, recently_deleted:false },
   pro:    { max_shows:Infinity, max_channels:Infinity, max_members:Infinity, max_templates:Infinity, max_share_links:Infinity,
             export_pdf:true,    share_link:true,       site_plan:true,       pdf_watermark:false,
-            storage:true,       multi_scenes:true,     multi_patches:true,   custom_exports:true,   vintage_view:true,  recap_matos:true,  recent_activity:true, console_export:true, ai_stage:true, ai_inputlist:true, bulk_link:true, recently_deleted:true },
+            storage:true,       multi_scenes:true,     multi_patches:true,   custom_exports:true,   vintage_view:true,  recap_matos:true,  recent_activity:true, console_export:true, ai_stage:true, ai_inputlist:true, bulk_link:true, rf_link:true, recently_deleted:true },
 };
 
 const PLAN_META = {
@@ -21794,6 +21798,7 @@ const GATE_META = {
   multi_patches:  { icon:'ti-layers-subtract',  title:'Multi-patches & multi-scenes', desc:'Creez plusieurs variantes de patch (A/B, festival) et plusieurs synoptiques / plans par show.', plan:'pro', feats:['Variantes A/B, festival, acoustique','Plusieurs synoptiques et plans par show','Inclus dans le plan Pro'] },
   custom_exports: { icon:'ti-photo',            title:'Exports personnalises',        desc:'Ajoutez votre logo et les informations de votre societe sur tous les exports PDF.', plan:'pro', feats:['Logo sur chaque page PDF','Entete avec vos coordonnees','Charte graphique de votre societe'] },
   vintage_view:   { icon:'ti-photo-film',       title:'Affichage Vintage',            desc:'Mode theatral avec les instruments dessines en vue de dessus sur un plateau sombre.', plan:'pro', feats:['Vue en plongee de chaque instrument','Fond de scene theatral avec parquet','Inclus dans le plan Pro'] },
+  rf_link:        { icon:'ti-antenna',          title:'RF relié à l\'input list',     desc:'Associez chaque liaison HF à sa ligne d\'input ou de sortie et reportez les fréquences en un clic, avec confirmation et annulation.', plan:'pro', feats:['Association automatique par nom','Report des fréquences dans la colonne Fréq. HF','Alerte quand l\'input list et la session RF divergent'] },
   bon_loueur:     { icon:'ti-clipboard-check',  title:'Bon du loueur',                desc:'Le plan Gratuit comprend une session contrôlée par mois. Passez au Pro pour contrôler toutes vos sessions avec le bon du loueur.', plan:'pro', feats:['Contrôles illimités, sur toutes vos sessions','Micros, DI, pieds, synoptique et plan de site','Préconisations : câblage XLR, pieds en spare'] },
   recap_matos:    { icon:'ti-clipboard-list',   title:'Recap materiels',              desc:'Obtenez le decompte exact de chaque micro et pied necessaires — indispensable avant un show pour ne rien oublier.', plan:'pro', feats:['Decompte par modele de micro ou DI','Decompte par type de pied','Total consolide sur tous les patches'] },
   recent_activity:{ icon:'ti-history',          title:'Activite recente',             desc:'Visualisez les derniers canaux modifies par votre equipe en temps reel — utile pour savoir qui a touche a quoi.', plan:'pro', feats:['5 derniers canaux modifies','Horodatage relatif (il y a X min)','Inclus dans le plan Pro'] },

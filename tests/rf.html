@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8"><title>Tests RF</title>
+<style>body{font:14px/1.5 system-ui,sans-serif;margin:24px;max-width:900px}h1{font-size:18px}.ok{color:#067647}.ko{color:#d92d20;font-weight:600}li{margin:2px 0}pre{background:#f4f5f7;padding:8px;border-radius:6px;white-space:pre-wrap}</style>
+</head><body>
+<h1>PatchFlow — tests du module RF</h1>
+<p>Lecture des shows Wireless Workbench, table des bandes, fusion, contrôles et recoupement avec l'input list. Sessions synthétiques (<code>rf-fixtures.js</code>).</p>
+<p id="sum"></p><ul id="log"></ul>
+<script src="../pf-rf.js"></script>
+<script src="rf-fixtures.js"></script>
+<script>
+(function(){
+  var log = document.getElementById('log'), pass = 0, failN = 0, lines = [];
+  function t(name, cond, detail){
+    if(cond) pass++; else failN++;
+    lines.push((cond ? 'OK   ' : 'FAIL ') + name + (cond || detail === undefined ? '' : ' → ' + JSON.stringify(detail)));
+    var li = document.createElement('li'); li.className = cond ? 'ok' : 'ko';
+    li.textContent = (cond ? '✓ ' : '✗ ') + name + (cond || detail === undefined ? '' : ' → ' + JSON.stringify(detail));
+    log.appendChild(li);
+  }
+  function eq(name, a, b){ t(name, JSON.stringify(a) === JSON.stringify(b), { obtenu:a, attendu:b }); }
+  var F = RF_FIX;
+  try {
+    /* 1. Lecture d'un show */
+    var p = _rfParseShw(F.festival);
+    t('show lu', p.ok === true, p.err);
+    eq('nom et version', [p.show.name, p.show.app], ['Festival Test', '7.8.0.66']);
+    eq('7 canaux, 1 appareil sans canal ignoré', [p.ch.length, p.skipped], [7, 1]);
+    eq('zones', p.zones, ['Plateau', 'Accueil']);
+    eq('zones isolées', p.iso, [['Plateau', 'Accueil'], ['Accueil', 'Plateau']]);
+    var by = {}; p.ch.forEach(function(c){ by[c.n + '|' + c.dev] = c; });
+    var lead = p.ch[0], gtr = p.ch[2], iem = p.ch[3], spk = p.ch[5];
+    eq('canal 1 : nom CDATA, inventaire, coordination, espacement', [lead.n, lead.fi, lead.fc, lead.sp, lead.kind, lead.band], ['Lead Vox', 470150, 511475, 350, 'mic', 'G56']);
+    eq('identifiant source à deux canaux', [p.ch[0].src, p.ch[1].src], ['AAAA0001-0', 'AAAA0001-1']);
+    eq('appareil à un canal : identifiant sans suffixe ; profil retrouvé par série et bande', [gtr.src, gtr.fc, gtr.sp], ['AAAA0002', 611250, 350]);
+    eq('IEM reconnu, puissance', [iem.kind, iem.pw, iem.fc], ['iem', 10, 630000]);
+    eq('Sennheiser : fabricant, groupe/canal', [spk.mk, spk.gc, spk.kind], ['Sennheiser', 'G:1 Ch:3', 'iem']);
+    eq('canal sans coordination : SR sans entrée reste IEM par sa série', [p.ch[6].fc, p.ch[6].kind], [0, 'iem']);
+    eq('groupe/canal vide ignoré', lead.gc, '');
+    eq('réserve', p.spare, [{ f:540475, ser:'AD', band:'G56', zone:'Plateau' }]);
+    eq('exclusions actives seulement', p.excl, [{ a:480000, b:488000, l:'DVB local' }, { a:542000, b:550000, l:'TV 30' }]);
+    eq('coordination proposée', [p.coordDiff, p.suggest], [6, 'coord']);
+    eq('show déployé : inventaire proposé', _rfParseShw(F.festival2).suggest, 'inv');
+
+    /* 2. Fichiers refusés */
+    var bad = [['vide', ''], ['texte', 'bonjour'], ['autre XML', '<root><inventory/></root>'], ['sans inventaire', '<show><x/></show>'],
+               ['inventaire vide', F.show({ devices:[] })], ['archive', 'PK\x03\x04 <show><inventory>'], ['XML tronqué', F.festival.slice(0, 900)], ['nombre', 12]];
+    bad.forEach(function(b){ var r = _rfParseShw(b[1]); t('refusé : ' + b[0], r.ok === false && typeof r.err === 'string' && r.err.length > 8, r); });
+
+    /* 3. Bandes */
+    eq('AD G56', _rfBand('AD', 'G56'), [470150, 636000]);
+    eq('EM 2050 Gw', _rfBand('EM 2050', 'Gw'), [558000, 626000]);
+    eq('PSM1000 L8E', _rfBand('PSM1000', 'L8E'), [626125, 697875]);
+    eq('bande inconnue', _rfBand('AD', 'ZZ9'), null);
+    eq('série inconnue', _rfBand('Lectro', 'A1'), null);
+
+    /* 4. Fréquences saisies */
+    eq('saisie MHz', ['606.125', '606,125', ' 606.5 MHz', '606125', '1800', 'abc', '', '12', '606.1.2'].map(_rfParseMHz), [606125, 606125, 606500, 606125, 1800000, 0, 0, 0, 0]);
+    eq('affichage', [_rfFmt(606125), _rfFmt(0)], ['606.125', '']);
+
+    /* 5. Fusion */
+    var m1 = _rfMerge([], p, { mode:'coord' });
+    eq('premier import', [m1.add, m1.upd, m1.same, m1.gone, m1.ch.length], [7, 0, 0, 0, 7]);
+    eq('mode coordination', [m1.ch[0].f, m1.ch[6].f], [511475, 558000]);
+    eq('mode inventaire', _rfMerge([], p, { mode:'inv' }).ch[0].f, 470150);
+    var cur = JSON.parse(JSON.stringify(m1.ch));
+    cur[0].who = 'Camille'; cur[0].tx = 'hh'; cur[0].st = 'ok'; cur[0].note = 'capsule KSM9'; cur[0].il = 'row-12';
+    cur[1].n = 'Choeur cour';                                   /* nom retouché dans PatchFlow */
+    var p2 = _rfParseShw(F.festival2), m2 = _rfMerge(cur, p2, { mode:'inv' });
+    eq('réimport : comptes', [m2.add, m2.upd, m2.same, m2.gone, m2.ch.length], [2, 1, 3, 3, 9]);
+    var l2 = m2.ch[0];
+    eq('réimport : saisies conservées, fréquence du fichier', [l2.id === cur[0].id, l2.who, l2.tx, l2.st, l2.note, l2.il, l2.f], [true, 'Camille', 'hh', 'ok', 'capsule KSM9', 'row-12', 513000]);
+    eq('réimport : nom retouché gardé', m2.ch[1].n, 'Choeur cour');
+    t('réimport : la différence cite l\'ancienne et la nouvelle fréquence', m2.diffs.length === 1 && /511\.475 → 513\.000/.test(m2.diffs[0].what.join(' ')), m2.diffs);
+    eq('réimport avec retrait des absents', _rfMerge(cur, p2, { mode:'inv', drop:true }).ch.length, 6);
+    var manual = [{ id:'rabc12', src:'', n:'Lead Vox', n0:'Lead Vox', mdl:'AD4D-A', who:'Zoé', f:500000, kind:'mic', st:'todo' }];
+    eq('sans identifiant : rapproché par nom et modèle', _rfMerge(manual, p, { mode:'coord' }).ch[0].who, 'Zoé');
+
+    /* 6. Contrôles */
+    var mk = function(o){ return _rfCleanCh(Object.assign({ id:_rfId(), kind:'mic', st:'ok', who:'x', n:'Canal ' + Math.random().toString(36).slice(2, 6) }, o)); };
+    var codes = function(rf, il){ return _rfChecks(rf, il).map(function(a){ return a.lvl + ':' + a.code; }); };
+    eq('aucune alerte', codes({ ch:[mk({ f:600000, sp:350 }), mk({ f:600400, sp:350 })] }), []);
+    eq('doublon', codes({ ch:[mk({ f:600000 }), mk({ f:600000 })] }), ['err:dup']);
+    eq('doublon ignoré entre zones isolées', codes({ ch:[mk({ f:600000, zone:'A' }), mk({ f:600000, zone:'B' })], iso:[['A', 'B']] }), []);
+    eq('4 canaux sur la même fréquence : une seule alerte', codes({ ch:[1, 2, 3, 4].map(function(){ return mk({ f:470150 }); }) }), ['err:dup']);
+    eq('trop proches selon le profil', codes({ ch:[mk({ f:600000, sp:350 }), mk({ f:600200, sp:350 })] }), ['warn:near']);
+    eq('sans profil : pas de contrôle d\'écart', codes({ ch:[mk({ f:600000 }), mk({ f:600200 })] }), []);
+    eq('hors plage', codes({ ch:[mk({ f:640000, ser:'AD', band:'G56' })] }), ['err:range']);
+    eq('bande inconnue : pas d\'alerte de plage', codes({ ch:[mk({ f:900000, ser:'AD', band:'ZZ9' })] }), []);
+    eq('plage exclue', codes({ ch:[mk({ f:484000 })], excl:[{ a:480000, b:488000, l:'DVB' }] }), ['warn:excl']);
+    eq('problème, sans fréquence, sans utilisateur, sans nom', codes({ ch:[mk({ f:0, st:'pb', who:'', n:'Shure' })] }), ['warn:pb', 'warn:nofreq', 'info:nowho', 'info:noname']);
+    var il = { chs:[{ id:'i1', ch:12, name:'Lead', mic:'SM58 HF', hf:'606.000' }, { id:'i2', ch:13, name:'Gtr', mic:'ULXD1', hf:'' }, { id:'i3', ch:14, name:'Kick', mic:'Beta 52', hf:'' }], outs:[{ id:'o1', ch:1, name:'IEM Lead', hf:'630.000' }] };
+    eq('input list : fréquence différente, micro HF orphelin', codes({ ch:[mk({ f:611250, il:'i1' }), mk({ f:630000, kind:'iem', out:'o1' })] }, il), ['warn:ilf', 'info:ilhf']);
+    eq('input list : ligne supprimée', codes({ ch:[mk({ f:611250, il:'zz' })] }, { chs:[], outs:[] }), ['info:lost']);
+    t('le message nomme les deux canaux', /« A » et « B »/.test(_rfChecks({ ch:[mk({ f:600000, n:'A' }), mk({ f:600000, n:'B' })] })[0].msg));
+
+    /* 7. Rapprochement par nom */
+    var prop = _rfMatchIl([mk({ id:'ra0001', who:'Lead', n:'x1' }), mk({ id:'ra0002', who:'', n:'IEM Lead', kind:'iem' }), mk({ id:'ra0003', who:'Inconnu', n:'y' })], il);
+    eq('propositions sûres uniquement', prop.map(function(x){ return [x.id, x.to, x.out]; }), [['ra0001', 'i1', false], ['ra0002', 'o1', true]]);
+    eq('nom ambigu : aucune proposition', _rfMatchIl([mk({ who:'Vox' })], { chs:[{ id:'a', ch:1, name:'Vox' }, { id:'b', ch:2, name:'Vox' }], outs:[] }).length, 0);
+
+    /* 8. Données stockées abîmées */
+    eq('nettoyage : entrée quelconque', _rfClean('x').ch.length, 0);
+    var dirty = _rfClean({ ch:[{ id:'<img>', n:'<b>x</b>'.repeat(40), f:'abc', kind:'zz', st:'??', pw:-4 }, { id:'rsame1', f:600000 }, { id:'rsame1', f:601000 }, null], excl:[{ a:5, b:1 }], vers:'x', zones:[3, '', 'A'] });
+    eq('nettoyage : champs bornés', [dirty.ch.length, /^[a-z0-9]{4,24}$/.test(dirty.ch[0].id), dirty.ch[0].n.length, dirty.ch[0].f, dirty.ch[0].kind, dirty.ch[0].st, dirty.ch[0].pw], [3, true, 60, 0, 'mic', 'todo', 0]);
+    t('nettoyage : identifiants uniques', dirty.ch[1].id !== dirty.ch[2].id);
+    eq('nettoyage : exclusions et zones', [dirty.excl.length, dirty.zones], [0, ['3', 'A']]);
+  } catch(e){ t('exception pendant les tests', false, String(e && e.stack || e)); }
+  var sum = document.getElementById('sum');
+  sum.className = failN ? 'ko' : 'ok';
+  sum.textContent = pass + ' réussis, ' + failN + ' en échec';
+  document.title = (failN ? 'ECHEC ' : 'OK ') + pass + '/' + (pass + failN);
+  window.__rfTests = { pass:pass, fail:failN, lines:lines };
+})();
+</script>
+</body></html>
