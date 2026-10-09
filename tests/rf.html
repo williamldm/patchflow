@@ -27,6 +27,7 @@
     eq('7 canaux, 1 appareil sans canal ignoré', [p.ch.length, p.skipped], [7, 1]);
     eq('zones', p.zones, ['Plateau', 'Accueil']);
     eq('zones isolées', p.iso, [['Plateau', 'Accueil'], ['Accueil', 'Plateau']]);
+    eq('zones sans intermodulation entre elles', p.zim, [['Plateau', 'Accueil'], ['Accueil', 'Plateau']]);
     var by = {}; p.ch.forEach(function(c){ by[c.n + '|' + c.dev] = c; });
     var lead = p.ch[0], gtr = p.ch[2], iem = p.ch[3], spk = p.ch[5];
     eq('canal 1 : nom CDATA, inventaire, coordination, espacement', [lead.n, lead.fi, lead.fc, lead.sp, lead.kind, lead.band], ['Lead Vox', 470150, 511475, 350, 'mic', 'G56']);
@@ -156,8 +157,10 @@
     /* Un produit ne compte que si ses émetteurs sont dans la zone et dans le filtre de la liaison touchée */
     var far = function(ser){ return ty([C('a', 500000, ser, 'std'), C('b', 540000, ser, 'std'), C('c', 460000, ser, 'std')]); };
     eq('émetteur hors de la fenêtre du filtre : ignoré (UHF-R ±25 MHz), compté (ULX-D ±100 MHz)', [far('UHFR'), far('ULXD')], ['', 'i3']);
-    var zn = function(zc){ return _rfCompat([{ id:'a', f:500000, z:'A', p:_rfProf({ ser:'AD' }, 'std') }, { id:'b', f:500400, z:'A', p:_rfProf({ ser:'AD' }, 'std') }, { id:'c', f:499650, z:zc, p:_rfProf({ ser:'AD' }, 'std') }]).list.length; };
-    eq('intermodulation limitée à la zone', [zn('A') > 0, zn('B')], [true, 0]);
+    var zn = function(za, zb, zc, zim){ return _rfCompat([{ id:'a', f:500000, z:za, p:_rfProf({ ser:'AD' }, 'std') }, { id:'b', f:500400, z:zb, p:_rfProf({ ser:'AD' }, 'std') }, { id:'c', f:499650, z:zc, p:_rfProf({ ser:'AD' }, 'std') }], null, zim).list.map(function(x){ return x.v; }).join(','); };
+    eq('produit né dans une zone : gêne une liaison de la même zone ou d\'une autre', [zn('A', 'A', 'A') !== '', zn('A', 'A', 'B')], [true, 'c']);
+    eq('émetteurs de deux zones différentes : pas de produit entre eux', zn('A', 'B', 'C'), '');
+    eq('matrice de zones : intermodulation coupée entre deux zones', zn('A', 'A', 'B', [['A', 'B']]), '');
     var zc = [{ id:'a', f:500000, z:'A', p:_rfProf({ ser:'AD' }, 'std') }, { id:'b', f:500200, z:'B', p:_rfProf({ ser:'AD' }, 'std') }];
     eq('écart entre porteuses : entre toutes les zones, sauf zones isolées', [_rfCompat(zc).list.length, _rfCompat(zc, [['A', 'B']]).list.length], [1, 0]);
 
@@ -200,7 +203,9 @@
 
     var zA = N(20, { z:'A' }), zB = N(20, { z:'B' }).map(function(c, q){ c.id = 'b' + q; return c; }), zr = run(zA.concat(zB));
     var zAll = zr.all.map(function(c, q){ c.z = q < 20 ? 'A' : 'B'; return c; });
-    eq('deux zones : aucune porteuse trop proche, intermodulation propre à chaque zone', [zr.placed, _rfCompat(zAll).list.length, zr.fs[39] < run(N(40)).fs[39]], [40, 0, true]);
+    eq('deux zones : aucune porteuse trop proche, aucun produit d\'une zone sur une liaison de l\'autre', [zr.placed, _rfCompat(zAll).list.length, zr.fs[39] <= run(N(40)).fs[39]], [40, 0, true]);
+    var zrN = _rfCoord(zA.concat(zB), { zim:[['A', 'B']] }), mN = {}; zrN.list.forEach(function(x){ mN[x.id] = x.f; });
+    t('intermodulation coupée entre les deux zones : spectre plus serré', Math.max.apply(null, zrN.list.map(function(x){ return x.f; })) <= Math.max.apply(null, zr.fs) && zrN.placed === 40);
     var isoR = _rfCoord([{ id:'a', f:0, lo:500000, hi:501000, dir:'up', z:'A', p:_rfProf({ ser:'AD' }, 'std') }, { id:'b', f:0, lo:500000, hi:501000, dir:'up', z:'B', p:_rfProf({ ser:'AD' }, 'std') }], { iso:[['A', 'B']] });
     eq('zones isolées : la même fréquence peut resservir', isoR.list.map(function(x){ return x.f; }), [500000, 500000]);
 

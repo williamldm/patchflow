@@ -87,7 +87,7 @@ function _rfRange(c){ return c.band ? _rfBand(c.ser, c.band) : null; }
 function _rfDefaultName(n){ return !n || /^(shure|sennheiser|generic|rx ?\d*|tx ?\d*|ch(annel)? ?\d*|remchannel\d*)$/i.test(String(n).trim()); }
 
 /* ── Données d'un show ── */
-function _rfEmpty(){ return { v:1, src:null, zones:[], iso:[], excl:[], spare:[], ch:[], vers:[], coord:_rfCoDef() }; }
+function _rfEmpty(){ return { v:1, src:null, zones:[], iso:[], zim:[], excl:[], spare:[], ch:[], vers:[], coord:_rfCoDef() }; }
 function _rfCleanCh(c){
   if(!c || typeof c !== 'object') return null;
   var kind = c.kind === 'iem' || c.kind === 'oth' ? c.kind : 'mic';
@@ -110,6 +110,7 @@ function _rfClean(d){
   var L = function(a){ return Array.isArray(a) ? a : []; };
   if(d.src && typeof d.src === 'object') o.src = { file:_rfStr(d.src.file, 120), show:_rfStr(d.src.show, 80), app:_rfStr(d.src.app, 20), at:_rfStr(d.src.at, 30), mode: d.src.mode === 'coord' ? 'coord' : 'inv' };
   o.zones = L(d.zones).map(function(z){ return _rfStr(z, 40); }).filter(Boolean).slice(0, 60);
+  o.zim = L(d.zim).filter(function(p){ return Array.isArray(p) && p.length === 2; }).slice(0, 400).map(function(p){ return [_rfStr(p[0], 40), _rfStr(p[1], 40)]; });
   o.iso = L(d.iso).filter(function(p){ return Array.isArray(p) && p.length === 2; }).slice(0, 400).map(function(p){ return [_rfStr(p[0], 40), _rfStr(p[1], 40)]; });
   o.excl = L(d.excl).map(function(e){ return e && { a:_rfFreq(e.a), b:_rfFreq(e.b), l:_rfStr(e.l, 40) }; }).filter(function(e){ return e && e.a && e.b > e.a; }).slice(0, 400);
   o.spare = L(d.spare).map(function(s){ return s && { f:_rfFreq(s.f), ser:_rfStr(s.ser, 30), band:_rfStr(s.band, 16), zone:_rfStr(s.zone, 40) }; }).filter(function(s){ return s && s.f; }).slice(0, 200);
@@ -156,7 +157,7 @@ function _rfParseShw(text){
   if(!inv) return fail('Ce show ne contient pas d\'inventaire : aucun appareil à reprendre.');
 
   var out = { ok:true, show:{ name:_rfStr(_rfTxt(_rfPath(root, 'show_properties/show_info'), 'name'), 80), app:_rfStr(root.getAttribute('appl_version'), 20), date:_rfStr(root.getAttribute('date'), 30) },
-              zones:[], iso:[], excl:[], ch:[], spare:[], skipped:0, coordDiff:0, invDup:0, suggest:'inv', tvw:8 };
+              zones:[], iso:[], zim:[], excl:[], ch:[], spare:[], skipped:0, coordDiff:0, invDup:0, suggest:'inv', tvw:8 };
 
   /* Zones et isolement entre zones (matrice de WWB : ch-ch à 0 = zones qui ne se voient pas) */
   var zs = _rfKid(inv, 'zones');
@@ -166,6 +167,7 @@ function _rfParseShw(text){
     _rfKids(f, 'to').forEach(function(t){
       var b = _rfStr(t.getAttribute('zone'), 40);
       if(a && b && a !== b && _rfTxt(t, 'ch-ch') === '0') out.iso.push([a, b]);
+      if(a && b && a !== b && _rfTxt(t, 'ch-imd') === '0') out.zim.push([a, b]);
     });
   });
 
@@ -425,9 +427,11 @@ function _rfMatchIl(ch, il){
        d'un canal Robuste est jugé avec les distances du Robuste ;
      - entre deux porteuses, le plus grand des deux écarts s'applique, et
        il vaut entre toutes les zones (sauf zones déclarées isolées) ;
-     - un produit ne compte pour une liaison que si les émetteurs qui le
-       créent sont dans sa zone et dans la fenêtre du filtre de son
-       récepteur (quelques dizaines de MHz autour d'elle).
+     - un produit naît entre émetteurs d'une même zone ; il compte pour
+       une liaison, de n'importe quelle zone, si ces émetteurs sont dans
+       la fenêtre du filtre de son récepteur (quelques dizaines de MHz
+       autour d'elle). La matrice de zones du show WWB peut couper
+       l'intermodulation entre deux zones.
    Écarts et fenêtres par famille sont alignés sur les profils Robust,
    Standard et More Frequencies de Wireless Workbench. Le calcul reste
    simplifié : il ignore les fréquences parasites propres aux appareils et
@@ -508,8 +512,9 @@ function _rfAvoid(rf){
 function _rfIsoMap(iso){ var m = {}; (iso || []).forEach(function(p){ m[p[0] + '|' + p[1]] = 1; m[p[1] + '|' + p[0]] = 1; }); return m; }
 /* Conflits entre des fréquences. list : [{id, f, p, z}] ; p = écarts de la liaison (_rfProf, niveau
    Standard s'ils manquent), z = zone. iso : paires de zones isolées (pas d'écart exigé entre elles).
+   zim : paires de zones sans intermodulation de l'une vers l'autre.
    Retour : { list:[{t:'cc'|'i3'|'i5'|'t3', v (canal gêné), src:[canaux en cause], d (kHz)}], more, t3skip } */
-function _rfCompat(list, iso){
+function _rfCompat(list, iso, zim){
   var cs = (list || []).filter(function(c){ return c.f > 0; }).map(function(c){ return { id:c.id, f:c.f, z:c.z || '', p:c.p || _rfProf(c, c.lvl) }; }).sort(function(a, b){ return a.f - b.f; });
   var n = cs.length, out = [], CAP = 400, more = false, t3skip = false, I = _rfIsoMap(iso), i, j, mcc = 0;
   cs.forEach(function(c){ if(c.p.cc > mcc) mcc = c.p.cc; });
@@ -520,35 +525,36 @@ function _rfCompat(list, iso){
     if(out.length >= CAP){ more = true; break; }
     out.push({ t:'cc', v:cs[j].id, src:[cs[i].id], d:d });
   }
-  /* Intermodulation : zone par zone */
-  var zones = {};
-  cs.forEach(function(c){ (zones[c.z] = zones[c.z] || []).push(c); });
+  /* Intermodulation : les produits naissent entre émetteurs d'une même zone, et peuvent gêner une
+     liaison de n'importe quelle zone (sauf paires de zones déclarées sans intermodulation). */
+  var zones = {}, F = cs.map(function(c){ return c.f; }), mx = { i3:0, i5:0, t3:0, w:0 }, seen = {}, NI = _rfIsoMap(zim);
+  cs.forEach(function(c, q){ c.q = q; (zones[c.z] = zones[c.z] || []).push(c); ['i3', 'i5', 't3', 'w'].forEach(function(t){ if(c.p[t] > mx[t]) mx[t] = c.p[t]; }); });
+  var lower = function(x){ var lo = 0, hi = n; while(lo < hi){ var q = (lo + hi) >> 1; if(F[q] < x) lo = q + 1; else hi = q; } return lo; };
+  var hit = function(t, p, src, z){
+    var D = mx[t]; if(!D || more) return;
+    for(var v = lower(p - D + 1); v < n && F[v] < p + D; v++){
+      var V = cs[v];
+      if(src.indexOf(V) >= 0 || Math.abs(F[v] - p) >= V.p[t]) continue;                  /* jugé avec les écarts du canal gêné */
+      if(V.z !== z && NI[z + '|' + V.z]) continue;
+      if(src.some(function(S){ return Math.abs(S.f - F[v]) > V.p.w; })) continue;        /* émetteur hors de la fenêtre de son filtre */
+      var key = t + v + ':' + src.map(function(S){ return S.q; }).sort(function(x, y){ return x - y; }).join('-');
+      if(seen[key]) continue; seen[key] = 1;
+      if(out.length >= CAP){ more = true; return; }
+      out.push({ t:t, v:V.id, src:src.map(function(S){ return S.id; }), d:Math.abs(F[v] - p) });
+    }
+  };
   Object.keys(zones).forEach(function(z){
-    var g = zones[z], m = g.length, fs = g.map(function(c){ return c.f; }), mx = { i3:0, i5:0, t3:0, w:0 }, seen = {}, a, b, k;
-    g.forEach(function(c){ ['i3', 'i5', 't3', 'w'].forEach(function(t){ if(c.p[t] > mx[t]) mx[t] = c.p[t]; }); });
-    var lower = function(x){ var lo = 0, hi = m; while(lo < hi){ var q = (lo + hi) >> 1; if(fs[q] < x) lo = q + 1; else hi = q; } return lo; };
-    var hit = function(t, p, src){
-      var D = mx[t]; if(!D || more) return;
-      for(var v = lower(p - D + 1); v < m && fs[v] < p + D; v++){
-        var V = g[v];
-        if(src.indexOf(v) >= 0 || Math.abs(fs[v] - p) >= V.p[t]) continue;                /* jugé avec les écarts du canal gêné */
-        if(src.some(function(s){ return Math.abs(fs[s] - fs[v]) > V.p.w; })) continue;    /* émetteur hors de la fenêtre de son filtre */
-        var key = t + v + ':' + src.slice().sort(function(x, y){ return x - y; }).join('-');
-        if(seen[key]) continue; seen[key] = 1;
-        if(out.length >= CAP){ more = true; return; }
-        out.push({ t:t, v:V.id, src:src.map(function(s){ return g[s].id; }), d:Math.abs(fs[v] - p) });
-      }
-    };
+    var g = zones[z], m = g.length, a, b, k;
     for(a = 0; a < m && !more; a++) for(b = 0; b < m; b++){
-      if(a === b || fs[a] === fs[b]) continue;
-      var gap = Math.abs(fs[a] - fs[b]);
-      if(2 * gap <= mx.w + mx.i3) hit('i3', 2 * fs[a] - fs[b], [a, b]);
-      if(3 * gap <= mx.w + mx.i5) hit('i5', 3 * fs[a] - 2 * fs[b], [a, b]);
+      if(a === b || g[a].f === g[b].f) continue;
+      var gap = Math.abs(g[a].f - g[b].f);
+      if(2 * gap <= mx.w + mx.i3) hit('i3', 2 * g[a].f - g[b].f, [g[a], g[b]], z);
+      if(3 * gap <= mx.w + mx.i5) hit('i5', 3 * g[a].f - 2 * g[b].f, [g[a], g[b]], z);
     }
     if(mx.t3 && m > _RF_T3_MAX) t3skip = true;
     else if(mx.t3) for(a = 0; a < m && !more; a++) for(b = a + 1; b < m; b++){
-      if(fs[b] - fs[a] > 2 * mx.w) break;
-      for(k = 0; k < m; k++) if(k !== a && k !== b) hit('t3', fs[a] + fs[b] - fs[k], [a, b, k]);
+      if(g[b].f - g[a].f > 2 * mx.w) break;
+      for(k = 0; k < m; k++) if(k !== a && k !== b) hit('t3', g[a].f + g[b].f - g[k].f, [g[a], g[b], g[k]], z);
     }
   });
   return { list:out, more:more, t3skip:t3skip };
@@ -556,7 +562,7 @@ function _rfCompat(list, iso){
 /* Attribution de fréquences compatibles.
    chs : [{id, f, lo, hi, fixed, p, dir, z}] dans l'ordre d'attribution. fixed = fréquence gardée telle
    quelle et protégée ; p = écarts de la liaison ; dir = 'up' (depuis le bas de sa plage) ou 'down' ;
-   z = zone. opt : { step (kHz), avoid:[[a,b]], include:[[a,b]], iso:[[zone, zone]] } — avec des
+   z = zone. opt : { step (kHz), avoid:[[a,b]], include:[[a,b]], iso:[[zone, zone]], zim:[[zone, zone]] } — avec des
    inclusions, on ne cherche que dedans.
    Chaque canal reçoit la première fréquence libre de sa plage dans son sens. Une fréquence écartée
    le reste (les contraintes ne font que s'ajouter) : la recherche ne revient jamais en arrière.
@@ -576,22 +582,24 @@ function _rfCoord(chs, opt){
      À exigence égale, l'ordre donné est respecté. */
   todo = todo.map(function(c, i){ var p = norm(c); return { c:c, i:i, w:p.i3 + p.t3 + p.i5 + (p.cc > 400 ? p.cc - 400 : 0) }; })
              .sort(function(a, b){ return b.w - a.w || a.i - b.i; }).map(function(x){ return x.c; });
-  var gLo = Infinity, gHi = 0, Z = {}, nz = 0, I = _rfIsoMap(opt.iso);
+  var gLo = Infinity, gHi = 0, Z = {}, nz = 0, I = _rfIsoMap(opt.iso), NI = _rfIsoMap(opt.zim), any5 = false, any3 = false, ZK;
   todo.forEach(function(c){ gLo = Math.min(gLo, c.lo); gHi = Math.max(gHi, c.hi); });
   fixed.forEach(function(c){ gLo = Math.min(gLo, c.f); gHi = Math.max(gHi, c.f); });
   todo.concat(fixed).forEach(function(c){
     var p = norm(c), z = c.z || '', zo = Z[z] || (nz++, Z[z] = { car:[], n5:false, n3:false });
-    if(p.i5) zo.n5 = true; if(p.t3) zo.n3 = true;
+    if(p.i5){ zo.n5 = true; any5 = true; } if(p.t3){ zo.n3 = true; any3 = true; }
   });
+  ZK = Object.keys(Z);
   var PAD = 1000, base = gLo - PAD, size = gHi - gLo + 2 * PAD + 1;
-  if(size > 6e6 || size * nz > 6e7){ res.err = 'Plage de calcul trop étendue pour ce nombre de zones.'; return res; }
+  if(size > 6e6 || size * nz > 8e7){ res.err = 'Plage de calcul trop étendue pour ce nombre de zones.'; return res; }
   var ban = new Uint8Array(size), all = [];
   var paint = function(arr, a, b, v){ for(var x = Math.max(0, a - base), e = Math.min(size - 1, b - base); x <= e; x++) arr[x] = v; };
   if(opt.include && opt.include.length){ ban.fill(1); opt.include.forEach(function(r){ paint(ban, r[0], r[1], 0); }); }
   (opt.avoid || []).forEach(function(r){ paint(ban, r[0], r[1], 1); });
   Object.keys(Z).forEach(function(z){
     var zo = Z[z], A = function(on){ return on ? new Uint16Array(size) : null; };
-    zo.R3 = A(true); zo.N3 = A(true); zo.R5 = A(zo.n5); zo.N5 = A(zo.n5); zo.RT = A(zo.n3); zo.NT = A(zo.n3);
+    /* R : produits créés dans la zone (utiles dès qu'une liaison, où qu'elle soit, s'en protège) ; N : porteuses de la zone à protéger */
+    zo.R3 = A(true); zo.N3 = A(true); zo.R5 = A(any5); zo.N5 = A(zo.n5); zo.RT = A(any3); zo.NT = A(zo.n3);
   });
   var reach = function(r){ return Math.min(65535, Math.floor(r / U) + 1); };          /* portée d'un produit, par excès de prudence */
   var wide = function(w){ return Math.min(65535, Math.ceil(w / U) + 1); };            /* fenêtre d'un filtre */
@@ -625,17 +633,26 @@ function _rfCoord(chs, opt){
       a = all[i];
       if(Math.abs(f - a.f) < Math.max(p.cc, a.cc) && !(a.z !== z && I[a.z + '|' + z])) return false;
     }
-    if(p.i3 && struck(zo.R3, f, p.i3, w)) return false;            /* un produit existant tombe sur la candidate */
-    if(zo.R5 && p.i5 && struck(zo.R5, f, p.i5, w)) return false;
-    if(zo.RT && p.t3 && struck(zo.RT, f, p.t3, w)) return false;
-    for(i = 0; i < k; i++){                                          /* un produit de la candidate tombe sur une porteuse */
-      a = car[i]; d = Math.abs(f - a);
-      if(hits(zo.N3, 2 * f - a, reach(2 * d)) || hits(zo.N3, 2 * a - f, reach(2 * d))) return false;
-      if(zo.N5 && (hits(zo.N5, 3 * f - 2 * a, reach(3 * d)) || hits(zo.N5, 3 * a - 2 * f, reach(3 * d)))) return false;
+    var q, o, ra, rb, rc;
+    for(q = 0; q < ZK.length; q++){                                  /* un produit existant, né dans une zone, tombe sur la candidate */
+      if(ZK[q] !== z && NI[ZK[q] + '|' + z]) continue;
+      o = Z[ZK[q]];
+      if(p.i3 && struck(o.R3, f, p.i3, w)) return false;
+      if(o.R5 && p.i5 && struck(o.R5, f, p.i5, w)) return false;
+      if(o.RT && p.t3 && struck(o.RT, f, p.t3, w)) return false;
     }
-    if(zo.NT && k < _RF_T3_MAX) for(i = 0; i < k; i++) for(j = i + 1; j < k; j++){
-      a = car[i]; b = car[j];
-      if(hits(zo.NT, f + a - b, r3(f, a, b)) || hits(zo.NT, f + b - a, r3(f, b, a)) || hits(zo.NT, a + b - f, r3(a, b, f))) return false;
+    for(q = 0; q < ZK.length; q++){                                  /* un produit de la candidate tombe sur une porteuse, dans n'importe quelle zone */
+      if(ZK[q] !== z && NI[z + '|' + ZK[q]]) continue;
+      o = Z[ZK[q]];
+      for(i = 0; i < k; i++){
+        a = car[i]; d = Math.abs(f - a); ra = reach(2 * d);
+        if(hits(o.N3, 2 * f - a, ra) || hits(o.N3, 2 * a - f, ra)) return false;
+        if(o.N5 && (hits(o.N5, 3 * f - 2 * a, reach(3 * d)) || hits(o.N5, 3 * a - 2 * f, reach(3 * d)))) return false;
+      }
+      if(o.NT && k < _RF_T3_MAX) for(i = 0; i < k; i++) for(j = i + 1; j < k; j++){
+        a = car[i]; b = car[j];
+        if(hits(o.NT, f + a - b, r3(f, a, b)) || hits(o.NT, f + b - a, r3(f, b, a)) || hits(o.NT, a + b - f, r3(a, b, f))) return false;
+      }
     }
     return true;
   };
@@ -776,7 +793,7 @@ function _rfAlerts(){
   var all = _rfChecks(RF.data, _rfIl()), by = {};
   all.forEach(function(a){ if(a.lvl === 'info') return; a.ids.forEach(function(id){ (by[id] = by[id] || []).push(a); }); });
   /* Intermodulation : une seule ligne, le détail et le recalcul sont dans Coordonner */
-  var cp = _rfCompat(_rfWithProf(RF.data.ch), RF.data.iso), imd = cp.list.filter(function(x){ return x.t !== 'cc'; }).length;
+  var cp = _rfCompat(_rfWithProf(RF.data.ch), RF.data.iso, RF.data.zim), imd = cp.list.filter(function(x){ return x.t !== 'cc'; }).length;
   if(imd) all.push({ lvl:'info', code:'imd', ids:[], msg:'Intermodulation : ' + imd + (cp.more ? '+' : '') + ' conflit' + (imd > 1 ? 's' : '') + ' entre les fréquences actuelles, au niveau de compatibilité de chaque liaison (calcul simplifié). Ouvrir Coordonner.' });
   return { all:all, by:by };
 }
@@ -1322,7 +1339,7 @@ function rfImportApply(){
   _rfSnapshot('Avant l\'import de ' + P.file);
   d.ch = m.ch.slice(0, _RF_MAX_CH);
   p.zones.forEach(function(z){ if(d.zones.indexOf(z) < 0) d.zones.push(z); });
-  d.iso = p.iso; d.excl = p.excl; d.spare = p.spare;
+  d.iso = p.iso; d.zim = p.zim; d.excl = p.excl; d.spare = p.spare;
   if(!d.coord.tv.length) d.coord.tvw = p.tvw === 6 ? 6 : 8;
   d.src = { file:_rfStr(P.file, 120), show:p.show.name, app:p.show.app, at:new Date().toISOString(), mode:P.mode };
   RF.data = _rfClean(d); RF.pend = null; RF.q = ''; RF.fk = ''; RF.fz = ''; RF.fs = '';
@@ -1382,13 +1399,13 @@ function _rfCoPlan(){
     var r = _rfRange(c);
     return { id:c.id, f:c.f, lo:r ? r[0] : co.lo, hi:r ? r[1] : co.hi, fixed:!grp[c.sh || c.id].some(_rfCoIn), p:_rfProf(c, c.cm || co.mode), dir:c.cd || co.dir, z:c.zone, step:(_rfCatBand(c.ser, c.band) || {}).st || 0 };
   });
-  var res = _rfCoord(chs, { step:25, avoid:av.ban.map(function(b){ return [b.a, b.b]; }), include:av.inc, iso:d.iso });
+  var res = _rfCoord(chs, { step:25, avoid:av.ban.map(function(b){ return [b.a, b.b]; }), include:av.inc, iso:d.iso, zim:d.zim });
   var byRep = {}, map = {}; res.list.forEach(function(x){ byRep[x.id] = x.f; });
   reps.forEach(function(c){ if(byRep[c.id] !== undefined) grp[c.sh || c.id].forEach(function(m){ map[m.id] = byRep[c.id]; }); });
   var after = d.ch.map(function(c){ return Object.assign({}, c, { f:map[c.id] || c.f }); });
   return { res:res, map:map, reps:reps.filter(function(c){ return byRep[c.id] !== undefined; }), grp:grp,
            todo:chs.filter(function(c){ return !c.fixed; }).length, kept:chs.filter(function(c){ return c.fixed && c.f; }).length,
-           before:_rfCompat(_rfWithProf(d.ch), d.iso), after:_rfCompat(_rfWithProf(after), d.iso) };
+           before:_rfCompat(_rfWithProf(d.ch), d.iso, d.zim), after:_rfCompat(_rfWithProf(after), d.iso, d.zim) };
 }
 function _rfCoordModal(){
   var o = RF.co; if(!o) return;
@@ -1399,7 +1416,7 @@ function _rfCoordModal(){
   var nz = function(z){ return d.ch.filter(function(c){ return c.zone === z; }).length; }, empty = d.ch.filter(function(c){ return !c.f; }).length;
   var opt = function(v, l, cur){ return '<option value="' + E(v) + '"' + (cur === v ? ' selected' : '') + '>' + E(l) + '</option>'; };
   var b = '<div class="rf-co">' +
-    '<div class="rf-co-row"><span>Compatibilité</span>' + seg('mode', _RF_LVL) + '<small>niveau par défaut ; les écarts dépendent de chaque appareil et se règlent aussi liaison par liaison, plus bas. L\'intermodulation se calcule entre les liaisons d\'une même zone, l\'écart entre porteuses entre toutes.</small></div>' +
+    '<div class="rf-co-row"><span>Compatibilité</span>' + seg('mode', _RF_LVL) + '<small>niveau par défaut ; les écarts dépendent de chaque appareil et se règlent aussi liaison par liaison, plus bas. Les produits d\'intermodulation naissent entre émetteurs d\'une même zone et protègent les liaisons de toutes les zones ; l\'écart entre porteuses vaut entre toutes.</small></div>' +
     '<div class="rf-co-row"><span>Sens</span>' + seg('dir', [['up', 'Croissant'], ['down', 'Décroissant']]) + '<small>par défaut : ' + (co.dir === 'down' ? 'du haut de chaque bande vers le bas' : 'du bas de chaque bande vers le haut') + ', les liaisons les plus exigeantes d\'abord puis l\'ordre de la liste</small></div>' +
     '<div class="rf-co-row"><span>Canaux</span><select class="rf-sel" onchange="rfCoordOpt(\'scope\',this.value)">' + opt('all', 'Tous les canaux (' + d.ch.length + ')', o.scope) +
       zs.map(function(z){ return opt('z:' + z, 'Zone ' + z + ' (' + nz(z) + ')', o.scope); }).join('') + (empty ? opt('empty', 'Seulement les canaux sans fréquence (' + empty + ')', o.scope) : '') + '</select>' +
