@@ -64,16 +64,19 @@
     eq('mode coordination', [m1.ch[0].f, m1.ch[6].f], [511475, 558000]);
     eq('mode inventaire', _rfMerge([], p, { mode:'inv' }).ch[0].f, 470150);
     var cur = JSON.parse(JSON.stringify(m1.ch));
-    cur[0].who = 'Camille'; cur[0].tx = 'hh'; cur[0].st = 'ok'; cur[0].note = 'capsule KSM9'; cur[0].il = 'row-12';
+    cur[0].who = 'Camille'; cur[0].tx = 'hh'; cur[0].lk = false; cur[0].note = 'capsule KSM9'; cur[0].il = 'row-12';
     cur[1].n = 'Choeur cour';                                   /* nom retouché dans PatchFlow */
     var p2 = _rfParseShw(F.festival2), m2 = _rfMerge(cur, p2, { mode:'inv' });
     eq('réimport : comptes', [m2.add, m2.upd, m2.same, m2.gone, m2.ch.length], [2, 1, 3, 3, 9]);
     var l2 = m2.ch[0];
-    eq('réimport : saisies conservées, fréquence du fichier', [l2.id === cur[0].id, l2.who, l2.tx, l2.st, l2.note, l2.il, l2.f], [true, 'Camille', 'hh', 'ok', 'capsule KSM9', 'row-12', 513000]);
+    eq('réimport : saisies conservées, fréquence du fichier', [l2.id === cur[0].id, l2.who, l2.tx, l2.lk, l2.note, l2.il, l2.f], [true, 'Camille', 'hh', false, 'capsule KSM9', 'row-12', 513000]);
     eq('réimport : nom retouché gardé', m2.ch[1].n, 'Choeur cour');
     t('réimport : la différence cite l\'ancienne et la nouvelle fréquence', m2.diffs.length === 1 && /511\.475 → 513\.000/.test(m2.diffs[0].what.join(' ')), m2.diffs);
     eq('réimport avec retrait des absents', _rfMerge(cur, p2, { mode:'inv', drop:true }).ch.length, 6);
     var manual = [{ id:'rabc12', src:'', n:'Lead Vox', n0:'Lead Vox', mdl:'AD4D-A', who:'Zoé', f:500000, kind:'mic', st:'todo' }];
+    var lkd = JSON.parse(JSON.stringify(m1.ch)); lkd[0].lk = true; var m3 = _rfMerge(lkd, p2, { mode:'inv' });
+    eq('réimport : une fréquence verrouillée ne bouge pas, et c\'est dit', [m3.ch[0].f, m3.ch[0].lk, /verrouillée gardée \(511\.475, le show dit 513\.000\)/.test(m3.diffs[0].what.join(' '))], [511475, true, true]);
+    eq('ancien état « Prêt » repris comme verrou', [_rfCleanCh({ st:'ok', f:600000 }).lk, _rfCleanCh({ st:'todo' }).lk, _rfCleanCh({ st:'ok', lk:false }).lk], [true, false, false]);
     eq('sans identifiant : rapproché par nom et modèle', _rfMerge(manual, p, { mode:'coord' }).ch[0].who, 'Zoé');
 
     /* 6. Contrôles */
@@ -88,7 +91,7 @@
     eq('hors plage', codes({ ch:[mk({ f:640000, ser:'AD', band:'G56' })] }), ['err:range']);
     eq('bande inconnue : pas d\'alerte de plage', codes({ ch:[mk({ f:900000, ser:'AD', band:'ZZ9' })] }), []);
     eq('plage exclue', codes({ ch:[mk({ f:484000 })], excl:[{ a:480000, b:488000, l:'DVB' }] }), ['warn:excl']);
-    eq('problème, sans fréquence, sans utilisateur, sans nom', codes({ ch:[mk({ f:0, st:'pb', who:'', n:'Shure' })] }), ['warn:pb', 'warn:nofreq', 'info:nowho', 'info:noname']);
+    eq('sans fréquence, sans utilisateur, sans nom', codes({ ch:[mk({ f:0, who:'', n:'Shure' })] }), ['warn:nofreq', 'info:nowho', 'info:noname']);
     var il = { chs:[{ id:'i1', ch:12, name:'Lead', mic:'SM58 HF', hf:'606.000' }, { id:'i2', ch:13, name:'Gtr', mic:'ULXD1', hf:'' }, { id:'i3', ch:14, name:'Kick', mic:'Beta 52', hf:'' }], outs:[{ id:'o1', ch:1, name:'IEM Lead', hf:'630.000' }] };
     eq('input list : fréquence différente, micro HF orphelin', codes({ ch:[mk({ f:611250, il:'i1' }), mk({ f:630000, kind:'iem', out:'o1' })] }, il), ['warn:ilf', 'info:ilhf']);
     eq('input list : ligne supprimée', codes({ ch:[mk({ f:611250, il:'zz' })] }, { chs:[], outs:[] }), ['info:lost']);
@@ -102,7 +105,7 @@
     /* 8. Données stockées abîmées */
     eq('nettoyage : entrée quelconque', _rfClean('x').ch.length, 0);
     var dirty = _rfClean({ ch:[{ id:'<img>', n:'<b>x</b>'.repeat(40), f:'abc', kind:'zz', st:'??', pw:-4 }, { id:'rsame1', f:600000 }, { id:'rsame1', f:601000 }, null], excl:[{ a:5, b:1 }], vers:'x', zones:[3, '', 'A'] });
-    eq('nettoyage : champs bornés', [dirty.ch.length, /^[a-z0-9]{4,24}$/.test(dirty.ch[0].id), dirty.ch[0].n.length, dirty.ch[0].f, dirty.ch[0].kind, dirty.ch[0].st, dirty.ch[0].pw], [3, true, 60, 0, 'mic', 'todo', 0]);
+    eq('nettoyage : champs bornés', [dirty.ch.length, /^[a-z0-9]{4,24}$/.test(dirty.ch[0].id), dirty.ch[0].n.length, dirty.ch[0].f, dirty.ch[0].kind, dirty.ch[0].lk, dirty.ch[0].pw], [3, true, 60, 0, 'mic', false, 0]);
     t('nettoyage : identifiants uniques', dirty.ch[1].id !== dirty.ch[2].id);
     eq('nettoyage : exclusions et zones', [dirty.excl.length, dirty.zones], [0, ['3', 'A']]);
 
