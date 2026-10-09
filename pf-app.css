@@ -3921,3 +3921,15 @@ tr:hover .rf-hf,.rf-hf:focus-visible,.rf-hf.on,.rf-hf.hint{opacity:1}
 .rf-wwb-c>b{font-size:13.5px;font-weight:650}
 .rf-wwb-c p{margin:0;font-size:12.5px;line-height:1.5;color:var(--txt2)}
 .rf-wwb-c .btn{margin-top:auto;align-self:flex-start}
+
+/* RF : scan du spectre */
+.rf-scp{fill:var(--blu);fill-opacity:.18;stroke:var(--blu);stroke-opacity:.55;stroke-width:1;stroke-linejoin:round}
+.rf-sct{stroke:var(--err);stroke-width:1;stroke-dasharray:4 3;stroke-opacity:.7}
+.rf-leg-k .k-sc{width:12px;height:8px;background:var(--blu);opacity:.35;border-radius:1px}
+.rf-scan{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;margin-top:10px;font-size:12.5px;color:var(--muted)}
+.rf-scan.on>i{font-size:16px;color:var(--blu)}
+.rf-scan b{font-weight:600;color:var(--txt)}
+.rf-scan .rf-step{height:28px}
+.rf-scan .rf-step button{width:26px;height:28px}
+.rf-scan .rf-step b{min-width:66px;font-size:12px}
+.rf-scan .rf-imp-c{font-size:12.5px;align-items:center}

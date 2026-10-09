@@ -239,6 +239,43 @@
     var fl = _rfFreqLists(mine.concat(_rfGearChannels({ mk:'Shure', ser:'ADPSM', mdl:'ADTQ', band:'G56', pn:'4-channel_wideband', ch:4, t:'iem', qty:1 }).map(function(c){ c.f = 500000; return c; })));
     eq('listes de fréquences : par série, bande et zone, triées, une porteuse par émetteur large bande', [fl.map(function(l){ return l.name + ':' + l.n; }), fl[1].text], [['ADPSM_G56.csv:1', 'AD_G56_Plateau.csv:2', 'PSM1000_L8E_Plateau.csv:2', 'SR-2050_Gw_Accueil.csv:2', 'ULXD_G51.csv:1', 'ULXD_K51_Plateau.csv:1'], '512.000\r\n515.000\r\n']);
   } catch(e){ t('exception pendant les tests de retour vers Workbench', false, String(e && e.stack || e)); }
+  /* Scan du spectre */
+  try {
+    var enc = function(str){ return new TextEncoder().encode(str).buffer; };
+    var csvM = ''; for(var q = 0; q <= 400; q++) csvM += (600 + q * 0.025).toFixed(3) + ',' + (q >= 100 && q <= 120 ? -60 : -100.5) + '\n';
+    var sM = _rfScanParse(enc(csvM)), gM = _rfScanGrid(sM.pts);
+    eq('CSV en MHz', [sM.ok, sM.pts.length, sM.pts[0], gM.a, gM.b, gM.d.length], [true, 401, [600000, -100.5], 600000, 610000, 401]);
+    var csvH = 'Frequency;Level\n'; for(q = 0; q <= 100; q++) csvH += (600000000 + q * 100000) + ';' + String(q === 50 ? -55.5 : -98.2).replace('.', ',') + '\n';
+    var sH = _rfScanParse(enc(csvH)), gH = _rfScanGrid(sH.pts);
+    eq('CSV en Hz, point-virgule, virgule décimale, en-tête ignoré', [sH.ok, sH.pts.length, sH.pts[50]], [true, 101, [605000, -55.5]]);
+    var kHz = ''; for(q = 0; q < 40; q++) kHz += (600000 + q * 25) + '\t-99\n';
+    eq('texte en kHz, tabulation', _rfScanParse(enc(kHz)).pts[1], [600025, -99]);
+    var sc = _rfScanClean({ name:'Test', a:gM.a, b:gM.b, th:-95, d:_rfB64(gM.d) });
+    eq('scan rangé et relu', [sc.a, sc.b, sc.th, _rfScanData(sc).length, _rfScanDb(_rfScanData(sc)[110]), _rfScanDb(_rfScanData(sc)[0])], [600000, 610000, -95, 401, -60, -100]);
+    eq('plages au-dessus du seuil', _rfScanBans(sc), [[602500, 603000]]);
+    sc.th = -110; eq('seuil plus bas : tout est occupé', _rfScanBans(sc), [[600000, 610000]]);
+    sc.th = -50; eq('seuil plus haut : rien', _rfScanBans(sc), []);
+    sc.th = -95;
+    var scH = _rfScanClean({ name:'Large', a:gH.a, b:gH.b, th:-95, d:_rfB64(gH.d) });
+    eq('pas de mesure large : la crête couvre son demi-pas', _rfScanBans(scH), [[604950, 605050]]);
+    eq('à éviter : le scan, désactivable', [_rfAvoid({ scan:sc }).ban, _rfAvoid({ scan:Object.assign({}, sc, { use:false }) }).ban], [[{ a:602500, b:603000, l:'scan', sc:1 }], []]);
+    eq('contrôle : fréquence sur une plage occupée du scan', codes({ ch:[mk({ f:602750 })], scan:sc }), ['warn:excl']);
+    var rs = _rfCoord(N(6, { lo:602000, hi:606000 }), { avoid:_rfAvoid({ scan:sc }).ban.map(function(x){ return [x.a, x.b]; }) });
+    t('le calcul contourne ce que le scan montre occupé', rs.list.every(function(x){ return x.f && (x.f < 602500 || x.f > 603000); }), rs.list);
+    var mg = _rfScanClean(_rfScanMerge(sc, _rfScanClean({ name:'B', a:609000, b:612000, th:-95, d:_rfB64(new Uint8Array(121).fill(_rfScanEnc(-70))) })));
+    eq('deux scans réunis : plage élargie, crête gardée', [mg.a, mg.b, _rfScanBans(mg)], [600000, 612000, [[602500, 603000], [609000, 612000]]]);
+    var bad2 = [['vide', new ArrayBuffer(0)], ['show', enc(RF_FIX.festival)], ['texte', enc('bonjour\ntout le monde')], ['archive', enc('PK\x03\x04aaaaaaaaaaaaaaaa')], ['niveaux absurdes', enc(csvM.replace(/-100\.5/g, '5000'))]];
+    bad2.forEach(function(b){ var r = _rfScanParse(b[1]); t('scan refusé : ' + b[0], r.ok === false && r.err.length > 8, r); });
+    eq('scan abîmé dans les données : écarté', [_rfScanClean({ a:600000, b:610000, d:'@@' }), _rfScanClean({ a:600000, b:610000, d:_rfB64(new Uint8Array(5)) })], [null, null]);
+    /* .sdb3 fabriqué : deux balayages, la crête est gardée */
+    var hdr = '//@ShureScan\n' + JSON.stringify({ AmplUnits:'dBm', BinarySchema:[{ Bytes:4, DataValue:'start-of-sweep' }, { Bytes:4, DataValue:'id' }, { Bytes:4, DataValue:'timestamp' }, { Curve:{ FreqRanges:[{ StartFreq:606000, EndFreq:606500, StepFreq:25 }] } }, { Bytes:2, DataValue:'crc16' }], BitWidth:16, FreqUnits:'KHz', NoDataValue:-1400, 'Scale Factor':10, Title:'Essai' }) + '\n@Binary:';
+    var np = 21, bin = new Uint8Array(hdr.length + 2 * (14 + np * 2) + 5), dv2 = new DataView(bin.buffer), o2 = hdr.length;
+    for(q = 0; q < hdr.length; q++) bin[q] = hdr.charCodeAt(q);
+    [[-1000, -600], [-900, -1400]].forEach(function(sw){ '@Swp'.split('').forEach(function(ch, k){ bin[o2 + k] = ch.charCodeAt(0); }); for(var k = 0; k < np; k++) dv2.setInt16(o2 + 12 + k * 2, k === 10 ? sw[1] : sw[0], false); o2 += 14 + np * 2; });
+    var sd = _rfScanParse(bin.buffer);
+    eq('.sdb3 : en-tête, deux balayages, crête, valeur « sans mesure » ignorée', [sd.ok, sd.title, sd.sweeps, sd.pts.length, sd.pts[0], sd.pts[10], sd.pts[20]], [true, 'Essai', 2, 21, [606000, -90], [606250, -60], [606500, -90]]);
+    eq('.sdb3 tronqué : refusé', _rfScanParse(bin.buffer.slice(0, hdr.length + 20)).ok, false);
+  } catch(e){ t('exception pendant les tests de scan', false, String(e && e.stack || e)); }
   function finish(){
     var sum = document.getElementById('sum');
     sum.className = failN ? 'ko' : 'ok';
