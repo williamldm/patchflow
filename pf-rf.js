@@ -1641,8 +1641,8 @@ function _rfCoordModal(){
   var nz = function(z){ return d.ch.filter(function(c){ return c.zone === z; }).length; }, empty = d.ch.filter(function(c){ return !c.f; }).length;
   var opt = function(v, l, cur){ return '<option value="' + E(v) + '"' + (cur === v ? ' selected' : '') + '>' + E(l) + '</option>'; };
   var b = '<div class="rf-co">' +
-    '<div class="rf-co-row"><span>Compatibilité</span>' + seg('mode', _RF_LVL) + '<small>niveau par défaut ; les écarts dépendent de chaque appareil et se règlent aussi liaison par liaison, plus bas. Les produits d\'intermodulation naissent entre émetteurs d\'une même zone et protègent les liaisons de toutes les zones ; l\'écart entre porteuses vaut entre toutes.</small></div>' +
-    '<div class="rf-co-row"><span>Sens</span>' + seg('dir', [['up', 'Croissant'], ['down', 'Décroissant']]) + '<small>par défaut : ' + (co.dir === 'down' ? 'du haut de chaque bande vers le bas' : 'du bas de chaque bande vers le haut') + ', les liaisons les plus exigeantes d\'abord puis l\'ordre de la liste</small></div>' +
+    '<div class="rf-co-row"><span>Compatibilité</span>' + seg('mode', _RF_LVL) + '<small>pour tous les canaux concernés ; les écarts dépendent de chaque appareil, et se règlent ensuite liaison par liaison, plus bas. Les produits d\'intermodulation naissent entre émetteurs d\'une même zone et protègent les liaisons de toutes les zones ; l\'écart entre porteuses vaut entre toutes.</small></div>' +
+    '<div class="rf-co-row"><span>Sens</span>' + seg('dir', [['up', 'Croissant'], ['down', 'Décroissant']]) + '<small>pour tous les canaux concernés : ' + (co.dir === 'down' ? 'du haut de chaque bande vers le bas' : 'du bas de chaque bande vers le haut') + ', les liaisons les plus exigeantes d\'abord puis l\'ordre de la liste</small></div>' +
     '<div class="rf-co-row"><span>Canaux</span><select class="rf-sel" onchange="rfCoordOpt(\'scope\',this.value)">' + opt('all', 'Tous les canaux (' + d.ch.length + ')', o.scope) +
       zs.map(function(z){ return opt('z:' + z, 'Zone ' + z + ' (' + nz(z) + ')', o.scope); }).join('') + (empty ? opt('empty', 'Seulement les canaux sans fréquence (' + empty + ')', o.scope) : '') + '</select>' +
       '<small>' + (o.scope === 'all' ? 'les fréquences libres sont recalculées' : 'les autres fréquences sont gardées et protégées') + ' ; les fréquences verrouillées ne bougent jamais</small></div>' +
@@ -1709,8 +1709,14 @@ function _rfCoordModal(){
 function rfCoordOpt(k, v){
   var o = RF.co, co = RF.data.coord; if(!o) return;
   if(k === 'scope'){ o.scope = String(v || 'all'); _rfCoordModal(); return; }
-  if(k === 'mode') co.mode = _rfLvl(v);
-  else if(k === 'dir') co.dir = v === 'down' ? 'down' : 'up';
+  /* Les boutons du haut valent pour tous les canaux concernés : les réglages propres à une liaison
+     (niveau repris de Workbench, ou choisi plus bas) sont remplacés, sinon le bouton ne changerait rien. */
+  if(k === 'mode' || k === 'dir'){
+    var f = k === 'mode' ? 'cm' : 'cd', over = 0;
+    RF.data.ch.forEach(function(c){ if(_rfCoIn(c) && c[f]){ c[f] = ''; over++; } });
+    if(k === 'mode') co.mode = _rfLvl(v); else co.dir = v === 'down' ? 'down' : 'up';
+    if(over) toast(over + ' réglage' + (over > 1 ? 's propres à une liaison remplacé' : ' propre à une liaison remplacé') + (over > 1 ? 's' : '') + ' : tout est en ' + (k === 'mode' ? _rfLvlLbl(v) : (co.dir === 'down' ? 'décroissant' : 'croissant')) + '. Réglable ensuite liaison par liaison.');
+  }
   else if(k === 'sx') co.sx = !!v;
   else if(k === 'tvw'){ co.tvw = String(v) === '6' ? 6 : 8; co.tv = []; }
   else if(k === 'lo' || k === 'hi'){
