@@ -214,6 +214,26 @@
     eq('fréquence modifiée à la main : la porteuse n\'est plus commune', _rfCarriers(wm.ch).length, 4);
 
   } catch(e){ t('exception pendant les tests', false, String(e && e.stack || e)); }
+  /* Retour vers Wireless Workbench */
+  try {
+    var src0 = RF_FIX.festival, p0 = _rfParseShw(src0), mine = _rfMerge([], p0, { mode:'coord' }).ch;
+    mine[0].f = 515000; mine[0].n = 'Chant ]]> lead'; mine[2].f = 612000; mine[3].f = 633000;
+    mine.push(_rfCleanCh({ id:_rfId(), n:'Né dans PatchFlow', ser:'ULXD', band:'G51', f:480000 }));
+    var px = _rfPatchShw(src0, mine, {}), back = _rfParseShw(px.xml);
+    t('show modifié : toujours lisible', px.ok && back.ok, px.err || back.err);
+    eq('fréquences écrites dans les appareils et la coordination', [back.ch[0].fi, back.ch[0].fc, back.ch[2].fi, back.ch[2].fc, back.ch[3].fi, back.ch[1].fi], [515000, 515000, 612000, 612000, 633000, 512000]);
+    eq('noms laissés tels quels par défaut', back.ch[0].n, 'Lead Vox');
+    eq('canal né dans PatchFlow signalé absent', [px.missed.length, px.missed[0].n], [1, 'Né dans PatchFlow']);
+    eq('le reste du show est rendu à l\'identique', [back.zones, back.iso, back.excl, back.spare, back.ch.length, back.show.name, back.ch[5].gc, back.ch[3].pw], [p0.zones, p0.iso, p0.excl, p0.spare, p0.ch.length, p0.show.name, p0.ch[5].gc, p0.ch[3].pw]);
+    eq('même nombre d\'éléments avant et après', (px.xml.match(/<[a-z_]/g) || []).length, (src0.match(/<[a-z_]/g) || []).length);
+    var pn = _rfParseShw(_rfPatchShw(src0, mine, { names:true }).xml);
+    eq('noms reportés sur demande, sans casser le fichier', [pn.ok, pn.ch[0].n], [true, 'Chant lead']);
+    eq('fichier qui n\'est pas un show : refusé', _rfPatchShw('<root/>', mine, {}).ok, false);
+    var same = _rfPatchShw(px.xml, mine, {});
+    eq('deuxième passage : rien à changer', [same.n, same.same > 0], [0, true]);
+    var fl = _rfFreqLists(mine.concat(_rfGearChannels({ mk:'Shure', ser:'ADPSM', mdl:'ADTQ', band:'G56', pn:'4-channel_wideband', ch:4, t:'iem', qty:1 }).map(function(c){ c.f = 500000; return c; })));
+    eq('listes de fréquences : par série, bande et zone, triées, une porteuse par émetteur large bande', [fl.map(function(l){ return l.name + ':' + l.n; }), fl[1].text], [['ADPSM_G56.csv:1', 'AD_G56_Plateau.csv:2', 'PSM1000_L8E_Plateau.csv:2', 'SR-2050_Gw_Accueil.csv:2', 'ULXD_G51.csv:1', 'ULXD_K51_Plateau.csv:1'], '512.000\r\n515.000\r\n']);
+  } catch(e){ t('exception pendant les tests de retour vers Workbench', false, String(e && e.stack || e)); }
   function finish(){
     var sum = document.getElementById('sum');
     sum.className = failN ? 'ko' : 'ok';

@@ -707,7 +707,7 @@ function _rfGearChannels(o){
    charte PDF…). Les données vivent dans CUR_SHOW.stage_data.rf : même
    enregistrement et mêmes droits que le reste du show.
    ══════════════════════════════════════════════════════════════════════ */
-var RF = { showId:null, data:null, q:'', fk:'', fz:'', fs:'', sort:'zone', look:false, lq:'', t:null, pend:null, allAl:false, co:null, onClose:null, gear:null };
+var RF = { showId:null, data:null, q:'', fk:'', fz:'', fs:'', sort:'zone', look:false, lq:'', t:null, pend:null, allAl:false, co:null, onClose:null, gear:null, wwb:null };
 
 function _rfLoad(){
   var id = CUR_SHOW && CUR_SHOW.id;
@@ -839,6 +839,7 @@ function renderRf(){
     '<select class="rf-sel" onchange="rfSort(this.value)" aria-label="Tri">' + [['zone', 'Tri : zone'], ['f', 'Tri : fréquence'], ['n', 'Tri : nom'], ['who', 'Tri : utilisateur'], ['st', 'Tri : état']].map(function(s){ return opt(s[0], s[1], RF.sort); }).join('') + '</select>' +
     '<span class="rf-grow"></span>' +
     '<button class="btn sm" onclick="rfAutoLink()" title="Proposer les liens entre liaisons et lignes de l\'input list portant le même nom"><i class="ti ti-link"></i>Associer à l\'input list</button>' +
+    '<button class="btn sm" onclick="rfWwb()" title="Renvoyer les fréquences vers Wireless Workbench"><i class="ti ti-file-export"></i>Vers Workbench</button>' +
     '<button class="btn sm" onclick="rfCsv()" title="Exporter la liste en CSV"><i class="ti ti-file-spreadsheet"></i>CSV</button>' +
     (d.vers.length ? '<button class="btn sm" onclick="rfVersions()" title="Versions précédentes"><i class="ti ti-history"></i>Versions</button>' : '') +
   '</div><div id="rf-list"></div>';
@@ -1677,6 +1678,123 @@ function rfGearPark(i){
 function rfGearParkDel(i){
   if(!RF_GEAR || !RF_GEAR[i]) return;
   RF_GEAR.splice(i, 1); _rfGearSave(); _rfGearModal();
+}
+
+/* ── Retour vers Wireless Workbench ───────────────────────────────────
+   Le plus sûr est de repartir du show d'origine : on y remplace les
+   fréquences (appareils et coordination), et tout le reste du fichier est
+   rendu tel quel. Le format .shw n'étant pas documenté, PatchFlow ne
+   fabrique pas un show de toutes pièces.
+   Pour les canaux nés dans PatchFlow, absents du show, des listes de
+   fréquences par série et par bande servent à la saisie dans WWB. */
+/* chs : canaux PatchFlow ({src, f, n}). opt.names : reporter aussi les noms.
+   Retour : { ok, xml, n (canaux mis à jour), same, missed:[canaux sans équivalent dans le show] } ou { ok:false, err } */
+function _rfPatchShw(text, chs, opt){
+  opt = opt || {};
+  var chk = _rfParseShw(text);
+  if(!chk.ok) return { ok:false, err:chk.err };
+  var doc = new DOMParser().parseFromString(text, 'application/xml'), root = doc.documentElement;
+  var by = {}, hit = {}, n = 0, same = 0;
+  (chs || []).forEach(function(c){ if(c.src) by[c.src] = c; });
+  var setTxt = function(el, v){ if(!el) return false; if(String(el.textContent || '').trim() === String(v)) return false; el.textContent = String(v); return true; };
+  _rfKids(_rfKid(root, 'inventory'), 'device').forEach(function(d){
+    var chans = _rfKids(d, 'channel'), did = _rfTxt(d, 'id');
+    chans.forEach(function(ce, i){
+      var num = _rfInt(ce.getAttribute('number')) || (i + 1), c = by[did + '-' + (num - 1)] || (chans.length === 1 ? by[did] : null);
+      if(!c) return;
+      hit[c.src] = 1;
+      var ch = false;
+      if(c.f) ch = setTxt(_rfKid(ce, 'frequency'), c.f) || ch;
+      if(opt.names && c.n){
+        var ne = _rfKid(ce, 'channel_name'), nm = String(c.n).replace(/\]\]>/g, '');
+        if(ne && String(ne.textContent || '') !== nm){ while(ne.firstChild) ne.removeChild(ne.firstChild); ne.appendChild(doc.createCDATASection(nm)); ch = true; }
+      }
+      if(ch) n++; else same++;
+    });
+  });
+  _rfKids(_rfPath(root, 'coordinated_data_root/mic_channels'), 'freq_entry').forEach(function(e){
+    var c = by[_rfTxt(e, 'source_id')];
+    if(!c) return;
+    if(c.f) setTxt(_rfKid(e, 'value'), c.f);
+    if(opt.names && c.n) setTxt(_rfKid(e, 'source_name'), String(c.n));
+  });
+  var missed = (chs || []).filter(function(c){ return !c.src || !hit[c.src]; });
+  return { ok:true, xml:new XMLSerializer().serializeToString(doc), n:n, same:same, missed:missed };
+}
+/* Listes de fréquences : un fichier par série, bande et zone ; une fréquence en MHz par ligne, sans en-tête */
+function _rfFreqLists(chs){
+  var g = {}, slug = function(s){ return String(s || '').normalize('NFD').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); };
+  _rfCarriers((chs || []).filter(function(c){ return c.f > 0; })).forEach(function(c){
+    var k = [slug(c.ser || c.mdl || 'Divers'), slug(c.band), slug(c.zone)].filter(Boolean).join('_') || 'Divers';
+    (g[k] = g[k] || []).push(c.f);
+  });
+  return Object.keys(g).sort().map(function(k){ return { name:k + '.csv', n:g[k].length, text:g[k].sort(function(a, b){ return a - b; }).map(_rfFmt).join('\r\n') + '\r\n' }; });
+}
+function _rfDownload(name, blob){
+  var a = document.createElement('a'), url = URL.createObjectURL(blob);
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 20000);
+}
+function rfWwb(){
+  if(!CUR_SHOW) return;
+  _rfLoad();
+  var d = RF.data, E = _bonE, withSrc = d.ch.filter(function(c){ return c.src; }).length, born = d.ch.length - withSrc, nof = d.ch.filter(function(c){ return !c.f; }).length;
+  RF.wwb = { names:false };
+  _rfModal('Exporter vers Wireless Workbench', 'ti-file-export',
+    '<div class="rf-wwb"><div class="rf-wwb-c"><b>1 · Mettre à jour le show d\'origine</b>' +
+      '<p>Choisissez le fichier .shw' + (d.src && d.src.file ? ' importé (« ' + E(d.src.file) + ' »)' : '') + ' : PatchFlow y écrit les fréquences de ' + (withSrc ? _rfPl(withSrc) : 'vos canaux') + ', appareils et coordination, sans toucher au reste. Le fichier modifié est téléchargé, l\'original n\'est pas changé.</p>' +
+      (withSrc ? '' : '<p class="rf-err"><i class="ti ti-alert-triangle"></i>Aucun canal de ce show ne vient d\'un fichier Wireless Workbench : utilisez les listes de fréquences.</p>') +
+      '<label class="rf-imp-c"><input type="checkbox" class="cb" onchange="RF.wwb.names=this.checked"/><span>Reporter aussi les noms des canaux (Workbench peut les raccourcir selon l\'appareil)</span></label>' +
+      '<button class="btn pri" onclick="rfWwbPick()"' + (withSrc ? '' : ' disabled') + '><i class="ti ti-file-import"></i>Choisir le show .shw</button></div>' +
+    '<div class="rf-wwb-c"><b>2 · Listes de fréquences</b>' +
+      '<p>Une archive avec un fichier par série, bande et zone : une fréquence en MHz par ligne. Pour les saisir ou les importer dans la coordination de Workbench' + (born ? ', notamment les ' + _rfPl(born) + ' créés dans PatchFlow, absents du show' : '') + '.</p>' +
+      '<button class="btn" onclick="rfWwbLists()"><i class="ti ti-file-zip"></i>Télécharger les listes</button></div></div>' +
+    (nof ? '<p class="rf-note">' + _rfPl(nof) + ' sans fréquence : rien n\'est exporté pour ' + (nof > 1 ? 'eux' : 'lui') + '.</p>' : '') +
+    '<p class="rf-note">Ouvrez le fichier dans Wireless Workbench et relisez-le avant de l\'envoyer aux appareils.</p>',
+    '<button class="btn ghost sm" onclick="rfModalClose()">Fermer</button>', 640);
+}
+function rfWwbPick(){
+  var i = document.createElement('input');
+  i.type = 'file';
+  i.onchange = function(){ if(i.files && i.files[0]) rfWwbFile(i.files[0]); };
+  i.click();
+}
+function rfWwbFile(file){
+  if(!file || !RF.data) return;
+  if(file.size > 25e6){ _rfImportErr('Fichier trop volumineux (25 Mo au maximum).'); return; }
+  var r = new FileReader(), names = !!(RF.wwb && RF.wwb.names);
+  r.onerror = function(){ _rfImportErr('Lecture du fichier impossible.'); };
+  r.onload = function(){
+    var res;
+    try { res = _rfPatchShw(String(r.result || ''), RF.data.ch, { names:names }); } catch(e){ res = { ok:false, err:'Fichier .shw illisible.' }; }
+    if(!res.ok){ _rfImportErr(res.err); return; }
+    var E = _bonE, total = res.n + res.same;
+    if(!total){
+      _rfModal('Exporter vers Wireless Workbench', 'ti-alert-triangle', '<p class="rf-err"><i class="ti ti-alert-triangle"></i>Ce show ne contient aucun des canaux de PatchFlow : ce n\'est sans doute pas le fichier d\'origine.</p>',
+        '<button class="btn ghost sm" onclick="rfWwb()">Retour</button>', 520);
+      return;
+    }
+    var out = String(file.name || 'show.shw').replace(/\.(shw|xml)$/i, '') + ' - PatchFlow.shw';
+    _rfDownload(out, new Blob([res.xml], { type:'application/xml' }));
+    _rfModal('Exporter vers Wireless Workbench', 'ti-circle-check',
+      '<div class="rf-imp-h"><b>' + E(out) + '</b><span>' + _rfPl(res.n) + ' mis à jour · ' + res.same + ' déjà à jour' + (res.missed.length ? ' · ' + res.missed.length + ' absent' + (res.missed.length > 1 ? 's' : '') + ' du show' : '') + '</span></div>' +
+      (res.missed.length ? '<p class="rf-note">Absents du show, à ajouter dans Workbench : ' + E(res.missed.slice(0, 8).map(function(c){ return c.n || c.dev || c.mdl || 'canal'; }).join(', ')) + (res.missed.length > 8 ? '…' : '') + '. Les listes de fréquences les contiennent.</p>' : '') +
+      '<p class="rf-note">Dans Wireless Workbench : ouvrez ce fichier, relisez les fréquences, puis envoyez-les aux appareils.</p>',
+      '<button class="btn ghost sm" onclick="rfWwbLists()"><i class="ti ti-file-zip"></i>Listes de fréquences</button><button class="btn pri sm" onclick="rfModalClose()">Terminé</button>', 560);
+  };
+  r.readAsText(file);
+}
+async function rfWwbLists(){
+  var lists = _rfFreqLists(RF.data.ch);
+  if(!lists.length){ toast('Aucune fréquence à exporter.'); return; }
+  try {
+    var Zip = await _loadJSZip(), z = new Zip();
+    lists.forEach(function(l){ z.file(l.name, l.text); });
+    z.file('LISEZ-MOI.txt', 'Listes de fréquences exportées de PatchFlow\r\n\r\nUn fichier par série, bande et zone. Une fréquence en MHz par ligne, sans en-tête.\r\n\r\n' + lists.map(function(l){ return l.name + ' : ' + l.n + ' fréquence' + (l.n > 1 ? 's' : ''); }).join('\r\n') + '\r\n');
+    _rfDownload(((typeof _pdfSlug === 'function' && _pdfSlug(CUR_SHOW.name || '')) || 'patchflow') + '-frequences-wwb.zip', await z.generateAsync({ type:'blob' }));
+    toast(lists.length + ' liste' + (lists.length > 1 ? 's' : '') + ' de fréquences téléchargée' + (lists.length > 1 ? 's' : ''));
+  } catch(e){ toast('Export impossible : ' + (e && e.message || e)); }
 }
 
 /* ── Consultation : retrouver vite une fréquence ou un utilisateur pendant le show ── */
