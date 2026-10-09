@@ -104,6 +104,42 @@
     eq('nettoyage : champs bornés', [dirty.ch.length, /^[a-z0-9]{4,24}$/.test(dirty.ch[0].id), dirty.ch[0].n.length, dirty.ch[0].f, dirty.ch[0].kind, dirty.ch[0].st, dirty.ch[0].pw], [3, true, 60, 0, 'mic', 'todo', 0]);
     t('nettoyage : identifiants uniques', dirty.ch[1].id !== dirty.ch[2].id);
     eq('nettoyage : exclusions et zones', [dirty.excl.length, dirty.zones], [0, ['3', 'A']]);
+
+    /* 9. Compatibilité et calcul de fréquences */
+    eq('plages à éviter', _rfParseRanges('470-478 ; 518,5 à 526, 600-590, abc'), [[470000, 478000], [518500, 526000]]);
+    var ty = function(l, m){ return _rfCompat(l, m).list.map(function(x){ return x.t; }).sort().join(','); };
+    eq('compatibles', ty([{ id:'a', f:500000 }, { id:'b', f:500400 }, { id:'c', f:501300 }], 'std'), '');
+    eq('porteuses trop proches', ty([{ id:'a', f:500000 }, { id:'b', f:500300 }], 'std'), 'cc');
+    eq('écart du profil de la session retenu', ty([{ id:'a', f:500000, sp:800 }, { id:'b', f:500500 }], 'std'), 'cc');
+    /* symétrique par nature : si 2A − B tombe sur C, alors 2A − C tombe sur B */
+    eq('ordre 3 : 2A − B tombe sur C', ty([{ id:'a', f:500000 }, { id:'b', f:500400 }, { id:'c', f:499650 }], 'std'), 'i3,i3');
+    eq('ordre 5 seulement en Robuste', [ty([{ id:'a', f:500000 }, { id:'b', f:500500 }, { id:'c', f:501500 }], 'std'), ty([{ id:'a', f:500000 }, { id:'b', f:500500 }, { id:'c', f:501500 }], 'rob')], ['', 'i5']);
+    eq('trois émetteurs seulement en Robuste', [ty([{ id:'a', f:500000 }, { id:'b', f:500900 }, { id:'c', f:502300 }, { id:'d', f:503200 }], 'std'), /t3/.test(ty([{ id:'a', f:500000 }, { id:'b', f:500900 }, { id:'c', f:502300 }, { id:'d', f:503200 }], 'rob'))], ['', true]);
+    var N = function(n, o){ var l = []; for(var q = 0; q < n; q++) l.push(Object.assign({ id:'c' + q, f:0, sp:0, lo:470150, hi:636000 }, o || {})); return l; };
+    var run = function(chs, opt){ var r = _rfCoord(chs, opt), m = {}; r.list.forEach(function(x){ m[x.id] = x.f; }); r.fs = chs.filter(function(c){ return !c.fixed; }).map(function(c){ return m[c.id]; }); r.all = chs.map(function(c){ return { id:c.id, f:c.fixed ? c.f : m[c.id], sp:c.sp }; }); return r; };
+    var up = run(N(24), { mode:'std', dir:'up' });
+    eq('24 canaux placés, sens croissant', [up.placed, up.missed, up.fs[0], up.fs.every(function(f, q){ return !q || f > up.fs[q - 1]; })], [24, 0, 470150, true]);
+    eq('résultat sans conflit (vérification indépendante)', _rfCompat(up.all, 'std').list, []);
+    t('fréquences au pas de 25 kHz et dans la plage', up.fs.every(function(f){ return f % 25 === 0 && f >= 470150 && f <= 636000; }));
+    var dn = run(N(24), { mode:'std', dir:'down' });
+    eq('sens décroissant : part du haut de la bande', [dn.placed, dn.fs[0], dn.fs.every(function(f, q){ return !q || f < dn.fs[q - 1]; }), _rfCompat(dn.all, 'std').list.length], [24, 636000, true, 0]);
+    var rb = run(N(24), { mode:'rob', dir:'up' });
+    eq('Robuste : placé, sans conflit, plus étalé que Standard', [rb.placed, _rfCompat(rb.all, 'rob').list.length, rb.fs[23] > up.fs[23]], [24, 0, true]);
+    t('le résultat Standard ne passe pas forcément en Robuste', _rfCompat(up.all, 'rob').list.length > 0);
+    var av = run(N(6), { mode:'std', dir:'up', avoid:[[470000, 480000], [481000, 482000]] });
+    t('plages à éviter respectées', av.fs.every(function(f){ return f > 480000 && !(f >= 481000 && f <= 482000); }) && av.fs[0] === 480025, av.fs);
+    var fx = run([{ id:'k1', f:470500, sp:0, fixed:true }, { id:'k2', f:472000, sp:0, fixed:true }].concat(N(10)), { mode:'rob', dir:'up' });
+    eq('fréquences gardées : intactes et protégées', [fx.list.length, fx.all[0].f, fx.all[1].f, _rfCompat(fx.all, 'rob').list.length], [10, 470500, 472000, 0]);
+    var tight = run(N(8, { lo:600000, hi:601500 }), { mode:'std', dir:'up' });
+    eq('bande trop étroite : le reste est signalé sans place', [tight.placed > 0 && tight.placed < 8, tight.placed + tight.missed, _rfCompat(tight.all.filter(function(c){ return c.f; }), 'std').list.length], [true, 8, 0]);
+    var wide = run(N(4, { sp:800 }), { mode:'std', dir:'up' });
+    t('écart de 800 kHz du profil respecté', wide.fs.every(function(f, q){ return !q || f - wide.fs[q - 1] >= 800; }), wide.fs);
+    var mix = run(N(6).concat(N(6, { lo:626125, hi:697875 }).map(function(c, q){ c.id = 'i' + q; return c; })), { mode:'std', dir:'down' });
+    eq('deux bandes : chacune part de son propre haut', [mix.fs[0], mix.fs[6], _rfCompat(mix.all, 'std').list.length], [636000, 697875, 0]);
+    var big = run(N(60).concat(N(40, { lo:626125, hi:697875 }).map(function(c, q){ c.id = 'i' + q; return c; })), { mode:'rob', dir:'up' });
+    eq('100 canaux en Robuste : cohérent', [big.placed + big.missed, _rfCompat(big.all.filter(function(c){ return c.f; }), 'rob').list.length], [100, 0]);
+    eq('rien à calculer', _rfCoord([{ id:'k', f:500000, fixed:true }], {}).list, []);
+    eq('options stockées nettoyées', _rfClean({ coord:{ mode:'zz', dir:'down', lo:900000, hi:100, avoid:'<x>' } }).coord, { mode:'std', dir:'down', lo:470000, hi:694000, avoid:'<x>' });
   } catch(e){ t('exception pendant les tests', false, String(e && e.stack || e)); }
   var sum = document.getElementById('sum');
   sum.className = failN ? 'ko' : 'ok';
