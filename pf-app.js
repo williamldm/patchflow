@@ -597,7 +597,7 @@ async function initApp(){
       _withRetry(()=>loadProfile(), {label:'loadProfile', timeoutMs:10000, tries:3}),
       _withRetry(()=>loadShows(),   {label:'loadShows',   timeoutMs:12000, tries:3})
     ]);
-    _handleCheckoutReturn(); // retour de paiement Lemon Squeezy
+    _handleCheckoutReturn(); // retour de paiement Stripe
     _initSharedLinks(); // suivi des liens de partage (limite Gratuit)
     _syncToursFromServer(); // tournées enregistrées sur le compte
     processShowInvites(); // charge les invitations en attente (notifications)
@@ -17740,9 +17740,9 @@ function _admDetailHtml(id){
   h+='<div class="bon-lbl">Plan Pro offert</div>'+_admGrantHtml(id,u);
   h+='<div class="bon-lbl" style="margin-top:16px">Abonnement payant</div>';
   if(!subs.length) h+='<div class="bon-note">Aucun abonnement enregistré'+(u.plan==='pro'?' : plan Pro '+(u.plan_override?'fixé à la main.':'sans abonnement, à vérifier.'):'.')+'</div>';
-  else h+='<table class="bon-tbl"><thead><tr><th>État</th><th>Formule</th><th>Renouvellement</th><th>Fin</th><th>Créé le</th><th>Lemon Squeezy</th></tr></thead><tbody>'
+  else h+='<table class="bon-tbl"><thead><tr><th>État</th><th>Formule</th><th>Renouvellement</th><th>Fin</th><th>Créé le</th><th>Prestataire</th></tr></thead><tbody>'
     +subs.map(function(s){ return '<tr><td>'+_admSub(s.status)+'</td><td>'+E(s.plan||'—')+(s.ls_variant_id?'<span class="bon-hit w">variante '+E(s.ls_variant_id)+'</span>':'')+'</td><td>'+E(_admDate(s.renews_at))+'</td><td>'+E(_admDate(s.ends_at))+'</td><td>'+E(_admDate(s.created_at))+'</td>'
-      +'<td><span class="bon-hit">abonnement '+E(s.ls_subscription_id||'—')+'</span><span class="bon-hit">client '+E(s.ls_customer_id||'—')+'</span></td></tr>'; }).join('')+'</tbody></table>';
+      +'<td><span class="bon-hit">'+(s.stripe_subscription_id?'Stripe':'Lemon Squeezy')+' · abonnement '+E(s.stripe_subscription_id||s.ls_subscription_id||'—')+'</span><span class="bon-hit">client '+E(s.stripe_customer_id||s.ls_customer_id||'—')+'</span></td></tr>'; }).join('')+'</tbody></table>';
   h+='<div class="bon-lbl" style="margin-top:16px">Sessions ('+live.length+(shows.length>live.length?' · '+(shows.length-live.length)+' à la corbeille':'')+')</div>';
   if(!shows.length) h+='<div class="bon-note">Aucune session.</div>';
   else h+='<div class="bonp-scroll"><table class="bon-tbl"><thead><tr><th>Session</th><th>Date</th><th class="r">Canaux</th><th class="r">Fichiers</th><th class="r">Plans</th><th class="r">Équipe</th><th class="r">Liens</th><th>Créée le</th></tr></thead><tbody>'
@@ -17758,7 +17758,7 @@ function _admSubsHtml(o){
   var h='<section class="ov-card bon-card"><div class="ov-card-hd"><h2>États</h2><span class="bon-reco-n">'+_admNum(s.total)+' abonnement'+((Number(s.total)||0)>1?'s':'')+' enregistré'+((Number(s.total)||0)>1?'s':'')+'</span></div>'
     +((s.by_status||[]).length?'<div class="adm-chips">'+s.by_status.map(function(x){ return '<span>'+_admSub(x.status)+'<b>'+_admNum(x.n)+'</b></span>'; }).join('')
        +(s.by_variant||[]).map(function(x){ return '<span class="v">variante '+E(x.variant)+'<b>'+_admNum(x.n)+'</b></span>'; }).join('')+'</div>'
-      :'<div class="ov-none">Aucun abonnement enregistré. Tant que le webhook Lemon Squeezy n\'écrit pas dans la base, cette liste reste vide.</div>')+'</section>';
+      :'<div class="ov-none">Aucun abonnement enregistré. Tant que le webhook de paiement n\'écrit pas dans la base, cette liste reste vide.</div>')+'</section>';
   var up=(ADM.gr&&ADM.gr.upcoming)||[], gr=(ADM.gr&&ADM.gr.grants)||[], KIND={grant_end:['short','Fin du Pro offert'],sub_end:['miss','Fin d\'abonnement résilié'],sub_renew:['ok','Renouvellement']};
   h+='<div class="bonp-two"><section class="ov-card bon-card"><div class="ov-card-hd"><h2>Échéances</h2><span class="bon-reco-n">60 prochains jours</span></div>';
   if(ADM.grErr) h+='<div class="ov-none">Indisponible : migration <code>20261009_admin_grants.sql</code> à appliquer.</div>';
@@ -22560,7 +22560,7 @@ async function openPortal() {
   if(cc) cc.textContent = chips[cur]||'Gratuit';
   _setGo('fact');
 
-  /* Charger les détails de l'abonnement Lemon Squeezy */
+  /* Charger les détails de l'abonnement */
   var payBtn = document.querySelector('.portal-pay-btn');
   var invList = document.getElementById('portal-invoice-list');
   if(cur !== 'pro'){
@@ -22569,7 +22569,7 @@ async function openPortal() {
     return;
   }
   try{
-    const {data} = await _lsCall('portal', {});
+    const {data} = await _payCall('portal', {});
     if(data){
       if(cd){
         var info = [];
@@ -22578,7 +22578,7 @@ async function openPortal() {
         else if(data.renews_at) info.push('Renouvelé le '+new Date(data.renews_at).toLocaleDateString('fr-FR'));
         cd.textContent = info.join(' · ') || 'Actif';
       }
-      /* URL du portail Lemon Squeezy : https uniquement, jamais injectée telle quelle */
+      /* URL du portail de paiement : https uniquement, jamais injectée telle quelle */
       var portalUrl = _safeHref(data.customer_portal_url || data.update_payment_url);
       if(!/^https:\/\//i.test(portalUrl)) portalUrl = '';
       if(payBtn && portalUrl){
@@ -22587,7 +22587,7 @@ async function openPortal() {
       }
       if(invList && portalUrl){
         invList.innerHTML = '<div class="portal-invoice-empty"><i class="ti ti-external-link"></i>'
-          +'<p>Vos factures et reçus sont dans le portail client sécurisé Lemon Squeezy.</p>'
+          +'<p>Vos factures et reçus sont dans le portail client sécurisé de notre prestataire de paiement, Stripe.</p>'
           +'<a class="btn" href="'+_h(portalUrl)+'" target="_blank" rel="noopener noreferrer"><i class="ti ti-external-link"></i>Ouvrir le portail</a></div>';
       }
     }
@@ -22642,7 +22642,7 @@ async function submitSupport() {
 async function _loadSubDetails() {
   const set = function(id, val) { var el=document.getElementById(id); if(el) el.textContent = val||'—'; };
   try {
-    const { data } = await _lsCall('portal', {});
+    const { data } = await _payCall('portal', {});
     if (!data) return;
 
     // Statut badge
@@ -22689,7 +22689,7 @@ async function _loadSubDetails() {
       set('sub-next-invoice', 'Le ' + new Date(data.renews_at).toLocaleDateString('fr-FR', {day:'numeric',month:'long'}));
     }
 
-    // Bouton Gérer → portail LS
+    // Bouton Gérer → portail de paiement
     var manageBtn = document.querySelector('#sub-active-block button[onclick="openPortal()"]');
     if (manageBtn && portalUrl) {
       manageBtn.removeAttribute('onclick');
@@ -22699,11 +22699,11 @@ async function _loadSubDetails() {
   } catch(e) { console.warn('[_loadSubDetails]', e); }
 }
 
-/* Achat de stockage supplémentaire — ouvre une session checkout LS avec le bon produit */
+/* Achat de stockage supplémentaire — pas encore proposé : la fonction de paiement refuse toute formule autre que mensuelle ou annuelle */
 async function buyExtraStorage(gb, priceEur) {
   toast('Redirection vers le paiement…');
   try {
-    var { data, error } = await _lsCall('checkout', { variant: 'storage_' + gb });
+    var { data, error } = await _payCall('checkout', { variant: 'storage_' + gb });
     if (error || !data?.url) {
       toast('Option de stockage extra bientôt disponible — contactez le support.');
       return;
@@ -22759,7 +22759,7 @@ function openPlanModal() {
   _loadSubStorageStats();
   // Compteur de liens de partage
   _updateShareQuotaUI();
-  // Charger détails abonnement Lemon Squeezy pour les Pro
+  // Charger détails abonnement pour les Pro
   if(cur==='pro') _loadSubDetails();
   var slHint=document.getElementById('sub-sl-hint');
   if(slHint){
@@ -22830,8 +22830,8 @@ function setBillingPeriod(p){
   if(perEl)   perEl.textContent   = _billingPeriod==='yearly' ? '/mois · facturé 119 €/an' : '/mois';
 }
 
-/* URL de la fonction edge Lemon Squeezy */
-const _LS_FN_URL = (()=>{
+/* URL des fonctions edge (paiement) */
+const _PAY_FN_URL = (()=>{
   const h = window.location.hostname;
   const base = (h==='127.0.0.1'||h==='localhost')
     ? 'http://127.0.0.1:54321/functions/v1'
@@ -22839,9 +22839,9 @@ const _LS_FN_URL = (()=>{
   return base;
 })();
 
-async function _lsCall(action, params){
+async function _payCall(action, params){
   const sess=(await sb.auth.getSession()).data?.session;
-  const res=await fetch(_LS_FN_URL+'/lemonsqueezy-checkout',{
+  const res=await fetch(_PAY_FN_URL+'/stripe-checkout',{
     method:'POST',
     headers:{'Content-Type':'application/json','Authorization':'Bearer '+(sess?.access_token||'')},
     body:JSON.stringify({action,...params}),
@@ -22861,7 +22861,7 @@ async function subCTA(plan) {
   const btns = document.querySelectorAll('.sub-plan-cta.upgrade-cta');
   btns.forEach(b=>{ b.disabled=true; b.dataset.old=b.innerHTML; b.innerHTML='<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Redirection…'; });
 
-  const {data,error} = await _lsCall('checkout', { variant: _billingPeriod });
+  const {data,error} = await _payCall('checkout', { variant: _billingPeriod });
 
   btns.forEach(b=>{ b.disabled=false; if(b.dataset.old) b.innerHTML=b.dataset.old; });
 
@@ -22869,7 +22869,7 @@ async function subCTA(plan) {
     toast('Paiement indisponible : ' + (error?.message || 'configuration manquante') + '. Contactez le support.');
     return;
   }
-  // Redirection vers le checkout hébergé Lemon Squeezy
+  // Redirection vers le paiement hébergé par Stripe
   window.location.href = data.url;
 }
 

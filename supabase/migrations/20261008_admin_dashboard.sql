@@ -16,6 +16,13 @@
 -- client Lemon Squeezy, ni les moyens de paiement, ni le contenu des fichiers.
 -- ══════════════════════════════════════════════════════════════════
 
+-- Colonnes Stripe de la table des abonnements (les fonctions ci-dessous les lisent ; idempotent,
+-- identique à 20261011_stripe.sql).
+ALTER TABLE public.subscriptions
+  ADD COLUMN IF NOT EXISTS stripe_subscription_id text UNIQUE,
+  ADD COLUMN IF NOT EXISTS stripe_customer_id     text,
+  ADD COLUMN IF NOT EXISTS stripe_price_id        text;
+
 CREATE TABLE IF NOT EXISTS public.app_admins (
   email    text PRIMARY KEY,
   added_at timestamptz NOT NULL DEFAULT now()
@@ -105,7 +112,7 @@ BEGIN
         SELECT jsonb_agg(to_jsonb(x) ORDER BY x.updated_at DESC NULLS LAST)
         FROM (
           SELECT s.user_id, u.email, p.full_name, s.status, s.plan, s.ls_variant_id,
-                 s.ls_subscription_id, s.ls_customer_id,
+                 s.ls_subscription_id, s.ls_customer_id, s.stripe_subscription_id, s.stripe_customer_id,
                  s.renews_at, s.ends_at, s.created_at, s.updated_at
           FROM public.subscriptions s
           LEFT JOIN auth.users u ON u.id = s.user_id
@@ -342,7 +349,7 @@ BEGIN
     'subscriptions', COALESCE((
       SELECT jsonb_agg(to_jsonb(x) ORDER BY x.updated_at DESC NULLS LAST)
       FROM (
-        SELECT s.status, s.plan, s.ls_variant_id, s.ls_subscription_id, s.ls_customer_id, s.ls_order_id,
+        SELECT s.status, s.plan, s.ls_variant_id, s.ls_subscription_id, s.ls_customer_id, s.ls_order_id, s.stripe_subscription_id, s.stripe_customer_id,
                s.renews_at, s.ends_at, s.created_at, s.updated_at
         FROM public.subscriptions s
         WHERE s.user_id = p_user
