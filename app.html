@@ -138,8 +138,6 @@ html.rider-boot #rider-splash{display:flex}
         <div class="auth-field"><label class="auth-lbl" for="r-pwd">Mot de passe</label>
           <div class="auth-pw"><input class="auth-inp" id="r-pwd" type="password" placeholder="8 caractères au moins" autocomplete="new-password" oninput="authPwHint(this)"/><button type="button" class="auth-eye" onclick="authEye(this)" aria-label="Afficher le mot de passe" title="Afficher le mot de passe"><i class="ti ti-eye"></i></button></div>
           <div class="auth-hint" id="r-pwd-hint"></div></div>
-        <div class="auth-field"><label class="auth-lbl" for="r-role">Votre métier</label>
-          <select class="auth-inp" id="r-role"><option value="FOH Engineer">Ingé son façade</option><option value="Monitor Engineer">Ingé son retours</option><option value="System Engineer">Ingé système</option><option value="Broadcast Engineer">Ingé son broadcast</option><option value="Technicien son" selected>Technicien son</option></select></div>
         <button type="submit" class="auth-btn" id="r-btn">Créer mon compte</button>
         <p class="auth-legal">Gratuit, sans carte bancaire. Un e-mail vous demandera de confirmer votre adresse.</p>
         <p class="auth-switch">Déjà un compte ? <button type="button" class="auth-link" onclick="authTab('login')">Se connecter</button></p>
@@ -1638,7 +1636,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=4.50"></script>
+<script src="pf-app.js?v=4.51"></script>
 <script src="pf-rf.js?v=1.13"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">

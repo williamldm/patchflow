@@ -259,7 +259,6 @@ async function doReg(){
   const name=document.getElementById('r-name').value.trim();
   const email=document.getElementById('r-email').value.trim().toLowerCase();
   const pwd=document.getElementById('r-pwd').value;
-  const role=document.getElementById('r-role').value;
   if(!name){authMsg('Indiquez votre nom.','err');return;}
   if(!_authMail(email)){authMsg('Indiquez une adresse e-mail valide.','err');return;}
   if(pwd.length<8){authMsg('Mot de passe trop court : 8 caractères au moins.','err');return;}
@@ -269,7 +268,7 @@ async function doReg(){
       email,
       password:pwd,
       options:{
-        data:{full_name:name,role},
+        data:{full_name:name},
         emailRedirectTo: _AUTH_BACK
       }
     });
