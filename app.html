@@ -60,7 +60,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=4.14">
+<link rel="stylesheet" href="pf-app.css?v=4.15">
 </head>
 <body>
 
@@ -137,7 +137,7 @@ html.rider-boot #rider-splash{display:flex}
           <div class="auth-pw"><input class="auth-inp" id="r-pwd" type="password" placeholder="8 caractères au moins" autocomplete="new-password" oninput="authPwHint(this)"/><button type="button" class="auth-eye" onclick="authEye(this)" aria-label="Afficher le mot de passe" title="Afficher le mot de passe"><i class="ti ti-eye"></i></button></div>
           <div class="auth-hint" id="r-pwd-hint"></div></div>
         <button type="submit" class="auth-btn" id="r-btn">Créer mon compte</button>
-        <p class="auth-legal">Gratuit, sans carte bancaire. Un e-mail vous demandera de confirmer votre adresse.</p>
+        <p class="auth-legal">Gratuit, sans carte bancaire. Un e-mail vous demandera de confirmer votre adresse. En créant un compte, vous acceptez les <a href="cgu.html" target="_blank" rel="noopener">conditions d'utilisation</a> et la <a href="confidentialite.html" target="_blank" rel="noopener">politique de confidentialité</a>.</p>
         <p class="auth-switch">Déjà un compte ? <button type="button" class="auth-link" onclick="authTab('login')">Se connecter</button></p>
       </form>
 
@@ -165,7 +165,7 @@ html.rider-boot #rider-splash{display:flex}
         <button type="submit" class="auth-btn" id="rs-btn">Enregistrer le mot de passe</button>
       </form>
     </div>
-    <div class="auth-footer"><a href="https://patchflow.fr"><i class="ti ti-arrow-left"></i> patchflow.fr</a></div>
+    <div class="auth-footer"><a href="https://patchflow.fr"><i class="ti ti-arrow-left"></i> patchflow.fr</a><span>·</span><a href="cgu.html">Conditions</a><span>·</span><a href="confidentialite.html">Confidentialité</a></div>
   </main>
 </div>
 

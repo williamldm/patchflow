@@ -4324,3 +4324,5 @@ button.nf-ev:hover{background:var(--surf2)}
 .nf-ev.new .nf-ic{box-shadow:0 0 0 2px var(--ora)}
 .nf-clear{display:block;width:100%;margin-top:4px;padding:10px;border:0;border-top:1px solid var(--bdr);background:transparent;color:var(--muted);font:500 12.5px var(--f);cursor:pointer}
 .nf-clear:hover{color:var(--txt)}
+.auth-legal a{color:var(--txt2);text-decoration:underline}
+.auth-legal a:hover{color:var(--ora)}
