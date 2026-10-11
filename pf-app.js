@@ -16624,7 +16624,7 @@ function _bonCardHtml(){
    Le catalogue fourni ne donne que la hauteur et la famille des appareils, seules données sûres ; poids,
    consommation et profondeur se renseignent à la main et s'enregistrent avec le matériel.
    ══════════════════════════════════════════════════════════════════ */
-var RK={showId:null, racks:[], groups:[], cur:null, sel:null, view:'f', cut:0, q:'', form:false, t:null, zoom:1, link:null, cab:null};
+var RK={showId:null, racks:[], groups:[], cur:null, sel:null, view:'f', cut:0, q:'', form:false, t:null, zoom:1, link:null, cab:null, menu:null, more:false};
 var RK_LIB=null;                 /* matériel de l'utilisateur ; null tant qu'il n'a pas été lu sur le compte */
 var RK_OPT={simple:false, num:true, frame:true, grp:true, ghost:true, wire:true};
 try{ Object.assign(RK_OPT, JSON.parse(localStorage.getItem('pf_rk_opt')||'{}')); }catch(e){}
@@ -16989,16 +16989,17 @@ function rkNew(){
   var n=RK.racks.length+1, r={id:_rkId(), name:'Rack '+n, units:12, bays:1, depth:0, note:'', top:false, casters:false, items:[]};
   RK.racks.push(r); RK.cur=r.id; RK.sel=null; RK.cut=0; _rkSave(); renderRacks();
 }
-function rkPick(id){ RK.cur=id; RK.sel=null; RK.cut=0; RK.link=null; RK.cab=null; renderRacks(); }
+function rkPick(id){ RK.cur=id; RK.sel=null; RK.cut=0; RK.link=null; RK.cab=null; RK.menu=null; renderRacks(); }
 function rkDup(){
   var r=_rkCur(); if(!r) return;
   var c=JSON.parse(JSON.stringify(r)), map={}; c.id=_rkId(); c.name=(r.name+' (copie)').slice(0,60);
   c.items.forEach(function(i){ var n=_rkId(); map[i.id]=n; i.id=n; });
   (c.cables||[]).forEach(function(k){ k.id=_rkId(); k.a=map[k.a]||k.a; if(k.b) k.b=map[k.b]||k.b; });
-  RK.racks.push(c); RK.cur=c.id; RK.sel=null; _rkSave(); renderRacks();
+  RK.racks.push(c); RK.cur=c.id; RK.sel=null; RK.menu=null; _rkSave(); renderRacks();
 }
 function rkDel(){
   var r=_rkCur(); if(!r) return;
+  RK.menu=null;
   if(!confirm('Supprimer le rack « '+r.name+' » et ses '+r.items.length+' appareil'+(r.items.length>1?'s':'')+' ?')) return;
   RK.racks=RK.racks.filter(function(x){ return x.id!==r.id; }); RK.cur=RK.racks.length?RK.racks[0].id:null; RK.sel=null; _rkSave(); renderRacks();
 }
@@ -17021,6 +17022,17 @@ function rkRack(f,v){
   _rkSave(); renderRacks();
 }
 function rkView(v){ RK.view=v; renderRacks(); }
+/* Menus de la barre (« Rack », « Affichage ») : ouverts dans la page, ils restent en place quand un réglage redessine l'écran.
+   Un clic ailleurs ou Échap les ferme sans rien redessiner, pour ne pas avaler le clic. */
+function _rkMenuClose(){ RK.menu=null; document.querySelectorAll('.rk-dd-p').forEach(function(p){ p.remove(); }); document.querySelectorAll('.rk-dd>.btn.on').forEach(function(b){ b.classList.remove('on'); }); }
+function rkMenu(k){
+  RK.menu=RK.menu===k?null:k; renderRacks();
+  if(!RK.menuOn){ RK.menuOn=1;
+    document.addEventListener('pointerdown',function(e){ if(RK.menu && !(e.target.closest && e.target.closest('.rk-dd'))) _rkMenuClose(); },true);
+    document.addEventListener('keydown',function(e){ if(e.key==='Escape' && RK.menu) _rkMenuClose(); });
+  }
+}
+function rkMore(){ RK.more=!RK.more; renderRacks(); }
 function rkCut(b){ RK.cut=Math.round(_rkNum(b,0,2,0)); renderRacks(); }
 function rkOpt(k,v){ RK_OPT[k]=!!v; try{ localStorage.setItem('pf_rk_opt',JSON.stringify(RK_OPT)); }catch(e){} renderRacks(); }
 function rkZoom(d){ RK.zoom=d===0?1:Math.max(0.5,Math.min(2,Math.round((RK.zoom+d*0.15)*100)/100)); renderRacks(); }
@@ -17206,19 +17218,15 @@ function _rkLibHtml(){
 function _rkInspHtml(r,it){
   var E=_bonE;
   if(!it) return '<div class="rk-hint"><i class="ti ti-hand-click"></i><b>Ajoutez un appareil</b><span>Cliquez un matériel de la bibliothèque : il se place dans le premier emplacement libre, en partant du haut. Glissez-le ensuite à sa place, ou cliquez-le pour le régler.</span></div>';
-  var h='<div class="bon-lbl">Appareil sélectionné</div>'
-    +'<label class="set-fld"><span>Modèle</span><input class="set-inp" value="'+E(it.n)+'" maxlength="80" onchange="rkSet(\'n\',this.value)"></label>'
+  var grp='<label><span>Groupe</span><select class="set-inp" onchange="rkSet(\'grp\',this.value)"><option value="">Aucun</option>'+RK.groups.map(function(g){ return '<option value="'+E(g.id)+'"'+(it.grp===g.id?' selected':'')+'>'+E(g.name)+'</option>'; }).join('')+'</select></label>';
+  /* L'essentiel : nom, hauteur, face, groupe. Le reste (modèle, position, poids, consommation, profondeur, aspect, remarque) est replié. */
+  var h='<div class="rk-insp-h"><div><div class="bon-lbl">Appareil sélectionné</div><b>'+E(it.n)+'</b><span>'+_rkPos(r,it)+' · '+(it.side==='r'?'face arrière':'face avant')+((r.bays||1)>1?' · baie '+((it.bay||0)+1):'')+'</span></div>'
+    +'<div class="rk-insp-ic"><button type="button" onclick="rkMove(1)" title="Monter d\'une unité" aria-label="Monter"><i class="ti ti-arrow-up"></i></button><button type="button" onclick="rkMove(-1)" title="Descendre d\'une unité" aria-label="Descendre"><i class="ti ti-arrow-down"></i></button></div></div>'
     +'<label class="set-fld"><span>Nom affiché</span><input class="set-inp" value="'+E(it.lbl)+'" maxlength="40" placeholder="HF chant, Waves, Outils…" onchange="rkSet(\'lbl\',this.value)"></label>'
     +'<div class="rk-form-g"><label><span>Hauteur (U)</span><input class="set-inp" type="number" min="1" max="'+r.units+'" value="'+it.h+'" onchange="rkSet(\'h\',this.value)"></label>'
-    +'<label><span>Unité '+(r.top?'du haut':'du bas')+'</span><input class="set-inp" type="number" min="1" max="'+r.units+'" value="'+(r.top?_rkULabel(r,it.u+it.h-1):it.u)+'" onchange="rkSet(\'u\',this.value)"></label>'
     +'<label><span>Face</span><select class="set-inp" onchange="rkSet(\'side\',this.value)"><option value="f"'+(it.side==='f'?' selected':'')+'>Avant</option><option value="r"'+(it.side==='r'?' selected':'')+'>Arrière</option></select></label>'
-    +((r.bays||1)>1?'<label><span>Baie</span><select class="set-inp" onchange="rkSet(\'bay\',this.value)">'+[0,1,2].slice(0,r.bays).map(function(b){ return '<option value="'+b+'"'+(it.bay===b?' selected':'')+'>Baie '+(b+1)+'</option>'; }).join('')+'</select></label>':'<label><span>Groupe</span><select class="set-inp" onchange="rkSet(\'grp\',this.value)"><option value="">Aucun</option>'+RK.groups.map(function(g){ return '<option value="'+E(g.id)+'"'+(it.grp===g.id?' selected':'')+'>'+E(g.name)+'</option>'; }).join('')+'</select></label>')
-    +'<label><span>Poids (kg)</span><input class="set-inp" type="number" min="0" step="0.1" value="'+(it.kg||'')+'" placeholder="—" onchange="rkSet(\'kg\',this.value)"></label>'
-    +'<label><span>Conso (W)</span><input class="set-inp" type="number" min="0" value="'+(it.w||'')+'" placeholder="—" onchange="rkSet(\'w\',this.value)"></label>'
-    +'<label><span>Profondeur (mm)</span><input class="set-inp" type="number" min="0" step="10" value="'+(it.d||'')+'" placeholder="—" onchange="rkSet(\'d\',this.value)"></label>'
-    +'<label><span>Aspect</span><select class="set-inp" onchange="rkSet(\'kind\',this.value)">'+_RK_KINDS.map(function(k){ return '<option value="'+k[0]+'"'+(it.kind===k[0]?' selected':'')+'>'+k[1]+'</option>'; }).join('')+'</select></label></div>'
-    +((r.bays||1)>1?'<label class="set-fld"><span>Groupe</span><select class="set-inp" onchange="rkSet(\'grp\',this.value)"><option value="">Aucun</option>'+RK.groups.map(function(g){ return '<option value="'+E(g.id)+'"'+(it.grp===g.id?' selected':'')+'>'+E(g.name)+'</option>'; }).join('')+'</select></label>':'')
-    +'<label class="set-fld"><span>Remarque</span><input class="set-inp" value="'+E(it.note)+'" maxlength="200" placeholder="Fréquences, canal, étiquette…" onchange="rkSet(\'note\',this.value)"></label>';
+    +((r.bays||1)>1?'<label><span>Baie</span><select class="set-inp" onchange="rkSet(\'bay\',this.value)">'+[0,1,2].slice(0,r.bays).map(function(b){ return '<option value="'+b+'"'+(it.bay===b?' selected':'')+'>Baie '+(b+1)+'</option>'; }).join('')+'</select></label>':'')
+    +(RK.groups.length?grp:'')+'</div>';
   if(it.kind==='patch'){
     h+='<div class="bon-lbl">Connecteurs du panneau</div>';
     _rkPP(it.pp,it.h).rows.forEach(function(row,ri){
@@ -17232,10 +17240,19 @@ function _rkInspHtml(r,it){
     h+='<button type="button" class="btn sm rk-wide" onclick="rkPPAdd()"><i class="ti ti-plus"></i>Ajouter une rangée</button>';
   }
   h+=_rkCabsHtml(r,it);
-  return h+'<div class="rk-insp-a"><button type="button" class="btn sm" onclick="rkMove(1)" title="Monter"><i class="ti ti-arrow-up"></i>Monter</button><button type="button" class="btn sm" onclick="rkMove(-1)" title="Descendre"><i class="ti ti-arrow-down"></i>Descendre</button></div>'
-    +'<button type="button" class="btn sm rk-wide" onclick="rkClone()"><i class="ti ti-copy"></i>Dupliquer dans le rack</button>'
-    +'<button type="button" class="btn sm rk-wide" onclick="rkGearKeep()"><i class="ti ti-bookmark-plus"></i>Enregistrer dans mon matériel</button>'
-    +'<button type="button" class="btn sm rk-wide rk-danger" onclick="rkRemove()"><i class="ti ti-trash"></i>Retirer du rack</button>';
+  var sum=[it.kg?_rkFmt(it.kg,'kg'):'', it.w?it.w+' W':'', it.d?it.d+' mm':''].filter(Boolean).join(' · ');
+  h+='<button type="button" class="rk-more'+(RK.more?' on':'')+'" onclick="rkMore()" aria-expanded="'+(RK.more?'true':'false')+'"><i class="ti ti-chevron-'+(RK.more?'down':'right')+'"></i>Caractéristiques<span>'+E(sum||'poids, consommation, profondeur…')+'</span></button>';
+  if(RK.more) h+='<label class="set-fld"><span>Modèle</span><input class="set-inp" value="'+E(it.n)+'" maxlength="80" onchange="rkSet(\'n\',this.value)"></label>'
+    +'<div class="rk-form-g"><label><span>Unité '+(r.top?'du haut':'du bas')+'</span><input class="set-inp" type="number" min="1" max="'+r.units+'" value="'+(r.top?_rkULabel(r,it.u+it.h-1):it.u)+'" onchange="rkSet(\'u\',this.value)"></label>'
+    +'<label><span>Aspect</span><select class="set-inp" onchange="rkSet(\'kind\',this.value)">'+_RK_KINDS.map(function(k){ return '<option value="'+k[0]+'"'+(it.kind===k[0]?' selected':'')+'>'+k[1]+'</option>'; }).join('')+'</select></label>'
+    +'<label><span>Poids (kg)</span><input class="set-inp" type="number" min="0" step="0.1" value="'+(it.kg||'')+'" placeholder="—" onchange="rkSet(\'kg\',this.value)"></label>'
+    +'<label><span>Conso (W)</span><input class="set-inp" type="number" min="0" value="'+(it.w||'')+'" placeholder="—" onchange="rkSet(\'w\',this.value)"></label>'
+    +'<label><span>Profondeur (mm)</span><input class="set-inp" type="number" min="0" step="10" value="'+(it.d||'')+'" placeholder="—" onchange="rkSet(\'d\',this.value)"></label>'
+    +'</div>'
+    +'<label class="set-fld"><span>Remarque</span><input class="set-inp" value="'+E(it.note)+'" maxlength="200" placeholder="Fréquences, canal, étiquette…" onchange="rkSet(\'note\',this.value)"></label>';
+  return h+'<div class="rk-insp-act"><button type="button" class="btn sm" onclick="rkClone()" title="Dupliquer dans le rack"><i class="ti ti-copy"></i>Dupliquer</button>'
+    +'<button type="button" class="btn sm" onclick="rkGearKeep()" title="Enregistrer dans mon matériel, pour le retrouver dans toutes mes sessions"><i class="ti ti-bookmark-plus"></i>Garder</button>'
+    +'<button type="button" class="btn sm rk-danger" onclick="rkRemove()" title="Retirer du rack" aria-label="Retirer du rack"><i class="ti ti-trash"></i></button></div>';
 }
 function _rkGroupsHtml(){
   var E=_bonE, h='<div class="rk-grp"><div class="rk-lib-g" style="margin-top:0">Groupes<button type="button" class="ov-link" onclick="rkGroupAdd()">Ajouter</button></div>';
@@ -17270,19 +17287,25 @@ function renderRacks(){
   h+='<div class="rk-tabs">'+RK.racks.map(function(x){ return '<button type="button" class="'+(x.id===r.id?'on':'')+'" data-id="'+E(x.id)+'" onclick="rkPick(this.dataset.id)">'+E(x.name)+'<span>'+x.units+' U'+((x.bays||1)>1?' × '+x.bays:'')+'</span></button>'; }).join('')
     +'<button type="button" class="add" onclick="rkNew()" title="Nouveau rack"><i class="ti ti-plus"></i>Rack</button></div>';
   h+='<div class="rk-wrap"><aside class="rk-lib"><div class="adm-search"><i class="ti ti-search"></i><input type="search" placeholder="Chercher un matériel" value="'+E(RK.q)+'" oninput="rkSearch(this.value)" autocomplete="off"></div><div id="rk-lib-list">'+_rkLibHtml()+'</div></aside>';
+  var ck=function(k,l,t){ return '<label class="rk-ck" title="'+t+'"><input type="checkbox" class="cb"'+(RK_OPT[k]?' checked':'')+' onchange="rkOpt(\''+k+'\',this.checked)">'+l+'</label>'; };
+  var dd=function(k,icon,l,body){ return '<div class="rk-dd"><button type="button" class="btn sm'+(RK.menu===k?' on':'')+'" onclick="rkMenu(\''+k+'\')" aria-expanded="'+(RK.menu===k?'true':'false')+'"><i class="ti '+icon+'"></i>'+l+'<i class="ti ti-chevron-down rk-dd-c"></i></button>'+(RK.menu===k?'<div class="rk-dd-p">'+body+'</div>':'')+'</div>'; };
   h+='<main class="rk-stage"><div class="rk-bar"><input class="set-inp rk-name" value="'+E(r.name)+'" maxlength="60" onchange="rkRack(\'name\',this.value)" aria-label="Nom du rack">'
     +'<label class="rk-mini"><span>Hauteur</span><input class="set-inp" type="number" min="1" max="60" value="'+r.units+'" onchange="rkRack(\'units\',this.value)"><em>U</em></label>'
-    +'<label class="rk-mini"><span>Baies</span><select class="set-inp" onchange="rkRack(\'bays\',this.value)">'+[1,2,3].map(function(n){ return '<option'+(bays===n?' selected':'')+'>'+n+'</option>'; }).join('')+'</select></label>'
-    +'<label class="rk-mini"><span>Profondeur</span><input class="set-inp" type="number" min="0" max="2000" step="10" value="'+(r.depth||'')+'" placeholder="—" onchange="rkRack(\'depth\',this.value)"><em>mm</em></label>'
-    +'<span class="il-bar-sp"></span><button type="button" class="btn sm" onclick="rkDup()" title="Dupliquer ce rack"><i class="ti ti-copy"></i>Dupliquer</button><button type="button" class="btn sm rk-danger" onclick="rkDel()" title="Supprimer ce rack"><i class="ti ti-trash"></i></button></div>';
+    +dd('rack','ti-settings','Rack',
+      '<div class="rk-dd-f"><label><span>Baies côte à côte</span><select class="set-inp" onchange="rkRack(\'bays\',this.value)">'+[1,2,3].map(function(n){ return '<option'+(bays===n?' selected':'')+'>'+n+'</option>'; }).join('')+'</select></label>'
+      +'<label><span>Profondeur (mm)</span><input class="set-inp" type="number" min="0" max="2000" step="10" value="'+(r.depth||'')+'" placeholder="—" onchange="rkRack(\'depth\',this.value)"></label></div>'
+      +'<label class="rk-ck" title="L\'unité 1 est en haut du rack"><input type="checkbox" class="cb"'+(r.top?' checked':'')+' onchange="rkRack(\'top\',this.checked)">Numéroter depuis le haut</label>'
+      +'<label class="rk-ck" title="Dessiner le rack sur roulettes"><input type="checkbox" class="cb"'+(r.casters?' checked':'')+' onchange="rkRack(\'casters\',this.checked)">Sur roulettes</label>'
+      +'<div class="rk-dd-sep"></div><button type="button" class="rk-dd-b" onclick="rkDup()"><i class="ti ti-copy"></i>Dupliquer ce rack</button>'
+      +'<button type="button" class="rk-dd-b danger" onclick="rkDel()"><i class="ti ti-trash"></i>Supprimer ce rack</button>')
+    +'</div>';
   h+='<div class="rk-bar"><div class="bonp-switch rk-face">'+[['f','Avant'],['r','Arrière'],['s','Coupe de côté']].map(function(f){ return '<button type="button" class="'+(RK.view===f[0]?'on':'')+'" onclick="rkView(\''+f[0]+'\')">'+f[1]+'</button>'; }).join('')+'</div>'
     +(RK.view==='s'&&bays>1?'<label class="rk-mini"><span>Baie</span><select class="set-inp" onchange="rkCut(this.value)">'+[0,1,2].slice(0,bays).map(function(b){ return '<option value="'+b+'"'+(RK.cut===b?' selected':'')+'>'+(b+1)+'</option>'; }).join('')+'</select></label>':'')
-    +'<span class="il-bar-sp"></span><div class="rk-zoom"><button type="button" onclick="rkZoom(-1)" title="Réduire"><i class="ti ti-zoom-out"></i></button><button type="button" onclick="rkZoom(0)" title="Taille réelle">'+Math.round(RK.zoom*100)+' %</button><button type="button" onclick="rkZoom(1)" title="Agrandir"><i class="ti ti-zoom-in"></i></button></div></div>';
-  var ck=function(k,l,t){ return '<label class="rk-ck" title="'+t+'"><input type="checkbox" class="cb"'+(RK_OPT[k]?' checked':'')+' onchange="rkOpt(\''+k+'\',this.checked)">'+l+'</label>'; };
-  h+='<div class="rk-opts">'+ck('simple','Vue simplifiée','Des blocs avec le nom, sans le dessin des façades')+ck('num','Numéros d\'unité','Numéroter les unités sur le côté')+ck('frame','Châssis','Dessiner le flight-case autour des baies')
-    +ck('grp','Couleurs de groupe','Teinter chaque appareil de la couleur de son groupe')+ck('ghost','Empreinte de l\'autre face','Montrer en pointillé les appareils montés de l\'autre côté')+ck('wire','Câblage','Dessiner les câbles sur la face arrière')
-    +'<label class="rk-ck" title="L\'unité 1 est en haut du rack"><input type="checkbox" class="cb"'+(r.top?' checked':'')+' onchange="rkRack(\'top\',this.checked)">Numéroter depuis le haut</label>'
-    +'<label class="rk-ck" title="Dessiner le rack sur roulettes"><input type="checkbox" class="cb"'+(r.casters?' checked':'')+' onchange="rkRack(\'casters\',this.checked)">Roulettes</label></div>';
+    +'<span class="il-bar-sp"></span>'
+    +dd('view','ti-eye','Affichage',
+      ck('wire','Câblage','Dessiner les câbles sur la face arrière')+ck('ghost','Empreinte de l\'autre face','Montrer en pointillé les appareils montés de l\'autre côté')+ck('grp','Couleurs de groupe','Teinter chaque appareil de la couleur de son groupe')
+      +ck('num','Numéros d\'unité','Numéroter les unités sur le côté')+ck('frame','Châssis','Dessiner le flight-case autour des baies')+ck('simple','Vue simplifiée','Des blocs avec le nom, sans le dessin des façades'))
+    +'<div class="rk-zoom"><button type="button" onclick="rkZoom(-1)" title="Réduire"><i class="ti ti-zoom-out"></i></button><button type="button" onclick="rkZoom(0)" title="Taille réelle">'+Math.round(RK.zoom*100)+' %</button><button type="button" onclick="rkZoom(1)" title="Agrandir"><i class="ti ti-zoom-in"></i></button></div></div>';
   h+='<div class="rk-stats"><span><b>'+st.n+'</b>appareil'+(st.n>1?'s':'')+'</span><span><b>'+st.used+' / '+st.total+' U</b>occupés en façade</span><span><b>'+_rkFmt(st.kg,'kg')+'</b>de matériel</span><span><b>'+(st.w?st.w.toLocaleString('fr-FR')+' W':'—')+'</b>'+(st.w?'soit '+(Math.round(st.a*10)/10).toLocaleString('fr-FR')+' A sous 230 V':'consommation')+'</span></div>';
   if(st.a>16) h+='<div class="set-warn"><i class="ti ti-bolt"></i><span>Plus de 16 A : ce rack demande plus d\'une ligne 16 A, ou une alimentation 32 A.</span></div>';
   if(st.clash.length) h+='<div class="set-warn"><i class="ti ti-alert-triangle"></i><span>'+st.clash.map(function(c){ return '« '+E(c[0].lbl||c[0].n)+' » et « '+E(c[1].lbl||c[1].n)+' » se touchent ('+(c[0].d+c[1].d)+' mm pour '+r.depth+' mm)'; }).join(' ; ')+'.</span>'
