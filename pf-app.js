@@ -2682,6 +2682,7 @@ async function inviteMember() {
       _saveContactEmail(email);
       emailEl.value = '';
       loadMembers(); // refresh member list
+      NF.skip[email]=1; refreshNotifications();
     }
   } catch (e) {
     _invMsg('Erreur réseau : ' + e.message, false);
@@ -17753,6 +17754,14 @@ function renderOverview(){
         +'<i class="ti ti-chevron-right"></i></button>';
     }).join('')+'</div></section>';
 
+  /* Activité : ce que les autres ont fait sur cette session */
+  var evs=NF.ev.filter(function(e){ return e.s===s.id; }), pend=NF.sent.filter(function(i){ return i.show_id===s.id; });
+  h+='<section class="ov-card"><div class="ov-card-hd"><h2>Activité</h2>'+(_nfUnread()?'<span class="ov-new">'+_nfUnread()+' nouveau'+(_nfUnread()>1?'x':'')+'</span>':'')+'<button class="ov-link" onclick="openNotifs()">Tout voir</button></div>';
+  if(evs.length) h+=evs.slice(0,5).map(function(e){ var k=_NF_KIND[e.k]||['ti-bell',''];
+      return '<div class="ov-line ov-ev'+(e.r?'':' new')+'"><span class="ov-ic '+k[1]+'"><i class="ti '+k[0]+'"></i></span><span class="ov-line-t ov-wrap"><span class="ov-ev-t">'+_nfText(e,false)+'</span><span>'+_e(e.at?_timeAgo(e.at):'')+'</span></span></div>'; }).join('');
+  else h+='<div class="ov-none">'+(pend.length?pend.length+' invitation'+(pend.length>1?'s':'')+' en attente de réponse. ':'')+'Les collègues qui rejoignent la session, les fichiers qu\'ils déposent ou vérifient s\'affichent ici.</div>';
+  h+='</section>';
+
   /* Patch : chiffres clés et récap micros */
   var chs=(typeof CHS!=='undefined'&&CHS)?CHS:[], mics={};
   chs.forEach(function(c){ var m=String(c.mic||'').trim(); if(m) mics[m]=(mics[m]||0)+1; });
@@ -17764,8 +17773,20 @@ function renderOverview(){
                     :'<div class="ov-none">Renseignez les micros dans l\'input list pour obtenir le récapitulatif du matériel.</div>'))
     +'</section>';
 
+  /* Liaisons HF et racks : l'état en trois chiffres, le détail dans leur onglet */
+  h+=_ovRfHtml()+_ovRacksHtml();
+
   /* Bon du loueur : état du contrôle, le détail est dans son onglet */
   h+=_bonCardHtml();
+
+  /* Équipe : qui est là, qui n'a pas encore répondu */
+  h+='<section class="ov-card"><div class="ov-card-hd"><h2>Équipe</h2><span class="ov-count">'+team.length+(pend.length?' · '+pend.length+' en attente':'')+'</span><button class="ov-link" onclick="goTab(\'team\',null)">'+(isOwn?'Inviter':'Voir')+'</button></div>'
+    +team.slice(0,6).map(function(m){ return '<div class="ov-line"><span class="dt-av" style="background:'+m.col.bg+';color:'+m.col.fg+'">'+_e(m.init)+'</span><span class="ov-line-t"><b>'+_e(m.name)+'</b><span>'+_e(m.role)+'</span></span></div>'; }).join('')
+    +(team.length>6?'<div class="ov-none">+ '+(team.length-6)+' autres</div>':'')
+    +pend.slice(0,6).map(function(i){ return '<div class="ov-line ov-pend"><span class="dt-av"><i class="ti ti-mail"></i></span><span class="ov-line-t"><b>'+_e(i.invited_email)+'</b><span>Invitation envoyée '+_e(i.created_at?_timeAgo(i.created_at):'')+' · sans réponse</span></span>'
+      +'<button class="dt-ib" data-id="'+_e(i.id)+'" onclick="ovInviteCancel(this.dataset.id)" title="Annuler cette invitation" aria-label="Annuler cette invitation"><i class="ti ti-x"></i></button></div>'; }).join('')
+    +(isOwn && team.length<2 && !pend.length?'<div class="ov-none">Invitez l\'ingé retours, le régisseur ou le backline : chacun travaille sur la même session, et vous voyez ici qui a rejoint.</div>':'')
+    +'</section>';
 
   /* Riders envoyés */
   var links=(typeof _proLinks!=='undefined'&&_lastLinksShowId===s.id)?_proLinks:null;
@@ -17799,13 +17820,40 @@ function renderOverview(){
     }
     h+='</section>';
   }
-
-  /* Équipe */
-  h+='<section class="ov-card"><div class="ov-card-hd"><h2>Équipe</h2><button class="ov-link" onclick="goTab(\'team\',null)">'+(isOwn?'Inviter':'Voir')+'</button></div>'
-    +team.slice(0,6).map(function(m){ return '<div class="ov-line"><span class="dt-av" style="background:'+m.col.bg+';color:'+m.col.fg+'">'+_e(m.init)+'</span><span class="ov-line-t"><b>'+_e(m.name)+'</b><span>'+_e(m.role)+'</span></span></div>'; }).join('')
-    +(team.length>6?'<div class="ov-none">+ '+(team.length-6)+' autres</div>':'')
-    +'</section></div>';
-  root.innerHTML=h;
+  root.innerHTML=h+'</div>';
+}
+/* Carte « Liaisons HF » : canaux, fréquences verrouillées, alertes, et le spectre en petit */
+function _ovRfHtml(){
+  if(typeof _rfLoad!=='function' || typeof RF==='undefined') return '';
+  var hd='<section class="ov-card ov-rf"><div class="ov-card-hd"><h2>Liaisons HF</h2><button class="ov-link" onclick="goTab(\'rf\',null)">Ouvrir</button></div>';
+  try{
+    _rfLoad();
+    var d=RF.data, n=d?d.ch.length:0;
+    if(!n) return hd+'<div class="ov-none">Aucune liaison HF. Importez un show Wireless Workbench ou ajoutez vos récepteurs : PatchFlow calcule des fréquences compatibles.</div></section>';
+    var al=_rfAlerts(), errs=al.all.filter(function(a){ return a.lvl==='err'; }).length, warns=al.all.filter(function(a){ return a.lvl==='warn'; }).length;
+    var lk=d.ch.filter(function(c){ return c.lk; }).length, nof=d.ch.filter(function(c){ return !c.f; }).length, mic=d.ch.filter(function(c){ return c.kind==='mic'; }).length, iem=d.ch.filter(function(c){ return c.kind==='iem'; }).length;
+    var svg=''; try{ svg=_rfSpecSvg(d,{by:al.by},_rfZones(),520); }catch(e){}
+    return hd+'<div class="ov-stats"><div><b>'+n+'</b><span>'+mic+' micro'+(mic>1?'s':'')+' · '+iem+' IEM</span></div><div><b>'+lk+'</b><span>verrouillée'+(lk>1?'s':'')+'</span></div>'
+      +'<div class="'+(errs?'bad':(warns?'warn':'ok'))+'"><b>'+(errs+warns)+'</b><span>'+(errs?'conflit'+(errs>1?'s':'')+' à régler':(warns?'à vérifier':'aucune alerte'))+'</span></div></div>'
+      +(svg?'<button type="button" class="ov-spec" onclick="goTab(\'rf\',null)" aria-label="Ouvrir le spectre">'+svg+'</button>':'')
+      +(nof?'<div class="ov-none">'+nof+' canal'+(nof>1?'aux':'')+' sans fréquence : le calcul est dans l\'onglet RF.</div>':'')+'</section>';
+  }catch(e){ return hd+'<div class="ov-none">Lecture impossible.</div></section>'; }
+}
+/* Carte « Racks » : ce qu'il y a à faire préparer */
+function _ovRacksHtml(){
+  if(typeof _rkLoad!=='function') return '';
+  var E=_bonE, hd='<section class="ov-card"><div class="ov-card-hd"><h2>Racks</h2><button class="ov-link" onclick="goTab(\'racks\',null)">Ouvrir</button></div>';
+  try{
+    _rkLoad();
+    if(!RK.racks.length) return hd+'<div class="ov-none">Aucun rack. Dessinez ceux que le loueur doit préparer : appareils, faces avant et arrière, câblage.</div></section>';
+    var st=RK.racks.map(function(r){ return {r:r, s:_rkStats(r), c:(r.cables||[]).reduce(function(t,c){ return t+(c.q||1); },0)}; }), n=0, cab=0, kg=0, w=0;
+    st.forEach(function(x){ n+=x.s.n; cab+=x.c; kg+=x.s.kg; w+=x.s.w; });
+    return hd+'<div class="ov-stats"><div><b>'+RK.racks.length+'</b><span>rack'+(RK.racks.length>1?'s':'')+'</span></div><div><b>'+n+'</b><span>appareil'+(n>1?'s':'')+'</span></div><div><b>'+cab+'</b><span>câble'+(cab>1?'s':'')+'</span></div></div>'
+      +st.slice(0,4).map(function(x){ return '<button type="button" class="ov-line ov-go" data-id="'+E(x.r.id)+'" onclick="RK.cur=this.dataset.id;goTab(\'racks\',null)"><span class="ov-ext">'+x.r.units+'U</span><span class="ov-line-t"><b>'+E(x.r.name)+'</b><span>'
+        +x.s.used+' / '+x.s.total+' U occupés'+(x.s.kg?' · '+_rkFmt(x.s.kg,'kg'):'')+(x.s.w?' · '+x.s.w+' W':'')+'</span></span><i class="ti ti-chevron-right"></i></button>'; }).join('')
+      +(st.length>4?'<div class="ov-none">+ '+(st.length-4)+' autres</div>':'')
+      +(kg||w?'<div class="ov-none">Au total : '+[kg?_rkFmt(kg,'kg'):'', w?w.toLocaleString('fr-FR')+' W, soit '+(Math.round(w/23)/10).toLocaleString('fr-FR')+' A sous 230 V':''].filter(Boolean).join(' · ')+'.</div>':'')+'</section>';
+  }catch(e){ return hd+'<div class="ov-none">Lecture impossible.</div></section>'; }
 }
 /* Données annexes de la vue d'ensemble (fichiers récents, liens) : chargées une fois par show */
 async function _ovLoad(){
@@ -18348,7 +18396,7 @@ async function refreshNotifications(){
     /* RLS owner_all permet à l'owner de voir les invites qu'il a ENVOYÉES.
        Côté notifs on ne veut QUE les invitations adressées à NOUS.
        Filtrage client-side case-insensitive. */
-    var myEmail=(ME.email||'').toLowerCase();
+    var myEmail=(ME.email||'').toLowerCase(), sent=null;
     var {data,error}=await sb.from('show_invites').select('*');
     if(error){
       /* BUG corrigé : on n'écrasait _PENDING_INVITES qu'avec [] sur la moindre
@@ -18361,14 +18409,134 @@ async function refreshNotifications(){
       _PENDING_INVITES=(data||[]).filter(function(inv){
         return String(inv.invited_email||'').toLowerCase()===myEmail;
       });
+      sent=(data||[]).filter(function(inv){ return String(inv.invited_email||'').toLowerCase()!==myEmail; });
       console.log('[refreshNotif]',_PENDING_INVITES.length,'invite(s) pour',myEmail,'sur',(data||[]).length,'visibles');
     }
   }catch(e){ console.warn('[refreshNotif] catch:',e); _notifFetchError=true; }
+  try{ await _nfScan(sent); }catch(e){ console.warn('[activité]',e); }
   _updateNotifBadge();
+  /* La vue d'ensemble montre l'équipe, les invitations en attente et l'activité : elle suit, sans se redessiner pour rien */
+  var sig=NF.ev.length+'|'+(NF.ev[0]?NF.ev[0].id:'')+'|'+NF.sent.map(function(i){ return i.id; }).join(',')+'|'+Object.keys(SHOW_MEMBERS_MAP).map(function(k){ return k+':'+(SHOW_MEMBERS_MAP[k]||[]).length; }).join(',');
+  if(sig!==NF.sig){ NF.sig=sig; if(document.getElementById('panel-overview')?.classList.contains('on')) try{ renderOverview(); }catch(e){} }
+}
+
+/* ── Activité des sessions ─────────────────────────────────────────────
+   Ce qui s'est passé sans moi : un collègue invité a rejoint, une invitation a été déclinée, un fichier a été
+   déposé ou vérifié par quelqu'un d'autre. Rien n'est écrit dans la base : à chaque passage (ouverture, puis
+   toutes les minutes) l'état lu est comparé au précédent, gardé dans le navigateur avec les événements.
+   - invitations que j'ai envoyées : lisibles par le propriétaire du show (show_invites) ; une invitation qui
+     disparaît alors que la personne n'est pas membre a été déclinée ;
+   - membres de mes shows : un nouveau membre attendu (invitation connue) ou daté d'après mon dernier passage ;
+   - fichiers : déposés ou vérifiés depuis mon dernier passage par un autre que moi.
+   Tout vient d'autres comptes : noms et fichiers sont bornés ici et échappés à l'affichage. */
+var NF={ev:[], sent:[], snap:null, t:'', uid:null, busy:false, skip:{}, sig:''};
+function _nfLs(){ return 'pf_nf_'+((ME&&ME.id)||''); }
+function _nfRestore(){
+  var uid=(ME&&ME.id)||null; if(NF.uid===uid) return;
+  NF.uid=uid; NF.ev=[]; NF.snap=null; NF.t=''; NF.sent=[]; NF.skip={};
+  try{
+    var j=JSON.parse(localStorage.getItem(_nfLs())||'null'); if(!j || typeof j!=='object') return;
+    var S=function(v,n){ return String(v==null?'':v).slice(0,n); };
+    NF.ev=(Array.isArray(j.ev)?j.ev:[]).filter(function(e){ return e && typeof e==='object' && e.id && /^(join|decl|file|verif)$/.test(e.k); }).slice(0,60)
+      .map(function(e){ return {id:S(e.id,200), k:e.k, s:S(e.s,40), sn:S(e.sn,120), w:S(e.w,120), f:S(e.f,160), at:S(e.at,40), r:!!e.r}; });
+    if(j.snap && typeof j.snap==='object' && j.snap.inv && j.snap.mem) NF.snap=j.snap;
+    NF.t=S(j.t,40);
+  }catch(e){}
+}
+function _nfStore(){ try{ localStorage.setItem(_nfLs(),JSON.stringify({ev:NF.ev.slice(0,60), snap:NF.snap, t:NF.t})); }catch(e){} }
+function _nfPush(ev){ if(NF.ev.some(function(x){ return x.id===ev.id; })) return; NF.ev.push(ev); }
+function _nfUnread(){ return NF.ev.filter(function(e){ return !e.r; }).length; }
+async function _nfScan(sent){
+  if(!ME || NF.busy || !SHOWS.length) return;
+  NF.busy=true;
+  try{
+    _nfRestore();
+    var now=new Date().toISOString(), started=new Date(Date.now()-5000).toISOString();
+    var sinceMs=NF.t?Date.parse(NF.t):Date.now()-3*864e5, since=new Date(sinceMs).toISOString();
+    var after=function(v){ var t=v?Date.parse(v):NaN; return isFinite(t) && t>sinceMs; }, low=function(v){ return String(v||'').toLowerCase(); };
+    var names={}, owner={}; SHOWS.forEach(function(x){ names[x.id]=x.name||'Session'; owner[x.id]=x.owner_id; });
+    var ids=SHOWS.filter(function(x){ return x.owner_id===ME.id; }).map(function(x){ return x.id; });
+    var old=NF.snap, snap={inv:old?old.inv:{}, mem:old?old.mem:{}}, mem=null;
+    /* Membres des shows dont je suis propriétaire */
+    if(ids.length){ var r=await sb.from('show_members').select('*,profiles(full_name,email,role,plan,avatar_url)').in('show_id',ids); if(r && !r.error) mem=r.data||[]; }
+    if(mem){
+      var by={}; ids.forEach(function(id){ by[id]=[]; }); mem.forEach(function(m){ if(by[m.show_id]) by[m.show_id].push(m); });
+      snap.mem={};
+      ids.forEach(function(id){
+        SHOW_MEMBERS_MAP[id]=by[id];
+        snap.mem[id]=by[id].map(function(m){ return String(m.user_id); });
+        var was=old?(old.mem[id]||[]):null;
+        by[id].forEach(function(m){
+          if(m.user_id===ME.id || (was && was.indexOf(String(m.user_id))>=0)) return;
+          var mail=low(m.profiles&&m.profiles.email), at=m.created_at||m.joined_at||'';
+          if(NF.skip[mail]){ return; }                                   /* ajouté par moi à l'instant : pas une nouvelle */
+          var invited=!!old && Object.keys(old.inv).some(function(k){ return old.inv[k].s===id && old.inv[k].e===mail; });
+          if(invited || after(at)) _nfPush({id:'join:'+id+':'+m.user_id, k:'join', s:id, sn:names[id], w:String((m.profiles&&(m.profiles.full_name||m.profiles.email))||'Un collègue').slice(0,120), f:'', at:at||now, r:false});
+        });
+      });
+    }
+    /* Invitations envoyées : en attente, ou déclinées quand elles disparaissent sans que la personne soit membre */
+    if(sent){
+      NF.sent=sent.filter(function(i){ return owner[i.show_id]===ME.id; });
+      snap.inv={}; NF.sent.forEach(function(i){ snap.inv[i.id]={e:low(i.invited_email), s:i.show_id}; });
+      if(old && mem) Object.keys(old.inv).forEach(function(k){
+        var v=old.inv[k]; if(snap.inv[k] || !names[v.s] || NF.skip['x:'+k]) return;
+        var joined=(SHOW_MEMBERS_MAP[v.s]||[]).some(function(m){ return low(m.profiles&&m.profiles.email)===v.e; });
+        if(!joined) _nfPush({id:'decl:'+k, k:'decl', s:v.s, sn:names[v.s], w:String(v.e).slice(0,120), f:'', at:now, r:false});
+      });
+    }
+    NF.skip={};
+    /* Fichiers déposés ou vérifiés par d'autres, sur toutes mes sessions */
+    try{
+      var fr=await sb.from('show_files').select('show_id,name,path,is_folder,created_at,created_by,verified_at,verified_by_name').in('show_id',SHOWS.map(function(x){ return x.id; }))
+        .eq('is_folder',false).or('created_at.gt."'+since+'",verified_at.gt."'+since+'"').order('created_at',{ascending:false}).limit(40);
+      var who=function(sid,uid){
+        var m=(SHOW_MEMBERS_MAP[sid]||[]).filter(function(q){ return q.user_id===uid; })[0], o=SHOW_OWNERS_CACHE[uid];
+        return String((m&&m.profiles&&(m.profiles.full_name||m.profiles.email))||(o&&(o.full_name||o.email))||'Un membre de l\'équipe').slice(0,120);
+      };
+      ((fr&&!fr.error&&fr.data)||[]).forEach(function(f){
+        if(!names[f.show_id] || f.is_folder || /(^|\/)node-icons\//.test(f.path||'')) return;
+        var nm=String(typeof _fichDisplayName==='function'?_fichDisplayName(String(f.name||'')):(f.name||'')).slice(0,160);
+        if(after(f.created_at) && f.created_by && f.created_by!==ME.id) _nfPush({id:'file:'+f.path, k:'file', s:f.show_id, sn:names[f.show_id], w:who(f.show_id,f.created_by), f:nm, at:f.created_at, r:false});
+        if(after(f.verified_at) && f.verified_by_name && f.verified_by_name!==(PROFILE&&PROFILE.full_name)) _nfPush({id:'verif:'+f.path+':'+f.verified_at, k:'verif', s:f.show_id, sn:names[f.show_id], w:String(f.verified_by_name).slice(0,120), f:nm, at:f.verified_at, r:false});
+      });
+    }catch(e){}
+    NF.ev.sort(function(a,b){ return (Date.parse(b.at)||0)-(Date.parse(a.at)||0); });
+    NF.ev=NF.ev.slice(0,60); NF.snap=snap; NF.t=started; _nfStore();
+  } finally { NF.busy=false; }
+}
+var _NF_KIND={join:['ti-user-check','ok'], decl:['ti-user-x','bad'], file:['ti-file-upload',''], verif:['ti-rosette-discount-check','ok']};
+/* Phrase d'un événement ; withShow : rappeler la session (fenêtre des notifications), inutile dans sa vue d'ensemble */
+function _nfText(e,withShow){
+  var E=_bonE, sh=withShow?' <b>'+E(e.sn)+'</b>':'';
+  if(e.k==='join') return '<b>'+E(e.w)+'</b> a rejoint'+(withShow?sh:' la session');
+  if(e.k==='decl') return '<b>'+E(e.w)+'</b> a décliné l\'invitation'+(withShow?' à'+sh:'');
+  if(e.k==='file') return '<b>'+E(e.w)+'</b> a déposé <b>'+E(e.f)+'</b>'+(withShow?' dans'+sh:'');
+  return '<b>'+E(e.w)+'</b> a vérifié <b>'+E(e.f)+'</b>'+(withShow?' ·'+sh:'');
+}
+async function nfOpen(id){
+  var e=NF.ev.filter(function(x){ return x.id===id; })[0]; if(!e) return;
+  e.r=true; _nfStore(); _updateNotifBadge(); closeNotifs();
+  if(!SHOWS.some(function(x){ return x.id===e.s; })){ toast('Cette session n\'est plus disponible.'); return; }
+  if(!CUR_SHOW || CUR_SHOW.id!==e.s) await switchShow(e.s);
+  goTab(e.k==='file'||e.k==='verif'?'fichiers':'team',null);
+}
+function nfClear(){ NF.ev=[]; _nfStore(); _updateNotifBadge(); loadNotifications(); try{ if(document.getElementById('panel-overview')?.classList.contains('on')) renderOverview(); }catch(e){} }
+/* Retirer une invitation que j'ai envoyée et qui attend toujours */
+async function ovInviteCancel(id){
+  var inv=NF.sent.filter(function(i){ return i.id===id; })[0]; if(!inv) return;
+  if(!confirm('Annuler l\'invitation envoyée à '+inv.invited_email+' ?')) return;
+  try{
+    var r=await sb.from('show_invites').delete().eq('id',id);
+    if(r && r.error){ toast('Erreur : '+r.error.message); return; }
+    NF.sent=NF.sent.filter(function(i){ return i.id!==id; });
+    if(NF.snap && NF.snap.inv) delete NF.snap.inv[id];
+    _nfStore(); renderOverview(); toast('Invitation annulée');
+  }catch(e){ toast('Erreur : '+(e&&e.message||e)); }
 }
 
 function _updateNotifBadge(){
-  var n=_PENDING_INVITES.length;
+  var n=_PENDING_INVITES.length+_nfUnread();
   var dot=document.getElementById('tb-notif-dot');
   var cnt=document.getElementById('sp-notif-count');
   if(dot){ dot.style.display=n>0?'flex':'none'; dot.textContent=n>9?'9+':String(n); }
@@ -18393,8 +18561,10 @@ function openNotifs(){
 }
 function closeNotifs(){
   var p=document.getElementById('nf-pop'), b=document.getElementById('nf-btn');
+  var seen=p&&p.classList.contains('show')&&_nfUnread();
   if(p) p.classList.remove('show'); if(b) b.setAttribute('aria-expanded','false');
   document.removeEventListener('click',_nfOutside,true); document.removeEventListener('keydown',_nfKey);
+  if(seen){ NF.ev.forEach(function(e){ e.r=true; }); _nfStore(); _updateNotifBadge(); }
 }
 function toggleNotifs(ev){
   if(ev) ev.stopPropagation();
@@ -18405,6 +18575,12 @@ function loadNotifications(){
   var el=document.getElementById('sp-notif');
   if(!el)return;
   var _es=function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
+  var evs=NF.ev.slice(0,30), evHtml=evs.length?'<div class="nf-sec">Activité de vos sessions</div>'+evs.map(function(e){
+      var k=_NF_KIND[e.k]||['ti-bell',''];
+      return '<button type="button" class="nf-item nf-ev'+(e.r?'':' new')+'" data-ev="'+_es(e.id)+'" onclick="nfOpen(this.dataset.ev)"><span class="nf-av nf-ic '+k[1]+'"><i class="ti '+k[0]+'"></i></span>'
+        +'<span class="nf-body"><span class="nf-txt">'+_nfText(e,true)+'</span><span class="nf-meta">'+_es(e.at?_timeAgo(e.at):'')+'</span></span></button>';
+    }).join('')+'<button type="button" class="nf-clear" onclick="nfClear()">Effacer l\'historique</button>':'';
+  if(!_PENDING_INVITES.length && evs.length){ el.innerHTML=evHtml; return; }
   if(!_PENDING_INVITES.length){
     /* Le chargement a échoué et rien n'est en mémoire : ne pas afficher « à jour », proposer de réessayer */
     if(_notifFetchError) el.innerHTML=_nfMsg('ti-wifi-off','Impossible de charger les notifications.','<button type="button" class="btn sm" onclick="_nfReload()">Réessayer</button>');
@@ -18428,7 +18604,7 @@ function loadNotifications(){
         +'</div>'
       +'</div>'
     +'</div>';
-  }).join('');
+  }).join('')+evHtml;
 }
 
 /* Accepter une invitation : rejoindre le show (via RPC sécurisée) */
