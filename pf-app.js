@@ -126,87 +126,180 @@ let pdfMeta={};
 // ══════════════════════════════════════
 // AUTH
 // ══════════════════════════════════════
+/* Écrans : login, reg, forgot, sent (e-mail parti), reset (nouveau mot de passe) */
+var AUTH={view:'login', sent:null, cool:null};
+/* Où revient le lien de confirmation d'inscription : l'adresse déclarée dans Supabase (Redirect URLs) */
+var _AUTH_BACK='https://patchflow.fr/app.html';
+var _AUTH_TXT={
+  login:['Bon retour','Connectez-vous pour retrouver vos sessions.'],
+  reg:['Créer votre compte','Votre premier patch est prêt en quelques minutes.'],
+  forgot:['Mot de passe oublié','Indiquez votre e-mail : nous vous envoyons un lien pour en choisir un nouveau.'],
+  sent:['Vérifiez votre boîte mail',''],
+  reset:['Nouveau mot de passe','Choisissez le mot de passe de votre compte.']
+};
 function authTab(t){
-  document.getElementById('form-login').style.display=t==='login'?'block':'none';
-  document.getElementById('form-reg').style.display=t==='reg'?'block':'none';
-  document.getElementById('form-forgot').style.display=t==='forgot'?'block':'none';
-  const tabBar=document.getElementById('auth-tabs-bar');
-  if(tabBar) tabBar.style.display=t==='forgot'?'none':'flex';
-  if(t!=='forgot'){
-    document.getElementById('tab-login').className='auth-tab'+(t==='login'?' on':'');
-    document.getElementById('tab-reg').className='auth-tab'+(t==='reg'?' on':'');
-  }
+  if(!_AUTH_TXT[t]) t='login';
+  AUTH.view=t;
+  ['login','reg','forgot','sent','reset'].forEach(function(k){ var f=document.getElementById('form-'+k); if(f) f.style.display=k===t?'block':'none'; });
+  var hh=document.getElementById('auth-h'), pp=document.getElementById('auth-p');
+  if(hh) hh.textContent=_AUTH_TXT[t][0];
+  if(pp){ pp.textContent=_AUTH_TXT[t][1]; pp.style.display=_AUTH_TXT[t][1]?'':'none'; }
   authMsg('','');
+  /* L'adresse déjà saisie suit d'un écran à l'autre */
+  var from=['l-email','r-email','f-email'].map(function(id){ var e=document.getElementById(id); return e?e.value.trim():''; }).filter(Boolean)[0]||'';
+  var to={login:'l-email',reg:'r-email',forgot:'f-email'}[t], el=to&&document.getElementById(to);
+  if(el){ if(!el.value && from) el.value=from; try{ (el.value&&t==='login'?document.getElementById('l-pwd'):el).focus({preventScroll:true}); }catch(e){} }
 }
-
+/* msg : texte simple. html : contenu déjà sûr (écrit ici, jamais une valeur saisie). */
+function authMsg(msg,type,html){
+  const el=document.getElementById('auth-msg'); if(!el) return;
+  if(html) el.innerHTML=html; else el.textContent=msg;
+  el.className='auth-msg'+((msg||html)?' show':'')+(type?' '+type:'');
+}
+function _authBusy(id,on,label){ var b=document.getElementById(id); if(!b) return; if(on){ b.dataset.l=b.textContent; b.disabled=true; b.textContent=label; } else { b.disabled=false; if(b.dataset.l) b.textContent=b.dataset.l; } }
+function _authMail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v); }
+/* Messages de Supabase, dits simplement */
+function _authErr(e){
+  var m=String((e&&e.message)||e||''), c=String((e&&e.code)||'');
+  if(/Invalid login/i.test(m)) return 'E-mail ou mot de passe incorrect.';
+  if(/rate limit|too many|only request this after/i.test(m) || c==='over_email_send_rate_limit') return 'Trop de demandes à la suite. Patientez une minute, puis réessayez.';
+  if(/already registered|already exists/i.test(m)) return 'Un compte existe déjà avec cette adresse.';
+  if(/password should be|weak password/i.test(m)) return 'Mot de passe trop simple : 8 caractères au moins.';
+  if(/valid email|invalid format/i.test(m)) return 'Adresse e-mail invalide.';
+  if(/signups? (are )?(not allowed|disabled)/i.test(m)) return 'Les inscriptions sont fermées pour le moment.';
+  if(/provider is not enabled|unsupported provider/i.test(m)) return 'Cette connexion n\'est pas encore disponible. Utilisez votre e-mail.';
+  if(/failed to fetch|network|load failed/i.test(m)) return 'Connexion impossible. Vérifiez votre réseau, puis réessayez.';
+  return m||'Une erreur est survenue. Réessayez.';
+}
+function authEye(btn){
+  var i=btn.parentNode.querySelector('input'); if(!i) return;
+  var show=i.type==='password'; i.type=show?'text':'password';
+  btn.innerHTML='<i class="ti ti-eye'+(show?'-off':'')+'"></i>';
+  btn.title=show?'Masquer le mot de passe':'Afficher le mot de passe'; btn.setAttribute('aria-label',btn.title);
+}
+function authPwHint(inp){
+  var h=document.getElementById('r-pwd-hint'), n=inp.value.length; if(!h) return;
+  h.textContent=!n?'':(n<8?'Encore '+(8-n)+' caractère'+(8-n>1?'s':''):'Longueur suffisante');
+  h.className='auth-hint'+(n>=8?' ok':'');
+}
+/* Google et Apple ne s'affichent que s'ils sont activés dans le projet Supabase (réglages publics de l'authentification) */
+async function _authProviders(){
+  try{
+    var r=await fetch(SB_URL+'/auth/v1/settings',{headers:{apikey:SB_KEY}}), j=await r.json(), ext=(j&&j.external)||{}, any=false;
+    document.querySelectorAll('.auth-social-btn[data-provider]').forEach(function(b){ var on=ext[b.dataset.provider]===true; b.hidden=!on; if(on) any=true; });
+    document.querySelectorAll('[data-auth-social]').forEach(function(d){ d.hidden=!any; });
+  }catch(e){}
+}
 async function doOAuth(provider){
   try{
     const {error}=await sb.auth.signInWithOAuth({
       provider,
       options:{ redirectTo: window.location.origin+window.location.pathname }
     });
-    if(error) authMsg(error.message,'err');
-  }catch(e){ authMsg('Erreur : '+e.message,'err'); }
+    if(error) authMsg(_authErr(error),'err');
+  }catch(e){ authMsg(_authErr(e),'err'); }
 }
-
+/* Écran « e-mail envoyé » : kind = signup (confirmation d'adresse) ou recovery (lien de mot de passe) */
+function _authSent(kind,email){
+  AUTH.sent={kind:kind,email:email};
+  authTab('sent');
+  document.getElementById('sent-email').textContent=email;
+  document.getElementById('sent-s').textContent=kind==='signup'
+    ?'Cliquez le lien de confirmation pour activer votre compte : il vous connecte directement. Rien reçu au bout de deux minutes ? Regardez dans les courriers indésirables.'
+    :'Le lien vous permet de choisir un nouveau mot de passe ; il est valable une heure. Rien reçu ? Regardez dans les courriers indésirables. Aucun e-mail ne part si l\'adresse n\'a pas de compte.';
+  _authCool(60);
+}
+function _authCool(sec){
+  var b=document.getElementById('sent-btn'); if(!b) return;
+  clearInterval(AUTH.cool);
+  var left=sec, paint=function(){ b.disabled=left>0; b.textContent=left>0?'Renvoyer dans '+left+' s':'Renvoyer l\'e-mail'; };
+  paint(); AUTH.cool=setInterval(function(){ left--; paint(); if(left<=0) clearInterval(AUTH.cool); },1000);
+}
+async function authResend(email){
+  var st=AUTH.sent||{kind:'signup',email:email}; if(email) st={kind:'signup',email:email};
+  if(!st.email) return;
+  try{
+    var r=st.kind==='recovery'
+      ? await sb.auth.resetPasswordForEmail(st.email,{redirectTo:window.location.origin+window.location.pathname+'?reset=1'})
+      : await sb.auth.resend({type:'signup',email:st.email,options:{emailRedirectTo:_AUTH_BACK}});
+    if(r&&r.error){ authMsg(_authErr(r.error),'err'); return; }
+    if(AUTH.view!=='sent') _authSent(st.kind,st.email); else { authMsg('E-mail renvoyé.','ok'); _authCool(60); }
+  }catch(e){ authMsg(_authErr(e),'err'); }
+}
 async function doForgot(){
-  const email=document.getElementById('f-email').value.trim();
-  if(!email){authMsg('Saisis ton adresse e-mail.','err');return;}
-  const btn=document.getElementById('f-btn');
-  btn.disabled=true;btn.textContent='Envoi…';
+  const email=document.getElementById('f-email').value.trim().toLowerCase();
+  if(!_authMail(email)){authMsg('Indiquez une adresse e-mail valide.','err');return;}
+  _authBusy('f-btn',true,'Envoi…');
   try{
     const {error}=await sb.auth.resetPasswordForEmail(email,{
       redirectTo: window.location.origin+window.location.pathname+'?reset=1'
     });
-    if(error){ authMsg(error.message,'err'); }
-    else{ authMsg('Lien envoyé ! Vérifie ta boîte mail.','ok'); btn.textContent='Envoyé ✓'; return; }
-  }catch(e){ authMsg('Erreur réseau : '+e.message,'err'); }
-  btn.disabled=false; btn.textContent='Envoyer le lien';
-}
-function authMsg(msg,type){
-  const el=document.getElementById('auth-msg');
-  el.textContent=msg;el.className='auth-msg'+(msg?' show':'')+(type?' '+type:'');
+    _authBusy('f-btn',false);
+    if(error) authMsg(_authErr(error),'err'); else _authSent('recovery',email);
+  }catch(e){ _authBusy('f-btn',false); authMsg(_authErr(e),'err'); }
 }
 async function doLogin(){
-  const email=document.getElementById('l-email').value.trim();
+  const email=document.getElementById('l-email').value.trim().toLowerCase();
   const pwd=document.getElementById('l-pwd').value;
-  if(!email||!pwd){authMsg('Remplis tous les champs.','err');return;}
-  const btn=document.getElementById('l-btn');
-  btn.disabled=true;btn.textContent='Connexion…';
+  if(!_authMail(email)){authMsg('Indiquez une adresse e-mail valide.','err');return;}
+  if(!pwd){authMsg('Indiquez votre mot de passe.','err');return;}
+  _authBusy('l-btn',true,'Connexion…');
   try{
     const {error}=await sb.auth.signInWithPassword({email,password:pwd});
     if(error){
-      let m=error.message;
-      if(m.includes('Invalid login'))m='Email ou mot de passe incorrect.';
-      else if(m.includes('Email not confirmed'))m='Vérifie ta boîte mail et clique le lien de confirmation avant de te connecter.';
-      authMsg(m,'err');
+      if(/Email not confirmed/i.test(error.message||'')){
+        AUTH.sent={kind:'signup',email:email};
+        authMsg('','err','Votre adresse n\'est pas encore confirmée : cliquez le lien reçu par e-mail. <button type="button" class="auth-link" onclick="authResend()">Renvoyer l\'e-mail</button>');
+      } else authMsg(_authErr(error),'err');
     }
-  }catch(e){authMsg('Erreur réseau : '+e.message,'err');}
-  btn.disabled=false;btn.textContent='Se connecter';
+  }catch(e){authMsg(_authErr(e),'err');}
+  _authBusy('l-btn',false);
 }
 async function doReg(){
   const name=document.getElementById('r-name').value.trim();
-  const email=document.getElementById('r-email').value.trim();
+  const email=document.getElementById('r-email').value.trim().toLowerCase();
   const pwd=document.getElementById('r-pwd').value;
   const role=document.getElementById('r-role').value;
-  if(!name||!email||!pwd){authMsg('Remplis tous les champs.','err');return;}
-  if(pwd.length<6){authMsg('Mot de passe trop court.','err');return;}
-  const btn=document.getElementById('r-btn');btn.disabled=true;btn.textContent='Création…';
+  if(!name){authMsg('Indiquez votre nom.','err');return;}
+  if(!_authMail(email)){authMsg('Indiquez une adresse e-mail valide.','err');return;}
+  if(pwd.length<8){authMsg('Mot de passe trop court : 8 caractères au moins.','err');return;}
+  _authBusy('r-btn',true,'Création…');
   try{
     const {data,error}=await sb.auth.signUp({
       email,
       password:pwd,
       options:{
         data:{full_name:name,role},
-        emailRedirectTo: 'https://patchflow.fr/app.html'
+        emailRedirectTo: _AUTH_BACK
       }
     });
-    if(error){authMsg(error.message,'err');}
-    else if(data.session){/* Email confirmation disabled — onAuthStateChange handles it */}
-    else{authMsg('Compte créé ! Vérifie ta boîte mail pour confirmer ton adresse avant de te connecter.','ok');}
-  }catch(e){authMsg('Erreur : '+e.message,'err');}
-  btn.disabled=false;btn.textContent='Créer mon compte';
+    if(error) authMsg(_authErr(error),'err');
+    else if(data.session){/* Confirmation désactivée : onAuthStateChange ouvre l'app */}
+    /* Adresse déjà inscrite : Supabase ne le dit pas et n'envoie rien ; il renvoie un utilisateur sans identité */
+    else if(data.user && Array.isArray(data.user.identities) && !data.user.identities.length)
+      authMsg('','err','Un compte existe déjà avec cette adresse. <button type="button" class="auth-link" onclick="authTab(\'login\')">Se connecter</button> ou <button type="button" class="auth-link" onclick="authTab(\'forgot\')">retrouver le mot de passe</button>.');
+    else _authSent('signup',email);
+  }catch(e){authMsg(_authErr(e),'err');}
+  _authBusy('r-btn',false);
 }
+/* Retour d'un lien d'e-mail périmé ou déjà utilisé : Supabase renvoie l'erreur dans l'adresse */
+(function(){
+  try{
+    var raw=(location.hash||'').replace(/^#/,'')+'&'+(location.search||'').replace(/^\?/,''), p=new URLSearchParams(raw);
+    if(!p.get('error') && !p.get('error_code')) return;
+    var code=p.get('error_code')||'', expired=/expired|otp/i.test(code+' '+(p.get('error_description')||''));
+    /* Lien de mot de passe (?reset=1) : on en redemande un. Lien de confirmation d'inscription : la connexion propose de le renvoyer. */
+    window.__authLinkReset=/[?&]reset=1/.test(location.search);
+    window.__authLinkErr=(expired?'Ce lien a expiré ou a déjà servi. ':'Ce lien n\'est pas valide. ')+(window.__authLinkReset?'Demandez-en un nouveau ci-dessous.':'Connectez-vous : si votre adresse n\'est pas encore confirmée, nous vous renverrons un lien.');
+    try{ history.replaceState(null,'',location.pathname); }catch(e){}
+  }catch(e){}
+}());
+document.addEventListener('DOMContentLoaded',function(){
+  _authProviders();
+  if(window.__authLinkErr && !ME){ authTab(window.__authLinkReset?'forgot':'login'); authMsg(window.__authLinkErr,'err'); }
+  else if(/[?&]forgot=1/.test(location.search)){ authTab('forgot'); try{ history.replaceState(null,'',location.pathname); }catch(e){} }
+  else if(/[?&]signup=1/.test(location.search)) authTab('reg');
+});
 async function doLogout(){
   await sb.auth.signOut();
   /* Masquer les overlays mobiles avant de revenir à l'auth */
@@ -257,13 +350,8 @@ async function doLogout(){
     if(!aw) return;
     aw.className='auth-wrap show';
     document.getElementById('app').className='';
-    ['form-login','form-signup','form-forgot'].forEach(function(id){
-      var el=document.getElementById(id); if(el) el.style.display='none';
-    });
-    var tabBar=document.getElementById('auth-tabs');
-    if(tabBar) tabBar.style.display='none';
-    var resetForm=document.getElementById('form-reset');
-    if(resetForm) resetForm.style.display='block';
+    if(window.__authLinkErr){ authTab('forgot'); authMsg(window.__authLinkErr,'err'); }
+    else authTab('reset');
   }
   if(document.readyState==='loading'){
     document.addEventListener('DOMContentLoaded',_showResetForm);
@@ -288,12 +376,7 @@ sb.auth.onAuthStateChange(async(event,session)=>{
     if(resetForm&&resetForm.style.display==='none'){
       document.getElementById('auth-wrap').className='auth-wrap show';
       document.getElementById('app').className='';
-      ['form-login','form-signup','form-forgot'].forEach(function(id){
-        var el=document.getElementById(id); if(el) el.style.display='none';
-      });
-      var tabBar=document.getElementById('auth-tabs');
-      if(tabBar) tabBar.style.display='none';
-      resetForm.style.display='block';
+      authTab('reset');
     }
     return;
   }
@@ -321,7 +404,7 @@ async function doResetPassword(){
   var p1=(document.getElementById('r-pwd1')?.value||'').trim();
   var p2=(document.getElementById('r-pwd2')?.value||'').trim();
   var msg=document.getElementById('r-msg');
-  var btn=document.getElementById('r-btn');
+  var btn=document.getElementById('rs-btn');
   function showMsg(text,isErr){
     if(!msg)return;
     msg.style.display='block';
@@ -330,7 +413,7 @@ async function doResetPassword(){
   }
   if(!p1||p1.length<8){showMsg('Le mot de passe doit faire au moins 8 caractères.',true);return;}
   if(p1!==p2){showMsg('Les mots de passe ne correspondent pas.',true);return;}
-  if(btn){btn.disabled=true;btn.textContent='Mise à jour...';}
+  if(btn){btn.disabled=true;btn.textContent='Enregistrement…';}
 
   /* Avant updateUser, on doit avoir une session valide avec le token recovery.
      Comme on a créé le client avec detectSessionInUrl:false, il faut établir
@@ -347,15 +430,16 @@ async function doResetPassword(){
     setSessionErr = er.error;
   }
   if (setSessionErr) {
-    if(btn){btn.disabled=false;btn.textContent='Mettre à jour le mot de passe';}
-    showMsg('Lien expiré ou invalide. Demande un nouveau lien depuis "Mot de passe oublié".', true);
+    if(btn){btn.disabled=false;btn.textContent='Enregistrer le mot de passe';}
+    showMsg('Ce lien a expiré ou a déjà servi.', true);
+    setTimeout(function(){ window.location.href=window.location.pathname+'?forgot=1'; },1800);
     return;
   }
 
   var {error}=await sb.auth.updateUser({password:p1});
-  if(btn){btn.disabled=false;btn.textContent='Mettre à jour le mot de passe';}
+  if(btn){btn.disabled=false;btn.textContent='Enregistrer le mot de passe';}
   if(error){showMsg('Erreur : '+error.message,true);return;}
-  showMsg('Mot de passe mis à jour ! Redirection vers la connexion…',false);
+  showMsg('Mot de passe enregistré. Vous pouvez vous connecter.',false);
   /* Le client de reset est en mode persistSession:false → on déconnecte
      proprement et on redirige vers /app.html sans paramètres pour que
      l'utilisateur se reconnecte avec le nouveau mdp. */
@@ -22896,7 +22980,6 @@ function toast(msg){
 }
 
 // Keyboard shortcuts
-document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.getElementById('auth-wrap').classList.contains('show')){document.getElementById('form-login').style.display!=='none'?doLogin():doReg();}});
 document.getElementById('pdf-modal').addEventListener('click',function(e){if(e.target===this)closePDF();});
 document.getElementById('site-pdf-modal').addEventListener('click',function(e){if(e.target===this)closeSitePDF();});
 document.getElementById('fich-viewer-modal').addEventListener('click',function(e){if(e.target.classList.contains('fich-viewer-ov'))closeFichierViewer();});

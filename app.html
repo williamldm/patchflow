@@ -60,7 +60,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=4.13">
+<link rel="stylesheet" href="pf-app.css?v=4.14">
 </head>
 <body>
 
@@ -69,10 +69,9 @@ html.rider-boot #rider-splash{display:flex}
 
 <!-- AUTH -->
 <div class="auth-wrap show" id="auth-wrap">
-  <div class="auth-box">
-    <div class="auth-head">
-      <div class="auth-logo">
-        <svg width="54" height="54" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Colonne de marque : ce que fait PatchFlow, pour qui arrive de la page d'accueil -->
+  <aside class="auth-side">
+    <a class="auth-brand" href="https://patchflow.fr" aria-label="PatchFlow, retour au site"><svg width="40" height="40" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
           <path d="M70 60 C100 60 100 140 130 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round"/>
           <path d="M130 60 C100 60 100 140 70 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round" opacity="0.45"/>
           <circle cx="60" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/>
@@ -83,78 +82,95 @@ html.rider-boot #rider-splash{display:flex}
           <circle cx="60" cy="140" r="5" fill="#FF6B2B"/>
           <circle cx="140" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/>
           <circle cx="140" cy="140" r="5" fill="#FF6B2B"/>
-        </svg>
-      </div>
-      <div class="auth-title">Patch<b>Flow</b></div>
-      <div class="auth-sub">Par des techniciens, pour des techniciens</div>
+        </svg><span>Patch<b>Flow</b></span></a>
+    <div class="auth-pitch">
+      <h2>Le patch, les plans et le rider, au même endroit.</h2>
+      <ul>
+        <li><i class="ti ti-list-numbers"></i><span><b>Input et output list</b>Exportées vers votre console, en PDF ou en lien.</span></li>
+        <li><i class="ti ti-map-2"></i><span><b>Plan de scène, synoptique, racks, HF</b>Dessinés une fois, à jour partout.</span></li>
+        <li><i class="ti ti-link"></i><span><b>Un rider à envoyer</b>Le régisseur l'ouvre sans compte, sur son téléphone.</span></li>
+      </ul>
     </div>
-    <div class="auth-body">
-      <!-- Tabs connexion / créer un compte -->
-      <div class="auth-tabs" id="auth-tabs-bar">
-        <button class="auth-tab on" id="tab-login" onclick="authTab('login')">Connexion</button>
-        <button class="auth-tab" id="tab-reg" onclick="authTab('reg')">Créer un compte</button>
-      </div>
-      <div class="auth-msg" id="auth-msg"></div>
+    <div class="auth-side-f">Par des techniciens, pour des techniciens.</div>
+  </aside>
 
-      <!-- Formulaire connexion -->
-      <div id="form-login">
-        <!-- Boutons sociaux -->
-        <button class="auth-social-btn" onclick="doOAuth('google')">
-          <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
-          Continuer avec Google
-        </button>
-        <button class="auth-social-btn" onclick="doOAuth('apple')">
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><path d="M12.874 0c.073 1.04-.29 2.073-.952 2.83-.67.77-1.71 1.28-2.73 1.21-.09-1.01.31-2.03.95-2.77C10.79.5 11.87-.01 12.874 0zm3.14 13.08c-.47 1.01-.7 1.46-1.31 2.35-.85 1.24-2.05 2.78-3.54 2.8-1.32.02-1.66-.85-3.45-.84-1.79.01-2.17.86-3.49.84-1.49-.02-2.63-1.4-3.48-2.64C-.3 13.01-.42 9.7.64 8.06c.73-1.12 1.9-1.77 3.02-1.77 1.13 0 1.84.86 3.45.86 1.57 0 2.52-.87 3.79-.87 1 0 2.04.54 2.79 1.48-2.45 1.35-2.05 4.87.33 6.37z"/></svg>
-          Continuer avec Apple
-        </button>
-        <div class="auth-sep">ou</div>
-        <div class="auth-field"><label class="auth-lbl">E-mail</label><input class="auth-inp" id="l-email" type="email" placeholder="vous@son.com" autocomplete="email"/></div>
-        <div class="auth-field"><label class="auth-lbl">Mot de passe</label><input class="auth-inp" id="l-pwd" type="password" placeholder="••••••••" autocomplete="current-password"/></div>
-        <button class="auth-forgot" onclick="authTab('forgot')">Mot de passe oublié ?</button>
-        <button class="auth-btn" id="l-btn" onclick="doLogin()" style="margin-top:12px">Se connecter</button>
-      </div>
+  <main class="auth-main">
+    <a class="auth-brand auth-brand-m" href="https://patchflow.fr" aria-label="PatchFlow, retour au site"><svg width="40" height="40" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+          <path d="M70 60 C100 60 100 140 130 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round"/>
+          <path d="M130 60 C100 60 100 140 70 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round" opacity="0.45"/>
+          <circle cx="60" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/>
+          <circle cx="60" cy="60" r="5" fill="#FF6B2B"/>
+          <circle cx="140" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/>
+          <circle cx="140" cy="60" r="5" fill="#FF6B2B"/>
+          <circle cx="60" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/>
+          <circle cx="60" cy="140" r="5" fill="#FF6B2B"/>
+          <circle cx="140" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/>
+          <circle cx="140" cy="140" r="5" fill="#FF6B2B"/>
+        </svg><span>Patch<b>Flow</b></span></a>
+    <div class="auth-box">
+      <h1 class="auth-h" id="auth-h">Bon retour</h1>
+      <p class="auth-p" id="auth-p">Connectez-vous pour retrouver vos sessions.</p>
+      <div class="auth-msg" id="auth-msg" role="status" aria-live="polite"></div>
 
-      <!-- Formulaire inscription -->
-      <div id="form-reg" style="display:none">
-        <!-- Boutons sociaux -->
-        <button class="auth-social-btn" onclick="doOAuth('google')">
-          <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
-          S'inscrire avec Google
-        </button>
-        <button class="auth-social-btn" onclick="doOAuth('apple')">
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><path d="M12.874 0c.073 1.04-.29 2.073-.952 2.83-.67.77-1.71 1.28-2.73 1.21-.09-1.01.31-2.03.95-2.77C10.79.5 11.87-.01 12.874 0zm3.14 13.08c-.47 1.01-.7 1.46-1.31 2.35-.85 1.24-2.05 2.78-3.54 2.8-1.32.02-1.66-.85-3.45-.84-1.79.01-2.17.86-3.49.84-1.49-.02-2.63-1.4-3.48-2.64C-.3 13.01-.42 9.7.64 8.06c.73-1.12 1.9-1.77 3.02-1.77 1.13 0 1.84.86 3.45.86 1.57 0 2.52-.87 3.79-.87 1 0 2.04.54 2.79 1.48-2.45 1.35-2.05 4.87.33 6.37z"/></svg>
-          S'inscrire avec Apple
-        </button>
-        <div class="auth-sep">ou</div>
-        <div class="auth-field"><label class="auth-lbl">Nom complet</label><input class="auth-inp" id="r-name" type="text" placeholder="Jean-Marie Leclerc"/></div>
-        <div class="auth-field"><label class="auth-lbl">E-mail</label><input class="auth-inp" id="r-email" type="email" placeholder="vous@son.com"/></div>
-        <div class="auth-field"><label class="auth-lbl">Mot de passe</label><input class="auth-inp" id="r-pwd" type="password" placeholder="6 caractères min"/></div>
-        <div class="auth-field"><label class="auth-lbl">Rôle principal</label>
-          <select class="auth-inp" id="r-role"><option>FOH Engineer</option><option>Monitor Engineer</option><option>System Engineer</option><option>Broadcast Engineer</option><option>Technicien son</option></select>
+      <!-- Connexion -->
+      <form id="form-login" onsubmit="doLogin();return false" novalidate>
+        <div class="auth-social" data-auth-social hidden>
+          <button type="button" class="auth-social-btn" data-provider="google" onclick="doOAuth('google')" hidden><svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>Continuer avec Google</button>
+          <button type="button" class="auth-social-btn" data-provider="apple" onclick="doOAuth('apple')" hidden><svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><path d="M12.874 0c.073 1.04-.29 2.073-.952 2.83-.67.77-1.71 1.28-2.73 1.21-.09-1.01.31-2.03.95-2.77C10.79.5 11.87-.01 12.874 0zm3.14 13.08c-.47 1.01-.7 1.46-1.31 2.35-.85 1.24-2.05 2.78-3.54 2.8-1.32.02-1.66-.85-3.45-.84-1.79.01-2.17.86-3.49.84-1.49-.02-2.63-1.4-3.48-2.64C-.3 13.01-.42 9.7.64 8.06c.73-1.12 1.9-1.77 3.02-1.77 1.13 0 1.84.86 3.45.86 1.57 0 2.52-.87 3.79-.87 1 0 2.04.54 2.79 1.48-2.45 1.35-2.05 4.87.33 6.37z"/></svg>Continuer avec Apple</button>
+          <div class="auth-sep">ou avec votre e-mail</div>
         </div>
-        <button class="auth-btn" id="r-btn" onclick="doReg()">Créer mon compte</button>
+        <div class="auth-field"><label class="auth-lbl" for="l-email">E-mail</label><input class="auth-inp" id="l-email" type="email" inputmode="email" placeholder="vous@exemple.fr" autocomplete="email" autocapitalize="none" spellcheck="false"/></div>
+        <div class="auth-field"><div class="auth-lbl-r"><label class="auth-lbl" for="l-pwd">Mot de passe</label><button type="button" class="auth-link" onclick="authTab('forgot')">Mot de passe oublié ?</button></div>
+          <div class="auth-pw"><input class="auth-inp" id="l-pwd" type="password" placeholder="Votre mot de passe" autocomplete="current-password"/><button type="button" class="auth-eye" onclick="authEye(this)" aria-label="Afficher le mot de passe" title="Afficher le mot de passe"><i class="ti ti-eye"></i></button></div></div>
+        <button type="submit" class="auth-btn" id="l-btn">Se connecter</button>
+        <p class="auth-switch">Pas encore de compte ? <button type="button" class="auth-link" onclick="authTab('reg')">Créer un compte</button></p>
+      </form>
+
+      <!-- Inscription -->
+      <form id="form-reg" style="display:none" onsubmit="doReg();return false" novalidate>
+        <div class="auth-social" data-auth-social hidden>
+          <button type="button" class="auth-social-btn" data-provider="google" onclick="doOAuth('google')" hidden><svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>S'inscrire avec Google</button>
+          <button type="button" class="auth-social-btn" data-provider="apple" onclick="doOAuth('apple')" hidden><svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><path d="M12.874 0c.073 1.04-.29 2.073-.952 2.83-.67.77-1.71 1.28-2.73 1.21-.09-1.01.31-2.03.95-2.77C10.79.5 11.87-.01 12.874 0zm3.14 13.08c-.47 1.01-.7 1.46-1.31 2.35-.85 1.24-2.05 2.78-3.54 2.8-1.32.02-1.66-.85-3.45-.84-1.79.01-2.17.86-3.49.84-1.49-.02-2.63-1.4-3.48-2.64C-.3 13.01-.42 9.7.64 8.06c.73-1.12 1.9-1.77 3.02-1.77 1.13 0 1.84.86 3.45.86 1.57 0 2.52-.87 3.79-.87 1 0 2.04.54 2.79 1.48-2.45 1.35-2.05 4.87.33 6.37z"/></svg>S'inscrire avec Apple</button>
+          <div class="auth-sep">ou avec votre e-mail</div>
+        </div>
+        <div class="auth-field"><label class="auth-lbl" for="r-name">Nom complet</label><input class="auth-inp" id="r-name" type="text" placeholder="Prénom Nom" autocomplete="name"/></div>
+        <div class="auth-field"><label class="auth-lbl" for="r-email">E-mail</label><input class="auth-inp" id="r-email" type="email" inputmode="email" placeholder="vous@exemple.fr" autocomplete="email" autocapitalize="none" spellcheck="false"/></div>
+        <div class="auth-field"><label class="auth-lbl" for="r-pwd">Mot de passe</label>
+          <div class="auth-pw"><input class="auth-inp" id="r-pwd" type="password" placeholder="8 caractères au moins" autocomplete="new-password" oninput="authPwHint(this)"/><button type="button" class="auth-eye" onclick="authEye(this)" aria-label="Afficher le mot de passe" title="Afficher le mot de passe"><i class="ti ti-eye"></i></button></div>
+          <div class="auth-hint" id="r-pwd-hint"></div></div>
+        <div class="auth-field"><label class="auth-lbl" for="r-role">Votre métier</label>
+          <select class="auth-inp" id="r-role"><option value="FOH Engineer">Ingé son façade</option><option value="Monitor Engineer">Ingé son retours</option><option value="System Engineer">Ingé système</option><option value="Broadcast Engineer">Ingé son broadcast</option><option value="Technicien son" selected>Technicien son</option></select></div>
+        <button type="submit" class="auth-btn" id="r-btn">Créer mon compte</button>
+        <p class="auth-legal">Gratuit, sans carte bancaire. Un e-mail vous demandera de confirmer votre adresse.</p>
+        <p class="auth-switch">Déjà un compte ? <button type="button" class="auth-link" onclick="authTab('login')">Se connecter</button></p>
+      </form>
+
+      <!-- Mot de passe oublié -->
+      <form id="form-forgot" style="display:none" onsubmit="doForgot();return false" novalidate>
+        <div class="auth-field"><label class="auth-lbl" for="f-email">E-mail</label><input class="auth-inp" id="f-email" type="email" inputmode="email" placeholder="vous@exemple.fr" autocomplete="email" autocapitalize="none" spellcheck="false"/></div>
+        <button type="submit" class="auth-btn" id="f-btn">Envoyer le lien</button>
+        <p class="auth-switch"><button type="button" class="auth-link" onclick="authTab('login')"><i class="ti ti-arrow-left"></i>Retour à la connexion</button></p>
+      </form>
+
+      <!-- E-mail envoyé : confirmation d'inscription ou lien de réinitialisation -->
+      <div id="form-sent" style="display:none">
+        <div class="auth-mail"><i class="ti ti-mail-check"></i></div>
+        <p class="auth-sent-t">Envoyé à <b id="sent-email"></b></p>
+        <p class="auth-sent-s" id="sent-s"></p>
+        <button type="button" class="auth-btn ghost" id="sent-btn" onclick="authResend()">Renvoyer l'e-mail</button>
+        <p class="auth-switch"><button type="button" class="auth-link" onclick="authTab('login')"><i class="ti ti-arrow-left"></i>Retour à la connexion</button></p>
       </div>
 
-      <!-- Formulaire mot de passe oublié -->
-      <div id="form-forgot" style="display:none">
-        <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6">Saisis ton adresse e-mail — on t'enverra un lien pour réinitialiser ton mot de passe.</p>
-        <div class="auth-field"><label class="auth-lbl">E-mail</label><input class="auth-inp" id="f-email" type="email" placeholder="vous@son.com" autocomplete="email"/></div>
-        <button class="auth-btn" id="f-btn" onclick="doForgot()">Envoyer le lien</button>
-        <button class="auth-back" onclick="authTab('login')">← Retour à la connexion</button>
-      </div>
-
-      <!-- Formulaire affiché quand on clique le lien de réinitialisation -->
-      <div id="form-reset" style="display:none">
-        <div style="font-size:13px;font-weight:700;color:var(--txt);margin-bottom:6px">Nouveau mot de passe</div>
-        <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6">Choisis un nouveau mot de passe pour ton compte.</p>
-        <div class="auth-field"><label class="auth-lbl">Nouveau mot de passe</label><input class="auth-inp" id="r-pwd1" type="password" placeholder="8 caractères minimum" autocomplete="new-password"/></div>
-        <div class="auth-field"><label class="auth-lbl">Confirmer</label><input class="auth-inp" id="r-pwd2" type="password" placeholder="Répète le mot de passe" autocomplete="new-password"/></div>
-        <div class="auth-msg" id="r-msg" style="display:none"></div>
-        <button class="auth-btn" id="r-btn" onclick="doResetPassword()">Mettre à jour le mot de passe</button>
-      </div>
+      <!-- Nouveau mot de passe, après le lien de réinitialisation -->
+      <form id="form-reset" style="display:none" onsubmit="doResetPassword();return false" novalidate>
+        <div class="auth-field"><label class="auth-lbl" for="r-pwd1">Nouveau mot de passe</label><div class="auth-pw"><input class="auth-inp" id="r-pwd1" type="password" placeholder="8 caractères au moins" autocomplete="new-password"/><button type="button" class="auth-eye" onclick="authEye(this)" aria-label="Afficher le mot de passe" title="Afficher le mot de passe"><i class="ti ti-eye"></i></button></div></div>
+        <div class="auth-field"><label class="auth-lbl" for="r-pwd2">Confirmer</label><div class="auth-pw"><input class="auth-inp" id="r-pwd2" type="password" placeholder="Le même mot de passe" autocomplete="new-password"/><button type="button" class="auth-eye" onclick="authEye(this)" aria-label="Afficher le mot de passe" title="Afficher le mot de passe"><i class="ti ti-eye"></i></button></div></div>
+        <div class="auth-msg" id="r-msg" style="display:none" role="status" aria-live="polite"></div>
+        <button type="submit" class="auth-btn" id="rs-btn">Enregistrer le mot de passe</button>
+      </form>
     </div>
-    <div class="auth-footer">PatchFlow · v3.0 · <a href="https://patchflow.fr" style="color:var(--ora);text-decoration:none">patchflow.fr</a></div>
-  </div>
+    <div class="auth-footer"><a href="https://patchflow.fr"><i class="ti ti-arrow-left"></i> patchflow.fr</a></div>
+  </main>
 </div>
 
 <!-- OFFLINE BANNER -->
@@ -1622,7 +1638,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=4.49"></script>
+<script src="pf-app.js?v=4.50"></script>
 <script src="pf-rf.js?v=1.13"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
