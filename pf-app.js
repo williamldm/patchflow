@@ -17849,8 +17849,8 @@ function _ovRacksHtml(){
     var st=RK.racks.map(function(r){ return {r:r, s:_rkStats(r), c:(r.cables||[]).reduce(function(t,c){ return t+(c.q||1); },0)}; }), n=0, cab=0, kg=0, w=0;
     st.forEach(function(x){ n+=x.s.n; cab+=x.c; kg+=x.s.kg; w+=x.s.w; });
     return hd+'<div class="ov-stats"><div><b>'+RK.racks.length+'</b><span>rack'+(RK.racks.length>1?'s':'')+'</span></div><div><b>'+n+'</b><span>appareil'+(n>1?'s':'')+'</span></div><div><b>'+cab+'</b><span>câble'+(cab>1?'s':'')+'</span></div></div>'
-      +st.slice(0,4).map(function(x){ return '<button type="button" class="ov-line ov-go" data-id="'+E(x.r.id)+'" onclick="RK.cur=this.dataset.id;goTab(\'racks\',null)"><span class="ov-ext">'+x.r.units+'U</span><span class="ov-line-t"><b>'+E(x.r.name)+'</b><span>'
-        +x.s.used+' / '+x.s.total+' U occupés'+(x.s.kg?' · '+_rkFmt(x.s.kg,'kg'):'')+(x.s.w?' · '+x.s.w+' W':'')+'</span></span><i class="ti ti-chevron-right"></i></button>'; }).join('')
+      +st.slice(0,4).map(function(x){ return '<button type="button" class="ov-line ov-go" data-id="'+E(x.r.id)+'" onclick="RK.cur=this.dataset.id;goTab(\'racks\',null)"><span class="ov-ext">'+(Number(x.r.units)||0)+'U</span><span class="ov-line-t"><b>'+E(x.r.name)+'</b><span>'
+        +(Number(x.s.used)||0)+' / '+(Number(x.s.total)||0)+' U occupés'+(x.s.kg?' · '+_rkFmt(Number(x.s.kg)||0,'kg'):'')+(x.s.w?' · '+(Number(x.s.w)||0)+' W':'')+'</span></span><i class="ti ti-chevron-right"></i></button>'; }).join('')
       +(st.length>4?'<div class="ov-none">+ '+(st.length-4)+' autres</div>':'')
       +(kg||w?'<div class="ov-none">Au total : '+[kg?_rkFmt(kg,'kg'):'', w?w.toLocaleString('fr-FR')+' W, soit '+(Math.round(w/23)/10).toLocaleString('fr-FR')+' A sous 230 V':''].filter(Boolean).join(' · ')+'.</div>':'')+'</section>';
   }catch(e){ return hd+'<div class="ov-none">Lecture impossible.</div></section>'; }
