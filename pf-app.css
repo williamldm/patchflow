@@ -4196,3 +4196,34 @@ button.rf-tile.act:hover{box-shadow:inset 0 0 0 1px var(--bdr3)}
 .rf-r.sp-hi td{background:var(--ora-d)}
 .rf-r.sp-hi td:first-child{box-shadow:inset 3px 0 0 var(--ora)}
 @media(max-width:900px){ .rf-sp-hint{display:none} }
+
+/* Racks : câblage (vue arrière) */
+.rk-cab{cursor:pointer}
+.rk-cab:hover .rk-cab-p{stroke-width:4.4px}
+.rk-back>rect:first-of-type{fill-opacity:.55}
+.rk-draw.linking .rk-dev{cursor:crosshair}
+.rk-draw.linking .rk-cab{pointer-events:none;opacity:.35}
+.rk-link{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;padding:9px 12px;border-radius:10px;background:var(--ora-d);font-size:13px;color:var(--txt)}
+.rk-link>i{font-size:17px;color:var(--ora)}
+.rk-link span{flex:1;min-width:180px}
+.rk-cab-n{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.rk-cab-n i{font-size:16px;color:var(--ora)}
+.rk-cab-leg i{border-radius:50%}
+.rk-cab-leg b{font-family:var(--m);font-weight:600;color:var(--txt)}
+.rk-cabs{display:grid;gap:6px}
+.rk-cab-r{display:grid;grid-template-columns:10px minmax(0,1fr) 50px 24px;gap:4px 5px;align-items:center;padding:7px;border-radius:10px;background:var(--surf2)}
+.rk-cab-r.on{box-shadow:inset 0 0 0 1.5px var(--ora)}
+.rk-cab-r>i{width:10px;height:10px;border-radius:50%}
+.rk-cab-r .to{grid-column:1/-1}
+.rk-cab-r .pp{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.rk-cab-r .set-inp{height:30px;padding:0 7px;font-size:12.5px}
+.sv-rkc{margin-top:14px}
+.sv-rkc b i{display:inline-block;width:9px;height:9px;margin-right:7px;border-radius:50%}
+.sv-rkc td span{display:block;font:400 11.5px var(--m);color:var(--sv-mu)}
+.sv-rk.wired .sv-rk-in{grid-template-columns:minmax(0,1fr)}
+.sv-rk.wired .sv-rk-views{flex-wrap:wrap}
+.sv-rk.wired .sv-rk-views figure{min-width:0;max-width:100%}
+.sv-rk.wired .sv-rk-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 22px;align-items:start}
+.sv-rk.wired .sv-rk-list>.sv-rk-leg,.sv-rk.wired .sv-rk-list>.sv-rk-note{grid-column:1/-1}
+.sv-rk.wired .sv-rkc{margin-top:0}
+@media(max-width:860px){ .sv-rk.wired .sv-rk-list{grid-template-columns:minmax(0,1fr)} .sv-rk.wired .sv-rkc{margin-top:14px} }
