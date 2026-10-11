@@ -298,6 +298,7 @@ document.addEventListener('DOMContentLoaded',function(){
   if(window.__authLinkErr && !ME){ authTab(window.__authLinkReset?'forgot':'login'); authMsg(window.__authLinkErr,'err'); }
   else if(/[?&]forgot=1/.test(location.search)){ authTab('forgot'); try{ history.replaceState(null,'',location.pathname); }catch(e){} }
   else if(/[?&]signup=1/.test(location.search)) authTab('reg');
+  if(/[?&]deleted=1/.test(location.search) && !ME){ authTab('login'); authMsg('Votre compte et vos données ont été supprimés.','ok'); try{ history.replaceState(null,'',location.pathname); }catch(e){} }
 });
 async function doLogout(){
   await sb.auth.signOut();
@@ -18964,6 +18965,54 @@ async function changeEmail(){
   if(error){_profMsg('p-email-msg','Erreur : '+error.message,true);return;}
   _profMsg('p-email-msg','✓ Email de confirmation envoye a '+newEmail+'.');
   document.getElementById('p-new-email').value='';
+}
+/* ── Suppression du compte ─────────────────────────────────────────
+   La fonction serveur delete-account fait le travail (fichiers, sessions, profil, compte) ; ici on dit ce qui
+   disparaît, on demande de retaper l'adresse e-mail, puis on déconnecte et on efface ce qui reste dans le navigateur. */
+function openDeleteAccount(){
+  var m=document.getElementById('delacc-modal'); if(!m||!ME) return;
+  var E=_bonE, own=SHOWS.filter(function(s){ return s.owner_id===ME.id && !s.deleted_at; }), trash=(typeof DELETED_SHOWS!=='undefined'?DELETED_SHOWS:[]).length;
+  var shared=own.filter(function(s){ return (SHOW_MEMBERS_MAP[s.id]||[]).length>0; });
+  var people={}; shared.forEach(function(s){ (SHOW_MEMBERS_MAP[s.id]||[]).forEach(function(x){ people[x.user_id]=1; }); });
+  var h='<p class="delacc-p">Seront supprimés, <b>sans retour possible</b> :</p><ul class="delacc-l">'
+    +'<li>votre compte et votre profil ;</li>'
+    +'<li>'+(own.length+trash)+' session'+((own.length+trash)>1?'s':'')+' dont vous êtes propriétaire, avec leurs listes, plans, racks, liaisons HF et fichiers ;</li>'
+    +'<li>les liens de partage (rider) de ces sessions : ils cesseront de fonctionner ;</li>'
+    +'<li>vos accès aux sessions des autres : vous les quittez.</li></ul>';
+  if(shared.length) h+='<div class="set-warn"><i class="ti ti-users"></i><span><b>'+shared.length+' session'+(shared.length>1?'s sont':' est')+' partagée'+(shared.length>1?'s':'')+'</b> avec '+Object.keys(people).length+' autre'+(Object.keys(people).length>1?'s':'')+' personne'+(Object.keys(people).length>1?'s':'')+' : elle'+(shared.length>1?'s disparaissent':' disparaît')+' aussi pour elles.</span></div>';
+  if(typeof userPlan==='function' && userPlan()==='pro') h+='<div class="set-warn"><i class="ti ti-credit-card"></i><span>Votre abonnement Pro doit d\'abord être <b>résilié</b> (rubrique Abonnement ou Facturation). Il continue jusqu\'à la fin de la période payée.</span></div>';
+  document.getElementById('delacc-sum').innerHTML=h;
+  document.getElementById('delacc-mail').textContent=ME.email||'';
+  var i=document.getElementById('delacc-inp'); i.value='';
+  document.getElementById('delacc-msg').textContent='';
+  document.getElementById('delacc-go').disabled=true;
+  m.classList.add('show'); try{ i.focus(); }catch(e){}
+}
+function closeDeleteAccount(){ var m=document.getElementById('delacc-modal'); if(m) m.classList.remove('show'); }
+function deleteAccountCheck(){
+  var v=(document.getElementById('delacc-inp').value||'').trim().toLowerCase();
+  document.getElementById('delacc-go').disabled=!(ME&&v&&v===String(ME.email||'').toLowerCase());
+}
+async function deleteAccountGo(){
+  var btn=document.getElementById('delacc-go'), msg=document.getElementById('delacc-msg'), inp=document.getElementById('delacc-inp');
+  if(!ME||btn.disabled) return;
+  var say=function(t){ msg.textContent=t; msg.className='prof-msg err'; };
+  btn.disabled=true; inp.disabled=true; var old=btn.innerHTML; btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .7s linear infinite"></i>Suppression…'; msg.textContent=''; msg.className='prof-msg';
+  var fail=function(t){ say(t); btn.innerHTML=old; inp.disabled=false; deleteAccountCheck(); };
+  try{
+    var sess=(await sb.auth.getSession()).data.session; if(!sess){ fail('Session expirée : reconnectez-vous, puis réessayez.'); return; }
+    var res=await fetch(SB_URL+'/functions/v1/delete-account',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+sess.access_token,'apikey':SB_KEY},body:JSON.stringify({confirm:inp.value.trim()})});
+    var j={}; try{ j=await res.json(); }catch(e){}
+    if(!res.ok || !j.ok){
+      var m={active_subscription:'Votre abonnement Pro est encore actif. Résiliez-le d\'abord (rubrique Abonnement), puis réessayez.',confirm_mismatch:'L\'adresse saisie ne correspond pas à celle du compte.',unauthorized:'Session expirée : reconnectez-vous, puis réessayez.'};
+      fail(m[j.error]||(res.status===404?'La suppression n\'est pas encore disponible. Écrivez à contact@patchflow.fr : nous supprimons votre compte sous un mois.':'La suppression a échoué. Réessayez, ou écrivez à contact@patchflow.fr.'));
+      return;
+    }
+    closeDeleteAccount();
+    try{ localStorage.clear(); sessionStorage.clear(); }catch(e){}
+    try{ await sb.auth.signOut(); }catch(e){}
+    window.location.href=window.location.pathname+'?deleted=1';
+  }catch(e){ fail('Connexion impossible. Vérifiez votre réseau, puis réessayez.'); }
 }
 async function changePassword(){
   var pwd1=document.getElementById('p-pwd1').value;

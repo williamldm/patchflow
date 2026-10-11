@@ -59,7 +59,7 @@ mark.todo{background:#fff1c2;color:#6b4a00;padding:1px 6px;border-radius:5px;fon
 <main><div class="wrap">
 <h1>Politique de confidentialité</h1>
 <p class="upd">Dernière mise à jour : 11 octobre 2026</p>
-<p class="lead"><b>En bref.</b> Nous collectons ce qu'il faut pour faire tourner votre compte et vos sessions : votre identité, vos contenus, et de quoi encaisser l'abonnement. Pas de publicité, pas de revente de données, pas de traceurs de suivi. Vous pouvez tout exporter et supprimer votre compte.</p>
+<p class="lead"><b>En bref.</b> Nous collectons ce qu'il faut pour faire tourner votre compte et vos sessions : votre identité, vos contenus, et de quoi encaisser l'abonnement. Pas de publicité, pas de revente de données, pas de traceurs de suivi. Vous pouvez tout exporter et supprimer votre compte vous-même, depuis l'application.</p>
 <ol class="toc">
 <li><a href="#responsable">Qui est responsable</a></li><li><a href="#donnees">Données collectées</a></li><li><a href="#finalites">À quoi elles servent</a></li><li><a href="#destinataires">Qui y accède</a></li><li><a href="#ia">Lecture par intelligence artificielle</a></li><li><a href="#transferts">Transferts hors de l'Union</a></li><li><a href="#duree">Durées de conservation</a></li><li><a href="#cookies">Cookies et stockage local</a></li><li><a href="#liens">Liens partagés et invitations</a></li><li><a href="#droits">Vos droits</a></li><li><a href="#securite">Sécurité</a></li><li><a href="#modif">Modifications</a></li>
 </ol>
@@ -74,7 +74,7 @@ mark.todo{background:#fff1c2;color:#6b4a00;padding:1px 6px;border-radius:5px;fon
 <tr><td>Compte</td><td>Nom, adresse e-mail, mot de passe (conservé sous forme chiffrée, jamais lisible), photo de profil si vous en ajoutez une, société et rôle si vous les renseignez</td><td>Vous, ou votre compte Google si vous l'utilisez pour vous connecter</td></tr>
 <tr><td>Contenus</td><td>Sessions, input et output lists, plans, synoptiques, racks, liaisons HF, notes, fichiers déposés, paramètres d'export</td><td>Vous et les membres que vous invitez</td></tr>
 <tr><td>Équipe</td><td>Adresse e-mail des personnes invitées, rôle dans la session, noms de ceux qui rejoignent</td><td>Vous et les invités</td></tr>
-<tr><td>Abonnement</td><td>Formule, dates de début, de renouvellement et de fin, identifiants chez le prestataire de paiement</td><td>Prestataire de paiement</td></tr>
+<tr><td>Abonnement</td><td>Formule, dates de début, de renouvellement et de fin, identifiants chez le prestataire de paiement, adresse de facturation</td><td>Vous et le prestataire de paiement (Stripe)</td></tr>
 <tr><td>Technique</td><td>Adresse IP, type de navigateur, journaux de connexion et d'erreur, nécessaires au fonctionnement et à la sécurité</td><td>Votre appareil</td></tr>
 <tr><td>Support</td><td>Le contenu des messages que vous nous envoyez</td><td>Vous</td></tr>
 </tbody></table>
@@ -100,7 +100,7 @@ mark.todo{background:#fff1c2;color:#6b4a00;padding:1px 6px;border-radius:5px;fon
 <tbody>
 <tr><td>Supabase</td><td>Base de données, authentification, fonctions serveur</td></tr>
 <tr><td>Backblaze (B2)</td><td>Stockage des fichiers que vous déposez</td></tr>
-<tr><td>Lemon Squeezy</td><td>Paiement des abonnements, facturation et TVA</td></tr>
+<tr><td>Stripe</td><td>Paiement des abonnements : traitement de la carte bancaire, prévention de la fraude. Stripe est responsable de traitement pour ses propres obligations (lutte contre la fraude, réglementation bancaire)</td></tr>
 <tr><td>Anthropic</td><td>Lecture de documents par intelligence artificielle, uniquement à votre demande (voir l'article 5)</td></tr>
 <tr><td>Google</td><td>Connexion avec un compte Google, si vous la choisissez ; polices de caractères (Google Fonts) affichées sur le site</td></tr>
 <tr><td>o2switch</td><td>Hébergement du site et des pages de l'application</td></tr>
@@ -113,11 +113,11 @@ mark.todo{background:#fff1c2;color:#6b4a00;padding:1px 6px;border-radius:5px;fon
 <p>Certaines fonctions (import d'un patch ou d'un plan depuis un PDF ou une image, lecture d'un document) peuvent envoyer <b>le contenu du document que vous choisissez d'importer</b> à l'API d'Anthropic pour en extraire des lignes. Cet envoi n'a lieu que lorsque vous lancez l'import. Le document n'est pas conservé par PatchFlow au-delà du traitement ; Anthropic ne réutilise pas les données de son API pour entraîner ses modèles, selon ses conditions commerciales. N'importez pas de document contenant des données personnelles de tiers dont vous n'avez pas le droit de vous servir.</p>
 
 <h2 id="transferts">6. Transferts hors de l'Union</h2>
-<p>Certains prestataires (Supabase, Backblaze, Lemon Squeezy, Anthropic, Google) peuvent traiter des données hors de l'Union européenne, notamment aux États-Unis. Ces transferts reposent sur les garanties prévues par le RGPD : décision d'adéquation (cadre de protection des données UE–États-Unis) ou clauses contractuelles types de la Commission européenne.</p>
+<p>Certains prestataires (Supabase, Backblaze, Stripe, Anthropic, Google) peuvent traiter des données hors de l'Union européenne, notamment aux États-Unis. Ces transferts reposent sur les garanties prévues par le RGPD : décision d'adéquation (cadre de protection des données UE–États-Unis) ou clauses contractuelles types de la Commission européenne.</p>
 
 <h2 id="duree">7. Durées de conservation</h2>
 <ul>
-<li><b>Compte et contenus</b> : tant que votre compte existe. À la suppression du compte, ils sont effacés ; des copies techniques peuvent subsister dans les sauvegardes du prestataire pendant une durée limitée.</li>
+<li><b>Compte et contenus</b> : tant que votre compte existe. Quand vous supprimez votre compte, ils sont effacés immédiatement ; des copies techniques peuvent subsister dans les sauvegardes des prestataires pendant une durée limitée.</li>
 <li><b>Sessions supprimées</b> : 30 jours dans la corbeille pour les comptes Pro, avant effacement définitif.</li>
 <li><b>Fichiers</b> : jusqu'à leur suppression par vous, ou selon les limites de l'offre gratuite (<a href="cgu.html#paiement">conditions, article 5</a>).</li>
 <li><b>Factures et données comptables</b> : 10 ans, obligation légale.</li>
@@ -138,8 +138,8 @@ mark.todo{background:#fff1c2;color:#6b4a00;padding:1px 6px;border-radius:5px;fon
 <h2 id="droits">10. Vos droits</h2>
 <p>Vous pouvez à tout moment : accéder à vos données, les faire rectifier, les effacer, en demander la portabilité, limiter ou vous opposer à un traitement, et définir le sort de vos données après votre décès.</p>
 <ul>
-<li><b>Dans l'application</b> : vous pouvez modifier votre profil, exporter vos documents (PDF, CSV, fichiers de console) et supprimer vos sessions, vos fichiers et vos liens.</li>
-<li><b>Suppression du compte et de toutes ses données</b>, ou toute autre demande : écrivez à <a href="mailto:contact@patchflow.fr">contact@patchflow.fr</a> depuis l'adresse de votre compte. Nous répondons dans un délai d'un mois.</li>
+<li><b>Dans l'application</b> : vous pouvez modifier votre profil, exporter vos documents (PDF, CSV, fichiers de console), supprimer vos sessions, vos fichiers et vos liens, et <b>supprimer votre compte</b> avec toutes ses données (Paramètres, Compte et sécurité, Supprimer mon compte).</li>
+<li><b>Toute autre demande</b> (accès, portabilité, rectification, opposition) : écrivez à <a href="mailto:contact@patchflow.fr">contact@patchflow.fr</a> depuis l'adresse de votre compte. Nous répondons dans un délai d'un mois.</li>
 <li>Si vous estimez que vos droits ne sont pas respectés, vous pouvez saisir la <a href="https://www.cnil.fr/fr/plaintes">CNIL</a>.</li>
 </ul>
 

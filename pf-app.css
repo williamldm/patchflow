@@ -4326,3 +4326,12 @@ button.nf-ev:hover{background:var(--surf2)}
 .nf-clear:hover{color:var(--txt)}
 .auth-legal a{color:var(--txt2);text-decoration:underline}
 .auth-legal a:hover{color:var(--ora)}
+
+/* Suppression du compte */
+.set-del{border:0;box-shadow:inset 0 0 0 1px rgba(255,77,106,.28)}
+.set-del .set-card-hd h2{color:var(--err)}
+.delacc-p{margin:0 0 8px;font-size:14px;color:var(--txt2)}
+.delacc-l{margin:0 0 4px;padding-left:20px;font-size:14px;line-height:1.55;color:var(--txt2)}
+.delacc-l li{margin-bottom:4px}
+.delacc-sum .set-warn{margin-top:10px}
+#delacc-go:not(:disabled){background:var(--err);color:#fff;box-shadow:none}
