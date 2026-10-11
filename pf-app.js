@@ -182,7 +182,7 @@ function authPwHint(inp){
   h.textContent=!n?'':(n<8?'Encore '+(8-n)+' caractère'+(8-n>1?'s':''):'Longueur suffisante');
   h.className='auth-hint'+(n>=8?' ok':'');
 }
-/* Google et Apple ne s'affichent que s'ils sont activés dans le projet Supabase (réglages publics de l'authentification) */
+/* Google ne s'affiche que s'il est activé dans le projet Supabase (réglages publics de l'authentification) */
 async function _authProviders(){
   try{
     var r=await fetch(SB_URL+'/auth/v1/settings',{headers:{apikey:SB_KEY}}), j=await r.json(), ext=(j&&j.external)||{}, any=false;
