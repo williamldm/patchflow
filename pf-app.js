@@ -644,6 +644,7 @@ async function loadProfile(){
   document.getElementById('u-email').textContent=ME.email;
   _refreshAllAvatars();
   _refreshPlanBadge();
+  _proTrialLoad();
   /* Un Pro offert arrivé à échéance est soldé à la connexion ; la base renvoie le plan à jour */
   try{ Promise.resolve(sb.rpc('refresh_my_plan')).then(function(r){ if(r && !r.error && typeof r.data==='string' && PROFILE && r.data!==PROFILE.plan){ PROFILE.plan=r.data; _refreshPlanBadge(); } }).catch(function(){}); }catch(e){}
   _admCheck();          /* entrée « Administration » du menu : affichée seulement si la base le confirme */
@@ -17921,6 +17922,7 @@ function renderOverview(){
       +(isOwn?'<button class="btn" onclick="editShowMeta(\''+_jsq(s.id)+'\').then(function(){ _navSync(); })"><i class="ti ti-pencil"></i>Modifier</button>':'')
       +'<button class="btn pri" onclick="goTab(\'team\',null)"><i class="ti ti-link"></i>Envoyer le rider</button>'
     +'</div></header>';
+  if(isOwn) h+=_ovProHtml();
 
   /* Préparation */
   h+='<div class="ov-grid"><section class="ov-card ov-span2">'
@@ -22611,27 +22613,27 @@ const PLAN_META = {
 };
 
 const GATE_META = {
-  export_pdf:     { icon:'ti-file-type-pdf',    title:'Export PDF sans filigrane',    desc:'Generez des PDF professionnels sans filigrane, prets a imprimer ou a partager avec votre equipe.', plan:'pro',    feats:['PDF sans filigrane PatchFlow','Mise en page professionnelle complete','Impression directe depuis le navigateur'] },
-  share_link:     { icon:'ti-link',             title:'Lien de partage',              desc:'Partagez votre patch en lecture seule avec vos collegues ou votre client via un lien securise.', plan:'pro',    feats:['Lien unique en lecture seule','Acces sans compte requis','Mise a jour en temps reel'] },
-  storage:        { icon:'ti-cloud',            title:'Stockage 500 Go',              desc:'Ajoutez l\'option stockage 500 Go pour seulement 3,50 €/mois et centralisez tous vos fichiers de production.', plan:'pro',    feats:['Option 500 Go a 3,50 €/mois','Acces a tous les membres du show','PDF, Word, Excel, Audio, Video...'] },
-  site_plan:      { icon:'ti-map-2',            title:'Plan de site',                 desc:'Implantez votre sonorisation sur le plan du site. Tracez vos liaisons XLR, DANTE et HF.', plan:'pro',    feats:['Edition drag & drop du plan de site','Export PNG et PDF du plan','Inclus dans le plan Pro'] },
-  max_shows:      { icon:'ti-calendar-event',   title:'Limite de shows atteinte',     desc:'Le plan Gratuit est limite a 3 shows actifs. Passez au Pro pour des shows illimites.', plan:'pro',    feats:['Shows illimites sur Pro','Canaux illimites par show','Archivage et gestion avancee'] },
-  max_channels:   { icon:'ti-list-numbers',     title:'Limite de canaux atteinte',    desc:'Le plan Gratuit est limite a 26 canaux par show. Passez au Pro pour des canaux illimites.', plan:'pro',    feats:['Canaux illimites sur Pro','Pas de restriction sur le nombre de prises','Full festival patch sans limite'] },
-  max_members:    { icon:'ti-users',            title:'Limite de membres atteinte',   desc:'Le plan Gratuit est limite a 1 membre. Passez au Pro pour inviter votre equipe sans limite.', plan:'pro', feats:['Membres illimites sur Pro','Roles et permissions par membre','Collaboration en temps reel'] },
+  export_pdf:     { icon:'ti-file-type-pdf',    title:'Export PDF sans filigrane',    desc:'Générez des PDF professionnels sans filigrane, prêts à imprimer ou à partager avec votre équipe.', plan:'pro',    feats:['PDF sans filigrane PatchFlow','Mise en page professionnelle complète','Impression directe depuis le navigateur'] },
+  share_link:     { icon:'ti-link',             title:'Lien de partage',              desc:'Partagez votre patch en lecture seule avec vos collègues ou votre client via un lien sécurisé.', plan:'pro',    feats:['Lien unique en lecture seule','Accès sans compte requis','Mise à jour en temps réel'] },
+  storage:        { icon:'ti-cloud',            title:'Stockage 500 Go',              desc:'Ajoutez l\'option stockage 500 Go pour seulement 3,50 €/mois et centralisez tous vos fichiers de production.', plan:'pro',    feats:['Option 500 Go à 3,50 €/mois','Accès à tous les membres du show','PDF, Word, Excel, Audio, Vidéo...'] },
+  site_plan:      { icon:'ti-map-2',            title:'Plan de site',                 desc:'Implantez votre sonorisation sur le plan du site. Tracez vos liaisons XLR, DANTE et HF.', plan:'pro',    feats:['Édition drag & drop du plan de site','Export PNG et PDF du plan','Inclus dans le plan Pro'] },
+  max_shows:      { icon:'ti-calendar-event',   title:'Limite de shows atteinte',     desc:'Le plan Gratuit est limité à 3 shows actifs. Passez au Pro pour des shows illimités.', plan:'pro',    feats:['Shows illimités sur Pro','Canaux illimités par show','Archivage et gestion avancée'] },
+  max_channels:   { icon:'ti-list-numbers',     title:'Limite de canaux atteinte',    desc:'Le plan Gratuit est limité à 26 canaux par show. Passez au Pro pour des canaux illimités.', plan:'pro',    feats:['Canaux illimités sur Pro','Pas de restriction sur le nombre de prises','Full festival patch sans limite'] },
+  max_members:    { icon:'ti-users',            title:'Limite de membres atteinte',   desc:'Le plan Gratuit est limité à 1 membre. Passez au Pro pour inviter votre équipe sans limite.', plan:'pro', feats:['Membres illimités sur Pro','Rôles et permissions par membre','Collaboration en temps réel'] },
   custom_cols:    { icon:'ti-columns-3',        title:'Colonnes personnalisées',      desc:'Ajoutez vos propres colonnes à l\'input list : insert, musicien, remarques… Elles suivent le patch dans les exports.', plan:'pro', feats:['Colonnes libres, texte ou case à cocher','Créées d\'office à l\'import d\'un PDF','Affichables et déplaçables comme les autres'] },
-  multi_patches:  { icon:'ti-layers-subtract',  title:'Multi-patches & multi-scenes', desc:'Creez plusieurs variantes de patch (A/B, festival) et plusieurs synoptiques / plans par show.', plan:'pro', feats:['Variantes A/B, festival, acoustique','Plusieurs synoptiques et plans par show','Inclus dans le plan Pro'] },
-  custom_exports: { icon:'ti-photo',            title:'Exports personnalises',        desc:'Ajoutez votre logo et les informations de votre societe sur tous les exports PDF.', plan:'pro', feats:['Logo sur chaque page PDF','Entete avec vos coordonnees','Charte graphique de votre societe'] },
-  vintage_view:   { icon:'ti-photo-film',       title:'Affichage Vintage',            desc:'Mode theatral avec les instruments dessines en vue de dessus sur un plateau sombre.', plan:'pro', feats:['Vue en plongee de chaque instrument','Fond de scene theatral avec parquet','Inclus dans le plan Pro'] },
+  multi_patches:  { icon:'ti-layers-subtract',  title:'Multi-patches & multi-scènes', desc:'Créez plusieurs variantes de patch (A/B, festival) et plusieurs synoptiques / plans par show.', plan:'pro', feats:['Variantes A/B, festival, acoustique','Plusieurs synoptiques et plans par show','Inclus dans le plan Pro'] },
+  custom_exports: { icon:'ti-photo',            title:'Exports personnalisés',        desc:'Ajoutez votre logo et les informations de votre société sur tous les exports PDF.', plan:'pro', feats:['Logo sur chaque page PDF','En-tête avec vos coordonnées','Charte graphique de votre société'] },
+  vintage_view:   { icon:'ti-photo-film',       title:'Affichage Vintage',            desc:'Mode théâtral avec les instruments dessinés en vue de dessus sur un plateau sombre.', plan:'pro', feats:['Vue en plongée de chaque instrument','Fond de scène théâtral avec parquet','Inclus dans le plan Pro'] },
   rf_link:        { icon:'ti-antenna',          title:'RF relié à l\'input list',     desc:'Associez chaque liaison HF à sa ligne d\'input ou de sortie et reportez les fréquences en un clic, avec confirmation et annulation.', plan:'pro', feats:['Association automatique par nom','Report des fréquences dans la colonne Fréq. HF','Alerte quand l\'input list et la session RF divergent'] },
   bon_loueur:     { icon:'ti-clipboard-check',  title:'Bon du loueur',                desc:'Le plan Gratuit comprend une session contrôlée par mois. Passez au Pro pour contrôler toutes vos sessions avec le bon du loueur.', plan:'pro', feats:['Contrôles illimités, sur toutes vos sessions','Micros, DI, pieds, synoptique et plan de site','Préconisations : câblage XLR, pieds en spare'] },
-  recap_matos:    { icon:'ti-clipboard-list',   title:'Recap materiels',              desc:'Obtenez le decompte exact de chaque micro et pied necessaires — indispensable avant un show pour ne rien oublier.', plan:'pro', feats:['Decompte par modele de micro ou DI','Decompte par type de pied','Total consolide sur tous les patches'] },
-  recent_activity:{ icon:'ti-history',          title:'Activite recente',             desc:'Visualisez les derniers canaux modifies par votre equipe en temps reel — utile pour savoir qui a touche a quoi.', plan:'pro', feats:['5 derniers canaux modifies','Horodatage relatif (il y a X min)','Inclus dans le plan Pro'] },
-  export_pdf_pro: { icon:'ti-file-type-pdf',    title:'Export PDF complet',           desc:'Retirez le filigrane et ajoutez societe, contact, venue, date, revision et notes techniques.', plan:'pro', feats:['PDF sans filigrane','Coordonnees completes en en-tete','Notes techniques sur chaque export'] },
+  recap_matos:    { icon:'ti-clipboard-list',   title:'Récap matériel',              desc:'Obtenez le décompte exact de chaque micro et pied nécessaires — indispensable avant un show pour ne rien oublier.', plan:'pro', feats:['Décompte par modèle de micro ou DI','Décompte par type de pied','Total consolidé sur tous les patches'] },
+  recent_activity:{ icon:'ti-history',          title:'Activité récente',             desc:'Visualisez les derniers canaux modifiés par votre équipe en temps réel — utile pour savoir qui a touché à quoi.', plan:'pro', feats:['5 derniers canaux modifiés','Horodatage relatif (il y a X min)','Inclus dans le plan Pro'] },
+  export_pdf_pro: { icon:'ti-file-type-pdf',    title:'Export PDF complet',           desc:'Retirez le filigrane et ajoutez société, contact, venue, date, révision et notes techniques.', plan:'pro', feats:['PDF sans filigrane','Coordonnées complètes en en-tête','Notes techniques sur chaque export'] },
   console_export: { icon:'ti-device-floppy',    title:'Exports console',  desc:'Générez le fichier que votre console sait importer : noms de voies, couleurs, patch, gains et +48 V.', plan:'pro', feats:['Behringer X32, Midas M32 et WING','Allen & Heath dLive, Avantis et SQ','Yamaha CL, QL et DM7','Formats vérifiés sur de vrais fichiers de console'] },
   ai_stage:       { icon:'ti-sparkles',         title:'Plan de scène par IA',          desc:'Envoyez la photo ou le croquis d\'un plan de scène : l\'IA le numérise et place automatiquement les instruments et le matériel dans l\'éditeur.', plan:'pro', feats:['Reconnaissance d\'un plan à partir d\'une image','Placement automatique des éléments','Vous ajustez ensuite librement'] },
   ai_inputlist:   { icon:'ti-sparkles',         title:'Input List par IA',             desc:'Envoyez une input list existante (image, PDF, CSV, Word) : l\'IA la numérise et crée automatiquement les canaux avec micro, +48V, IEM et pied de micro.', plan:'pro', feats:['Formats image, PDF, CSV et Word','Détecte micro/DI, +48V, IEM et pied','Canaux ajoutés prêts à ajuster'] },
-  max_share_links:{ icon:'ti-link',             title:'Limite de liens de partage',   desc:'Le plan Gratuit est limite a 5 liens de partage au total. Passez au Pro pour des liens illimites.', plan:'pro', feats:['Liens de partage illimites sur Pro','Partagez chaque show en lecture seule','Mise a jour en temps reel'] },
-  bulk_link:      { icon:'ti-checkbox',         title:'Liaison multiple de canaux',   desc:'Liez plusieurs canaux d\'un coup a un kit (batterie, percussions...) en les cochant — au lieu de les ajouter un par un.', plan:'pro', feats:['Cochez 8 canaux et liez-les en un clic','Ideal pour les kits batterie / percussions','Inclus dans le plan Pro'] },
+  max_share_links:{ icon:'ti-link',             title:'Limite de liens de partage',   desc:'Le plan Gratuit est limité à 5 liens de partage au total. Passez au Pro pour des liens illimités.', plan:'pro', feats:['Liens de partage illimités sur Pro','Partagez chaque show en lecture seule','Mise à jour en temps réel'] },
+  bulk_link:      { icon:'ti-checkbox',         title:'Liaison multiple de canaux',   desc:'Liez plusieurs canaux d\'un coup à un kit (batterie, percussions...) en les cochant — au lieu de les ajouter un par un.', plan:'pro', feats:['Cochez 8 canaux et liez-les en un clic','Idéal pour les kits batterie / percussions','Inclus dans le plan Pro'] },
   recently_deleted:{ icon:'ti-trash',          title:'Supprimés récemment',          desc:'Vos shows supprimés ne sont plus perdus : ils sont conservés 30 jours dans une corbeille d\'où vous pouvez les restaurer en un clic.', plan:'pro', feats:['Corbeille de récupération des shows','Restauration en un clic pendant 30 jours','Suppression définitive quand vous le décidez'] },
 };
 
@@ -22649,25 +22651,90 @@ function planLimit(feat) {
   return (typeof v === 'number') ? v : Infinity;
 }
 
+/* Essai d'un mois : réservé au premier abonnement (même règle que la fonction stripe-checkout).
+   Vrai tant que la base n'a pas répondu le contraire. */
+let _PRO_TRIAL = true;
+function _proTrialLoad(){
+  if(!ME) return;
+  try{ Promise.resolve(sb.from('subscriptions').select('id').eq('user_id',ME.id).limit(1)).then(function(r){
+    _PRO_TRIAL = !(r && !r.error && r.data && r.data.length); _proNudgeSync();
+  }).catch(function(){}); }catch(e){}
+}
+function _proTrialEnd(){ var d=new Date(Date.now()+30*864e5); return d.toLocaleDateString('fr-FR',{day:'numeric',month:'long'}); }
+
+/* Ce que le Pro ajoute, en une ligne chacun ; g = barrières déjà couvertes par l'entrée */
+const _PRO_MORE = [
+  { i:'ti-infinity',        t:'Sessions et canaux illimités', g:['max_shows','max_channels'] },
+  { i:'ti-users',           t:'Équipe illimitée',             g:['max_members'] },
+  { i:'ti-file-type-pdf',   t:'PDF à votre logo',             g:['export_pdf','export_pdf_pro','custom_exports'] },
+  { i:'ti-device-floppy',   t:'Exports console',              g:['console_export'] },
+  { i:'ti-sparkles',        t:'Reprise d\'un rider par IA',   g:['ai_stage','ai_inputlist'] },
+  { i:'ti-layers-subtract', t:'Multi-patchs',                 g:['multi_patches','custom_cols'] },
+  { i:'ti-antenna',         t:'HF reliée au patch',           g:['rf_link'] },
+  { i:'ti-clipboard-check', t:'Bon du loueur illimité',       g:['bon_loueur','recap_matos'] },
+  { i:'ti-cloud',           t:'50 Go de fichiers',            g:['storage'] },
+  { i:'ti-link',            t:'Liens de partage illimités',   g:['share_link','max_share_links'] },
+];
+const _GATE_GEN = { icon:'ti-rocket', title:'Tout PatchFlow, sans limite', desc:'Autant de sessions, de canaux et de collègues que vous voulez, des PDF à votre logo et le fichier prêt pour la console.',
+  feats:['Sessions, canaux et équipe illimités','PDF à votre logo, sans mention PatchFlow','Exports console : X32, M32, WING, dLive, SQ, Yamaha'], gen:['max_shows','max_channels','max_members','export_pdf','console_export'] };
+
 function showUpgradeModal(feat) {
-  const m = GATE_META[feat] || { icon:'ti-lock', title:'Fonctionnalite reservee', desc:'Non disponible dans votre offre.', plan:'pro', feats:[] };
-  const pm = PLAN_META[m.plan] || PLAN_META.pro;
-  const pilClr = 'var(--ora)';
-  const pilBg  = 'var(--ora-d)';
-  const pilBdr = 'var(--ora-g)';
+  if(userPlan()==='pro'){ openPlanModal(); return; }
+  const m = GATE_META[feat] || _GATE_GEN;
+  const skip = m.gen || [feat];
   document.getElementById('gate-icon').className = 'ti ' + m.icon;
-  document.getElementById('gate-icon').style.color = pilClr;
   document.getElementById('gate-title').textContent = m.title;
   document.getElementById('gate-desc').textContent = m.desc;
-  const pill = document.getElementById('gate-plan-pill');
-  pill.textContent = pm.label;
-  pill.style.cssText = 'background:' + pilBg + ';color:' + pilClr + ';border:1px solid ' + pilBdr + ';font-family:var(--m);font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px';
   document.getElementById('gate-feats').innerHTML = m.feats.map(function(f) {
-    return '<div class="gate-feat-row"><i class="ti ti-check"></i><span>' + f + '</span></div>';
+    return '<li><i class="ti ti-check"></i><span>' + _h(f) + '</span></li>';
   }).join('');
+  document.getElementById('gate-more').innerHTML = _PRO_MORE.filter(function(x){ return !x.g.some(function(k){ return skip.indexOf(k)>=0; }); })
+    .slice(0,6).map(function(x){ return '<span><i class="ti ' + x.i + '"></i>' + _h(x.t) + '</span>'; }).join('');
+  _gatePaint();
   document.getElementById('gate-modal').className = 'modal-ov show';
 }
+/* Prix, étapes et bouton : dépendent de la période choisie et du droit à l'essai */
+function _gatePaint(){
+  const P = document.getElementById('gate-price'); if(!P) return;
+  const y = _billingPeriod==='yearly', t = _PRO_TRIAL, end = _proTrialEnd();
+  const after = y ? '119 € par an, soit 9,92 € par mois' : '11,99 € par mois';
+  document.getElementById('gate-tag').innerHTML = t ? '<i class="ti ti-gift"></i>1 mois offert' : '<i class="ti ti-star"></i>PatchFlow Pro';
+  P.textContent = t ? '0 €' : (y ? '9,92 €' : '11,99 €');
+  document.getElementById('gate-price-s').textContent = t ? 'pendant 1 mois, puis ' + after : (y ? 'par mois, facturé 119 € par an' : 'par mois');
+  document.getElementById('gate-steps').innerHTML = t
+    ? '<li><b>Aujourd\'hui</b><span>Tout le Pro est débloqué, 0 € prélevé.</span></li>'
+     +'<li><b>Jusqu\'au ' + end + '</b><span>Vous résiliez en un clic si ça ne vous sert pas.</span></li>'
+     +'<li><b>Le ' + end + '</b><span>Premier prélèvement : ' + (y?'119 €':'11,99 €') + '.</span></li>'
+    : '<li><b>Aujourd\'hui</b><span>Tout le Pro est débloqué dès le paiement.</span></li>'
+     +'<li><b>Ensuite</b><span>Renouvellement ' + (y?'chaque année':'chaque mois') + ', résiliable en un clic.</span></li>';
+  document.getElementById('gate-go-l').textContent = t ? 'Commencer mon mois offert' : 'Passer au Pro';
+  document.getElementById('gate-fine').textContent = t ? 'Carte demandée par Stripe, sans engagement.' : 'Paiement sécurisé par Stripe, sans engagement.';
+}
 function closeGateModal() { document.getElementById('gate-modal').className = 'modal-ov'; }
+
+/* Rappels du Pro dans l'application : barre latérale, menu du compte. Masqués pour un abonné. */
+function _proNudgeSync(){
+  const free = userPlan()!=='pro', lbl = _PRO_TRIAL ? '1 mois offert' : 'Tout débloquer';
+  [['pro-nudge','pro-nudge-s'],['u-pro-item','u-pro-s']].forEach(function(p){
+    const el=document.getElementById(p[0]), sl=document.getElementById(p[1]);
+    if(el) el.style.display = free ? '' : 'none';
+    if(sl) sl.textContent = lbl;
+  });
+  const nb=document.querySelector('#pro-nudge b'); if(nb) nb.textContent = _PRO_TRIAL ? 'Essayer le Pro' : 'Passer au Pro';
+  const ob=document.getElementById('ov-pro'); if(ob && !free) ob.remove();
+}
+/* Bandeau de la vue d'ensemble : pour un compte gratuit, refermable pour 30 jours */
+function _ovProKey(){ return 'pf_pro_ov_'+(ME&&ME.id||''); }
+function _ovProHtml(){
+  if(userPlan()==='pro') return '';
+  try{ if(Date.now()-(+localStorage.getItem(_ovProKey())||0) < 30*864e5) return ''; }catch(e){}
+  return '<div class="ov-pro" id="ov-pro"><span class="ov-pro-ic"><i class="ti ti-rocket"></i></span>'
+    +'<span class="ov-pro-t"><b>'+(_PRO_TRIAL?'Essayez le Pro pendant 1 mois, c\'est offert':'Passez au Pro')+'</b>'
+    +'<span>Sessions et canaux illimités, PDF à votre logo, exports console, équipe illimitée.'+(_PRO_TRIAL?' Rien n\'est prélevé avant le '+_proTrialEnd()+'.':'')+'</span></span>'
+    +'<button type="button" class="btn pri" onclick="showUpgradeModal()">'+(_PRO_TRIAL?'Commencer mon mois offert':'Voir le Pro')+'</button>'
+    +'<button type="button" class="dt-ib" onclick="ovProHide()" title="Masquer pendant 30 jours" aria-label="Masquer"><i class="ti ti-x"></i></button></div>';
+}
+function ovProHide(){ try{ localStorage.setItem(_ovProKey(), String(Date.now())); }catch(e){} const el=document.getElementById('ov-pro'); if(el) el.remove(); }
 
 /* ── Portail facturation ── */
 async function openPortal() {
@@ -22843,7 +22910,7 @@ async function buyExtraStorage(gb, priceEur) {
 function openPlanModal() {
   const cur = userPlan();
   const descs = {
-    free:   'Passez au Pro pour les PDF à votre logo, les multi-patchs, l\'équipe illimitée et les exports console.',
+    free:   (_PRO_TRIAL?'Essayez le Pro pendant 1 mois, c\'est offert : ':'Passez au Pro : ')+'PDF à votre logo, multi-patchs, équipe illimitée et exports console.',
     pro:    'Vous avez accès à toutes les fonctionnalités de PatchFlow.',
   };
   const icons = { free:'<i class="ti ti-user"></i>', pro:'<i class="ti ti-star"></i>' };
@@ -22864,12 +22931,12 @@ function openPlanModal() {
   grid.innerHTML = ['free','pro'].map(function(p) {
     const pm = PLAN_META[p], isCur = p === cur, isUp = p === 'pro' && cur !== 'pro';
     return '<div class="sub-plan-card' + (isCur ? ' current' : '') + (p === 'pro' ? ' popular' : '') + '">'
-      + '<div class="sub-plan-name">' + pm.label + (isCur ? '<span class="sub-current-badge">Votre plan</span>' : '') + '</div>'
+      + '<div class="sub-plan-name">' + pm.label + (isCur ? '<span class="sub-current-badge">Votre plan</span>' : '') + (isUp && _PRO_TRIAL ? '<span class="sub-gift"><i class="ti ti-gift"></i>1 mois offert</span>' : '') + '</div>'
       + '<div class="sub-plan-price"' + (p === 'pro' ? ' id="sub-pro-price"' : '') + '>' + pm.price + '</div>'
       + '<div class="sub-plan-period"' + (p === 'pro' ? ' id="sub-pro-period"' : '') + '>' + pm.period + '</div>'
       + '<button class="sub-plan-cta' + (isUp ? ' upgrade-cta' : '') + '"' + (isCur ? ' disabled' : ' onclick="subCTA(\'' + p + '\')"') + '>'
-      + (isCur ? '<i class="ti ti-check"></i>Plan actuel' : isUp ? '<i class="ti ti-rocket"></i>Essayer le Pro' : 'Repasser en Gratuit') + '</button>'
-      + (isUp ? '<div class="sub-plan-trial">1 mois offert pour un premier abonnement : rien n\'est prélevé avant la fin du mois, résiliable à tout moment.</div>' : '')
+      + (isCur ? '<i class="ti ti-check"></i>Plan actuel' : isUp ? '<i class="ti ti-rocket"></i>' + (_PRO_TRIAL ? 'Commencer mon mois offert' : 'Passer au Pro') : 'Repasser en Gratuit') + '</button>'
+      + (isUp && _PRO_TRIAL ? '<div class="sub-plan-trial">Rien n\'est prélevé avant le ' + _proTrialEnd() + ', résiliable en un clic d\'ici là.</div>' : '')
       + '<ul class="sub-plan-feats">' + FEATS[p].map(function(t){ return '<li><i class="ok ti ti-check"></i><span>' + t + '</span></li>'; }).join('') + '</ul></div>';
   }).join('');
   // Masquer le sélecteur de période pour les abonnés Pro (déjà abonnés)
@@ -22881,6 +22948,8 @@ function openPlanModal() {
   if(activeBlock) activeBlock.style.display = (cur==='pro') ? 'block' : 'none';
   if(extraBlock)  extraBlock.style.display  = (cur==='pro') ? 'block' : 'none';
   setBillingPeriod(_billingPeriod); // applique les prix selon la période
+  var fine=document.getElementById('sub-fine');
+  if(fine){ fine.style.display=(cur==='pro')?'none':''; fine.textContent=(_PRO_TRIAL?'1 mois de Pro offert pour un premier abonnement · ':'')+'sans engagement · résiliable à tout moment'; }
   _setGo('abo');
   // Load storage stats async
   _loadSubStorageStats();
@@ -22955,6 +23024,7 @@ function setBillingPeriod(p){
   var perEl   = document.getElementById('sub-pro-period');
   if(priceEl) priceEl.textContent = _billingPeriod==='yearly' ? '9,92 €' : '11,99 €';
   if(perEl)   perEl.textContent   = _billingPeriod==='yearly' ? '/mois · facturé 119 €/an' : '/mois';
+  _gatePaint();
 }
 
 /* URL des fonctions edge (paiement) */
@@ -22985,7 +23055,7 @@ async function subCTA(plan) {
   if (plan === 'pro' && userPlan() === 'pro') { toast('Vous êtes déjà abonné Pro.'); return; }
 
   // Désactiver le bouton pendant la création du checkout
-  const btns = document.querySelectorAll('.sub-plan-cta.upgrade-cta');
+  const btns = document.querySelectorAll('.sub-plan-cta.upgrade-cta, #gate-go');
   btns.forEach(b=>{ b.disabled=true; b.dataset.old=b.innerHTML; b.innerHTML='<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> Redirection…'; });
 
   const {data,error} = await _payCall('checkout', { variant: _billingPeriod });
@@ -23019,7 +23089,7 @@ function _handleCheckoutReturn(){
   const clean = window.location.origin + window.location.pathname;
   window.history.replaceState({}, '', clean);
 
-  toast('✓ Paiement reçu — activation de votre abonnement Pro…');
+  toast('C\'est enregistré, activation de votre Pro…');
   let tries = 0;
   const poll = async ()=>{
     tries++;
@@ -23041,6 +23111,7 @@ function _refreshPlanBadge() {
   const lbl = PLAN_META[p]?.label || 'Gratuit';
   const el = document.getElementById('u-plan-badge');
   if (el) el.innerHTML = '<span class="plan-badge-pill ' + cls + '">' + lbl + '</span>';
+  _proNudgeSync();
 }
 document.addEventListener('click',e=>{
   if(!e.target.closest('.user-wrap'))closeUD();

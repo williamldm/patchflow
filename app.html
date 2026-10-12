@@ -60,7 +60,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=4.18">
+<link rel="stylesheet" href="pf-app.css?v=4.19">
 </head>
 <body>
 
@@ -231,6 +231,10 @@ html.rider-boot #rider-splash{display:flex}
         <span id="cur-show-name">—</span>
         <i class="ti ti-chevron-down" style="font-size:11px;color:var(--muted);flex-shrink:0"></i>
       </button>
+      <button type="button" class="pro-nudge" id="pro-nudge" onclick="showUpgradeModal()" title="Essayer PatchFlow Pro" style="display:none">
+        <i class="ti ti-rocket"></i>
+        <span class="pro-nudge-t"><b>Essayer le Pro</b><em id="pro-nudge-s">1 mois offert</em></span>
+      </button>
       <button class="sp-trigger nf-trigger" id="nf-btn" onclick="toggleNotifs(event)" title="Notifications" aria-haspopup="dialog" aria-expanded="false" style="position:relative">
         <i class="ti ti-bell" style="font-size:14px;flex-shrink:0"></i>
         <span class="sp-trigger-lbl">Notifications</span>
@@ -245,6 +249,7 @@ html.rider-boot #rider-splash{display:flex}
         <div class="user-dd" id="user-dd">
           <div class="user-dd-email" id="u-email">…</div>
           <div class="user-dd-plan"><span>Abonnement</span><span id="u-plan-badge"><span class="plan-badge-pill free">Gratuit</span></span></div>
+          <div class="user-dd-item pro" id="u-pro-item" onclick="closeUD();showUpgradeModal()" style="display:none"><i class="ti ti-rocket"></i>Essayer le Pro<span id="u-pro-s">1 mois offert</span></div>
           <div class="user-dd-sep"></div>
           <div class="user-dd-item" onclick="closeUD();openProfile()"><i class="ti ti-settings"></i>Paramètres</div>
           <div class="user-dd-item" onclick="closeUD();openPlanModal()"><i class="ti ti-credit-card"></i>Mon abonnement</div>
@@ -612,7 +617,7 @@ html.rider-boot #rider-splash{display:flex}
                   <button class="bp-toggle-btn" data-bp="yearly" onclick="setBillingPeriod('yearly')">Annuel<span>2 mois offerts</span></button>
                 </div></div>
               <div class="sub-plans-grid" id="sub-plans-grid"></div>
-              <p class="set-fine">14 jours d'essai offerts · sans engagement · résiliable à tout moment</p>
+              <p class="set-fine" id="sub-fine">1 mois de Pro offert pour un premier abonnement · sans engagement · résiliable à tout moment</p>
             </div>
 
             <!-- Stockage en option (Pro) -->
@@ -1590,26 +1595,29 @@ html.rider-boot #rider-splash{display:flex}
   </div>
 </div>
 
-<div class="modal-ov" id="gate-modal">
-  <div class="modal-box gate-modal-box">
-    <div class="modal-head">
-      <i class="ti ti-lock" style="font-size:15px;color:var(--ora)"></i>
-      <span class="modal-title">Fonctionnalité réservée</span>
-      <button class="btn ghost sm" onclick="closeGateModal()"><i class="ti ti-x"></i></button>
-    </div>
-    <div class="modal-body" style="padding-top:22px">
-      <div class="gate-icon-wrap"><i id="gate-icon" class="ti ti-lock" style="color:var(--ora)"></i></div>
-      <div class="gate-title" id="gate-title">Fonctionnalité réservée</div>
-      <div class="gate-desc" id="gate-desc">Cette fonctionnalité n'est pas disponible dans votre offre actuelle.</div>
-      <div class="gate-plan-needed">
-        <span>Disponible à partir du plan</span>
-        <span class="gate-plan-pill" id="gate-plan-pill">Pro</span>
+<div class="modal-ov" id="gate-modal" onclick="if(event.target===this)closeGateModal()">
+  <div class="modal-box pro-box" role="dialog" aria-modal="true" aria-labelledby="gate-title">
+    <button type="button" class="pro-x" onclick="closeGateModal()" aria-label="Fermer"><i class="ti ti-x"></i></button>
+    <div class="pro-l">
+      <span class="pro-tag" id="gate-tag"><i class="ti ti-gift"></i>1 mois offert</span>
+      <div class="pro-feat">
+        <span class="pro-ico"><i id="gate-icon" class="ti ti-rocket"></i></span>
+        <div><h2 id="gate-title">PatchFlow Pro</h2><p id="gate-desc"></p></div>
       </div>
-      <div class="gate-feats" id="gate-feats"></div>
+      <ul class="pro-checks" id="gate-feats"></ul>
+      <div class="pro-more-t">Le Pro débloque aussi</div>
+      <div class="pro-chips" id="gate-more"></div>
     </div>
-    <div class="modal-foot">
-      <button class="btn ghost sm" onclick="closeGateModal()"><i class="ti ti-x"></i>Plus tard</button>
-      <button class="btn pri sm" onclick="closeGateModal();openPlanModal()"><i class="ti ti-rocket"></i>Voir les offres</button>
+    <div class="pro-r">
+      <div class="pro-period">
+        <button type="button" class="bp-toggle-btn on" data-bp="monthly" onclick="setBillingPeriod('monthly')">Mensuel</button>
+        <button type="button" class="bp-toggle-btn" data-bp="yearly" onclick="setBillingPeriod('yearly')">Annuel<span>2 mois offerts</span></button>
+      </div>
+      <div class="pro-price"><b id="gate-price">0 €</b><span id="gate-price-s"></span></div>
+      <ol class="pro-steps" id="gate-steps"></ol>
+      <button type="button" class="pro-go" id="gate-go" onclick="subCTA('pro')"><i class="ti ti-rocket"></i><span id="gate-go-l">Commencer mon mois offert</span></button>
+      <p class="pro-fine" id="gate-fine"></p>
+      <button type="button" class="pro-cmp" onclick="closeGateModal();openPlanModal()">Comparer Gratuit et Pro</button>
     </div>
   </div>
 </div>
@@ -1651,7 +1659,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=4.58"></script>
+<script src="pf-app.js?v=4.59"></script>
 <script src="pf-rf.js?v=1.13"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
