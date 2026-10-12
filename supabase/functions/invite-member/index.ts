@@ -17,6 +17,20 @@ const SITE_URL          = Deno.env.get('SITE_URL') ?? 'https://patchflow.fr';
 const VALID_ROLES = new Set(['admin', 'editor', 'viewer']);
 const NAVY = '#1d3a5f', ORANGE = '#ff6b1a';
 
+/* Journal des envois (table email_log, lue par l'onglet E-mails de l'administration). Jamais le corps,
+   jamais de lien : le type, le destinataire masqué, l'objet et le résultat. Sans effet si la table manque. */
+async function logEmail(source: string, kind: string, to: string, subject: string, err?: unknown) {
+  try {
+    const at = to.indexOf('@');
+    const masked = at > 1 ? to[0] + '***' + to.slice(at) : '***' + to.slice(Math.max(at, 0));
+    await createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } })
+      .from('email_log').insert({
+        source, kind: String(kind || 'inconnu').slice(0, 60), to_masked: masked, subject: String(subject || '').slice(0, 160),
+        status: err ? 'failed' : 'sent', error: err ? String((err as Error)?.message ?? err).slice(0, 300) : null,
+      });
+  } catch { /* le journal ne doit jamais empêcher un envoi */ }
+}
+
 const transporter = nodemailer.createTransport({
   host: SMTP_HOST, port: 465, secure: true,
   auth: { user: SMTP_USER, pass: SMTP_PASS },
@@ -162,12 +176,10 @@ serve(async (req) => {
         acceptUrl,
         'Si vous ne connaissez pas cet utilisateur, ignorez cet email.',
       );
-      await transporter.sendMail({
-        from: `PatchFlow <${SMTP_USER}>`,
-        to: normalEmail,
-        subject: `${inviterNameRaw} vous invite sur "${showNameRaw}" — PatchFlow`,
-        html,
-      }).catch(() => {});
+      const subjA = `${inviterNameRaw} vous invite sur "${showNameRaw}" — PatchFlow`;
+      await transporter.sendMail({ from: `PatchFlow <${SMTP_USER}>`, to: normalEmail, subject: subjA, html })
+        .then(() => logEmail('invite-member', 'invite', normalEmail, subjA))
+        .catch((e: unknown) => logEmail('invite-member', 'invite', normalEmail, subjA, e));
 
       return json(200, { ok: true, action: 'invite_sent' });
 
@@ -198,12 +210,10 @@ serve(async (req) => {
         acceptUrl,
         'Si vous ne connaissez pas cet utilisateur, ignorez cet email.',
       );
-      await transporter.sendMail({
-        from: `PatchFlow <${SMTP_USER}>`,
-        to: normalEmail,
-        subject: `${inviterNameRaw} vous invite sur PatchFlow — "${showNameRaw}"`,
-        html,
-      });
+      const subjB = `${inviterNameRaw} vous invite sur PatchFlow — "${showNameRaw}"`;
+      try { await transporter.sendMail({ from: `PatchFlow <${SMTP_USER}>`, to: normalEmail, subject: subjB, html }); }
+      catch (e) { await logEmail('invite-member', 'invite', normalEmail, subjB, e); throw e; }
+      await logEmail('invite-member', 'invite', normalEmail, subjB);
 
       return json(200, { ok: true, action: 'invite_sent' });
     }

@@ -17551,14 +17551,14 @@ async function rackPdf(){
    chaque valeur passe par _bonE, et les identifiants par des attributs data, jamais dans un gestionnaire.
    ══════════════════════════════════════════════════════════════════ */
 var IS_ADMIN=false;
-var ADM={view:'users', ov:null, list:null, gr:null, grErr:'', q:'', plan:'', sort:'recent', off:0, open:null, detail:{}, err:'', listErr:'', t:null, seq:0};
+var ADM={view:'users', ov:null, list:null, gr:null, grErr:'', q:'', plan:'', sort:'recent', off:0, open:null, detail:{}, err:'', listErr:'', t:null, seq:0, mail:null};
 async function _admCheck(){
   var ok=false;
   try{ var r=await sb.rpc('is_app_admin'); ok=!!(r && !r.error && r.data===true); }catch(e){}
   IS_ADMIN=ok; _admNav();
 }
 function _admNav(){ document.querySelectorAll('.adm-only').forEach(function(el){ el.style.display=IS_ADMIN?'':'none'; }); }
-function _admReset(){ IS_ADMIN=false; ADM={view:'users', ov:null, list:null, gr:null, grErr:'', q:'', plan:'', sort:'recent', off:0, open:null, detail:{}, err:'', listErr:'', t:null, seq:0}; _admNav(); }
+function _admReset(){ IS_ADMIN=false; ADM={view:'users', ov:null, list:null, gr:null, grErr:'', q:'', plan:'', sort:'recent', off:0, open:null, detail:{}, err:'', listErr:'', t:null, seq:0, mail:null}; _admNav(); }
 async function _admRpc(fn,args){
   var r=await sb.rpc(fn,args||{});
   if(r && r.error){ var e=new Error(r.error.message||String(r.error)); e.code=r.error.code; throw e; }
@@ -17658,7 +17658,7 @@ async function renderAdmin(force){
   _admPaint();
 }
 function admRefresh(){ var b=document.getElementById('adm-refresh'); if(b) b.disabled=true; renderAdmin(true).then(function(){ toast('✓ Données à jour'); }); }
-function admView(v){ ADM.view=v; _admPaint(); }
+function admView(v){ ADM.view=v; _admPaint(); if(v==='mail' && !ADM.mail) admMailLoad(); }
 function admSearch(v){ ADM.q=String(v||'').trim().slice(0,80); ADM.off=0; clearTimeout(ADM.t); ADM.t=setTimeout(function(){ _admLoadUsers().then(_admPaintUsers); },300); }
 function admFilter(k,v){ ADM[k]=v; ADM.off=0; _admLoadUsers().then(_admPaintUsers); }
 function admPage(d){ ADM.off=Math.max(0,ADM.off+d*50); ADM.open=null; _admLoadUsers().then(_admPaintUsers); }
@@ -17674,7 +17674,7 @@ async function admOpen(id){
 }
 function _admHead(){
   return '<header class="bonp-head"><div><div class="bonp-eyebrow">PatchFlow</div><h1>Administration</h1>'
-    +'<p>Suivi des comptes, des abonnements et du stockage. Seule action possible : offrir ou retirer le plan Pro d\'un compte.</p></div>'
+    +'<p>Suivi des comptes, des abonnements, du stockage et des e-mails. Actions possibles : offrir ou retirer le plan Pro d\'un compte, envoyer un e-mail de test à votre adresse.</p></div>'
     +'<div class="bonp-act">'+(ADM.ov&&ADM.ov.generated_at?'<span class="bon-file"><i class="ti ti-clock"></i>'+_bonE(new Date(ADM.ov.generated_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}))+'</span>':'')
     +'<button class="btn" id="adm-refresh" onclick="admRefresh()"><i class="ti ti-refresh"></i>Actualiser</button></div></header>';
 }
@@ -17691,10 +17691,11 @@ function _admPaint(){
     +_admTile('ti-calendar-event','Sessions',_admNum(c.shows),'+'+_admNum(c.shows_30d)+' sur 30 j · '+pl(c.channels,'canal','canaux'))
     +_admTile('ti-cloud','Fichiers stockés',_admSize(f.bytes),pl(f.count,'fichier','fichiers')+' · +'+_admSize(f.added_30d_bytes)+' sur 30 j')
     +'</div>';
-  var V=[['users','ti-users','Comptes'],['subs','ti-credit-card','Abonnements'],['files','ti-cloud','Fichiers']];
+  var V=[['users','ti-users','Comptes'],['subs','ti-credit-card','Abonnements'],['files','ti-cloud','Fichiers'],['mail','ti-mail','E-mails']];
   h+='<div class="bonp-switch adm-switch">'+V.map(function(v){ return '<button type="button" class="'+(ADM.view===v[0]?'on':'')+'" onclick="admView(\''+v[0]+'\')"><i class="ti '+v[1]+'"></i>'+v[2]+'</button>'; }).join('')+'</div>';
   if(ADM.view==='subs') h+=_admSubsHtml(o);
   else if(ADM.view==='files') h+=_admFilesHtml(o);
+  else if(ADM.view==='mail') h+=_admMailHtml();
   else h+=_admUsersShell(o);
   root.innerHTML=h;
   if(ADM.view==='users') _admPaintUsers();
@@ -17807,6 +17808,87 @@ function _admFilesHtml(o){
   if(!top.length) h+='<div class="ov-none">Aucun fichier stocké.</div>';
   else h+='<div class="bonp-scroll"><table class="bon-tbl adm-tbl"><thead><tr><th>Fichier</th><th>Session</th><th>Compte</th><th class="r">Taille</th><th>Ajouté le</th></tr></thead><tbody>'
     +top.map(function(x){ return '<tr><td><b>'+E(_fichDisplayName(String(x.name||'')))+'</b></td><td>'+E(x.show_name||'—')+'</td><td>'+_admWho(x)+'</td><td class="r">'+_admSize(x.size)+'</td><td>'+E(_admDate(x.created_at))+'</td></tr>'; }).join('')+'</tbody></table></div>';
+  return h+'</section>';
+}
+
+/* ── E-mails : journal des envois, vérifications du serveur de messagerie et du domaine, message de test ──
+   Le journal vient de admin_email_overview (migration 20261013) ; les vérifications et le test, de la fonction
+   admin-email-check, réservée aux administrateurs. Les adresses sont masquées dès le serveur. */
+async function _admMailFn(action){
+  var sess=(await sb.auth.getSession()).data.session; if(!sess) throw new Error('Session expirée');
+  var r=await fetch(SB_URL+'/functions/v1/admin-email-check',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+sess.access_token,'apikey':SB_KEY},body:JSON.stringify({action:action})});
+  var j={}; try{ j=await r.json(); }catch(e){}
+  if(r.status===404) throw new Error('La fonction admin-email-check n\'est pas déployée.');
+  if(r.status===429) throw new Error('Un test vient d\'être envoyé : patientez quelques secondes.');
+  if(!r.ok) throw new Error(j.error||('HTTP '+r.status));
+  return j;
+}
+async function admMailLoad(){
+  ADM.mail=ADM.mail||{log:null,logErr:'',chk:null,chkErr:'',busy:'',test:null};
+  try{ ADM.mail.log=await _admRpc('admin_email_overview'); ADM.mail.logErr=''; }
+  catch(e){ ADM.mail.log=null; ADM.mail.logErr=String(e&&e.message||e); }
+  if(ADM.view==='mail') _admPaint();
+}
+async function admMailCheck(){
+  var m=ADM.mail=ADM.mail||{}; m.busy='check'; m.chkErr=''; _admPaint();
+  try{ m.chk=await _admMailFn('check'); }catch(e){ m.chk=null; m.chkErr=String(e&&e.message||e); }
+  m.busy=''; if(ADM.view==='mail') _admPaint();
+}
+async function admMailTest(){
+  var m=ADM.mail=ADM.mail||{}; m.busy='test'; m.test=null; _admPaint();
+  try{ m.test=await _admMailFn('test'); }catch(e){ m.test={ok:false,error:String(e&&e.message||e)}; }
+  m.busy=''; await admMailLoad();
+}
+function _admMailHtml(){
+  var E=_bonE, m=ADM.mail||{}, L=m.log, c=m.chk, busy=m.busy;
+  var ok=function(v,l,sub){ return '<div class="adm-ck"><i class="ti '+(v===true?'ti-circle-check ok':v===false?'ti-circle-x bad':'ti-alert-circle warn')+'"></i><span><b>'+l+'</b>'+(sub?'<em>'+sub+'</em>':'')+'</span></div>'; };
+  var h='<div class="bonp-tiles adm-tiles adm-mailt">';
+  if(L){
+    var h24=L.h24||{}, d7=L.d7||{}, lf=L.last_failed, ls=L.last_sent;
+    h+=_admTile('ti-mail-forward','Envoyés sur 24 h',_admNum(h24.sent),_admNum(d7.sent)+' sur 7 j')
+      +_admTile('ti-mail-off','Échecs sur 24 h',_admNum(h24.failed),_admNum(d7.failed)+' sur 7 j')
+      +_admTile('ti-clock-check','Dernier envoi',ls?E(_admAgo(ls)):'—',ls?E(new Date(ls).toLocaleString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})):'aucun envoi enregistré')
+      +_admTile('ti-alert-triangle','Dernier échec',lf?E(_admAgo(lf)):'aucun',lf?E(new Date(lf).toLocaleString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})):'sur les 30 derniers jours');
+  }
+  h+='</div>';
+  h+='<div class="bonp-two"><section class="ov-card bon-card"><div class="ov-card-hd"><h2>Vérifier la messagerie</h2>'
+    +'<button class="btn sm" onclick="admMailCheck()"'+(busy?' disabled':'')+'><i class="ti ti-'+(busy==='check'?'loader-2 nf-spin':'stethoscope')+'"></i>Lancer</button></div>';
+  if(m.chkErr) h+='<div class="adm-err">'+E(m.chkErr)+'</div>';
+  else if(!c) h+='<div class="ov-none">Vérifie la configuration, la connexion au serveur d\'envoi et les enregistrements du domaine (SPF, DKIM, DMARC). Dure quelques secondes.</div>';
+  else {
+    var cf=c.config||{}, sm=c.smtp||{}, d=c.dns||{}, spf=d.spf||{}, dm=d.dmarc||{}, dk=d.dkim||{};
+    h+=ok(!!(cf.smtp_host&&cf.smtp_pass&&cf.smtp_user)||!!cf.resend,'Identifiants d\'envoi', cf.resend?'Resend':(cf.smtp_host?'SMTP, port '+_admNum(cf.smtp_port)+' · '+E(cf.smtp_user||''):'SMTP_HOST, SMTP_USER ou SMTP_PASS manquant'))
+      +ok(sm.skipped?null:sm.ok===true,'Connexion au serveur d\'envoi', sm.ok?_admNum(sm.ms)+' ms':E(sm.error||''))
+      +ok(!!cf.hook_secret,'Crochet d\'e-mails d\'authentification', cf.hook_secret?'secret présent':'SEND_EMAIL_HOOK_SECRET manquant : Supabase enverrait ses e-mails par défaut')
+      +'<div class="adm-sub">Domaine d\'envoi : '+E(d.domain||'—')+'</div>'
+      +ok(d.domain?((d.mx||[]).length>0):null,'Réception (MX)',(d.mx||[]).length?E((d.mx||[]).join(' · ')):'aucun enregistrement')
+      +ok(d.domain?(spf.count===1):null,'SPF', spf.count===1?E((spf.records||[''])[0]):(spf.count>1?'plusieurs enregistrements SPF : un seul est valide':'absent : les messages risquent le courrier indésirable'))
+      +ok(d.domain?((dk.selectors||[]).length>0?true:null):null,'DKIM',(dk.selectors||[]).length?'sélecteur '+E((dk.selectors||[]).join(', ')):'non détecté (sélecteur inconnu ? à vérifier chez l\'hébergeur de messagerie)')
+      +ok(d.domain?((dm.records||[]).length>0?true:null):null,'DMARC',(dm.records||[]).length?'politique « '+E(dm.policy||'?')+' »'+(dm.policy==='none'?' : surveillance seule':''):'absent : recommandé par Gmail et Yahoo');
+  }
+  h+='</section><section class="ov-card bon-card"><div class="ov-card-hd"><h2>Envoyer un test</h2>'
+    +'<button class="btn pri sm" onclick="admMailTest()"'+(busy?' disabled':'')+'><i class="ti ti-'+(busy==='test'?'loader-2 nf-spin':'send')+'"></i>Envoyer</button></div>'
+    +'<div class="ov-none" style="border-top:0">Envoie un message à l\'adresse de votre compte administrateur, par le même chemin que les e-mails de PatchFlow. Il apparaît ensuite dans le journal.</div>';
+  if(m.test) h+=m.test.ok
+    ? '<div class="adm-res ok"><i class="ti ti-circle-check"></i><span>Envoyé à <b>'+E(m.test.to||'')+'</b> en '+_admNum(m.test.ms)+' ms ('+E(m.test.via==='resend'?'Resend':'SMTP')+'). Vérifiez votre boîte, et le dossier des courriers indésirables.</span></div>'
+    : '<div class="adm-res bad"><i class="ti ti-circle-x"></i><span>Échec : '+E(m.test.error||'erreur inconnue')+'</span></div>';
+  h+='</section></div>';
+  h+='<section class="ov-card bon-card"><div class="ov-card-hd"><h2>Journal des envois</h2><span class="bon-reco-n">60 derniers · conservés 30 jours</span></div>';
+  if(m.logErr){
+    var miss=/admin_email_overview|schema cache|does not exist|PGRST202/i.test(m.logErr);
+    h+='<div class="ov-none">'+(miss?'Journal indisponible : migration <code>20261013_email_log.sql</code> à appliquer.':'Lecture impossible : '+E(m.logErr))+'</div>';
+  }
+  else if(!L) h+='<div class="loading"><div class="spinner"></div>Chargement…</div>';
+  else {
+    var bk=L.by_kind||[];
+    if(bk.length) h+='<div class="adm-chips">'+bk.map(function(x){ return '<span class="'+(Number(x.failed)?'v':'')+'">'+E(x.kind)+'<b>'+_admNum(x.n)+'</b>'+(Number(x.failed)?'<em> · '+_admNum(x.failed)+' échec'+(Number(x.failed)>1?'s':'')+'</em>':'')+'</span>'; }).join('')+'</div>';
+    var rc=L.recent||[];
+    if(!rc.length) h+='<div class="ov-none">Aucun envoi enregistré. Le journal se remplit à partir du déploiement des fonctions d\'envoi mises à jour.</div>';
+    else h+='<div class="bonp-scroll"><table class="bon-tbl adm-tbl"><thead><tr><th>Date</th><th>Type</th><th>Destinataire</th><th>Objet</th><th>Résultat</th></tr></thead><tbody>'
+      +rc.map(function(x){ var okk=x.status==='sent';
+        return '<tr><td>'+E(new Date(x.at).toLocaleString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'}))+'</td><td><b>'+E(x.kind)+'</b><span class="bon-hit w">'+E(x.source)+'</span></td><td>'+E(x.to_masked)+'</td><td>'+E(x.subject||'—')+'</td>'
+          +'<td>'+(okk?'<span class="bon-pill ok">Envoyé</span>':'<span class="bon-pill miss">Échec</span>'+(x.error?'<span class="adm-err">'+E(x.error)+'</span>':''))+'</td></tr>'; }).join('')+'</tbody></table></div>';
+  }
   return h+'</section>';
 }
 

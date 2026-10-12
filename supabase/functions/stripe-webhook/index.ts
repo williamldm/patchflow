@@ -89,6 +89,20 @@ function normalizeSub(sub: any, nowMs: number) {
 }
 // </logic>
 
+/* Journal des envois (table email_log, lue par l'onglet E-mails de l'administration). Jamais le corps,
+   jamais de lien : le type, le destinataire masqué, l'objet et le résultat. Sans effet si la table manque. */
+async function logEmail(source: string, kind: string, to: string, subject: string, err?: unknown) {
+  try {
+    const at = to.indexOf('@');
+    const masked = at > 1 ? to[0] + '***' + to.slice(at) : '***' + to.slice(Math.max(at, 0));
+    await createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } })
+      .from('email_log').insert({
+        source, kind: String(kind || 'inconnu').slice(0, 60), to_masked: masked, subject: String(subject || '').slice(0, 160),
+        status: err ? 'failed' : 'sent', error: err ? String((err as Error)?.message ?? err).slice(0, 300) : null,
+      });
+  } catch { /* le journal ne doit jamais empêcher un envoi */ }
+}
+
 async function stripeGet(path: string) {
   if (!STRIPE_KEY) return null;
   try {
@@ -105,13 +119,16 @@ async function sendEmail(to: string, subject: string, html: string) {
         headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ from: `PatchFlow <${SUPPORT_EMAIL}>`, to: [to], subject, html }),
       });
-      if (!res.ok) console.error('[stripe-webhook] Resend error', await res.text());
+      if (!res.ok) { const t = await res.text(); console.error('[stripe-webhook] Resend error', t); await logEmail('stripe-webhook', 'notice', to, subject, new Error('Resend ' + res.status)); }
+      else await logEmail('stripe-webhook', 'notice', to, subject);
     } else if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
       await transporter.sendMail({ from: `PatchFlow <${SMTP_USER}>`, to, subject, html });
+      await logEmail('stripe-webhook', 'notice', to, subject);
     } else {
       console.warn('[stripe-webhook] Aucun service e-mail configuré (RESEND_API_KEY ou SMTP_*)');
+      await logEmail('stripe-webhook', 'notice', to, subject, new Error('aucun service e-mail configuré'));
     }
-  } catch (e) { console.error('[stripe-webhook] sendEmail', e); }
+  } catch (e) { console.error('[stripe-webhook] sendEmail', e); await logEmail('stripe-webhook', 'notice', to, subject, e); }
 }
 
 function buildWarningEmail(deleteDate: string): string {

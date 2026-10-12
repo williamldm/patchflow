@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { Webhook } from 'https://esm.sh/standardwebhooks@1.0.0';
 import nodemailer from 'npm:nodemailer@6.9.9';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const SMTP_HOST = Deno.env.get('SMTP_HOST') ?? '';
 const SMTP_USER = Deno.env.get('SMTP_USER') ?? '';
@@ -18,6 +19,20 @@ const transporter = nodemailer.createTransport({
 });
 
 const ORANGE = '#ff6b1a', NAVY = '#1d3a5f';
+
+/* Journal des envois (table email_log, lue par l'onglet E-mails de l'administration). Jamais le corps,
+   jamais de lien : le type, le destinataire masqué, l'objet et le résultat. Sans effet si la table manque. */
+async function logEmail(source: string, kind: string, to: string, subject: string, err?: unknown) {
+  try {
+    const at = to.indexOf('@');
+    const masked = at > 1 ? to[0] + '***' + to.slice(at) : '***' + to.slice(Math.max(at, 0));
+    await createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } })
+      .from('email_log').insert({
+        source, kind: String(kind || 'inconnu').slice(0, 60), to_masked: masked, subject: String(subject || '').slice(0, 160),
+        status: err ? 'failed' : 'sent', error: err ? String((err as Error)?.message ?? err).slice(0, 300) : null,
+      });
+  } catch { /* le journal ne doit jamais empêcher un envoi */ }
+}
 
 function shell(title: string, intro: string, btnLabel: string, url: string, footnote: string) {
   return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width"/></head>
@@ -110,7 +125,9 @@ serve(async (req) => {
         `Une modification de sécurité a été apportée à votre compte PatchFlow le ${when}.<br/><br/><strong>Ce n'était pas vous ?</strong> Sécurisez votre compte tout de suite.`];
       subject = n[0];
       html = shell(n[1], n[2], 'Sécuriser mon compte', secureUrl, NOTICE_FOOT);
-      await transporter.sendMail({ from: `PatchFlow <${SMTP_USER}>`, to: user.email, subject, html });
+      try { await transporter.sendMail({ from: `PatchFlow <${SMTP_USER}>`, to: user.email, subject, html }); }
+      catch (e) { await logEmail('auth-email-hook', type, user.email, subject, e); throw e; }
+      await logEmail('auth-email-hook', type, user.email, subject);
       return new Response(JSON.stringify({}), { headers: { 'Content-Type': 'application/json' } });
     }
     switch (type) {
@@ -161,10 +178,13 @@ serve(async (req) => {
         /* Type inconnu (nouveau type ajouté par Supabase, code à usage unique…) : aucun e-mail plutôt qu'un
            e-mail de confirmation trompeur. Le type est dans les journaux (ligne « [auth-email-hook] »). */
         console.warn('[auth-email-hook] type non géré, aucun e-mail envoyé :', type);
+        await logEmail('auth-email-hook', String(type), user.email, '(aucun e-mail)', new Error('type non géré : aucun e-mail envoyé'));
         return new Response(JSON.stringify({}), { headers: { 'Content-Type': 'application/json' } });
     }
 
-    await transporter.sendMail({ from: `PatchFlow <${SMTP_USER}>`, to: user.email, subject, html });
+    try { await transporter.sendMail({ from: `PatchFlow <${SMTP_USER}>`, to: user.email, subject, html }); }
+    catch (e) { await logEmail('auth-email-hook', type, user.email, subject, e); throw e; }
+    await logEmail('auth-email-hook', type, user.email, subject);
     return new Response(JSON.stringify({}), { headers: { 'Content-Type': 'application/json' } });
 
   } catch (e) {

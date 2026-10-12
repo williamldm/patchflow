@@ -4335,3 +4335,18 @@ button.nf-ev:hover{background:var(--surf2)}
 .delacc-l li{margin-bottom:4px}
 .delacc-sum .set-warn{margin-top:10px}
 #delacc-go:not(:disabled){background:var(--err);color:#fff;box-shadow:none}
+
+/* Administration : onglet E-mails */
+.adm-mailt{grid-template-columns:repeat(4,minmax(0,1fr))}
+.adm-ck{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px solid var(--bdr)}
+.adm-ck:first-of-type{border-top:0}
+.adm-ck>i{font-size:18px;margin-top:1px;flex-shrink:0}
+.adm-ck>i.ok{color:var(--grn)}.adm-ck>i.bad{color:var(--err)}.adm-ck>i.warn{color:var(--warn)}
+.adm-ck b{display:block;font-size:13.5px;font-weight:600}
+.adm-ck em{display:block;font-style:normal;font:400 12px var(--m);color:var(--muted);overflow-wrap:anywhere}
+.adm-sub{margin:12px 0 2px;padding-top:10px;border-top:1px solid var(--bdr2);font:650 11px var(--f);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.adm-res{display:flex;gap:10px;align-items:flex-start;margin-top:12px;padding:10px 12px;border-radius:10px;font-size:13.5px;line-height:1.45}
+.adm-res.ok{background:var(--grn-d);color:var(--grn)}
+.adm-res.bad{background:rgba(255,77,106,.1);color:var(--err)}
+.adm-res>i{font-size:18px;flex-shrink:0}
+@media(max-width:900px){ .adm-mailt{grid-template-columns:repeat(2,minmax(0,1fr))} }

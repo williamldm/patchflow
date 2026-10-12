@@ -31,6 +31,20 @@ const transporter = nodemailer.createTransport({
   tls: { minVersion: 'TLSv1.2' },
 });
 
+/* Journal des envois (table email_log, lue par l'onglet E-mails de l'administration). Jamais le corps,
+   jamais de lien : le type, le destinataire masqué, l'objet et le résultat. Sans effet si la table manque. */
+async function logEmail(source: string, kind: string, to: string, subject: string, err?: unknown) {
+  try {
+    const at = to.indexOf('@');
+    const masked = at > 1 ? to[0] + '***' + to.slice(at) : '***' + to.slice(Math.max(at, 0));
+    await createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } })
+      .from('email_log').insert({
+        source, kind: String(kind || 'inconnu').slice(0, 60), to_masked: masked, subject: String(subject || '').slice(0, 160),
+        status: err ? 'failed' : 'sent', error: err ? String((err as Error)?.message ?? err).slice(0, 300) : null,
+      });
+  } catch { /* le journal ne doit jamais empêcher un envoi */ }
+}
+
 /* Email via Resend API (optionnel) — utilisé seulement si RESEND_API_KEY est
    défini ; sinon on passe par nodemailer/SMTP (chemin par défaut, éprouvé). */
 async function sendEmailResend(to: string, subject: string, html: string): Promise<void> {
@@ -44,13 +58,16 @@ async function sendEmailResend(to: string, subject: string, html: string): Promi
 }
 
 async function sendEmail(to: string, subject: string, html: string): Promise<void> {
-  if (RESEND_API_KEY) {
-    await sendEmailResend(to, subject, html);
-  } else if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
-    await transporter.sendMail({ from: `PatchFlow <${SMTP_USER}>`, to, subject, html });
-  } else {
-    throw new Error('Aucun service email configuré (RESEND_API_KEY ou SMTP_* requis)');
-  }
+  try {
+    if (RESEND_API_KEY) {
+      await sendEmailResend(to, subject, html);
+    } else if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
+      await transporter.sendMail({ from: `PatchFlow <${SMTP_USER}>`, to, subject, html });
+    } else {
+      throw new Error('Aucun service email configuré (RESEND_API_KEY ou SMTP_* requis)');
+    }
+  } catch (e) { await logEmail('send-support-email', 'support', to, subject, e); throw e; }
+  await logEmail('send-support-email', 'support', to, subject);
 }
 
 serve(async (req) => {
