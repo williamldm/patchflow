@@ -15,6 +15,7 @@
 !tests/
 !tests/rf.html
 !tests/rf-fixtures.js
+!tests/shot.js
 !index.html
 !cgu.html
 !confidentialite.html

@@ -11,6 +11,7 @@ Application web (français) pour techniciens son/scène : input lists, patchs, r
 
 ## Lancer / tester
 - `python3 serve.py` puis ouvrir `http://127.0.0.1:7821/app.html` (Chromium + Playwright sont préinstallés dans le cloud pour les captures).
+- Captures téléphone sans compte : `node tests/shot.js demo /tmp/rf "rfMobCal()"` (Supabase simulé, show de démo tiré de `tests/rf-fixtures.js`).
 - Tests RF : ouvrir `http://127.0.0.1:7821/tests/rf.html`.
 - Le login (Supabase/Google) ne marche pas en local sans compte ; utiliser des données de démonstration pour vérifier le rendu.
 
@@ -20,5 +21,6 @@ Application web (français) pour techniciens son/scène : input lists, patchs, r
 - Messages de commit en français, une ligne descriptive, comme l'historique existant.
 
 ## État (12 oct. 2026)
+- RF sur téléphone (≤ 768 px) : vue dédiée `_rfRenderMob` (cartes, fiche en volet bas) et calibration rapide en 3 écrans (`rfMobCal`). « Vue complète » rebascule sur le tableau.
 - Fenêtre « Pro » refaite (paiement direct, 1 mois offert) ; paiement Stripe réel non testé.
 - En cours : valider la marque Google OAuth (afficher « PatchFlow » au lieu du domaine Supabase) → vérifier `patchflow.fr` dans la Search Console par TXT DNS (Name `patchflow.fr.`/`@`, TTL 14400), attendre 24 h, relancer la validation dans Google Cloud.
