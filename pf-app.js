@@ -12284,6 +12284,7 @@ const BandPlan=(()=>{
       const dataUrl=await _compressImageToB64(file, 1920, _IMG_STORE_CAP);
       /* Vérifie le quota sur la taille RÉELLEMENT stockée (base64), pas le fichier. */
       if(!await _quotaCheck(_dataUrlBytes(dataUrl))) return;
+      if(!await _dbImgCheck(_dataUrlBytes(dataUrl))) return;
       st.bgImage=dataUrl;
       /* Nouvelle image → repartir d'un placement ET d'une opacité neutres
          (origine, taille 100%, opacité 100%) pour qu'elle soit toujours
@@ -19040,8 +19041,15 @@ const FICH_BUCKET = 'show-files'; // kept for reference only — storage is now 
 const _ICON_MAX_BYTES = 10 * 1024 * 1024; // 10 Mo max
 const _ICON_PX        = 1200;            // stocker à 1200px max — préserve la qualité à toutes les tailles usuelles
 /* Plafond de la taille STOCKÉE d'une image (base64) — au-delà on recompresse.
-   Empêche qu'un seul PNG/JPEG gonfle la ligne DB de plusieurs Mo. */
-const _IMG_STORE_CAP  = 2 * 1024 * 1024; // 2 Mo de base64 max par image
+   Les images de plans (fond, icônes) vivent dans la base de données, pas sur le stockage de fichiers :
+   chaque ouverture ou sauvegarde d'un plan les transfère. 800 Ko suffisent à un fond de plan ou à une
+   photo à 1600 px ; l'ancienne valeur (2 Mo) multipliait le poids de chaque plan sans gain visible. */
+const _IMG_STORE_CAP  = 800 * 1024; // 800 Ko de base64 max par image
+/* Budget de ce qui est gardé dans la base pour un compte (plans, synoptiques, images) : un compte gratuit
+   ne peut pas, à lui seul, remplir la base du projet. Vérifié à l'ajout d'une image, jamais à la sauvegarde :
+   un plan existant plus gros reste modifiable. */
+const _DB_BUDGET_FREE = 25 * 1048576;   //  25 Mo
+const _DB_BUDGET_PRO  = 150 * 1048576;  // 150 Mo
 
 /* Taille en octets de la charge utile base64 d'une data-URL (sans l'en-tête). */
 function _dataUrlBytes(dataUrl){
@@ -19070,6 +19078,21 @@ function _safeImgSrc(src){
   return '';
 }
 
+/* Encode un canvas en JPEG sous le plafond : on baisse la qualité jusqu'à qMin, puis, si l'image est
+   encore trop lourde (photo très détaillée), on la réduit par paliers de 20 %. Le plafond est tenu, à un
+   détail près : mieux vaut une image un peu plus petite qu'un plan qui pèse 10 Mo. */
+function _jpegUnderCap(cv, capBytes, q0, qMin){
+  let q=q0, out=cv.toDataURL('image/jpeg',q);
+  while(_dataUrlBytes(out) > capBytes && q > qMin){ q=Math.max(qMin,q-0.1); out=cv.toDataURL('image/jpeg',q); }
+  let c=cv, tries=0;
+  while(_dataUrlBytes(out) > capBytes && tries < 6 && c.width > 240){
+    const n=document.createElement('canvas'); n.width=Math.max(1,Math.round(c.width*0.8)); n.height=Math.max(1,Math.round(c.height*0.8));
+    const x=n.getContext('2d'); x.imageSmoothingEnabled=true; x.imageSmoothingQuality='high'; x.drawImage(c,0,0,n.width,n.height);
+    c=n; out=c.toDataURL('image/jpeg',Math.max(qMin,0.6)); tries++;
+  }
+  return out;
+}
+
 /* Redimensionne + compresse une image (File) vers une data-URL bornée.
    - maxDim : plus grande dimension autorisée (px)
    - capBytes : taille base64 max ; on baisse la qualité JPEG jusqu'à respecter
@@ -19088,11 +19111,7 @@ async function _compressImageToB64(file, maxDim, capBytes){
       ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
       ctx.drawImage(img,0,0,w,h);
       URL.revokeObjectURL(url);
-      let q=0.9, out=c.toDataURL('image/jpeg',q);
-      while(_dataUrlBytes(out) > capBytes && q > 0.4){
-        q-=0.1; out=c.toDataURL('image/jpeg',q);
-      }
-      resolve(out);
+      resolve(_jpegUnderCap(c, capBytes, 0.9, 0.4));
     };
     img.onerror=function(){ URL.revokeObjectURL(url); reject(new Error("Impossible de lire l'image")); };
     img.src=url;
@@ -19125,9 +19144,7 @@ async function _pdfFirstPageToB64(file, maxDim, capBytes){
      PDF contient un fond photographique/scanné qui ferait exploser le PNG. */
   const png = c.toDataURL('image/png');
   if(_dataUrlBytes(png) <= capBytes) return png;
-  let q = 0.92, out = c.toDataURL('image/jpeg', q);
-  while(_dataUrlBytes(out) > capBytes && q > 0.5){ q -= 0.08; out = c.toDataURL('image/jpeg', q); }
-  return out;
+  return _jpegUnderCap(c, capBytes, 0.92, 0.5);
 }
 
 /* Fichier choisi pour un fond de plan (plan de site, synoptique) → data-URL
@@ -19143,6 +19160,7 @@ async function _bgFileToDataUrl(file){
       ? await _pdfFirstPageToB64(file, 2600, _IMG_STORE_CAP)
       : await _compressImageToB64(file, 1600, _IMG_STORE_CAP);
     if(!await _quotaCheck(_dataUrlBytes(dataUrl))) return null;
+    if(!await _dbImgCheck(_dataUrlBytes(dataUrl))) return null;
     return dataUrl;
   }catch(e){ toast('Erreur '+(isPdf?'PDF':'image')+' : '+(e&&e.message||e)); return null; }
 }
@@ -19166,12 +19184,10 @@ async function _resizeIconToB64(file){
          évite qu'une seule image gonfle la ligne DB de plusieurs Mo. */
       var isPng = file.type === 'image/png';
       var out = isPng ? c.toDataURL('image/png') : c.toDataURL('image/jpeg', 0.92);
-      if(_dataUrlBytes(out) > _IMG_STORE_CAP){
-        var q=0.9;
-        out=c.toDataURL('image/jpeg',q);
-        while(_dataUrlBytes(out) > _IMG_STORE_CAP && q > 0.4){ q-=0.1; out=c.toDataURL('image/jpeg',q); }
-      }
-      resolve(out);
+      if(_dataUrlBytes(out) > _IMG_STORE_CAP) out=_jpegUnderCap(c, _IMG_STORE_CAP, 0.9, 0.4);
+      _dbImgCheck(_dataUrlBytes(out)).then(function(ok){
+        if(ok) resolve(out); else reject(new Error('limite d\'images du compte atteinte'));
+      });
     };
     img.onerror=function(){ URL.revokeObjectURL(url); reject(new Error("Impossible de lire l'image")); };
     img.src=url;
@@ -19242,6 +19258,22 @@ async function _getStorageUsage(force){
   }catch(e){
     return _storageCache || {total:0,b2:0,db:0,ts:now};
   }
+}
+
+/* Ajout d'une image dans un plan : vérifie le budget « base de données » du compte. true si OK. */
+async function _dbImgCheck(sizeBytes){
+  const budget = canDo('multi_scenes') ? _DB_BUDGET_PRO : _DB_BUDGET_FREE;
+  const usage  = await _getStorageUsage(false);
+  const used   = usage.db || 0;
+  if(used + sizeBytes <= budget){
+    /* Compte tout de suite l'image ajoutée : les ajouts successifs avant le prochain relevé s'additionnent */
+    if(_storageCache) _storageCache.db = used + sizeBytes;
+    return true;
+  }
+  const left = Math.max(0, budget - used);
+  if(canDo('multi_scenes')) toast('Limite d\'images atteinte : il reste ' + _fmtSize(left) + ' pour les plans (' + _fmtSize(budget) + ' au total). Retirez des images inutilisées.');
+  else { toast('Limite d\'images atteinte : il reste ' + _fmtSize(left) + ' pour les plans en offre gratuite (' + _fmtSize(budget) + '). Retirez des images ou passez Pro.'); }
+  return false;
 }
 
 /* Vérifie si l'upload est possible. Affiche un modal bloquant si dépassement.
