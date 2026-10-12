@@ -4676,6 +4676,7 @@ function importOutCSVClick(){
 }
 function importCSVLoad(inp){
   var f=inp.files[0]; if(!f) return;
+  if(f.size>5*1024*1024){ inp.value=''; toast('Fichier trop volumineux (max 5 Mo) : un patch tient en quelques centaines de Ko. Vérifiez que c\'est bien un export CSV de patch.'); return; }
   var reader=new FileReader();
   reader.onload=function(e){
     var text=e.target.result;
@@ -5243,15 +5244,26 @@ function setPdfTextSize(v){
   try{ localStorage.setItem('pf_pdf_text',_pdfTextSize); }catch(e){}
 }
 function loadPdfLogo(input){
-  var file=input.files[0];if(!file)return;
-  var reader=new FileReader();
-  reader.onload=function(e){
-    _pdfLogoDataUrl=e.target.result;
+  var file=input.files[0]; input.value=''; if(!file)return;
+  if(!/^image\//.test(file.type||'')){ toast('Format non supporté (image attendue).'); return; }
+  if(file.size>5*1024*1024){ toast(_heavyMsg('image',5)); return; }
+  /* Un logo se redessine à quelques centimètres : 600 px suffisent. PNG (transparence gardée) tant qu'il tient
+     sous 300 Ko, sinon JPEG. Un SVG est rasterisé (aucun script ne survit). */
+  var url=URL.createObjectURL(file), img=new Image();
+  img.onload=function(){
+    URL.revokeObjectURL(url);
+    var w=img.naturalWidth||img.width||300, h=img.naturalHeight||img.height||100, k=Math.min(600/w,600/h,1);
+    var c=document.createElement('canvas'); c.width=Math.max(1,Math.round(w*k)); c.height=Math.max(1,Math.round(h*k));
+    var x=c.getContext('2d'); x.imageSmoothingQuality='high'; x.drawImage(img,0,0,c.width,c.height);
+    var out=c.toDataURL('image/png');
+    if(_dataUrlBytes(out)>300*1024){ x.globalCompositeOperation='destination-over'; x.fillStyle='#fff'; x.fillRect(0,0,c.width,c.height); out=_jpegUnderCap(c,300*1024,0.9,0.5); }
+    _pdfLogoDataUrl=out;
     var prev=document.getElementById('pdf-logo-prev');
     if(prev)prev.innerHTML='<img src="'+_pdfLogoDataUrl+'" style="max-width:80px;max-height:40px;object-fit:contain"/>';
     try{localStorage.setItem('pdf_logo',_pdfLogoDataUrl);}catch(err){}
   };
-  reader.readAsDataURL(file);
+  img.onerror=function(){ URL.revokeObjectURL(url); toast("Impossible de lire l'image."); };
+  img.src=url;
 }
 function clearPdfLogo(){
   _pdfLogoDataUrl=null;
@@ -5811,7 +5823,7 @@ async function bpAiHandleFile(input){
   input.value='';
   if(!file) return;
   if(!/^image\/(png|jpe?g|webp|gif)$/i.test(file.type)){ toast('Image PNG, JPEG, WEBP ou GIF requise.'); return; }
-  if(file.size>6*1024*1024){ toast('Image trop lourde (max 6 Mo).'); return; }
+  if(file.size>6*1024*1024){ toast(_heavyMsg('image',6)); return; }
   let prepared;
   try{ prepared=await _bpAiPrepareImage(file); }
   catch(e){ toast('Impossible de lire l\'image.'); return; }
@@ -5896,13 +5908,13 @@ async function ilAiHandleFile(input){
   try{
     if(/^image\//.test(type)){
       if(!/^image\/(png|jpe?g|webp|gif)$/i.test(type)){ toast('Image PNG, JPEG, WEBP ou GIF requise.'); return; }
-      if(file.size>6*1024*1024){ toast('Image trop lourde (max 6 Mo).'); return; }
+      if(file.size>6*1024*1024){ toast(_heavyMsg('image',6)); return; }
       payload={kind:'image', imageBase64:await _ilAiPrepareImage(file), mediaType:'image/jpeg'};
     } else if(type==='application/pdf'||name.endsWith('.pdf')){
-      if(file.size>10*1024*1024){ toast('PDF trop lourd (max 10 Mo).'); return; }
+      if(file.size>10*1024*1024){ toast(_heavyMsg('pdf',10)); return; }
       payload={kind:'pdf', base64:await _ilAiReadBase64(file)};
     } else if(name.endsWith('.docx')||type==='application/vnd.openxmlformats-officedocument.wordprocessingml.document'){
-      if(file.size>10*1024*1024){ toast('Document trop lourd (max 10 Mo).'); return; }
+      if(file.size>10*1024*1024){ toast(_heavyMsg('doc',10)); return; }
       payload={kind:'docx', base64:await _ilAiReadBase64(file)};
     } else if(name.endsWith('.csv')||name.endsWith('.txt')||type==='text/csv'||type==='text/plain'){
       payload={kind:'text', text:await _ilAiReadText(file)};
@@ -6027,7 +6039,7 @@ function ilPdfImport(target){
 }
 async function ilPdfHandle(input){
   var f=input.files&&input.files[0]; if(!f) return;
-  if(f.size>25*1024*1024){ toast('PDF trop lourd (max 25 Mo).'); return; }
+  if(f.size>25*1024*1024){ toast(_heavyMsg('pdf',25)); return; }
   toast('Ouverture du PDF…');
   try{
     var pdfjs=await _loadPdfJs();
@@ -12069,7 +12081,7 @@ const LinusImport = (function(){
     var inp = document.getElementById('linus-file');
     if (!inp) {
       inp = document.createElement('input'); inp.type = 'file'; inp.id = 'linus-file'; inp.accept = '.linuscontrol'; inp.style.display = 'none';
-      inp.addEventListener('change', function(){ var f = inp.files && inp.files[0]; inp.value = ''; if (f) readFile(f); });
+      inp.addEventListener('change', function(){ var f = inp.files && inp.files[0]; inp.value = ''; if (f && f.size > 10 * 1024 * 1024) { toast('Fichier trop volumineux (max 10 Mo) : une session LINUS Control en fait quelques centaines de Ko.'); return; } if (f) readFile(f); });
       document.body.appendChild(inp);
     }
     inp.click();
@@ -12278,7 +12290,7 @@ const BandPlan=(()=>{
     input.value='';
     if(!file)return;
     if(!/^image\//.test(file.type||'')){typeof toast!=='undefined'&&toast('Format non supporté (image attendue)');return;}
-    if(file.size>8*1024*1024){typeof toast!=='undefined'&&toast('Image trop lourde (max 8 Mo)');return;}
+    if(file.size>8*1024*1024){typeof toast!=='undefined'&&toast(_heavyMsg('image',8));return;}
     try{
       /* Redimensionne + compresse sous le plafond de stockage avant tout. */
       const dataUrl=await _compressImageToB64(file, 1920, _IMG_STORE_CAP);
@@ -18874,7 +18886,7 @@ function _refreshAllAvatars(){
 
 async function uploadAvatar(input){
   const file=input.files[0];if(!file)return;
-  if(file.size>5*1024*1024){toast('Image trop grande (max 5 Mo).');return;}
+  if(file.size>5*1024*1024){toast(_heavyMsg('image',5));return;}
   // Compress to canvas ≤ 400px
   const img=new Image();
   const reader=new FileReader();
@@ -19152,7 +19164,7 @@ async function _pdfFirstPageToB64(file, maxDim, capBytes){
 async function _bgFileToDataUrl(file){
   const isPdf = file.type==='application/pdf' || /\.pdf$/i.test(file.name||'');
   if(!isPdf && !/^image\//.test(file.type||'')){ toast('Format non supporté (image ou PDF attendu)'); return null; }
-  if(file.size>8*1024*1024){ toast((isPdf?'PDF':'Image')+' trop lourd (max 8 Mo)'); return null; }
+  if(file.size>8*1024*1024){ toast(_heavyMsg(isPdf?'pdf':'image',8)); return null; }
   try{
     /* Un PDF est vectoriel : le monter en résolution ne coûte presque rien en
        poids une fois en PNG — d'où une définition plus fine que pour une photo. */
@@ -19167,7 +19179,7 @@ async function _bgFileToDataUrl(file){
 
 async function _resizeIconToB64(file){
   if(!['image/jpeg','image/png'].includes(file.type)) throw new Error('Format non supporté (JPEG ou PNG uniquement)');
-  if(file.size > _ICON_MAX_BYTES) throw new Error('Image trop grande (max 10 Mo)');
+  if(file.size > _ICON_MAX_BYTES) throw new Error(_heavyMsg('image',10));
   return new Promise(function(resolve,reject){
     var url=URL.createObjectURL(file);
     var img=new Image();
@@ -23056,7 +23068,15 @@ function setTheme(pref){
 function toast(msg){
   const el=document.getElementById('toast');el.textContent=msg;
   el.style.transform='translateX(-50%) translateY(0)';el.style.opacity='1';
-  clearTimeout(toastT);toastT=setTimeout(()=>{el.style.transform='translateX(-50%) translateY(80px)';el.style.opacity='0';},3200);
+  /* Un message long (explication, marche à suivre) reste le temps de le lire */
+  const ms=Math.min(9000,Math.max(3200,String(msg||'').length*55));
+  clearTimeout(toastT);toastT=setTimeout(()=>{el.style.transform='translateX(-50%) translateY(80px)';el.style.opacity='0';},ms);
+}
+/* Fichier trop lourd : dit la limite et propose de le compresser (outils en ligne gratuits, sans compte) */
+function _heavyMsg(kind, maxMo){
+  const tool = kind==='image' ? 'squoosh.app ou tinypng.com' : 'ilovepdf.com ou smallpdf.com';
+  const what = kind==='image' ? 'Image trop lourde' : kind==='pdf' ? 'PDF trop lourd' : 'Fichier trop lourd';
+  return what+' (max '+maxMo+' Mo). Vous pouvez '+(kind==='image'?'la':'le')+' compresser gratuitement sur internet (par exemple '+tool+'), puis réessayer.';
 }
 
 // Keyboard shortcuts
