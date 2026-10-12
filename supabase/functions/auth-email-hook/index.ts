@@ -60,7 +60,7 @@ serve(async (req) => {
 
     const user = data.user;
     const ed = data.email_data;
-    const type = ed.email_action_type; // signup | recovery | magiclink | email_change | invite
+    const type = ed.email_action_type; // signup | recovery | magiclink | email | email_change | invite | reauthentication | *_notification
 
     /* Diagnostic (sans secret) : type réel envoyé par GoTrue + email + préfixe du
        token_hash → permet de voir quel template est choisi et de détecter les
@@ -85,7 +85,34 @@ serve(async (req) => {
       `?token=${encodeURIComponent(ed.token_hash)}&type=${encodeURIComponent(type)}` +
       `&redirect_to=${encodeURIComponent(safeRedirect)}`;
 
+    /* Avis de sécurité (réglage « Security notifications » de Supabase) : l'événement a déjà eu lieu,
+       il n'y a ni lien à confirmer ni jeton. Avant, ces types tombaient dans le cas « signup » et
+       l'utilisateur recevait « Confirmez votre adresse » (avec un lien mort) après avoir changé son mot de passe. */
+    const when = new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris', dateStyle: 'long', timeStyle: 'short' });
+    const secureUrl = SITE_URL + '/app.html?forgot=1';
+    const NOTICE_FOOT = 'Si vous êtes à l\'origine de cette modification, vous n\'avez rien à faire.';
+    const NOTICES: Record<string, [string, string, string]> = {
+      password_changed_notification: ['Votre mot de passe a été modifié — PatchFlow', 'Mot de passe modifié',
+        `Le mot de passe de votre compte PatchFlow a été modifié le ${when}.<br/><br/><strong>Ce n'était pas vous ?</strong> Choisissez un nouveau mot de passe tout de suite, puis écrivez-nous à support@patchflow.fr.`],
+      email_changed_notification: ['Votre adresse e-mail a été modifiée — PatchFlow', 'Adresse e-mail modifiée',
+        `L'adresse e-mail de votre compte PatchFlow a été modifiée le ${when}.<br/><br/><strong>Ce n'était pas vous ?</strong> Sécurisez votre compte tout de suite et écrivez-nous à support@patchflow.fr.`],
+      phone_changed_notification: ['Votre numéro de téléphone a été modifié — PatchFlow', 'Numéro de téléphone modifié',
+        `Le numéro de téléphone de votre compte PatchFlow a été modifié le ${when}.<br/><br/><strong>Ce n'était pas vous ?</strong> Sécurisez votre compte tout de suite.`],
+      identity_linked_notification: ['Une connexion a été ajoutée à votre compte — PatchFlow', 'Connexion ajoutée',
+        `Un nouveau moyen de connexion a été ajouté à votre compte PatchFlow le ${when}.<br/><br/><strong>Ce n'était pas vous ?</strong> Sécurisez votre compte tout de suite.`],
+      identity_unlinked_notification: ['Une connexion a été retirée de votre compte — PatchFlow', 'Connexion retirée',
+        `Un moyen de connexion a été retiré de votre compte PatchFlow le ${when}.<br/><br/><strong>Ce n'était pas vous ?</strong> Sécurisez votre compte tout de suite.`],
+    };
+
     let subject: string, html: string;
+    if (typeof type === 'string' && type.endsWith('_notification')) {
+      const n = NOTICES[type] ?? ['Modification de votre compte — PatchFlow', 'Modification de votre compte',
+        `Une modification de sécurité a été apportée à votre compte PatchFlow le ${when}.<br/><br/><strong>Ce n'était pas vous ?</strong> Sécurisez votre compte tout de suite.`];
+      subject = n[0];
+      html = shell(n[1], n[2], 'Sécuriser mon compte', secureUrl, NOTICE_FOOT);
+      await transporter.sendMail({ from: `PatchFlow <${SMTP_USER}>`, to: user.email, subject, html });
+      return new Response(JSON.stringify({}), { headers: { 'Content-Type': 'application/json' } });
+    }
     switch (type) {
       case 'recovery':
         subject = 'Réinitialisez votre mot de passe — PatchFlow';
@@ -95,6 +122,7 @@ serve(async (req) => {
           'Ce lien expire dans 1 heure. Si vous n\'êtes pas à l\'origine de cette demande, ignorez cet email.');
         break;
       case 'magiclink':
+      case 'email':
         subject = 'Votre lien de connexion — PatchFlow';
         html = shell('Connexion à PatchFlow',
           'Cliquez sur le bouton ci-dessous pour vous connecter à votre compte.',
@@ -122,12 +150,18 @@ serve(async (req) => {
           'Créer mon compte', verifyUrl, 'Ce lien expire dans 24 heures. Si vous ne connaissez pas cet utilisateur, ignorez cet email.');
         break;
       }
-      default: // signup
+      case 'signup':
         subject = 'Confirmez votre adresse email — PatchFlow';
         html = shell('Bienvenue sur PatchFlow 🎧',
           'Merci de vous être inscrit ! Une dernière étape : confirmez votre adresse email en cliquant ci-dessous.',
           'Confirmer mon adresse email', verifyUrl,
           'Ce lien expire dans 24 heures. Si vous n\'avez pas créé de compte, ignorez cet email.');
+        break;
+      default:
+        /* Type inconnu (nouveau type ajouté par Supabase, code à usage unique…) : aucun e-mail plutôt qu'un
+           e-mail de confirmation trompeur. Le type est dans les journaux (ligne « [auth-email-hook] »). */
+        console.warn('[auth-email-hook] type non géré, aucun e-mail envoyé :', type);
+        return new Response(JSON.stringify({}), { headers: { 'Content-Type': 'application/json' } });
     }
 
     await transporter.sendMail({ from: `PatchFlow <${SMTP_USER}>`, to: user.email, subject, html });
