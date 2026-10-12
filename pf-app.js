@@ -22868,7 +22868,8 @@ function openPlanModal() {
       + '<div class="sub-plan-price"' + (p === 'pro' ? ' id="sub-pro-price"' : '') + '>' + pm.price + '</div>'
       + '<div class="sub-plan-period"' + (p === 'pro' ? ' id="sub-pro-period"' : '') + '>' + pm.period + '</div>'
       + '<button class="sub-plan-cta' + (isUp ? ' upgrade-cta' : '') + '"' + (isCur ? ' disabled' : ' onclick="subCTA(\'' + p + '\')"') + '>'
-      + (isCur ? '<i class="ti ti-check"></i>Plan actuel' : isUp ? '<i class="ti ti-rocket"></i>Passer au Pro' : 'Repasser en Gratuit') + '</button>'
+      + (isCur ? '<i class="ti ti-check"></i>Plan actuel' : isUp ? '<i class="ti ti-rocket"></i>Essayer le Pro' : 'Repasser en Gratuit') + '</button>'
+      + (isUp ? '<div class="sub-plan-trial">1 mois offert pour un premier abonnement : rien n\'est prélevé avant la fin du mois, résiliable à tout moment.</div>' : '')
       + '<ul class="sub-plan-feats">' + FEATS[p].map(function(t){ return '<li><i class="ok ti ti-check"></i><span>' + t + '</span></li>'; }).join('') + '</ul></div>';
   }).join('');
   // Masquer le sélecteur de période pour les abonnés Pro (déjà abonnés)

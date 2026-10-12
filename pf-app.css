@@ -4350,3 +4350,4 @@ button.nf-ev:hover{background:var(--surf2)}
 .adm-res.bad{background:rgba(255,77,106,.1);color:var(--err)}
 .adm-res>i{font-size:18px;flex-shrink:0}
 @media(max-width:900px){ .adm-mailt{grid-template-columns:repeat(2,minmax(0,1fr))} }
+.sub-plan-trial{margin:8px 0 2px;font-size:12px;line-height:1.45;color:var(--muted);text-align:center}

@@ -3,6 +3,7 @@
  *
  * Appelée par l'application avec le jeton de l'utilisateur. Actions :
  *   checkout  { variant: 'monthly' | 'yearly' }  -> { data: { url } }  Stripe Checkout hébergé
+ *             (30 jours d'essai pour un premier abonnement)
  *   portal    {}                                 -> { data: { status, plan, renews_at, ends_at, card_brand,
  *                                                   card_last_four, customer_portal_url } }
  *             Le portail client Stripe (factures, carte, résiliation) est créé à la demande : son
@@ -85,7 +86,9 @@ serve(async (req) => {
         cancel_url: SITE_URL + '/app.html?checkout=cancel',
         client_reference_id: user.id,
         ...(row?.stripe_customer_id ? { customer: row.stripe_customer_id } : { customer_email: user.email }),
-        subscription_data: { metadata: { user_id: user.id } },
+        /* Premier abonnement : un mois d'essai. La carte est demandée, rien n'est prélevé avant la fin de l'essai.
+           Un compte qui a déjà eu un abonnement (même terminé) n'y a plus droit. */
+        subscription_data: { metadata: { user_id: user.id }, ...(row ? {} : { trial_period_days: 30 }) },
         metadata: { user_id: user.id },
         allow_promotion_codes: true,
         billing_address_collection: 'auto',
