@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import nodemailer from 'npm:nodemailer@6.9.9';
+import { renderEmail, p, details, esc as escHtml } from '../_shared/email.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -15,7 +16,6 @@ const SMTP_PASS         = Deno.env.get('SMTP_PASS') ?? '';
 const SITE_URL          = Deno.env.get('SITE_URL') ?? 'https://patchflow.fr';
 
 const VALID_ROLES = new Set(['admin', 'editor', 'viewer']);
-const NAVY = '#1d3a5f', ORANGE = '#ff6b1a';
 
 /* Journal des envois (table email_log, lue par l'onglet E-mails de l'administration). Jamais le corps,
    jamais de lien : le type, le destinataire masqué, l'objet et le résultat. Sans effet si la table manque. */
@@ -46,29 +46,6 @@ function roleLabel(role: string) {
        : 'Lecture seule';
 }
 
-function emailShell(title: string, body: string, btnLabel: string, btnUrl: string, footer: string) {
-  return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width"/></head>
-<body style="font-family:Outfit,Arial,sans-serif;background:#f4f6fb;margin:0;padding:32px">
-<div style="max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.08)">
-  <div style="background:${NAVY};padding:28px;text-align:center">
-    <div style="font-size:24px;font-weight:800;color:#fff;letter-spacing:-.5px">PatchFlow</div>
-    <div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:4px;letter-spacing:2px;text-transform:uppercase">Par des techniciens, pour des techniciens</div>
-  </div>
-  <div style="padding:36px 32px">
-    <h1 style="font-size:20px;font-weight:700;color:${NAVY};margin:0 0 14px">${title}</h1>
-    <div style="font-size:14px;color:#475569;line-height:1.7;margin:0 0 28px">${body}</div>
-    <div style="text-align:center;margin-bottom:28px">
-      <a href="${btnUrl}" style="display:inline-block;background:${ORANGE};color:#fff;font-size:15px;font-weight:700;padding:14px 32px;border-radius:8px;text-decoration:none">${btnLabel}</a>
-    </div>
-    <p style="font-size:12px;color:#94a3b8;text-align:center;margin:0">${footer}</p>
-  </div>
-  <div style="background:#f8fafc;padding:20px 32px;border-top:1px solid #e2e8f0;text-align:center">
-    <p style="font-size:11px;color:#94a3b8;margin:0">© ${new Date().getFullYear()} PatchFlow ·
-      <a href="${SITE_URL}" style="color:${ORANGE};text-decoration:none">patchflow.fr</a> ·
-      <a href="mailto:support@patchflow.fr" style="color:${ORANGE};text-decoration:none">support@patchflow.fr</a></p>
-  </div>
-</div></body></html>`;
-}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
@@ -169,15 +146,17 @@ serve(async (req) => {
 
       /* Email de notification (lien direct → auto-accept côté app) */
       const acceptUrl = `${SITE_URL}/app.html?invite=${inviteId}`;
-      const html = emailShell(
-        `${inviterName} vous invite sur "${showName}" 🎧`,
-        `<strong>${inviterName}</strong> vous invite à rejoindre le show <strong>${showName}</strong> sur PatchFlow en tant que <strong>${roleLabel(role)}</strong>.<br/><br/>Cliquez sur le bouton ci-dessous : vous serez automatiquement ajouté au show après connexion.`,
-        'Rejoindre le show',
-        acceptUrl,
-        'Si vous ne connaissez pas cet utilisateur, ignorez cet email.',
-      );
-      const subjA = `${inviterNameRaw} vous invite sur "${showNameRaw}" — PatchFlow`;
-      await transporter.sendMail({ from: `PatchFlow <${SMTP_USER}>`, to: normalEmail, subject: subjA, html })
+      const mail = renderEmail({
+        tag: 'Invitation', title: `${inviterName} vous invite à rejoindre un show`, preheader: `Rejoignez « ${showName} » sur PatchFlow.`,
+        body: p(`<strong style="color:#101828">${inviterName}</strong> vous a ajouté à son équipe sur PatchFlow.`) +
+          details([['Show', showName], ['Rôle', roleLabel(role)], ['Invité', escHtml(normalEmail)]]) +
+          p('Ouvrez l\'invitation : le show apparaîtra dans vos sessions dès votre connexion.'),
+        cta: { label: 'Rejoindre le show', url: acceptUrl }, fallback: true,
+        note: 'Vous ne connaissez pas cette personne ? Ignorez cet e-mail : vous ne serez ajouté à rien sans l\'avoir accepté.',
+        reason: `Cet e-mail a été envoyé à ${escHtml(normalEmail)} à la demande de ${inviterName}, qui utilise PatchFlow.`,
+      });
+      const subjA = `${inviterNameRaw} vous invite sur le show « ${showNameRaw} »`;
+      await transporter.sendMail({ from: `PatchFlow <${SMTP_USER}>`, to: normalEmail, subject: subjA, ...mail })
         .then(() => logEmail('invite-member', 'invite', normalEmail, subjA))
         .catch((e: unknown) => logEmail('invite-member', 'invite', normalEmail, subjA, e));
 
@@ -203,15 +182,17 @@ serve(async (req) => {
       const inviteId = invRow?.id || '';
 
       const acceptUrl = `${SITE_URL}/app.html?invite=${inviteId}`;
-      const html = emailShell(
-        `${inviterName} vous invite sur PatchFlow 🎧`,
-        `<strong>${inviterName}</strong> vous invite à rejoindre le show <strong>${showName}</strong> sur PatchFlow en tant que <strong>${roleLabel(role)}</strong>.<br/><br/>PatchFlow est l'outil de gestion de patch son professionnel — créé par des techniciens, pour des techniciens.<br/><br/>Créez votre compte avec cette adresse email (<strong>${normalEmail}</strong>) — vous serez automatiquement ajouté au show après inscription.`,
-        'Créer mon compte',
-        acceptUrl,
-        'Si vous ne connaissez pas cet utilisateur, ignorez cet email.',
-      );
-      const subjB = `${inviterNameRaw} vous invite sur PatchFlow — "${showNameRaw}"`;
-      try { await transporter.sendMail({ from: `PatchFlow <${SMTP_USER}>`, to: normalEmail, subject: subjB, html }); }
+      const mail = renderEmail({
+        tag: 'Invitation', title: `${inviterName} vous invite sur PatchFlow`, preheader: `Rejoignez « ${showName} » : création du compte en une minute.`,
+        body: p(`<strong style="color:#101828">${inviterName}</strong> vous invite à collaborer sur PatchFlow, l'outil de préparation technique des équipes son et scène : input lists, patchs, plans, RF et riders partagés.`) +
+          details([['Show', showName], ['Rôle', roleLabel(role)], ['Invité', escHtml(normalEmail)]]) +
+          p(`Créez votre compte avec <strong style="color:#101828">${escHtml(normalEmail)}</strong> : le show vous attendra dès votre inscription. L'inscription est gratuite.`),
+        cta: { label: 'Créer mon compte', url: acceptUrl }, fallback: true,
+        note: 'Vous ne connaissez pas cette personne ? Ignorez cet e-mail : aucun compte n\'est créé sans vous.',
+        reason: `Cet e-mail a été envoyé à ${escHtml(normalEmail)} à la demande de ${inviterName}, qui utilise PatchFlow.`,
+      });
+      const subjB = `${inviterNameRaw} vous invite sur PatchFlow : « ${showNameRaw} »`;
+      try { await transporter.sendMail({ from: `PatchFlow <${SMTP_USER}>`, to: normalEmail, subject: subjB, ...mail }); }
       catch (e) { await logEmail('invite-member', 'invite', normalEmail, subjB, e); throw e; }
       await logEmail('invite-member', 'invite', normalEmail, subjB);
 

@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { Webhook } from 'https://esm.sh/standardwebhooks@1.0.0';
 import nodemailer from 'npm:nodemailer@6.9.9';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { renderEmail, p, callout, details, esc } from '../_shared/email.ts';
 
 const SMTP_HOST = Deno.env.get('SMTP_HOST') ?? '';
 const SMTP_USER = Deno.env.get('SMTP_USER') ?? '';
@@ -18,7 +19,6 @@ const transporter = nodemailer.createTransport({
   tls: { minVersion: 'TLSv1.2' },
 });
 
-const ORANGE = '#ff6b1a', NAVY = '#1d3a5f';
 
 /* Journal des envois (table email_log, lue par l'onglet E-mails de l'administration). Jamais le corps,
    jamais de lien : le type, le destinataire masqué, l'objet et le résultat. Sans effet si la table manque. */
@@ -32,30 +32,6 @@ async function logEmail(source: string, kind: string, to: string, subject: strin
         status: err ? 'failed' : 'sent', error: err ? String((err as Error)?.message ?? err).slice(0, 300) : null,
       });
   } catch { /* le journal ne doit jamais empêcher un envoi */ }
-}
-
-function shell(title: string, intro: string, btnLabel: string, url: string, footnote: string) {
-  return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width"/></head>
-<body style="font-family:Outfit,Arial,sans-serif;background:#f4f6fb;margin:0;padding:32px">
-<div style="max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.08)">
-  <div style="background:${NAVY};padding:28px;text-align:center">
-    <div style="font-size:24px;font-weight:800;color:#fff;letter-spacing:-.5px">PatchFlow</div>
-    <div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:4px;letter-spacing:2px;text-transform:uppercase">Par des techniciens, pour des techniciens</div>
-  </div>
-  <div style="padding:36px 32px">
-    <h1 style="font-size:20px;font-weight:700;color:${NAVY};margin:0 0 12px">${title}</h1>
-    <p style="font-size:14px;color:#475569;line-height:1.7;margin:0 0 28px">${intro}</p>
-    <div style="text-align:center;margin-bottom:28px">
-      <a href="${url}" style="display:inline-block;background:${ORANGE};color:#fff;font-size:15px;font-weight:700;padding:14px 32px;border-radius:8px;text-decoration:none">${btnLabel}</a>
-    </div>
-    <p style="font-size:12px;color:#94a3b8;text-align:center;margin:0">${footnote}</p>
-  </div>
-  <div style="background:#f8fafc;padding:20px 32px;border-top:1px solid #e2e8f0;text-align:center">
-    <p style="font-size:11px;color:#94a3b8;margin:0">© ${new Date().getFullYear()} PatchFlow ·
-      <a href="https://patchflow.fr" style="color:${ORANGE};text-decoration:none">patchflow.fr</a> ·
-      <a href="mailto:support@patchflow.fr" style="color:${ORANGE};text-decoration:none">support@patchflow.fr</a></p>
-  </div>
-</div></body></html>`;
 }
 
 serve(async (req) => {
@@ -105,74 +81,97 @@ serve(async (req) => {
        l'utilisateur recevait « Confirmez votre adresse » (avec un lien mort) après avoir changé son mot de passe. */
     const when = new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris', dateStyle: 'long', timeStyle: 'short' });
     const secureUrl = SITE_URL + '/app.html?forgot=1';
-    const NOTICE_FOOT = 'Si vous êtes à l\'origine de cette modification, vous n\'avez rien à faire.';
+    const account = esc(user.email);
+    const SEC_REASON = 'Cet avis de sécurité est envoyé à chaque modification importante de votre compte PatchFlow. Il ne peut pas être désactivé.';
     const NOTICES: Record<string, [string, string, string]> = {
-      password_changed_notification: ['Votre mot de passe a été modifié — PatchFlow', 'Mot de passe modifié',
-        `Le mot de passe de votre compte PatchFlow a été modifié le ${when}.<br/><br/><strong>Ce n'était pas vous ?</strong> Choisissez un nouveau mot de passe tout de suite, puis écrivez-nous à support@patchflow.fr.`],
-      email_changed_notification: ['Votre adresse e-mail a été modifiée — PatchFlow', 'Adresse e-mail modifiée',
-        `L'adresse e-mail de votre compte PatchFlow a été modifiée le ${when}.<br/><br/><strong>Ce n'était pas vous ?</strong> Sécurisez votre compte tout de suite et écrivez-nous à support@patchflow.fr.`],
-      phone_changed_notification: ['Votre numéro de téléphone a été modifié — PatchFlow', 'Numéro de téléphone modifié',
-        `Le numéro de téléphone de votre compte PatchFlow a été modifié le ${when}.<br/><br/><strong>Ce n'était pas vous ?</strong> Sécurisez votre compte tout de suite.`],
-      identity_linked_notification: ['Une connexion a été ajoutée à votre compte — PatchFlow', 'Connexion ajoutée',
-        `Un nouveau moyen de connexion a été ajouté à votre compte PatchFlow le ${when}.<br/><br/><strong>Ce n'était pas vous ?</strong> Sécurisez votre compte tout de suite.`],
-      identity_unlinked_notification: ['Une connexion a été retirée de votre compte — PatchFlow', 'Connexion retirée',
-        `Un moyen de connexion a été retiré de votre compte PatchFlow le ${when}.<br/><br/><strong>Ce n'était pas vous ?</strong> Sécurisez votre compte tout de suite.`],
+      password_changed_notification: ['Votre mot de passe PatchFlow a été modifié', 'Mot de passe modifié', 'Le mot de passe de votre compte vient d\'être modifié.'],
+      email_changed_notification: ['L\'adresse e-mail de votre compte PatchFlow a été modifiée', 'Adresse e-mail modifiée', 'L\'adresse e-mail de votre compte vient d\'être modifiée.'],
+      phone_changed_notification: ['Le numéro de téléphone de votre compte PatchFlow a été modifié', 'Numéro de téléphone modifié', 'Le numéro de téléphone de votre compte vient d\'être modifié.'],
+      identity_linked_notification: ['Un moyen de connexion a été ajouté à votre compte PatchFlow', 'Moyen de connexion ajouté', 'Un nouveau moyen de connexion (Google par exemple) vient d\'être ajouté à votre compte.'],
+      identity_unlinked_notification: ['Un moyen de connexion a été retiré de votre compte PatchFlow', 'Moyen de connexion retiré', 'Un moyen de connexion vient d\'être retiré de votre compte.'],
     };
 
-    let subject: string, html: string;
+    let subject: string, mail: { html: string; text: string };
     if (typeof type === 'string' && type.endsWith('_notification')) {
-      const n = NOTICES[type] ?? ['Modification de votre compte — PatchFlow', 'Modification de votre compte',
-        `Une modification de sécurité a été apportée à votre compte PatchFlow le ${when}.<br/><br/><strong>Ce n'était pas vous ?</strong> Sécurisez votre compte tout de suite.`];
+      const n = NOTICES[type] ?? ['Modification de sécurité sur votre compte PatchFlow', 'Modification de votre compte', 'Une modification de sécurité vient d\'être apportée à votre compte.'];
       subject = n[0];
-      html = shell(n[1], n[2], 'Sécuriser mon compte', secureUrl, NOTICE_FOOT);
-      try { await transporter.sendMail({ from: `PatchFlow <${SMTP_USER}>`, to: user.email, subject, html }); }
+      mail = renderEmail({
+        tag: 'Sécurité', title: n[1], preheader: `${n[2]} Ce n'était pas vous ? Sécurisez votre compte.`,
+        body: p(n[2]) + details([['Compte', account], ['Date', esc(when) + ' (heure de Paris)']]) +
+          callout('warn', 'Ce n\'était pas vous ?', 'Choisissez un nouveau mot de passe tout de suite, puis écrivez-nous à support@patchflow.fr pour que nous vérifiions votre compte.'),
+        cta: { label: 'Sécuriser mon compte', url: secureUrl },
+        note: 'Si vous êtes à l\'origine de cette modification, vous n\'avez rien à faire.',
+        reason: SEC_REASON,
+      });
+      try { await transporter.sendMail({ from: `PatchFlow <${SMTP_USER}>`, to: user.email, subject, ...mail }); }
       catch (e) { await logEmail('auth-email-hook', type, user.email, subject, e); throw e; }
       await logEmail('auth-email-hook', type, user.email, subject);
       return new Response(JSON.stringify({}), { headers: { 'Content-Type': 'application/json' } });
     }
+    const ACCOUNT_REASON = `Cet e-mail a été envoyé à ${account} à la suite d'une demande faite sur patchflow.fr.`;
     switch (type) {
       case 'recovery':
-        subject = 'Réinitialisez votre mot de passe — PatchFlow';
-        html = shell('Réinitialisation du mot de passe',
-          'Vous avez demandé à réinitialiser votre mot de passe. Cliquez ci-dessous pour en choisir un nouveau.',
-          'Choisir un nouveau mot de passe', verifyUrl,
-          'Ce lien expire dans 1 heure. Si vous n\'êtes pas à l\'origine de cette demande, ignorez cet email.');
+        subject = 'Réinitialisez votre mot de passe PatchFlow';
+        mail = renderEmail({
+          tag: 'Sécurité', title: 'Choisissez un nouveau mot de passe', preheader: 'Votre lien de réinitialisation est valable 1 heure.',
+          body: p(`Une demande de réinitialisation du mot de passe a été faite pour le compte <strong style="color:#101828">${account}</strong>.`) +
+            p('Cliquez sur le bouton ci-dessous pour en choisir un nouveau. Le lien ne sert qu\'une fois.'),
+          cta: { label: 'Choisir un nouveau mot de passe', url: verifyUrl }, fallback: true,
+          note: 'Ce lien expire dans 1 heure. Vous n\'avez rien demandé ? Ignorez cet e-mail : votre mot de passe actuel reste valable.',
+          reason: ACCOUNT_REASON,
+        });
         break;
       case 'magiclink':
       case 'email':
-        subject = 'Votre lien de connexion — PatchFlow';
-        html = shell('Connexion à PatchFlow',
-          'Cliquez sur le bouton ci-dessous pour vous connecter à votre compte.',
-          'Me connecter', verifyUrl, 'Ce lien expire dans 1 heure.');
+        subject = 'Votre lien de connexion à PatchFlow';
+        mail = renderEmail({
+          title: 'Connexion à PatchFlow', preheader: 'Cliquez pour vous connecter. Lien valable 1 heure.',
+          body: p(`Voici votre lien de connexion pour le compte <strong style="color:#101828">${account}</strong>. Il ouvre PatchFlow directement, sans mot de passe.`),
+          cta: { label: 'Me connecter', url: verifyUrl }, fallback: true,
+          note: 'Ce lien expire dans 1 heure et ne sert qu\'une fois. Vous n\'avez rien demandé ? Ignorez cet e-mail.',
+          reason: ACCOUNT_REASON,
+        });
         break;
       case 'email_change':
-        subject = 'Confirmez votre nouvelle adresse — PatchFlow';
-        html = shell('Changement d\'adresse email',
-          'Confirmez votre nouvelle adresse email en cliquant ci-dessous.',
-          'Confirmer mon adresse', verifyUrl, 'Si vous n\'êtes pas à l\'origine de cette demande, ignorez cet email.');
+        subject = 'Confirmez votre nouvelle adresse e-mail';
+        mail = renderEmail({
+          tag: 'Sécurité', title: 'Confirmez votre nouvelle adresse', preheader: 'Une dernière étape pour changer l\'adresse de votre compte PatchFlow.',
+          body: p(`Vous avez demandé à utiliser <strong style="color:#101828">${account}</strong> pour votre compte PatchFlow.`) +
+            p('Confirmez ce changement en cliquant ci-dessous. Tant que ce n\'est pas fait, votre ancienne adresse reste active.'),
+          cta: { label: 'Confirmer mon adresse', url: verifyUrl }, fallback: true,
+          note: 'Vous n\'êtes pas à l\'origine de cette demande ? Ignorez cet e-mail et écrivez-nous à support@patchflow.fr.',
+          reason: ACCOUNT_REASON,
+        });
         break;
       case 'invite': {
         const meta = user.user_metadata || {};
         // Valeurs venant de user_metadata (posées par le propriétaire) → échapper le HTML
-        const esc = (s: string) => String(s ?? '')
-          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         const inviterRaw  = meta.inviter   || 'Un technicien';
         const showNameRaw = meta.show_name || 'un show';
         const inviter   = esc(inviterRaw);
         const showName  = esc(showNameRaw);
-        subject = `${inviterRaw} vous invite sur PatchFlow — "${showNameRaw}"`;
-        html = shell(`${inviter} vous invite sur PatchFlow 🎧`,
-          `<strong>${inviter}</strong> vous invite à rejoindre le show <strong>${showName}</strong> sur PatchFlow.<br/><br/>Créez votre compte en cliquant ci-dessous pour accéder au show directement.`,
-          'Créer mon compte', verifyUrl, 'Ce lien expire dans 24 heures. Si vous ne connaissez pas cet utilisateur, ignorez cet email.');
+        subject = `${inviterRaw} vous invite sur le show « ${showNameRaw} »`;
+        mail = renderEmail({
+          tag: 'Invitation', title: `${inviter} vous invite à rejoindre un show`, preheader: `Rejoignez « ${showName} » sur PatchFlow.`,
+          body: p(`<strong style="color:#101828">${inviter}</strong> vous invite à collaborer sur PatchFlow, l'outil de préparation technique des équipes son et scène.`) +
+            details([['Show', showName], ['Invité', account]]) +
+            p('Créez votre compte avec cette adresse : vous accéderez directement au show.'),
+          cta: { label: 'Créer mon compte', url: verifyUrl }, fallback: true,
+          note: 'Ce lien expire dans 24 heures. Vous ne connaissez pas cette personne ? Ignorez cet e-mail.',
+          reason: `Cet e-mail a été envoyé à ${account} à la demande de ${inviter}, qui utilise PatchFlow.`,
+        });
         break;
       }
       case 'signup':
-        subject = 'Confirmez votre adresse email — PatchFlow';
-        html = shell('Bienvenue sur PatchFlow 🎧',
-          'Merci de vous être inscrit ! Une dernière étape : confirmez votre adresse email en cliquant ci-dessous.',
-          'Confirmer mon adresse email', verifyUrl,
-          'Ce lien expire dans 24 heures. Si vous n\'avez pas créé de compte, ignorez cet email.');
+        subject = 'Confirmez votre adresse pour activer votre compte PatchFlow';
+        mail = renderEmail({
+          title: 'Bienvenue sur PatchFlow', preheader: 'Confirmez votre adresse pour activer votre compte.',
+          body: p('Merci de vous être inscrit. Il reste une étape : confirmer votre adresse e-mail pour activer votre compte.') +
+            details([['Compte', account]]),
+          cta: { label: 'Confirmer mon adresse', url: verifyUrl }, fallback: true,
+          note: 'Ce lien expire dans 24 heures. Vous n\'avez pas créé de compte ? Ignorez cet e-mail.',
+          reason: ACCOUNT_REASON,
+        });
         break;
       default:
         /* Type inconnu (nouveau type ajouté par Supabase, code à usage unique…) : aucun e-mail plutôt qu'un
@@ -182,7 +181,7 @@ serve(async (req) => {
         return new Response(JSON.stringify({}), { headers: { 'Content-Type': 'application/json' } });
     }
 
-    try { await transporter.sendMail({ from: `PatchFlow <${SMTP_USER}>`, to: user.email, subject, html }); }
+    try { await transporter.sendMail({ from: `PatchFlow <${SMTP_USER}>`, to: user.email, subject, ...mail }); }
     catch (e) { await logEmail('auth-email-hook', type, user.email, subject, e); throw e; }
     await logEmail('auth-email-hook', type, user.email, subject);
     return new Response(JSON.stringify({}), { headers: { 'Content-Type': 'application/json' } });

@@ -11,6 +11,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import nodemailer from 'npm:nodemailer@6.9.9';
+import { renderEmail, p, callout, details, esc } from '../_shared/email.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -117,21 +118,25 @@ serve(async (req) => {
 
       const subject = 'Test d\'envoi — PatchFlow';
       const when = new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris', dateStyle: 'long', timeStyle: 'medium' });
-      const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:24px auto;padding:24px;border:1px solid #e2e8f0;border-radius:10px">
-<h2 style="margin:0 0 12px;color:#1d3a5f">Test d'envoi réussi</h2>
-<p style="color:#475569;line-height:1.6;margin:0">Cet e-mail confirme que PatchFlow peut envoyer des messages depuis <strong>${SMTP_USER || 'Resend'}</strong>.<br/>Envoyé le ${when}.</p></div>`;
+      const mail = renderEmail({
+        tag: 'Administration', title: 'Test d\'envoi réussi', preheader: 'PatchFlow peut envoyer des e-mails.',
+        body: callout('ok', 'L\'envoi fonctionne', 'Ce message est arrivé : les e-mails de PatchFlow partent bien.') +
+          details([['Expéditeur', esc(SMTP_USER || SUPPORT)], ['Service', RESEND_KEY ? 'Resend' : 'SMTP'], ['Envoyé le', esc(when)]]) +
+          p('Vérifiez aussi qu\'il n\'est pas arrivé dans les indésirables : sinon, contrôlez les enregistrements SPF, DKIM et DMARC dans l\'onglet E-mails.'),
+        reason: 'E-mail de test demandé depuis l\'onglet E-mails de l\'administration PatchFlow.',
+      });
       const t0 = Date.now();
       let ok = true, err = '';
       try {
         if (RESEND_KEY) {
           const r = await withTimeout(fetch('https://api.resend.com/emails', {
             method: 'POST', headers: { Authorization: `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ from: `PatchFlow <${SMTP_USER || SUPPORT}>`, to: [to], subject, html }),
+            body: JSON.stringify({ from: `PatchFlow <${SMTP_USER || SUPPORT}>`, to: [to], subject, ...mail }),
           }), 15000);
           if (!r.ok) throw new Error('Resend ' + r.status + ' : ' + (await r.text()).slice(0, 160));
         } else {
           if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) throw new Error('SMTP_HOST, SMTP_USER ou SMTP_PASS manquant');
-          await withTimeout(transporter.sendMail({ from: `PatchFlow <${SMTP_USER}>`, to, subject, html }), 20000);
+          await withTimeout(transporter.sendMail({ from: `PatchFlow <${SMTP_USER}>`, to, subject, ...mail }), 20000);
         }
       } catch (e) { ok = false; err = String((e as Error)?.message ?? e).slice(0, 300); }
       await admin.from('email_log').insert({ source: 'admin-email-check', kind: 'test', to_masked: maskOf(to), subject, status: ok ? 'sent' : 'failed', error: ok ? null : err });

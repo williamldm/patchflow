@@ -16,6 +16,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import nodemailer from 'npm:nodemailer@6.9.9';
+import { renderEmail, p, callout, list, details } from '../_shared/email.ts';
 
 const SUPABASE_URL        = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE_KEY    = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -111,18 +112,18 @@ async function stripeGet(path: string) {
   } catch { return null; }
 }
 
-async function sendEmail(to: string, subject: string, html: string) {
+async function sendEmail(to: string, subject: string, mail: { html: string; text: string }) {
   try {
     if (RESEND_API_KEY) {
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from: `PatchFlow <${SUPPORT_EMAIL}>`, to: [to], subject, html }),
+        body: JSON.stringify({ from: `PatchFlow <${SUPPORT_EMAIL}>`, to: [to], subject, ...mail }),
       });
       if (!res.ok) { const t = await res.text(); console.error('[stripe-webhook] Resend error', t); await logEmail('stripe-webhook', 'notice', to, subject, new Error('Resend ' + res.status)); }
       else await logEmail('stripe-webhook', 'notice', to, subject);
     } else if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
-      await transporter.sendMail({ from: `PatchFlow <${SMTP_USER}>`, to, subject, html });
+      await transporter.sendMail({ from: `PatchFlow <${SMTP_USER}>`, to, subject, ...mail });
       await logEmail('stripe-webhook', 'notice', to, subject);
     } else {
       console.warn('[stripe-webhook] Aucun service e-mail configuré (RESEND_API_KEY ou SMTP_*)');
@@ -131,24 +132,18 @@ async function sendEmail(to: string, subject: string, html: string) {
   } catch (e) { console.error('[stripe-webhook] sendEmail', e); await logEmail('stripe-webhook', 'notice', to, subject, e); }
 }
 
-function buildWarningEmail(deleteDate: string): string {
-  return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="background:#f4f5f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;margin:0;padding:40px 0">
-<div style="max-width:540px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.08)">
-<div style="background:#0a0f1c;padding:28px 32px;text-align:center"><span style="font-size:22px;font-weight:800;color:#fff">Patch<span style="color:#ff6b1a">Flow</span></span></div>
-<div style="padding:32px">
-<h2 style="font-size:20px;font-weight:700;margin:0 0 16px;color:#111">Votre abonnement Pro a pris fin</h2>
-<p style="color:#555;font-size:15px;line-height:1.7;margin:0 0 20px">Vous gardez l'accès à votre compte en plan Gratuit (500&nbsp;Mo de stockage de fichiers).</p>
-<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:16px 20px;margin:0 0 24px"><strong style="color:#856404">Action requise avant le ${deleteDate}</strong>
-<p style="color:#856404;font-size:14px;margin:8px 0 0;line-height:1.6">Si votre espace dépasse 500&nbsp;Mo, les fichiers les plus anciens seront supprimés dans ${DAYS_BEFORE_PURGE}&nbsp;jours, jusqu'à repasser sous cette limite.</p></div>
-<ul style="color:#555;font-size:14px;line-height:2;margin:0 0 28px;padding-left:20px">
-<li>Téléchargez vos fichiers importants depuis l'onglet <strong>Fichiers</strong></li>
-<li>Supprimez des fichiers pour passer sous 500&nbsp;Mo</li>
-<li>Ou reprenez l'abonnement Pro pour tout conserver</li></ul>
-<div style="text-align:center"><a href="https://patchflow.fr/app.html" style="display:inline-block;background:#ff6b1a;color:#fff;font-weight:700;font-size:15px;padding:13px 32px;border-radius:8px;text-decoration:none">Gérer mes fichiers</a></div>
-</div>
-<div style="background:#f8f9fa;padding:16px 32px;text-align:center;font-size:12px;color:#999;border-top:1px solid #eee">Une question&nbsp;? <a href="mailto:${SUPPORT_EMAIL}" style="color:#ff6b1a">${SUPPORT_EMAIL}</a></div>
-</div></body></html>`;
+function buildWarningEmail(deleteDate: string) {
+  return renderEmail({
+    tag: 'Abonnement', title: 'Votre abonnement Pro a pris fin',
+    preheader: `Votre compte reste actif en Gratuit. Faites de la place avant le ${deleteDate} si vous dépassez 500 Mo.`,
+    body: p('Votre compte PatchFlow reste actif et vos shows sont conservés. Il passe au plan Gratuit, qui inclut 500&nbsp;Mo de stockage de fichiers.') +
+      details([['Plan', 'Gratuit'], ['Stockage inclus', '500&nbsp;Mo'], ['Date limite', deleteDate]]) +
+      callout('warn', `À faire avant le ${deleteDate}`, `Si vos fichiers dépassent 500&nbsp;Mo, les plus anciens seront supprimés à cette date, jusqu'à repasser sous la limite. Rien n'est supprimé si vous êtes déjà en dessous.`) +
+      p('Pour garder tous vos fichiers, vous pouvez&nbsp;:') +
+      list(['télécharger ceux qui comptent depuis l\'onglet <strong style="color:#101828">Fichiers</strong>&nbsp;;', 'supprimer ceux dont vous n\'avez plus besoin&nbsp;;', 'ou reprendre l\'abonnement Pro, qui annule la suppression.']),
+    cta: { label: 'Gérer mes fichiers', url: 'https://patchflow.fr/app.html' },
+    reason: 'Cet e-mail fait suite à la fin de votre abonnement PatchFlow Pro.',
+  });
 }
 
 serve(async (req) => {
@@ -212,7 +207,7 @@ serve(async (req) => {
       const to = profile?.email ?? (typeof sub.customer === 'object' ? sub.customer?.email : null) ?? null;
       if (to) {
         const when = deleteDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-        await sendEmail(to, `Vos fichiers PatchFlow au-delà de 500 Mo seront supprimés le ${when}`, buildWarningEmail(when));
+        await sendEmail(to, `Fin de votre abonnement Pro : faites de la place avant le ${when}`, buildWarningEmail(when));
         await sb.from('pending_data_deletions').update({ notified_at: new Date().toISOString() }).eq('user_id', userId);
       }
     }

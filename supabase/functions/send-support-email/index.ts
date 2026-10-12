@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import nodemailer from 'npm:nodemailer@6.9.9';
+import { renderEmail, p, quote, details } from '../_shared/email.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -47,22 +48,22 @@ async function logEmail(source: string, kind: string, to: string, subject: strin
 
 /* Email via Resend API (optionnel) — utilisé seulement si RESEND_API_KEY est
    défini ; sinon on passe par nodemailer/SMTP (chemin par défaut, éprouvé). */
-async function sendEmailResend(to: string, subject: string, html: string): Promise<void> {
+async function sendEmailResend(to: string, subject: string, mail: { html: string; text: string }, replyTo?: string): Promise<void> {
   const fromEmail = SMTP_USER || 'noreply@patchflow.fr';
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: `PatchFlow <${fromEmail}>`, to: [to], subject, html }),
+    body: JSON.stringify({ from: `PatchFlow <${fromEmail}>`, to: [to], subject, ...mail, ...(replyTo ? { reply_to: replyTo } : {}) }),
   });
   if (!res.ok) throw new Error(`Resend error ${res.status}: ${await res.text()}`);
 }
 
-async function sendEmail(to: string, subject: string, html: string): Promise<void> {
+async function sendEmail(to: string, subject: string, mail: { html: string; text: string }, replyTo?: string): Promise<void> {
   try {
     if (RESEND_API_KEY) {
-      await sendEmailResend(to, subject, html);
+      await sendEmailResend(to, subject, mail, replyTo);
     } else if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
-      await transporter.sendMail({ from: `PatchFlow <${SMTP_USER}>`, to, subject, html });
+      await transporter.sendMail({ from: `PatchFlow <${SMTP_USER}>`, to, subject, ...mail, ...(replyTo ? { replyTo } : {}) });
     } else {
       throw new Error('Aucun service email configuré (RESEND_API_KEY ou SMTP_* requis)');
     }
@@ -137,62 +138,30 @@ serve(async (req) => {
     const messageHtml  = esc(messageSafe);
     const now = new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris' });
 
-    /* Auto-reply to user */
-    const userHtml = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/></head>
-<body style="font-family:sans-serif;background:#f4f6fb;margin:0;padding:32px">
-<div style="max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.08)">
-  <div style="background:#1d3a5f;padding:24px 28px">
-    <span style="font-size:22px;font-weight:800;color:#fff">PatchFlow</span>
-    <span style="font-size:12px;color:#ff6b1a;font-weight:700;background:rgba(255,107,26,.15);padding:3px 9px;border-radius:20px;margin-left:10px">Support</span>
-  </div>
-  <div style="padding:28px">
-    <p style="font-size:15px;font-weight:600;color:#1d3a5f;margin:0 0 10px">Bonjour ${displayName},</p>
-    <p style="font-size:13px;color:#475569;line-height:1.6;margin:0 0 18px">
-      Nous avons bien reçu votre message concernant <strong>&quot;${subjectHtml}&quot;</strong>.<br/>
-      Notre équipe vous répondra dans les plus brefs délais (24 à 48h).
-    </p>
-    <div style="background:#f8fafc;border-left:3px solid #ff6b1a;border-radius:0 8px 8px 0;padding:14px 16px;margin-bottom:20px">
-      <p style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin:0 0 6px">Votre message</p>
-      <p style="font-size:13px;color:#334155;line-height:1.5;margin:0;white-space:pre-wrap">${messageHtml}</p>
-    </div>
-    <p style="font-size:12px;color:#94a3b8;margin:0">Envoyé le ${now}</p>
-  </div>
-  <div style="background:#f8fafc;padding:14px 28px;border-top:1px solid #e2e8f0;text-align:center">
-    <p style="font-size:11px;color:#94a3b8;margin:0">© ${new Date().getFullYear()} PatchFlow · <a href="https://patchflow.fr" style="color:#ff6b1a;text-decoration:none">patchflow.fr</a></p>
-  </div>
-</div></body></html>`;
+    /* Accusé de réception */
+    const userMail = renderEmail({
+      tag: 'Support', title: 'Nous avons bien reçu votre message', preheader: `Réponse sous 24 à 48 heures ouvrées : « ${subjectHtml} »`,
+      body: p(`Bonjour ${displayName},`) +
+        p('Merci de nous avoir écrit. Votre demande est enregistrée et nous vous répondrons sous 24 à 48&nbsp;heures ouvrées, à cette adresse.') +
+        details([['Sujet', subjectHtml], ['Envoyé le', esc(now)]]) +
+        quote('Votre message', messageHtml) +
+        p('Pour ajouter une précision ou une capture d\'écran, répondez simplement à cet e-mail.'),
+      reason: 'Cet accusé de réception fait suite au message envoyé depuis l\'aide de PatchFlow.',
+    });
 
-    /* Team notification */
-    const teamHtml = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/></head>
-<body style="font-family:sans-serif;background:#0f1525;margin:0;padding:32px">
-<div style="max-width:560px;margin:0 auto;background:#1a2340;border-radius:12px;overflow:hidden;border:1px solid #2c3f5f">
-  <div style="background:#ff6b1a;padding:16px 24px">
-    <p style="color:#fff;font-weight:800;font-size:16px;margin:0">&#127911; Nouveau ticket support</p>
-    <p style="color:rgba(255,255,255,.8);font-size:12px;margin:4px 0 0">${now}</p>
-  </div>
-  <div style="padding:24px">
-    <table style="width:100%;border-collapse:collapse;margin-bottom:18px">
-      <tr><td style="padding:6px 0;font-size:11px;color:#64748b;width:100px">Utilisateur</td>
-          <td style="padding:6px 0;font-size:13px;color:#e2e8f0;font-weight:600">${displayName}</td></tr>
-      <tr><td style="padding:6px 0;font-size:11px;color:#64748b">Email</td>
-          <td style="padding:6px 0;font-size:13px;color:#ff6b1a">${esc(user.email ?? '')}</td></tr>
-      <tr><td style="padding:6px 0;font-size:11px;color:#64748b">Sujet</td>
-          <td style="padding:6px 0;font-size:13px;color:#e2e8f0;font-weight:600">${subjectHtml}</td></tr>
-    </table>
-    <div style="background:#0f1525;border-radius:8px;padding:16px;border:1px solid #2c3f5f">
-      <p style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin:0 0 8px">Message</p>
-      <p style="font-size:13px;color:#cbd5e1;line-height:1.6;margin:0;white-space:pre-wrap">${messageHtml}</p>
-    </div>
-    <div style="margin-top:16px;padding:12px;background:rgba(255,107,26,.08);border-radius:8px;border:1px solid rgba(255,107,26,.2)">
-      <p style="font-size:12px;color:#94a3b8;margin:0">Répondre à : <a href="mailto:${esc(user.email ?? '')}" style="color:#ff6b1a">${esc(user.email ?? '')}</a></p>
-    </div>
-  </div>
-</div></body></html>`;
+    /* Notification de l'équipe : répondre à l'e-mail répond directement à l'utilisateur */
+    const teamMail = renderEmail({
+      tag: 'Nouveau ticket', title: subjectHtml, preheader: `${displayName} · ${esc(user.email ?? '')}`,
+      body: details([['De', displayName], ['E-mail', `<a href="mailto:${esc(user.email ?? '')}" style="color:#e8590c">${esc(user.email ?? '')}</a>`], ['Reçu le', esc(now)], ['Compte', esc(user.id)]]) +
+        quote('Message', messageHtml),
+      cta: { label: 'Répondre', url: `mailto:${encodeURIComponent(user.email ?? '')}?subject=${encodeURIComponent('Re: ' + subjectSafe)}` },
+      reason: 'Ticket envoyé depuis le formulaire d\'aide de l\'app. Répondre à cet e-mail écrit directement à l\'utilisateur.',
+    });
 
     /* 1. Notification équipe support (domaine interne) */
     let teamOk = false;
     try {
-      await sendEmail(SUPPORT_EMAIL, `[Support] ${subjectSafe} — ${displayNameRaw} (${user.email})`, teamHtml);
+      await sendEmail(SUPPORT_EMAIL, `[Support] ${subjectSafe} — ${displayNameRaw} (${user.email})`, teamMail, user.email ?? undefined);
       teamOk = true;
     } catch (teamErr) {
       console.error('[send-support-email] Notification support échouée:', teamErr instanceof Error ? teamErr.message : teamErr);
@@ -201,7 +170,7 @@ serve(async (req) => {
     /* 2. Confirmation au client (même transport nodemailer/SMTP éprouvé) */
     let clientOk = false;
     try {
-      await sendEmail(user.email!, `[PatchFlow] Votre message a bien été reçu — ${subjectSafe}`, userHtml);
+      await sendEmail(user.email!, `Votre demande au support PatchFlow : ${subjectSafe}`, userMail, SUPPORT_EMAIL);
       clientOk = true;
     } catch (emailErr) {
       console.error('[send-support-email] Confirmation client échouée:', emailErr instanceof Error ? emailErr.message : emailErr);
