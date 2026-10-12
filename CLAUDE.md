@@ -1,0 +1,24 @@
+# PatchFlow
+
+Application web (français) pour techniciens son/scène : input lists, patchs, racks, plans de scène, RF, riders, consoles (SQ5, DM7). Site : https://patchflow.fr
+
+## Architecture
+- Front 100 % statique, sans build : `index.html` (accueil), `app.html` + `pf-app.js` + `pf-app.css` (l'app), `rider.html`, `pf-rf.js` (module RF), pages légales (`cgu.html`, `cgv.html`, `confidentialite.html`, `mentions-legales.html`).
+- Back : Supabase (projet `ofiiutcueoogmtdvaupg`) — migrations SQL et edge functions dans `supabase/`. Paiement : Stripe (`stripe-checkout`, `stripe-webhook`). Les fonctions `lemonsqueezy-*` sont l'ancien prestataire.
+- Hébergement : o2switch (cPanel). Le `.cpanel.yml` est obsolète (il copie `soundbooth_12.html`) ; le déploiement se fait à la main depuis cPanel.
+- `pf-app.js` fait ~1,5 Mo : utiliser `grep -a` (le fichier est vu comme binaire) et lire par plages de lignes.
+- `.gitignore` ignore tout par défaut : tout nouveau fichier à versionner doit être ajouté en `!nom`.
+
+## Lancer / tester
+- `python3 serve.py` puis ouvrir `http://127.0.0.1:7821/app.html` (Chromium + Playwright sont préinstallés dans le cloud pour les captures).
+- Tests RF : ouvrir `http://127.0.0.1:7821/tests/rf.html`.
+- Le login (Supabase/Google) ne marche pas en local sans compte ; utiliser des données de démonstration pour vérifier le rendu.
+
+## Règles
+- Pas de secrets dans le dépôt (clés Stripe, clé de service Supabase : uniquement dans Supabase/cPanel). Seule la clé anon publique est dans `pf-app.js`.
+- Les edge functions et migrations ne se déploient pas depuis le cloud (pas de CLI Supabase authentifiée) : fournir les commandes à lancer.
+- Messages de commit en français, une ligne descriptive, comme l'historique existant.
+
+## État (12 oct. 2026)
+- Fenêtre « Pro » refaite (paiement direct, 1 mois offert) ; paiement Stripe réel non testé.
+- En cours : valider la marque Google OAuth (afficher « PatchFlow » au lieu du domaine Supabase) → vérifier `patchflow.fr` dans la Search Console par TXT DNS (Name `patchflow.fr.`/`@`, TTL 14400), attendre 24 h, relancer la validation dans Google Cloud.
