@@ -4,7 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>PatchFlow — Input list, plans de scène et rider partagé</title>
-<meta name="description" content="L'outil de préparation des ingés son : input list, output list, plans de scène et de site, synoptique, fichiers de prod — et un lien toujours à jour pour le régisseur et le backline."/>
+<meta name="description" content="Input list, output list, plans de scène et de site, synoptique, racks, liaisons HF et bon du loueur dans le même show. Un lien en lecture seule pour le régisseur, le loueur et le groupe."/>
 <meta name="theme-color" content="#f6f5f2"/>
 <link rel="canonical" href="https://patchflow.fr/"/>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
@@ -13,7 +13,7 @@
 <meta property="og:locale" content="fr_FR"/>
 <meta property="og:url" content="https://patchflow.fr/"/>
 <meta property="og:title" content="PatchFlow — Moins de mails. Plus de son."/>
-<meta property="og:description" content="Patch, plans, racks et matériel d'une date au même endroit, et un lien toujours à jour pour toute l'équipe."/>
+<meta property="og:description" content="Input list, plans, racks et liaisons HF d'une date au même endroit, avec un lien en lecture seule pour le régisseur, le loueur et le groupe."/>
 <meta property="og:image" content="https://patchflow.fr/img/lp-hero-il.jpg?v=3"/>
 <meta name="twitter:card" content="summary_large_image"/>
 <meta name="twitter:title" content="PatchFlow — Moins de mails. Plus de son."/>
@@ -27,7 +27,7 @@
 <link rel="preload" as="image" href="img/lp-m-il.avif?v=2" type="image/avif" media="(max-width:760px)" fetchpriority="high"/>
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"SoftwareApplication","name":"PatchFlow","applicationCategory":"BusinessApplication","operatingSystem":"Web","inLanguage":"fr",
-"description":"Input list, output list, plans de scène, de site, synoptique, racks et bon du loueur pour les techniciens son, avec partage par lien en lecture seule.",
+"description":"Input list, output list, plans de scène, de site, synoptique, racks, liaisons HF et bon du loueur pour les techniciens son, avec partage par lien en lecture seule.",
 "author":{"@type":"Person","name":"William Lopes Da Mota"},
 "featureList":["Input list et output list","Plan de scène et plan de site","Synoptique de signal","Dessin de racks 19 pouces","Demande de matériel et contrôle du bon du loueur","Import d'un patch depuis un PDF","Exports console X32, M32, WING, dLive, SQ, Yamaha","Rider partagé par lien"],
 "url":"https://patchflow.fr/","image":"https://patchflow.fr/img/lp-hero-il.jpg?v=3",
@@ -538,7 +538,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
     <div class="hero-grid">
       <h1 class="display">Moins de mails. Plus de son.</h1>
       <div>
-        <p class="lede">L'outil de préparation des techniciens son&nbsp;: patch, plans, racks, liaisons HF et matériel d'une date au même endroit — et un lien toujours à jour pour le régisseur, le loueur et le groupe.</p>
+        <p class="lede">Input list, plans, racks, liaisons HF et bon du loueur dans le même show. Un lien en lecture seule pour le régisseur, le loueur et le groupe&nbsp;: quand le patch bouge la veille, ils ont la dernière version, pas le PDF d'avant.</p>
         <div class="ctas">
           <a class="btn btn-lg" href="app.html?signup=1">Essayer gratuitement</a>
           <a class="more" href="#partage">Voir un rider partagé <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10h12M11 5l5 5-5 5"/></svg></a>
@@ -549,27 +549,27 @@ html[data-view=mobile] .notes h3{margin-top:0}
 
     <div class="scope">
       <div class="scope-hd">
-        <h2>Toute la préparation d'une date, dans un seul outil.</h2>
+        <h2>De l'input list au bon du loueur, tout est dans le show.</h2>
         <p>Pour l'ingé façade, l'ingé retours, le régisseur son et le prestataire.</p>
       </div>
       <div class="scope-grid">
         <div class="scope-col">
           <p class="scope-k"><span>01</span>Le patch</p>
-          <a href="#accueil"><svg class="sc-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg><span class="sc-t"><b>Input list</b><span>Canaux, micros, 48V, retours</span></span><svg class="sc-a" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 10h10M11 6l4 4-4 4"/></svg></a>
+          <a href="#accueil"><svg class="sc-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg><span class="sc-t"><b>Input list</b><span>Voies, micro/DI, gain, 48V, façade et retours</span></span><svg class="sc-a" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 10h10M11 6l4 4-4 4"/></svg></a>
           <a href="#fonctions"><svg class="sc-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h11M11 8l4 4-4 4M19 5v14"/></svg><span class="sc-t"><b>Output list</b><span>Wedges, in-ears, fréquences HF</span></span><svg class="sc-a" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 10h10M11 6l4 4-4 4"/></svg></a>
-          <a href="#materiel"><svg class="sc-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 18v-6M9.5 14.5 12 12l2.5 2.5"/></svg><span class="sc-t"><b>Reprise d'un rider</b><span>Le patch du groupe, importé du PDF</span></span><svg class="sc-a" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 10h10M11 6l4 4-4 4"/></svg></a>
+          <a href="#materiel"><svg class="sc-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 18v-6M9.5 14.5 12 12l2.5 2.5"/></svg><span class="sc-t"><b>Reprise d'un rider</b><span>Le patch de la fiche technique, lu depuis le PDF</span></span><svg class="sc-a" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 10h10M11 6l4 4-4 4"/></svg></a>
         </div>
         <div class="scope-col">
           <p class="scope-k"><span>02</span>Les plans</p>
-          <a href="#plans"><svg class="sc-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg><span class="sc-t"><b>Plan de scène</b><span>Canaux et sorties sur le plateau</span></span><svg class="sc-a" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 10h10M11 6l4 4-4 4"/></svg></a>
+          <a href="#plans"><svg class="sc-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg><span class="sc-t"><b>Plan de scène</b><span>Voies et retours placés sur le plateau</span></span><svg class="sc-a" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 10h10M11 6l4 4-4 4"/></svg></a>
           <a href="#plans"><svg class="sc-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg><span class="sc-t"><b>Plan de site</b><span>Enceintes, régies, tirages de câbles</span></span><svg class="sc-a" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 10h10M11 6l4 4-4 4"/></svg></a>
           <a href="#plans"><svg class="sc-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M7 6h10M6.2 7.6l4.7 8.6M17.8 7.6l-4.7 8.6"/></svg><span class="sc-t"><b>Synoptique</b><span>Le trajet du signal, réseau par réseau</span></span><svg class="sc-a" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 10h10M11 6l4 4-4 4"/></svg></a>
         </div>
         <div class="scope-col">
           <p class="scope-k"><span>03</span>Le matériel</p>
           <a href="#materiel"><svg class="sc-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16M4 15h16M8 6h.01M8 12h.01M8 18h.01"/></svg><span class="sc-t"><b>Racks</b><span>Dessinés unité par unité, câblage compris</span></span><svg class="sc-a" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 10h10M11 6l4 4-4 4"/></svg></a>
-          <a href="#hf"><svg class="sc-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21V11M8 7a5 5 0 0 1 8 0M5 4a9 9 0 0 1 14 0"/><circle cx="12" cy="10" r="1.2"/></svg><span class="sc-t"><b>Liaisons HF</b><span>Fréquences compatibles, calculées</span></span><svg class="sc-a" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 10h10M11 6l4 4-4 4"/></svg></a>
-          <a href="#materiel"><svg class="sc-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 12.5l2 2 4-4.5"/></svg><span class="sc-t"><b>Bon du loueur</b><span>La demande, puis le contrôle du bon reçu</span></span><svg class="sc-a" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 10h10M11 6l4 4-4 4"/></svg></a>
+          <a href="#hf"><svg class="sc-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21V11M8 7a5 5 0 0 1 8 0M5 4a9 9 0 0 1 14 0"/><circle cx="12" cy="10" r="1.2"/></svg><span class="sc-t"><b>Liaisons HF</b><span>Fréquences calculées, intermodulation comprise</span></span><svg class="sc-a" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 10h10M11 6l4 4-4 4"/></svg></a>
+          <a href="#materiel"><svg class="sc-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 12.5l2 2 4-4.5"/></svg><span class="sc-t"><b>Bon du loueur</b><span>La demande de matériel, puis le pointage du bon</span></span><svg class="sc-a" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 10h10M11 6l4 4-4 4"/></svg></a>
         </div>
         <div class="scope-col">
           <p class="scope-k"><span>04</span>La sortie</p>
@@ -603,9 +603,9 @@ html[data-view=mobile] .notes h3{margin-top:0}
       </div>
     </figure>
     <ol class="notes" aria-label="Sur cette capture">
-      <li><span class="n" aria-hidden="true">1</span><div><h3>Colonnes à la carte</h3><p>Ajoutez vos colonnes, masquez celles qui ne servent pas, réordonnez-les d'un glisser.</p></div></li>
-      <li><span class="n" aria-hidden="true">2</span><div><h3>+48V, façade, retours</h3><p>Cochés d'un clic, lisibles d'un coup d'œil sur les 24 lignes.</p></div></li>
-      <li><span class="n" aria-hidden="true">3</span><div><h3>Enregistré en continu</h3><p>Chaque modification est sauvegardée et apparaît en direct chez vos collègues.</p></div></li>
+      <li><span class="n" aria-hidden="true">1</span><div><h3>Colonnes à la carte</h3><p>Gardez les colonnes qui servent, masquez le reste, changez l'ordre en glissant.</p></div></li>
+      <li><span class="n" aria-hidden="true">2</span><div><h3>+48V, façade, retours</h3><p>Une case à cocher chacun : on voit d'un coup d'œil ce qui demande du 48V, ce qui part en façade et ce qui est dans les retours.</p></div></li>
+      <li><span class="n" aria-hidden="true">3</span><div><h3>Enregistré en continu</h3><p>Pas de bouton «&nbsp;enregistrer&nbsp;». Une modif au patch apparaît en direct chez les autres membres du show.</p></div></li>
     </ol>
   </div>
 </section>
@@ -615,12 +615,12 @@ html[data-view=mobile] .notes h3{margin-top:0}
   <div class="w split">
     <div>
       <p class="kicker">Output list</p>
-      <h2>Vos retours, clairs du premier coup.</h2>
-      <p class="lede">Wedges, IEM, side fills, matrices&nbsp;: chaque sortie avec son type, sa destination, son mix et sa fréquence HF. Le plan de retours tient sur une page, et se partage comme le reste.</p>
+      <h2>Les retours, sortie par sortie.</h2>
+      <p class="lede">Wedges, IEM, matrices&nbsp;: chaque sortie a son type, sa destination et sa fréquence HF quand c'est une liaison in-ear. L'output list s'exporte en PDF et se partage comme l'input list.</p>
       <ul class="facts">
-        <li><h3>Types de sortie</h3><p>Monitor, IEM, sub, matrix, FX, repérés par couleur.</p></li>
-        <li><h3>Fréquences HF</h3><p>Notées sur chaque départ in-ear, prêtes pour la coordination.</p></li>
-        <li><h3>Assistant</h3><p>Les départs courants posés en quelques clics, puis ajustés à la main.</p></li>
+        <li><h3>Types de sortie</h3><p>Main, sub, monitor, IEM, aux, groupe, matrix, FX&nbsp;: une couleur par type.</p></li>
+        <li><h3>Fréquences HF</h3><p>Notée sur chaque départ in-ear, pour ne pas la chercher dans un autre fichier le jour J.</p></li>
+        <li><h3>Assistant</h3><p>Les départs habituels posés d'un coup, à ajuster ensuite à la main.</p></li>
       </ul>
       <div class="view-sw in-split" role="group" aria-label="Format d'affichage de l'app"><button type="button" data-view="desktop" aria-pressed="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="10" rx="1.5"/><path d="M7 16.5h6M10 13.5v3"/></svg>Ordinateur</button><button type="button" data-view="mobile" aria-pressed="false"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="2" width="9" height="16" rx="2"/><path d="M9 15h2"/></svg>Mobile</button></div>
     </div>
@@ -653,7 +653,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
         <p class="kicker">Plans</p>
         <h2>Trois plans, un seul show.</h2>
       </div>
-      <p class="lede">Le plan de scène pour le backline, le plan de site pour la salle, le synoptique pour la presta. Tous tirés de la même input list.</p>
+      <p class="lede">Plan de scène pour le plateau et le backline, plan de site pour la salle, synoptique pour la presta. Les numéros de voies viennent de l'input list, pas d'une deuxième saisie.</p>
     </div>
 
     <div class="plan-bar">
@@ -688,9 +688,9 @@ html[data-view=mobile] .notes h3{margin-top:0}
         </div>
       </figure>
       <ol class="notes" aria-label="Sur cette capture">
-        <li><span class="n" aria-hidden="true">1</span><div><h3>Canaux sur le plateau</h3><p>Chaque instrument et chaque micro affiche son numéro de canal, tiré de l'input list.</p></div></li>
-        <li><span class="n" aria-hidden="true">2</span><div><h3>Retours placés</h3><p>Wedges et IEM portent leur numéro de sortie&nbsp;: le plan de retours se lit sur le plateau.</p></div></li>
-        <li><span class="n" aria-hidden="true">3</span><div><h3>Une version par configuration</h3><p>Club, festival, acoustique&nbsp;: plusieurs plans pour le même show.<span class="tag">Pro</span></p></div></li>
+        <li><span class="n" aria-hidden="true">1</span><div><h3>Numéros de voies sur le plateau</h3><p>Chaque instrument et chaque micro porte son numéro de voie, repris de l'input list.</p></div></li>
+        <li><span class="n" aria-hidden="true">2</span><div><h3>Retours placés</h3><p>Wedges et IEM portent leur numéro de sortie&nbsp;: les retours se lisent directement sur le plan.</p></div></li>
+        <li><span class="n" aria-hidden="true">3</span><div><h3>Une version par configuration</h3><p>Club, festival, format acoustique&nbsp;: un plan par configuration, dans le même show.<span class="tag">Pro</span></p></div></li>
       </ol>
     </div>
 
@@ -719,7 +719,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
       <ol class="notes" aria-label="Sur cette capture">
         <li><span class="n" aria-hidden="true">1</span><div><h3>Tirages de câbles</h3><p>Chaque liaison avec son type — Dante, Speakon, XLR, secteur — et son métrage.</p></div></li>
         <li><span class="n" aria-hidden="true">2</span><div><h3>Légende automatique</h3><p>Les types de câbles utilisés s'ajoutent d'eux-mêmes à la légende.</p></div></li>
-        <li><span class="n" aria-hidden="true">3</span><div><h3>Sur le plan de la salle</h3><p>Importez le plan en image ou en PDF, et implantez par-dessus.</p></div></li>
+        <li><span class="n" aria-hidden="true">3</span><div><h3>Sur le plan de la salle</h3><p>Importez le plan de la salle (image ou PDF) et implantez le système, les régies et les tirages par-dessus.</p></div></li>
       </ol>
     </div>
 
@@ -746,7 +746,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
         </div>
       </figure>
       <ol class="notes" aria-label="Sur cette capture">
-        <li><span class="n" aria-hidden="true">1</span><div><h3>Plus de 110 équipements</h3><p>Consoles, stageboxes, amplis et enceintes des grandes marques, prêts à poser.</p></div></li>
+        <li><span class="n" aria-hidden="true">1</span><div><h3>Plus de 110 équipements</h3><p>Consoles, stageboxes, amplis, enceintes&nbsp;: les références courantes sont déjà dans la bibliothèque.</p></div></li>
         <li><span class="n" aria-hidden="true">2</span><div><h3>Réseau par réseau</h3><p>Dante, AES, MADI, gigaACE, fibre&nbsp;: chaque liaison a sa couleur et son sens.</p></div></li>
         <li><span class="n" aria-hidden="true">3</span><div><h3>Prêt à envoyer</h3><p>Export PDF avec la légende des réseaux, pour la presta ou la fiche technique.</p></div></li>
       </ol>
@@ -760,9 +760,9 @@ html[data-view=mobile] .notes h3{margin-top:0}
     <div class="head">
       <div>
         <p class="kicker">Matériel</p>
-        <h2>Du patch au camion, sans rien oublier.</h2>
+        <h2>Du patch au chargement du camion.</h2>
       </div>
-      <p class="lede">Ce que vous avez dessiné devient la liste du loueur. Et quand son bon revient, PatchFlow vérifie que tout y est.</p>
+      <p class="lede">Le matériel dessiné dans le show sert de base à la demande au loueur. Quand son bon revient, PatchFlow le compare avec le patch et les plans.</p>
     </div>
 
     <div class="mat">
@@ -792,11 +792,11 @@ html[data-view=mobile] .notes h3{margin-top:0}
       <div class="mat-t">
         <p class="kicker">Liaisons HF</p>
         <h3>Des fréquences qui ne se marchent pas dessus.</h3>
-        <p>Importez votre show Wireless Workbench ou ajoutez vos récepteurs Shure et Sennheiser : PatchFlow calcule des fréquences compatibles, intermodulation comprise, et les montre sur le spectre.</p>
+        <p>Importez votre show Wireless Workbench, ou ajoutez vos récepteurs Shure et Sennheiser&nbsp;: PatchFlow calcule des fréquences compatibles, intermodulation comprise, et les affiche sur le spectre.</p>
         <ul class="ticks">
-          <li>Calcul en un clic : robuste, standard ou plus de fréquences</li>
+          <li>Calcul sur les canaux libres, avec l'écart au choix&nbsp;: robuste, standard ou plus de fréquences</li>
           <li>Canaux TV, plages à éviter et scan du lieu pris en compte</li>
-          <li>Fréquences verrouillées, zones, réserve</li>
+          <li>Fréquences verrouillées une fois calées, zones, fréquences de réserve</li>
           <li>Retour vers Wireless Workbench, feuille RF en PDF</li>
         </ul>
         <p class="fine">Le calcul est une aide à la préparation : il se valide par un scan sur place.</p>
@@ -815,11 +815,11 @@ html[data-view=mobile] .notes h3{margin-top:0}
     <div class="mat">
       <div class="mat-t">
         <p class="kicker">Bon du loueur</p>
-        <h3>Le bon est contrôlé avant le départ.</h3>
-        <p>Importez le bon de préparation du loueur&nbsp;: micros, DI, pieds, équipements du synoptique et du plan de site sont comparés ligne par ligne, quantités comprises.</p>
+        <h3>Le bon du loueur, pointé avant de charger.</h3>
+        <p>Importez le bon de préparation du loueur&nbsp;: micros, DI, pieds, et le matériel du synoptique et du plan de site sont pointés ligne par ligne, quantités comprises.</p>
         <ul class="ticks">
           <li>Présent, insuffisant ou absent, en un coup d'œil</li>
-          <li>Conseils&nbsp;: câbles XLR trop justes, pieds sans marge</li>
+          <li>Rappels de terrain&nbsp;: XLR trop justes, pieds sans marge, antennes HF à déporter</li>
           <li>Dans l'autre sens&nbsp;: la demande de matériel en PDF, tirée de vos documents</li>
         </ul>
         <p class="fine">Un contrôle par mois en Gratuit, illimité en Pro</p>
@@ -865,11 +865,11 @@ html[data-view=mobile] .notes h3{margin-top:0}
     <div class="share-grid">
       <div>
         <p class="kicker">Partage</p>
-        <h2>Un lien, et tout le monde a la bonne version.</h2>
-        <p class="lede" style="margin-top:24px">Chaque destinataire reçoit son propre lien, en lecture seule. Il l'ouvre sur son téléphone ou son ordinateur, sans compte ni appli. Vous corrigez un canal à 17&nbsp;h&nbsp;: il recharge, c'est à jour.</p>
+        <h2>Un lien par destinataire, toujours la dernière version.</h2>
+        <p class="lede" style="margin-top:24px">Chaque destinataire a son propre lien, en lecture seule, sans compte ni appli. Vous corrigez une voie à 17&nbsp;h&nbsp;: le régisseur recharge la page et a la version à jour, pas celle du mail de la semaine dernière.</p>
         <ul class="share-list">
           <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg><div><h3>Sans compte</h3><p>Le destinataire ouvre le lien, c'est tout.</p></div></li>
-          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg><div><h3>Sections au choix</h3><p>L'input list pour la presta, les plans pour la salle, tout pour le groupe.</p></div></li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg><div><h3>Sections au choix</h3><p>L'input list pour la presta, les plans pour la salle, le rider complet pour le groupe.</p></div></li>
           <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg><div><h3>Révocable</h3><p>Un lien par destinataire, supprimé en un clic.</p></div></li>
           <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg><div><h3>Lisible au plateau</h3><p>Pensé pour le téléphone, avec des plans qui se zooment au doigt.</p></div></li>
         </ul>
@@ -913,9 +913,9 @@ html[data-view=mobile] .notes h3{margin-top:0}
     <div class="head">
       <div>
         <p class="kicker">Préparation</p>
-        <h2>Tout ce que la date demande, rangé dans le show.</h2>
+        <h2>Les fichiers, la console et l'équipe, avec le patch.</h2>
       </div>
-      <p class="lede">Les fichiers, la console et l'équipe vivent avec le patch. Plus de dossier partagé qui dérive, ni de fiche recopiée à la main.</p>
+      <p class="lede">Riders, show files, exports console et équipe sont rattachés au show. Moins de dossiers partagés où personne ne sait quelle version est la bonne, moins de fiches recopiées à la main.</p>
     </div>
     <div class="cards">
       <article class="card">
@@ -942,7 +942,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
         </div>
         <div class="card-b">
           <h3>Les exports console<span class="tag">Pro</span></h3>
-          <p>Noms de voies, couleurs, patch, gains et +48&nbsp;V envoyés vers la console&nbsp;: Behringer X32 et WING · Midas M32 · Allen&nbsp;&amp;&nbsp;Heath dLive, Avantis et SQ · Yamaha CL, QL et DM7.</p>
+          <p>Un fichier que la console sait importer&nbsp;: noms de voies, couleurs, patch, gains et +48&nbsp;V. Behringer X32 et WING · Midas M32 · Allen&nbsp;&amp;&nbsp;Heath dLive, Avantis et SQ · Yamaha CL, QL et DM7.</p>
           <p class="fine">Et un CSV universel pour tout le reste</p>
         </div>
       </article>
@@ -986,9 +986,9 @@ html[data-view=mobile] .notes h3{margin-top:0}
     <div class="head">
       <div>
         <p class="kicker">Tarifs</p>
-        <h2>Gratuit pour commencer. Pro quand ça tourne.</h2>
+        <h2>Gratuit pour démarrer. Pro quand vous enchaînez les dates.</h2>
       </div>
-      <p class="lede">Le plan Gratuit suffit pour vos premières dates. Le Pro lève toutes les limites et ajoute les exports console, l'IA et vos fichiers&nbsp;; c'est une charge professionnelle déductible. <b>Le premier mois de Pro est offert.</b></p>
+      <p class="lede">Le plan Gratuit tient pour quelques dates&nbsp;: 3 shows, 26 canaux par show. Le Pro enlève les limites et ajoute les exports console, la reprise de liste par IA et le stockage de fichiers. C'est une charge professionnelle déductible. <b>Le premier mois de Pro est offert.</b></p>
     </div>
     <div class="billing" role="group" aria-label="Période de facturation">
       <button type="button" data-bp="monthly" aria-pressed="false">Mensuel</button>
@@ -998,7 +998,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
       <div class="plan">
         <div class="plan-nm">Gratuit</div>
         <div class="price"><b>0 €</b><span>pour toujours</span></div>
-        <p class="fine">Sans carte bancaire. De quoi préparer vos premières dates.</p>
+        <p class="fine">Sans carte bancaire. Largement de quoi préparer une date.</p>
         <ul>
           <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>3 shows · 26 canaux par show</li>
           <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>Input list et output list</li>
@@ -1058,11 +1058,11 @@ html[data-view=mobile] .notes h3{margin-top:0}
     </div>
     <div class="faq">
       <details>
-        <summary>Puis-je l'utiliser sans payer&nbsp;?<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg></summary>
+        <summary>Je peux l'utiliser sans payer&nbsp;?<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg></summary>
         <p>Oui, sans carte bancaire. Le plan Gratuit couvre 3 shows de 26 canaux&nbsp;: input list, output list, plan de scène, plan de site, synoptique, 5 liens de partage et export PDF avec filigrane. Vous passez Pro le jour où vous en avez besoin.</p>
       </details>
       <details>
-        <summary>Puis-je essayer le Pro avant de payer&nbsp;?<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg></summary>
+        <summary>Je peux tester le Pro avant de payer&nbsp;?<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg></summary>
         <p>Oui. Le premier mois de Pro est offert pour un premier abonnement&nbsp;: toutes les fonctions sont ouvertes. Une carte est demandée à l'inscription, mais rien n'est prélevé avant la fin du mois. Si vous résiliez d'ici là, vous ne payez rien et vous repassez en Gratuit, sans perdre vos sessions.</p>
       </details>
       <details>
@@ -1070,7 +1070,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
         <p>Dans l'onglet Équipe, vous cochez les sections à montrer et vous copiez le lien. Le destinataire l'ouvre sans compte, en lecture seule, et voit toujours la dernière version. Vous pouvez créer un lien par destinataire et le supprimer à tout moment.</p>
       </details>
       <details>
-        <summary>Mes données sont-elles en sécurité&nbsp;?<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg></summary>
+        <summary>Mes riders et mes plans sont-ils en sécurité&nbsp;?<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg></summary>
         <p>Chaque modification est enregistrée automatiquement, sans bouton «&nbsp;sauvegarder&nbsp;». Les données sont hébergées en Europe et chiffrées en transit. Chaque membre n'accède qu'aux shows auxquels il est invité, avec le rôle que vous lui donnez.</p>
       </details>
       <details>
@@ -1097,7 +1097,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
       <span class="mono" aria-hidden="true">WL</span>
       <div>
         <p class="kicker">Fait par un technicien</p>
-        <h2>Conçu par William Lopes Da Mota, technicien passionné.</h2>
+        <h2>Conçu par William Lopes Da Mota, technicien.</h2>
       </div>
     </div>
     <div class="auteur-t">
@@ -1109,8 +1109,8 @@ html[data-view=mobile] .notes h3{margin-top:0}
 
 <section class="night final" id="demarrer">
   <div class="w">
-    <h2>Votre prochaine date, préparée au propre.</h2>
-    <p class="lede">Montez le patch, posez les plans, envoyez le lien. Le plan Gratuit suffit pour une date entière.</p>
+    <h2>La prochaine date, préparée avant le chargement.</h2>
+    <p class="lede">Montez le patch, posez les plans, envoyez le lien. Le plan Gratuit suffit pour préparer une date entière.</p>
     <div class="ctas" style="justify-content:center">
       <a class="btn btn-lg" href="app.html?signup=1">Essayer gratuitement</a>
       <a class="btn btn-lg btn-ghost" href="#tarifs">Voir les tarifs</a>
