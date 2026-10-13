@@ -11,11 +11,14 @@
 !pf-dm7-blank.dm7f
 !pf-app.css
 !pf-rf.js
+!pf-road.js
 !pf-rf-catalog.json
 !tests/
 !tests/rf.html
 !tests/rf-fixtures.js
 !tests/shot.js
+!tests/rider-shot.js
+!tests/rider-fixture.js
 !index.html
 !cgu.html
 !confidentialite.html

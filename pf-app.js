@@ -568,7 +568,7 @@ function _showInitError(msg){
 }
 /* Au rechargement, la page où l'on était s'affiche tout de suite, sans repasser par les sessions pendant le
    chargement des données ; la rubrique est ensuite remplie par goTab, une fois le show chargé. */
-const _TABS_OK=['sessions','overview','fichiers','inputlist','showfiles','bon','racks','rf','synoptique','stage','team','settings'];
+const _TABS_OK=['sessions','overview','fichiers','inputlist','showfiles','bon','racks','rf','road','synoptique','stage','team','settings'];
 function _preTab(){
   try{
     var id=localStorage.getItem(TAB_PERSIST_KEY);
@@ -579,7 +579,7 @@ function _preTab(){
     document.querySelectorAll('.tab').forEach(function(t){ t.classList.toggle('on',t.dataset.tab===id && (!t.dataset.mode || t.dataset.mode===(id==='stage'?'scene':'in'))); });
     document.querySelectorAll('.bn-tab').forEach(function(b){ b.classList.remove('on'); });
     (document.getElementById('bn-'+id)||document.getElementById('bn-more'))?.classList.add('on');
-    ['ov-root','bon-root','rk-root'].forEach(function(r){ var el=document.getElementById(r); if(el && !el.firstElementChild) el.innerHTML='<div class="loading"><div class="spinner"></div>Chargement…</div>'; });
+    ['ov-root','bon-root','rk-root','road-root'].forEach(function(r){ var el=document.getElementById(r); if(el && !el.firstElementChild) el.innerHTML='<div class="loading"><div class="spinner"></div>Chargement…</div>'; });
   }catch(e){}
 }
 async function initApp(){
@@ -1258,6 +1258,7 @@ async function switchShow(id, opts){
   _fichPath = [];
   if(document.getElementById('panel-fichiers')?.classList.contains('on')) renderFichiers();
   if(document.getElementById('panel-rf')?.classList.contains('on') && typeof renderRf==='function') renderRf();
+  if(typeof _rdReload==='function') _rdReload();
   if(document.getElementById('panel-showfiles')?.classList.contains('on')){ renderPills(); updateStats(); }
   if(typeof _navSync==='function') _navSync();
 }
@@ -2382,6 +2383,7 @@ const _IL_CELL_RENDERERS={
   long:   r=>`<td data-col="long" data-label="Nom long"><input class="ilinp" value="${_oh(r.long_name||'')}" onchange="scheduleSave('${_jsq(r.id)}','long_name',this.value);renderPills()"/></td>`,
   src:    r=>`<td data-col="src" data-label="Source"><input class="ilinp" style="color:var(--txt2)" value="${_oh(r.source||'')}" onchange="scheduleSave('${_jsq(r.id)}','source',this.value)"/></td>`,
   mic:    r=>`<td data-col="mic" data-label="Micro/DI"><span class="rf-hfw"><input class="ilinp m" value="${_oh(r.mic||'')}" onchange="scheduleSave('${_jsq(r.id)}','mic',this.value)"/>${typeof _rfIlBtn==='function'?_rfIlBtn('il',r):''}</span></td>`,
+  alt:    r=>`<td data-col="alt" data-label="ALT"><input class="ilinp m" style="color:var(--txt2)" value="${_oh((r.custom_data&&r.custom_data._alt)||'')}" placeholder="—" title="Micro ou DI de remplacement accepté (ex. e906, i5). Plusieurs : séparez-les par /" onchange="saveCustomCell('${_jsq(r.id)}','_alt',_ilAltClean(this.value))"/></td>`,
   gain:   r=>`<td data-col="gain" data-label="Gain"><input class="ilinp m" type="number" style="width:42px" value="${r.gain||0}" min="-60" max="60" step="1" onchange="scheduleSave('${_jsq(r.id)}','gain',parseInt(this.value)||0)"/></td>`,
   phantom:r=>`<td data-col="phantom" data-label="+48V" style="text-align:center"><label class="il-tog" title="Alimentation fantôme +48V"><input type="checkbox" class="cb" ${r.phantom?'checked':''} onchange="scheduleSave('${_jsq(r.id)}','phantom',this.checked)"/><span>48V</span></label></td>`,
   iem:    r=>`<td data-col="iem" data-label="IEM"><input class="ilinp m" style="color:var(--grn);width:46px" value="${_oh(r.iem_group||'')}" onchange="scheduleSave('${_jsq(r.id)}','iem_group',this.value)" placeholder="GR1"/></td>`,
@@ -2391,7 +2393,7 @@ const _IL_CELL_RENDERERS={
   bc:     r=>`<td data-col="bc" data-label="BC" style="text-align:center"><label class="il-dot grn" title="Envoyé au broadcast"><input type="checkbox" class="cb grn" ${r.bc?'checked':''} onchange="scheduleSave('${_jsq(r.id)}','bc',this.checked)"/><span></span></label></td>`,
   note:   r=>`<td data-col="note" data-label="Note"><input class="ilinp" list="il-note-list" style="color:var(--txt2)" value="${_oh(r.note||'')}" placeholder="—" onchange="scheduleSave('${_jsq(r.id)}','note',_expandNoteAbbr(this))" onblur="_expandNoteAbbr(this)"/></td>`,
 };
-const _IL_COL_LABELS={short:'Court',long:'Nom long',src:'Source',mic:'Micro/DI',gain:'Gain',phantom:'+48V',iem:'IEM',hf:'Fréq. HF',foh:'FOH',mon:'MON',bc:'BC',note:'Note'};
+const _IL_COL_LABELS={short:'Court',long:'Nom long',src:'Source',mic:'Micro/DI',alt:'ALT',gain:'Gain',phantom:'+48V',iem:'IEM',hf:'Fréq. HF',foh:'FOH',mon:'MON',bc:'BC',note:'Note'};
 /* Reconstruit le thead selon l'ordre effectif (colonnes natives ET
    personnalisées, cf. _orderedColIds). Chaque en-tête est déplaçable. */
 function _renderColHead(){
@@ -2869,7 +2871,7 @@ async function processShowInvites() {
 }
 
 /* ── Rider link builder ── */
-var _riderSections={il:true,out:true,syno:true,stage:true,site:true,racks:false,rf:false,cloud:false};
+var _riderSections={road:false,il:true,out:true,syno:true,stage:true,site:true,racks:false,rf:false,cloud:false};
 var _riderPickedFiles=new Set();
 
 /* ══════════════════════════════════════
@@ -3410,7 +3412,7 @@ function _renderLinksManager(){
     list.innerHTML='<div style="font-size:11px;color:var(--muted);padding:6px 0 2px">Aucun lien créé. Créez votre premier lien de partage.</div>';
     return;
   }
-  var SEC_LABELS={il:'Input List',out:'Output',syno:'Synoptique',stage:'Scène',site:'Site',racks:'Racks',rf:'HF',cloud:'Fichiers',files:'PJ'};
+  var SEC_LABELS={road:'Route',il:'Input List',out:'Output',syno:'Synoptique',stage:'Scène',site:'Site',racks:'Racks',rf:'HF',cloud:'Fichiers',files:'PJ'};
   var base=_riderBase();
   list.innerHTML=_proLinks.map(function(lnk){
     var code=lnk.code||lnk.id;
@@ -3652,7 +3654,7 @@ function selectRiderSection(key){
   _syncRiderBtns();
 }
 function _syncRiderBtns(){
-  ['il','out','syno','stage','site','racks','rf','cloud'].forEach(function(k){
+  ['road','il','out','syno','stage','site','racks','rf','cloud'].forEach(function(k){
     var btn=document.getElementById('sc-'+k);
     if(btn)btn.className='slink-check'+(_riderSections[k]?' checked':'');
   });
@@ -3682,6 +3684,7 @@ const COLS=[
   {id:'long',label:'Nom long',icon:'ti-text-size'},
   {id:'src',label:'Source',icon:'ti-music'},
   {id:'mic',label:'Micro/DI',icon:'ti-microphone'},
+  {id:'alt',label:'ALT (remplacement)',icon:'ti-replace'},
   {id:'gain',label:'Gain',icon:'ti-adjustments'},
   {id:'phantom',label:'+48V',icon:'ti-bolt'},
   {id:'iem',label:'IEM',icon:'ti-headphones'},
@@ -3702,11 +3705,23 @@ function _loadColOrder(){
       var filtered=saved.filter(function(id){return validIds.has(id);});
       /* Ajoute à la fin les colonnes absentes de la sauvegarde (ex: nouvelle
          colonne ajoutée à l'app après que l'utilisateur ait figé son ordre). */
-      COLS.forEach(function(c){ if(filtered.indexOf(c.id)===-1) filtered.push(c.id); });
+      var seenF={}; filtered.forEach(function(id){ seenF[id]=1; }); _colInsertMissing(filtered,seenF);
       return filtered;
     }
   }catch(e){}
   return COLS.map(function(c){return c.id;});
+}
+/* Colonnes natives absentes d'un ordre enregistré (ajoutées à l'app depuis) : placées juste après la colonne
+   qui les précède dans COLS (ALT après Micro/DI), sinon en fin de liste. */
+function _colInsertMissing(out,seen){
+  COLS.forEach(function(c,i){
+    if(seen[c.id]) return;
+    seen[c.id]=1;
+    var at=-1;
+    for(var k=i-1;k>=0&&at<0;k--) at=out.indexOf(COLS[k].id);
+    if(at<0) out.push(c.id); else out.splice(at+1,0,c.id);
+  });
+  return out;
 }
 function _saveColOrder(){try{localStorage.setItem(_COLORDER_KEY,JSON.stringify(colOrder));}catch(e){}}
 let colOrder=_loadColOrder();
@@ -3730,7 +3745,7 @@ function _orderedColIds(src){
   var validBuiltin={}; COLS.forEach(function(c){validBuiltin[c.id]=1;});
   var cm=_customColMap();
   (src||colOrder||[]).forEach(function(id){ if((validBuiltin[id]||cm[id])&&!seen[id]){seen[id]=1;out.push(id);} });
-  COLS.forEach(function(c){ if(!seen[c.id]){seen[c.id]=1;out.push(c.id);} });
+  _colInsertMissing(out,seen);
   _getCustomCols().forEach(function(c){ if(!seen[c.id]){seen[c.id]=1;out.push(c.id);} });
   return out;
 }
@@ -3874,6 +3889,14 @@ async function _saveCustomCols(cols){
 var _customSaveTimers={};
 /* Case « Fréq. HF » d'une entrée ou d'une sortie : si la ligne est liée à une liaison de l'onglet RF,
    c'est la liaison qui est modifiée (elle fait foi) ; sinon la valeur est simplement enregistrée. */
+/* ── Colonne ALT : micros de remplacement acceptés ──
+   Usage des riders : « SM57, ALT e906 ». Plusieurs équivalents se séparent par « / », « , » ou « ou ».
+   Le contrôle du bon du loueur s'en sert : si le modèle demandé manque, un équivalent présent sur le bon le couvre. */
+function _ilAltClean(v){ return String(v||'').replace(/[\x00-\x1f]/g,' ').replace(/\s+/g,' ').trim().slice(0,60); }
+function _ilAltList(v){ return String(v||'').split(/\s*(?:\/|,|;|\bou\b|\bor\b)\s*/i).map(function(x){ return x.trim(); }).filter(Boolean); }
+function _ilAltOf(r){ return (r&&r.custom_data&&r.custom_data._alt)||''; }
+/* Affiche la colonne ALT dès qu'un import en apporte */
+function _ilAltReveal(){ if(visCol.has('alt')) return; visCol.add('alt'); _saveILLayout(); loadColChips(); if(typeof updateColBtn==='function') updateColBtn(); }
 function _ilHfChange(kind,el){
   var id=el.dataset.id;
   if(typeof rfIlFreq==='function' && rfIlFreq(kind,id,el)) return;
@@ -4642,6 +4665,7 @@ var _CSV_FIELDS=[
   {id:'long_name', label:'Nom long', candidates:['nom long','long','long_name','nom','name','label','description','libelle']},
   {id:'source',    label:'Source',   candidates:['source','src','instrument','type']},
   {id:'mic',       label:'Micro/DI', candidates:['micro','mic','di','micro/di','microphone','input']},
+  {id:'alt',       label:'ALT',      candidates:['alt','alternati','rempla','substitu','equivalent','équivalent','backup']},
   {id:'gain',      label:'Gain',     candidates:['gain','trim','level','niveau']},
   {id:'phantom',   label:'Phantom',  candidates:['phantom','+48v','48v','alimentation phantom']},
   {id:'note',      label:'Note',     candidates:['note','notes','commentaire','comment','remarque','pied','pieds','stand','micro stand','mic stand']},
@@ -4820,7 +4844,7 @@ async function doCSVImport(){
       if(de) throw de;
     }
     var startCh=(_csvMode==='replace')?1:(CHS.length?CHS[CHS.length-1].ch+1:1);
-    var inserted=[];
+    var inserted=[], _csvAlt=false;
     for(var i=0;i<dataRows.length;i++){
       var row=dataRows[i];
       var sn=(_csvGetVal(row,'short_name')||'').toUpperCase().slice(0,4);
@@ -4844,6 +4868,7 @@ async function doCSVImport(){
         bc:false,
         note:(_NOTE_ABBR[(_csvGetVal(row,'note')||'').trim().toLowerCase()]||_csvGetVal(row,'note')||'')
       };
+      var _alt=_ilAltClean(_csvGetVal(row,'alt')); if(_alt){ rec.custom_data={_alt:_alt}; _csvAlt=true; }
       if(_patchColReady) rec.patch_id=CUR_PATCH_ID;
       var {data,error}=await sb.from('channels').insert(rec).select().single();
       if(error) throw error;
@@ -4851,6 +4876,7 @@ async function doCSVImport(){
     }
     var {data:freshChs}=await sb.from('channels').select('*').eq('show_id',CUR_SHOW.id).order('ch');
     if(freshChs) CHS=freshChs;
+    if(_csvAlt) _ilAltReveal();
     renderTable();
     closeCSVImport();
     toast(dataRows.length+' canal'+(dataRows.length!==1?'ux':'')+' importe'+(dataRows.length!==1?'s':'')+' !');
@@ -4902,7 +4928,7 @@ function _doCSVImportOut(dataRows){
   }
 }
 // ────────────────────────────────────────────────────────────────
-function exportCSV(){let c='CH,Court,Nom Long,Source,Micro/DI,Gain,Phantom,IEM,FOH,MON,BC,Note\n';CHS.forEach(r=>{c+=`${r.ch},"${(r.short_name||'').trim()}","${r.long_name||''}","${r.source||''}","${r.mic||''}",${r.gain||0},${r.phantom?'On':'Off'},"${r.iem_group||''}",${r.foh?1:0},${r.mon?1:0},${r.bc?1:0},"${r.note||''}"\n`;});dl(c,'text/csv',(CUR_SHOW?.slug||'show')+'_inputlist.csv');}
+function exportCSV(){let c='CH,Court,Nom Long,Source,Micro/DI,ALT,Gain,Phantom,IEM,FOH,MON,BC,Note\n';CHS.forEach(r=>{c+=`${r.ch},"${(r.short_name||'').trim()}","${r.long_name||''}","${r.source||''}","${r.mic||''}","${_ilAltOf(r).replace(/"/g,'""')}",${r.gain||0},${r.phantom?'On':'Off'},"${r.iem_group||''}",${r.foh?1:0},${r.mon?1:0},${r.bc?1:0},"${r.note||''}"\n`;});dl(c,'text/csv',(CUR_SHOW?.slug||'show')+'_inputlist.csv');}
 function _sfGen(id){ return id==='x32'?genX32():id==='wing'?genW():genAH(id); }
 function sfSelect(id){ if(!_SF[id]) return; SF_CUR=id; try{localStorage.setItem('pf_sf_cur',id);}catch(e){} renderShowfiles(); }
 function sfSetOpt(key,val){
@@ -5961,7 +5987,7 @@ async function ilAiPlace(chs){
       toast('⚠️ Limite de '+limit+' canaux atteinte — '+available+' ajouté'+(available>1?'s':'')+' seulement.');
     }
   }
-  let startCh=CHS.length+1, added=0;
+  let startCh=CHS.length+1, added=0, gotAlt=false;
   for(let i=0;i<chs.length;i++){
     const c=chs[i];
     const row={
@@ -5972,11 +5998,13 @@ async function ilAiPlace(chs){
       foh:c.foh!=null?!!c.foh:true, mon:!!c.mon, bc:!!c.bc, note:c.note||''
     };
     if(c.custom_data) row.custom_data=c.custom_data;
+    if(_ilAltClean(c.alt)){ row.custom_data=Object.assign({},row.custom_data||{},{_alt:_ilAltClean(c.alt)}); gotAlt=true; }
     if(_patchColReady) row.patch_id=CUR_PATCH_ID;
     const {data,error}=await sb.from('channels').insert(row).select().single();
     if(error){ toast('Erreur canal '+(i+1)+' : '+error.message); break; }
     CHS.push(data); added++;
   }
+  if(gotAlt) _ilAltReveal();
   renderTable();
   return added;
 }
@@ -5993,6 +6021,7 @@ const _ILPDF_COLS=[
   ['ch',     /^(ch|chan|channel|channels|canal|canaux|voie|voies|n|no|nr|num|numero|patch|in|input|inputs|entree|entrees|ligne|line|piste|pistes|track|tracks|trk|chno|chnum|inputch|#)$/],
   ['mic',    /^(micro|micros|mic|mics|microphone|microphones|capteur|capteurs|di|micdi|microdi|microsdi|micro48v|micline|micdibox|typemicro|typedemicro|capsule|transducteur)$/],
   ['src',    /^(source|sources|groupe|famille|section)$/],
+  ['alt',    /^(alt|alts|alternative|alternatives|alternatif|alternatifs|remplacement|substitut|substitution|equivalent|equivalents|ouequivalent|backup|secours)$/],
   ['stand',  /^(pied|pieds|piedmicro|piedsmicro|pieddemicro|piedmic|stand|stands|micstand|standmic|support|supports|boom|perche|perchette|statif|girafe)$/],
   ['hf',     /^(hf|frequence|frequences|freq|freqhf|frequencehf|rf|frequency)$/],
   ['short',  /^(court|nomcourt|short|shortname|abrev|abreviation)$/],
@@ -6189,9 +6218,9 @@ async function _ilPdfOcrLines(p, onProg){
 }
 /* Lecture brute du tableau : ses colonnes telles qu'elles sont dans le PDF, chacune avec le champ PatchFlow
    deviné. C'est l'utilisateur qui décide ensuite, colonne par colonne, où va chaque donnée (_ilPdfBuild). */
-const _ILPDF_FIELDS=[['','Ignorer'],['ch','N° de voie'],['short','Nom court'],['name','Nom long'],['src','Source'],['mic','Micro / DI'],['stand','Pied micro'],['phantom','48V'],['gain','Gain'],['iem','IEM'],['foh','FOH'],['mon','MON'],['bc','BC'],['hf','Fréquence HF'],['note','Remarque (ajoutée au pied micro)']];
+const _ILPDF_FIELDS=[['','Ignorer'],['ch','N° de voie'],['short','Nom court'],['name','Nom long'],['src','Source'],['mic','Micro / DI'],['alt','ALT (remplacement)'],['stand','Pied micro'],['phantom','48V'],['gain','Gain'],['iem','IEM'],['foh','FOH'],['mon','MON'],['bc','BC'],['hf','Fréquence HF'],['note','Remarque (ajoutée au pied micro)']];
 /* Champ de l'import -> colonne de l'input list, pour afficher ou masquer les colonnes après l'import */
-const _ILPDF_TO_COL={short:'short',name:'long',src:'src',mic:'mic',stand:'note',note:'note',phantom:'phantom',gain:'gain',iem:'iem',foh:'foh',mon:'mon',bc:'bc',hf:'hf'};
+const _ILPDF_TO_COL={short:'short',name:'long',src:'src',mic:'mic',alt:'alt',stand:'note',note:'note',phantom:'phantom',gain:'gain',iem:'iem',foh:'foh',mon:'mon',bc:'bc',hf:'hf'};
 /* Colonnes d'après le corps du tableau : à chaque abscisse, le nombre de lignes qui y portent du texte.
    Une zone sans aucun texte sépare deux colonnes. Avec « pont », une zone qu'une seule ligne traverse entre deux
    zones denses sépare aussi : c'est une cellule qui déborde sur la colonne voisine (« (Petit Pied Perche) »).
@@ -6391,7 +6420,7 @@ function _ilPdfBuild(){
     if(hasCh && !m){
       /* Ligne sans numéro : suite de la précédente si elle est proche, sinon hors tableau (pied de page, légende) */
       if(last && near && !_ilPdf.ai){
-        ['name','short','mic','stand','note','src','dest','otype'].forEach(function(k){ if(cell[k]) last.forEach(function(L){ L[k]=(L[k]?L[k]+' ':'')+cell[k]; }); });
+        ['name','short','mic','alt','stand','note','src','dest','otype'].forEach(function(k){ if(cell[k]) last.forEach(function(L){ L[k]=(L[k]?L[k]+' ':'')+cell[k]; }); });
         Object.keys(extra).forEach(function(k){ last.forEach(function(L){ L.extra[k]=(L.extra[k]?L.extra[k]+' ':'')+extra[k]; }); });
         mark('more');
       } else last=null;
@@ -6408,7 +6437,7 @@ function _ilPdfBuild(){
     last=[];
     for(var k=0;k<n;k++){
       var sfx=n===2?(k?' R':' L'):n>2?' '+(k+1):'';
-      var L={ch:a+k, name:(cell.name||'')+(cell.name?sfx:''), short:(cell.short||'')+(cell.short?sfx:''), src:cell.src||'', mic:cell.mic||'', stand:cell.stand||'', note:cell.note||'',
+      var L={ch:a+k, name:(cell.name||'')+(cell.name?sfx:''), short:(cell.short||'')+(cell.short?sfx:''), src:cell.src||'', mic:cell.mic||'', alt:cell.alt||'', stand:cell.stand||'', note:cell.note||'',
              phantom:yes(cell.phantom), gain:isFinite(g)?g:0, iem:cell.iem||'', otype:cell.otype||'', dest:cell.dest||'', hf:cell.hf||'', extra:Object.assign({},extra)};
       boolCols.forEach(function(q){ L[q]=yes(cell[q]); });
       last.push(L); out.push(L);
@@ -6564,6 +6593,7 @@ async function ilPdfApply(){
       var o={short_name:(sh||nm).toUpperCase().slice(0,10), long_name:nm, source:String(r.src||'').trim(), mic:String(r.mic||'').trim(), gain:r.gain||0, phantom:!!r.phantom, iem_group:String(r.iem||'').trim(),
               note:[r.stand,r.note].map(function(s){ return String(s||'').trim(); }).filter(Boolean).join(' · ')};
       if(String(r.hf||'').trim()){ cd=cd||{}; cd._hf=String(r.hf).trim(); }
+      if(_ilAltClean(r.alt)){ cd=cd||{}; cd._alt=_ilAltClean(r.alt); }
       if(cd) o.custom_data=cd;
       ['foh','mon','bc'].forEach(function(k){ if(r[k]!=null) o[k]=r[k]; });
       return o;
@@ -7952,7 +7982,7 @@ function _loadAutoTable(){
 /* Colonnes Input List retenues pour le PDF (mêmes que la vue, filtrées par
    la visibilité choisie). */
 function _ilColsForPdf(){
-  return [{id:'short',label:'Court'},{id:'long',label:'Nom Long'},{id:'src',label:'Source'},{id:'mic',label:'Micro/DI'},{id:'gain',label:'Gain'},{id:'phantom',label:'+48V'},{id:'iem',label:'IEM'},{id:'hf',label:'Fréq. HF'},{id:'foh',label:'FOH'},{id:'mon',label:'MON'},{id:'bc',label:'BC'},{id:'note',label:'Pied micro'}].filter(function(c){return visCol.has(c.id);});
+  return [{id:'short',label:'Court'},{id:'long',label:'Nom Long'},{id:'src',label:'Source'},{id:'mic',label:'Micro/DI'},{id:'alt',label:'ALT'},{id:'gain',label:'Gain'},{id:'phantom',label:'+48V'},{id:'iem',label:'IEM'},{id:'hf',label:'Fréq. HF'},{id:'foh',label:'FOH'},{id:'mon',label:'MON'},{id:'bc',label:'BC'},{id:'note',label:'Pied micro'}].filter(function(c){return visCol.has(c.id);});
 }
 
 /* Génère un vrai PDF vectoriel des listes (Input / Output / Les deux) — texte
@@ -8013,6 +8043,7 @@ async function _openTablePdf(type, meta, brand, shareUrl){
         cols.forEach(function(c){
           var v;
           if(c.id==='hf') v=(r.custom_data&&r.custom_data._hf)||'';
+          else if(c.id==='alt') v=_ilAltOf(r);
           else v=r[fm[c.id]];
           if(c.id==='phantom') v=v?'+48V':'';
           else if(c.id==='foh'||c.id==='mon'||c.id==='bc') v=v?'X':'';
@@ -16150,9 +16181,9 @@ function _bonKind(it){
 }
 function _bonCompare(){
   var b=_bonLoad(); if(!b) return null;
-  var chs=(typeof CHS!=='undefined'&&CHS)?CHS:[], need={}, sneed={};
+  var chs=(typeof CHS!=='undefined'&&CHS)?CHS:[], need={}, sneed={}, alts={};
   chs.forEach(function(c){
-    var m=String(c.mic||'').trim(); if(m) need[m]=(need[m]||0)+1;
+    var m=String(c.mic||'').trim(); if(m){ need[m]=(need[m]||0)+1; _ilAltList(_ilAltOf(c)).forEach(function(a){ if(!/^(equivalent|équivalent|equiv)$/i.test(a) && _bonNorm(a)!==_bonNorm(m)){ var l=alts[m]||(alts[m]=[]); if(l.indexOf(a)<0) l.push(a); } }); }
     var st=String(c.note||'').trim(); if(st){ var k=_bonStandKind(st); sneed[k]=(sneed[k]||0)+1; }
   });
   var stands=b.items.filter(_bonIsStand), gear=b.items.filter(function(i){return !_bonIsStand(i);});
@@ -16187,7 +16218,23 @@ function _bonCompare(){
             st:ext?'ext':(x.p.hf && !o)?((parts.some(function(pt){return pt.total>0;}) || txLines.length)?'hf':'miss')
               :have>=x.need?'ok':(have>0 || (parts.length && parts.every(function(pt){return pt.total>0;})))?'short':'miss'};
   });
-  var ORD={miss:0,short:1,hf:2,ok:3,ext:4}; mics.sort(function(a,c){ return ORD[a.st]-ORD[c.st] || c.need-a.need || a.model.localeCompare(c.model); });
+  /* Second passage : un modèle qui manque est couvert par un équivalent accepté (colonne ALT) encore libre sur le bon.
+     Après tous les modèles principaux, pour qu'un ALT ne prenne pas la ligne dont un autre canal a besoin. Les micros HF
+     (tête et émetteur) et les rapprochements manuels ne sont pas concernés. */
+  mics.forEach(function(m){
+    var al=alts[m.model]; if(!al || m.hf || m.manual || m.ext || (m.st!=='miss' && m.st!=='short')) return;
+    var lack=m.need-m.have, used=[];
+    al.forEach(function(a){
+      if(lack<=0) return;
+      var ln=_bonMatch(a, gear.filter(function(i){ return i._k==='gear' && i._left>0; })); if(!ln.length) return;
+      var g=take(ln,lack); if(g>0){ used.push({t:a, lines:ln, got:g}); lack-=g; }
+    });
+    m.altFor=al; m.alt=used;
+    if(!used.length) return;
+    m.altGot=m.need-m.have-lack;
+    m.st=lack<=0?'alt':'short';
+  });
+  var ORD={miss:0,short:1,hf:2,alt:3,ok:3,ext:4}; mics.sort(function(a,c){ return ORD[a.st]-ORD[c.st] || c.need-a.need || a.model.localeCompare(c.model); });
   var sh={}; stands.forEach(function(i){ var r=_bonStandsOf(i); Object.keys(r).forEach(function(k){ sh[k]=(sh[k]||0)+r[k]; }); });
   var kinds=['grand','petit','ronde','table','autre'].filter(function(k){ return sneed[k]||sh[k]; });
   var st=kinds.map(function(k){ var n=sneed[k]||0, h=sh[k]||0; return {kind:k, need:n, have:h, st:!n?'extra':h>=n?'ok':h>0?'short':'miss'}; });
@@ -16381,7 +16428,7 @@ function _bonRecoHtml(c){
 
 /* ── Interface ── */
 function _bonE(t){ return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-const _BON_PILL={ok:['ok','Présent'],short:['short','Insuffisant'],miss:['miss','Absent du bon'],hf:['ok hfp','Présent · HF'],ext:['ext','Hors bon'],extra:['ext','En plus']};
+const _BON_PILL={ok:['ok','Présent'],alt:['ok altp','Présent · ALT'],short:['short','Insuffisant'],miss:['miss','Absent du bon'],hf:['ok hfp','Présent · HF'],ext:['ext','Hors bon'],extra:['ext','En plus']};
 function _bonPill(k){ return '<span class="bon-pill '+_BON_PILL[k][0]+'">'+_BON_PILL[k][1]+'</span>'; }
 function _bonRefresh(){
   if(document.getElementById('panel-bon')?.classList.contains('on')) renderBon();
@@ -16447,7 +16494,9 @@ function _bonIlHtml(c){
             if(m.st==='hf') return '<span class="bon-hit">'+lab+pt.lines.map(function(i){return E(i.ref||i.name)+' ×'+i.qty;}).join(' · ')+'</span>';
             return '<span class="bon-hit'+(pt.got<m.need?' bad':'')+'">'+lab+pt.lines.map(function(i){return E(i.ref||i.name)+' ×'+i.qty;}).join(' · ')+(pt.got<m.need?' — '+(pt.got?'il n\'en reste que '+pt.got:'déjà pris par un autre modèle du patch'):'')+'</span>';
           }).join('')
-        +_bonMapSel(m.model,m,c.pool)+'</td><td class="r">'+m.need+'</td><td class="r">'+(m.ext?'—':m.st==='hf'?(m.parts.reduce(function(sum,pt){return Math.max(sum,pt.total);},0)||'—'):m.have)+'</td><td>'+pill(m.st)+'</td></tr>';
+        +(m.alt&&m.alt.length?m.alt.map(function(u){ return '<span class="bon-hit bon-alt"><i>ALT '+E(u.t)+'</i> : '+u.lines.map(function(i){return E(i.ref||i.name)+' ×'+i.qty;}).join(' · ')+' — '+u.got+' en remplacement</span>'; }).join('')
+          :(m.altFor&&(m.st==='miss'||m.st==='short')?'<span class="bon-hit bad"><i>ALT '+E(m.altFor.join(' / '))+'</i> : pas sur le bon non plus</span>':''))
+        +_bonMapSel(m.model,m,c.pool)+'</td><td class="r">'+m.need+'</td><td class="r">'+(m.ext?'—':m.st==='hf'?(m.parts.reduce(function(sum,pt){return Math.max(sum,pt.total);},0)||'—'):m.have+(m.altGot?'<small class="bon-altn"> + '+m.altGot+' ALT</small>':''))+'</td><td>'+pill(m.st)+'</td></tr>';
     }).join('')+'</tbody></table>';
   h+='</div><div><div class="bon-lbl">Pieds de micro</div>';
   if(!c.stands.length) h+='<div class="ov-none">Aucun pied dans l\'input list ni sur le bon.</div>';
@@ -16509,11 +16558,11 @@ function _demBuild(){
   /* Input list : micros, DI et pieds */
   var need={}, sneed={};
   chs.forEach(function(c){
-    var m=String(c.mic||'').trim(); if(m){ var k=_bonNorm(m); (need[k]=need[k]||{name:m,n:0,ch:[]}).n++; need[k].ch.push(c.ch); }
+    var m=String(c.mic||'').trim(); if(m){ var k=_bonNorm(m); (need[k]=need[k]||{name:m,n:0,ch:[],alt:[]}).n++; need[k].ch.push(c.ch); _ilAltList(_ilAltOf(c)).forEach(function(a){ if(need[k].alt.indexOf(a)<0) need[k].alt.push(a); }); }
     var st=String(c.note||'').trim(); if(st){ var sk=_bonStandKind(st); sneed[sk]=(sneed[sk]||0)+1; }
   });
   var src=Object.keys(need).reduce(function(sum,k){ return sum+need[k].n; },0);
-  S('mics','Micros et DI','Input list',Object.keys(need).map(function(k){ var x=need[k]; return {key:'mic:'+k,name:x.name,det:'voie'+(x.ch.length>1?'s':'')+' '+x.ch.join(', '),qty:x.n}; })
+  S('mics','Micros et DI','Input list',Object.keys(need).map(function(k){ var x=need[k]; return {key:'mic:'+k,name:x.name,det:'voie'+(x.ch.length>1?'s':'')+' '+x.ch.join(', ')+(x.alt.length?' · '+(x.alt.length===1&&/^(equivalent|équivalent)$/i.test(x.alt[0])?'ou équivalent':'équivalent accepté : '+x.alt.join(' / ')):''),qty:x.n}; })
     .sort(function(a,b){ return b.qty-a.qty || a.name.localeCompare(b.name); }));
   var nStands=0;
   S('stands','Pieds de micro','Input list',['grand','petit','ronde','table','autre','pince'].filter(function(k){ return sneed[k]; }).map(function(k){ if(k!=='pince') nStands+=sneed[k]; return {key:'std:'+k,name:_BON_STAND[k],det:'',qty:sneed[k]}; }));
@@ -17971,7 +18020,7 @@ function renderOverview(){
 
   /* Riders envoyés */
   var links=(typeof _proLinks!=='undefined'&&_lastLinksShowId===s.id)?_proLinks:null;
-  var SEC={il:'Input list',out:'Output list',syno:'Synoptique',stage:'Scène',site:'Site',racks:'Racks',rf:'Liaisons HF',cloud:'Fichiers',files:'Pièces jointes'};
+  var SEC={road:'Feuille de route',il:'Input list',out:'Output list',syno:'Synoptique',stage:'Scène',site:'Site',racks:'Racks',rf:'Liaisons HF',cloud:'Fichiers',files:'Pièces jointes'};
   h+='<section class="ov-card"><div class="ov-card-hd"><h2>Riders envoyés</h2><button class="ov-link" onclick="goTab(\'team\',null)">Gérer</button></div>';
   if(links&&links.length){
     h+=links.slice(0,4).map(function(l){
@@ -22318,6 +22367,7 @@ function goTab(id,el){
   if(id==='admin') renderAdmin();
   if(id==='racks') renderRacks();
   if(id==='rf' && typeof renderRf==='function') renderRf();
+  if(id==='road' && typeof renderRoad==='function') renderRoad();
   if(id==='settings' && !document.querySelector('#panel-settings .set-sec.on')) setNav('profil');
   if(typeof _ilSelSync==='function') _ilSelSync();
   if(typeof _rfSelSync==='function') _rfSelSync();
@@ -23729,7 +23779,7 @@ function _svFs(imgId, title){
           var or=_prj.data.overrideRider;
           /* La sélection du propriétaire est respectée telle quelle : un lien
              « Input List seule » (['il']) affichait auparavant TOUTES les sections. */
-          sections=(Array.isArray(or.sections)&&or.sections.length)?or.sections.filter(function(x){return ['il','out','syno','stage','site','racks','rf','cloud'].indexOf(x)>=0;}):['il','out','syno','stage','site'];
+          sections=(Array.isArray(or.sections)&&or.sections.length)?or.sections.filter(function(x){return ['road','il','out','syno','stage','site','racks','rf','cloud'].indexOf(x)>=0;}):['il','out','syno','stage','site'];
           rTitle=or.title||'';rNote=or.note||'';rInfo=or.info||'';
           rFiles=or.files||[];
           /* Injecter les snapshots dans le preShow.stage_data.rider pour que
@@ -23753,7 +23803,7 @@ function _svFs(imgId, title){
     }
   }else{
     // Legacy ?view= URL params
-    const _VALID_SECS=new Set(['il','out','syno','stage','site','racks','rf','files']);
+    const _VALID_SECS=new Set(['road','il','out','syno','stage','site','racks','rf','files']);
     const legacyTab=p.get('tab');
     const rawSecs=p.get('sections');
     /* Mapper le tab legacy vers la bonne section (QR codes des exports PDF) */
@@ -23776,9 +23826,9 @@ function _svFs(imgId, title){
   document.documentElement.removeAttribute('data-theme');
   var SV_LOGO='<svg width="28" height="28" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M70 60 C100 60 100 140 130 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round"/><path d="M130 60 C100 60 100 140 70 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round" opacity="0.45"/><circle cx="60" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="60" r="5" fill="#FF6B2B"/><circle cx="140" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="60" r="5" fill="#FF6B2B"/><circle cx="60" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="140" r="5" fill="#FF6B2B"/><circle cx="140" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="140" r="5" fill="#FF6B2B"/></svg>';
   var SV_LOGO_SM='<svg width="22" height="22" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M70 60 C100 60 100 140 130 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round"/><path d="M130 60 C100 60 100 140 70 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round" opacity=".45"/><circle cx="60" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="60" r="5" fill="#FF6B2B"/><circle cx="140" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="60" r="5" fill="#FF6B2B"/><circle cx="60" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="140" r="5" fill="#FF6B2B"/><circle cx="140" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="140" r="5" fill="#FF6B2B"/></svg>';
-  var secLabels={il:'Input list',out:'Output list',syno:'Synoptique',stage:'Plan de scène',site:'Plan de site',racks:'Racks',rf:'Liaisons HF',cloud:'Fichiers',files:'Pièces jointes'};
-  var secIcons={il:'ti-list-numbers',out:'ti-arrow-bar-to-right',syno:'ti-topology-star-3',stage:'ti-layout-board',site:'ti-map-2',racks:'ti-server',rf:'ti-antenna',cloud:'ti-folders',files:'ti-paperclip'};
-  var _VALID_SEC_SET=new Set(['il','out','syno','stage','site','racks','rf','cloud','files']);
+  var secLabels={road:'Feuille de route',il:'Input list',out:'Output list',syno:'Synoptique',stage:'Plan de scène',site:'Plan de site',racks:'Racks',rf:'Liaisons HF',cloud:'Fichiers',files:'Pièces jointes'};
+  var secIcons={road:'ti-route',il:'ti-list-numbers',out:'ti-arrow-bar-to-right',syno:'ti-topology-star-3',stage:'ti-layout-board',site:'ti-map-2',racks:'ti-server',rf:'ti-antenna',cloud:'ti-folders',files:'ti-paperclip'};
+  var _VALID_SEC_SET=new Set(['road','il','out','syno','stage','site','racks','rf','cloud','files']);
 
   /* Nettoyer les sections et rFiles :
      - uniquement les sections valides ;
@@ -23903,6 +23953,10 @@ function _svFs(imgId, title){
     // Inject CHS snapshot for canvas renderers
     if(rows.length){CHS.splice(0,CHS.length,...rows);}
   }catch(err){document.getElementById('sv-body').innerHTML='<div style="text-align:center;color:#f87171;margin-top:60px">Erreur: '+esc(err.message)+'</div>';return;}
+
+  /* Les modules chargés après pf-app.js (pf-rf.js, pf-road.js) doivent être prêts avant le premier rendu :
+     la réponse du serveur, préchargée dans le <head>, arrive souvent avant la fin du chargement des scripts. */
+  if(document.readyState==='loading') await new Promise(function(res){ document.addEventListener('DOMContentLoaded',res,{once:true}); });
 
   // ── Section renderers ──
   var now=new Date().toLocaleString('fr-FR');
@@ -24053,6 +24107,7 @@ function _svFs(imgId, title){
     var h=_showMeta;
     /* Colonnes facultatives : affichées seulement si au moins un canal les renseigne */
     var _hfOf=function(r){return (r.custom_data&&r.custom_data._hf)||'';};
+    var _altOf=function(r){return (r.custom_data&&r.custom_data._alt)||'';};
     var hasHf=rows.some(function(r){return _hfOf(r);});
     var hasSrc=rows.some(function(r){return r.source;}), hasNote=rows.some(function(r){return r.note;});
     var _customCols=(show.stage_data&&show.stage_data.il_custom_cols)||[];
@@ -24072,16 +24127,18 @@ function _svFs(imgId, title){
     if(!rows.length) return h+_svEmpty('ti-list-numbers','Aucun canal dans ce patch','');
     h+='<div class="sv-card"><table class="sv-tbl sv-il"><thead><tr><th class="c">CH</th><th>Nom</th>'+(hasSrc?'<th>Source</th>':'')+'<th>Micro / DI</th><th>Envois</th>'
       +(hasHf?'<th>Fréq. HF</th>':'')+_visCustom.map(function(c){return '<th>'+esc(c.label||'')+'</th>';}).join('')+(hasNote?'<th>Pied / note</th>':'')+'</tr></thead><tbody>';
+    var _C=_svChgFor('il'), _cc=function(r,ks){ var c=_C&&_C.cells[r.id]; if(!c) return ''; var hit=ks.filter(function(k){ return c[k]!==undefined; }); if(!hit.length) return ''; return ' sv-chgc" title="Avant : '+esc(hit.map(function(k){ return String(c[k]||'vide'); }).join(' · ')); };
     rows.forEach(function(r){
       var tags=(r.phantom?'<span class="sv-tag y">48V</span>':'')+(r.foh?'<span class="sv-tag g">FOH</span>':'')+(r.mon?'<span class="sv-tag b">MON</span>':'')+(r.iem_group?'<span class="sv-tag p">'+esc(r.iem_group)+'</span>':'');
-      h+='<tr><td class="sv-ch"><b>'+r.ch+'</b></td>'
-        +'<td class="sv-n"><b>'+esc(r.short_name||'')+'</b>'+(r.long_name?'<span>'+esc(r.long_name)+'</span>':'')+'</td>'
-        +(hasSrc?'<td class="sv-mu" data-l="Source">'+esc(r.source||'')+'</td>':'')
-        +'<td class="sv-mo" data-l="Micro">'+esc(r.mic||'')+'</td>'
-        +'<td class="sv-tags">'+tags+'</td>'
-        +(hasHf?'<td class="sv-f" data-l="HF">'+esc(_hfOf(r))+'</td>':'')
+      var _st=_C&&_C.ids[r.id];
+      h+='<tr'+(_st?' class="sv-chg'+(_st==='new'?' new':'')+'"':'')+'><td class="sv-ch'+_cc(r,['ch'])+'"><b>'+r.ch+'</b></td>'
+        +'<td class="sv-n'+_cc(r,['short_name','long_name'])+'"><b>'+esc(r.short_name||'')+'</b>'+(r.long_name?'<span>'+esc(r.long_name)+'</span>':'')+(_st?'<em class="sv-chg-t">'+(_st==='new'?'nouveau':'modifié')+'</em>':'')+'</td>'
+        +(hasSrc?'<td class="sv-mu'+_cc(r,['source'])+'" data-l="Source">'+esc(r.source||'')+'</td>':'')
+        +'<td class="sv-mo'+_cc(r,['mic','_alt'])+'" data-l="Micro">'+esc(r.mic||'')+(_altOf(r)?'<span class="sv-alt" title="Remplacement accepté">ALT '+esc(_altOf(r))+'</span>':'')+'</td>'
+        +'<td class="sv-tags'+_cc(r,['phantom','foh','mon','iem_group'])+'">'+tags+'</td>'
+        +(hasHf?'<td class="sv-f'+_cc(r,['_hf'])+'" data-l="HF">'+esc(_hfOf(r))+'</td>':'')
         +_visCustom.map(function(c){return '<td data-l="'+esc(c.label||'')+'">'+_custCell(c,r)+'</td>';}).join('')
-        +(hasNote?'<td class="sv-mu" data-l="Pied / note">'+esc(r.note||'')+'</td>':'')
+        +(hasNote?'<td class="sv-mu'+_cc(r,['note'])+'" data-l="Pied / note">'+esc(r.note||'')+'</td>':'')
         +'</tr>';
     });
     h+='</tbody></table></div>'+_svFoot(rows.length+' canaux');
@@ -24429,10 +24486,11 @@ function _svFs(imgId, title){
     if(!allOuts.length) return h+_svEmpty('ti-arrow-bar-to-right','Aucune sortie dans ce patch','');
     var hasOutHf=allOuts.some(function(r){return r.hf;}), hasDest=allOuts.some(function(r){return r.dest;}), hasNote=allOuts.some(function(r){return r.note;});
     h+='<div class="sv-card"><table class="sv-tbl sv-ol"><thead><tr><th class="c">OUT</th><th>Nom</th><th>Type</th>'+(hasDest?'<th>Destination</th>':'')+(hasOutHf?'<th>Fréq. HF</th>':'')+(hasNote?'<th>Note</th>':'')+'</tr></thead><tbody>';
+    var _OC=_svChgFor('out'), _okey=function(r,i){ if(r.id) return r.id; var k=''; _svOutsAll().forEach(function(x){ if(x.o===r) k=x.k; }); return k; };
     allOuts.forEach(function(r,i){
-      var t=TYPES[r.type]||TYPES.other;
-      h+='<tr><td class="sv-ch t-'+t[1]+'"><b>'+(r.ch||i+1)+'</b></td>'
-        +'<td class="sv-n"><b>'+esc(r.short_name||'')+'</b>'+(r.long_name?'<span>'+esc(r.long_name)+'</span>':'')+'</td>'
+      var t=TYPES[r.type]||TYPES.other, _k=_okey(r,i), _st=_OC&&_OC.ids[_k];
+      h+='<tr'+(_st?' class="sv-chg'+(_st==='new'?' new':'')+'"':'')+'><td class="sv-ch t-'+t[1]+'"><b>'+(r.ch||i+1)+'</b></td>'
+        +'<td class="sv-n"><b>'+esc(r.short_name||'')+'</b>'+(r.long_name?'<span>'+esc(r.long_name)+'</span>':'')+(_st?'<em class="sv-chg-t">'+(_st==='new'?'nouveau':'modifié')+'</em>':'')+'</td>'
         +'<td class="sv-tags"><span class="sv-tag '+t[1]+'">'+t[0]+'</span></td>'
         +(hasDest?'<td class="sv-mu" data-l="Destination">'+esc(r.dest||'')+'</td>':'')
         +(hasOutHf?'<td class="sv-f" data-l="HF">'+esc(r.hf||'')+'</td>':'')
@@ -24497,15 +24555,16 @@ function _svFs(imgId, title){
     try{ var bw=Math.max(300,Math.min(1120,(document.getElementById('sv-body')||{}).clientWidth||900)-(isMobile?36:60)); spec=_rfSpecSvg(d,{by:{}},zs,bw); }catch(e){}
     if(spec) h+='<div class="sv-card sv-rf-spec">'+spec+'<div class="sv-rk-leg">'+zs.map(function(z){ return '<span><i style="background:'+hue(z)+'"></i>'+esc(z)+'</span>'; }).join('')+'<span class="sv-rf-k"><i class="k-mic"></i>micro <i class="k-iem"></i>IEM</span></div></div>';
     var order=d.ch.slice().sort(function(a,b){ var za=zs.indexOf(a.zone), zb=zs.indexOf(b.zone); return (za<0?999:za)-(zb<0?999:zb) || (a.kind===b.kind?0:(a.kind==='mic'?-1:1)) || String(a.dev).localeCompare(String(b.dev),'fr',{numeric:true}) || String(a.n).localeCompare(String(b.n),'fr',{numeric:true}); });
-    var last=null;
+    var last=null, _RC=_svChgFor('rf');
     h+='<div class="sv-card"><table class="sv-tbl sv-rft" id="sv-rf-tbl"><thead><tr><th>Liaison</th><th>Type</th><th class="r">Fréquence</th><th>Bande</th><th>Appareil</th><th>Note</th></tr></thead><tbody>';
     order.forEach(function(c){
       if(c.zone!==last){ last=c.zone; var nz=d.ch.filter(function(x){return x.zone===c.zone;}).length; h+='<tr class="sv-grp" data-z="1"><td colspan="6"><i style="background:'+hue(c.zone)+'"></i>'+esc(c.zone||'Sans zone')+'<em>'+nz+' liaison'+(nz>1?'s':'')+'</em></td></tr>'; }
       var f=_rfFmt(c.f), who=c.who||'', nm=c.n||c.dev||'Liaison', dev=c.dev||c.mdl||'';
-      h+='<tr data-q="'+esc(_rfNorm([nm,who,c.zone,c.mdl,c.dev,c.note,c.band].join(' ')))+'" data-f="'+f+'">'
-        +'<td class="sv-n"><b>'+esc(who||nm)+'</b>'+(who?'<span>'+esc(nm)+'</span>':'')+'</td>'
+      var _rs=_RC&&_RC.ids[c.id];
+      h+='<tr data-q="'+esc(_rfNorm([nm,who,c.zone,c.mdl,c.dev,c.note,c.band].join(' ')))+'" data-f="'+f+'"'+(_rs?' class="sv-chg'+(_rs==='new'?' new':'')+'"':'')+'>'
+        +'<td class="sv-n"><b>'+esc(who||nm)+'</b>'+(who?'<span>'+esc(nm)+'</span>':'')+(_rs?'<em class="sv-chg-t">'+(_rs==='new'?'nouveau':'modifié')+'</em>':'')+'</td>'
         +'<td class="sv-tags"><span class="sv-tag '+(c.kind==='iem'?'p':'b')+'">'+kind(c)+'</span></td>'
-        +'<td class="sv-freq r">'+(f?f+'<small>MHz</small>':'<small>à définir</small>')+'</td>'
+        +'<td class="sv-freq r'+(_RC&&_RC.cells[c.id]&&_RC.cells[c.id].f!==undefined?' sv-chgc" title="Avant : '+esc(_RC.cells[c.id].f||'vide'):'')+'">'+(f?f+'<small>MHz</small>':'<small>à définir</small>')+'</td>'
         +'<td class="sv-mo" data-l="Bande">'+esc(c.band||'')+'</td>'
         +'<td class="sv-mu" data-l="Appareil">'+esc(dev)+'</td>'
         +'<td class="sv-mu" data-l="Note">'+esc(c.note||'')+'</td></tr>';
@@ -24513,6 +24572,12 @@ function _svFs(imgId, title){
     h+='</tbody></table><p class="sv-rf-none" id="sv-rf-none" style="display:none"><i class="ti ti-search-off"></i>Aucune liaison ne correspond.</p></div>';
     if(d.spare.length) h+='<div class="sv-card sv-rf-spare"><h4>Fréquences de réserve</h4><div>'+d.spare.slice().sort(function(a,b){return a.f-b.f;}).map(function(x){ return '<span><b>'+_rfFmt(x.f)+'</b>'+esc([x.ser,x.band].filter(Boolean).join(' '))+'</span>'; }).join('')+'</div></div>';
     return h+_svFoot(d.ch.length+' liaison'+(d.ch.length>1?'s':''));
+  }
+  /* ── Feuille de route : horaires (avec ce qui est en cours le jour de la date), contacts à appeler d'un toucher ── */
+  function _renderRoad(){
+    var h=_showMeta;
+    if(typeof _rdSharedHtml!=='function') return h+_svEmpty('ti-route','Feuille de route indisponible','');
+    return h+_rdSharedHtml(show.stage_data&&show.stage_data.road, show, esc, _svChgFor('road'))+_svFoot('Feuille de route');
   }
   /* Recherche dans les liaisons HF : par nom, artiste, zone, modèle, ou début de fréquence */
   window._svRfFilter=function(v){
@@ -25034,9 +25099,156 @@ function _svFs(imgId, title){
     if(vw)vw.innerHTML=_fileViewer(rFiles[i],_signedUrls[rFiles[i]]);
   };
 
+
+  /* ── Ce qui a changé depuis la dernière visite ──────────────────────────
+     Le navigateur du destinataire garde l'état du rider qu'il a vu (localStorage, rien ne part sur le serveur).
+     À l'ouverture, on compare : lignes nouvelles ou modifiées surlignées, valeur d'avant au survol, lignes
+     retirées listées, plans signalés comme modifiés. Une « visite » se termine après 2 h sans ouvrir la page :
+     recharger dans la foulée garde les mêmes repères, la visite suivante ne montre que ce qui a bougé depuis.
+     « Vu » efface les repères. */
+  var _SV_GAP=2*3600*1000, _svSeenKey='pf_seen_'+(linkId||'')+'_'+(show&&show.id||sid||riderId||'');
+  var _svSecIn=function(k){ return allSections.indexOf(k)>=0; };
+  function _svHash(str){ var h=5381; for(var i=0;i<str.length;i++){ h=((h<<5)+h+str.charCodeAt(i))|0; } return (h>>>0).toString(36)+'.'+str.length; }
+  var _SV_IL_F=[['ch','voie'],['short_name','nom court'],['long_name','nom'],['source','source'],['mic','micro'],['_alt','ALT'],['phantom','48V'],['foh','façade'],['mon','retours'],['iem_group','IEM'],['_hf','fréquence HF'],['note','pied / note']];
+  var _SV_OUT_F=[['ch','sortie'],['short_name','nom court'],['long_name','nom'],['type','type'],['dest','destination'],['hf','fréquence HF'],['note','note']];
+  var _SV_RF_F=[['n','nom'],['who','utilisateur'],['f','fréquence'],['band','bande'],['zone','zone'],['note','note']];
+  function _svOutsAll(){
+    var rider=show.stage_data&&show.stage_data.rider, od=show.out_data, snap=rider&&rider.out_snapshot;
+    var data=(od&&Object.keys(od).length)?od:(snap&&Object.keys(snap).length)?snap:{}, out=[];
+    Object.keys(data).forEach(function(pid){ (data[pid]||[]).forEach(function(o,i){ if(o) out.push({k:o.id||(pid+'#'+i), o:o, pid:pid}); }); });
+    return out;
+  }
+  function _svPatchName(pid){ if(!(IL_PATCHES&&IL_PATCHES.length>1)) return ''; var p=IL_PATCHES.find(function(x){ return x.id===(pid||'main'); }); return p?(p.name||'Patch')+' · ':''; }
+  function _svSnap(){
+    var s={v:1, il:{}, ilL:{}, out:{}, outL:{}, rf:{}, rfL:{}, road:{}, roadL:{}, h:{}};
+    var cust=(show.stage_data&&show.stage_data.il_custom_cols)||[];
+    if(_svSecIn('il')) _allRows.forEach(function(r){
+      var cd=r.custom_data||{};
+      s.il[r.id]=_SV_IL_F.map(function(f){ var v=f[0].charAt(0)==='_'?cd[f[0]]:r[f[0]]; return typeof v==='boolean'?(v?'oui':''):String(v==null?'':v); })
+        .concat(cust.map(function(c){ var v=cd[c.id]; return v===true?'oui':String(v==null||v===false?'':v); }));
+      s.ilL[r.id]=_svPatchName(r.patch_id)+'CH '+r.ch+' '+(r.short_name||r.long_name||'');
+    });
+    if(_svSecIn('out')) _svOutsAll().forEach(function(x){ var o=x.o; s.out[x.k]=_SV_OUT_F.map(function(f){ return String(o[f[0]]==null?'':o[f[0]]); }); s.outL[x.k]='OUT '+(o.ch||'')+' '+(o.short_name||o.long_name||''); });
+    if(_svSecIn('rf') && typeof _rfClean==='function') _rfClean(show.stage_data&&show.stage_data.rf).ch.forEach(function(c){ s.rf[c.id]=_SV_RF_F.map(function(f){ return f[0]==='f'?_rfFmt(c.f):String(c[f[0]]==null?'':c[f[0]]); }); s.rfL[c.id]=c.who||c.n||c.dev||'Liaison'; });
+    if(_svSecIn('road') && typeof _rdClean==='function'){
+      var d=_rdClean(show.stage_data&&show.stage_data.road);
+      d.sched.forEach(function(x){ s.road[x.id]=[x.t,x.l,x.n]; s.roadL[x.id]=(x.t?x.t+' ':'')+x.l; });
+      d.people.forEach(function(x){ s.road[x.id]=[x.r,x.n,x.p,x.m]; s.roadL[x.id]=[x.r,x.n].filter(Boolean).join(' '); });
+      ['addr','access','parking','hotel','meals','loges','wifi','notes'].forEach(function(k){ s.road['f:'+k]=[d[k]]; });
+    }
+    var sc=_sfJson.data.scenes||[], sd=show.stage_data||{}, J=function(o){ try{ return JSON.stringify(o==null?null:o); }catch(e){ return ''; } };
+    if(_svSecIn('stage')) s.h.stage=_svHash(J(sd.band)+J(sc.filter(function(x){return x.type==='stage';}).map(function(x){return x.data;})));
+    if(_svSecIn('site')) s.h.site=_svHash(J(sd.site)+J(sc.filter(function(x){return x.type==='site';}).map(function(x){return x.data;})));
+    if(_svSecIn('syno')) s.h.syno=_svHash(J(show.synoptique_data)+J(sc.filter(function(x){return x.type==='syno';}).map(function(x){return x.data;})));
+    if(_svSecIn('racks')) s.h.racks=_svHash(J(sd.racks)+J(sd.rack_groups));
+    return s;
+  }
+  /* Différence ligne à ligne : {ids:{id:'new'|'mod'}, cells:{id:{champ:avant}}, gone:[libellés], det:[phrases]} */
+  function _svDiffRows(A, B, AL, BL, F){
+    var r={ids:{}, cells:{}, gone:[], det:[], n:0};
+    if(!A) return r;
+    Object.keys(B).forEach(function(id){
+      var a=A[id], b=B[id];
+      if(!a){ r.ids[id]='new'; r.n++; r.det.push({t:'new', l:BL[id]}); return; }
+      var ch={}, any=false, dl=[];
+      b.forEach(function(v,i){ if(String(a[i]==null?'':a[i])!==v){ var k=F[i]?F[i][0]:'c'+i; ch[k]=a[i]==null?'':a[i]; if(k!=='ch'){ any=true; dl.push({t:'mod', l:BL[id], f:F[i]?F[i][1]:'colonne', a:a[i]||'', b:v||''}); } } });
+      /* Une voie seulement renumérotée (un canal retiré ou inséré avant elle) n'est pas « modifiée » : son numéro garde l'ancien au survol */
+      if(any){ r.ids[id]='mod'; r.n++; r.det=r.det.concat(dl); }
+      if(any||ch.ch!==undefined) r.cells[id]=ch;
+    });
+    Object.keys(A).forEach(function(id){ if(!B[id]){ r.gone.push(AL&&AL[id]||'—'); r.n++; } });
+    return r;
+  }
+  function _svDiff(a, b){
+    if(!a||a.v!==b.v) return null;
+    var D={il:_svDiffRows(a.il,b.il,a.ilL,b.ilL,_SV_IL_F), out:_svDiffRows(a.out,b.out,a.outL,b.outL,_SV_OUT_F), rf:_svDiffRows(a.rf,b.rf,a.rfL,b.rfL,_SV_RF_F), road:null, plans:{}, n:0};
+    /* Feuille de route : horaires et contacts ligne à ligne, les autres champs un par un */
+    var rd={ids:{}, fields:{}, gone:[], det:[], n:0};
+    if(a.road) Object.keys(b.road).forEach(function(k){
+      var x=a.road[k], y=b.road[k], same=x&&x.join('␟')===y.join('␟');
+      if(k.indexOf('f:')===0){ if(!same && (x||y[0])){ rd.fields[k.slice(2)]=1; rd.n++; } return; }
+      if(!x){ rd.ids[k]='new'; rd.n++; rd.det.push({t:'new', l:b.roadL[k]}); }
+      else if(!same){
+        rd.ids[k]='mod'; rd.n++;
+        var FN=y.length===3?['heure','étape','précision']:['rôle','nom','téléphone','e-mail'];
+        y.forEach(function(v,i){ if(String(x[i]||'')!==String(v||'')) rd.det.push({t:'mod', l:(i===0&&y.length===3?(b.roadL[k]||'').replace(/^\d{2}:\d{2} /,''):b.roadL[k]), f:FN[i], a:x[i]||'', b:v||''}); });
+      }
+    });
+    if(a.road) Object.keys(a.road).forEach(function(k){ if(k.indexOf('f:')<0 && !b.road[k]){ rd.gone.push((a.roadL&&a.roadL[k])||'—'); rd.n++; } });
+    D.road=rd;
+    Object.keys(b.h).forEach(function(k){ if(a.h && a.h[k] && a.h[k]!==b.h[k]){ D.plans[k]=1; D.n++; } });
+    ['il','out','rf','road'].forEach(function(k){ D.n+=D[k].n; });
+    return D.n?D:null;
+  }
+  var _svChg=null, _svBaseAt='';
+  (function(){
+    var cur; try{ cur=_svSnap(); }catch(e){ return; }
+    var st=null; try{ st=JSON.parse(localStorage.getItem(_svSeenKey)||'null'); }catch(e){}
+    var now=Date.now();
+    if(!st||!st.base||!st.base.snap){ st={base:{snap:cur, at:now}}; }
+    else {
+      /* Visite précédente terminée : la version vue alors devient la référence */
+      if(st.seen && st.seen.snap && now-st.seen.at>_SV_GAP) st.base=st.seen;
+      _svChg=_svDiff(st.base.snap, cur); _svBaseAt=st.base.at;
+      if(!_svChg) st.base={snap:cur, at:now};
+    }
+    st.seen={snap:cur, at:now};
+    try{ localStorage.setItem(_svSeenKey, JSON.stringify(st)); }catch(e){}
+  })();
+  function _svChgFor(sec){ if(!_svChg) return null; return sec==='road'?_svChg.road:(_svChg[sec]||null); }
+  window._svChgAck=function(){
+    try{ var st=JSON.parse(localStorage.getItem(_svSeenKey)||'null'); if(st&&st.seen){ st.base={snap:st.seen.snap, at:Date.now()}; localStorage.setItem(_svSeenKey, JSON.stringify(st)); } }catch(e){}
+    _svChg=null;
+    var bn=document.getElementById('sv-chg'); if(bn) bn.remove();
+    allSections.forEach(function(k){ var t=document.getElementById('svt-'+k); if(t) t.classList.remove('chg'); });
+    var on=allSections.filter(function(k){ var t=document.getElementById('svt-'+k); return t&&t.classList.contains('on'); })[0]||allSections[0];
+    Object.keys(_paneCache).forEach(function(k){ delete _paneCache[k]; });
+    if(on) window._svSwitch(on);
+  };
+  var _SV_SEC_L={road:'Feuille de route', il:'Input list', out:'Output list', rf:'Liaisons HF', stage:'Plan de scène', site:'Plan de site', syno:'Synoptique', racks:'Racks'};
+  function _svSecCount(k){ var c=_svChg; if(!c) return 0; if(c.plans[k]) return -1; var x=k==='road'?c.road:c[k]; return x?x.n:0; }
+  /* Bandeau en haut du rider, et pastilles sur les onglets concernés */
+  function _svChgBanner(){
+    if(!_svChg) return;
+    var E=esc, when=new Date(_svBaseAt), dl=when.toLocaleDateString('fr-FR',{day:'numeric',month:'short'})+' à '+when.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+    var secs=allSections.filter(function(k){ return _svSecCount(k)!==0; });
+    var det=[]; ['road','il','out','rf'].forEach(function(k){ var x=k==='road'?_svChg.road:_svChg[k]; if(!x||!_svSecIn(k)) return; x.det.forEach(function(d){ det.push({k:k, d:d}); }); });
+    var line=function(o){ var d=o.d;
+      if(d.t==='new') return '<li><b>'+E(_SV_SEC_L[o.k])+'</b> · ajouté : '+E(d.l||'')+'</li>';
+      if(!d.f) return '<li><b>'+E(_SV_SEC_L[o.k])+'</b> · '+E(d.a||'')+' → '+E(d.b||'')+'</li>';
+      return '<li><b>'+E(d.l||'')+'</b> · '+E(d.f)+' : <s>'+E(d.a||'vide')+'</s> → '+E(d.b||'vide')+'</li>'; };
+    var el=document.createElement('section'); el.id='sv-chg'; el.className='sv-chgb'; el.setAttribute('role','status');
+    el.innerHTML='<div class="sv-chgb-in"><i class="ti ti-sparkles"></i><div class="sv-chgb-t"><b>Mis à jour depuis votre dernière visite</b><span>Version vue le '+E(dl)+'. Les changements sont surlignés.</span>'
+      +(det.length?'<ul>'+det.slice(0,5).map(line).join('')+(det.length>5?'<li class="more">et '+(det.length-5)+' autre'+(det.length-5>1?'s':'')+' changement'+(det.length-5>1?'s':'')+'</li>':'')+'</ul>':'')
+      +'<div class="sv-chgb-s">'+secs.map(function(k){ var n=_svSecCount(k); return '<button type="button" onclick="_svSwitch(\''+k+'\')">'+E(_SV_SEC_L[k]||k)+(n>0?' <em>'+n+'</em>':' <em>modifié</em>')+'</button>'; }).join('')+'</div></div>'
+      +'<button type="button" class="sv-chgb-ok" onclick="_svChgAck()">Vu</button></div>';
+    var tabs=document.getElementById('sv-tabs'), body=document.getElementById('sv-body');
+    (tabs||body).parentNode.insertBefore(el, tabs||body);
+    secs.forEach(function(k){ var t=document.getElementById('svt-'+k); if(t) t.classList.add('chg'); });
+  }
+  /* En tête de section : lignes retirées, ou plan modifié */
+  function _svPaneMsg(sec){
+    var c=_svChg; if(!c) return '';
+    if(c.plans[sec]) return '<i class="ti ti-pencil"></i>'+(sec==='racks'?'Les racks ont été modifiés':'Ce '+(sec==='syno'?'synoptique':'plan')+' a été modifié')+' depuis votre dernière visite.';
+    var x=sec==='road'?c.road:c[sec]; if(!x||!x.gone.length) return '';
+    return '<i class="ti ti-trash"></i>Retiré depuis votre dernière visite : '+x.gone.slice(0,8).map(function(g){ return '<b>'+esc(g)+'</b>'; }).join(', ')+(x.gone.length>8?' et '+(x.gone.length-8)+' autre'+(x.gone.length-8>1?'s':''):'')+'.';
+  }
+  var _svCurSec=null;
+  function _svEnsureNotice(){
+    var b=document.getElementById('sv-body'); if(!b) return;
+    var ex=null; for(var i=0;i<b.children.length;i++){ if(b.children[i].classList.contains('sv-chg-pane')){ ex=b.children[i]; break; } }
+    var msg=_svCurSec?_svPaneMsg(_svCurSec):'';
+    if(!msg){ if(ex) ex.remove(); return; }
+    if(ex) return;
+    var d=document.createElement('div'); d.className='sv-chg-pane'; d.innerHTML=msg.replace(/^(<i[^>]*><\/i>)([\s\S]*)$/,'$1<span>$2</span>');
+    var head=b.querySelector('.sv-head'); if(head && head.parentNode===b) head.after(d); else b.prepend(d);
+  }
+  try{ new MutationObserver(_svEnsureNotice).observe(document.getElementById('sv-body'),{childList:true}); }catch(e){}
+
   // ── Pane cache & tab switcher ──
   var _paneCache={};
   window._svSwitch=function(sec){
+    _svCurSec=sec;
     allSections.forEach(function(s){
       var t=document.getElementById('svt-'+s);
       if(t) t.classList.toggle('on',s===sec);
@@ -25059,6 +25271,7 @@ function _svFs(imgId, title){
     else if(sec==='syno'){_paneCache.syno=_renderSyno();document.getElementById('sv-body').innerHTML=_paneCache.syno;}
     else if(sec==='racks'){_paneCache.racks=_renderRacks();document.getElementById('sv-body').innerHTML=_paneCache.racks;}
     else if(sec==='rf'){document.getElementById('sv-body').innerHTML=_renderRf();}
+    else if(sec==='road'){document.getElementById('sv-body').innerHTML=_renderRoad();}
     else if(sec==='cloud'){
       _renderCloudPane(function(h){
         _paneCache.cloud=h;
@@ -25081,5 +25294,6 @@ function _svFs(imgId, title){
 
   // ── Initial render ──
   var first=allSections[0]||'il';
+  _svChgBanner();
   window._svSwitch(first);
 })();

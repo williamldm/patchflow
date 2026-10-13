@@ -102,6 +102,22 @@ function publicRf(rf: any) {
     spare: Array.isArray(rf.spare) ? rf.spare.slice(0, 200) : [],
   };
 }
+/* Feuille de route : horaires, lieu, contacts et logistique. Seulement les champs connus, bornés. */
+function publicRoad(road: any) {
+  if (!road || typeof road !== 'object') return null;
+  const str = (v: unknown, n: number) => String(v ?? '').slice(0, n);
+  const o: Record<string, unknown> = { v: road.v };
+  for (const [k, n] of [['addr', 200], ['access', 400], ['parking', 300], ['hotel', 400], ['meals', 300], ['loges', 300], ['wifi', 120], ['notes', 1500]] as const) {
+    if (road[k]) o[k] = str(road[k], n);
+  }
+  o.sched = (Array.isArray(road.sched) ? road.sched : []).slice(0, 40)
+    .filter((x: any) => x && typeof x === 'object')
+    .map((x: any) => ({ id: str(x.id, 24), t: str(x.t, 5), l: str(x.l, 60), n: str(x.n, 120) }));
+  o.people = (Array.isArray(road.people) ? road.people : []).slice(0, 30)
+    .filter((x: any) => x && typeof x === 'object')
+    .map((x: any) => ({ id: str(x.id, 24), r: str(x.r, 60), n: str(x.n, 60), p: str(x.p, 30), m: str(x.m, 120) }));
+  return o;
+}
 function scopeToSections(
   show: Record<string, any>,
   channels: unknown[],
@@ -121,6 +137,8 @@ function scopeToSections(
     if (Array.isArray(sd.rack_groups)) stage_data.rack_groups = sd.rack_groups;
   }
   if (sec.has('rf')) { const rf = publicRf(sd.rf); if (rf) stage_data.rf = rf; }
+  /* Feuille de route : section à cocher explicitement (elle contient des numéros de téléphone) */
+  if (sec.has('road')) { const road = publicRoad(sd.road); if (road) stage_data.road = road; }
   // Le plan de scène affiche les numéros/noms de canaux liés aux éléments.
   const needChannels = sec.has('il') || sec.has('stage');
   if (needChannels && sd.chs) stage_data.chs = sd.chs;

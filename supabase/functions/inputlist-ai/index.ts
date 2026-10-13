@@ -38,6 +38,7 @@ RÈGLES :
 - long_name : nom complet du canal (ex. "Grosse caisse", "Caisse claire top", "Lead Vox", "Basse DI").
 - source : la famille/instrument source si indiquée (ex. "Batterie", "Basse", "Guitare", "Claviers", "Chant", "Percussions"). Vide si inconnue.
 - mic : le modèle exact de micro ou de DI s'il figure dans le document (ex. "SM57", "Beta 52A", "AKG 414", "Radial JDI", "DI"). Vide si non précisé. N'invente jamais un modèle qui n'est pas écrit.
+- alt : le ou les micros de remplacement acceptés s'ils sont écrits (colonne "ALT", "Alternative", "ou équivalent", "Backup", ou mention du type "SM57 / e906", "SM57 ou équivalent"). Sépare plusieurs modèles par " / ". Mets "équivalent" si le document dit seulement "ou équivalent". Vide sinon ; n'en propose jamais de toi-même.
 - gain : nombre (dB) uniquement s'il est explicitement écrit, sinon 0.
 - phantom : true si une alimentation fantôme +48V est indiquée pour ce canal (colonne "48V", "+48", "P48", "phantom" cochée), sinon false.
 - iem_group : groupe / mix d'oreillette (IEM) si indiqué, sinon vide.
@@ -61,12 +62,13 @@ const SCHEMA = {
           long_name: { type: 'string' },
           source: { type: 'string' },
           mic: { type: 'string' },
+          alt: { type: 'string' },
           gain: { type: 'number' },
           phantom: { type: 'boolean' },
           iem_group: { type: 'string' },
           note: { type: 'string' },
         },
-        required: ['short_name', 'long_name', 'source', 'mic', 'gain', 'phantom', 'iem_group', 'note'],
+        required: ['short_name', 'long_name', 'source', 'mic', 'alt', 'gain', 'phantom', 'iem_group', 'note'],
         additionalProperties: false,
       },
     },
@@ -227,6 +229,7 @@ serve(async (req) => {
           long_name: String(c.long_name ?? '').slice(0, 80),
           source: String(c.source ?? '').slice(0, 40),
           mic: String(c.mic ?? '').slice(0, 40),
+          alt: String(c.alt ?? '').replace(/\s+/g, ' ').trim().slice(0, 60),
           gain: Number.isFinite(Number(c.gain)) ? Math.max(-20, Math.min(60, Number(c.gain))) : 0,
           phantom: c.phantom === true,
           iem_group: String(c.iem_group ?? '').slice(0, 20),
