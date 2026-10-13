@@ -44,10 +44,7 @@ DROP TRIGGER IF EXISTS trg_pf_size_templates ON public.templates;
 CREATE TRIGGER trg_pf_size_templates BEFORE INSERT OR UPDATE ON public.templates
   FOR EACH ROW EXECUTE FUNCTION public.pf_enforce_size('*', '3145728');                    -- 3 Mo
 
--- Riders partagés : titre, note, sections
-DROP TRIGGER IF EXISTS trg_pf_size_riders ON public.show_riders;
-CREATE TRIGGER trg_pf_size_riders BEFORE INSERT OR UPDATE ON public.show_riders
-  FOR EACH ROW EXECUTE FUNCTION public.pf_enforce_size('*', '1048576');                    -- 1 Mo
+-- Riders partagés : plafond selon le plan du propriétaire, voir 20261014_rider_size_by_plan.sql
 
 -- Profil : dossiers de sessions, parcs de matériel (profiles.tours)
 DO $$
