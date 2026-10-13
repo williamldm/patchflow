@@ -2982,7 +2982,7 @@ async function generateRiderLink(){
       var timer=setTimeout(function(){resolve(null);},6000);
       SitePlan.exportCanvasSafe(function(cv){
         clearTimeout(timer);
-        resolve(cv?cv.toDataURL('image/png'):null);
+        resolve(cv?_snapUrl(cv):null);
       });
     });
   }catch(e){siteSnap=null;}
@@ -3000,7 +3000,7 @@ async function generateRiderLink(){
         var timer=setTimeout(function(){resolve(null);},8000);
         SitePlan.exportCanvasSafe(function(cv){
           clearTimeout(timer);
-          resolve(cv?cv.toDataURL('image/png'):null);
+          resolve(cv?_snapUrl(cv):null);
         });
       });
     }
@@ -3491,7 +3491,7 @@ async function _createLink(){
       try{
         config.site_snapshot=await new Promise(function(resolve){
           var t=setTimeout(function(){resolve(null);},6000);
-          SitePlan.exportCanvasSafe(function(cv){clearTimeout(t);resolve(cv?cv.toDataURL('image/png'):null);});
+          SitePlan.exportCanvasSafe(function(cv){clearTimeout(t);resolve(cv?_snapUrl(cv):null);});
         });
       }catch(e){}
     }
@@ -19148,6 +19148,16 @@ const _DB_BUDGET_FREE = 25 * 1048576;   //  25 Mo
 const _DB_BUDGET_PRO  = 150 * 1048576;  // 150 Mo
 
 /* Taille en octets de la charge utile base64 d'une data-URL (sans l'en-tête). */
+/* Aperçu figé d'un plan, stocké avec le rider : PNG s'il reste léger, sinon JPEG sur fond blanc borné.
+   Sans cette borne, un plan chargé d'images pesait plusieurs Mo dans chaque lien partagé. */
+var _SNAP_CAP=600*1024;
+function _snapUrl(cv){
+  var png=cv.toDataURL('image/png');
+  if(_dataUrlBytes(png)<=_SNAP_CAP) return png;
+  var w=document.createElement('canvas'); w.width=cv.width; w.height=cv.height;
+  var x=w.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,w.width,w.height); x.drawImage(cv,0,0);
+  return _jpegUnderCap(w,_SNAP_CAP,0.85,0.5);
+}
 function _dataUrlBytes(dataUrl){
   if(typeof dataUrl!=='string') return 0;
   const i=dataUrl.indexOf(',');
