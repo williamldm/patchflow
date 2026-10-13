@@ -5,7 +5,8 @@ Application web (français) pour techniciens son/scène : input lists, patchs, r
 ## Architecture
 - Front 100 % statique, sans build : `index.html` (accueil), `app.html` + `pf-app.js` + `pf-app.css` (l'app), `rider.html`, `pf-rf.js` (module RF), pages légales (`cgu.html`, `cgv.html`, `confidentialite.html`, `mentions-legales.html`).
 - Back : Supabase (projet `ofiiutcueoogmtdvaupg`) — migrations SQL et edge functions dans `supabase/`. Paiement : Stripe (`stripe-checkout`, `stripe-webhook`). Les fonctions `lemonsqueezy-*` sont l'ancien prestataire.
-- Hébergement : o2switch (cPanel). Le `.cpanel.yml` est obsolète (il copie `soundbooth_12.html`) ; le déploiement se fait à la main depuis cPanel.
+- Hébergement : o2switch (cPanel). Mise en ligne du site : `git push` sur `main`, puis dans cPanel → Git Version Control → Update from Remote → Deploy HEAD Commit, puis ⌘⇧R (recharge sans cache). Cette étape se fait dans cPanel, par l'utilisateur : aucune session Claude ne l'a faite. Le `.cpanel.yml` référence encore `soundbooth_12.html` (obsolète).
+- Fonctions Supabase : `supabase functions deploy <nom> --project-ref ofiiutcueoogmtdvaupg --use-api`, depuis l'ordinateur de l'utilisateur avec un jeton `SUPABASE_ACCESS_TOKEN`. Impossible depuis le cloud (réseau bloqué vers Supabase, cPanel et o2switch).
 - `pf-road.js` : feuille de route (shows.stage_data.road), onglet de l'app et section `road` du rider partagé.
 - `pf-app.js` fait ~1,5 Mo : utiliser `grep -a` (le fichier est vu comme binaire) et lire par plages de lignes.
 - `.gitignore` ignore tout par défaut : tout nouveau fichier à versionner doit être ajouté en `!nom`.
