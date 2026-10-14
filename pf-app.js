@@ -2029,7 +2029,7 @@ const OLA_CATS = [
     mode:'named', names:['Main L','Main R','Main C','Main D'], shorts:['ML','MR','MC','MD'], def:2, max:4 },
   { id:'sub',    label:'Infrabasses / Sub',   icon:'ti-antenna-bars-5',    color:'#ff6b1a', type:'sub',
     mode:'named', names:['Sub L','Sub R','Sub C'],             shorts:['SBL','SBR','SBC'],   def:2, max:3 },
-  { id:'mon',    label:'Retours scene',       icon:'ti-triangle',          color:'#f5c542', type:'mon',
+  { id:'mon',    label:'Retours scène',       icon:'ti-triangle',          color:'#f5c542', type:'mon',
     mode:'count', prefix:'Mon ', short:'M',  def:0, max:16 },
   { id:'iem',    label:'IEM',                 icon:'ti-headphones',        color:'#22d6a0', type:'iem',
     mode:'count', prefix:'IEM ', short:'IE', def:0, max:8  },
@@ -2039,7 +2039,7 @@ const OLA_CATS = [
     mode:'count', prefix:'Gr ',  short:'GR', def:0, max:16 },
   { id:'matrix', label:'Matrix / Mixbus',     icon:'ti-grid-dots',         color:'#e8edf8', type:'matrix',
     mode:'count', prefix:'Mtr ', short:'MT', def:0, max:8  },
-  { id:'aux',    label:'Aux / Departs',       icon:'ti-git-branch',        color:'#44bbff', type:'aux',
+  { id:'aux',    label:'Aux / Départs',       icon:'ti-git-branch',        color:'#44bbff', type:'aux',
     mode:'count', prefix:'Aux ', short:'AX', def:0, max:16 },
 ];
 
@@ -2229,13 +2229,13 @@ function _ilaRender() {
   _ilaCustomCats.forEach(function(cat){ renderBlock(cat.id, cat.label, cat.icon||'ti-folder', [], true); });
   if (_ilaFormCat === '__new__') {
     h += '<div class="ila-add-cat-form">';
-    h += '<input id="ila-ncat-label" class="ila-af-inp" placeholder="Nom de la categorie" style="width:100%;margin-bottom:8px">';
+    h += '<input id="ila-ncat-label" class="ila-af-inp" placeholder="Nom de la catégorie" style="width:100%;margin-bottom:8px">';
     h += '<div style="display:flex;gap:6px">';
     h += '<button type="button" class="ila-af-ok" onclick="ilaAddCat()"><i class="ti ti-folder-plus"></i>Creer</button>';
     h += '<button type="button" class="ila-af-cancel" onclick="ilaHideForm()"><i class="ti ti-x"></i></button>';
     h += '</div></div>';
   } else {
-    h += '<button type="button" class="ila-add-cat-btn" onclick="ilaShowCatForm()"><i class="ti ti-folder-plus"></i>Nouvelle categorie</button>';
+    h += '<button type="button" class="ila-add-cat-btn" onclick="ilaShowCatForm()"><i class="ti ti-folder-plus"></i>Nouvelle catégorie</button>';
   }
   document.getElementById('ila-sections').innerHTML = h;
   _ilaUpdateCount();
@@ -2954,7 +2954,7 @@ function _updateShareQuotaUI(){
 }
 
 async function generateRiderLink(){
-  if(!CUR_SHOW){toast('Aucun show selectionne.');return;}
+  if(!CUR_SHOW){toast('Aucun show sélectionné.');return;}
   /* Limite de liens de partage pour le plan Gratuit (5 max, tout compris) */
   if(!registerShareLink('rider')) return;
   var btn=document.getElementById('rider-gen-btn');
@@ -4817,7 +4817,7 @@ function _renderCSVPreview(){
 }
 function closeCSVImport(){document.getElementById('csv-import-modal').className='modal-ov';}
 async function doCSVImport(){
-  if(!CUR_SHOW){alert('Aucun show selectionne.');return;}
+  if(!CUR_SHOW){alert('Aucun show sélectionné.');return;}
   var dataRows=_csvRawRows.slice(1).filter(function(r){return r.some(function(c){return c.trim();});});
   if(!dataRows.length){alert('Aucune donnee a importer.');return;}
   if(_csvTarget==='out'){ _doCSVImportOut(dataRows); return; }
@@ -8062,10 +8062,12 @@ async function _openTablePdf(type, meta, brand, shareUrl){
       return fy+6;
     }
     function drawOutput(sy){
-      var head=[['CH','Court','Nom Long','Type','Destination','Note']];
+      /* Fréquence HF des ears : colonne ajoutée seulement si une sortie en a une */
+      var hasHf=OUT_CHS.some(function(r){ return String(r.hf||'').trim(); });
+      var head=[['CH','Court','Nom Long','Type','Destination'].concat(hasHf?['Fréq. HF']:[],['Note'])];
       var body=OUT_CHS.map(function(r){
         var t=(OUT_TYPES[r.type]||OUT_TYPES.other);
-        return [String(r.ch),(r.short_name||'').trim(),(r.long_name||''),(t&&t.label)||r.type||'',(r.dest||''),(r.note||'')];
+        return [String(r.ch),(r.short_name||'').trim(),(r.long_name||''),(t&&t.label)||r.type||'',(r.dest||'')].concat(hasHf?[String(r.hf||'').trim()]:[],[(r.note||'')]);
       });
       doc.autoTable(Object.assign({},TBL,{head:[head[0].map(function(h){return String(h).toUpperCase();})],body:body,startY:sy,
         didParseCell:function(d){ if(d.section==='body' && d.column.index>2) d.cell.styles.textColor=K.txt2; }}));
@@ -9851,8 +9853,8 @@ const SynPro = (() => {
     body.innerHTML =
       '<label class="sp-insp-lbl">Nom *</label><input class="sp-insp-inp" id="sp-add-label" placeholder="Ex: Yamaha DM7" autofocus>' +
       '<label class="sp-insp-lbl">Sous-titre</label><input class="sp-insp-inp" id="sp-add-sub" placeholder="Ex: Console FOH 48 voies">' +
-      '<label class="sp-insp-lbl">Categorie</label><div style="display:flex;gap:6px"><select class="sp-insp-inp" id="sp-add-catsel" style="flex:1">' + catOpts + '<option value="__new__">+ Nouvelle categorie...</option></select></div>' +
-      '<input class="sp-insp-inp" id="sp-add-catnew" placeholder="Nouvelle categorie" style="display:none;margin-top:6px">' +
+      '<label class="sp-insp-lbl">Categorie</label><div style="display:flex;gap:6px"><select class="sp-insp-inp" id="sp-add-catsel" style="flex:1">' + catOpts + '<option value="__new__">+ Nouvelle catégorie…</option></select></div>' +
+      '<input class="sp-insp-inp" id="sp-add-catnew" placeholder="Nouvelle catégorie" style="display:none;margin-top:6px">' +
       '<label class="sp-insp-lbl">Icone</label><div class="sp-icon-grid">' + iconGrid + '</div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button class="btn ghost sm" id="sp-add-cancel">Annuler</button><button class="btn pri sm" id="sp-add-save"><i class="ti ti-device-floppy"></i>Enregistrer</button></div>';
     body.querySelector('#sp-add-catsel').addEventListener('change', function(e){
@@ -23349,7 +23351,7 @@ function _renderPatchChip(name,color){
 
 async function openRecapMatos(){
   if(!canDo('recap_matos')){showUpgradeModal('recap_matos');return;}
-  if(!CUR_SHOW){toast('Aucun show selectionne.');return;}
+  if(!CUR_SHOW){toast('Aucun show sélectionné.');return;}
 
   var modal=document.getElementById('recap-modal');
   var body=document.getElementById('recap-modal-body');
@@ -24481,7 +24483,7 @@ function _svFs(imgId, title){
     if(_opids.length>1 && outData[CUR_PATCH_ID]){ allOuts=(outData[CUR_PATCH_ID]||[]).slice(); }
     else if(_opids.length<=1){ allOuts=(outData[_opids[0]]||[]).slice(); }
     else { allOuts=[]; _opids.forEach(function(pid){(outData[pid]||[]).forEach(function(o){allOuts.push(o);});}); }
-    var TYPES={main:['Façade','g'],mon:['Retour','b'],iem:['IEM','p'],fx:['Effet','y'],matrix:['Matrice','o'],other:['Autre','n']};
+    var TYPES={main:['Façade','g'],sub:['Sub','g'],mon:['Retour','b'],iem:['IEM','p'],fx:['Effet','y'],group:['Groupe','o'],matrix:['Matrice','o'],aux:['Aux','b'],other:['Autre','n']};
     var h=_showMeta+'<div class="sv-bar">'+_svPatchSel('_svSelectOutPatch')+'<span class="sv-grow"></span><span class="sv-count"><b>'+allOuts.length+'</b> sortie'+(allOuts.length>1?'s':'')+'</span></div>';
     if(!allOuts.length) return h+_svEmpty('ti-arrow-bar-to-right','Aucune sortie dans ce patch','');
     var hasOutHf=allOuts.some(function(r){return r.hf;}), hasDest=allOuts.some(function(r){return r.dest;}), hasNote=allOuts.some(function(r){return r.note;});
