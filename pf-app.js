@@ -15978,13 +15978,24 @@ function mobMore(open){
   var m=document.getElementById('mob-more'); if(!m) return;
   if(!open){ m.classList.remove('show'); return; }
   var p=document.querySelector('.panel.on'), id=p?p.id.replace('panel-',''):'';
-  m.querySelectorAll('.mob-more-grid button').forEach(function(b){
+  m.querySelectorAll('.mm-grid button,.mm-acc button').forEach(function(b){
     var on=b.dataset.tab===id, md=b.dataset.mode;
     if(on && md) on = id==='inputlist' ? md===CUR_IL_MODE : md===(PLAN_MODE==='site'?'site':'scene');
     b.classList.toggle('on',on);
   });
   var s=document.getElementById('mob-more-show');
-  if(s){ s.textContent=CUR_SHOW?(CUR_SHOW.name||''):''; s.style.display=CUR_SHOW?'':'none'; }
+  if(s){
+    if(CUR_SHOW){
+      var _e=function(x){ return String(x||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+      var iso=_showDateISO(CUR_SHOW.show_date), d=iso?_isoToDate(iso):null;
+      var sub=[d?d.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'}):'', CUR_SHOW.venue||''].filter(Boolean).join(' · ');
+      s.innerHTML='<span class="mm-show-d">'+(d?'<b>'+d.getDate()+'</b><em>'+_e(d.toLocaleDateString('fr-FR',{month:'short'}).replace('.',''))+'</em>':'<i class="ti ti-calendar-event"></i>')+'</span>'
+        +'<span class="mm-show-t"><b>'+_e(CUR_SHOW.name)+'</b><span>'+_e(sub||'Vue d\'ensemble de la session')+'</span></span>'
+        +'<span class="mm-show-go">Vue d\'ensemble<i class="ti ti-chevron-right"></i></span>';
+      s.classList.toggle('on', id==='overview');
+      s.style.display='';
+    } else s.style.display='none';
+  }
   m.classList.add('show');
 }
 function navIL(mode){ goTab('inputlist',null); if(CUR_IL_MODE!==mode) setILMode(mode); _navSync(); }

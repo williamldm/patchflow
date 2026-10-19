@@ -60,7 +60,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=4.21">
+<link rel="stylesheet" href="pf-app.css?v=4.22">
 </head>
 <body>
 
@@ -1172,30 +1172,41 @@ html.rider-boot #rider-splash{display:flex}
   <nav class="bottom-nav" aria-label="Navigation">
     <div class="bottom-nav-inner">
       <button class="bn-tab on" id="bn-sessions" onclick="goTab('sessions',null)"><i class="ti ti-calendar-event"></i><span>Sessions</span></button>
+      <button class="bn-tab" id="bn-overview" onclick="goTab('overview',null)"><i class="ti ti-layout-dashboard"></i><span>Aperçu</span></button>
       <button class="bn-tab" id="bn-inputlist" onclick="goTab('inputlist',null)"><i class="ti ti-list-numbers"></i><span>Patch</span></button>
       <button class="bn-tab" id="bn-stage" onclick="goTab('stage',null)"><i class="ti ti-map-2"></i><span>Plans</span></button>
-      <button class="bn-tab" id="bn-fichiers" onclick="goTab('fichiers',null)"><i class="ti ti-cloud"></i><span>Fichiers</span></button>
       <button class="bn-tab" id="bn-more" onclick="mobMore(true)" aria-haspopup="dialog"><i class="ti ti-grid-dots"></i><span>Plus</span></button>
     </div>
   </nav>
   <div class="mob-more" id="mob-more" onclick="if(event.target===this)mobMore(false)">
     <div class="mob-more-sheet" role="dialog" aria-label="Toutes les rubriques">
       <div class="mob-more-grip" onclick="mobMore(false)"></div>
-      <div class="mob-more-show" id="mob-more-show"></div>
-      <div class="mob-more-grid">
-        <button type="button" data-tab="overview" onclick="mobMore(false);goTab('overview',null)"><i class="ti ti-layout-dashboard"></i><span>Vue d'ensemble</span></button>
-        <button type="button" data-tab="inputlist" data-mode="out" onclick="mobMore(false);navIL('out')"><i class="ti ti-arrow-bar-to-right"></i><span>Output list</span></button>
-        <button type="button" data-tab="synoptique" onclick="mobMore(false);goTab('synoptique',null)"><i class="ti ti-topology-star"></i><span>Synoptique</span></button>
-        <button type="button" data-tab="stage" data-mode="scene" onclick="mobMore(false);navPlan('scene')"><i class="ti ti-layout-board"></i><span>Plan de scène</span></button>
-        <button type="button" data-tab="stage" data-mode="site" onclick="mobMore(false);navPlan('site')"><i class="ti ti-map-2"></i><span>Plan de site</span></button>
-        <button type="button" data-tab="racks" onclick="mobMore(false);goTab('racks',null)"><i class="ti ti-server"></i><span>Racks</span></button>
-        <button type="button" data-tab="rf" onclick="mobMore(false);goTab('rf',null)"><i class="ti ti-antenna"></i><span>RF</span></button>
-        <button type="button" data-tab="road" onclick="mobMore(false);goTab('road',null)"><i class="ti ti-route"></i><span>Feuille de route</span></button>
-        <button type="button" data-tab="showfiles" onclick="mobMore(false);goTab('showfiles',null)"><i class="ti ti-adjustments-alt"></i><span>Exports console</span></button>
-        <button type="button" data-tab="bon" onclick="mobMore(false);goTab('bon',null)"><i class="ti ti-clipboard-check"></i><span>Bon du loueur</span></button>
-        <button type="button" data-tab="team" onclick="mobMore(false);goTab('team',null)"><i class="ti ti-link"></i><span>Partage et équipe</span></button>
-        <button type="button" data-tab="settings" onclick="mobMore(false);openProfile()"><i class="ti ti-settings"></i><span>Paramètres</span></button>
-        <button type="button" data-tab="admin" class="adm-only" style="display:none" onclick="mobMore(false);goTab('admin',null)"><i class="ti ti-shield-lock"></i><span>Administration</span></button>
+      <button type="button" class="mm-show" id="mob-more-show" onclick="mobMore(false);goTab('overview',null)"></button>
+      <section class="mm-grp mm-patch"><h3><i class="ti ti-list-numbers"></i>Patch</h3><div class="mm-grid">
+          <button type="button" data-tab="inputlist" data-mode="in" onclick="mobMore(false);navIL('in')"><span class="mm-ic"><i class="ti ti-list-numbers"></i></span><span>Input list</span></button>
+          <button type="button" data-tab="inputlist" data-mode="out" onclick="mobMore(false);navIL('out')"><span class="mm-ic"><i class="ti ti-arrow-bar-to-right"></i></span><span>Output list</span></button>
+          <button type="button" data-tab="showfiles" onclick="mobMore(false);goTab('showfiles',null)"><span class="mm-ic"><i class="ti ti-adjustments-alt"></i></span><span>Exports console</span></button>
+      </div></section>
+      <section class="mm-grp mm-plans"><h3><i class="ti ti-map-2"></i>Plans</h3><div class="mm-grid">
+          <button type="button" data-tab="stage" data-mode="scene" onclick="mobMore(false);navPlan('scene')"><span class="mm-ic"><i class="ti ti-layout-board"></i></span><span>Plan de scène</span></button>
+          <button type="button" data-tab="stage" data-mode="site" onclick="mobMore(false);navPlan('site')"><span class="mm-ic"><i class="ti ti-map-2"></i></span><span>Plan de site</span></button>
+          <button type="button" data-tab="synoptique" onclick="mobMore(false);goTab('synoptique',null)"><span class="mm-ic"><i class="ti ti-topology-star"></i></span><span>Synoptique</span></button>
+      </div></section>
+      <section class="mm-grp mm-gear"><h3><i class="ti ti-server"></i>Matériel</h3><div class="mm-grid">
+          <button type="button" data-tab="racks" onclick="mobMore(false);goTab('racks',null)"><span class="mm-ic"><i class="ti ti-server"></i></span><span>Racks</span></button>
+          <button type="button" data-tab="rf" onclick="mobMore(false);goTab('rf',null)"><span class="mm-ic"><i class="ti ti-antenna"></i></span><span>Liaisons HF</span></button>
+          <button type="button" data-tab="bon" onclick="mobMore(false);goTab('bon',null)"><span class="mm-ic"><i class="ti ti-clipboard-check"></i></span><span>Bon du loueur</span></button>
+      </div></section>
+      <section class="mm-grp mm-prod"><h3><i class="ti ti-route"></i>Production</h3><div class="mm-grid">
+          <button type="button" data-tab="road" onclick="mobMore(false);goTab('road',null)"><span class="mm-ic"><i class="ti ti-route"></i></span><span>Feuille de route</span></button>
+          <button type="button" data-tab="fichiers" onclick="mobMore(false);goTab('fichiers',null)"><span class="mm-ic"><i class="ti ti-cloud"></i></span><span>Fichiers</span></button>
+          <button type="button" data-tab="team" onclick="mobMore(false);goTab('team',null)"><span class="mm-ic"><i class="ti ti-link"></i></span><span>Partage et équipe</span></button>
+      </div></section>
+      <div class="mm-acc">
+        <button type="button" data-tab="settings" onclick="mobMore(false);openProfile()"><i class="ti ti-settings"></i><span>Paramètres</span><i class="ti ti-chevron-right"></i></button>
+        <button type="button" onclick="mobMore(false);openPlanModal()"><i class="ti ti-credit-card"></i><span>Abonnement</span><i class="ti ti-chevron-right"></i></button>
+        <button type="button" onclick="mobMore(false);openSupport()"><i class="ti ti-headset"></i><span>Support</span><i class="ti ti-chevron-right"></i></button>
+        <button type="button" data-tab="admin" class="adm-only" style="display:none" onclick="mobMore(false);goTab('admin',null)"><i class="ti ti-shield-lock"></i><span>Administration</span><i class="ti ti-chevron-right"></i></button>
       </div>
     </div>
   </div>
@@ -1667,7 +1678,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=4.62"></script>
+<script src="pf-app.js?v=4.63"></script>
 <script src="pf-rf.js?v=1.14"></script>
 <script src="pf-road.js?v=1.0"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
