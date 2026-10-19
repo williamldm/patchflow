@@ -550,6 +550,45 @@ html[data-view=mobile] .notes h3{margin-top:0}
   .mcta span{font-size:12.5px;color:var(--ink3)}
   .foot{padding-bottom:calc(24px + env(safe-area-inset-bottom))}
 }
+
+/* ══ Téléphone : une page simple — accroche, quatre onglets, partage, tarifs ══ */
+.mtour{display:none}
+@media(max-width:760px){
+  .hero .scope,.hero .shot-bar,.hero .dsk,.hero .mshot,.hero .notes,.hero .swipe{display:none!important}
+  .hero{padding-bottom:20px}
+  .hero-grid{margin-bottom:0}
+  #fonctions,#plans,#materiel,#preparation{display:none}
+  .share .link-shot{display:none}
+  .mtour{display:block;padding:40px 0 52px;overflow:hidden}
+  .mtour h2{font-size:34px}
+  .mt-sub{margin-top:10px;font-size:15.5px;color:var(--ink2)}
+  .mt-tabs{position:sticky;top:64px;z-index:5;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;margin-top:22px;padding:4px;border-radius:14px;background:var(--bg2);box-shadow:inset 0 0 0 1px var(--rule)}
+  .mt-tabs button{display:grid;justify-items:center;gap:1px;padding:8px 2px;border:0;border-radius:10px;background:transparent;font:650 13.5px var(--f,inherit);color:var(--ink2);cursor:pointer}
+  .mt-tabs button span{font-size:10.5px;font-weight:700;letter-spacing:.06em;color:var(--ink3)}
+  .mt-tabs button[aria-selected=true]{background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(18,19,23,.08),0 0 0 1px var(--rule)}
+  .mt-tabs button[aria-selected=true] span{color:var(--acc-ink)}
+  .mt-track{display:flex;gap:12px;margin-top:16px;padding:0 var(--g) 6px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding:0 var(--g);scrollbar-width:none;overscroll-behavior-x:contain}
+  .mt-track::-webkit-scrollbar{display:none}
+  .mt-p{flex:0 0 100%;scroll-snap-align:start;border-radius:20px;background:var(--card);box-shadow:0 0 0 1px var(--rule),0 18px 36px -24px rgba(18,19,23,.3);overflow:hidden}
+  .mt-vis{height:230px;overflow:hidden;background:var(--night);display:flex;justify-content:center}
+  .mt-vis picture{display:block}
+  .mt-vis.ph{background:linear-gradient(160deg,#1a2130,#0b0e15)}
+  .mt-vis.ph img{width:180px;height:auto;margin-top:22px;border-radius:22px 22px 0 0;box-shadow:0 0 0 6px #1b212c,0 18px 40px rgba(0,0,0,.5)}
+  .mt-vis.wide picture,.mt-vis.wide img{width:100%;height:100%}
+  .mt-vis.wide img{object-fit:cover;object-position:left top}
+  .mt-list{list-style:none;padding:6px 16px 10px}
+  .mt-list li{display:grid;grid-template-columns:38px minmax(0,1fr);gap:12px;align-items:start;padding:12px 0}
+  .mt-list li+li{border-top:1px solid var(--rule)}
+  .mt-i{width:38px;height:38px;padding:9px;border-radius:11px;background:var(--bg);color:var(--ink);box-shadow:inset 0 0 0 1px var(--rule)}
+  .mt-list b{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:650;letter-spacing:-.005em}
+  .mt-list span{display:block;margin-top:2px;font-size:14.5px;line-height:1.45;color:var(--ink2)}
+  .mt-list span .tag,.mt-list b .tag{display:inline-block;margin-top:0}
+  .mt-dots{display:flex;justify-content:center;gap:6px;margin-top:14px}
+  .mt-dots i{width:6px;height:6px;border-radius:3px;background:var(--rule2);transition:width .25s,background .25s}
+  .mt-dots i.on{width:18px;background:var(--acc)}
+  .mt-aussi{margin-top:18px;font-size:14.5px;line-height:1.55;color:var(--ink2)}
+  .mt-aussi b{color:var(--ink)}
+}
 </style>
 </head>
 <body>
@@ -577,8 +616,8 @@ html[data-view=mobile] .notes h3{margin-top:0}
     </button>
   </div>
   <div class="drawer" id="drawer">
-    <a href="#fonctions">Fonctionnalités</a>
-    <a href="#materiel">Matériel</a>
+    <a href="#fonctions" data-m="0">Fonctionnalités</a>
+    <a href="#materiel" data-m="2">Matériel</a>
     <a href="#partage">Partage</a>
     <a href="#tarifs">Tarifs</a>
     <a href="#questions">Questions</a>
@@ -666,6 +705,22 @@ html[data-view=mobile] .notes h3{margin-top:0}
       <li><span class="n" aria-hidden="true">2</span><div><h3>+48V, façade, retours</h3><p>Une case par voie, cochée d'un clic, lisible d'un coup d'œil.</p></div></li>
       <li><span class="n" aria-hidden="true">3</span><div><h3>Enregistré en continu</h3><p>Pas de bouton «&nbsp;enregistrer&nbsp;». Une modif apparaît en direct chez les autres membres du show.</p></div></li>
     </ol>
+  </div>
+</section>
+
+
+<!-- ══════════ TÉLÉPHONE : les fonctionnalités en quatre onglets (remplace les sections détaillées) ══════════ -->
+<section class="mtour" id="decouvrir" aria-label="Fonctionnalités">
+  <div class="w">
+    <p class="kicker">Fonctionnalités</p>
+    <h2>Tout est dans le show.</h2>
+    <p class="mt-sub">De l'input list au bon du loueur, pour la façade, les retours, la régie et la presta.</p>
+    <div class="mt-tabs" role="tablist" aria-label="Familles de fonctionnalités"><button type="button" role="tab" aria-selected="true" aria-controls="mt-0" data-i="0"><span>01</span>Patch</button><button type="button" role="tab" aria-selected="false" aria-controls="mt-1" data-i="1"><span>02</span>Plans</button><button type="button" role="tab" aria-selected="false" aria-controls="mt-2" data-i="2"><span>03</span>Matériel</button><button type="button" role="tab" aria-selected="false" aria-controls="mt-3" data-i="3"><span>04</span>Sortie</button></div>
+  </div>
+  <div class="mt-track" id="mt-track"><article class="mt-p" id="mt-0" role="tabpanel" aria-label="Patch"><div class="mt-vis ph"><picture><source type="image/avif" srcset="img/lp-m-il.avif?v=2"/><img src="img/lp-m-il.jpg?v=2" width="1170" height="2532" loading="lazy" decoding="async" alt="L'input list sur téléphone"/></picture></div><ul class="mt-list"><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg><div><b>Input list</b><span>Micros et DI, +48&nbsp;V, envois façade et retours, colonnes à la carte.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h11M11 8l4 4-4 4M19 5v14"/></svg><div><b>Output list</b><span>Wedges, in-ears et leur fréquence HF, une couleur par type de sortie.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 18v-6M9.5 14.5 12 12l2.5 2.5"/></svg><div><b>Reprise d'un rider</b><span>Le patch du groupe lu dans son PDF, sans rien retaper. Scans lus par IA <span class="tag">Pro</span></span></div></li></ul></article><article class="mt-p" id="mt-1" role="tabpanel" aria-label="Plans"><div class="mt-vis ph"><picture><source type="image/avif" srcset="img/lp-m-plan-scene.avif?v=2"/><img src="img/lp-m-plan-scene.jpg?v=2" width="1170" height="2532" loading="lazy" decoding="async" alt="Le plan de scène sur téléphone"/></picture></div><ul class="mt-list"><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg><div><b>Plan de scène</b><span>Instruments et retours placés, numéros de voies repris du patch.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg><div><b>Plan de site</b><span>Enceintes, régies et tirages de câbles sur le plan de la salle.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M7 6h10M6.2 7.6l4.7 8.6M17.8 7.6l-4.7 8.6"/></svg><div><b>Synoptique</b><span>Le trajet du signal, réseau par réseau.</span></div></li></ul></article><article class="mt-p" id="mt-2" role="tabpanel" aria-label="Matériel"><div class="mt-vis wide"><picture><source type="image/avif" srcset="img/lp-racks.avif?v=1"/><img src="img/lp-racks.jpg?v=1" width="2120" height="1610" loading="lazy" decoding="async" alt="Un rack de régie dessiné dans PatchFlow"/></picture></div><ul class="mt-list"><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16M4 15h16M8 6h.01M8 12h.01M8 18h.01"/></svg><div><b>Racks</b><span>Dessinés unité par unité, câblage, poids et consommation compris.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21V11M8 7a5 5 0 0 1 8 0M5 4a9 9 0 0 1 14 0"/><circle cx="12" cy="10" r="1.2"/></svg><div><b>Liaisons HF</b><span>Fréquences compatibles calculées, intermodulation comprise.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 12.5l2 2 4-4.5"/></svg><div><b>Bon du loueur</b><span>La demande de matériel, puis le pointage du bon avant de charger.</span></div></li></ul></article><article class="mt-p" id="mt-3" role="tabpanel" aria-label="Sortie"><div class="mt-vis ph"><picture><source type="image/avif" srcset="img/lp-share-il.avif?v=1"/><img src="img/lp-share-il.jpg?v=1" width="780" height="1688" loading="lazy" decoding="async" alt="Le rider partagé ouvert sur un téléphone"/></picture></div><ul class="mt-list"><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg><div><b>Lien toujours à jour</b><span>Un lien par destinataire, ouvert sans compte, toujours la dernière version.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4v6M6 14v6M12 4v2M12 10v10M18 4v9M18 17v3"/><circle cx="6" cy="12" r="2"/><circle cx="12" cy="8" r="2"/><circle cx="18" cy="15" r="2"/></svg><div><b>Exports console <span class="tag">Pro</span></b><span>X32, M32, WING, dLive, SQ, Yamaha&nbsp;: noms, couleurs, patch et gains.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5M16 5.2a3.2 3.2 0 0 1 0 5.6M18 14.8c1.9.7 3 2.4 3 5.2"/></svg><div><b>Équipe et rôles</b><span>Ingé retours en éditeur, régisseur en lecture&nbsp;: tout le monde sur la même version.</span></div></li></ul></article></div>
+  <div class="w">
+    <div class="mt-dots" aria-hidden="true"><i class="on"></i><i></i><i></i><i></i></div>
+    <p class="mt-aussi"><b>Et aussi&nbsp;:</b> feuille de route, colonne ALT, templates, import et export CSV, mode sombre, corbeille de 30&nbsp;jours <span class="tag">Pro</span>.</p>
   </div>
 </section>
 
@@ -1438,6 +1493,23 @@ html[data-view=mobile] .notes h3{margin-top:0}
   }
   function soon(){ if(!t) t=setTimeout(check,80); }
   window.addEventListener('scroll',soon,{passive:true}); window.addEventListener('resize',soon); check();
+})();
+</script>
+<script>
+/* Téléphone : onglets des fonctionnalités, synchronisés avec le glissé */
+(function(){
+  var tr=document.getElementById('mt-track'); if(!tr) return;
+  var tabs=[].slice.call(document.querySelectorAll('.mt-tabs button')), dots=[].slice.call(document.querySelectorAll('.mt-dots i')), cur=0, t=0;
+  function mark(i){ cur=i; tabs.forEach(function(b,k){ b.setAttribute('aria-selected',k===i?'true':'false'); }); dots.forEach(function(d,k){ d.classList.toggle('on',k===i); }); }
+  function go(i){ var p=tr.children[i]; if(!p) return; tr.scrollTo({left:p.offsetLeft-tr.offsetLeft-parseFloat(getComputedStyle(tr).paddingLeft||0),behavior:'smooth'}); mark(i); }
+  tabs.forEach(function(b,k){ b.addEventListener('click',function(){ go(k); }); });
+  tr.addEventListener('scroll',function(){ if(t) return; t=setTimeout(function(){ t=0; var w=tr.children[0].offsetWidth+12; mark(Math.max(0,Math.min(tabs.length-1,Math.round(tr.scrollLeft/w)))); },60); },{passive:true});
+  /* Liens du menu vers des sections masquées sur téléphone : on ouvre l'onglet correspondant */
+  document.querySelectorAll('a[data-m]').forEach(function(a){ a.addEventListener('click',function(e){
+    if(getComputedStyle(document.getElementById('decouvrir')).display==='none') return;
+    e.preventDefault(); document.getElementById('decouvrir').scrollIntoView({behavior:'smooth'}); go(+a.dataset.m);
+  }); });
+  window.__mtGo=go;
 })();
 </script>
 </body>
