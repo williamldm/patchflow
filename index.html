@@ -491,6 +491,65 @@ html[data-view=mobile] .notes h3{margin-top:0}
   .scope-col a{grid-template-columns:40px minmax(0,1fr)}
   .auteur-id{flex-direction:column;gap:16px}
 }
+
+/* ══ Téléphone : page resserrée ══ */
+.mcta{display:none}
+@media(max-width:760px){
+  .chapter,.share{padding:56px 0}
+  .hero{padding:28px 0 44px}
+  .hero-grid{gap:18px;margin-bottom:36px}
+  .hero .lede{margin-bottom:22px}
+  .head{margin-bottom:26px}
+  .kicker{margin-bottom:12px}
+  .lede{font-size:16.5px}
+  /* Tour d'horizon : trois pictogrammes par ligne, sans sous-titre */
+  .scope{margin-bottom:0}
+  .scope-hd{margin-bottom:14px}
+  .scope-hd p{font-size:14px}
+  .scope-col{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px;padding:14px 6px 8px}
+  .scope-col::before{left:18px}
+  .scope-k{grid-column:1/-1;padding:0 12px 6px}
+  .scope-col a{display:flex;flex-direction:column;align-items:center;gap:7px;padding:10px 4px;text-align:center}
+  .sc-t span{display:none}
+  .sc-t b{font-size:13.5px;line-height:1.2}
+  .sc-i{width:38px;height:38px}
+  /* Captures du matériel : une fenêtre plus basse, on glisse pour voir le reste */
+  .mat+.mat{margin-top:56px}
+  .mat{gap:22px}
+  .mat .shot{max-height:420px;-webkit-mask-image:linear-gradient(#000 80%,transparent);mask-image:linear-gradient(#000 80%,transparent)}
+  .mat .shot-in{width:780px}
+  .ticks{margin-top:16px}
+  .ticks li{padding:10px 0 10px 28px;font-size:15px}
+  .ticks li::before{top:17px}
+  .mphone{width:min(68%,250px)}
+  .share-list{margin-top:24px}
+  .share-list li{padding:13px 0}
+  .hero .view-sw,.scope+*{margin-top:28px}
+  .facts{margin-top:20px}
+  .facts li{padding:13px 0}
+  /* Fichiers, console, équipe : cartes à faire défiler */
+  .cards{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 calc(-1 * var(--g));padding:4px var(--g) 20px;scrollbar-width:none;overscroll-behavior-x:contain}
+  .cards::-webkit-scrollbar{display:none}
+  .card{flex:0 0 84%;scroll-snap-align:center}
+  .card:hover{transform:none}
+  .card-b{padding:18px 18px 20px}
+  /* Et aussi : étiquettes */
+  .aussi{margin-top:48px;gap:14px}
+  .aussi ul{columns:auto;display:flex;flex-wrap:wrap;gap:8px}
+  .aussi li{padding:7px 12px;border:0;border-radius:999px;background:var(--card);box-shadow:inset 0 0 0 1px var(--rule2);font-size:14px;color:var(--ink)}
+  .plan{padding:24px 20px 22px}
+  .faq summary{padding:18px 0;font-size:16.5px}
+  .faq details p{font-size:15.5px}
+  .final{padding:64px 0 56px}
+  /* Bouton d'inscription collant */
+  .mcta{display:grid;justify-items:center;gap:6px;position:fixed;left:0;right:0;bottom:0;z-index:40;padding:10px var(--g) calc(10px + env(safe-area-inset-bottom));
+    background:color-mix(in srgb,var(--bg) 90%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:0 -1px 0 var(--rule2);
+    transform:translateY(110%);transition:transform .3s var(--ease)}
+  .mcta.show{transform:none}
+  .mcta .btn{width:100%;height:50px}
+  .mcta span{font-size:12.5px;color:var(--ink3)}
+  .foot{padding-bottom:calc(24px + env(safe-area-inset-bottom))}
+}
 </style>
 </head>
 <body>
@@ -511,7 +570,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
     </nav>
     <div class="top-act">
       <a class="signin" href="app.html">Se connecter</a>
-      <a class="btn" href="app.html?signup=1">Essayer gratuitement</a>
+      <a class="btn" href="app.html?signup=1">Créer un compte gratuit</a>
     </div>
     <button class="burger" id="burger" type="button" aria-label="Menu" aria-expanded="false" aria-controls="drawer">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
@@ -524,7 +583,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
     <a href="#tarifs">Tarifs</a>
     <a href="#questions">Questions</a>
     <div class="act">
-      <a class="btn btn-lg" href="app.html?signup=1">Essayer gratuitement</a>
+      <a class="btn btn-lg" href="app.html?signup=1">Créer mon compte gratuit</a>
       <a class="btn btn-lg btn-ghost" href="app.html">Se connecter</a>
     </div>
   </div>
@@ -538,12 +597,12 @@ html[data-view=mobile] .notes h3{margin-top:0}
     <div class="hero-grid">
       <h1 class="display">Moins de mails. Plus de son.</h1>
       <div>
-        <p class="lede">Patch, plans, racks et liaisons HF d'une date au même endroit. Un lien pour le régisseur, le loueur et le groupe, toujours à jour.</p>
+        <p class="lede">Patch, plans, racks et liaisons HF d'une date au même endroit, gratuitement. Un lien pour le régisseur, le loueur et le groupe, toujours à jour.</p>
         <div class="ctas">
-          <a class="btn btn-lg" href="app.html?signup=1">Essayer gratuitement</a>
+          <a class="btn btn-lg" href="app.html?signup=1">Créer mon compte gratuit</a>
           <a class="more" href="#partage">Voir un rider partagé <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10h12M11 5l5 5-5 5"/></svg></a>
         </div>
-        <p class="fine">Gratuit jusqu'à 3 shows, sans carte bancaire · 1 mois de Pro offert · sans cookie ni traceur</p>
+        <p class="fine">Gratuit pour toujours, sans carte bancaire · options Pro si vous en avez besoin · sans cookie ni traceur</p>
       </div>
     </div>
 
@@ -988,9 +1047,9 @@ html[data-view=mobile] .notes h3{margin-top:0}
     <div class="head">
       <div>
         <p class="kicker">Tarifs</p>
-        <h2>Gratuit pour démarrer. Pro quand vous enchaînez les dates.</h2>
+        <h2>Gratuit, pour de bon. Le Pro si vous en voulez plus.</h2>
       </div>
-      <p class="lede">Le plan Gratuit tient pour quelques dates&nbsp;: 3 shows, 26 canaux par show. Le Pro enlève les limites et ajoute les exports console, la reprise de liste par IA et 50&nbsp;Go de fichiers. C'est une charge professionnelle déductible. <b>Le premier mois de Pro est offert.</b></p>
+      <p class="lede">PatchFlow est gratuit, sans limite de durée&nbsp;: patch, plans, racks, liaisons HF et liens de partage, sans carte bancaire. Le Pro est une option pour ceux qui enchaînent les dates&nbsp;: shows illimités, exports console, reprise de liste par IA et 50&nbsp;Go de fichiers. Son premier mois est offert.</p>
     </div>
     <div class="billing" role="group" aria-label="Période de facturation">
       <button type="button" data-bp="monthly" aria-pressed="false">Mensuel</button>
@@ -1000,7 +1059,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
       <div class="plan">
         <div class="plan-nm">Gratuit</div>
         <div class="price"><b>0 €</b><span>pour toujours</span></div>
-        <p class="fine">Sans carte bancaire. Largement de quoi préparer une date.</p>
+        <p class="fine">Sans carte bancaire, sans limite de durée. Largement de quoi préparer une date.</p>
         <ul>
           <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>3 shows · 26 canaux par show</li>
           <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>Input list et output list</li>
@@ -1011,7 +1070,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
           <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>Contrôle du bon du loueur : 1 session par mois</li>
           <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>500 Mo de fichiers · 5 templates</li>
         </ul>
-        <a class="btn btn-lg btn-ghost" href="app.html?signup=1">Commencer gratuitement</a>
+        <a class="btn btn-lg btn-ghost" href="app.html?signup=1">Créer mon compte gratuit</a>
       </div>
       <div class="plan pro">
         <div class="plan-top">
@@ -1114,14 +1173,19 @@ html[data-view=mobile] .notes h3{margin-top:0}
     <h2>La prochaine date, préparée avant le chargement.</h2>
     <p class="lede">Montez le patch, posez les plans, envoyez le lien. Le plan Gratuit suffit pour préparer une date entière.</p>
     <div class="ctas" style="justify-content:center">
-      <a class="btn btn-lg" href="app.html?signup=1">Essayer gratuitement</a>
-      <a class="btn btn-lg btn-ghost" href="#tarifs">Voir les tarifs</a>
+      <a class="btn btn-lg" href="app.html?signup=1">Créer mon compte gratuit</a>
+      <a class="btn btn-lg btn-ghost" href="#tarifs">Ce que le Pro ajoute</a>
     </div>
-    <p class="fine">Sans carte bancaire · sans cookie ni traceur · résiliable à tout moment</p>
+    <p class="fine">Gratuit pour toujours · sans carte bancaire · sans cookie ni traceur</p>
   </div>
 </section>
 
 </main>
+
+<div class="mcta" id="mcta" aria-hidden="true">
+  <a class="btn btn-lg" href="app.html?signup=1" tabindex="-1">Créer mon compte gratuit</a>
+  <span>Gratuit pour toujours · sans carte bancaire</span>
+</div>
 
 <footer class="night foot">
   <div class="w foot-in">
@@ -1358,6 +1422,22 @@ html[data-view=mobile] .notes h3{margin-top:0}
     [].forEach.call(g.querySelectorAll('button'),function(b){ b.addEventListener('click',function(){ setView(b.getAttribute('data-view')); }); });
   });
   setView(window.matchMedia('(max-width: 760px)').matches?'mobile':'desktop');
+})();
+</script>
+<script>
+/* Téléphone : le bouton d'inscription reste à portée de pouce, sauf quand celui du haut ou celui de la fin est à l'écran */
+(function(){
+  var bar=document.getElementById('mcta'); if(!bar) return;
+  var els=[document.querySelector('.hero .ctas'),document.getElementById('demarrer'),document.querySelector('.foot')].filter(Boolean), t=0;
+  function check(){
+    t=0; var h=window.innerHeight;
+    var hide=els.some(function(el){ var r=el.getBoundingClientRect(); return r.bottom>0 && r.top<h; });
+    if(bar.classList.contains('show')===!hide) return;
+    bar.classList.toggle('show',!hide); bar.setAttribute('aria-hidden',hide?'true':'false');
+    bar.querySelector('a').tabIndex=hide?-1:0;
+  }
+  function soon(){ if(!t) t=setTimeout(check,80); }
+  window.addEventListener('scroll',soon,{passive:true}); window.addEventListener('resize',soon); check();
 })();
 </script>
 </body>
