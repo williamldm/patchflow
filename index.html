@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>PatchFlow — Input list, plans de scène et rider partagé</title>
-<meta name="description" content="Input list, output list, plans de scène et de site, synoptique, racks, liaisons HF et bon du loueur dans le même show. Un lien en lecture seule pour le régisseur, le loueur et le groupe."/>
+<title>PatchFlow : input list, plan de scène et rider son, gratuit</title>
+<meta name="description" content="Préparez vos dates son gratuitement : input list, plan de scène, racks, liaisons HF et bon du loueur, partagés par un seul lien toujours à jour."/>
 <meta name="theme-color" content="#f6f5f2"/>
 <link rel="canonical" href="https://patchflow.fr/"/>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
@@ -13,11 +13,11 @@
 <meta property="og:locale" content="fr_FR"/>
 <meta property="og:url" content="https://patchflow.fr/"/>
 <meta property="og:title" content="PatchFlow — Moins de mails. Plus de son."/>
-<meta property="og:description" content="Input list, plans, racks et liaisons HF d'une date au même endroit, avec un lien en lecture seule pour le régisseur, le loueur et le groupe."/>
+<meta property="og:description" content="Préparez vos dates son gratuitement : input list, plan de scène, racks, liaisons HF et bon du loueur, partagés par un seul lien toujours à jour."/>
 <meta property="og:image" content="https://patchflow.fr/img/lp-hero-il.jpg?v=3"/>
 <meta name="twitter:card" content="summary_large_image"/>
 <meta name="twitter:title" content="PatchFlow — Moins de mails. Plus de son."/>
-<meta name="twitter:description" content="Input list, plans de scène et rider partagé pour les ingés son."/>
+<meta name="twitter:description" content="Préparez vos dates son gratuitement : input list, plan de scène, racks, liaisons HF et bon du loueur, partagés par un seul lien toujours à jour."/>
 <meta name="twitter:image" content="https://patchflow.fr/img/lp-hero-il.jpg?v=3"/>
 <script>document.documentElement.classList.add('js');setTimeout(function(){if(!window.__rv)document.documentElement.classList.remove('js')},2500);</script>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
@@ -27,7 +27,7 @@
 <link rel="preload" as="image" href="img/lp-m-il.avif?v=2" type="image/avif" media="(max-width:760px)" fetchpriority="high"/>
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"SoftwareApplication","name":"PatchFlow","applicationCategory":"BusinessApplication","operatingSystem":"Web","inLanguage":"fr",
-"description":"Input list, output list, plans de scène, de site, synoptique, racks, liaisons HF et bon du loueur pour les techniciens son, avec partage par lien en lecture seule.",
+"description":"Application gratuite pour les techniciens son : input list, output list, plans de scène et de site, synoptique, racks, liaisons HF et bon du loueur, partagés par un lien en lecture seule toujours à jour.",
 "author":{"@type":"Person","name":"William Lopes Da Mota"},
 "featureList":["Input list et output list","Plan de scène et plan de site","Synoptique de signal","Dessin de racks 19 pouces","Demande de matériel et contrôle du bon du loueur","Import d'un patch depuis un PDF","Exports console X32, M32, WING, dLive, SQ, Yamaha","Rider partagé par lien"],
 "url":"https://patchflow.fr/","image":"https://patchflow.fr/img/lp-hero-il.jpg?v=3",
@@ -588,6 +588,13 @@ html[data-view=mobile] .notes h3{margin-top:0}
   .mt-dots i.on{width:18px;background:var(--acc)}
   .mt-aussi{margin-top:18px;font-size:14.5px;line-height:1.55;color:var(--ink2)}
   .mt-aussi b{color:var(--ink)}
+}
+
+/* Grands écrans (27-32 pouces) : la page s'élargit pour que les captures, prises sur un écran de 1440 px,
+   s'affichent à leur taille d'origine plutôt que réduites (texte réduit = texte flou). */
+@media(min-width:1700px){
+  :root{--w:1520px}
+  .bleed{width:clamp(760px,62vw,1240px)}
 }
 </style>
 </head>
@@ -1454,7 +1461,8 @@ html[data-view=mobile] .notes h3{margin-top:0}
       if(window.innerWidth>760){
         var r=heroShot.getBoundingClientRect();
         var p=Math.min(1,Math.max(0,(vh-r.top)/(vh*0.85)));
-        heroShot.style.transform='perspective(1800px) rotateX('+((1-p)*11).toFixed(2)+'deg)';
+        /* Une fois redressée, plus aucune transformation : une 3D résiduelle fait rééchantillonner l'image (flou) */
+        heroShot.style.transform= p>=0.995 ? '' : 'perspective(1800px) rotateX('+((1-p)*11).toFixed(2)+'deg)';
       } else heroShot.style.transform='';
     }
     if(phones){
