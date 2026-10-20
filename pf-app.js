@@ -5789,12 +5789,17 @@ function openPDFModal(forceType){
   document.getElementById('pdf-modal').className='modal-ov show';
 }
 function closePDF(){document.getElementById('pdf-modal').className='modal-ov';}
-function copyILShareLink(){
+/* Copie un texte : presse-papiers moderne, sinon zone de texte temporaire (Safari après un appel réseau) */
+function _copyText(url){
+  var old=function(){ try{ var ta=document.createElement('textarea'); ta.value=url; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); var ok=document.execCommand('copy'); document.body.removeChild(ta); toast(ok?'Lien copié !':url); }catch(e){ toast(url); } };
+  try{ navigator.clipboard.writeText(url).then(function(){ toast('Lien copié !'); }).catch(old); }catch(e){ old(); }
+}
+async function copyILShareLink(){
+  if(!CUR_SHOW) return;
   if(!registerShareLink('il')) return;
-  var url=_riderBase()+'?view='+(CUR_SHOW?.id||'')+'&tab=il';
-  try{navigator.clipboard.writeText(url).then(function(){toast('Lien copié !');});} catch(e){
-    var ta=document.createElement('textarea');ta.value=url;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('Lien copié !');
-  }
+  /* Le lien ?view= n'ouvre le show que si son partage est activé (stage_data.rider) : on l'active d'abord */
+  if(!(await _ensureShareActive())) return;
+  _copyText(_riderBase()+'?view='+CUR_SHOW.id+'&tab=il');
 }
 
 // ══════════════════════════════════════
@@ -7151,8 +7156,7 @@ function _planExpPdf() {
 function _planExpShare() {
   if (PLAN_MODE === 'site') {
     if(!registerShareLink('site')) return;
-    const url = _riderBase() + '?view=' + (CUR_SHOW?.id||'') + '&tab=site';
-    navigator.clipboard.writeText(url).then(function(){ toast('Lien copié !'); }).catch(function(){ toast(url); });
+    _ensureShareActive().then(function(ok){ if(ok) _copyText(_riderBase() + '?view=' + (CUR_SHOW?.id||'') + '&tab=site'); });
   } else {
     if(!registerShareLink('stage')) return;
     openBpShare();
@@ -7206,7 +7210,7 @@ async function _ensureShareActive(){
   var cfg={ sections:['il','out','syno','stage','site'], title:CUR_SHOW.name||'', note:'', info:'', files:[] };
   var sd=Object.assign({}, CUR_SHOW.stage_data||{v:2}, {rider:cfg});
   var {error}=await sb.from('shows').update({stage_data:sd}).eq('id',CUR_SHOW.id);
-  if(error){ toast('Erreur activation du partage : '+error.message); return false; }
+  if(error){ toast(CUR_SHOW.owner_id!==(ME&&ME.id)?'Seul le propriétaire du show peut activer son lien de partage.':'Erreur activation du partage : '+error.message); return false; }
   CUR_SHOW.stage_data=sd;
   return true;
 }
