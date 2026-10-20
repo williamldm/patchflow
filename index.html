@@ -554,7 +554,11 @@ html[data-view=mobile] .notes h3{margin-top:0}
 /* ══ Téléphone : une page simple — accroche, quatre onglets, partage, tarifs ══ */
 .mtour{display:none}
 @media(max-width:760px){
-  .hero .scope,.hero .shot-bar,.hero .dsk,.hero .notes,.hero .swipe{display:none!important}
+  .hero .scope,.hero .dsk,.hero .notes,.hero .swipe,.hero .shot-bar .view-sw{display:none!important}
+  .hero>.w{display:flex;flex-direction:column}
+  .hero .shot-bar{order:1;display:block;margin:18px 0 0}
+  .hero .proof{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 12px;margin:0}
+  .hero .proof li{align-items:flex-start;font-size:13px}
   /* Le produit dès le premier écran : le haut de l'input list sur téléphone, sous le bouton d'inscription */
   .hero .mshot{display:flex!important;margin-top:26px;height:320px;overflow:hidden;
     -webkit-mask-image:linear-gradient(#000 70%,transparent);mask-image:linear-gradient(#000 70%,transparent)}
@@ -613,6 +617,21 @@ html[data-view=mobile] .notes h3{margin-top:0}
 #rider-import .kicker{color:var(--acc-ink)}
 #rider-import .mat-t h3{font-size:clamp(30px,3.2vw,44px);font-stretch:108%;letter-spacing:-.035em;line-height:1.02;margin-bottom:20px}
 .hero .notes+.scope{margin-top:clamp(56px,7vw,96px)}
+
+/* ── Premier écran : la capture replacée dans son contexte — app en ligne, données enregistrées ── */
+.hero .shot-bar{align-items:center;gap:24px}
+.proof{list-style:none;display:flex;flex-wrap:wrap;gap:10px 28px;margin-right:auto}
+.proof li{display:flex;align-items:center;gap:10px;font-size:13.5px;line-height:1.3;color:var(--ink2)}
+.proof svg{width:30px;height:30px;padding:6px;flex-shrink:0;border-radius:9px;background:var(--card);color:var(--acc-ink);box-shadow:inset 0 0 0 1px var(--rule)}
+.proof span{display:grid}
+.proof b{font-weight:650;color:var(--ink)}
+.framed{padding-top:0}
+.win-bar{display:flex;align-items:center;gap:7px;height:34px;padding:0 14px;border-radius:14px 14px 0 0;background:#151a24;border-bottom:1px solid #222a37}
+.win-bar i{width:10px;height:10px;border-radius:50%;background:#2c3442}
+.win-bar span{display:flex;align-items:center;gap:6px;margin:0 auto;padding:3px 14px;border-radius:7px;background:#0b0f17;color:#8b95a7;font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.01em}
+.win-bar svg{width:12px;height:12px}
+.framed .shot-in picture{border-radius:0 0 14px 14px}
+@media(max-width:1100px){.proof{gap:10px 20px}.proof li{font-size:13px}}
 </style>
 </head>
 <body>
@@ -669,8 +688,9 @@ html[data-view=mobile] .notes h3{margin-top:0}
       </div>
     </div>
 
-    <div class="shot-bar" id="input-list"><div class="view-sw" role="group" aria-label="Format d'affichage de l'app"><button type="button" data-view="desktop" aria-pressed="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="10" rx="1.5"/><path d="M7 16.5h6M10 13.5v3"/></svg>Ordinateur</button><button type="button" data-view="mobile" aria-pressed="false"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="2" width="9" height="16" rx="2"/><path d="M9 15h2"/></svg>Mobile</button></div></div>
-    <figure class="dsk shot" data-x="0">
+    <div class="shot-bar" id="input-list"><ul class="proof" aria-label="Vos shows en ligne"><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18a4.5 4.5 0 0 1-.5-8.97A6 6 0 0 1 18 9.5a4 4 0 0 1-.5 7.97"/><path d="M9 14.5l2 2 4-4"/></svg><span><b>Enregistré en ligne</b>à chaque modification</span></li><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 19v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 17.5V19"/><circle cx="10" cy="7.5" r="3.5"/><path d="M20 19v-1.5a3.5 3.5 0 0 0-2.5-3.35M15.5 4.15a3.5 3.5 0 0 1 0 6.7"/></svg><span><b>En direct pour l'équipe</b>l'input list se met à jour chez tous</span></li><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></svg><span><b>Riders et show files</b>rangés avec le show</span></li><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="4" width="13" height="10" rx="1.5"/><path d="M6 17.5h6"/><rect x="16.5" y="8" width="5" height="11" rx="1.2"/></svg><span><b>Ordinateur, tablette, téléphone</b>rien à installer</span></li></ul><div class="view-sw" role="group" aria-label="Format d'affichage de l'app"><button type="button" data-view="desktop" aria-pressed="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="10" rx="1.5"/><path d="M7 16.5h6M10 13.5v3"/></svg>Ordinateur</button><button type="button" data-view="mobile" aria-pressed="false"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="2" width="9" height="16" rx="2"/><path d="M9 15h2"/></svg>Mobile</button></div></div>
+    <figure class="dsk shot framed" data-x="0">
+      <div class="win-bar" aria-hidden="true"><i></i><i></i><i></i><span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="7" width="9" height="6.5" rx="1.2"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>patchflow.fr/app.html</span></div>
       <div class="shot-in">
         <picture>
           <source type="image/avif" srcset="img/lp-hero-il.avif?v=3"/>
