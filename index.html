@@ -650,13 +650,26 @@ html[data-view=mobile] .notes h3{margin-top:0}
 .addon b small{font-size:13px;font-weight:500;color:var(--ink3)}
 @media(max-width:760px){ .addon b{white-space:normal;font-size:16px} }
 
-/* ── Tarifs : mention de la dépense professionnelle ── */
-.pro-tax{display:flex;gap:14px;align-items:flex-start;margin-top:24px;padding:18px 22px;border-radius:16px;box-shadow:inset 0 0 0 1px var(--rule2)}
-.pro-tax svg{width:22px;height:22px;flex-shrink:0;margin-top:1px;color:var(--ink2)}
-.pro-tax p{font-size:15px;line-height:1.55;color:var(--ink2)}
-.pro-tax b{color:var(--ink);font-weight:650}
-.pro-tax a{color:var(--acc-ink);font-weight:600;white-space:nowrap}
+/* ── Tarifs : dépense professionnelle et coût réel ── */
+.pro-net{margin-top:10px;font-size:13.5px;line-height:1.45;color:var(--nt2)}
+.pro-net b{color:#fff;font-weight:650}
+.pro-net a{color:var(--acc2);font-weight:600;white-space:nowrap}
+.pro-tax{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:28px;align-items:start;margin-top:24px;padding:24px 26px;border-radius:16px;background:var(--card);box-shadow:0 0 0 1px var(--rule)}
+.pro-tax-t{display:flex;gap:14px}
+.pro-tax-t svg{width:24px;height:24px;flex-shrink:0;margin-top:2px;color:var(--acc-ink)}
+.pro-tax h3{font-size:17px;margin-bottom:6px}
+.pro-tax-t p{font-size:15px;line-height:1.55;color:var(--ink2)}
+.pro-tax-k{font-size:12.5px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);margin-bottom:8px}
+.pro-tax table{width:100%;border-collapse:collapse}
+.pro-tax th,.pro-tax td{padding:10px 0;border-top:1px solid var(--rule);text-align:left;font-size:14.5px;font-weight:400;color:var(--ink2);vertical-align:baseline}
+.pro-tax th{color:var(--ink)}
+.pro-tax td{text-align:right;padding-left:14px;white-space:nowrap}
+.pro-tax td b{font-size:19px;font-weight:700;color:var(--ink);letter-spacing:-.01em}
+.pro-tax tr:last-child th,.pro-tax tr:last-child td{border-bottom:1px solid var(--rule)}
+.pro-tax-f{margin-top:10px;font-size:12.5px;line-height:1.5;color:var(--ink3)}
 .pro-tax+.addon{margin-top:14px}
+@media(max-width:860px){ .pro-tax{grid-template-columns:minmax(0,1fr);gap:18px;padding:20px} }
+@media(max-width:560px){ .pro-tax td:last-child{display:none} .pro-tax th{font-size:14px} }
 </style>
 </head>
 <body>
@@ -1201,6 +1214,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
           <b id="pro-price">9,92&nbsp;€</b><span>par mois</span>
         </div>
         <p class="fine" id="pro-bill">Facturé 119&nbsp;€ par an au lieu de 143,88&nbsp;€.</p>
+        <p class="pro-net" id="pro-net">Intermittent aux frais réels&nbsp;: environ <b>6,94 à 8,83&nbsp;€ par mois</b> après impôt. <a href="#cout-reel">Le calcul</a></p>
         <p class="plan-for">Pour enchaîner les dates</p>
         <p class="plus">Tout le Gratuit, sans ses limites, et&nbsp;:</p>
         <ul>
@@ -1214,9 +1228,24 @@ html[data-view=mobile] .notes h3{margin-top:0}
         <p class="fine after">1 mois offert pour essayer toutes les fonctions Pro. Carte demandée à l'inscription, aucun prélèvement avant la fin du mois. Sans engagement, résiliable en deux clics.</p>
       </div>
     </div>
-    <div class="pro-tax">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></svg>
-      <p><b>Une dépense professionnelle.</b> Pour une société, une association ou un indépendant au régime réel, l'abonnement Pro est une charge déductible&nbsp;; intermittent aux frais réels, il entre dans vos frais professionnels. Chaque paiement donne lieu à une facture, disponible dans votre espace. <a href="#questions">En savoir plus</a></p>
+    <div class="pro-tax" id="cout-reel">
+      <div class="pro-tax-t">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></svg>
+        <div>
+          <h3>Une dépense professionnelle</h3>
+          <p>Pour une société, une association ou un indépendant au régime réel, l'abonnement Pro est une charge déductible. Intermittent qui déclare ses frais réels, il entre dans vos frais professionnels et réduit votre impôt. Une facture à chaque paiement, dans votre espace.</p>
+        </div>
+      </div>
+      <div class="pro-tax-n">
+        <p class="pro-tax-k">Coût réel pour un intermittent aux frais réels, formule annuelle</p>
+        <table>
+          <tbody>
+            <tr><th>Tranche d'imposition à 11&nbsp;%</th><td><b>8,83&nbsp;€</b> par mois</td><td>105,91&nbsp;€ par an</td></tr>
+            <tr><th>Tranche d'imposition à 30&nbsp;%</th><td><b>6,94&nbsp;€</b> par mois</td><td>83,30&nbsp;€ par an</td></tr>
+          </tbody>
+        </table>
+        <p class="pro-tax-f">Estimation&nbsp;: 119&nbsp;€ moins l'impôt économisé (119&nbsp;€ × votre taux marginal). En formule mensuelle&nbsp;: 8,39 à 10,67&nbsp;€ par mois. Aucun gain si vous gardez l'abattement forfaitaire de 10&nbsp;%&nbsp;; en micro-entreprise, les frais sont déjà couverts par l'abattement.</p>
+      </div>
     </div>
     <div class="addon">
       <div>
@@ -1243,7 +1272,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
       </details>
       <details>
         <summary>L'abonnement Pro est-il déductible&nbsp;?<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg></summary>
-        <p>Oui, si vous l'utilisez pour votre activité. Pour une société, une association ou un indépendant au régime réel, c'est une charge professionnelle, comme vos autres logiciels. Si vous êtes intermittent et que vous déclarez vos frais réels plutôt que l'abattement de 10&nbsp;%, il compte parmi vos frais professionnels. En micro-entreprise, les frais ne se déduisent pas un par un&nbsp;: ils sont couverts par l'abattement forfaitaire. Chaque paiement donne lieu à une facture au nom de votre compte, à retrouver dans Paramètres, Facturation. Votre comptable confirmera selon votre situation.</p>
+        <p>Oui, si vous l'utilisez pour votre activité. Pour une société, une association ou un indépendant au régime réel, c'est une charge professionnelle, comme vos autres logiciels. Si vous êtes intermittent et que vous déclarez vos frais réels plutôt que l'abattement de 10&nbsp;%, il compte parmi vos frais professionnels&nbsp;: en formule annuelle, il vous revient à environ 8,83&nbsp;€ par mois dans la tranche à 11&nbsp;%, et 6,94&nbsp;€ par mois dans la tranche à 30&nbsp;%. En micro-entreprise, les frais ne se déduisent pas un par un&nbsp;: ils sont couverts par l'abattement forfaitaire. Chaque paiement donne lieu à une facture au nom de votre compte, à retrouver dans Paramètres, Facturation. Votre comptable confirmera selon votre situation.</p>
       </details>
       <details>
         <summary>Je peux tester le Pro avant de payer&nbsp;?<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg></summary>
@@ -1408,6 +1437,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
         [].forEach.call(billing.querySelectorAll('button'),function(x){ x.setAttribute('aria-pressed',x===b?'true':'false'); });
         price.textContent=bp==='yearly'?'9,92\u00a0€':'11,99\u00a0€';
         bill.textContent=bp==='yearly'?'Facturé 119\u00a0€ par an au lieu de 143,88\u00a0€.':'Facturé chaque mois. Passez à l\u2019annuel\u00a0: 2 mois offerts.';
+        var net=document.querySelector('#pro-net b'); if(net) net.textContent=bp==='yearly'?'6,94 à 8,83\u00a0€ par mois':'8,39 à 10,67\u00a0€ par mois';
         var pr=price.parentNode; pr.classList.remove('swap'); void pr.offsetWidth; pr.classList.add('swap');
       });
     });
