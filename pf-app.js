@@ -190,11 +190,22 @@ async function _authProviders(){
     document.querySelectorAll('[data-auth-social]').forEach(function(d){ d.hidden=!any; });
   }catch(e){}
 }
+/* Origine de l'inscription, pour les statistiques internes (onglet Parcours) : un seul mot passé dans
+   l'adresse par les liens de la page d'accueil, du rider partagé ou des PDF. Ni cookie ni stockage local. */
+function _signupSource(){ var m=/[?&]from=(landing|rider|pdf)(?:&|$)/.exec(location.search); return m?m[1]:'direct'; }
+/* Connexion Google : l'origine ne passe pas par le formulaire, elle est posée au retour sur un compte tout neuf */
+function _recordSignupSource(){
+  try{
+    if(!ME||!ME.created_at||(ME.user_metadata||{}).signup_source) return;
+    if(Date.now()-new Date(ME.created_at).getTime()>86400000) return;
+    Promise.resolve(sb.auth.updateUser({data:{signup_source:_signupSource()}})).catch(function(){});
+  }catch(e){}
+}
 async function doOAuth(provider){
   try{
     const {error}=await sb.auth.signInWithOAuth({
       provider,
-      options:{ redirectTo: window.location.origin+window.location.pathname }
+      options:{ redirectTo: window.location.origin+window.location.pathname+(_signupSource()!=='direct'?'?from='+_signupSource():'') }
     });
     if(error) authMsg(_authErr(error),'err');
   }catch(e){ authMsg(_authErr(e),'err'); }
@@ -268,7 +279,7 @@ async function doReg(){
       email,
       password:pwd,
       options:{
-        data:{full_name:name},
+        data:{full_name:name, signup_source:_signupSource()},
         emailRedirectTo: _AUTH_BACK
       }
     });
@@ -598,6 +609,7 @@ async function initApp(){
       _withRetry(()=>loadShows(),   {label:'loadShows',   timeoutMs:12000, tries:3})
     ]);
     _handleCheckoutReturn(); // retour de paiement Stripe
+    _recordSignupSource(); // compte créé via Google : origine de l'inscription
     _initSharedLinks(); // suivi des liens de partage (limite Gratuit)
     _syncToursFromServer(); // tournées enregistrées sur le compte
     processShowInvites(); // charge les invitations en attente (notifications)
@@ -7747,7 +7759,7 @@ function _pdfFoot(doc, o){
   var bt=o.credit?('Créez votre '+(o.creditWhat||'synoptique')+' sur patchflow.fr'):'patchflow.fr';
   doc.setFont('helvetica',o.credit?'normal':'bold'); doc.setTextColor(K.muted[0],K.muted[1],K.muted[2]);
   doc.text(bt, bx, base, {align:'right'});
-  try{ doc.link(bx-doc.getTextWidth(bt),base-3,doc.getTextWidth(bt),4,{url:'https://patchflow.fr'}); }catch(e){}
+  try{ doc.link(bx-doc.getTextWidth(bt),base-3,doc.getTextWidth(bt),4,{url:'https://patchflow.fr/?from=pdf'}); }catch(e){}
   bx-=doc.getTextWidth(bt)+1.6;
   if(o.pf){ try{ doc.addImage(o.pf,'PNG',bx-4.6,base-3.5,4.6,4.6); }catch(e){} }
 }
@@ -7786,7 +7798,7 @@ function _pdfCreditTag(doc, pf, x, y, w, h){
   if(pf){ try{ doc.addImage(pf,'PNG',bx+2.2,by+1.2,4.2,4.2); }catch(e){} }
   doc.setTextColor(K.txt2[0],K.txt2[1],K.txt2[2]);
   doc.text(t, bx+(pf?7.3:2.5), by+4.5);
-  try{ doc.link(bx,by,bw,bh,{url:'https://patchflow.fr'}); }catch(e){}
+  try{ doc.link(bx,by,bw,bh,{url:'https://patchflow.fr/?from=pdf'}); }catch(e){}
 }
 async function _openSynoPdf(meta, synHtml, shareUrl, brand){
   if(!window.SynPro || !SynPro.buildExportSvg){ toast('Module synoptique indisponible.'); return; }
@@ -17614,7 +17626,7 @@ async function rackPdf(){
    chaque valeur passe par _bonE, et les identifiants par des attributs data, jamais dans un gestionnaire.
    ══════════════════════════════════════════════════════════════════ */
 var IS_ADMIN=false;
-var ADM={view:'users', ov:null, list:null, gr:null, grErr:'', q:'', plan:'', sort:'recent', off:0, open:null, detail:{}, err:'', listErr:'', t:null, seq:0, mail:null};
+var ADM={view:'users', funnel:null, funnelWeeks:12, ov:null, list:null, gr:null, grErr:'', q:'', plan:'', sort:'recent', off:0, open:null, detail:{}, err:'', listErr:'', t:null, seq:0, mail:null};
 async function _admCheck(){
   var ok=false;
   try{ var r=await sb.rpc('is_app_admin'); ok=!!(r && !r.error && r.data===true); }catch(e){}
@@ -17720,8 +17732,8 @@ async function renderAdmin(force){
   }
   _admPaint();
 }
-function admRefresh(){ var b=document.getElementById('adm-refresh'); if(b) b.disabled=true; renderAdmin(true).then(function(){ toast('✓ Données à jour'); }); }
-function admView(v){ ADM.view=v; _admPaint(); if(v==='mail' && !ADM.mail) admMailLoad(); }
+function admRefresh(){ var b=document.getElementById('adm-refresh'); if(b) b.disabled=true; renderAdmin(true).then(function(){ if(ADM.view==='funnel') admFunnelLoad(); toast('✓ Données à jour'); }); }
+function admView(v){ ADM.view=v; _admPaint(); if(v==='mail' && !ADM.mail) admMailLoad(); if(v==='funnel' && !ADM.funnel) admFunnelLoad(); }
 function admSearch(v){ ADM.q=String(v||'').trim().slice(0,80); ADM.off=0; clearTimeout(ADM.t); ADM.t=setTimeout(function(){ _admLoadUsers().then(_admPaintUsers); },300); }
 function admFilter(k,v){ ADM[k]=v; ADM.off=0; _admLoadUsers().then(_admPaintUsers); }
 function admPage(d){ ADM.off=Math.max(0,ADM.off+d*50); ADM.open=null; _admLoadUsers().then(_admPaintUsers); }
@@ -17754,11 +17766,12 @@ function _admPaint(){
     +_admTile('ti-calendar-event','Sessions',_admNum(c.shows),'+'+_admNum(c.shows_30d)+' sur 30 j · '+pl(c.channels,'canal','canaux'))
     +_admTile('ti-cloud','Fichiers stockés',_admSize(f.bytes),pl(f.count,'fichier','fichiers')+' · +'+_admSize(f.added_30d_bytes)+' sur 30 j')
     +'</div>';
-  var V=[['users','ti-users','Comptes'],['subs','ti-credit-card','Abonnements'],['files','ti-cloud','Fichiers'],['mail','ti-mail','E-mails']];
+  var V=[['users','ti-users','Comptes'],['funnel','ti-filter','Parcours'],['subs','ti-credit-card','Abonnements'],['files','ti-cloud','Fichiers'],['mail','ti-mail','E-mails']];
   h+='<div class="bonp-switch adm-switch">'+V.map(function(v){ return '<button type="button" class="'+(ADM.view===v[0]?'on':'')+'" onclick="admView(\''+v[0]+'\')"><i class="ti '+v[1]+'"></i>'+v[2]+'</button>'; }).join('')+'</div>';
   if(ADM.view==='subs') h+=_admSubsHtml(o);
   else if(ADM.view==='files') h+=_admFilesHtml(o);
   else if(ADM.view==='mail') h+=_admMailHtml();
+  else if(ADM.view==='funnel') h+=_admFunnelHtml();
   else h+=_admUsersShell(o);
   root.innerHTML=h;
   if(ADM.view==='users') _admPaintUsers();
@@ -17885,6 +17898,50 @@ async function _admMailFn(action){
   if(r.status===429) throw new Error('Un test vient d\'être envoyé : patientez quelques secondes.');
   if(!r.ok) throw new Error(j.error||('HTTP '+r.status));
   return j;
+}
+/* ── Parcours : de l'inscription au vrai premier travail, par semaine d'inscription et par origine.
+   Chiffres agrégés calculés par la base (admin_funnel), à partir des données du service. ── */
+async function admFunnelLoad(){
+  ADM.funnelErr='';
+  try{ ADM.funnel=await _admRpc('admin_funnel',{p_weeks:ADM.funnelWeeks}); }
+  catch(e){ ADM.funnel=null; ADM.funnelErr=String(e&&e.message||e); }
+  if(ADM.view==='funnel') _admPaint();
+}
+function admFunnelWeeks(n){ ADM.funnelWeeks=n; ADM.funnel=null; _admPaint(); admFunnelLoad(); }
+function _admFunnelHtml(){
+  var E=_bonE, F=ADM.funnel;
+  var per=function(a,b){ a=Number(a)||0; b=Number(b)||0; return b?Math.round(a*100/b)+' %':'—'; };
+  var hrs=function(h){ if(h==null) return '—'; h=Number(h); return h<1?Math.max(1,Math.round(h*60))+' min':h<48?(Math.round(h*10)/10).toString().replace('.',',')+' h':Math.round(h/24)+' j'; };
+  var SRC={landing:'Page d\'accueil',rider:'Rider partagé',pdf:'PDF exporté',direct:'Accès direct',inconnue:'Inconnue (avant le suivi)'};
+  var h='<div class="adm-fn-bar"><span>Période</span>'+[12,52].map(function(n){ return '<button type="button" class="btn sm'+(ADM.funnelWeeks===n?' pri':'')+'" onclick="admFunnelWeeks('+n+')">'+n+' semaines</button>'; }).join('')+'</div>';
+  if(ADM.funnelErr) return h+'<div class="ov-none">Indisponible : '+E(ADM.funnelErr)+(/admin_funnel/.test(ADM.funnelErr)?' (migration <code>20261021_funnel.sql</code> à appliquer)':'')+'</div>';
+  if(!F) return h+'<div class="ov-none">Calcul en cours…</div>';
+  var t=F.total||{}, n=Number(t.signups)||0;
+  h+='<div class="bonp-tiles adm-tiles">'
+    +_admTile('ti-user-plus','Inscriptions',_admNum(n),_admNum(t.google)+' via Google')
+    +_admTile('ti-mail-check','Adresse confirmée',per(t.confirmed,n),'délai médian '+hrs(t.confirm_med_h))
+    +_admTile('ti-list-numbers','Activés',per(t.activated,n),'5 canaux ou plus en 7 jours')
+    +_admTile('ti-share','Partage ou équipe',per(t.strong,n),'lien créé ou collègue invité')
+    +_admTile('ti-repeat','Revenus après 7 j',per(t.returned,n),_admNum(t.returned)+' compte'+((Number(t.returned)||0)>1?'s':''))
+    +_admTile('ti-crown','Abonnés',per(t.paid,n),_admNum(t.paid)+' abonnement'+((Number(t.paid)||0)>1?'s':''))
+    +'</div>';
+  var W=F.weeks||[];
+  h+='<section class="ov-card bon-card"><div class="ov-card-hd"><h2>Par semaine d\'inscription</h2><span class="bon-reco-n">les semaines de moins de 14 jours sont encore en cours</span></div>';
+  if(!W.length) h+='<div class="ov-none">Aucune inscription sur la période.</div>';
+  else h+='<div class="bonp-scroll"><table class="bon-tbl adm-tbl adm-fn"><thead><tr><th>Semaine du</th><th>Inscrits</th><th>Confirmés</th><th>Délai</th><th>Connectés</th><th>Activés</th><th>Partage</th><th>Revenus J+7</th><th>Abonnés</th></tr></thead><tbody>'
+    +W.map(function(w){ var k=Number(w.signups)||0, c=function(v){ return '<b>'+_admNum(v)+'</b><em>'+per(v,k)+'</em>'; };
+      return '<tr><td>'+E(new Date(w.week+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}))+(w.mature?'':'<span class="bon-hit w">en cours</span>')+'</td>'
+        +'<td><b>'+_admNum(k)+'</b>'+((Number(w.google)||0)?'<em>'+_admNum(w.google)+' Google</em>':'')+'</td><td>'+c(w.confirmed)+'</td><td>'+hrs(w.confirm_med_h)+'</td>'
+        +'<td>'+c(w.logged)+'</td><td>'+c(w.activated)+'</td><td>'+c(w.strong)+'</td><td>'+c(w.returned)+'</td><td>'+c(w.paid)+'</td></tr>'; }).join('')+'</tbody></table></div>';
+  h+='</section>';
+  var S=F.sources||[];
+  h+='<section class="ov-card bon-card"><div class="ov-card-hd"><h2>Par origine</h2><span class="bon-reco-n">d\'où venait le visiteur au moment de s\'inscrire</span></div>';
+  if(!S.length) h+='<div class="ov-none">Aucune inscription sur la période.</div>';
+  else h+='<div class="bonp-scroll"><table class="bon-tbl adm-tbl adm-fn"><thead><tr><th>Origine</th><th>Inscrits</th><th>Confirmés</th><th>Activés</th><th>Partage</th><th>Abonnés</th></tr></thead><tbody>'
+    +S.map(function(x){ var k=Number(x.signups)||0, c=function(v){ return '<b>'+_admNum(v)+'</b><em>'+per(v,k)+'</em>'; };
+      return '<tr><td>'+E(SRC[x.source]||x.source)+'</td><td><b>'+_admNum(k)+'</b></td><td>'+c(x.confirmed)+'</td><td>'+c(x.activated)+'</td><td>'+c(x.strong)+'</td><td>'+c(x.paid)+'</td></tr>'; }).join('')+'</tbody></table></div>';
+  h+='<p class="adm-fn-note">Activés : au moins 5 canaux dans un de ses shows, ajoutés dans les 7 jours (les canaux créés avant le 21 octobre 2026 ne sont pas datés et comptent). Partage : lien de partage créé ou collègue invité dans les 7 jours, ou un membre dans un de ses shows. Revenus J+7 : dernière connexion plus de 7 jours après l\'inscription. Les visites de la page d\'accueil se lisent dans les statistiques de l\'hébergeur (cPanel, AWStats).</p></section>';
+  return h;
 }
 async function admMailLoad(){
   ADM.mail=ADM.mail||{log:null,logErr:'',chk:null,chkErr:'',busy:'',test:null};
@@ -23870,7 +23927,7 @@ function _svFs(imgId, title){
       +'<span class="sv-kind">Rider partagé</span>'
       +'<span class="sv-grow"></span>'
       +'<span class="sv-live" title="Cette page affiche toujours la dernière version"><i></i>À jour</span>'
-      +(isMobile?'':'<a class="sv-cta" href="/">Créer mon rider<i class="ti ti-arrow-right"></i></a>')
+      +(isMobile?'':'<a class="sv-cta" href="/app.html?signup=1&amp;from=rider">Créer un compte gratuit<i class="ti ti-arrow-right"></i></a>')
     +'</header>'
     +(_bannerTitle||rNote||rInfo?
       '<section class="sv-intro"><div class="sv-intro-in">'
@@ -23885,7 +23942,7 @@ function _svFs(imgId, title){
       +'<div class="sv-promo">'
         +'<span class="sv-promo-l">'+SV_LOGO_SM+'</span>'
         +'<div><b>Ce rider est fait avec PatchFlow</b><p>Input list, plans, synoptique, racks, liaisons HF et fichiers de prod : créés et partagés en un lien, toujours à jour pour toute l\'équipe. Gratuit pour commencer.</p></div>'
-        +'<a class="sv-cta" href="/">Essayer PatchFlow<i class="ti ti-arrow-right"></i></a>'
+        +'<a class="sv-cta" href="/app.html?signup=1&amp;from=rider">Créer un compte gratuit<i class="ti ti-arrow-right"></i></a>'
       +'</div>'
       +'<p class="sv-sign">PatchFlow — par des techniciens, pour des techniciens</p>'
     +'</footer>';
