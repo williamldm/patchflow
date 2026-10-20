@@ -109,6 +109,21 @@ serve(async (req) => {
       return json({ error: 'Fonctionnalité réservée au plan Pro.', code: 'pro_only' }, 403);
     }
 
+    /* ── Plafond quotidien : 40 lectures IA par compte et par 24 h, toutes fonctions IA confondues.
+       Chaque appel est facturé en jetons : sans plafond, un compte (même en essai) pouvait boucler.
+       Le compteur est tenu en base (ai_take, verrou par compte), jamais par le navigateur. ── */
+    const { data: aiOk, error: aiErr } = await createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    ).rpc('ai_take', { p_user: user.id, p_fn: 'stage-ai', p_limit: 40 });
+    if (aiErr) {
+      console.error('[stage-ai] ai_take', aiErr.message);
+      return json({ error: 'Service IA momentanément indisponible. Réessayez dans un instant.' }, 503);
+    }
+    if (aiOk !== true) {
+      return json({ error: 'Limite atteinte : 40 lectures par IA sur 24 h. Réessayez demain.', code: 'ai_quota' }, 429);
+    }
+
     /* ── Validation de l'image ── */
     const body = await req.json() as { imageBase64?: string; mediaType?: string };
     const mediaType = body.mediaType || '';

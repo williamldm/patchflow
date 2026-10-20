@@ -92,7 +92,8 @@ serve(async (req) => {
       if (error) return json({ error: 'shows_delete_failed', detail: error.message }, 500);
     }
     await admin.from('show_members').delete().eq('user_id', user.id);
-    await admin.from('show_invites').delete().ilike('invited_email', email);
+    /* ilike sans jokers : « _ » et « % » d'une adresse ne doivent pas toucher les invitations d'autres personnes */
+    await admin.from('show_invites').delete().ilike('invited_email', email.replace(/[\\%_]/g, (m) => '\\' + m));
     try { await admin.storage.from('avatars').remove([user.id + '/avatar.jpg']); } catch { /* pas de photo */ }
     await admin.from('profiles').delete().eq('id', user.id);
 

@@ -19582,8 +19582,8 @@ const B2Storage={
     return {data:{path},error:null};
   },
   /* Retourne uniquement l'URL présignée (pour upload custom de blob) */
-  async uploadPresigned(path, _size, contentType){
-    return _b2Call('upload-presigned',{path,contentType:contentType||'application/octet-stream'});
+  async uploadPresigned(path, size, contentType){
+    return _b2Call('upload-presigned',{path,size,contentType:contentType||'application/octet-stream'});
   },
   /* move / rename */
   async move(fromPath,toPath){

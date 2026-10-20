@@ -68,6 +68,10 @@ const BLOCKED_EXT = new Set([
   'php','phtml','phar','asp','aspx','jsp','jspx','cgi','pl','py','rb','lnk','reg','hta','gadget','htaccess',
 ]);
 const MAX_UPLOAD_BYTES = 1024 * 1024 * 1024; // 1 Go / fichier (garde-fou serveur)
+/* Quota de fichiers du PROPRIÉTAIRE du show (mêmes valeurs que l'app : 500 Mo en Gratuit, 50 Go en Pro).
+   Vérifié ici, côté serveur : l'interface seule ne suffit pas (appel direct de l'API). */
+const QUOTA_FREE = 500 * 1024 * 1024;
+const QUOTA_PRO  = 50 * 1024 * 1024 * 1024;
 
 function extOf(name: string): string {
   const i = name.lastIndexOf('.');
@@ -435,7 +439,7 @@ serve(async (req) => {
 
     // ── upload-presigned : return a presigned PUT URL ──
     if (action === 'upload-presigned') {
-      const { path, size } = body as { path: string; contentType?: string; size?: number };
+      const { path } = body as { path: string; contentType?: string; size?: number };
       if (!(await checkPath(path, true))) return deny();
       // Validation chemin / nom de fichier (anti-traversal, anti caractères de contrôle)
       if (path.includes('..') || path.includes('\\') || path.includes('//')) {
@@ -448,9 +452,39 @@ serve(async (req) => {
       if (BLOCKED_EXT.has(ext)) {
         return json({ error: 'Type de fichier non autorisé pour des raisons de sécurité (exécutable ou script).' }, 415);
       }
-      // Garde-fou taille
-      if (typeof size === 'number' && size > MAX_UPLOAD_BYTES) {
+      /* Taille OBLIGATOIRE : elle est signée dans l'URL (ContentLength), B2 refuse donc tout envoi d'une
+         autre taille. Sans elle, un compte pouvait déposer des fichiers de taille illimitée. */
+      const size = Number((body as { size?: unknown }).size);
+      if (!Number.isInteger(size) || size < 0) {
+        return json({ error: 'Taille du fichier manquante : rechargez la page (Cmd+Maj+R) puis réessayez.' }, 400);
+      }
+      if (size > MAX_UPLOAD_BYTES) {
         return json({ error: 'Fichier trop volumineux (max 1 Go par fichier).' }, 413);
+      }
+      /* Quota du propriétaire du show : somme réelle de ses fichiers sur B2 (la clé remplacée ne compte pas) */
+      const sid = extractShowId(path)!;
+      const sbAdmin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+      const { data: showRow } = await sbAdmin.from('shows').select('owner_id').eq('id', sid).maybeSingle();
+      if (!showRow?.owner_id) return deny();
+      const { data: ownerProf } = await sbAdmin.from('profiles').select('plan').eq('id', showRow.owner_id).maybeSingle();
+      const quota = ownerProf?.plan === 'pro' ? QUOTA_PRO : QUOTA_FREE;
+      const { data: ownedShows } = await sbAdmin.from('shows').select('id').eq('owner_id', showRow.owner_id);
+      let used = 0;
+      for (const o of (ownedShows ?? []) as { id: string }[]) {
+        let token: string | undefined;
+        do {
+          const r = await s3.send(new ListObjectsV2Command({ Bucket: B2_BUCKET, Prefix: o.id + '/', ContinuationToken: token, MaxKeys: 1000 }));
+          (r.Contents ?? []).forEach((it) => { if (it.Key !== path) used += it.Size ?? 0; });
+          token = r.IsTruncated ? r.NextContinuationToken : undefined;
+        } while (token);
+        if (used + size > quota) break;
+      }
+      if (used + size > quota) {
+        const mo = (n: number) => Math.round(n / 1048576);
+        return json({
+          error: `Espace de fichiers plein : ${mo(used)} Mo utilisés sur ${mo(quota)} Mo` + (quota === QUOTA_FREE ? ' (plan Gratuit). Supprimez des fichiers ou passez au Pro.' : '. Supprimez des fichiers pour faire de la place.'),
+          code: 'quota',
+        }, 413);
       }
       // On IGNORE le content-type client : type sûr imposé par l'extension.
       // (inline pour les formats prévisualisables, octet-stream sinon)
@@ -459,8 +493,9 @@ serve(async (req) => {
         Bucket: B2_BUCKET,
         Key: path,
         ContentType: safeType,
+        ContentLength: size,
       });
-      const url = await getSignedUrl(s3, cmd, { expiresIn: 3600 });
+      const url = await getSignedUrl(s3, cmd, { expiresIn: 3600, signableHeaders: new Set(['content-length']) });
       // contentType renvoyé : le client DOIT l'utiliser pour le PUT (sinon mismatch de signature)
       return json({ data: { uploadUrl: url, key: path, contentType: safeType }, error: null });
     }
