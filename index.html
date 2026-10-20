@@ -634,6 +634,21 @@ html[data-view=mobile] .notes h3{margin-top:0}
 .win-bar svg{width:12px;height:12px}
 .framed .shot-in picture{border-radius:0 0 14px 14px}
 @media(max-width:1100px){.proof{gap:10px 20px}.proof li{font-size:13px}}
+
+/* ── Tarifs : offres par situation ── */
+.plan-for{margin-top:18px;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--acc-ink)}
+.plan.pro .plan-for{color:var(--acc2)}
+.plan.pro .plus{margin-top:10px}
+.plan li div{display:grid;gap:2px}
+.plan li b{font-weight:650;color:var(--ink)}
+.plan li span{font-size:14.5px;line-height:1.45;color:var(--ink2)}
+.plan.pro li b{color:#fff}
+.plan.pro li span{color:#b9c0cd}
+.plan:not(.pro) ul{margin-top:14px;padding-top:0;border-top:0}
+.plan-lim{margin:0 0 22px;padding:14px 16px;border-radius:12px;background:var(--bg);font-size:13.5px;line-height:1.55;color:var(--ink2)}
+.plan-lim b{display:block;margin-bottom:2px;color:var(--ink);font-weight:650}
+.addon b small{font-size:13px;font-weight:500;color:var(--ink3)}
+@media(max-width:760px){ .addon b{white-space:normal;font-size:16px} }
 </style>
 </head>
 <body>
@@ -763,7 +778,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
     <p class="mt-sub">De l'input list au bon du loueur, pour la façade, les retours, la régie et la presta.</p>
     <div class="mt-tabs" role="tablist" aria-label="Familles de fonctionnalités"><button type="button" role="tab" aria-selected="true" aria-controls="mt-0" data-i="0"><span>01</span>Patch</button><button type="button" role="tab" aria-selected="false" aria-controls="mt-1" data-i="1"><span>02</span>Plans</button><button type="button" role="tab" aria-selected="false" aria-controls="mt-2" data-i="2"><span>03</span>Matériel</button><button type="button" role="tab" aria-selected="false" aria-controls="mt-3" data-i="3"><span>04</span>Sortie</button></div>
   </div>
-  <div class="mt-track" id="mt-track"><article class="mt-p" id="mt-0" role="tabpanel" aria-label="Patch"><div class="mt-vis"><picture><source type="image/avif" srcset="img/lp-mt-patch.avif?v=1"/><img src="img/lp-mt-patch.jpg?v=1" width="960" height="730" loading="lazy" decoding="async" alt="L'output list : départs wedges et in-ears, avec leur type"/></picture></div><ul class="mt-list"><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg><div><b>Input list</b><span>Micros et DI, +48&nbsp;V, envois façade et retours, colonnes à la carte.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h11M11 8l4 4-4 4M19 5v14"/></svg><div><b>Output list</b><span>Wedges, in-ears et leur fréquence HF, une couleur par type de sortie.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 18v-6M9.5 14.5 12 12l2.5 2.5"/></svg><div><b>Reprise d'un rider</b><span>Le patch du groupe lu dans son PDF, sans rien retaper. Scans lus par IA <span class="tag">Pro</span></span></div></li></ul></article><article class="mt-p" id="mt-1" role="tabpanel" aria-label="Plans"><div class="mt-vis"><picture><source type="image/avif" srcset="img/lp-mt-plans.avif?v=1"/><img src="img/lp-mt-plans.jpg?v=1" width="960" height="730" loading="lazy" decoding="async" alt="Le plan de scène dans un rider partagé : instruments, retours et numéros de voies"/></picture></div><ul class="mt-list"><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg><div><b>Plan de scène</b><span>Instruments et retours placés, numéros de voies repris du patch.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg><div><b>Plan de site</b><span>Enceintes, régies et tirages de câbles sur le plan de la salle.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M7 6h10M6.2 7.6l4.7 8.6M17.8 7.6l-4.7 8.6"/></svg><div><b>Synoptique</b><span>Généré depuis la session de vos amplis, réseau par réseau.</span></div></li></ul></article><article class="mt-p" id="mt-2" role="tabpanel" aria-label="Matériel"><div class="mt-vis"><picture><source type="image/avif" srcset="img/lp-mt-racks.avif?v=1"/><img src="img/lp-mt-racks.jpg?v=1" width="960" height="670" loading="lazy" decoding="async" alt="Un rack de régie à deux baies, avec le nombre d'appareils, le poids et la consommation"/></picture></div><ul class="mt-list"><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16M4 15h16M8 6h.01M8 12h.01M8 18h.01"/></svg><div><b>Racks</b><span>Dessinés unité par unité, câblage, poids et consommation compris.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21V11M8 7a5 5 0 0 1 8 0M5 4a9 9 0 0 1 14 0"/><circle cx="12" cy="10" r="1.2"/></svg><div><b>Liaisons HF</b><span>Fréquences compatibles calculées, intermodulation comprise.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 12.5l2 2 4-4.5"/></svg><div><b>Bon du loueur</b><span>La demande de matériel, puis le pointage du bon avant de charger.</span></div></li></ul></article><article class="mt-p" id="mt-3" role="tabpanel" aria-label="Sortie"><div class="mt-vis"><picture><source type="image/avif" srcset="img/lp-mt-sortie.avif?v=1"/><img src="img/lp-mt-sortie.jpg?v=1" width="960" height="730" loading="lazy" decoding="async" alt="Le rider partagé ouvert sur un téléphone : tournée, horaires, consoles et onglets"/></picture></div><ul class="mt-list"><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg><div><b>Lien toujours à jour</b><span>Un lien par destinataire, ouvert sans compte, toujours la dernière version.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4v6M6 14v6M12 4v2M12 10v10M18 4v9M18 17v3"/><circle cx="6" cy="12" r="2"/><circle cx="12" cy="8" r="2"/><circle cx="18" cy="15" r="2"/></svg><div><b>Exports console <span class="tag">Pro</span></b><span>X32, M32, WING, dLive, SQ, Yamaha&nbsp;: noms, couleurs, patch et gains.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5M16 5.2a3.2 3.2 0 0 1 0 5.6M18 14.8c1.9.7 3 2.4 3 5.2"/></svg><div><b>Équipe et rôles</b><span>Ingé retours en éditeur, régisseur en lecture&nbsp;: tout le monde sur la même version.</span></div></li></ul></article></div>
+  <div class="mt-track" id="mt-track"><article class="mt-p" id="mt-0" role="tabpanel" aria-label="Patch"><div class="mt-vis"><picture><source type="image/avif" srcset="img/lp-mt-patch.avif?v=1"/><img src="img/lp-mt-patch.jpg?v=1" width="960" height="730" loading="lazy" decoding="async" alt="L'output list : départs wedges et in-ears, avec leur type"/></picture></div><ul class="mt-list"><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg><div><b>Input list</b><span>Micros et DI, +48&nbsp;V, envois façade et retours, colonnes à la carte.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h11M11 8l4 4-4 4M19 5v14"/></svg><div><b>Output list</b><span>Wedges, in-ears et leur fréquence HF, une couleur par type de sortie.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 18v-6M9.5 14.5 12 12l2.5 2.5"/></svg><div><b>Reprise d'un rider</b><span>Le patch du groupe lu dans son PDF, sans rien retaper. Scans lus par IA <span class="tag">Pro</span></span></div></li></ul></article><article class="mt-p" id="mt-1" role="tabpanel" aria-label="Plans"><div class="mt-vis"><picture><source type="image/avif" srcset="img/lp-mt-plans.avif?v=1"/><img src="img/lp-mt-plans.jpg?v=1" width="960" height="730" loading="lazy" decoding="async" alt="Le plan de scène dans un rider partagé : instruments, retours et numéros de voies"/></picture></div><ul class="mt-list"><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg><div><b>Plan de scène</b><span>Instruments et retours placés, numéros de voies repris du patch.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg><div><b>Plan de site</b><span>Enceintes, régies et tirages de câbles sur le plan de la salle.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M7 6h10M6.2 7.6l4.7 8.6M17.8 7.6l-4.7 8.6"/></svg><div><b>Synoptique</b><span>Généré depuis la session de vos amplis, réseau par réseau.</span></div></li></ul></article><article class="mt-p" id="mt-2" role="tabpanel" aria-label="Matériel"><div class="mt-vis"><picture><source type="image/avif" srcset="img/lp-mt-racks.avif?v=1"/><img src="img/lp-mt-racks.jpg?v=1" width="960" height="670" loading="lazy" decoding="async" alt="Un rack de régie à deux baies, avec le nombre d'appareils, le poids et la consommation"/></picture></div><ul class="mt-list"><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16M4 15h16M8 6h.01M8 12h.01M8 18h.01"/></svg><div><b>Racks</b><span>Dessinés unité par unité, câblage, poids et consommation compris.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21V11M8 7a5 5 0 0 1 8 0M5 4a9 9 0 0 1 14 0"/><circle cx="12" cy="10" r="1.2"/></svg><div><b>Liaisons HF</b><span>Fréquences compatibles calculées, intermodulation comprise.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 12.5l2 2 4-4.5"/></svg><div><b>Bon du loueur</b><span>La demande de matériel, puis le pointage du bon avant de charger.</span></div></li></ul></article><article class="mt-p" id="mt-3" role="tabpanel" aria-label="Sortie"><div class="mt-vis"><picture><source type="image/avif" srcset="img/lp-mt-sortie.avif?v=1"/><img src="img/lp-mt-sortie.jpg?v=1" width="960" height="730" loading="lazy" decoding="async" alt="Le rider partagé ouvert sur un téléphone : tournée, horaires, consoles et onglets"/></picture></div><ul class="mt-list"><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg><div><b>Lien toujours à jour</b><span>Un lien par destinataire, ouvert sans compte, toujours la dernière version.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4v6M6 14v6M12 4v2M12 10v10M18 4v9M18 17v3"/><circle cx="6" cy="12" r="2"/><circle cx="12" cy="8" r="2"/><circle cx="18" cy="15" r="2"/></svg><div><b>Exports console</b><span>X32, M32, WING, dLive, SQ, Yamaha&nbsp;: 3 shows par mois en Gratuit, illimités en Pro.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5M16 5.2a3.2 3.2 0 0 1 0 5.6M18 14.8c1.9.7 3 2.4 3 5.2"/></svg><div><b>Équipe et rôles</b><span>Ingé retours en éditeur, régisseur en lecture&nbsp;: tout le monde sur la même version.</span></div></li></ul></article></div>
   <div class="w">
     <div class="mt-dots" aria-hidden="true"><i class="on"></i><i></i><i></i><i></i></div>
     <p class="mt-aussi"><b>Et aussi&nbsp;:</b> feuille de route, colonne ALT, templates, import et export CSV, enregistrement en continu, mode sombre, corbeille de 30&nbsp;jours <span class="tag">Pro</span>.</p>
@@ -1009,7 +1024,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
           <li>Rappels de terrain&nbsp;: XLR trop justes, pieds sans marge, antennes HF à déporter</li>
           <li>Dans l'autre sens&nbsp;: la demande de matériel en PDF, tirée de vos documents</li>
         </ul>
-        <p class="fine">Un contrôle par mois en Gratuit, illimité en Pro</p>
+        <p class="fine">3 sessions contrôlées par mois en Gratuit, illimité en Pro</p>
       </div>
       <figure class="shot">
         <div class="shot-in">
@@ -1093,9 +1108,9 @@ html[data-view=mobile] .notes h3{margin-top:0}
           </picture>
         </div>
         <div class="card-b">
-          <h3>Les exports console<span class="tag">Pro</span></h3>
+          <h3>Les exports console</h3>
           <p>Un fichier que la console sait importer&nbsp;: noms de voies, couleurs, patch, gains et +48&nbsp;V. Behringer X32 et WING · Midas M32 · Allen&nbsp;&amp;&nbsp;Heath dLive, Avantis et SQ · Yamaha CL, QL et DM7.</p>
-          <p class="fine">Et un CSV universel pour tout le reste</p>
+          <p class="fine">3 shows par mois en Gratuit, illimités en Pro · et un CSV universel pour tout le reste</p>
         </div>
       </article>
       <article class="card">
@@ -1123,7 +1138,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
         <div class="card-b">
           <h3>L'équipe et les rôles</h3>
           <p>Invitez l'ingé retours en éditeur, le régisseur en lecture seule. Tout le monde travaille sur la même version, en direct.</p>
-          <p class="fine">Équipe illimitée en Pro</p>
+          <p class="fine">3 collaborateurs par show en Gratuit, illimités en Pro</p>
         </div>
       </article>
     </div>
@@ -1147,7 +1162,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
         <p class="kicker">Tarifs</p>
         <h2>Gratuit, pour de bon. Le Pro si vous en voulez plus.</h2>
       </div>
-      <p class="lede">PatchFlow est gratuit, sans limite de durée&nbsp;: patch, plans, racks, liaisons HF et liens de partage, sans carte bancaire. Le Pro est une option pour ceux qui enchaînent les dates&nbsp;: shows illimités, exports console, reprise de liste par IA et 50&nbsp;Go de fichiers. Son premier mois est offert.</p>
+      <p class="lede">PatchFlow est gratuit, sans limite de durée&nbsp;: de quoi préparer une date entière, avec le patch, les plans, les racks, les liaisons HF, 3 exports console par mois et l'équipe sur le même show. Le Pro est pour ceux qui enchaînent les dates&nbsp;: tout devient illimité, avec les PDF à votre logo, la reprise par IA et 50&nbsp;Go de fichiers. Son premier mois est offert.</p>
     </div>
     <div class="billing" role="group" aria-label="Période de facturation">
       <button type="button" data-bp="monthly" aria-pressed="false">Mensuel</button>
@@ -1157,17 +1172,15 @@ html[data-view=mobile] .notes h3{margin-top:0}
       <div class="plan">
         <div class="plan-nm">Gratuit</div>
         <div class="price"><b>0 €</b><span>pour toujours</span></div>
-        <p class="fine">Sans carte bancaire, sans limite de durée. Largement de quoi préparer une date.</p>
+        <p class="fine">Sans carte bancaire, sans limite de durée.</p>
+        <p class="plan-for">Pour préparer une date</p>
         <ul>
-          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>3 shows · 26 canaux par show</li>
-          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>Input list et output list</li>
-          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>Plan de scène, plan de site, synoptique</li>
-          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>5 liens de partage</li>
-          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>Export PDF avec filigrane</li>
-          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>Racks, liaisons HF, demande de matériel, import d'un rider PDF</li>
-          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>Contrôle du bon du loueur : 1 session par mois</li>
-          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>500 Mo de fichiers · 5 templates</li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg><div><b>Le patch, les plans, le matériel</b><span>Input list, output list, plans de scène et de site, synoptique, racks, liaisons HF</span></div></li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg><div><b>Avec l'équipe</b><span>3 collaborateurs par show, rider partagé par lien, ouvert sans compte</span></div></li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg><div><b>Vers la console et le loueur</b><span>3 exports console par mois, 3 bons du loueur contrôlés par mois, reprise d'un rider PDF</span></div></li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg><div><b>Les fichiers du show</b><span>500&nbsp;Mo de riders, show files et photos</span></div></li>
         </ul>
+        <p class="plan-lim"><b>Limites du Gratuit</b> 8 shows actifs · 48 canaux par show · 10 liens de partage · 3 racks par show · calcul HF jusqu'à 16 liaisons · PDF avec la mention PatchFlow</p>
         <a class="btn btn-lg btn-ghost" href="app.html?signup=1&amp;from=landing">Créer un compte gratuit</a>
       </div>
       <div class="plan pro">
@@ -1180,18 +1193,14 @@ html[data-view=mobile] .notes h3{margin-top:0}
           <b id="pro-price">9,92&nbsp;€</b><span>par mois</span>
         </div>
         <p class="fine" id="pro-bill">Facturé 119&nbsp;€ par an au lieu de 143,88&nbsp;€.</p>
-        <p class="plus">Tout le plan Gratuit, et&nbsp;:</p>
+        <p class="plan-for">Pour enchaîner les dates</p>
+        <p class="plus">Tout le Gratuit, sans ses limites, et&nbsp;:</p>
         <ul>
-          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>Shows et canaux illimités</li>
-          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>Exports console&nbsp;: X32, M32, WING, dLive, Avantis, SQ, Yamaha CL/QL/DM7</li>
-          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>PDF sans filigrane, à votre logo</li>
-          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>Multi-patchs et plusieurs versions de plans</li>
-          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>Reprise d'une input list par IA (PDF, photo, Word)</li>
-          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>Équipe illimitée, rôles et récap micros et pieds</li>
-          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>Contrôle du bon du loueur illimité</li>
-          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>Liaisons HF reliées à l'input list et aux sorties</li>
-          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>50 Go de fichiers, joignables aux riders partagés</li>
-          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>Corbeille de 30 jours · support prioritaire</li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg><div><b>Enchaîner les dates</b><span>Shows, canaux, racks et calcul HF sans limite, multi-patchs, versions de plans, corbeille de 30 jours</span></div></li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg><div><b>Prêt pour la console</b><span>Exports illimités&nbsp;: X32, M32, WING, dLive, Avantis, SQ, Yamaha CL/QL/DM7, retour vers Wireless Workbench</span></div></li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg><div><b>Documents à votre nom</b><span>PDF sans mention, à votre logo, fichiers joints aux riders, 50&nbsp;Go</span></div></li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg><div><b>Toute l'équipe</b><span>Collaborateurs illimités, récap des micros et des pieds, reprise d'une liste par IA, bon du loueur illimité, liaisons HF reliées au patch</span></div></li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg><div><b>Support prioritaire</b><span>Vos demandes traitées en premier</span></div></li>
         </ul>
         <a class="btn btn-lg" href="app.html?signup=1&amp;from=landing">Essayer le Pro, 1 mois offert</a>
         <p class="fine after">1 mois offert pour essayer toutes les fonctions Pro. Carte demandée à l'inscription, aucun prélèvement avant la fin du mois. Sans engagement, résiliable en deux clics.</p>
@@ -1199,10 +1208,10 @@ html[data-view=mobile] .notes h3{margin-top:0}
     </div>
     <div class="addon">
       <div>
-        <h3>Option stockage 500 Go</h3>
-        <p>Pour les multipistes, les show files et les visuels de toute une tournée.</p>
+        <h3>Options de stockage, pour les abonnés Pro</h3>
+        <p>Pour les multipistes, les show files et les visuels de toute une tournée. À ajouter ou retirer quand vous voulez, depuis l'app.</p>
       </div>
-      <b>+ 3,50 € / mois</b>
+      <b>+50&nbsp;Go 1&nbsp;€ · +500&nbsp;Go 3,50&nbsp;€ · +1&nbsp;To 7,50&nbsp;€ <small>par mois</small></b>
     </div>
   </div>
 </section>
@@ -1218,7 +1227,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
     <div class="faq">
       <details>
         <summary>Je peux l'utiliser sans payer&nbsp;?<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg></summary>
-        <p>Oui, sans carte bancaire. Le plan Gratuit couvre 3 shows de 26 canaux&nbsp;: input list, output list, plan de scène, plan de site, synoptique, 5 liens de partage et export PDF avec filigrane. Vous passez Pro le jour où vous en avez besoin.</p>
+        <p>Oui, sans carte bancaire et sans limite de durée. Le plan Gratuit couvre 8 shows actifs de 48 canaux&nbsp;: input list, output list, plans de scène et de site, synoptique, racks, liaisons HF, 3 collaborateurs par show, 10 liens de partage, 3 exports console et 3 contrôles du bon du loueur par mois, et des PDF avec la mention PatchFlow. Vous passez Pro le jour où vous enchaînez les dates.</p>
       </details>
       <details>
         <summary>Je peux tester le Pro avant de payer&nbsp;?<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg></summary>

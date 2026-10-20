@@ -84,7 +84,7 @@ serve(async (req) => {
     if (!show) return json(404, { error: 'Show introuvable' });
     if (show.owner_id !== caller.id) return json(403, { error: 'Vous n\'êtes pas le propriétaire de ce show' });
 
-    /* ── 3b. Plan Gratuit : 1 membre par show (invitations en attente comprises). Même règle que
+    /* ── 3b. Plan Gratuit : 3 collaborateurs par show (invitations en attente comprises). Même règle que
        l'interface et que le déclencheur trg_pf_limit_members en base ; renvoyer à une adresse déjà
        invitée reste possible. ── */
     const { data: ownerProf } = await sbAdmin.from('profiles').select('plan').eq('id', show.owner_id).maybeSingle();
@@ -92,8 +92,8 @@ serve(async (req) => {
       const { count: nMembers } = await sbAdmin.from('show_members').select('user_id', { count: 'exact', head: true }).eq('show_id', showId);
       const { count: nPending } = await sbAdmin.from('show_invites').select('id', { count: 'exact', head: true })
         .eq('show_id', showId).neq('invited_email', normalEmail);
-      if ((nMembers ?? 0) + (nPending ?? 0) >= 1) {
-        return json(403, { error: 'Le plan Gratuit est limité à 1 membre par show. Passez au Pro pour une équipe illimitée.', code: 'plan_limit' });
+      if ((nMembers ?? 0) + (nPending ?? 0) >= 3) {
+        return json(403, { error: 'Le plan Gratuit est limité à 3 collaborateurs par show. Passez au Pro pour une équipe illimitée.', code: 'plan_limit' });
       }
     }
 

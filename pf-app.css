@@ -4721,3 +4721,9 @@ html.rfm-lock,html.rfm-lock body{overflow:hidden}
 .adm-fn td b{display:block;font-weight:650}
 .adm-fn td em{display:block;font-style:normal;font-size:11.5px;color:var(--muted)}
 .adm-fn-note{margin:14px 2px 0;font-size:12.5px;line-height:1.55;color:var(--muted)}
+
+/* Plan Gratuit : compteurs discrets à l'approche d'une limite */
+.plan-quota{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);white-space:nowrap}
+.plan-quota.full{color:var(--ora)}
+.plan-quota button{border:0;background:none;padding:0;font:inherit;color:var(--ora);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.sess-toolbar .plan-quota{margin-right:4px}

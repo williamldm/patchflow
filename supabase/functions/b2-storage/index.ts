@@ -467,7 +467,9 @@ serve(async (req) => {
       const { data: showRow } = await sbAdmin.from('shows').select('owner_id').eq('id', sid).maybeSingle();
       if (!showRow?.owner_id) return deny();
       const { data: ownerProf } = await sbAdmin.from('profiles').select('plan').eq('id', showRow.owner_id).maybeSingle();
-      const quota = ownerProf?.plan === 'pro' ? QUOTA_PRO : QUOTA_FREE;
+      const { data: addons } = await sbAdmin.from('storage_addons').select('gb').eq('user_id', showRow.owner_id).eq('status', 'active');
+      const extra = ((addons ?? []) as { gb: number }[]).reduce((n, a) => n + (Number(a.gb) || 0), 0) * 1024 * 1024 * 1024;
+      const quota = (ownerProf?.plan === 'pro' ? QUOTA_PRO : QUOTA_FREE) + extra;
       const { data: ownedShows } = await sbAdmin.from('shows').select('id').eq('owner_id', showRow.owner_id);
       let used = 0;
       for (const o of (ownedShows ?? []) as { id: string }[]) {
@@ -482,7 +484,7 @@ serve(async (req) => {
       if (used + size > quota) {
         const mo = (n: number) => Math.round(n / 1048576);
         return json({
-          error: `Espace de fichiers plein : ${mo(used)} Mo utilisés sur ${mo(quota)} Mo` + (quota === QUOTA_FREE ? ' (plan Gratuit). Supprimez des fichiers ou passez au Pro.' : '. Supprimez des fichiers pour faire de la place.'),
+          error: `Espace de fichiers plein : ${mo(used)} Mo utilisés sur ${mo(quota)} Mo` + (quota === QUOTA_FREE ? ' (plan Gratuit). Supprimez des fichiers ou passez au Pro.' : '. Supprimez des fichiers, ou ajoutez une option de stockage (Paramètres, Abonnement).'),
           code: 'quota',
         }, 413);
       }
@@ -636,7 +638,11 @@ serve(async (req) => {
         .in('show_id', showIds);
       dbBytes += (chCount ?? 0) * 400;
 
-      return json({ data: { b2_bytes: b2Bytes, db_bytes: dbBytes, total_bytes: b2Bytes + dbBytes }, error: null });
+      const { data: myProf } = await sbAdmin.from('profiles').select('plan').eq('id', user.id).maybeSingle();
+      const { data: myAddons } = await sbAdmin.from('storage_addons').select('gb').eq('user_id', user.id).eq('status', 'active');
+      const extraGb = ((myAddons ?? []) as { gb: number }[]).reduce((n, a) => n + (Number(a.gb) || 0), 0);
+      const quotaBytes = (myProf?.plan === 'pro' ? QUOTA_PRO : QUOTA_FREE) + extraGb * 1024 * 1024 * 1024;
+      return json({ data: { b2_bytes: b2Bytes, db_bytes: dbBytes, total_bytes: b2Bytes + dbBytes, quota_bytes: quotaBytes, extra_gb: extraGb }, error: null });
     }
 
     return json({ error: 'Unknown action: ' + action }, 400);

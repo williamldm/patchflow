@@ -165,6 +165,19 @@ serve(async (req) => {
     if (!sub.id) return new Response('No subscription', { status: 200 });
 
     const sb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+
+    /* Option de stockage : abonnement séparé, rangé dans storage_addons. Il ne change JAMAIS le plan. */
+    if (sub.metadata?.kind === 'storage') {
+      const uid: string | null = sub.metadata?.user_id ?? null;
+      const gb = parseInt(String(sub.metadata?.gb ?? '0'), 10);
+      if (!uid || !(gb > 0)) { console.warn('[stripe-webhook] option de stockage sans user_id/gb', sub.id); return new Response('ignored', { status: 200 }); }
+      const live = ['active', 'trialing', 'past_due'].includes(String(sub.status));
+      await sb.from('storage_addons').upsert({
+        stripe_subscription_id: sub.id, user_id: uid, gb, status: live ? 'active' : String(sub.status || 'ended'), updated_at: new Date().toISOString(),
+      }, { onConflict: 'stripe_subscription_id' });
+      console.log('[stripe-webhook] stockage', type, uid, gb, sub.status);
+      return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
     const customerId: string | null = typeof sub.customer === 'string' ? sub.customer : (sub.customer?.id ?? null);
 
     /* Qui est l'abonné : métadonnée posée au paiement, sinon un abonnement déjà connu pour ce client Stripe */

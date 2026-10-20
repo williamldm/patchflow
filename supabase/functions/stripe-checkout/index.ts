@@ -25,6 +25,13 @@ const STRIPE_KEY       = Deno.env.get('STRIPE_SECRET_KEY') ?? '';
 const PRICE_MONTHLY    = Deno.env.get('STRIPE_PRICE_MONTHLY') ?? '';
 const PRICE_YEARLY     = Deno.env.get('STRIPE_PRICE_YEARLY') ?? '';
 const SITE_URL         = (Deno.env.get('SITE_URL') ?? 'https://patchflow.fr').replace(/\/+$/, '');
+/* Options de stockage pour les abonnés Pro : abonnements mensuels séparés (métadonnée kind = storage),
+   prix fixés ici (TVA non applicable, art. 293 B du CGI). Le webhook les range dans storage_addons. */
+const STORAGE_OPTS: Record<string, { gb: number; cents: number; label: string }> = {
+  storage_50:   { gb: 50,   cents: 100, label: '+50 Go' },
+  storage_500:  { gb: 500,  cents: 350, label: '+500 Go' },
+  storage_1000: { gb: 1000, cents: 750, label: '+1 To' },
+};
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
@@ -69,6 +76,31 @@ serve(async (req) => {
     const { data: row } = await sb.from('subscriptions')
       .select('stripe_customer_id, status, plan, renews_at, ends_at, card_brand, card_last_four, customer_portal_url, update_payment_url')
       .eq('user_id', user.id).order('updated_at', { ascending: false }).limit(1).maybeSingle();
+
+    // ── Option de stockage (abonnés Pro) ──
+    if (body.action === 'checkout' && STORAGE_OPTS[String(body.variant)]) {
+      if (!STRIPE_KEY) return json({ error: 'Stripe non configuré.' }, 500);
+      const o = STORAGE_OPTS[String(body.variant)];
+      const { data: prof } = await sb.from('profiles').select('plan').eq('id', user.id).maybeSingle();
+      if (prof?.plan !== 'pro') return json({ error: 'Option réservée aux abonnés Pro.' }, 403);
+      const r = await stripe('/checkout/sessions', {
+        mode: 'subscription',
+        line_items: [{ quantity: 1, price_data: { currency: 'eur', unit_amount: o.cents, recurring: { interval: 'month' }, product_data: { name: 'PatchFlow, stockage ' + o.label } } }],
+        success_url: SITE_URL + '/app.html?checkout=storage',
+        cancel_url: SITE_URL + '/app.html?checkout=cancel',
+        client_reference_id: user.id,
+        ...(row?.stripe_customer_id ? { customer: row.stripe_customer_id } : { customer_email: user.email }),
+        subscription_data: { metadata: { user_id: user.id, kind: 'storage', gb: String(o.gb) } },
+        metadata: { user_id: user.id, kind: 'storage', gb: String(o.gb) },
+        billing_address_collection: 'auto',
+        locale: 'fr',
+      });
+      if (!r.ok || !r.data?.url) {
+        console.error('[stripe-checkout] storage', r.status, JSON.stringify(r.data?.error ?? r.data));
+        return json({ error: 'Erreur Stripe : ' + (r.data?.error?.code ?? r.status) }, 502);
+      }
+      return json({ data: { url: r.data.url }, error: null });
+    }
 
     // ── Ouvrir une session de paiement ──
     if (body.action === 'checkout') {

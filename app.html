@@ -60,7 +60,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=4.23">
+<link rel="stylesheet" href="pf-app.css?v=4.24">
 </head>
 <body>
 
@@ -289,6 +289,7 @@ html.rider-boot #rider-splash{display:flex}
               </div>
               <button class="btn ghost" id="sess-trash-btn" onclick="openTrashModal()" title="Supprimés récemment" style="display:none"><i class="ti ti-trash"></i><span id="sess-trash-count" class="sess-trash-count" style="display:none"></span></button>
               <button class="btn" onclick="createSessFolder()" title="Créer un dossier pour regrouper des sessions"><i class="ti ti-folder-plus"></i>Dossier</button>
+              <span class="plan-quota" id="sess-quota" hidden></span>
               <button class="btn pri" onclick="newShow()"><i class="ti ti-plus"></i>Nouveau show</button>
             </div>
           </div>
@@ -705,9 +706,9 @@ html.rider-boot #rider-splash{display:flex}
         <button type="button" class="btn sm sfx-univ" onclick="dlFile('univ')" title="Toutes les voies dans un tableau, à ouvrir dans un tableur"><i class="ti ti-file-spreadsheet"></i>CSV universel</button>
       </header>
       <div id="sf-pro-banner" class="sfx-pro">
-        <i class="ti ti-lock"></i>
-        <div>Les <b>exports console</b> font partie du plan <b>Pro</b> : noms, couleurs, patch, gains et +48&nbsp;V chargés directement dans la console.</div>
-        <button type="button" class="btn pri sm" onclick="showUpgradeModal('console_export')">Passer Pro</button>
+        <i class="ti ti-gift"></i>
+        <div id="sf-pro-txt">Plan Gratuit : <b>3 shows exportés par mois</b>, tous formats confondus (consoles et Wireless Workbench).</div>
+        <button type="button" class="btn sm" onclick="showUpgradeModal('console_export')">Illimité en Pro</button>
       </div>
       <div class="sfx-bar">
         <div class="sfx-tabs" id="sf-tabs" role="tablist" aria-label="Console"></div>
@@ -1678,8 +1679,8 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=4.65"></script>
-<script src="pf-rf.js?v=1.14"></script>
+<script src="pf-app.js?v=4.66"></script>
+<script src="pf-rf.js?v=1.15"></script>
 <script src="pf-road.js?v=1.0"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
