@@ -23125,6 +23125,7 @@ function openPlanModal() {
   if(extraBlock)  extraBlock.style.display  = (cur==='pro') ? 'block' : 'none';
   setBillingPeriod(_billingPeriod); // applique les prix selon la période
   var fine=document.getElementById('sub-fine');
+  var tax=document.getElementById('sub-tax'); if(tax) tax.style.display=(cur==='pro')?'none':'';
   if(fine){ fine.style.display=(cur==='pro')?'none':''; fine.textContent=(_PRO_TRIAL?'1 mois de Pro offert pour un premier abonnement · ':'')+'sans engagement · résiliable à tout moment'; }
   _setGo('abo');
   // Load storage stats async
