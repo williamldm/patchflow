@@ -12795,7 +12795,7 @@ const BandPlan=(()=>{
     list.forEach(function(o){
       if(!o||!valid.has(o.type)) return;
       const it=_itemOf(o.type)||{n:o.type}, id=st.nid++;
-      const el={id,type:o.type,label:String(o.label||it.n).slice(0,40),x:Math.round(Math.max(0,Math.min(2380,+o.x||1200))),y:Math.round(Math.max(0,Math.min(1580,+o.y||800))),scl:1,rot:o.rot||0,z:id,ch:o.ch||null};
+      const el={id,type:o.type,label:String(o.label!=null?o.label:it.n).slice(0,40),x:Math.round(Math.max(0,Math.min(2380,+o.x||1200))),y:Math.round(Math.max(0,Math.min(1580,+o.y||800))),scl:1,rot:o.rot||0,z:id,ch:o.ch||null};
       if(o.chR){ el.chR=o.chR; el.stereo=true; }
       if(o.type==='kit') el.chs=(o.chs||[]).slice(0,48);
       if(o.outCh) el.outCh=o.outCh;
@@ -13902,8 +13902,10 @@ function _bpLayout(res,g,opts){
     if(drums.type==='kit'){
       var kw=210*ns, kh=Math.min((40+Math.max(1,drums.chs.length)*26)*ns,g.h*0.45);
       y0=g.y+0.25*M+kh/2;
-      if(opts.riser && g.W>=6 && g.D>=4) put({type:'riser',riserW:3,riserH:2,riserAlt:0.4,label:'Praticable batterie'},cx0,g.y+0.25*M+1*M,3*M,2*M);
-      put({type:'kit',label:drums.label,chs:drums.chs},cx0,y0,kw,kh); half=kw/2; kitBottom=y0+kh/2;
+      /* Praticable sans étiquette : ses dimensions sont écrites dessus */
+      var riserOn=opts.riser && g.W>=6 && g.D>=4;
+      if(riserOn) put({type:'riser',riserW:3,riserH:2,riserAlt:0.4,label:''},cx0,g.y+0.25*M+1*M,3*M,2*M);
+      put({type:'kit',label:drums.label,chs:drums.chs},cx0,y0,kw,kh); half=kw/2; kitBottom=Math.max(y0+kh/2,riserOn?g.y+2.25*M:0);
     } else { put({type:drums.type,label:drums.label,ch:drums.ch,chR:drums.chR},cx0,y0); half=0.6*M; kitBottom=y0+S/2; }
     drums._xy=[cx0,kitBottom+0.7*M];                    /* ses retours et ears se posent juste devant */
   }
@@ -13949,8 +13951,8 @@ function _bpLayout(res,g,opts){
   res.outs.filter(function(o){ return !o.off; }).sort(function(a,b){ return (b.to?1:0)-(a.to?1:0); }).forEach(function(o){
     var who=o.to&&!o.to.off&&o.to._xy?o.to:null, el={type:o.type,label:o.label,outCh:o.outCh,outChR:o.outChR,who:who?who.label:''};
     if(o.type==='sidefill'){ put(el,sideN++%2?g.x+g.w-0.6*M:g.x+0.6*M,y1); return; }
-    if(who && who===drums){ put(el,cx0+(drumN++%2?-1:1)*1.0*M,who._xy[1]); return; }
-    if(o.type==='drumfill'){ put(el,cx0-1.0*M,kitBottom+0.7*M); return; }
+    if(who && who===drums){ put(el,cx0+[0,-1.2,1.2,-2.4][drumN++%4]*M,who._xy[1]); return; }      /* devant la batterie : au centre, puis de part et d'autre */
+    if(o.type==='drumfill'){ put(el,cx0+[0,-1.2,1.2,-2.4][drumN++%4]*M,kitBottom+0.7*M); return; }
     if(!who){
       var fx=edge.filter(function(x){ return !out.some(function(z){ return (z.type==='wedge'||z.type==='iem_p') && Math.abs(z.x+S/2-x)<1.3*M && z.y>g.y+g.h-2.4*M; }) && !voc.concat(front).some(function(v){ return v._xy && Math.abs(v._xy[0]-x)<1.3*M; }); })[0];
       if(fx!=null) edge.splice(edge.indexOf(fx),1);
