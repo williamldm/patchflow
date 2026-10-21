@@ -32,7 +32,53 @@ function _fsData(){
   f.slots.forEach(function(s){ if(s.scene && !_fsId(s.scene)) s.scene = ''; });
   f.house = _fsId(f.house) ? f.house : '';
   f.cmp = f.cmp === 'house' ? 'house' : 'prev';
+  /* Jours du festival : ceux ajoutés à la main, plus ceux des créneaux ; triés, sans doublon */
+  var dd = (Array.isArray(f.days) ? f.days : []).filter(function(d){ return typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d); });
+  f.slots.forEach(function(x){ if(/^\d{4}-\d{2}-\d{2}$/.test(x.day || '') && dd.indexOf(x.day) < 0) dd.push(x.day); });
+  f.days = dd.filter(function(d, i){ return dd.indexOf(d) === i; }).sort().slice(0, 30);
   return f;
+}
+/* Barre des jours : filtre (Tous / chaque jour), retrait d'un jour, ajout d'un jour */
+function _fsDayBar(f){
+  var E = _fsE;
+  if(FEST.day !== 'all' && f.days.indexOf(FEST.day) < 0) FEST.day = 'all';
+  return '<div class="fs-days" role="group" aria-label="Jours du festival">'
+    + (f.days.length > 1 ? '<button type="button" class="fs-dayb' + (FEST.day === 'all' ? ' on' : '') + '" onclick="festDay(\'all\')">Tous</button>' : '')
+    + f.days.map(function(d){
+      var n = f.slots.filter(function(x){ return x.day === d; }).length, lb = _fsDayLbl(d).split(' ');
+      return '<span class="fs-dayb' + (FEST.day === d ? ' on' : '') + '"><button type="button" onclick="festDay(\'' + _jsq(d) + '\')" title="' + E(_fsDayLbl(d)) + ' · ' + n + ' groupe' + (n > 1 ? 's' : '') + '">' + E(lb[0]) + ' <small>' + E(lb[1] || '') + '</small></button>'
+        + '<button type="button" class="fs-dayx" onclick="festDelDay(\'' + _jsq(d) + '\')" title="Retirer ce jour" aria-label="Retirer ' + E(_fsDayLbl(d)) + '"><i class="ti ti-x"></i></button></span>';
+    }).join('')
+    + '<button type="button" class="fs-dayb add" onclick="festAddDay()"><i class="ti ti-plus"></i>Jour</button></div>';
+}
+function festDay(d){ FEST.day = d; renderFestival(); }
+function festAddDay(){
+  var f = _fsData(), last = f.days[f.days.length - 1], base = last || (typeof _showDateISO === 'function' && _showDateISO(CUR_SHOW.show_date)) || _fsToday();
+  var nx = base; if(last){ var t = new Date(last + 'T12:00:00'); t.setDate(t.getDate() + 1); nx = t.getFullYear() + '-' + _fsPad(t.getMonth() + 1) + '-' + _fsPad(t.getDate()); }
+  var m = document.getElementById('fest-modal');
+  if(!m){ m = document.createElement('div'); m.id = 'fest-modal'; m.className = 'modal-ov'; m.addEventListener('click', function(e){ if(e.target === m) festClose(); }); document.body.appendChild(m); }
+  m.innerHTML = '<div class="modal-box fs-box" style="width:min(400px,94vw)"><div class="modal-head"><span class="modal-title">Ajouter un jour</span><button class="modal-close" onclick="festClose()" aria-label="Fermer"><i class="ti ti-x"></i></button></div>'
+    + '<div class="modal-body fs-form"><label class="fs-f"><span>Date</span><input class="pdf-inp" type="date" id="fs-newday" value="' + _fsE(nx) + '"></label>'
+    + (f.days.length ? '<p class="fs-hint">Jours déjà au programme : ' + f.days.map(function(d){ return _fsE(_fsDayLbl(d)); }).join(', ') + '.</p>' : '') + '</div>'
+    + '<div class="modal-foot"><button class="btn" onclick="festClose()">Annuler</button><button class="btn pri" onclick="festAddDayOk()"><i class="ti ti-check"></i>Ajouter</button></div></div>';
+  m.classList.add('show');
+  setTimeout(function(){ var i = document.getElementById('fs-newday'); if(i) i.focus(); }, 60);
+}
+function festAddDayOk(){
+  var el = document.getElementById('fs-newday'), d = el ? String(el.value || '') : '';
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(d)){ toast('Choisissez une date.'); return; }
+  var f = _fsData();
+  if(f.days.indexOf(d) < 0){ f.days.push(d); f.days.sort(); _fsSave(f); }
+  FEST.day = d; festClose(); renderFestival();
+  toast('✓ ' + _fsDayLbl(d) + ' ajouté : ajoutez-y des groupes.');
+}
+function festDelDay(d){
+  var f = _fsData(), n = f.slots.filter(function(x){ return x.day === d; }).length;
+  if(n && !confirm('Retirer ' + _fsDayLbl(d) + ' et ses ' + n + ' groupe' + (n > 1 ? 's' : '') + ' du programme ?\nLeurs input lists et output lists restent dans le show.')) return;
+  f.slots = f.slots.filter(function(x){ return x.day !== d; });
+  f.days = f.days.filter(function(x){ return x !== d; });
+  if(FEST.day === d) FEST.day = 'all';
+  _fsSave(f); renderFestival(); _fsSync();
 }
 function _fsSave(f){
   if(!CUR_SHOW) return;
@@ -164,7 +210,7 @@ function renderFestival(){
   var f = _fsData(), slots = _fsSorted(f);
   head = _fsHead(slots.length > 0);
 
-  if(!slots.length){
+  if(!slots.length && !f.days.length){
     var spare = (IL_PATCHES || []).length;
     root.innerHTML = head + '<div class="pbar il-bar"><div class="il-row a"><button class="btn pri" onclick="festEdit()"><i class="ti ti-plus"></i>Groupe</button></div></div><section class="fs-empty"><i class="ti ti-calendar-time"></i><b>Construisez le programme de la scène</b>'
       + '<span>Ajoutez les groupes dans l\'ordre de passage, avec leurs horaires. Chacun reçoit son input list (vide, copiée du patch maître, ou une liste existante).</span>'
@@ -181,16 +227,24 @@ function renderFestival(){
   var opts = '<option value="">Aucun</option>' + (IL_PATCHES || []).map(function(p){ return '<option value="' + E(p.id) + '"' + (p.id === f.house ? ' selected' : '') + '>' + E(p.name) + '</option>'; }).join('');
   var h = head + '<div class="pbar il-bar"><div class="il-row a">'
     + '<button class="btn pri" onclick="festEdit()"><i class="ti ti-plus"></i>Groupe</button>'
+    + _fsDayBar(f)
     + _fsRefSel(f)
     + '<span class="il-bar-sp"></span>'
     + '<button class="btn" onclick="festPrint()"><i class="ti ti-printer"></i><span class="fs-lbl">Feuille de changements</span></button>'
     + '</div></div>' + _fsNowHtml(f, false);
 
   /* Un bloc par jour : frise, puis groupes et changements */
-  var days = {}, order = [];
+  var days = {}, order = f.days.slice();
+  order.forEach(function(d){ days[d] = []; });
   slots.forEach(function(s){ var k = s.day || ''; if(!days[k]){ days[k] = []; order.push(k); } days[k].push(s); });
+  if(FEST.day !== 'all') order = order.filter(function(d){ return d === FEST.day; });
   order.forEach(function(day){
     var list = days[day], lo = Infinity, hi = -Infinity;
+    if(!list.length){
+      h += '<section class="fs-day"><div class="fs-day-hd"><h2>' + E(_fsDayLbl(day)) + '</h2><span>aucun groupe</span></div>'
+        + '<button type="button" class="fs-day-empty" onclick="festEdit(null,null,\'' + _jsq(day) + '\')"><i class="ti ti-plus"></i>Ajouter un groupe ce jour-là</button></section>';
+      return;
+    }
     list.forEach(function(s){ var a = _fsMin(s.start), b = _fsMin(s.end); if(a != null) lo = Math.min(lo, a); if(b != null){ if(a != null && b < a) b += 1440; hi = Math.max(hi, b); } });
     if(!isFinite(lo)){ lo = 18 * 60; } if(!isFinite(hi) || hi <= lo) hi = lo + 60;
     lo = Math.floor(lo / 60) * 60; hi = Math.ceil(hi / 60) * 60;
@@ -265,11 +319,9 @@ function _fsRefSel(f){
 function _fsRenderGrid(root, f, slots){
   var E = _fsE, out = FEST.io === 'out';
   root.classList.add('fs-gridmode'); root.classList.toggle('fs-full', !!FEST.full);
-  var dayList = []; slots.forEach(function(s){ if(dayList.indexOf(s.day || '') < 0) dayList.push(s.day || ''); });
   var bar = '<div class="pbar il-bar"><div class="il-row a">'
     + _fsRefSel(f)
-    + (dayList.length > 1 ? '<button class="btn' + (FEST.day === 'all' ? ' on' : '') + '" onclick="festGrid(\'day\',\'all\')">Tous les jours</button>'
-      + dayList.map(function(d){ return '<button class="btn' + (FEST.day === d ? ' on' : '') + '" onclick="festGrid(\'day\',\'' + _jsq(d) + '\')">' + E(_fsDayLbl(d).split(' ')[0]) + '</button>'; }).join('') : '')
+    + _fsDayBar(f)
     + '<button class="btn' + (FEST.mic ? ' on' : '') + '" onclick="festGrid(\'mic\')"><i class="ti ti-' + (out ? 'tag' : 'microphone') + '"></i>' + (out ? 'Types' : 'Micros') + '</button>'
     + '<span class="il-bar-sp"></span>'
     + '<button class="btn" onclick="festPrint()"><i class="ti ti-printer"></i><span class="fs-lbl">Feuille de changements</span></button>'
@@ -387,11 +439,12 @@ function festFromPatches(){
 }
 
 /* ── Fenêtre : ajouter ou modifier un groupe ── */
-function festEdit(slotId, pidPreset){
+function festEdit(slotId, pidPreset, dayPreset){
   if(pidPreset && !_fsId(pidPreset)) pidPreset = null;
   var f = _fsData(), s = slotId ? f.slots.find(function(x){ return x.id === slotId; }) : null, E = _fsE;
-  var last = _fsSorted(f).slice(-1)[0];
-  var day = s ? s.day : (last ? last.day : ((typeof _showDateISO === 'function' && _showDateISO(CUR_SHOW.show_date)) || _fsToday()));
+  var curDay = /^\d{4}-\d{2}-\d{2}$/.test(dayPreset || '') ? dayPreset : (FEST.day !== 'all' ? FEST.day : '');
+  var last = _fsSorted(f).filter(function(x){ return !curDay || x.day === curDay; }).slice(-1)[0];
+  var day = s ? s.day : (curDay || (last ? last.day : (f.days[0] || (typeof _showDateISO === 'function' && _showDateISO(CUR_SHOW.show_date)) || _fsToday())));
   var st = s ? s.start : (last && _fsMin(last.end) != null ? _fsHM(_fsMin(last.end) + 30) : '18:00');
   var en = s ? s.end : _fsHM((_fsMin(st) || 1080) + 75);
   FEST.edit = { id:s ? s.id : null };
@@ -404,7 +457,9 @@ function festEdit(slotId, pidPreset){
   m.innerHTML = '<div class="modal-box fs-box"><div class="modal-head"><span class="modal-title">' + (s ? 'Modifier le créneau' : 'Ajouter un groupe') + '</span><button class="modal-close" onclick="festClose()" aria-label="Fermer"><i class="ti ti-x"></i></button></div>'
     + '<div class="modal-body fs-form">'
     + '<label class="fs-f"><span>Groupe</span><input class="pdf-inp" id="fs-name" maxlength="60" value="' + E(s ? _fsName(s.pid) : (pidPreset ? _fsName(pidPreset) : '')) + '" placeholder="Nom du groupe ou de l\'artiste"></label>'
-    + '<div class="fs-f3"><label class="fs-f"><span>Jour</span><input class="pdf-inp" type="date" id="fs-day" value="' + E(day) + '"></label>'
+    + '<div class="fs-f3"><label class="fs-f"><span>Jour</span>' + (f.days.length
+        ? '<select class="pdf-inp" id="fs-day">' + f.days.concat(f.days.indexOf(day) < 0 ? [day] : []).sort().map(function(d){ return '<option value="' + E(d) + '"' + (d === day ? ' selected' : '') + '>' + E(_fsDayLbl(d)) + '</option>'; }).join('') + '</select>'
+        : '<input class="pdf-inp" type="date" id="fs-day" value="' + E(day) + '">') + '</label>'
     + '<label class="fs-f"><span>Début</span><input class="pdf-inp" type="time" id="fs-start" value="' + E(st) + '"></label>'
     + '<label class="fs-f"><span>Fin</span><input class="pdf-inp" type="time" id="fs-end" value="' + E(en) + '"></label></div>'
     + (s ? '' : '<label class="fs-f"><span>Input list et output list</span><select class="pdf-inp" id="fs-src">' + srcOpts + '</select></label>')
