@@ -150,10 +150,9 @@ function renderFestival(){
     root.innerHTML = '<div class="dt-empty"><i class="ti ti-calendar-event"></i><div class="dt-empty-t">Aucun show ouvert</div><div class="dt-empty-s">Choisissez une session pour préparer le programme du festival.</div><button class="btn pri" onclick="goTab(\'sessions\',null)">Voir les sessions</button></div>';
     return;
   }
-  var head = '<header class="bonp-head"><div><div class="bonp-eyebrow">' + E(CUR_SHOW.name || '') + '</div><h1>Mode festival</h1>'
-    + '<p>Le programme de la scène&nbsp;: chaque groupe a son input list, son output list et son plan. Entre deux groupes, le changement de plateau est calculé voie par voie.</p></div>';
+  var head = _fsHead(false);
   if(!canDo('multi_patches')){
-    root.innerHTML = head + '</header><section class="fs-gate"><div class="fs-gate-ic"><i class="ti ti-calendar-time"></i></div>'
+    root.innerHTML = head + '<section class="fs-gate"><div class="fs-gate-ic"><i class="ti ti-calendar-time"></i></div>'
       + '<div><b>Le mode festival est inclus dans l\'offre Pro</b><ul>'
       + '<li>Le programme par jour, sur une frise, avec les temps de changement</li>'
       + '<li>Une input list et une output list par groupe, dans le même show</li>'
@@ -163,13 +162,11 @@ function renderFestival(){
     return;
   }
   var f = _fsData(), slots = _fsSorted(f);
-  head += '<div class="rf-act">'
-    + (slots.length ? '<button class="btn" onclick="festPrint()"><i class="ti ti-printer"></i>Feuille de changements</button>' : '')
-    + '<button class="btn pri" onclick="festEdit()"><i class="ti ti-plus"></i>Ajouter un groupe</button></div></header>';
+  head = _fsHead(slots.length > 0);
 
   if(!slots.length){
     var spare = (IL_PATCHES || []).length;
-    root.innerHTML = head + '<section class="fs-empty"><i class="ti ti-calendar-time"></i><b>Construisez le programme de la scène</b>'
+    root.innerHTML = head + '<div class="pbar il-bar"><div class="il-row a"><button class="btn pri" onclick="festEdit()"><i class="ti ti-plus"></i>Groupe</button></div></div><section class="fs-empty"><i class="ti ti-calendar-time"></i><b>Construisez le programme de la scène</b>'
       + '<span>Ajoutez les groupes dans l\'ordre de passage, avec leurs horaires. Chacun reçoit son input list (vide, copiée du patch maître, ou une liste existante).</span>'
       + '<div class="fs-empty-a"><button class="btn pri" onclick="festEdit()"><i class="ti ti-plus"></i>Ajouter le premier groupe</button>'
       + (spare > 1 || (spare === 1 && _fsChs(IL_PATCHES[0].id).length) ? '<button class="btn" onclick="festFromPatches()"><i class="ti ti-list-numbers"></i>Mettre ' + (spare > 1 ? 'les ' + spare + ' input lists' : 'l\'input list actuelle') + ' au programme</button>' : '')
@@ -182,15 +179,12 @@ function renderFestival(){
 
   /* Réglages : patch maître et comparaison */
   var opts = '<option value="">Aucun</option>' + (IL_PATCHES || []).map(function(p){ return '<option value="' + E(p.id) + '"' + (p.id === f.house ? ' selected' : '') + '>' + E(p.name) + '</option>'; }).join('');
-  var h = head + _fsNowHtml(f, false)
-    + '<div class="fs-bar"><label><span>Patch maître de la scène</span><select class="pdf-inp" onchange="festSet(\'house\',this.value)">' + opts + '</select></label>'
-    + '<div class="fs-seg" role="group" aria-label="Comparer"><span>Changements</span>'
-    + '<button type="button" class="' + (f.cmp === 'prev' ? 'on' : '') + '" onclick="festSet(\'cmp\',\'prev\')">avec le groupe précédent</button>'
-    + '<button type="button" class="' + (f.cmp === 'house' ? 'on' : '') + '"' + (f.house ? '' : ' disabled title="Choisissez d\'abord le patch maître"') + ' onclick="festSet(\'cmp\',\'house\')">avec le patch maître</button></div></div>';
-
-  /* Deux vues : le programme (frise et changements) ou la vue d'ensemble (toutes les voies, un groupe par colonne) */
-  h += '<div class="fs-views" role="tablist"><button type="button" role="tab" class="' + (FEST.view !== 'grid' ? 'on' : '') + '" onclick="festView(\'prog\')"><i class="ti ti-calendar-time"></i>Programme</button>'
-    + '<button type="button" role="tab" class="' + (FEST.view === 'grid' ? 'on' : '') + '" onclick="festView(\'grid\')"><i class="ti ti-table"></i>Vue d\'ensemble du patch</button></div>';
+  var h = head + '<div class="pbar il-bar"><div class="il-row a">'
+    + '<button class="btn pri" onclick="festEdit()"><i class="ti ti-plus"></i>Groupe</button>'
+    + _fsRefSel(f)
+    + '<span class="il-bar-sp"></span>'
+    + '<button class="btn" onclick="festPrint()"><i class="ti ti-printer"></i><span class="fs-lbl">Feuille de changements</span></button>'
+    + '</div></div>' + _fsNowHtml(f, false);
 
   /* Un bloc par jour : frise, puis groupes et changements */
   var days = {}, order = [];
@@ -251,21 +245,37 @@ function renderFestival(){
 
 /* Vue d'ensemble : une barre unique (vues, référence, jours, entrées/sorties, actions), puis le tableau sur
    toute la hauteur. « Agrandir » le passe en plein écran (Échap pour revenir). */
-function _fsRenderGrid(root, f, slots){
+/* En-tête de la page, identique à celui de l'input list : nom du show, titre, et le sélecteur de vue
+   (Programme / Patch) dans la même pastille que IN / OUT. En vue Patch, IN / OUT juste à côté. */
+function _fsHead(withViews){
+  var E = _fsE, grid = FEST.view === 'grid', out = FEST.io === 'out';
+  return '<header class="il-head"><div class="il-head-t"><div class="il-eyebrow">' + E(CUR_SHOW.name || '') + '</div><h1 class="il-title">Festival</h1></div>'
+    + (withViews ? '<div class="plan-mode-bar il-mode" role="group" aria-label="Vue"><button class="pmb' + (grid ? '' : ' on') + '" onclick="festView(\'prog\')"><i class="ti ti-calendar-time"></i>Programme</button>'
+      + '<button class="pmb' + (grid ? ' on' : '') + '" onclick="festView(\'grid\')"><i class="ti ti-table"></i>Patch</button></div>'
+      + (grid ? '<div class="plan-mode-bar il-mode" role="group" aria-label="Entrées ou sorties"><button class="pmb' + (out ? '' : ' on') + '" onclick="festGrid(\'io\',\'in\')">IN</button><button class="pmb' + (out ? ' on' : '') + '" onclick="festGrid(\'io\',\'out\')">OUT</button></div>' : '') : '')
+    + '</header>';
+}
+/* « Comparer à » : groupe précédent ou une liste prise comme patch maître, dans un bouton de la barre */
+function _fsRefSel(f){
   var E = _fsE;
+  var o = '<option value="prev"' + (f.cmp !== 'house' ? ' selected' : '') + '>Comparer au groupe précédent</option>'
+    + (IL_PATCHES || []).filter(function(p){ return _fsId(p.id); }).map(function(p){ return '<option value="h:' + E(p.id) + '"' + (f.cmp === 'house' && f.house === p.id ? ' selected' : '') + '>Comparer au patch maître : ' + E(p.name) + '</option>'; }).join('');
+  return '<label class="btn fs-sel" title="Référence des changements"><i class="ti ti-git-compare"></i><select onchange="festRef(this.value)" aria-label="Comparer à">' + o + '</select><i class="ti ti-chevron-down il-chev"></i></label>';
+}
+function _fsRenderGrid(root, f, slots){
+  var E = _fsE, out = FEST.io === 'out';
   root.classList.add('fs-gridmode'); root.classList.toggle('fs-full', !!FEST.full);
-  var ref = '<option value="prev"' + (f.cmp !== 'house' ? ' selected' : '') + '>le groupe précédent</option>'
-    + (IL_PATCHES || []).filter(function(p){ return _fsId(p.id); }).map(function(p){ return '<option value="h:' + E(p.id) + '"' + (f.cmp === 'house' && f.house === p.id ? ' selected' : '') + '>le patch maître : ' + E(p.name) + '</option>'; }).join('');
-  var bar = '<div class="fsg-top">'
-    + '<div class="fsg-title"><b>Mode festival</b><span>' + E(CUR_SHOW.name || '') + '</span></div>'
-    + '<div class="fs-views sm" role="tablist"><button type="button" role="tab" onclick="festView(\'prog\')"><i class="ti ti-calendar-time"></i>Programme</button>'
-    + '<button type="button" role="tab" class="on"><i class="ti ti-table"></i>Vue d\'ensemble</button></div>'
-    + '<label class="fsg-ref"><span>Comparer à</span><select class="pdf-inp" onchange="festRef(this.value)">' + ref + '</select></label>'
-    + '<span class="fsg-grow"></span>'
-    + '<button class="btn sm" onclick="festPrint()" title="Feuille de changements à imprimer"><i class="ti ti-printer"></i><span class="fsg-hide">Imprimer</span></button>'
-    + '<button class="btn sm" onclick="festFull()" title="' + (FEST.full ? 'Quitter le plein écran (Échap)' : 'Tableau en plein écran') + '"><i class="ti ti-' + (FEST.full ? 'minimize' : 'maximize') + '"></i><span class="fsg-hide">' + (FEST.full ? 'Réduire' : 'Agrandir') + '</span></button>'
-    + '</div>';
-  root.innerHTML = bar + _fsGridHtml(f, slots);
+  var dayList = []; slots.forEach(function(s){ if(dayList.indexOf(s.day || '') < 0) dayList.push(s.day || ''); });
+  var bar = '<div class="pbar il-bar"><div class="il-row a">'
+    + _fsRefSel(f)
+    + (dayList.length > 1 ? '<button class="btn' + (FEST.day === 'all' ? ' on' : '') + '" onclick="festGrid(\'day\',\'all\')">Tous les jours</button>'
+      + dayList.map(function(d){ return '<button class="btn' + (FEST.day === d ? ' on' : '') + '" onclick="festGrid(\'day\',\'' + _jsq(d) + '\')">' + E(_fsDayLbl(d).split(' ')[0]) + '</button>'; }).join('') : '')
+    + '<button class="btn' + (FEST.mic ? ' on' : '') + '" onclick="festGrid(\'mic\')"><i class="ti ti-' + (out ? 'tag' : 'microphone') + '"></i>' + (out ? 'Types' : 'Micros') + '</button>'
+    + '<span class="il-bar-sp"></span>'
+    + '<button class="btn" onclick="festPrint()"><i class="ti ti-printer"></i><span class="fs-lbl">Feuille de changements</span></button>'
+    + '<button class="btn fs-full-btn" onclick="festFull()" title="' + (FEST.full ? 'Quitter le plein écran (Échap)' : 'Tableau en plein écran') + '"><i class="ti ti-' + (FEST.full ? 'minimize' : 'maximize') + '"></i>' + (FEST.full ? 'Réduire' : 'Plein écran') + '</button>'
+    + '</div></div>';
+  root.innerHTML = _fsHead(true) + bar + _fsGridHtml(f, slots);
 }
 function festRef(v){
   var f = _fsData();
@@ -301,11 +311,7 @@ function _fsGridHtml(f, slots){
   var TYPES = { main:'Façade', sub:'Sub', mon:'Retour', iem:'IEM', fx:'Effet', group:'Groupe', matrix:'Matrice', aux:'Aux' };
   var sub = function(c){ return out ? (TYPES[c.mic] || c.mic) : c.mic; };
 
-  var tools = '<div class="fsg-tools"><div class="fs-seg"><button type="button" class="' + (FEST.day === 'all' ? 'on' : '') + '" onclick="festGrid(\'day\',\'all\')">Tous</button>'
-    + (dayList.length > 1 ? dayList.map(function(d){ var t = _fsDayLbl(d); return '<button type="button" class="' + (FEST.day === d ? 'on' : '') + '" onclick="festGrid(\'day\',\'' + _jsq(d) + '\')">' + E(t.split(' ')[0]) + '</button>'; }).join('') : '') + '</div>'
-    + '<div class="fs-seg"><button type="button" class="' + (out ? '' : 'on') + '" onclick="festGrid(\'io\',\'in\')">Entrées</button><button type="button" class="' + (out ? 'on' : '') + '" onclick="festGrid(\'io\',\'out\')">Sorties</button>'
-    + '<button type="button" class="' + (FEST.mic ? 'on' : '') + '" onclick="festGrid(\'mic\')">' + (out ? 'Types' : 'Micros') + '</button></div>'
-    + '<div class="fsg-leg"><span class="same">identique</span><span class="chg">à changer</span><span>— libre</span>' + (out ? '' : '<span><i class="ti ti-bolt"></i>48 V</span>') + '</div></div>';
+  var tools = '<div class="fsg-tools"><div class="fsg-leg"><span class="same">identique</span><span class="chg">à changer</span><span>— libre</span>' + (out ? '' : '<span><i class="ti ti-bolt"></i>48 V</span>') + '</div></div>';
   if(!max) return tools + '<div class="fs-none" style="padding:18px 4px">Aucune ' + (out ? 'sortie' : 'voie') + ' dans ces listes pour l\'instant.</div>';
 
   var head = '<tr><th class="fsg-ch">' + (out ? 'OUT' : 'CH') + '</th>'
