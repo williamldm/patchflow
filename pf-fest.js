@@ -8,7 +8,8 @@
    Rangé dans shows.stage_data.festival = { slots:[{id,pid,day,start,end,scene,note}], house, cmp },
    enregistré rubrique par rubrique (_sdPatch) comme le reste de stage_data.
    ══════════════════════════════════════ */
-var FEST = { t:null, open:{}, edit:null };
+var FEST = { t:null, open:{}, edit:null, view:'prog', day:'all', io:'in', mic:true };
+try{ var _fsPref = JSON.parse(localStorage.getItem('pf_fest_view') || '{}'); ['view','io','mic'].forEach(function(k){ if(_fsPref[k] !== undefined) FEST[k] = _fsPref[k]; }); }catch(e){}
 
 function _fsE(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function _fsId(x){ return typeof x === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(x); }
@@ -184,6 +185,11 @@ function renderFestival(){
     + '<button type="button" class="' + (f.cmp === 'prev' ? 'on' : '') + '" onclick="festSet(\'cmp\',\'prev\')">avec le groupe précédent</button>'
     + '<button type="button" class="' + (f.cmp === 'house' ? 'on' : '') + '"' + (f.house ? '' : ' disabled title="Choisissez d\'abord le patch maître"') + ' onclick="festSet(\'cmp\',\'house\')">avec le patch maître</button></div></div>';
 
+  /* Deux vues : le programme (frise et changements) ou la vue d'ensemble (toutes les voies, un groupe par colonne) */
+  h += '<div class="fs-views" role="tablist"><button type="button" role="tab" class="' + (FEST.view !== 'grid' ? 'on' : '') + '" onclick="festView(\'prog\')"><i class="ti ti-calendar-time"></i>Programme</button>'
+    + '<button type="button" role="tab" class="' + (FEST.view === 'grid' ? 'on' : '') + '" onclick="festView(\'grid\')"><i class="ti ti-table"></i>Vue d\'ensemble du patch</button></div>';
+  if(FEST.view === 'grid'){ root.innerHTML = h + _fsGridHtml(f, slots); return; }
+
   /* Un bloc par jour : frise, puis groupes et changements */
   var days = {}, order = [];
   slots.forEach(function(s){ var k = s.day || ''; if(!days[k]){ days[k] = []; order.push(k); } days[k].push(s); });
@@ -234,6 +240,74 @@ function renderFestival(){
     return '<button type="button" onclick="festEdit(null,\'' + _jsq(p.id) + '\')"><i class="ti ti-plus"></i>' + E(p.name) + (p.id === f.house ? ' · patch maître' : '') + '</button>';
   }).join('') + '</section>';
   root.innerHTML = h;
+}
+
+
+/* ── Vue d'ensemble : toutes les voies en lignes, le patch maître puis chaque groupe en colonne ──
+   En clair et en italique : la voie ne change pas (même source et même micro que la référence, patch
+   maître ou groupe précédent). En gras : elle change. « — » : voie libre. Un clic ouvre la liste du groupe. */
+function festView(v){ FEST.view = v === 'grid' ? 'grid' : 'prog'; _fsPrefSave(); renderFestival(); }
+function festGrid(k, v){ if(k === 'day') FEST.day = v; if(k === 'io') FEST.io = v === 'out' ? 'out' : 'in'; if(k === 'mic') FEST.mic = !FEST.mic; _fsPrefSave(); renderFestival(); }
+function _fsPrefSave(){ try{ localStorage.setItem('pf_fest_view', JSON.stringify({ view:FEST.view, io:FEST.io, mic:FEST.mic })); }catch(e){} }
+function _fsGridHtml(f, slots){
+  var E = _fsE, out = FEST.io === 'out';
+  var dayList = []; slots.forEach(function(s){ if(dayList.indexOf(s.day || '') < 0) dayList.push(s.day || ''); });
+  if(FEST.day !== 'all' && dayList.indexOf(FEST.day) < 0) FEST.day = 'all';
+  var cols = slots.filter(function(s){ return FEST.day === 'all' || (s.day || '') === FEST.day; });
+  var house = f.house && _fsPatch(f.house) ? f.house : '';
+  var useHouse = f.cmp === 'house' && house;
+  /* Lignes d'une liste, rangées par numéro */
+  var rowsOf = function(pid){
+    var m = {};
+    if(out) _fsOuts(pid).forEach(function(o){ if(o.ch) m[o.ch] = { l:String(o.long_name || o.short_name || '').trim(), mic:String(o.type || ''), hf:String(o.hf || ''), p48:false }; });
+    else _fsChs(pid).forEach(function(r){ m[r.ch] = { l:_fsLbl(r), mic:String(r.mic || '').trim(), hf:_fsHf(r), p48:!!r.phantom }; });
+    return m;
+  };
+  var key = function(c){ return c ? _fsN(c.l) + '|' + _fsN(c.mic) : ''; };
+  var colData = cols.map(function(s){ return { s:s, m:rowsOf(s.pid) }; });
+  var hm = house ? rowsOf(house) : null;
+  var max = 0;
+  colData.forEach(function(c){ Object.keys(c.m).forEach(function(k){ max = Math.max(max, +k); }); });
+  if(hm) Object.keys(hm).forEach(function(k){ max = Math.max(max, +k); });
+  var TYPES = { main:'Façade', sub:'Sub', mon:'Retour', iem:'IEM', fx:'Effet', group:'Groupe', matrix:'Matrice', aux:'Aux' };
+  var sub = function(c){ return out ? (TYPES[c.mic] || c.mic) : c.mic; };
+
+  var tools = '<div class="fsg-tools"><div class="fs-seg"><span>Jours</span><button type="button" class="' + (FEST.day === 'all' ? 'on' : '') + '" onclick="festGrid(\'day\',\'all\')">Tous</button>'
+    + (dayList.length > 1 ? dayList.map(function(d){ var t = _fsDayLbl(d); return '<button type="button" class="' + (FEST.day === d ? 'on' : '') + '" onclick="festGrid(\'day\',\'' + _jsq(d) + '\')">' + E(t.split(' ')[0]) + '</button>'; }).join('') : '') + '</div>'
+    + '<div class="fs-seg"><span>Afficher</span><button type="button" class="' + (out ? '' : 'on') + '" onclick="festGrid(\'io\',\'in\')">Entrées</button><button type="button" class="' + (out ? 'on' : '') + '" onclick="festGrid(\'io\',\'out\')">Sorties</button>'
+    + '<button type="button" class="' + (FEST.mic ? 'on' : '') + '" onclick="festGrid(\'mic\')">' + (out ? 'Types' : 'Micros') + '</button></div>'
+    + '<div class="fsg-leg"><span class="same">En clair&nbsp;: ne change pas</span><span class="chg">En gras&nbsp;: à changer</span><span>—&nbsp;: libre</span>' + (out ? '' : '<span><i class="ti ti-bolt"></i>48 V</span>') + '<span class="ref">Référence&nbsp;: ' + (useHouse ? 'patch maître' : 'groupe précédent') + '</span></div></div>';
+  if(!max) return tools + '<div class="fs-none" style="padding:18px 4px">Aucune ' + (out ? 'sortie' : 'voie') + ' dans ces listes pour l\'instant.</div>';
+
+  var head = '<tr><th class="fsg-ch">' + (out ? 'OUT' : 'CH') + '</th>'
+    + (hm ? '<th class="fsg-house"><small>Référence</small><b>' + E(_fsName(house)) + '</b><span class="fs-house">patch maître</span></th>' : '')
+    + colData.map(function(c, i){
+      var s = c.s, ref = useHouse ? hm : (i > 0 ? colData[i - 1].m : null), nChg = 0;
+      if(ref) for(var k = 1; k <= max; k++){ if(key(c.m[k]) !== key(ref[k]) && (c.m[k] || ref[k])) nChg++; }
+      return '<th><small>' + E(_fsDayLbl(s.day).split(' ')[0]) + ' · ' + E(s.start || '') + (s.end ? '–' + E(s.end) : '') + '</small><b>' + E(_fsName(s.pid)) + '</b>'
+        + '<span class="fsg-n">' + Object.keys(c.m).length + ' ' + (out ? 'sorties' : 'voies') + (ref ? ' · <em>' + nChg + ' à changer</em>' : '') + '</span></th>';
+    }).join('') + '</tr>';
+
+  var body = '';
+  for(var ch = 1; ch <= max; ch++){
+    var h0 = hm ? hm[ch] : null;
+    var allSame = colData.every(function(c){ return key(c.m[ch]) === key(colData[0].m[ch]); }) && (!hm || key(h0) === key(colData[0].m[ch]));
+    body += '<tr' + (allSame ? ' class="fsg-common"' : '') + '><td class="fsg-ch">' + ch + '</td>';
+    if(hm) body += '<td class="fsg-house">' + (h0 ? '<b>' + E(h0.l || 'sans nom') + '</b>' + (FEST.mic && h0.mic ? '<small>' + E(sub(h0)) + '</small>' : '') : '<span class="fsg-free">—</span>') + '</td>';
+    colData.forEach(function(c, i){
+      var cell = c.m[ch], ref = useHouse ? hm : (i > 0 ? colData[i - 1].m : null);
+      var same = ref ? key(cell) === key(ref[ch]) : false;
+      var cls = !cell ? 'free' : (ref ? (same ? 'same' : 'chg') : 'first');
+      var t = !cell ? '<span class="fsg-free">—</span>'
+        : '<b>' + E(cell.l || 'sans nom')
+          + (ref && ((cell.p48 && (!ref[ch] || !ref[ch].p48)) || (!cell.p48 && ref[ch] && ref[ch].p48)) ? '<i class="ti ti-bolt fsg-48' + (cell.p48 ? '' : ' off') + '" title="48 V ' + (cell.p48 ? 'à activer' : 'à couper') + '"></i>' : (cell.p48 ? '<i class="ti ti-bolt fsg-48 keep" title="48 V"></i>' : ''))
+          + (cell.hf ? '<em class="fsg-hf">' + E(cell.hf) + '</em>' : '') + '</b>'
+          + (FEST.mic && cell.mic ? '<small>' + E(sub(cell)) + '</small>' : '');
+      body += '<td class="' + cls + '" onclick="festOpen(\'' + _jsq(c.s.pid) + '\',\'' + (out ? 'out' : 'in') + '\')" title="' + E(_fsName(c.s.pid)) + ' · ' + (out ? 'OUT ' : 'CH ') + ch + '">' + t + '</td>';
+    });
+    body += '</tr>';
+  }
+  return tools + '<div class="fsg-wrap"><table class="fsg">' + '<thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>';
 }
 
 /* ── Actions ── */
