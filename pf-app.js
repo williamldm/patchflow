@@ -5312,11 +5312,13 @@ function setPdfExportType(type){
     btn.classList.toggle('on', t===type);
     btn.style.display = _pdfVisibleTypes.includes(t) ? '' : 'none';
   });
-  const titles={in:'Exporter l\'input list',out:'Exporter l\'output list',both:'Exporter les listes',stage:'Exporter le plan de scène',site:'Exporter le plan de site',syno:'Exporter le synoptique'};
+  const titles={in:'Exporter l\'input list',out:'Exporter l\'output list',both:'Exporter les listes',stage:'Exporter le plan de scène',site:'Exporter le plan de site',syno:'Exporter le synoptique',fest:'Exporter le festival'};
   const titleEl=document.getElementById('pdf-modal-title');
   if(titleEl) titleEl.textContent = titles[type]||'Exporter';
   const isVisual = type==='stage'||type==='site'||type==='syno';
-  const isTable  = !isVisual;
+  const isFest   = type==='fest';
+  const isTable  = !isVisual && !isFest;
+  if(typeof festXpSync==='function') festXpSync(isFest);
   // Show subtitle + orientation only for visual plans
   const subRow = document.getElementById('pdf-sub-row');
   if(subRow) subRow.style.display = isVisual ? '' : 'none';
@@ -5344,6 +5346,8 @@ function setPdfExportType(type){
   if(moreRow) moreRow.style.display = isTable ? '' : 'none';
   const shareRow = document.getElementById('pdf-share-row');
   if(shareRow) shareRow.style.display = type==='stage' ? '' : 'none';
+  const festShareRow = document.getElementById('pdf-fest-share-row');
+  if(festShareRow) festShareRow.style.display = isFest ? '' : 'none';
   _pdfSyncFormat();
 }
 /* Formats proposés : listes → PDF ou CSV ; plans → PDF ou image ; synoptique → PDF, image ou SVG.
@@ -5353,6 +5357,7 @@ try{ if(localStorage.getItem('pf_export_fmt')==='csv') _pdfFormat='csv'; var _pv
 var _PDF_FMT_HINT={pdf:'Document mis en page, prêt à envoyer',csv:'Tableau brut, pour Excel ou Numbers',png:'Image, à glisser dans un mail ou un document',svg:'Dessin vectoriel, à retoucher dans un logiciel de dessin'};
 function _pdfFormats(){
   var t=_pdfExportType;
+  if(t==='fest') return (typeof FEST!=='undefined' && FEST.xp==='chg') ? ['pdf'] : ['pdf','csv'];
   if(t==='syno') return ['pdf','png','svg'];
   if(t==='stage'||t==='site') return ['pdf','png'];
   return ['pdf','csv'];
@@ -5395,6 +5400,7 @@ document.addEventListener('input',function(e){ if(e.target&&e.target.closest&&e.
 /* Bouton principal de la fenêtre : PDF, sinon le format direct choisi (CSV, image, SVG) */
 function doExport(){
   var fmt=_pdfCurFmt(), t=_pdfExportType;
+  if(t==='fest'){ closePDF(); festDoExport(fmt, false); return; }
   if(fmt==='pdf'){ doPDF(); return; }
   if(fmt==='csv'){
     if(t==='in'||t==='both'){ if(!CHS.length&&t==='in'){ toast('Aucun canal à exporter.'); return; } if(CHS.length) exportCSV(); }
@@ -5408,7 +5414,7 @@ function doExport(){
   else if(fmt==='svg' && t==='syno') SynPro.exportSvg();
   closePDF();
 }
-function pdfToFilesFromModal(){ quickPdfToFiles(_pdfExportType); }
+function pdfToFilesFromModal(){ if(_pdfExportType==='fest'){ closePDF(); festDoExport('pdf', true); return; } quickPdfToFiles(_pdfExportType); }
 function setPdfOrient(o){
   _pdfOrient = (o==='portrait'||o==='auto') ? o : 'landscape';
   var l=document.getElementById('pdf-orient-land'), p=document.getElementById('pdf-orient-port'), a=document.getElementById('pdf-orient-auto');
@@ -5908,6 +5914,7 @@ function openPDFModal(forceType){
   if(forceType==='stage')      _pdfVisibleTypes=['stage'];
   else if(forceType==='site')  _pdfVisibleTypes=['site'];
   else if(forceType==='syno')  _pdfVisibleTypes=['syno'];
+  else if(forceType==='fest')  _pdfVisibleTypes=['fest'];
   else                         _pdfVisibleTypes=['in','out','both']; // Input List context
 
   const isFree=userPlan()==='free';

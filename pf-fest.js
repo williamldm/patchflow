@@ -248,7 +248,8 @@ function _renderFestival(){
     + _fsDayBar(f)
     + _fsRefSel(f)
     + '<span class="il-bar-sp"></span>'
-    + '<button class="btn" onclick="festExport(event)"><i class="ti ti-file-export"></i><span class="fs-lbl">Exporter</span></button>'
+    + '<button class="btn" onclick="festShare()" title="Lien de partage en lecture seule"><i class="ti ti-link"></i><span class="fs-lbl">Lien de partage</span></button>'
+    + '<button class="btn" id="fest-exp-btn" onclick="festOpenExport()"><i class="ti ti-file-export"></i><span class="fs-lbl">Exporter</span></button>'
     + '</div></div>' + _fsNowHtml(f, false);
 
   /* Un bloc par jour : frise, puis groupes et changements */
@@ -343,7 +344,8 @@ function _fsRenderGrid(root, f, slots){
     + _fsDayBar(f)
     + '<button class="btn' + (FEST.mic ? ' on' : '') + '" onclick="festGrid(\'mic\')"><i class="ti ti-' + (out ? 'tag' : 'microphone') + '"></i>' + (out ? 'Types' : 'Micros') + '</button>'
     + '<span class="il-bar-sp"></span>'
-    + '<button class="btn" onclick="festExport(event)"><i class="ti ti-file-export"></i><span class="fs-lbl">Exporter</span></button>'
+    + '<button class="btn" onclick="festShare()" title="Lien de partage en lecture seule"><i class="ti ti-link"></i><span class="fs-lbl">Lien de partage</span></button>'
+    + '<button class="btn" id="fest-exp-btn" onclick="festOpenExport()"><i class="ti ti-file-export"></i><span class="fs-lbl">Exporter</span></button>'
     + '<button class="btn fs-full-btn" onclick="festFull()" title="' + (FEST.full ? 'Quitter le plein écran (Échap)' : 'Tableau en plein écran') + '"><i class="ti ti-' + (FEST.full ? 'minimize' : 'maximize') + '"></i>' + (FEST.full ? 'Réduire' : 'Plein écran') + '</button>'
     + '</div></div>';
   root.innerHTML = _fsHead(true) + bar + _fsGridHtml(f, slots);
@@ -433,21 +435,29 @@ function festShift(slotId){
   toast('✓ ' + n + ' groupe' + (n > 1 ? 's' : '') + ' décalé' + (n > 1 ? 's' : '') + ' de ' + (m > 0 ? '+' : '') + m + ' min');
 }
 
-/* ── Exporter : PDF du patch, CSV, feuille de changements, lien de partage ── */
-function festExport(ev){
-  if(ev) ev.stopPropagation();
-  var old = document.getElementById('fs-exp'); if(old){ old.remove(); return; }
-  var b = ev && ev.currentTarget, r = b ? b.getBoundingClientRect() : { left:20, bottom:80, right:220 };
-  var m = document.createElement('div'); m.id = 'fs-exp'; m.className = 'fs-exp';
-  m.innerHTML = '<button type="button" onclick="festPdf()"><i class="ti ti-file-type-pdf"></i><span><b>PDF du patch du festival</b><small>Toutes les voies, un groupe par colonne</small></span></button>'
-    + '<button type="button" onclick="festCsv()"><i class="ti ti-table-export"></i><span><b>Tableau CSV</b><small>Pour Excel ou Numbers</small></span></button>'
-    + '<button type="button" onclick="festPrint()"><i class="ti ti-printer"></i><span><b>Feuille de changements</b><small>Les changements de plateau, à imprimer</small></span></button>'
-    + '<button type="button" onclick="festShare()"><i class="ti ti-link"></i><span><b>Lien de partage</b><small>Programme et patch, sans compte, toujours à jour</small></span></button>';
-  document.body.appendChild(m);
-  var w = m.offsetWidth; m.style.top = (r.bottom + 6 + window.scrollY) + 'px'; m.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w)) + 'px';
-  setTimeout(function(){ document.addEventListener('click', function cl(e){ if(!m.contains(e.target)){ m.remove(); document.removeEventListener('click', cl); } }); }, 0);
+/* ── Exporter : la même fenêtre que l'input list et les plans (openPDFModal), avec ses réglages d'en-tête,
+   logo et couleurs, le choix PDF ou CSV et « Vers Fichiers ». Ici : le patch (entrées ou sorties), ou les changements. ── */
+function festOpenExport(){
+  FEST.xp = FEST.view === 'grid' ? (FEST.io === 'out' ? 'out' : 'in') : (FEST.xp || 'in');
+  if(typeof openPDFModal === 'function') openPDFModal('fest');
 }
-function _fsExpClose(){ var m = document.getElementById('fs-exp'); if(m) m.remove(); }
+function festXp(k){ FEST.xp = k === 'out' ? 'out' : (k === 'chg' ? 'chg' : 'in'); if(FEST.xp !== 'chg') FEST.io = FEST.xp; if(typeof setPdfExportType === 'function') setPdfExportType('fest'); }
+/* Met à jour les lignes du festival dans la fenêtre commune */
+function festXpSync(on){
+  var $ = function(id){ return document.getElementById(id); };
+  var row = $('pdf-fest-row'); if(row) row.style.display = on ? '' : 'none';
+  if(!on) return;
+  ['in', 'out', 'chg'].forEach(function(k){ var b = $('pdf-fest-' + k); if(b) b.classList.toggle('on', FEST.xp === k); });
+  var h = $('pdf-fest-hint');
+  if(h) h.textContent = FEST.xp === 'chg' ? 'Une feuille par jour : ce qui change entre deux groupes' : 'Toutes les voies, un groupe par colonne' + (FEST.day !== 'all' ? ' · jour affiché : ' + _fsDayLbl(FEST.day).split(' ')[0] : '');
+}
+function festDoExport(fmt, toFiles){
+  var v = function(id){ var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
+  var meta = { eng:v('pdf-eng'), role:v('pdf-role'), title:v('pdf-title'), co:v('pdf-co'), tel:v('pdf-tel'), venue:v('pdf-venue'), date:v('pdf-date'), rev:v('pdf-rev'), notes:v('pdf-notes') };
+  if(FEST.xp === 'chg'){ festPrint(); return; }
+  FEST.io = FEST.xp === 'out' ? 'out' : 'in';
+  if(fmt === 'csv') festCsv(); else festPdf(meta, !!toFiles);
+}
 /* Lignes du patch (entrées ou sorties) pour l'export : [{ch, cells:[{t, mic, st}]}] avec st = same|chg|free|first */
 function _fsMatrix(f, out){
   var slots = _fsSorted(f).filter(function(s){ return FEST.day === 'all' || s.day === FEST.day; });
@@ -468,7 +478,6 @@ function _fsMatrix(f, out){
   return { cols:cols.map(function(c){ return c.s; }), house:hm ? _fsName(f.house) : '', rows:rows };
 }
 function festCsv(){
-  _fsExpClose();
   _fsCached(function(){
     var f = _fsData(), out = FEST.io === 'out', M = _fsMatrix(f, out);
     var q = function(v){ v = String(v == null ? '' : v); return /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
@@ -485,8 +494,9 @@ function festCsv(){
     document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 400);
   });
 }
-async function festPdf(){
-  _fsExpClose();
+async function festPdf(meta, toFiles){
+  meta = meta || {};
+  if(typeof _pdfSaveToFiles !== 'undefined') _pdfSaveToFiles = !!toFiles;
   if(typeof _loadAutoTable !== 'function'){ toast('Export PDF indisponible.'); return; }
   toast('Génération PDF…');
   try {
@@ -494,11 +504,12 @@ async function festPdf(){
     var JsPDF = await _loadAutoTable(), doc = new JsPDF({ orientation:'landscape', unit:'mm', format:M.cols.length > 6 ? 'a3' : 'a4' });
     var PW = doc.internal.pageSize.getWidth(), K = _PDFK, Mg = K.M, brand = _pdfBrand(), acc = _hex2rgb(brand.color || '#ff6b1a');
     var pf = null; try { pf = await _pfLogoPng('#FF6B2B'); } catch(e){}
-    var logo = await _pdfLogoInfo(brand.logo), title = CUR_SHOW.name || 'Festival', TOP = 26, BOT = _pdfFootH(false) + 4;
+    var logo = await _pdfLogoInfo(brand.logo), title = meta.title || CUR_SHOW.name || 'Festival', TOP = 26, BOT = _pdfFootH(false) + 4;
     var days = []; M.cols.forEach(function(s){ if(days.indexOf(s.day) < 0) days.push(s.day); });
     var y = _pdfHead(doc, { acc:acc, pf:pf, brand:brand.co || 'PatchFlow', docType:'Patch du festival · ' + (out ? 'sorties' : 'entrées'), title:title, sub:'', logo:logo,
       rightLines:['Édité le ' + new Date().toLocaleDateString('fr-FR')],
-      meta:[['Jours', days.map(_fsDayLbl).join(', ')], ['Référence', M.house ? 'patch maître ' + M.house : 'groupe précédent'], ['Lieu', CUR_SHOW.venue]] }) + 2;
+      meta:[['Jours', days.map(_fsDayLbl).join(', ')], ['Référence', M.house ? 'patch maître ' + M.house : 'groupe précédent'], ['Lieu', meta.venue || CUR_SHOW.venue],
+            ['Édité par', [meta.eng, meta.role].filter(Boolean).join(' · ')], ['Contact', [meta.co, meta.tel].filter(Boolean).join(' · ')], ['Révision', meta.rev]].filter(function(x){ return x[1]; }) }) + 2;
     var head = [(out ? 'OUT' : 'CH')].concat(M.house ? ['MAÎTRE · ' + M.house.toUpperCase()] : []).concat(M.cols.map(function(s){ return _fsName(s.pid).toUpperCase() + '\n' + _fsDayLbl(s.day).split(' ')[0] + ' ' + (s.start || ''); }));
     var body = M.rows.map(function(r){
       return [String(r.ch)].concat(M.house ? [r.house ? r.house.l + (r.house.mic ? '\n' + r.house.mic : '') : '—'] : [])
@@ -516,14 +527,21 @@ async function festPdf(){
         else if(c.st === 'chg'){ d.cell.styles.fontStyle = 'bold'; d.cell.styles.fillColor = [255, 246, 214]; }
         else if(c.st === 'free'){ d.cell.styles.textColor = [190, 190, 190]; }
       } });
+    if(meta.notes){
+      var yy = doc.lastAutoTable.finalY + 6, H = doc.internal.pageSize.getHeight();
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(K.ink[0], K.ink[1], K.ink[2]);
+      if(yy > H - BOT - 14){ doc.addPage(); yy = TOP; }
+      doc.text('Notes techniques', Mg, yy); yy += 5;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(K.txt2[0], K.txt2[1], K.txt2[2]);
+      doc.splitTextToSize(meta.notes, PW - 2 * Mg).forEach(function(l){ if(yy > H - BOT - 4){ doc.addPage(); yy = TOP; } doc.text(l, Mg, yy); yy += 4.2; });
+    }
     var n = doc.internal.getNumberOfPages();
-    for(var p = 1; p <= n; p++){ doc.setPage(p); _pdfFoot(doc, { acc:acc, pf:pf, credit:_pdfCreditFree(), creditWhat:'patch du festival', qr:null, url:'', stamp:'Fond jaune et gras : à changer · gris : identique · — : libre', page:p, pages:n }); }
+    for(var p = 1; p <= n; p++){ doc.setPage(p); _pdfFoot(doc, { acc:acc, pf:pf, credit:_pdfCreditOn(), creditWhat:'patch du festival', qr:null, url:'', stamp:'Fond jaune et gras : à changer · gris : identique · — : libre', page:p, pages:n }); }
     await _pdfDeliver(doc, ((typeof _pdfSlug === 'function' && _pdfSlug(title)) || 'festival') + '-patch-festival.pdf');
   } catch(e){ console.error('festPdf:', e); toast('Export impossible : ' + (e && e.message || e)); }
 }
 /* Lien de partage : la rubrique Festival cochée dans Partage & équipe */
 function festShare(){
-  _fsExpClose();
   if(typeof _riderSections !== 'undefined'){ _riderSections.fest = true; _riderSections.road = true; }
   goTab('team', null);
   setTimeout(function(){
