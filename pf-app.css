@@ -4805,3 +4805,39 @@ textarea.bp-mix{height:auto;min-height:58px;padding:7px 9px;resize:vertical;line
 .bpil-opt{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12.5px;color:var(--txt2);cursor:pointer}
 .bpil-f{display:flex;align-items:center;gap:12px;padding:12px 16px;border-top:1px solid var(--bdr)}
 .bpil-f span{flex:1;font-size:11px;color:var(--muted)}
+
+/* ── Synoptique : sessions d'amplis ── */
+.sp-amp-tool{flex-wrap:wrap;height:auto;padding:7px 8px;row-gap:1px;color:var(--txt);font-weight:600}
+.sp-amp-tool span{flex-basis:100%;margin-left:26px;font-size:10px;color:var(--muted);font-weight:400}
+.sp-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:5;padding:20px}
+.sp-empty-card{pointer-events:auto;max-width:420px;text-align:center;display:grid;justify-items:center;gap:10px;padding:28px 30px;border-radius:18px;background:var(--surf);box-shadow:0 0 0 1px var(--bdr2),0 24px 60px rgba(0,0,0,.35)}
+.sp-empty-ic{width:54px;height:54px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:rgba(255,107,26,.12);color:var(--ora);font-size:28px}
+.sp-empty-card b{font-size:17px;font-weight:650;color:var(--txt)}
+.sp-empty-card p{font-size:13px;line-height:1.5;color:var(--txt2);margin:0}
+.sp-empty-card .btn{margin-top:4px}
+.sp-empty-brands{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-top:4px}
+.sp-empty-brands span{font:500 11px var(--f);color:var(--txt2);padding:4px 9px;border-radius:999px;background:var(--surf2);box-shadow:inset 0 0 0 1px var(--bdr)}
+.sp-empty-card small{font-size:11.5px;color:var(--muted)}
+.sp-viewport.ampi-over{box-shadow:inset 0 0 0 3px var(--ora)}
+.ampi-box{width:560px;max-width:calc(100vw - 24px)}
+.ampi-lead{font-size:13px;line-height:1.5;color:var(--txt2);margin:0 0 14px}
+.ampi-drop{width:100%;display:grid;justify-items:center;gap:4px;padding:22px 16px;border-radius:14px;border:1.5px dashed var(--bdr2);background:var(--surf2);color:var(--txt);cursor:pointer;font-family:var(--f)}
+.ampi-drop:hover{border-color:var(--ora)}
+.ampi-drop i{font-size:26px;color:var(--ora)}
+.ampi-drop b{font-size:14px;font-weight:650}
+.ampi-drop span{font-size:11.5px;color:var(--muted)}
+.ampi-srcs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.ampi-src{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;box-shadow:inset 0 0 0 1px var(--bdr2);flex-wrap:wrap}
+.ampi-src-ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:var(--surf2);color:var(--txt2);font-size:18px;flex:none}
+.ampi-src b{display:block;font-size:13px;font-weight:600;color:var(--txt)}
+.ampi-src span{display:block;font-size:11px;color:var(--muted)}
+.ampi-src em{font-style:normal;font-size:10.5px;font-weight:600;color:#22c55e;margin-left:44px}
+.ampi-src em.alt{color:var(--muted)}
+.ampi-other{display:grid;gap:10px;margin-top:12px;padding:12px 14px;border-radius:12px;background:var(--surf2)}
+.ampi-other b{display:block;font-size:13px;font-weight:600;color:var(--txt)}
+.ampi-other span{display:block;margin-top:3px;font-size:12px;line-height:1.45;color:var(--txt2)}
+.ampi-other-a{display:flex;flex-wrap:wrap;gap:8px}
+.ampi-ta{width:100%;min-height:180px;font:12px var(--m);line-height:1.5;resize:vertical;white-space:pre}
+@media(max-width:560px){.ampi-srcs{grid-template-columns:1fr}}
+/* L'accueil du synoptique vide s'efface quand une fenêtre est ouverte (il passait au-dessus) */
+body:has(.modal-ov.show) .sp-empty{display:none}

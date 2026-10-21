@@ -60,7 +60,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=4.29">
+<link rel="stylesheet" href="pf-app.css?v=4.30">
 </head>
 <body>
 
@@ -730,7 +730,6 @@ html.rider-boot #rider-splash{display:flex}
             <button type="button" id="sp-fit" title="Ajuster"><i class="ti ti-arrows-maximize"></i></button>
           </div>
           <button type="button" class="btn ghost sm" id="sp-conf"><i class="ti ti-settings"></i>Marque &amp; réseaux</button>
-          <button type="button" class="btn ghost sm" id="sp-import" onclick="LinusImport.pick()" title="Créer le synoptique à partir d'une session LINUS Control (Coda Audio)"><i class="ti ti-file-import"></i>Session LINUS</button>
           <button type="button" class="btn ghost sm pf-fs-btn" onclick="pfFullscreen('syno')" title="Plein écran (Échap pour quitter)"><i class="ti ti-maximize"></i><span>Plein écran</span></button>
           <button type="button" class="btn sm" id="sp-export" onclick="SynPro.openExport()"><i class="ti ti-file-export"></i>Exporter</button>
           <span id="sp-save-status" style="font-size:10px;font-family:var(--m);display:flex;align-items:center;gap:4px;color:var(--muted)"></span>
@@ -743,6 +742,7 @@ html.rider-boot #rider-splash{display:flex}
             <div class="sp-pal-hd"><i class="ti ti-box"></i>Bibliothèque</div>
             <div class="sp-bg-box">
               <input type="file" id="sp-bg-file" accept="image/*,application/pdf" style="display:none" onchange="SynPro.loadBg(this)"/>
+              <button type="button" class="bp-tool sp-amp-tool" onclick="AmpImport.open()" title="Créer le synoptique depuis une session d'amplis : CODA LINUS Control, d&amp;b ArrayCalc / R1, ou un tableau pour les autres marques"><i class="ti ti-file-import" style="color:var(--ora)"></i>Session d'amplis<span>LINUS · d&amp;b · tableau</span></button>
               <button type="button" class="bp-tool" onclick="document.getElementById('sp-bg-file').click()" title="Image ou PDF (1re page utilisée comme fond)"><i class="ti ti-photo"></i>Image ou PDF de fond</button>
               <div id="sp-bg-controls" style="display:none">
                 <div class="sp-bg-row">
@@ -1674,7 +1674,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=4.80"></script>
+<script src="pf-app.js?v=4.81"></script>
 <script src="pf-rf.js?v=1.15"></script>
 <script src="pf-road.js?v=1.0"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->

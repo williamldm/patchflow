@@ -10714,6 +10714,25 @@ const SynPro = (() => {
     _renderLegend();
     _renderCablePalette();
     _renderInspector();
+    _renderEmpty();
+  }
+  /* Synoptique vide : point de départ — une session d'amplis, ou la bibliothèque */
+  function _renderEmpty() {
+    var vp = $('sp-viewport'); if (!vp) return;
+    if (typeof AmpImport !== 'undefined') AmpImport.bindDrop();
+    var e = $('sp-empty'), on = !state.nodes.length && !state.bgImage;
+    if (!e && on) {
+      e = document.createElement('div'); e.id = 'sp-empty'; e.className = 'sp-empty';
+      e.innerHTML = '<div class="sp-empty-card">' +
+        '<div class="sp-empty-ic"><i class="ti ti-topology-star"></i></div>' +
+        '<b>Partez de votre session d\'amplis</b>' +
+        '<p>Amplis, sorties, enceintes branchées et câbles HP : le synoptique se dessine tout seul.</p>' +
+        '<button type="button" class="btn pri" onclick="AmpImport.open()"><i class="ti ti-file-import"></i>Importer une session d\'amplis</button>' +
+        '<div class="sp-empty-brands"><span>CODA · LINUS Control</span><span>d&amp;b · ArrayCalc / R1</span><span>Toutes marques · tableau</span></div>' +
+        '<small>Ou déposez le fichier ici, ou glissez un équipement depuis la bibliothèque.</small></div>';
+      vp.appendChild(e);
+    }
+    if (e) e.style.display = on ? '' : 'none';
   }
 
   /* ── Mutations ── */
@@ -12130,7 +12149,22 @@ const LinusImport = (function(){
   function val(x){ return (x && typeof x === 'object' && 'value' in x) ? x.value : x; }
   function trim(s){ return String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); }
   function chRange(ids){ var a = ids.map(function(i){ return i + 1; }); return a.length > 1 ? a[0] + '–' + a[a.length - 1] : String(a[0]); }
-  var KIND = { analog:{ txt:'Analog', conn:'XLR', net:'xlr' }, digital:{ txt:'AES', conn:'XLR AES', net:'aes' }, dante:{ txt:'Dante', conn:'etherCON', net:'dante' } };
+  var KIND = { analog:{ txt:'Analog', conn:'XLR', net:'xlr' }, digital:{ txt:'AES', conn:'XLR AES', net:'aes' }, dante:{ txt:'Dante', conn:'etherCON', net:'dante' },
+               milan:{ txt:'Milan-AVB', conn:'etherCON', net:'dante' }, none:{ txt:'', conn:'XLR', net:'xlr' } };
+  /* Symbole du synoptique selon le modèle d'ampli */
+  function ampNodeType(model){
+    var m = String(model || '').toUpperCase().replace(/[\s-]/g, '');
+    if (/^LINUS14/.test(m)) return 'amp.linus14';
+    if (/^LINUS12/.test(m)) return 'amp.linus12';
+    if (/^LINUS10/.test(m)) return 'amp.linus10';
+    if (/^LA12X/.test(m)) return 'amp.la12x';
+    if (/^LA4X/.test(m)) return 'amp.la4x';
+    if (/^LA(2XI|7\.16|8|4|16|1)/.test(m)) return 'amp.lacoustics';
+    if (/^(D80|D40|D20|D12|D6|D90|30D|10D|40D|5D)$/.test(m)) return 'amp.dnd';
+    if (/^(X4|X8|X4L|T604|T904|K\d)/.test(m)) return 'amp.powersoft';
+    if (/^ITECH|^I-?TECH/.test(m)) return 'amp.crown';
+    return 'amp.generic';
+  }
   var SUFFIX = /\s+(LF|HF|MF|PF|SF|FF|RF|BN|BP|Bn)\b.*$/;
 
   function spkType(series, model, suffix, groups){
@@ -12145,11 +12179,8 @@ const LinusImport = (function(){
     return 'spk.front-fill';
   }
 
-  /* État de session → équipements et liaisons à poser (positions comprises) */
-  function plan(st, opts){
-    opts = opts || {};
-    var withSource = opts.source !== false;
-    var size = function(type){ var s = (typeof SynPro !== 'undefined' && SynPro.specSize) ? SynPro.specSize(type) : null; return s || { w:130, h:100 }; };
+  /* Session LINUS → modèle commun { amps, units } (voir layout) */
+  function linusModel(st){
     var presets = {};
     (st.speakerPresetsDef || []).concat(st.speakerPresets || []).forEach(function(p){ if (!p) return; var id = p.id != null ? p.id : p.nr; if (id != null) presets[id] = p; });
     var spk = {}; (st.speakers || []).forEach(function(s){ if (s) spk[s.id] = s; });
@@ -12221,19 +12252,31 @@ const LinusImport = (function(){
       u.sub = sub.slice(0, 60);
       u.type = spkType(u.series, u.model, u.suffix, u.gids.map(function(g){ return gName[g]; }));
     });
+    return { amps:amps, units:units };
+  }
+  function plan(st, opts){ return layout(linusModel(st), opts); }
+
+  /* Modèle commun → équipements et liaisons à poser (positions comprises), quelle que soit la marque.
+     amps : [{ key, label, model, ip, kind ('analog'|'digital'|'dante'|'milan'|'none'), letters, outs:[{chs, unit}], units }]
+     units : [{ amp, chs, model, sub, letters, ways, type }] — une ligne d'enceintes par sortie utilisée. */
+  function layout(M, opts){
+    opts = opts || {};
+    var amps = M.amps, units = M.units;
+    var withSource = opts.source !== false;
+    var size = function(type){ var s = (typeof SynPro !== 'undefined' && SynPro.specSize) ? SynPro.specSize(type) : null; return s || { w:130, h:100 }; };
 
     /* 3. Mise en place : la régie à gauche, les amplis en colonne(s), les enceintes à droite de leur ampli */
     var ROW = SynIO.ROW, PAD = SynIO.PAD, AMP_W = SynIO.MINW, AMP_HEAD = 100, GAP_AS = 190, SPK_GAP = 48, BLOCK_GAP = 70, COL_GAP = 200, STEP = 14;
     var nodes = [], cables = [];
     amps.forEach(function(a){
-      a.ins = (a.kind === 'dante') ? [] : a.letters.map(function(l, i){ return { id:'in' + (i + 1), dir:'in', name:'IN ' + l + ' · ' + KIND[a.kind].txt, conn:KIND[a.kind].conn, letter:l }; });
+      a.ins = (a.kind === 'dante' || a.kind === 'milan' || a.kind === 'none') ? [] : a.letters.map(function(l, i){ return { id:'in' + (i + 1), dir:'in', name:'IN ' + l + ' · ' + KIND[a.kind].txt, conn:KIND[a.kind].conn, letter:l }; });
       a.io = a.ins.map(function(p){ return { id:p.id, dir:p.dir, name:p.name, conn:p.conn }; });
       a.outs.forEach(function(o, i){
         o.id = 'out' + (i + 1);
         var nm = 'CH ' + chRange(o.chs) + (o.unit ? ' · ' + o.unit.model + (o.unit.letters.length ? ' ← ' + o.unit.letters.join('+') : '') : '');
         a.io.push({ id:o.id, dir:'out', name:nm.slice(0, 48), conn:'NL4' });
       });
-      a.io.push({ id:'net1', dir:'net', name:a.kind === 'dante' ? 'Dante / Ethernet' : 'Ethernet', conn:'RJ45' });
+      a.io.push({ id:'net1', dir:'net', name:a.kind === 'dante' ? 'Dante / Ethernet' : a.kind === 'milan' ? 'Milan-AVB' : 'Réseau', conn:a.kind === 'milan' ? 'etherCON' : 'RJ45' });
       a.cols = Math.max(a.ins.length, a.outs.length);
       a.h = AMP_HEAD + PAD * 2 + (a.cols + 1) * ROW;
       a.units.forEach(function(u){ u.size = size(u.type); });
@@ -12248,7 +12291,7 @@ const LinusImport = (function(){
       cols[cols.length - 1].push(a); acc += a.H + BLOCK_GAP;
     });
     var COL_W = AMP_W + GAP_AS + 130 + COL_GAP;
-    var feeds = [], hasDante = amps.some(function(a){ return a.kind === 'dante' && a.units.length; });
+    var feeds = [], hasDante = amps.some(function(a){ return (a.kind === 'dante' || a.kind === 'milan') && a.units.length; });
     amps.forEach(function(a){ a.ins.forEach(function(p){ var k = a.kind + ':' + p.letter; if (feeds.indexOf(k) < 0) feeds.push(k); }); });
     feeds.sort(function(a, b){ var x = a.split(':'), y = b.split(':'); return x[1].localeCompare(y[1]) || x[0].localeCompare(y[0]); });
     var nT = feeds.length + (hasDante ? 1 : 0), S_HEAD = 115, sh = S_HEAD + PAD * 2 + nT * ROW;
@@ -12266,7 +12309,7 @@ const LinusImport = (function(){
       col.height = y - BLOCK_GAP - y0;
     });
     amps.forEach(function(a){
-      nodes.push({ key:a.key, type:a.model === 'LINUS14' ? 'amp.linus14' : (a.model === 'LINUS12C' ? 'amp.linus12' : 'amp.generic'),
+      nodes.push({ key:a.key, type:ampNodeType(a.model),
                    x:a.x, y:a.y, label:a.label, sub:[a.ip, KIND[a.kind].txt].filter(Boolean).join(' · '), io:a.io, showIo:true });
       /* Liaisons HP : un tronc vertical par câble, décalé pour qu'ils ne se croisent pas */
       var links = a.outs.map(function(o, i){ return o.unit ? { o:o, u:o.unit, py:a.y + AMP_HEAD + PAD + i * ROW + ROW / 2, cy:o.unit.y + o.unit.size.h / 2 + 10 } : null; }).filter(Boolean);
@@ -12295,7 +12338,7 @@ const LinusImport = (function(){
           var k = feeds.indexOf(a.kind + ':' + p.letter);
           cables.push({ from:'src', to:a.key, fromPort:'out' + (k + 1), toPort:p.id, network:KIND[a.kind].net, dir:'forward', route:'ortho', label:'', via:{ x:gutter(a, k), y:'toPort' } });
         });
-        if (a.kind === 'dante' && a.units.length)
+        if ((a.kind === 'dante' || a.kind === 'milan') && a.units.length)
           cables.push({ from:'src', to:a.key, fromPort:'net1', toPort:'net1', network:'dante', dir:'none', route:'ortho', label:'', via:{ x:gutter(a, feeds.length), y:'toPort' } });
       });
     }
@@ -12377,9 +12420,305 @@ const LinusImport = (function(){
     closeModal();
     toast('✓ Synoptique créé : ' + n + (n > 1 ? ' amplis' : ' ampli') + ', ' + u + (u > 1 ? ' lignes d\'enceintes' : ' ligne d\'enceintes'));
   }
-  return { pick:pick, parse:parse, plan:plan, apply:apply, close:closeModal, readFile:readFile };
+  return { pick:pick, parse:parse, plan:plan, model:linusModel, layout:layout, spkType:spkType, ampNodeType:ampNodeType, KIND:KIND, chRange:chRange, apply:apply, close:closeModal, readFile:readFile };
 })();
 window.LinusImport = LinusImport;
+
+// ══════════════════════════════════════
+// SESSIONS D'AMPLIS → SYNOPTIQUE (toutes marques)
+// Trois sources, toutes lues dans le navigateur (rien n'est envoyé ni modifié) :
+//   - CODA Audio LINUS Control (.linuscontrol) : lecteur LinusImport ;
+//   - d&b audiotechnik ArrayCalc / R1 (.dbpr) : base SQLite, lue avec sql.js chargé à la demande.
+//     Amplis (Devices), canaux (AmplifierChannels), enceintes par canal (Cabinets + CabinetsAdditionalData)
+//     et leur groupe (SourceGroups). Le routage des entrées n'est pas documenté : il n'est pas déduit ;
+//   - toutes les autres marques (L-Acoustics, Powersoft, Lake, Meyer, NEXO…) : leurs sessions sont dans des
+//     formats fermés ; un tableau (CSV, ou collé depuis Excel / Numbers) décrit amplis, canaux et enceintes.
+// Les trois produisent le même modèle, mis en page par LinusImport.layout.
+// ══════════════════════════════════════
+const AmpImport = (function(){
+  var L = LinusImport, cur = null;     // { name, src, model }
+  var esc = function(s){ return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+  var trim = function(s){ return String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); };
+  var SRC = {
+    linus: { name:'CODA Audio', soft:'LINUS Control', ext:'.linuscontrol' },
+    dbpr:  { name:'d&b audiotechnik', soft:'ArrayCalc / R1', ext:'.dbpr' },
+    table: { name:'Toutes marques', soft:'Tableau (CSV, Excel)', ext:'.csv' }
+  };
+
+  /* ── d&b : sql.js (WebAssembly) chargé à la première lecture ── */
+  var SQLJS = 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/', _sql = null;
+  function loadSql(){
+    if (_sql) return _sql;
+    _sql = new Promise(function(resolve, reject){
+      var go = function(){ window.initSqlJs({ locateFile:function(f){ return SQLJS + f; } }).then(resolve, reject); };
+      if (window.initSqlJs) return go();
+      var sc = document.createElement('script');
+      sc.src = SQLJS + 'sql-wasm.js'; sc.crossOrigin = 'anonymous';
+      sc.integrity = 'sha384-8D3Rsfo535FqoC1pHCCQMrNf75UgzyoG/HQm9zOzITRrz3QKzecc2E7JXKGCXoWu';
+      sc.onload = go; sc.onerror = function(){ _sql = null; reject(new Error('sql.js indisponible')); };
+      document.head.appendChild(sc);
+    });
+    return _sql;
+  }
+  /* Type d'enceinte d'après le groupe (retours, side, delay, front fill…) puis le modèle, toutes marques */
+  var M_SUB = /SUB|INFRA|LFC|^KS\d|^SB\d|^B\d+\b|^B22|^B6|^18S|^21S|^27A|^S118|^S218|^SW\d|^USW|^1100|^900-|^750-|^CS-?18|^LS\d|^LEO-?SUB|^SCP|^U-?SUB|^SUB/i;
+  var M_LINE = /^(K1|K2|K3|KARA|KIVA|KS?L\d|GSL\d|SL-?GSL|V8|V12|J8|J12|Y8|Y12|A10|A15|L2|L2D|VIO|LEO|LYON|LEOPARD|LINA|PANTHER|MINA|MILO|MICA|M3D|E15|E12|E119|S10|S7|CS7|CS10|GEO|STM|WPL|WPC|WPM|WPS|MLA|ViRAY|AiRAY|CoRAY|N-?RAY|TiRAY|SCV|GTO|GTX|ALIGN|HDL|TTL|VTX|VERTEC|KR\d|DVA)/i;
+  var M_WEDGE = /^(X15|X12|MJF|LM\d|M2|M4|PS15|PS10|LE1200|LE400|LE-?100|M15|HiQ|MAX\d|LX-?MON|CDD-?LIVE ?12 MON)|WEDGE|MONITOR/i;
+  function classify(model, group){
+    var g = String(group || '').toLowerCase(), m = String(model || '').replace(/^\d+\s*[x×]\s*/i, '');
+    if (M_SUB.test(m) || /\bsubs?\b|infra/.test(g)) return 'spk.sub';
+    if (/retour|wedge|monitor|\bmon\b|ear|drum ?fill/.test(g) || M_WEDGE.test(m)) return 'spk.wedge';
+    if (/side/.test(g)) return 'spk.side-fill';
+    if (/delay|rappel|tour/.test(g)) return 'spk.delay';
+    if (/out ?fill|outfill/.test(g)) return 'spk.out-fill';
+    if (/front|\bff\b|lip|nez/.test(g)) return 'spk.front-fill';
+    if (M_LINE.test(m) || /array|main|fa[cç]ade|\bpa\b|\bl\b|\br\b|gauche|droite/.test(g)) return 'spk.line-top';
+    return 'spk.front-fill';
+  }
+  var DB_SUB = M_SUB;
+  var DB_2CH = /^(D6|D12)$/i;
+  function dbprModel(SQL, bytes){
+    var db = new SQL.Database(bytes);
+    try {
+      var q = function(sql){ var r = db.exec(sql); if (!r.length) return []; var c = r[0].columns; return r[0].values.map(function(v){ var o = {}; c.forEach(function(k, i){ o[k] = v[i]; }); return o; }); };
+      var t = {}; q("SELECT name FROM sqlite_master WHERE type='table'").forEach(function(r){ t[r.name] = 1; });
+      if (!t.Devices || !t.Cabinets || !t.CabinetsAdditionalData) throw new Error('format');
+      var proj = t.ProjectInformation ? (q('SELECT ProjectName FROM ProjectInformation')[0] || {}).ProjectName : '';
+      var devs = q('SELECT d.DeviceId AS id, d.Model AS model, d.Name AS name, d.RemoteIdSubnet AS sn, d.RemoteIdDevice AS dv FROM Devices d' +
+                   (t.DevicesAmplifier ? ' JOIN DevicesAmplifier a ON a.DeviceId = d.DeviceId' : '') + ' ORDER BY d.RemoteIdSubnet, d.RemoteIdDevice, d.DeviceId');
+      var chName = {}; if (t.AmplifierChannels) q('SELECT DeviceId AS id, AmplifierChannel AS ch, Name AS name FROM AmplifierChannels').forEach(function(r){ chName[r.id + '/' + r.ch] = trim(r.name); });
+      var cabs = q('SELECT c.DeviceId AS id, c.AmplifierChannel AS ch, ca.Name AS model, IFNULL(ca.CabinetsPerPosition, 1) AS n, sg.Name AS grp, sg.Type AS gt' +
+                   ' FROM Cabinets c JOIN CabinetsAdditionalData ca ON ca.CabinetId = c.CabinetId' +
+                   (t.SourceGroups ? ' LEFT JOIN SourceGroups sg ON sg.SourceGroupId = c.SourceGroupId' : ' LEFT JOIN (SELECT NULL AS Name, NULL AS Type, NULL AS SourceGroupId) sg ON 0') +
+                   ' WHERE c.DeviceId > 0');
+      var by = {}; cabs.forEach(function(c){ var k = c.id + '/' + c.ch; (by[k] = by[k] || []).push(c); });
+      var amps = [], units = [];
+      devs.forEach(function(d, di){
+        var model = trim(d.model) || 'Ampli', rid = (d.sn != null && d.dv != null) ? d.sn + '.' + d.dv : '';
+        var nm = trim(d.name), label = (nm && !/^[\d.\s]+$/.test(nm)) ? nm : model + (rid ? ' ' + rid : ' #' + (di + 1));
+        var a = { key:'amp' + di, id:d.id, model:model, ip:rid ? 'ID ' + rid : '', kind:'none', letters:[], outs:[], units:[], label:label.slice(0, 40) };
+        var nch = DB_2CH.test(model) ? 2 : 4;
+        Object.keys(by).forEach(function(k){ if (+k.split('/')[0] === d.id) nch = Math.max(nch, +k.split('/')[1]); });
+        for (var ch = 1; ch <= nch; ch++) {
+          var list = by[d.id + '/' + ch];
+          if (!list) { a.outs.push({ chs:[ch - 1], unit:null }); continue; }
+          var cnt = {}, total = 0, grp = '', gt = null;
+          list.forEach(function(c){ var m = trim(c.model) || 'Enceinte'; cnt[m] = (cnt[m] || 0) + (+c.n || 1); total += (+c.n || 1); if (!grp && c.grp) { grp = trim(c.grp).replace(/^\d+\s*-\s*/, ''); gt = c.gt; } });
+          var models = Object.keys(cnt).sort(function(x, y){ return cnt[y] - cnt[x]; });
+          var mdl = models.map(function(m){ return (cnt[m] > 1 ? cnt[m] + '× ' : '') + m; }).join(' + ');
+          var main = models[0], isSub = DB_SUB.test(main);
+          var u = { amp:a, chs:[ch - 1], model:mdl.slice(0, 40), sub:(grp || chName[d.id + '/' + ch] || '').slice(0, 60), letters:[], ways:1,
+                    type: isSub ? 'spk.sub' : (gt === 1 && classify(main, grp) === 'spk.front-fill' ? 'spk.line-top' : classify(main, grp)) };
+          a.units.push(u); a.outs.push({ chs:[ch - 1], unit:u }); units.push(u);
+        }
+        amps.push(a);
+      });
+      return { amps:amps, units:units, title:trim(proj) };
+    } finally { db.close(); }
+  }
+
+  /* ── Tableau : une ligne par sortie d'ampli utilisée ── */
+  var COLS = { amp:/^(ampli|amp|amplificateur|amplifier|device|controleur|controller)$/, model:/^(modele|model|type|modele ampli|amp model)$/,
+               ch:/^(canal|canaux|channel|ch|sortie|output|voie)$/, spk:/^(enceinte|enceintes|speaker|cabinet|haut-parleur|hp|charge)$/,
+               n:/^(nombre|nb|qte|quantite|qty|count|x)$/, grp:/^(groupe|group|zone|ligne|usage)$/, inp:/^(entree|input|in|source|reseau)$/, ip:/^(ip|adresse|address|id)$/ };
+  var norm = function(x){ return String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[.:]/g, '').trim(); };
+  function rowsOf(text){
+    text = String(text || '').replace(/^\ufeff/, '').replace(/\r\n?/g, '\n').trim();
+    if (!text) return [];
+    var first = text.split('\n')[0], sep = (first.match(/\t/g) || []).length ? '\t' : (first.match(/;/g) || []).length >= (first.match(/,/g) || []).length ? ';' : ',';
+    var out = [], row = [], cell = '', q = false;
+    for (var i = 0; i < text.length; i++) {
+      var c = text[i];
+      if (q) { if (c === '"' && text[i + 1] === '"') { cell += '"'; i++; } else if (c === '"') q = false; else cell += c; continue; }
+      if (c === '"') q = true; else if (c === sep) { row.push(cell); cell = ''; } else if (c === '\n') { row.push(cell); out.push(row); row = []; cell = ''; } else cell += c;
+    }
+    row.push(cell); out.push(row);
+    return out.map(function(r){ return r.map(trim); }).filter(function(r){ return r.some(Boolean); }).slice(0, 2000);
+  }
+  function tableModel(text){
+    var rows = rowsOf(text); if (rows.length < 2) throw new Error('vide');
+    var head = rows[0].map(norm), col = {};
+    Object.keys(COLS).forEach(function(k){ var i = head.findIndex(function(h){ return COLS[k].test(h); }); if (i >= 0) col[k] = i; });
+    if (col.spk == null || (col.amp == null && col.model == null)) throw new Error('colonnes');
+    var get = function(r, k){ return col[k] == null ? '' : trim(r[col[k]]); };
+    var amps = [], units = [], byName = {};
+    rows.slice(1).forEach(function(r, ri){
+      var nm = get(r, 'amp') || get(r, 'model'), model = get(r, 'model') || nm, spk = get(r, 'spk');
+      if (!nm) return;
+      var a = byName[nm];
+      if (!a) { a = byName[nm] = { key:'amp' + amps.length, model:model, ip:get(r, 'ip'), kind:'analog', letters:[], outs:[], units:[], label:nm.slice(0, 40), _used:{} }; amps.push(a); }
+      var inp = norm(get(r, 'inp'));
+      if (/dante/.test(inp)) a.kind = 'dante'; else if (/milan|avb/.test(inp)) a.kind = 'milan'; else if (/aes|digital|numerique/.test(inp) && a.kind === 'analog') a.kind = 'digital';
+      var chs = [], cs = get(r, 'ch');
+      cs.split(/[,+&\/]|\s+et\s+/).forEach(function(part){ var m = part.match(/(\d+)\s*[-–à]\s*(\d+)/); if (m) { for (var k = +m[1]; k <= +m[2] && chs.length < 16; k++) chs.push(k - 1); } else { var d = part.match(/\d+/); if (d) chs.push(+d[0] - 1); } });
+      if (!chs.length) { var nxt = 0; while (a._used[nxt]) nxt++; chs = [nxt]; }
+      chs.forEach(function(c){ a._used[c] = 1; });
+      if (!spk) return;
+      var letters = []; (get(r, 'inp').match(/\b([A-H])\b/g) || []).forEach(function(l){ if (letters.indexOf(l) < 0) letters.push(l); });
+      if (!letters.length && a.kind !== 'dante' && a.kind !== 'milan') { var dn = get(r, 'inp').match(/\b([1-8])\b/); if (dn) letters.push('ABCDEFGH'.charAt(+dn[1] - 1)); }
+      letters.forEach(function(l){ if (a.letters.indexOf(l) < 0) a.letters.push(l); });
+      var n = parseInt(get(r, 'n'), 10) || 1, grp = get(r, 'grp');
+      var u = { amp:a, chs:chs, model:((n > 1 ? n + '× ' : '') + spk).slice(0, 40), sub:grp.slice(0, 60), letters:letters, ways:chs.length,
+                type:classify(spk, grp) };
+      a.units.push(u); units.push(u);
+    });
+    amps.forEach(function(a){
+      /* Sorties dans l'ordre des canaux, les canaux libres intercalés */
+      var max = 0; a.units.forEach(function(u){ u.chs.forEach(function(c){ max = Math.max(max, c); }); });
+      var taken = {}; a.units.forEach(function(u){ taken[u.chs[0]] = u; u.chs.slice(1).forEach(function(c){ taken[c] = 'x'; }); });
+      for (var c = 0; c <= max; c++) { if (taken[c] === 'x') continue; a.outs.push(taken[c] ? { chs:taken[c].chs, unit:taken[c] } : { chs:[c], unit:null }); }
+      a.letters.sort(); delete a._used;
+    });
+    if (!amps.length) throw new Error('vide');
+    return { amps:amps, units:units };
+  }
+  var TEMPLATE = 'Ampli;Modèle;Canal;Enceinte;Nombre;Groupe;Entrée;IP\n' +
+    'LA12X 1;LA12X;1;K2;6;Main L;A;192.168.1.11\nLA12X 1;LA12X;2;K2;6;Main R;B;192.168.1.11\nLA12X 1;LA12X;3;KS28;4;Subs L;A;192.168.1.11\nLA12X 1;LA12X;4;KS28;4;Subs R;B;192.168.1.11\n' +
+    'LA4X 1;LA4X;1;X8;2;Front fill;A;192.168.1.12\nLA4X 1;LA4X;2-3;X15 HiQ;2;Retours;C;192.168.1.12\n';
+  function template(){
+    var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + TEMPLATE], { type:'text/csv;charset=utf-8' }));
+    a.download = 'patchflow-modele-session-amplis.csv'; document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 400);
+  }
+
+  /* ── Lecture d'un fichier : la marque est reconnue au contenu ── */
+  function readFile(file){
+    if (!file) return;
+    if (file.size > 60 * 1024 * 1024) { toast('Fichier trop volumineux (60 Mo au plus).'); return; }
+    var name = String(file.name || ''), base = name.replace(/\.[^.]+$/, '');
+    var fr = new FileReader();
+    fr.onerror = function(){ toast('Impossible de lire ce fichier.'); };
+    fr.onload = function(){
+      var bytes = new Uint8Array(fr.result), head = new TextDecoder('latin1').decode(bytes.slice(0, 16));
+      if (head.indexOf('SQLite format 3') === 0) {
+        toast('Lecture de la session d&b…');
+        loadSql().then(function(SQL){
+          var M; try { M = dbprModel(SQL, bytes); } catch (e) { console.warn('[dbpr]', e); toast('Ce fichier n\'est pas un projet d&b ArrayCalc / R1 lisible.'); return; }
+          if (!M.amps.length) { toast('Ce projet d&b ne contient aucun ampli.'); return; }
+          show({ name:M.title || base, src:'dbpr', model:M });
+        }, function(){ toast('Impossible de charger le lecteur de projets d&b. Vérifiez la connexion et réessayez.'); });
+        return;
+      }
+      if (/\.(csv|tsv|txt)$/i.test(name)) { fromText(new TextDecoder('utf-8').decode(bytes), base); return; }
+      var st; try { st = L.parse(bytes); } catch (e) { console.warn('[linus]', e); toast('Format non reconnu : session LINUS Control, projet d&b (.dbpr) ou tableau CSV.'); return; }
+      if (!st.modules.length) { toast('Cette session ne contient aucun ampli.'); return; }
+      show({ name:base, src:'linus', model:L.model(st) });
+    };
+    fr.readAsArrayBuffer(file);
+  }
+  function fromText(text, name){
+    var M;
+    try { M = tableModel(text); }
+    catch (e) { toast(e.message === 'colonnes' ? 'Colonnes introuvables : il faut au moins « Ampli » (ou « Modèle ») et « Enceinte ». Téléchargez le modèle de tableau.' : 'Tableau vide ou illisible.'); return false; }
+    show({ name:name || 'Tableau d\'amplis', src:'table', model:M });
+    return true;
+  }
+  function pick(){
+    var inp = document.getElementById('amp-file');
+    if (!inp) {
+      inp = document.createElement('input'); inp.type = 'file'; inp.id = 'amp-file'; inp.accept = '.linuscontrol,.dbpr,.csv,.tsv,.txt'; inp.style.display = 'none';
+      inp.addEventListener('change', function(){ var f = inp.files && inp.files[0]; inp.value = ''; readFile(f); });
+      document.body.appendChild(inp);
+    }
+    inp.click();
+  }
+
+  /* ── Fenêtre : choix de la source, puis aperçu ── */
+  function modal(){
+    var m = document.getElementById('amp-modal');
+    if (!m) {
+      m = document.createElement('div'); m.id = 'amp-modal'; m.className = 'modal-ov';
+      m.addEventListener('click', function(e){ if (e.target === m) close(); });
+      m.addEventListener('dragover', function(e){ e.preventDefault(); });
+      m.addEventListener('drop', function(e){ e.preventDefault(); var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (f) readFile(f); });
+      document.body.appendChild(m);
+    }
+    return m;
+  }
+  function open(){
+    cur = null;
+    var m = modal();
+    var card = function(k, ic, ok){ var s = SRC[k]; return '<div class="ampi-src"><div class="ampi-src-ic">' + ic + '</div><div><b>' + esc(s.name) + '</b><span>' + esc(s.soft) + ' · ' + esc(s.ext) + '</span></div>' + (ok ? '<em>Lu automatiquement</em>' : '<em class="alt">Par tableau</em>') + '</div>'; };
+    m.innerHTML = '<div class="modal-box ampi-box">' +
+      '<div class="modal-head"><span class="modal-title">Session d\'amplis</span><button class="modal-close" onclick="AmpImport.close()" aria-label="Fermer"><i class="ti ti-x"></i></button></div>' +
+      '<div class="modal-body">' +
+        '<p class="ampi-lead">Le synoptique se construit tout seul : amplis, sorties, enceintes branchées et câbles HP, et la régie quand la session indique les entrées.</p>' +
+        '<button type="button" class="ampi-drop" onclick="AmpImport.pick()"><i class="ti ti-file-upload"></i><b>Choisir ou déposer un fichier</b><span>.linuscontrol · .dbpr · .csv — la marque est reconnue toute seule</span></button>' +
+        '<div class="ampi-srcs">' + card('linus', '<i class="ti ti-file-music"></i>', true) + card('dbpr', '<i class="ti ti-database"></i>', true) + '</div>' +
+        '<div class="ampi-other"><div><b>L-Acoustics, Powersoft, Lake, Meyer, NEXO, Adamson…</b><span>Leurs sessions sont dans des formats fermés. Décrivez vos amplis dans un tableau (une ligne par sortie) : le synoptique se crée pareil.</span></div>' +
+          '<div class="ampi-other-a"><button type="button" class="btn sm" onclick="AmpImport.template()"><i class="ti ti-download"></i>Modèle de tableau</button><button type="button" class="btn sm" onclick="AmpImport.paste()"><i class="ti ti-clipboard"></i>Coller un tableau</button></div></div>' +
+        '<div class="tour-hint">Les fichiers sont lus sur cet appareil et ne sont ni envoyés ni modifiés.</div>' +
+      '</div></div>';
+    m.classList.add('show');
+  }
+  function paste(){
+    var m = modal();
+    m.innerHTML = '<div class="modal-box ampi-box">' +
+      '<div class="modal-head"><span class="modal-title">Coller un tableau d\'amplis</span><button class="modal-close" onclick="AmpImport.close()" aria-label="Fermer"><i class="ti ti-x"></i></button></div>' +
+      '<div class="modal-body"><p class="ampi-lead">Copiez les lignes depuis Excel, Numbers ou Google Sheets, en-têtes compris : <b>Ampli · Modèle · Canal · Enceinte · Nombre · Groupe · Entrée · IP</b>. Seules « Ampli » et « Enceinte » sont indispensables.</p>' +
+      '<textarea id="amp-paste" class="set-inp ampi-ta" spellcheck="false" placeholder="Ampli&#9;Modèle&#9;Canal&#9;Enceinte&#9;Nombre&#9;Groupe&#9;Entrée"></textarea></div>' +
+      '<div class="modal-foot"><button class="btn" type="button" onclick="AmpImport.open()">Retour</button><button class="btn pri" type="button" onclick="AmpImport.fromPaste()"><i class="ti ti-arrow-right"></i>Aperçu</button></div></div>';
+    m.classList.add('show');
+    setTimeout(function(){ var t = document.getElementById('amp-paste'); if (t) t.focus(); }, 50);
+  }
+  function fromPaste(){ var t = document.getElementById('amp-paste'); if (t) fromText(t.value, 'Tableau d\'amplis'); }
+  function show(c){
+    cur = c;
+    var p = L.layout(c.model, { source:true }), m = modal(), K = L.KIND;
+    var existing = 0; try { existing = (SynPro.getData().nodes || []).length; } catch (e) {}
+    var rows = p.amps.map(function(a){
+      var outs = a.outs.map(function(o){
+        return '<div class="lin-out' + (o.unit ? '' : ' off') + '"><span class="lin-ch">' + esc(L.chRange(o.chs)) + '</span>' +
+          (o.unit ? '<b>' + esc(o.unit.model) + '</b>' + (o.unit.sub ? '<span>' + esc(o.unit.sub) + '</span>' : '') +
+                    (o.unit.letters && o.unit.letters.length ? '<span class="lin-in">' + esc(o.unit.letters.join('+')) + '</span>' : '')
+                  : '<span>Libre</span>') + '</div>';
+      }).join('');
+      return '<div class="lin-amp"><div class="lin-amp-hd"><b>' + esc(a.label) + '</b><span>' + esc([a.model !== a.label ? a.model : '', a.ip, (K[a.kind] || {}).txt].filter(Boolean).join(' · ')) + '</span></div>' + outs + '</div>';
+    }).join('');
+    var nA = p.amps.length, nU = p.units.length, S = SRC[c.src];
+    m.innerHTML = '<div class="modal-box ampi-box">' +
+      '<div class="modal-head"><span class="modal-title">' + esc(S.name) + ' · ' + esc(S.soft) + '</span><button class="modal-close" onclick="AmpImport.close()" aria-label="Fermer"><i class="ti ti-x"></i></button></div>' +
+      '<div class="modal-body">' +
+        '<div class="lin-sum"><b>' + esc(c.name) + '</b><span>' + nA + (nA > 1 ? ' amplis' : ' ampli') + ' · ' + nU + (nU > 1 ? ' lignes d\'enceintes' : ' ligne d\'enceintes') + '</span></div>' +
+        '<div class="lin-list">' + rows + '</div>' +
+        (p.feeds.length ? '<label class="lin-opt"><input type="checkbox" class="cb" id="amp-src" checked><span>Ajouter la régie et les liaisons d\'entrée (' + esc(p.feeds.map(function(k){ return k.split(':')[1]; }).filter(function(v, i, arr){ return arr.indexOf(v) === i; }).join(', ')) + ')</span></label>' : '') +
+        (c.src === 'dbpr' ? '<div class="tour-hint">Le routage des entrées n\'est pas lisible dans un projet d&b : les amplis sont posés sans régie, à relier ensuite.</div>' : '') +
+        (existing ? '<div class="pdf-lbl" style="margin-top:14px">Synoptique actuel (' + existing + (existing > 1 ? ' équipements' : ' équipement') + ')</div>' +
+          '<label class="lin-opt"><input type="radio" name="amp-mode" value="append" checked><span>Le garder et ajouter la session en dessous</span></label>' +
+          '<label class="lin-opt"><input type="radio" name="amp-mode" value="replace"><span>Le remplacer par la session</span></label>' : '') +
+      '</div>' +
+      '<div class="modal-foot"><button class="btn" type="button" onclick="AmpImport.open()">Retour</button>' +
+      '<button class="btn pri" type="button" onclick="AmpImport.apply()"><i class="ti ti-topology-star"></i>Créer le synoptique</button></div></div>';
+    m.classList.add('show');
+  }
+  function close(){ var m = document.getElementById('amp-modal'); if (m) m.classList.remove('show'); cur = null; }
+  function apply(){
+    if (!cur) return;
+    var src = document.getElementById('amp-src'), mode = document.querySelector('input[name="amp-mode"]:checked');
+    var p = L.layout(cur.model, { source:!!(src && src.checked) });
+    var ok = SynPro.importDiagram(p, mode ? mode.value : 'replace');
+    if (!ok) { toast('Ouvrez d\'abord le synoptique.'); return; }
+    var n = p.amps.length, u = p.units.length;
+    close();
+    toast('✓ Synoptique créé : ' + n + (n > 1 ? ' amplis' : ' ampli') + ', ' + u + (u > 1 ? ' lignes d\'enceintes' : ' ligne d\'enceintes'));
+  }
+  /* Un fichier de session lâché sur le synoptique ouvre directement l'aperçu */
+  function bindDrop(){
+    var vp = document.getElementById('sp-viewport'); if (!vp || vp._ampDrop) return; vp._ampDrop = 1;
+    vp.addEventListener('dragover', function(e){ if (e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') >= 0) { e.preventDefault(); vp.classList.add('ampi-over'); } });
+    vp.addEventListener('dragleave', function(){ vp.classList.remove('ampi-over'); });
+    vp.addEventListener('drop', function(e){
+      vp.classList.remove('ampi-over');
+      var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (!f) return;
+      if (!/\.(linuscontrol|dbpr|csv|tsv|txt)$/i.test(f.name || '')) return;
+      e.preventDefault(); e.stopPropagation(); readFile(f);
+    }, true);
+  }
+  return { open:open, pick:pick, paste:paste, fromPaste:fromPaste, template:template, apply:apply, close:close, readFile:readFile, bindDrop:bindDrop,
+           tableModel:tableModel, dbprModel:dbprModel, loadSql:loadSql, classify:classify };
+})();
+window.AmpImport = AmpImport;
+/* L'ancien bouton « Session LINUS » ouvre désormais la fenêtre commune */
+LinusImport.pick = AmpImport.open;
 
 // ══════════════════════════════════════
 // BAND PLAN
