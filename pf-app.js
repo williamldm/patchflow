@@ -16844,6 +16844,8 @@ var RK={showId:null, racks:[], groups:[], cur:null, sel:null, view:'f', cut:0, q
 var RK_LIB=null;                 /* matériel de l'utilisateur ; null tant qu'il n'a pas été lu sur le compte */
 var RK_OPT={simple:false, num:true, frame:true, grp:true, ghost:true, wire:true};
 try{ Object.assign(RK_OPT, JSON.parse(localStorage.getItem('pf_rk_opt')||'{}')); }catch(e){}
+var RK_OPEN={};                  /* catégories du catalogue dépliées (nom -> true) ; tout est replié par défaut */
+try{ RK_OPEN=JSON.parse(localStorage.getItem('pf_rk_open')||'{}')||{}; }catch(e){ RK_OPEN={}; }
 const RK_UH=32, RK_BW=348, RK_SW=244, RK_GAP=10, RK_CASE=16, RK_NUMW=30, RK_EAR=15;     /* 348 / 32 : proportions d'une façade 19 pouces */
 const _RK_HUES=['#ff6b1a','#1a8fff','#22d6a0','#9b6aff','#f5c542','#ff4d6a','#5ab0ff','#8b95a7'];
 const _RK_KINDS=[['gen','Façade simple'],['rx','Récepteur ou émetteur HF'],['amp','Amplificateur'],['io','Stagebox, interface'],['proc','Processeur, effet'],['pc','Ordinateur, serveur'],['sw','Switch réseau'],
@@ -17427,6 +17429,12 @@ function rkGearKeep(){
   _rkLibSave(); renderRacks();
 }
 function rkGearDel(idx){ var g=(RK_LIB||[])[idx]; if(!g || !confirm('Retirer « '+g.n+' » de votre matériel ? Les racks déjà dessinés ne changent pas.')) return; RK_LIB.splice(idx,1); _rkLibSave(); renderRacks(); }
+function rkFold(ci){
+  var c=_RK_CAT[ci]; if(!c) return;
+  if(RK_OPEN[c.g]) delete RK_OPEN[c.g]; else RK_OPEN[c.g]=true;
+  try{ localStorage.setItem('pf_rk_open',JSON.stringify(RK_OPEN)); }catch(e){}
+  var b=document.getElementById('rk-lib-list'); if(b) b.innerHTML=_rkLibHtml();
+}
 function rkSearch(v){ RK.q=String(v||'').slice(0,60); var b=document.getElementById('rk-lib-list'); if(b) b.innerHTML=_rkLibHtml(); }
 /* ── Affichage ── */
 function _rkFmt(n,unit){ return n?(Math.round(n*10)/10).toLocaleString('fr-FR')+' '+unit:'—'; }
@@ -17445,7 +17453,9 @@ function _rkLibHtml(){
     +'<button type="button" class="rk-gear-x" onclick="rkGearDel('+x.i+')" title="Retirer de mon matériel"><i class="ti ti-x"></i></button></div>'; });
   _RK_CAT.forEach(function(c,ci){
     var its=c.items.map(function(it,si){ return {it:it,si:si}; }).filter(function(x){ return ok(x.it[0]) || ok(c.g); }); if(!its.length) return;
-    h+='<div class="rk-lib-g">'+E(c.g)+'</div>';
+    var open=!!q || !!RK_OPEN[c.g];
+    h+='<button type="button" class="rk-lib-g rk-fold'+(open?' open':'')+'" onclick="rkFold('+ci+')" aria-expanded="'+open+'"><i class="ti ti-chevron-right"></i><span>'+E(c.g)+'</span><em>'+its.length+'</em></button>';
+    if(!open) return;
     its.forEach(function(x){ any=true; h+='<div class="rk-gear"><button type="button" class="rk-gear-b" onclick="rkAdd(\'cat\','+ci+','+x.si+')" title="Ajouter au rack : '+E(x.it[0])+'"><b>'+E(x.it[0])+'</b><span>'+x.it[1]+' U</span></button></div>'; });
   });
   if(q && !any) h+='<div class="rk-lib-none">Rien ne correspond. Créez ce matériel avec le bouton « Créer ».</div>';
