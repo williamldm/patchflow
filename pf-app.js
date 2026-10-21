@@ -17237,7 +17237,16 @@ function rkRack(f,v){
   else if(f==='top' || f==='casters') r[f]=!!v;
   else if(f==='units'){
     var n=Math.round(_rkNum(v,1,60,r.units)), top=r.items.reduce(function(m,i){ return Math.max(m,i.u+i.h-1); },0);
-    if(n<top){ toast('Impossible : un appareil occupe l\'unité '+top+'. Déplacez-le ou retirez-le d\'abord.'); renderRacks(); return; }
+    if(n<top){
+      /* Le vide du bas est récupéré : tous les appareils descendent d'autant (leurs positions relatives ne changent pas) */
+      var low=r.items.reduce(function(m,i){ return Math.min(m,i.u); },top), shift=Math.min(low-1,top-n);
+      if(shift<top-n){
+        var need=top-low+1;
+        toast('Impossible : les appareils occupent '+need+' U d\'un bloc (de l\'unité '+low+' à '+top+'). Déplacez-en ou retirez-en pour descendre à '+n+' U.'); renderRacks(); return;
+      }
+      r.items.forEach(function(i){ i.u-=shift; });
+      toast('Appareils descendus de '+shift+' U pour réduire le rack à '+n+' U.');
+    }
     r.units=n;
   }
   else if(f==='bays'){
