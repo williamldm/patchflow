@@ -4289,6 +4289,25 @@ button.rf-tile.act:hover{box-shadow:inset 0 0 0 1px var(--bdr3)}
 .rk-dd-b:hover{background:var(--surf2)}
 .rk-dd-b i{font-size:15px;color:var(--muted)}
 .rk-dd-b.danger,.rk-dd-b.danger i{color:var(--err)}
+.rk-dd-p.l{left:0;right:auto}
+.rk-dd-h{padding:6px 8px 2px;font:650 10.5px var(--f);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.rk-dd-b span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rk-dd-b em{font-style:normal;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.rk-dd-row{display:flex;align-items:stretch;gap:2px}
+.rk-dd-row .rk-dd-b{flex:1;min-width:0}
+.rk-tabs .rk-dd{position:relative}
+.rk-tabs .rk-dd-p button{height:auto;padding:8px;gap:9px;box-shadow:none;background:transparent;color:var(--txt);font:400 13px var(--f)}
+.rk-tabs .rk-dd-p .rk-gear-x{width:28px;padding:0;justify-content:center}
+.rk-tabs .rk-dd-p button:hover{background:var(--surf2)}
+.rk-tabs .rk-dd-p .rk-gear-x{color:var(--muted)}
+.rk-tabs .add.on{box-shadow:inset 0 0 0 1.5px var(--ora);color:var(--txt)}
+.rk-tpl-pick{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:14px;max-width:560px}
+.rk-tpl-pick>span{flex-basis:100%;text-align:center;font-size:12.5px;color:var(--muted)}
+.rk-undo button:disabled{opacity:.35;cursor:default}
+.rk-spec{font-size:12px;color:var(--muted);margin-left:4px;vertical-align:-1px}
+.rk-need-n{font-style:normal;text-transform:none;letter-spacing:0;font-weight:600;font-size:12px;color:var(--ora)}
+.rk-need .rk-gear-b span i{color:var(--ok,#22c55e);margin-right:4px}
+.rk-need.done .rk-gear-b b{color:var(--muted)}
 .rk-insp-h{display:flex;align-items:flex-start;gap:10px}
 .rk-insp-h>div:first-child{flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr);gap:2px}
 .rk-insp-h .bon-lbl{margin:0 0 4px}

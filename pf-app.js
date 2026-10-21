@@ -15445,6 +15445,7 @@ async function _pushTours(){
     /* Le matériel de rack vit dans le même champ : il n'est écrit que s'il a été lu, pour ne jamais l'effacer */
     var tours={folders:SESS_FOLDERS,assign:SESS_ASSIGN};
     if(typeof RK_LIB!=='undefined' && RK_LIB!==null) tours.rack_gear=RK_LIB;
+    if(typeof RK_TPL!=='undefined' && RK_TPL!==null) tours.rack_tpl=RK_TPL;          /* modèles de rack : même règle */
     if(typeof RF_GEAR!=='undefined' && RF_GEAR!==null) tours.rf_gear=RF_GEAR;      /* parc HF (onglet RF) : même règle */
     var res=await sb.from('profiles').update({tours:tours}).eq('id',ME.id);
     if(res&&res.error){ console.warn('[tournées] enregistrement :',res.error.message); if(/tours|column|schema/i.test(res.error.message||'')) _toursServer=false; }
@@ -16840,7 +16841,7 @@ function _bonCardHtml(){
    Le catalogue fourni ne donne que la hauteur et la famille des appareils, seules données sûres ; poids,
    consommation et profondeur se renseignent à la main et s'enregistrent avec le matériel.
    ══════════════════════════════════════════════════════════════════ */
-var RK={showId:null, racks:[], groups:[], cur:null, sel:null, view:'f', cut:0, q:'', form:false, t:null, zoom:1, link:null, cab:null, menu:null, more:false};
+var RK={showId:null, racks:[], groups:[], cur:null, sel:null, view:'f', cut:0, q:'', form:false, t:null, zoom:1, link:null, cab:null, menu:null, more:false, hist:null, hi:0, need:[]};
 var RK_LIB=null;                 /* matériel de l'utilisateur ; null tant qu'il n'a pas été lu sur le compte */
 var RK_OPT={simple:false, num:true, frame:true, grp:true, ghost:true, wire:true};
 try{ Object.assign(RK_OPT, JSON.parse(localStorage.getItem('pf_rk_opt')||'{}')); }catch(e){}
@@ -16854,16 +16855,19 @@ const _RK_CONN=[['xlrf','XLR femelle',16],['xlrm','XLR mâle',16],['nl4','Speako
 /* Familles de câbles : couleurs fixes, les mêmes à l'écran et dans le PDF */
 const _RK_CAB=[['xlr','Audio analogique','#16a37a'],['aes','Audio numérique','#0f9bb3'],['net','Réseau','#1a8fff'],['fib','Fibre','#9b6aff'],['rf','Antenne HF','#c99700'],['hp','Haut-parleur','#ff6b1a'],['pwr','Secteur','#e11d48'],['oth','Autre','#7a8494']];
 const _RK_CAT=[
-  /* Hauteurs relevées sur les fiches des fabricants. « demi-rack » : appareil d'une demi-largeur, posé sur un kit de montage 1 U */
-  {g:'HF · Shure', items:[['Shure AD4D',1,'rx'],['Shure AD4Q',1,'rx'],['Shure AD600 (gestion de spectre)',1,'rx'],['Shure AXT400',1,'rx'],['Shure AXT600 (gestion de spectre)',1,'rx'],['Shure AXT630 (distrib. antennes)',1,'rx'],
-    ['Shure ULXD4D',1,'rx'],['Shure ULXD4Q',1,'rx'],['Shure ULXD4 (demi-rack)',1,'rx'],['Shure SLXD4D',1,'rx'],['Shure SLXD4 (demi-rack)',1,'rx'],['Shure QLXD4 (demi-rack)',1,'rx'],['Shure BLX4R (demi-rack)',1,'rx'],
-    ['Shure UA844+ (distrib. antennes)',1,'rx'],['Shure UA845UWB (distrib. antennes)',1,'rx'],['Shure PSM1000 P10T',1,'rx'],['Shure PSM900 P9T (demi-rack)',1,'rx'],['Shure PSM300 P3T (demi-rack)',1,'rx'],['Shure PA821B (combineur)',1,'rx']]},
-  {g:'HF · Sennheiser', items:[['Sennheiser EM 6000',1,'rx'],['Sennheiser EM 6000 Dante',1,'rx'],['Sennheiser EM 3732-II',1,'rx'],['Sennheiser EM 2050',1,'rx'],['Sennheiser SR 2050 IEM',1,'rx'],
-    ['Sennheiser EW-DX EM 4 Dante',1,'rx'],['Sennheiser EW-DX EM 2 (demi-rack)',1,'rx'],['Sennheiser EW-DX EM 2 Dante (demi-rack)',1,'rx'],['Sennheiser EM 300-500 G4 (demi-rack)',1,'rx'],['Sennheiser SR IEM G4 (demi-rack)',1,'rx'],
+  /* Hauteurs relevées sur les fiches des fabricants. « demi-rack » : appareil d'une demi-largeur, posé sur un kit de montage 1 U.
+     Colonnes facultatives après la famille : poids (kg), consommation (W), profondeur (mm), seulement quand la fiche du fabricant
+     les donne ; 0 = non renseigné. Consommation des amplis CODA : valeur « 1/4 de puissance » de CODA (signal musical type) ;
+     L-Acoustics LA2Xi : 1/8 de puissance. */
+  {g:'HF · Shure', items:[['Shure AD4D',1,'rx',4.6,23,333],['Shure AD4Q',1,'rx',4.8,31,333],['Shure AD600 (gestion de spectre)',1,'rx'],['Shure AXT400',1,'rx'],['Shure AXT600 (gestion de spectre)',1,'rx',5.5,0,366],['Shure AXT630 (distrib. antennes)',1,'rx'],
+    ['Shure ULXD4D',1,'rx',3.36,0,274],['Shure ULXD4Q',1,'rx',3.45,0,274],['Shure ULXD4 (demi-rack)',1,'rx'],['Shure SLXD4D',1,'rx',0,0,152],['Shure SLXD4 (demi-rack)',1,'rx'],['Shure QLXD4 (demi-rack)',1,'rx',0,0,164],['Shure BLX4R (demi-rack)',1,'rx'],
+    ['Shure UA844+ (distrib. antennes)',1,'rx'],['Shure UA845UWB (distrib. antennes)',1,'rx'],['Shure PSM1000 P10T',1,'rx',0,0,343],['Shure PSM900 P9T (demi-rack)',1,'rx'],['Shure PSM300 P3T (demi-rack)',1,'rx'],['Shure PA821B (combineur)',1,'rx']]},
+  {g:'HF · Sennheiser', items:[['Sennheiser EM 6000',1,'rx',0,0,373],['Sennheiser EM 6000 Dante',1,'rx',0,0,373],['Sennheiser EM 3732-II',1,'rx'],['Sennheiser EM 2050',1,'rx'],['Sennheiser SR 2050 IEM',1,'rx'],
+    ['Sennheiser EW-DX EM 4 Dante',1,'rx',4.56,37,373],['Sennheiser EW-DX EM 2 (demi-rack)',1,'rx'],['Sennheiser EW-DX EM 2 Dante (demi-rack)',1,'rx',1,0,189],['Sennheiser EM 300-500 G4 (demi-rack)',1,'rx'],['Sennheiser SR IEM G4 (demi-rack)',1,'rx'],
     ['Sennheiser ASA 3000 (distrib. antennes)',1,'rx'],['Sennheiser AC 3200-II (combineur)',1,'rx']]},
-  {g:'Amplis · CODA Audio', items:[['CODA Audio LINUS14D',2,'amp'],['CODA Audio LINUS14',2,'amp'],['CODA Audio LINUS12C',2,'amp'],['CODA Audio LINUS10',2,'amp'],['CODA Audio LINUS6.4',1,'amp'],
-    ['CODA Audio LINUS-V908',2,'amp'],['CODA Audio LINUS-V1804',2,'amp'],['CODA Audio LINUS CON (processeur)',1,'proc']]},
-  {g:'Amplis', items:[['L-Acoustics LA12X',2,'amp'],['L-Acoustics LA7.16',2,'amp'],['L-Acoustics LA4X',2,'amp'],['L-Acoustics LA2Xi',1,'amp'],['L-Acoustics LA8',2,'amp'],['d&b D80',2,'amp'],['d&b D20',2,'amp'],['Powersoft X8',2,'amp'],['Powersoft X4',1,'amp'],['Lab Gruppen PLM 20K44',2,'amp']]},
+  {g:'Amplis · CODA Audio', items:[['CODA Audio LINUS14D',2,'amp',14.75,3200,454],['CODA Audio LINUS14',2,'amp',14.75,3200,454],['CODA Audio LINUS12C',2,'amp',14.7,2800,454],['CODA Audio LINUS10',2,'amp'],['CODA Audio LINUS6.4',1,'amp',0,1000,0],
+    ['CODA Audio LINUS-V908',2,'amp'],['CODA Audio LINUS-V1804',2,'amp',0,0,454],['CODA Audio LINUS CON (processeur)',1,'proc']]},
+  {g:'Amplis', items:[['L-Acoustics LA12X',2,'amp',14.5,0,455],['L-Acoustics LA7.16',2,'amp',15.8,0,0],['L-Acoustics LA4X',2,'amp',11.3,0,0],['L-Acoustics LA2Xi',1,'amp',4.4,440,0],['L-Acoustics LA8',2,'amp'],['d&b D80',2,'amp'],['d&b D20',2,'amp'],['Powersoft X8',2,'amp'],['Powersoft X4',1,'amp'],['Lab Gruppen PLM 20K44',2,'amp']]},
   {g:'Stageboxes', items:[['Behringer S16',2,'io'],['Behringer S32',3,'io'],['Midas DL16',2,'io'],['Midas DL32',3,'io'],['Yamaha Rio1608-D2',3,'io'],['Yamaha Rio3224-D2',5,'io']]},
   {g:'Régie et réseau', items:[['Processeur',1,'proc'],['Ordinateur en rack',2,'pc'],['Serveur',1,'pc'],['Switch réseau',1,'sw'],['Panneau de brassage RJ45',1,'patch']]},
   {g:'Énergie', items:[['Bandeau de prises',1,'pdu'],['Onduleur',2,'ups']]},
@@ -16921,10 +16925,31 @@ function _rkLoad(){
   RK.showId=id; RK.sel=null; RK.view='f'; RK.cut=0; RK.link=null; RK.cab=null;
   RK.racks=_rkClean(sd.racks); RK.groups=_rkGroupsClean(sd.rack_groups);
   RK.cur=RK.racks.length?RK.racks[0].id:null;
+  RK.hist=[_rkSnap()]; RK.hi=0;
 }
-function _rkSave(){
+/* Historique des modifications de la session (annuler / rétablir) : une photo des racks et groupes après chaque enregistrement */
+function _rkSnap(){ return JSON.stringify({racks:RK.racks, groups:RK.groups}); }
+function _rkHistPush(){
+  var s=_rkSnap(); if(!RK.hist){ RK.hist=[s]; RK.hi=0; return; }
+  if(RK.hist[RK.hi]===s) return;
+  RK.hist=RK.hist.slice(0,RK.hi+1); RK.hist.push(s);
+  if(RK.hist.length>80) RK.hist.shift();
+  RK.hi=RK.hist.length-1;
+}
+function rkUndo(d){
+  if(!RK.hist) return;
+  var to=RK.hi+(d>0?1:-1); if(to<0 || to>=RK.hist.length) return;
+  RK.hi=to; var o=JSON.parse(RK.hist[to]);
+  RK.racks=_rkClean(o.racks); RK.groups=_rkGroupsClean(o.groups);
+  if(!RK.racks.some(function(r){ return r.id===RK.cur; })) RK.cur=RK.racks.length?RK.racks[0].id:null;
+  if(RK.sel && !_rkItem(RK.sel)) RK.sel=null;
+  RK.link=null; RK.cab=null; RK.menu=null;
+  _rkSave(true); renderRacks();
+}
+function _rkSave(noHist){
   if(!CUR_SHOW) return;
   RK.racks.forEach(function(r){ r.cables=_rkCabClean(r.cables,r.items); });      /* un appareil retiré emporte ses câbles */
+  if(!noHist) _rkHistPush();
   CUR_SHOW.stage_data=Object.assign({},CUR_SHOW.stage_data||{v:2},{racks:JSON.parse(JSON.stringify(RK.racks)), rack_groups:JSON.parse(JSON.stringify(RK.groups))});
   clearTimeout(RK.t);
   RK.t=setTimeout(async function(){
@@ -16952,6 +16977,9 @@ function _rkLibFromServer(t){
   var srv=t && Array.isArray(t.rack_gear) ? _rkLibClean(t.rack_gear) : null;
   RK_LIB=srv || _rkLibLocal();
   try{ localStorage.setItem(_rkLibKey(),JSON.stringify(RK_LIB)); }catch(e){}
+  var tp=t && Array.isArray(t.rack_tpl) ? _rkTplClean(t.rack_tpl) : null;
+  RK_TPL=tp || _rkTplLocal();
+  try{ localStorage.setItem(_rkTplKey(),JSON.stringify(RK_TPL)); }catch(e){}
 }
 function _rkLibSave(){
   try{ localStorage.setItem(_rkLibKey(),JSON.stringify(RK_LIB||[])); }catch(e){}
@@ -17211,10 +17239,69 @@ function _rkSideSvg(r,bay,P){
   return {w:W, h:H, svg:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'">'+s+'</svg>'};
 }
 /* ── Actions sur les racks ── */
+/* ── Modèles de rack ──
+   Fournis (racks constructeur et exemples) et personnels (enregistrés sur le compte, profiles.tours.rack_tpl, 20 au plus).
+   Créer depuis un modèle fait un rack neuf : nouveaux identifiants, câbles reliés aux nouveaux appareils. */
+const _RK_TPL_STD=[
+  {name:'CODA LINUS M-RACK', note:'Rack constructeur 3 U : un LINUS14D.', units:3, items:[['CODA Audio LINUS14D',2,'amp',14.75,3200,454,2]]},
+  {name:'CODA LINUS T-RACK', note:'Rack constructeur 10 U : trois LINUS14D.', units:10, items:[['CODA Audio LINUS14D',2,'amp',14.75,3200,454,9],['CODA Audio LINUS14D',2,'amp',14.75,3200,454,7],['CODA Audio LINUS14D',2,'amp',14.75,3200,454,5]]},
+  {name:'Rack HF 8 voies (Shure)', note:'Exemple : 2 AD4Q, 2 P10T, distribution et combineur.', units:8, items:[['Shure UA844+ (distrib. antennes)',1,'rx',0,0,0,8],['Shure AD4Q',1,'rx',4.8,31,333,7],['Shure AD4Q',1,'rx',4.8,31,333,6],['Shure PSM1000 P10T',1,'rx',0,0,343,5],['Shure PSM1000 P10T',1,'rx',0,0,343,4],['Shure PA821B (combineur)',1,'rx',0,0,0,3],['Bandeau de prises',1,'pdu',0,0,0,1]]},
+  {name:'Rack HF 8 voies (Sennheiser)', note:'Exemple : 2 EW-DX EM 4 Dante, 2 SR 2050 IEM, distribution et combineur.', units:8, items:[['Sennheiser ASA 3000 (distrib. antennes)',1,'rx',0,0,0,8],['Sennheiser EW-DX EM 4 Dante',1,'rx',4.56,37,373,7],['Sennheiser EW-DX EM 4 Dante',1,'rx',4.56,37,373,6],['Sennheiser SR 2050 IEM',1,'rx',0,0,0,5],['Sennheiser SR 2050 IEM',1,'rx',0,0,0,4],['Sennheiser AC 3200-II (combineur)',1,'rx',0,0,0,3],['Bandeau de prises',1,'pdu',0,0,0,1]]}
+];
+var RK_TPL=null;                 /* modèles de l'utilisateur ; null tant qu'ils n'ont pas été lus */
+function _rkTplKey(){ return 'pf_rack_tpl_'+((ME&&ME.id)||''); }
+function _rkTplClean(list){
+  return (Array.isArray(list)?list:[]).filter(function(t){ return t && typeof t==='object' && t.rack; }).slice(0,20).map(function(t){
+    var r=_rkClean([t.rack])[0]; return r?{name:String(t.name||r.name).slice(0,60), rack:r}:null; }).filter(Boolean);
+}
+function _rkTplLocal(){ try{ return _rkTplClean(JSON.parse(localStorage.getItem(_rkTplKey())||'[]')); }catch(e){ return []; } }
+function _rkTplSave(){
+  try{ localStorage.setItem(_rkTplKey(),JSON.stringify(RK_TPL||[])); }catch(e){}
+  if(typeof _pushToursSoon==='function') _pushToursSoon();
+}
+/* Rack fourni → même forme qu'un rack enregistré */
+function _rkTplStdRack(t){
+  return _rkClean([{name:t.name, units:t.units, bays:1, note:t.note, items:t.items.map(function(x){ return {n:x[0],h:x[1],kind:x[2],kg:x[3],w:x[4],d:x[5],u:x[6]}; })}])[0];
+}
+function rkTplUse(src,idx){
+  if(RK.racks.length>=planLimit('max_racks')){ showUpgradeModal('max_racks'); return; }
+  var t=src==='std'?_RK_TPL_STD[idx]:(RK_TPL||[])[idx]; if(!t) return;
+  var c=JSON.parse(JSON.stringify(src==='std'?_rkTplStdRack(t):t.rack)), map={};
+  c.id=_rkId(); c.name=(src==='std'?t.name:t.name).slice(0,60);
+  c.items.forEach(function(i){ var n=_rkId(); map[i.id]=n; i.id=n; });
+  (c.cables||[]).forEach(function(k){ k.id=_rkId(); k.a=map[k.a]||k.a; if(k.b) k.b=map[k.b]||k.b; });
+  RK.racks.push(c); RK.cur=c.id; RK.sel=null; RK.cut=0; RK.menu=null; _rkSave(); renderRacks();
+  toast('✓ Rack créé depuis le modèle « '+t.name+' »');
+}
+function rkTplKeep(){
+  var r=_rkCur(); if(!r) return;
+  if(RK_TPL===null) RK_TPL=_rkTplLocal();
+  var name=String(r.name||'Rack').slice(0,60), at=-1;
+  RK_TPL.forEach(function(t,i){ if(_bonNorm(t.name)===_bonNorm(name)) at=i; });
+  if(at<0 && RK_TPL.length>=20){ toast('20 modèles au plus : supprimez-en un depuis le bouton « Rack ».'); return; }
+  var copy=_rkClean([JSON.parse(JSON.stringify(r))])[0], tpl={name:name, rack:copy};
+  if(JSON.stringify(tpl).length>60000){ toast('Ce rack est trop chargé pour être gardé comme modèle.'); return; }
+  if(at>=0) RK_TPL[at]=tpl; else RK_TPL.unshift(tpl);
+  _rkTplSave(); RK.menu=null; renderRacks();
+  toast(at>=0?'✓ Modèle « '+name+' » mis à jour':'✓ « '+name+' » gardé comme modèle : il est proposé à la création d\'un rack, dans toutes vos sessions');
+}
+function rkTplDel(idx){
+  var t=(RK_TPL||[])[idx]; if(!t || !confirm('Supprimer le modèle « '+t.name+' » ? Les racks déjà créés ne changent pas.')) return;
+  RK_TPL.splice(idx,1); _rkTplSave(); renderRacks();
+}
+function _rkTplMenuHtml(){
+  var E=_bonE; if(RK_TPL===null) RK_TPL=_rkTplLocal();
+  var h='<button type="button" class="rk-dd-b" onclick="rkNew()"><i class="ti ti-square-plus"></i>Rack vide</button>';
+  if(RK_TPL.length){ h+='<div class="rk-dd-sep"></div><div class="rk-dd-h">Mes modèles</div>';
+    RK_TPL.forEach(function(t,i){ h+='<div class="rk-dd-row"><button type="button" class="rk-dd-b" onclick="rkTplUse(\'mine\','+i+')"><i class="ti ti-template"></i><span>'+E(t.name)+'</span><em>'+t.rack.units+' U</em></button><button type="button" class="rk-gear-x" onclick="rkTplDel('+i+')" title="Supprimer ce modèle"><i class="ti ti-x"></i></button></div>'; }); }
+  h+='<div class="rk-dd-sep"></div><div class="rk-dd-h">Modèles fournis</div>';
+  _RK_TPL_STD.forEach(function(t,i){ h+='<button type="button" class="rk-dd-b" onclick="rkTplUse(\'std\','+i+')" title="'+E(t.note)+'"><i class="ti ti-server"></i><span>'+E(t.name)+'</span><em>'+t.units+' U</em></button>'; });
+  return h;
+}
 function rkNew(){
   if(RK.racks.length>=planLimit('max_racks')){ showUpgradeModal('max_racks'); return; }
   var n=RK.racks.length+1, r={id:_rkId(), name:'Rack '+n, units:12, bays:1, depth:0, note:'', top:false, casters:false, items:[]};
-  RK.racks.push(r); RK.cur=r.id; RK.sel=null; RK.cut=0; _rkSave(); renderRacks();
+  RK.racks.push(r); RK.cur=r.id; RK.sel=null; RK.cut=0; RK.menu=null; _rkSave(); renderRacks();
 }
 function rkPick(id){ RK.cur=id; RK.sel=null; RK.cut=0; RK.link=null; RK.cab=null; RK.menu=null; renderRacks(); }
 function rkDup(){
@@ -17259,6 +17346,14 @@ function rkRack(f,v){
   _rkSave(); renderRacks();
 }
 function rkView(v){ RK.view=v; renderRacks(); }
+/* ⌘Z / Ctrl+Z annule, ⇧⌘Z / Ctrl+Y rétablit, quand l'onglet Racks est affiché et qu'aucun champ n'a le focus */
+document.addEventListener('keydown',function(e){
+  if(!(e.metaKey||e.ctrlKey) || e.altKey) return;
+  var k=String(e.key||'').toLowerCase(); if(k!=='z' && k!=='y') return;
+  var p=document.getElementById('panel-racks'); if(!p || !p.offsetParent) return;
+  var t=e.target, tag=t && t.tagName; if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT'||(t&&t.isContentEditable)) return;
+  e.preventDefault(); rkUndo(k==='y'||e.shiftKey?1:-1);
+});
 /* Menus de la barre (« Rack », « Affichage ») : ouverts dans la page, ils restent en place quand un réglage redessine l'écran.
    Un clic ailleurs ou Échap les ferme sans rien redessiner, pour ne pas avaler le clic. */
 function _rkMenuClose(){ RK.menu=null; document.querySelectorAll('.rk-dd-p').forEach(function(p){ p.remove(); }); document.querySelectorAll('.rk-dd>.btn.on').forEach(function(b){ b.classList.remove('on'); }); }
@@ -17274,9 +17369,12 @@ function rkCut(b){ RK.cut=Math.round(_rkNum(b,0,2,0)); renderRacks(); }
 function rkOpt(k,v){ RK_OPT[k]=!!v; try{ localStorage.setItem('pf_rk_opt',JSON.stringify(RK_OPT)); }catch(e){} renderRacks(); }
 function rkZoom(d){ RK.zoom=d===0?1:Math.max(0.5,Math.min(2,Math.round((RK.zoom+d*0.15)*100)/100)); renderRacks(); }
 /* ── Appareils ── */
+/* Appareil du catalogue fourni, avec sa fiche technique quand elle existe */
+function _rkCatGear(ci,si){ var c=((_RK_CAT[ci]||{}).items||[])[si]; return c?{n:c[0],h:c[1],kind:c[2],kg:c[3]||0,w:c[4]||0,d:c[5]||0}:null; }
+function _rkSpecTxt(g){ return [g.kg?_rkFmt(g.kg,'kg'):'', g.w?g.w+' W':'', g.d?g.d+' mm':''].filter(Boolean).join(' · '); }
 function rkAdd(src,idx,sub){
   var r=_rkCur(); if(!r){ toast('Créez d\'abord un rack.'); return; }
-  var g=src==='lib' ? (RK_LIB||[])[idx] : (function(){ var c=(_RK_CAT[idx]||{}).items||[]; return c[sub]?{n:c[sub][0],h:c[sub][1],kind:c[sub][2]}:null; })();
+  var g=src==='lib' ? (RK_LIB||[])[idx] : src==='show' ? (RK.need||[])[idx] : _rkCatGear(idx,sub);
   if(!g) return;
   var side=RK.view==='r'?'r':'f', h=Math.min(g.h||1,r.units), cur=_rkItem(RK.sel), at=_rkSlot(r,h,side,cur?cur.bay:(RK.view==='s'?RK.cut:null));
   if(!at){ toast('Plus de place en face '+(side==='r'?'arrière':'avant')+' pour '+h+' U. Agrandissez le rack ou libérez des unités.'); return; }
@@ -17438,10 +17536,65 @@ function rkFold(ci){
 function rkSearch(v){ RK.q=String(v||'').slice(0,60); var b=document.getElementById('rk-lib-list'); if(b) b.innerHTML=_rkLibHtml(); }
 /* ── Affichage ── */
 function _rkFmt(n,unit){ return n?(Math.round(n*10)/10).toLocaleString('fr-FR')+' '+unit:'—'; }
+/* Matériel du show à mettre en rack : récepteurs et émetteurs IEM de l'onglet HF (modèles connus du catalogue),
+   amplis, stageboxes et réseau du synoptique (y compris une session LINUS Control importée). Pour chaque modèle :
+   le besoin (le plus grand d'une scène à l'autre pour le synoptique) et ce qui est déjà posé dans les racks du show. */
+const _RK_SYN_CAT={'amp.linus14':'CODA Audio LINUS14D','amp.linus12':'CODA Audio LINUS12C','amp.linus10':'CODA Audio LINUS10','amp.la12x':'L-Acoustics LA12X','amp.la4x':'L-Acoustics LA4X'};
+function _rkCatFind(name){
+  var k=_bonNorm(name); if(!k) return null; var hit=null, part=null;
+  _RK_CAT.forEach(function(c,ci){ c.items.forEach(function(x,si){
+    var full=_bonNorm(x[0]), bare=_bonNorm(String(x[0]).replace(/\s*\(.*\)\s*$/,'')), model=_bonNorm(String(x[0]).replace(/\s*\(.*\)\s*$/,'').split(' ').slice(-1)[0]);
+    if(!hit && (full===k || bare===k)) hit=[ci,si];
+    else if(!part && k.length>=3 && (bare.slice(-k.length)===k || model===k)) part=[ci,si];
+  }); });
+  var p=hit||part; return p?_rkCatGear(p[0],p[1]):null;
+}
+function _rkShowNeeds(){
+  var out={}, add=function(name,src,kind,n,cat){
+    var g=cat||_rkCatFind(name)||{n:name,h:kind==='amp'?2:1,kind:kind,kg:0,w:0,d:0,guess:true};
+    var k=_bonNorm(g.n); if(!k) return;
+    var o=out[k]||(out[k]=Object.assign({},g,{need:0,src:[]}));
+    o.need=Math.max(o.need,n); if(o.src.indexOf(src)<0) o.src.push(src);
+  };
+  /* HF : un appareil = un identifiant d'appareil (did), sinon le nom d'appareil sans son numéro de voie */
+  var rf=null;
+  try{ rf=(typeof RF!=='undefined' && RF.data && RF.showId===(CUR_SHOW&&CUR_SHOW.id)) ? RF.data : (typeof _rfClean==='function' ? _rfClean(CUR_SHOW&&CUR_SHOW.stage_data&&CUR_SHOW.stage_data.rf) : null); }catch(e){ rf=null; }
+  if(rf && Array.isArray(rf.ch)){
+    var devs={};
+    rf.ch.forEach(function(c){ if(!c || (c.kind!=='mic' && c.kind!=='iem') || !c.mdl) return;
+      var id=c.did || String(c.dev||'').replace(/\s*·\s*\d+$/,'') || c.id; var m=(c.mk?c.mk+' ':'')+c.mdl;
+      (devs[_bonNorm(m)]=devs[_bonNorm(m)]||{m:m, mdl:c.mdl, ids:{}}).ids[id]=1; });
+    Object.keys(devs).forEach(function(k){ var d=devs[k], cat=_rkCatFind(d.m)||_rkCatFind(d.mdl); if(cat && cat.kind==='rx') add(cat.n,'HF','rx',Object.keys(d.ids).length,cat); });
+  }
+  /* Synoptique : amplis, stageboxes, réseau */
+  try{
+    (typeof _bonDocs==='function'?_bonDocs().syn:[]).forEach(function(doc){
+      var per={};
+      (doc.data.nodes||[]).forEach(function(nd){
+        var t=String(nd&&nd.type||''); if(!/^(amp|io|net)\./.test(t) || t==='io.stagebox' && !nd.label) return;
+        var cat=_RK_SYN_CAT[t]?_rkCatFind(_RK_SYN_CAT[t]):null;
+        var name=cat?cat.n:String(nd.label||nd.name||'').replace(/\s*\n.*$/,'').replace(/\s*#\s*\d+\s*$/,'').trim(); if(!name) return;
+        var k=_bonNorm(cat?cat.n:name); (per[k]=per[k]||{name:name,cat:cat,kind:t.split('.')[0]==='amp'?'amp':t.split('.')[0]==='net'?'sw':'io',n:0}).n++;
+      });
+      Object.keys(per).forEach(function(k){ var x=per[k]; add(x.name,'Synoptique',x.kind,x.n,x.cat); });
+    });
+  }catch(e){}
+  var placed={}; RK.racks.forEach(function(r){ r.items.forEach(function(i){ var k=_bonNorm(i.n); placed[k]=(placed[k]||0)+1; }); });
+  return Object.keys(out).map(function(k){ var o=out[k]; o.placed=placed[k]||0; return o; })
+    .sort(function(a,b){ return (b.need-b.placed>0)-(a.need-a.placed>0) || a.n.localeCompare(b.n); });
+}
 function _rkLibHtml(){
   var E=_bonE, q=_bonNorm(RK.q), lib=RK_LIB||[], h='', any=false;
   var ok=function(n){ return !q || _bonNorm(n).indexOf(q)>=0; };
   var mine=lib.map(function(g,i){ return {g:g,i:i}; }).filter(function(x){ return ok(x.g.n); });
+  RK.need=_rkShowNeeds();
+  var need=RK.need.map(function(g,i){ return {g:g,i:i}; }).filter(function(x){ return ok(x.g.n); });
+  if(need.length){
+    var left=need.reduce(function(t,x){ return t+Math.max(0,x.g.need-x.g.placed); },0);
+    h+='<div class="rk-lib-g">Dans ce show<em class="rk-need-n">'+(left?left+' à placer':'tout est placé')+'</em></div>';
+    need.forEach(function(x){ var g=x.g, done=g.placed>=g.need; any=true;
+      h+='<div class="rk-gear rk-need'+(done?' done':'')+'"><button type="button" class="rk-gear-b" onclick="rkAdd(\'show\','+x.i+')" title="'+E('Ajouter au rack : '+g.n+' — vu dans : '+g.src.join(', ')+(g.guess?' — hauteur par défaut, à vérifier':''))+'"><b>'+E(g.n)+'</b><span>'+(done?'<i class="ti ti-check"></i>':'')+Math.min(g.placed,g.need)+'/'+g.need+' · '+g.h+' U'+(g.guess?' ?':'')+'</span></button></div>'; });
+  }
   h+='<div class="rk-lib-g">Mon matériel<button type="button" class="ov-link" onclick="rkForm(true)">Créer</button></div>';
   if(RK.form) h+='<div class="rk-form"><input class="set-inp" id="rk-f-n" placeholder="Nom du matériel" maxlength="80">'
     +'<select class="set-inp" id="rk-f-k" title="Aspect de la façade">'+_RK_KINDS.map(function(k){ return '<option value="'+k[0]+'">'+k[1]+'</option>'; }).join('')+'</select>'
@@ -17456,7 +17609,7 @@ function _rkLibHtml(){
     var open=!!q || !!RK_OPEN[c.g];
     h+='<button type="button" class="rk-lib-g rk-fold'+(open?' open':'')+'" onclick="rkFold('+ci+')" aria-expanded="'+open+'"><i class="ti ti-chevron-right"></i><span>'+E(c.g)+'</span><em>'+its.length+'</em></button>';
     if(!open) return;
-    its.forEach(function(x){ any=true; h+='<div class="rk-gear"><button type="button" class="rk-gear-b" onclick="rkAdd(\'cat\','+ci+','+x.si+')" title="Ajouter au rack : '+E(x.it[0])+'"><b>'+E(x.it[0])+'</b><span>'+x.it[1]+' U</span></button></div>'; });
+    its.forEach(function(x){ any=true; var sp=_rkSpecTxt(_rkCatGear(ci,x.si)); h+='<div class="rk-gear"><button type="button" class="rk-gear-b" onclick="rkAdd(\'cat\','+ci+','+x.si+')" title="Ajouter au rack : '+E(x.it[0])+(sp?' ('+sp+')':'')+'"><b>'+E(x.it[0])+'</b><span>'+x.it[1]+' U'+(sp?' <i class="ti ti-file-info rk-spec" aria-label="fiche technique"></i>':'')+'</span></button></div>'; });
   });
   if(q && !any) h+='<div class="rk-lib-none">Rien ne correspond. Créez ce matériel avec le bouton « Créer ».</div>';
   return h;
@@ -17525,13 +17678,17 @@ function renderRacks(){
   if(!r){
     root.innerHTML=h+'<div class="bonp-empty"><i class="ti ti-server"></i><b>Aucun rack pour cette session</b>'
       +'<span>Créez un rack, choisissez sa hauteur, puis ajoutez les appareils depuis la bibliothèque ou créez les vôtres. Le dossier PDF donne au loueur les dessins et la liste, unité par unité.</span>'
-      +'<button type="button" class="btn pri" onclick="rkNew()"><i class="ti ti-plus"></i>Créer un rack</button></div>';
+      +'<button type="button" class="btn pri" onclick="rkNew()"><i class="ti ti-plus"></i>Créer un rack vide</button>'
+      +'<div class="rk-tpl-pick"><span>ou partir d\'un modèle</span>'+(function(){ if(RK_TPL===null) RK_TPL=_rkTplLocal();
+        return RK_TPL.map(function(t,i){ return '<button type="button" class="btn sm" onclick="rkTplUse(\'mine\','+i+')"><i class="ti ti-template"></i>'+E(t.name)+'</button>'; }).join('')
+          +_RK_TPL_STD.map(function(t,i){ return '<button type="button" class="btn sm" onclick="rkTplUse(\'std\','+i+')" title="'+E(t.note)+'"><i class="ti ti-server"></i>'+E(t.name)+'</button>'; }).join(''); })()+'</div></div>';
     return;
   }
   var st=_rkStats(r), it=_rkItem(RK.sel), bays=r.bays||1;
   if(RK.cut>=bays) RK.cut=0;
   h+='<div class="rk-tabs">'+RK.racks.map(function(x){ return '<button type="button" class="'+(x.id===r.id?'on':'')+'" data-id="'+E(x.id)+'" onclick="rkPick(this.dataset.id)">'+E(x.name)+'<span>'+x.units+' U'+((x.bays||1)>1?' × '+x.bays:'')+'</span></button>'; }).join('')
-    +'<button type="button" class="add" onclick="rkNew()" title="Nouveau rack"><i class="ti ti-plus"></i>Rack</button></div>';
+    +'<div class="rk-dd rk-dd-new"><button type="button" class="add'+(RK.menu==='new'?' on':'')+'" onclick="rkMenu(\'new\')" title="Nouveau rack : vide ou depuis un modèle" aria-expanded="'+(RK.menu==='new')+'"><i class="ti ti-plus"></i>Rack<i class="ti ti-chevron-down rk-dd-c"></i></button>'
+    +(RK.menu==='new'?'<div class="rk-dd-p l">'+_rkTplMenuHtml()+'</div>':'')+'</div></div>';
   h+='<div class="rk-wrap"><aside class="rk-lib"><div class="adm-search"><i class="ti ti-search"></i><input type="search" placeholder="Chercher un matériel" value="'+E(RK.q)+'" oninput="rkSearch(this.value)" autocomplete="off"></div><div id="rk-lib-list">'+_rkLibHtml()+'</div></aside>';
   var ck=function(k,l,t){ return '<label class="rk-ck" title="'+t+'"><input type="checkbox" class="cb"'+(RK_OPT[k]?' checked':'')+' onchange="rkOpt(\''+k+'\',this.checked)">'+l+'</label>'; };
   var dd=function(k,icon,l,body){ return '<div class="rk-dd"><button type="button" class="btn sm'+(RK.menu===k?' on':'')+'" onclick="rkMenu(\''+k+'\')" aria-expanded="'+(RK.menu===k?'true':'false')+'"><i class="ti '+icon+'"></i>'+l+'<i class="ti ti-chevron-down rk-dd-c"></i></button>'+(RK.menu===k?'<div class="rk-dd-p">'+body+'</div>':'')+'</div>'; };
@@ -17543,11 +17700,13 @@ function renderRacks(){
       +'<label class="rk-ck" title="L\'unité 1 est en haut du rack"><input type="checkbox" class="cb"'+(r.top?' checked':'')+' onchange="rkRack(\'top\',this.checked)">Numéroter depuis le haut</label>'
       +'<label class="rk-ck" title="Dessiner le rack sur roulettes"><input type="checkbox" class="cb"'+(r.casters?' checked':'')+' onchange="rkRack(\'casters\',this.checked)">Sur roulettes</label>'
       +'<div class="rk-dd-sep"></div><button type="button" class="rk-dd-b" onclick="rkDup()"><i class="ti ti-copy"></i>Dupliquer ce rack</button>'
+      +'<button type="button" class="rk-dd-b" onclick="rkTplKeep()" title="Le retrouver à la création d\'un rack, dans toutes vos sessions"><i class="ti ti-template"></i>Garder comme modèle</button>'
       +'<button type="button" class="rk-dd-b danger" onclick="rkDel()"><i class="ti ti-trash"></i>Supprimer ce rack</button>')
     +'</div>';
   h+='<div class="rk-bar"><div class="bonp-switch rk-face">'+[['f','Avant'],['r','Arrière'],['s','Coupe de côté']].map(function(f){ return '<button type="button" class="'+(RK.view===f[0]?'on':'')+'" onclick="rkView(\''+f[0]+'\')">'+f[1]+'</button>'; }).join('')+'</div>'
     +(RK.view==='s'&&bays>1?'<label class="rk-mini"><span>Baie</span><select class="set-inp" onchange="rkCut(this.value)">'+[0,1,2].slice(0,bays).map(function(b){ return '<option value="'+b+'"'+(RK.cut===b?' selected':'')+'>'+(b+1)+'</option>'; }).join('')+'</select></label>':'')
     +'<span class="il-bar-sp"></span>'
+    +'<div class="rk-zoom rk-undo"><button type="button" onclick="rkUndo(-1)" title="Annuler (⌘Z)" aria-label="Annuler"'+(RK.hi>0?'':' disabled')+'><i class="ti ti-arrow-back-up"></i></button><button type="button" onclick="rkUndo(1)" title="Rétablir (⇧⌘Z)" aria-label="Rétablir"'+(RK.hist&&RK.hi<RK.hist.length-1?'':' disabled')+'><i class="ti ti-arrow-forward-up"></i></button></div>'
     +dd('view','ti-eye','Affichage',
       ck('wire','Câblage','Dessiner les câbles sur la face arrière')+ck('ghost','Empreinte de l\'autre face','Montrer en pointillé les appareils montés de l\'autre côté')+ck('grp','Couleurs de groupe','Teinter chaque appareil de la couleur de son groupe')
       +ck('num','Numéros d\'unité','Numéroter les unités sur le côté')+ck('frame','Châssis','Dessiner le flight-case autour des baies')+ck('simple','Vue simplifiée','Des blocs avec le nom, sans le dessin des façades'))
