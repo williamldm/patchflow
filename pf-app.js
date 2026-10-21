@@ -12291,10 +12291,13 @@ const LinusImport = (function(){
       cols[cols.length - 1].push(a); acc += a.H + BLOCK_GAP;
     });
     var COL_W = AMP_W + GAP_AS + 130 + COL_GAP;
-    var feeds = [], hasDante = amps.some(function(a){ return (a.kind === 'dante' || a.kind === 'milan') && a.units.length; });
+    /* Dante et Milan-AVB : deux réseaux distincts, chacun sur son port de la régie */
+    var hasD = amps.some(function(a){ return a.kind === 'dante' && a.units.length; }), hasM = amps.some(function(a){ return a.kind === 'milan' && a.units.length; });
+    var netPort = { dante:'net1', milan:hasD ? 'net2' : 'net1' };
+    var feeds = [];
     amps.forEach(function(a){ a.ins.forEach(function(p){ var k = a.kind + ':' + p.letter; if (feeds.indexOf(k) < 0) feeds.push(k); }); });
     feeds.sort(function(a, b){ var x = a.split(':'), y = b.split(':'); return x[1].localeCompare(y[1]) || x[0].localeCompare(y[0]); });
-    var nT = feeds.length + (hasDante ? 1 : 0), S_HEAD = 115, sh = S_HEAD + PAD * 2 + nT * ROW;
+    var nT = feeds.length + (hasD ? 1 : 0) + (hasM ? 1 : 0), S_HEAD = 115, sh = S_HEAD + PAD * 2 + nT * ROW;
     var srcOn = withSource && nT > 0 && amps.length > 0;
     /* Plusieurs colonnes : la régie passe au-dessus, ses départs longent le haut puis descendent devant chaque colonne */
     var y0 = (srcOn && cols.length > 1) ? sh + 70 : 0;
@@ -12329,7 +12332,8 @@ const LinusImport = (function(){
           Chaque départ file à l'horizontale jusque devant la colonne, puis descend jusqu'à l'entrée de l'ampli. */
     if (srcOn) {
       var sio = feeds.map(function(k, i){ var f = k.split(':'); return { id:'out' + (i + 1), dir:'out', name:'Sortie ' + f[1] + (KIND[f[0]].txt !== 'Analog' ? ' · ' + KIND[f[0]].txt : ''), conn:KIND[f[0]].conn }; });
-      if (hasDante) sio.push({ id:'net1', dir:'net', name:'Dante', conn:'etherCON' });
+      if (hasD) sio.push({ id:'net1', dir:'net', name:'Dante', conn:'etherCON' });
+      if (hasM) sio.push({ id:netPort.milan, dir:'net', name:'Milan-AVB', conn:'etherCON' });
       var sx = -(AMP_W + 110 + nT * STEP + 60), sy = cols.length > 1 ? 0 : Math.max(0, (cols[0].height - sh) / 2);
       nodes.push({ key:'src', type:'console.generic', x:sx, y:sy, label:'Régie', sub:'Sorties vers les amplis', io:sio, showIo:true });
       var gutter = function(a, k){ return a.col * COL_W - (46 + (nT - 1 - k) * STEP); };
@@ -12339,13 +12343,13 @@ const LinusImport = (function(){
           cables.push({ from:'src', to:a.key, fromPort:'out' + (k + 1), toPort:p.id, network:KIND[a.kind].net, dir:'forward', route:'ortho', label:'', via:{ x:gutter(a, k), y:'toPort' } });
         });
         if ((a.kind === 'dante' || a.kind === 'milan') && a.units.length)
-          cables.push({ from:'src', to:a.key, fromPort:'net1', toPort:'net1', network:'dante', dir:'none', route:'ortho', label:'', via:{ x:gutter(a, feeds.length), y:'toPort' } });
+          cables.push({ from:'src', to:a.key, fromPort:netPort[a.kind], toPort:'net1', network:a.kind === 'milan' ? 'avb' : 'dante', dir:'none', route:'ortho', label:'', via:{ x:gutter(a, feeds.length), y:'toPort' } });
       });
     }
     /* Un seul ampli : la régie se cale à sa hauteur, les départs arrivent tout droit */
     var level = (srcOn && amps.length === 1 && amps[0].ins.length) ? { node:'src', port:'out1', to:amps[0].key, toPort:amps[0].ins[0].id } : null;
     return { nodes:nodes, cables:cables, amps:amps, units:units, feeds:feeds, level:level,
-             networks:[{ id:'speakon', name:'Speakon NL4', color:'#dc2626' }, { id:'xlr', name:'XLR', color:'#94a3b8' }, { id:'aes', name:'AES/EBU', color:'#14b8a6' }, { id:'dante', name:'Dante', color:'#1d9bf0' }] };
+             networks:[{ id:'speakon', name:'Speakon NL4', color:'#dc2626' }, { id:'xlr', name:'XLR', color:'#94a3b8' }, { id:'aes', name:'AES/EBU', color:'#14b8a6' }, { id:'dante', name:'Dante', color:'#1d9bf0' }, { id:'avb', name:'Milan-AVB', color:'#22d3ee' }] };
   }
 
   /* ── Interface : choix du fichier, aperçu, création ── */
@@ -12442,6 +12446,7 @@ const AmpImport = (function(){
   var SRC = {
     linus: { name:'CODA Audio', soft:'LINUS Control', ext:'.linuscontrol' },
     dbpr:  { name:'d&b audiotechnik', soft:'ArrayCalc / R1', ext:'.dbpr' },
+    lac:   { name:'L-Acoustics', soft:'LA Network Manager · Soundvision', ext:'tableau' },
     table: { name:'Toutes marques', soft:'Tableau (CSV, Excel)', ext:'.csv' }
   };
 
@@ -12575,9 +12580,16 @@ const AmpImport = (function(){
   var TEMPLATE = 'Ampli;Modèle;Canal;Enceinte;Nombre;Groupe;Entrée;IP\n' +
     'LA12X 1;LA12X;1;K2;6;Main L;A;192.168.1.11\nLA12X 1;LA12X;2;K2;6;Main R;B;192.168.1.11\nLA12X 1;LA12X;3;KS28;4;Subs L;A;192.168.1.11\nLA12X 1;LA12X;4;KS28;4;Subs R;B;192.168.1.11\n' +
     'LA4X 1;LA4X;1;X8;2;Front fill;A;192.168.1.12\nLA4X 1;LA4X;2-3;X15 HiQ;2;Retours;C;192.168.1.12\n';
-  function template(){
-    var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + TEMPLATE], { type:'text/csv;charset=utf-8' }));
-    a.download = 'patchflow-modele-session-amplis.csv'; document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 400);
+  /* L-Acoustics : les noms et adresses tels qu'ils apparaissent dans la session LA Network Manager */
+  var TEMPLATE_LAC = 'Ampli;Modèle;Canal;Enceinte;Nombre;Groupe;Entrée;IP\n' +
+    'MAIN L;LA12X;1;K2;6;Main L;Milan;192.168.1.101\nMAIN L;LA12X;2;K2;6;Main L;Milan;192.168.1.101\nMAIN R;LA12X;1;K2;6;Main R;Milan;192.168.1.102\nMAIN R;LA12X;2;K2;6;Main R;Milan;192.168.1.102\n' +
+    'SUBS;LA12X;1;KS28;4;Subs L;Milan;192.168.1.103\nSUBS;LA12X;2;KS28;4;Subs R;Milan;192.168.1.103\n' +
+    'FILLS;LA4X;1;Kara II;3;Out fill L;A;192.168.1.104\nFILLS;LA4X;2;Kara II;3;Out fill R;B;192.168.1.104\nFILLS;LA4X;3;X8;2;Front fill;A;192.168.1.104\n' +
+    'MONITORS;LA7.16;1;X15 HiQ;1;Retour 1;Milan;192.168.1.105\nMONITORS;LA7.16;2;X15 HiQ;1;Retour 2;Milan;192.168.1.105\nMONITORS;LA7.16;3;X15 HiQ;1;Retour 3;Milan;192.168.1.105\nMONITORS;LA7.16;4;X15 HiQ;1;Retour 4;Milan;192.168.1.105\n';
+  function template(brand){
+    var lac = brand === 'lac';
+    var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + (lac ? TEMPLATE_LAC : TEMPLATE)], { type:'text/csv;charset=utf-8' }));
+    a.download = lac ? 'patchflow-modele-l-acoustics.csv' : 'patchflow-modele-session-amplis.csv'; document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 400);
   }
 
   /* ── Lecture d'un fichier : la marque est reconnue au contenu ── */
@@ -12599,17 +12611,25 @@ const AmpImport = (function(){
         return;
       }
       if (/\.(csv|tsv|txt)$/i.test(name)) { fromText(new TextDecoder('utf-8').decode(bytes), base); return; }
-      var st; try { st = L.parse(bytes); } catch (e) { console.warn('[linus]', e); toast('Format non reconnu : session LINUS Control, projet d&b (.dbpr) ou tableau CSV.'); return; }
+      var st; try { st = L.parse(bytes); } catch (e) {
+        /* Session LA Network Manager ou projet Soundvision : format fermé, on oriente vers le tableau L-Acoustics */
+        if (/\.xml[pcs]$/i.test(name) || /L-?Acoustics|Soundvision|LA Network Manager|\bLA(12X|4X|7\.16|2Xi|8)\b/i.test(new TextDecoder('latin1').decode(bytes.slice(0, 4 * 1024 * 1024)))) {
+          paste('lac'); toast('Session L-Acoustics : son format n\'est pas lisible, décrivez vos amplis dans le tableau ci-dessous.'); return;
+        }
+        console.warn('[linus]', e); toast('Format non reconnu : session LINUS Control, projet d&b (.dbpr) ou tableau CSV.'); return;
+      }
       if (!st.modules.length) { toast('Cette session ne contient aucun ampli.'); return; }
       show({ name:base, src:'linus', model:L.model(st) });
     };
     fr.readAsArrayBuffer(file);
   }
-  function fromText(text, name){
+  function fromText(text, name, src){
     var M;
     try { M = tableModel(text); }
     catch (e) { toast(e.message === 'colonnes' ? 'Colonnes introuvables : il faut au moins « Ampli » (ou « Modèle ») et « Enceinte ». Téléchargez le modèle de tableau.' : 'Tableau vide ou illisible.'); return false; }
-    show({ name:name || 'Tableau d\'amplis', src:'table', model:M });
+    /* Tableau d'amplis tous L-Acoustics : présenté comme une session L-Acoustics */
+    if (!src && M.amps.every(function(a){ return /^LA\s?\d/i.test(a.model); })) src = 'lac';
+    show({ name:name || 'Tableau d\'amplis', src:src || 'table', model:M });
     return true;
   }
   function pick(){
@@ -12643,24 +12663,30 @@ const AmpImport = (function(){
       '<div class="modal-body">' +
         '<p class="ampi-lead">Le synoptique se construit tout seul : amplis, sorties, enceintes branchées et câbles HP, et la régie quand la session indique les entrées.</p>' +
         '<button type="button" class="ampi-drop" onclick="AmpImport.pick()"><i class="ti ti-file-upload"></i><b>Choisir ou déposer un fichier</b><span>.linuscontrol · .dbpr · .csv — la marque est reconnue toute seule</span></button>' +
-        '<div class="ampi-srcs">' + card('linus', '<i class="ti ti-file-music"></i>', true) + card('dbpr', '<i class="ti ti-database"></i>', true) + '</div>' +
-        '<div class="ampi-other"><div><b>L-Acoustics, Powersoft, Lake, Meyer, NEXO, Adamson…</b><span>Leurs sessions sont dans des formats fermés. Décrivez vos amplis dans un tableau (une ligne par sortie) : le synoptique se crée pareil.</span></div>' +
+        '<div class="ampi-srcs">' + card('linus', '<i class="ti ti-file-music"></i>', true) + card('dbpr', '<i class="ti ti-database"></i>', true) +
+          '<div class="ampi-src ampi-lac"><div class="ampi-src-ic"><i class="ti ti-speakerphone"></i></div><div class="ampi-lac-t"><b>L-Acoustics</b><span>LA Network Manager · Soundvision — LA12X, LA4X, LA7.16, LA2Xi, entrées analogiques, AES ou Milan-AVB</span></div>' +
+            '<div class="ampi-other-a"><button type="button" class="btn sm" onclick="AmpImport.template(\'lac\')"><i class="ti ti-download"></i>Modèle L-Acoustics</button><button type="button" class="btn sm" onclick="AmpImport.paste(\'lac\')"><i class="ti ti-clipboard"></i>Coller</button></div></div>' +
+        '</div>' +
+        '<div class="ampi-other"><div><b>Powersoft, Lake, Meyer, NEXO, Adamson, Crown…</b><span>Leurs sessions sont dans des formats fermés. Décrivez vos amplis dans un tableau (une ligne par sortie) : le synoptique se crée pareil.</span></div>' +
           '<div class="ampi-other-a"><button type="button" class="btn sm" onclick="AmpImport.template()"><i class="ti ti-download"></i>Modèle de tableau</button><button type="button" class="btn sm" onclick="AmpImport.paste()"><i class="ti ti-clipboard"></i>Coller un tableau</button></div></div>' +
         '<div class="tour-hint">Les fichiers sont lus sur cet appareil et ne sont ni envoyés ni modifiés.</div>' +
       '</div></div>';
     m.classList.add('show');
   }
-  function paste(){
-    var m = modal();
+  function paste(brand){
+    var m = modal(), lac = brand === 'lac';
     m.innerHTML = '<div class="modal-box ampi-box">' +
-      '<div class="modal-head"><span class="modal-title">Coller un tableau d\'amplis</span><button class="modal-close" onclick="AmpImport.close()" aria-label="Fermer"><i class="ti ti-x"></i></button></div>' +
-      '<div class="modal-body"><p class="ampi-lead">Copiez les lignes depuis Excel, Numbers ou Google Sheets, en-têtes compris : <b>Ampli · Modèle · Canal · Enceinte · Nombre · Groupe · Entrée · IP</b>. Seules « Ampli » et « Enceinte » sont indispensables.</p>' +
-      '<textarea id="amp-paste" class="set-inp ampi-ta" spellcheck="false" placeholder="Ampli&#9;Modèle&#9;Canal&#9;Enceinte&#9;Nombre&#9;Groupe&#9;Entrée"></textarea></div>' +
+      '<div class="modal-head"><span class="modal-title">' + (lac ? 'L-Acoustics · tableau d\'amplis' : 'Coller un tableau d\'amplis') + '</span><button class="modal-close" onclick="AmpImport.close()" aria-label="Fermer"><i class="ti ti-x"></i></button></div>' +
+      '<div class="modal-body"><p class="ampi-lead">' + (lac
+        ? 'Une ligne par sortie, avec les noms de votre session LA Network Manager : <b>Ampli</b> (nom de l\'unité), <b>Modèle</b> (LA12X, LA4X, LA7.16…), <b>Canal</b>, <b>Enceinte</b> (K2, KS28, Kara II…), <b>Nombre</b>, <b>Groupe</b>, <b>Entrée</b> (A à D, AES ou Milan) et <b>IP</b>. Partez du modèle L-Acoustics, remplissez-le dans Excel ou Numbers et collez-le ici.'
+        : 'Copiez les lignes depuis Excel, Numbers ou Google Sheets, en-têtes compris : <b>Ampli · Modèle · Canal · Enceinte · Nombre · Groupe · Entrée · IP</b>. Seules « Ampli » et « Enceinte » sont indispensables.') + '</p>' +
+      (lac ? '<div class="ampi-other-a" style="margin-bottom:10px"><button type="button" class="btn sm" onclick="AmpImport.template(\'lac\')"><i class="ti ti-download"></i>Modèle L-Acoustics</button></div>' : '') +
+      '<textarea id="amp-paste" class="set-inp ampi-ta" spellcheck="false"' + (lac ? ' data-src="lac" data-name="Session L-Acoustics"' : '') + ' placeholder="Ampli&#9;Modèle&#9;Canal&#9;Enceinte&#9;Nombre&#9;Groupe&#9;Entrée"></textarea></div>' +
       '<div class="modal-foot"><button class="btn" type="button" onclick="AmpImport.open()">Retour</button><button class="btn pri" type="button" onclick="AmpImport.fromPaste()"><i class="ti ti-arrow-right"></i>Aperçu</button></div></div>';
     m.classList.add('show');
     setTimeout(function(){ var t = document.getElementById('amp-paste'); if (t) t.focus(); }, 50);
   }
-  function fromPaste(){ var t = document.getElementById('amp-paste'); if (t) fromText(t.value, 'Tableau d\'amplis'); }
+  function fromPaste(){ var t = document.getElementById('amp-paste'); if (t) fromText(t.value, t.getAttribute('data-name') || 'Tableau d\'amplis', t.getAttribute('data-src')); }
   function show(c){
     cur = c;
     var p = L.layout(c.model, { source:true }), m = modal(), K = L.KIND;

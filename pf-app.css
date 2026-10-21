@@ -4841,3 +4841,8 @@ textarea.bp-mix{height:auto;min-height:58px;padding:7px 9px;resize:vertical;line
 @media(max-width:560px){.ampi-srcs{grid-template-columns:1fr}}
 /* L'accueil du synoptique vide s'efface quand une fenêtre est ouverte (il passait au-dessus) */
 body:has(.modal-ov.show) .sp-empty{display:none}
+/* Carte L-Acoustics : sur toute la largeur, avec ses deux actions */
+.ampi-src.ampi-lac{grid-column:1/-1;flex-wrap:nowrap}
+.ampi-lac-t{flex:1;min-width:0}
+.ampi-lac .ampi-other-a{margin:0;flex:none}
+@media(max-width:560px){.ampi-src.ampi-lac{flex-wrap:wrap}.ampi-lac-t{flex-basis:calc(100% - 44px)}.ampi-lac .ampi-other-a{margin-left:44px}}
