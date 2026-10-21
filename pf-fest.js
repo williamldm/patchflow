@@ -24,8 +24,15 @@ function _fsDayLbl(iso){
   try{ var d = new Date(iso + 'T12:00:00'); var s = d.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' }); return s.charAt(0).toUpperCase() + s.slice(1); }catch(e){ return iso; }
 }
 
+/* Sources des données : l'app (CUR_SHOW, ALL_CHS, OUT_DATA, IL_PATCHES) ou, dans le rider partagé,
+   un contexte en lecture seule { fest, chs, out, patches } posé par _fsWith. Pendant un affichage, les
+   voies et sorties de chaque liste sont indexées une seule fois (FEST._c) au lieu d'être refiltrées à
+   chaque cellule. */
+var _FSX = null;
+function _fsWith(ctx, fn){ var prev = _FSX, pc = FEST._c; _FSX = ctx; FEST._c = {}; try { return fn(); } finally { _FSX = prev; FEST._c = pc; } }
+function _fsCached(fn){ if(FEST._c) return fn(); FEST._c = {}; try { return fn(); } finally { FEST._c = null; } }
 function _fsData(){
-  var f = CUR_SHOW && CUR_SHOW.stage_data && CUR_SHOW.stage_data.festival;
+  var f = _FSX ? _FSX.fest : (CUR_SHOW && CUR_SHOW.stage_data && CUR_SHOW.stage_data.festival);
   f = (f && typeof f === 'object') ? JSON.parse(JSON.stringify(f)) : {};
   /* Identifiants repris dans des onclick : uniquement lettres, chiffres, tiret et souligné */
   f.slots = Array.isArray(f.slots) ? f.slots.filter(function(s){ return s && _fsId(s.id) && _fsId(s.pid); }) : [];
@@ -98,13 +105,23 @@ function _fsSorted(f){
   });
 }
 function _fsSlotOf(pid){ var f = _fsData(); return _fsSorted(f).find(function(s){ return s.pid === pid; }) || null; }
-function _fsPatch(pid){ return (typeof IL_PATCHES !== 'undefined' ? IL_PATCHES : []).find(function(p){ return p.id === pid; }) || null; }
+function _fsPatches(){ return _FSX ? (_FSX.patches || []) : (typeof IL_PATCHES !== 'undefined' ? IL_PATCHES : []); }
+function _fsPatch(pid){ return _fsPatches().find(function(p){ return p && p.id === pid; }) || null; }
 function _fsName(pid){ var p = _fsPatch(pid); return p ? p.name : 'Liste supprimée'; }
 function _fsChs(pid){
-  var all = (typeof ALL_CHS !== 'undefined' && ALL_CHS.length) ? ALL_CHS : (typeof CHS !== 'undefined' ? CHS : []);
-  return all.filter(function(r){ return (r.patch_id || 'main') === pid; }).slice().sort(function(a, b){ return a.ch - b.ch; });
+  var c = FEST._c; if(c && c['i:' + pid]) return c['i:' + pid];
+  var all = _FSX ? (_FSX.chs || []) : ((typeof ALL_CHS !== 'undefined' && ALL_CHS.length) ? ALL_CHS : (typeof CHS !== 'undefined' ? CHS : []));
+  var r = all.filter(function(x){ return (x.patch_id || 'main') === pid; }).slice().sort(function(a, b){ return a.ch - b.ch; });
+  if(c) c['i:' + pid] = r;
+  return r;
 }
-function _fsOuts(pid){ return ((typeof OUT_DATA !== 'undefined' && OUT_DATA[pid]) || []).slice().sort(function(a, b){ return (a.ch || 0) - (b.ch || 0); }); }
+function _fsOuts(pid){
+  var c = FEST._c; if(c && c['o:' + pid]) return c['o:' + pid];
+  var od = _FSX ? (_FSX.out || {}) : (typeof OUT_DATA !== 'undefined' ? OUT_DATA : {});
+  var r = (Array.isArray(od[pid]) ? od[pid] : []).slice().sort(function(a, b){ return (a.ch || 0) - (b.ch || 0); });
+  if(c) c['o:' + pid] = r;
+  return r;
+}
 function _fsHf(r){ return String((r.custom_data && r.custom_data._hf) || '').trim(); }
 function _fsLbl(r){ return String(r.long_name || r.short_name || '').trim(); }
 function _fsN(s){ return String(s || '').trim().toLowerCase().replace(/\s+/g, ' '); }
@@ -189,7 +206,8 @@ function _fsNowHtml(f, compact){
 }
 
 /* ── Page ── */
-function renderFestival(){
+function renderFestival(){ return _fsCached(_renderFestival); }
+function _renderFestival(){
   var root = document.getElementById('fest-root'); if(!root) return;
   var E = _fsE;
   if(!CUR_SHOW){
@@ -230,7 +248,7 @@ function renderFestival(){
     + _fsDayBar(f)
     + _fsRefSel(f)
     + '<span class="il-bar-sp"></span>'
-    + '<button class="btn" onclick="festPrint()"><i class="ti ti-printer"></i><span class="fs-lbl">Feuille de changements</span></button>'
+    + '<button class="btn" onclick="festExport(event)"><i class="ti ti-file-export"></i><span class="fs-lbl">Exporter</span></button>'
     + '</div></div>' + _fsNowHtml(f, false);
 
   /* Un bloc par jour : frise, puis groupes et changements */
@@ -278,6 +296,7 @@ function renderFestival(){
         + '<div class="fs-acts"><button class="btn sm" onclick="festOpen(\'' + _jsq(s.pid) + '\',\'in\')"><i class="ti ti-list-numbers"></i>Input list</button>'
         + '<button class="btn sm" onclick="festOpen(\'' + _jsq(s.pid) + '\',\'out\')"><i class="ti ti-arrow-bar-to-right"></i>Output list</button>'
         + '<button class="btn sm" onclick="festScene(\'' + _jsq(s.id) + '\')"><i class="ti ti-layout-board"></i>' + (sc ? 'Plan' : 'Créer le plan') + '</button>'
+        + '<button class="btn ghost sm" onclick="festShift(\'' + _jsq(s.id) + '\')" title="Retard ou avance : décaler ce groupe et les suivants du même jour"><i class="ti ti-hourglass"></i></button>'
         + '<button class="btn ghost sm" onclick="festEdit(\'' + _jsq(s.id) + '\')" title="Horaires et liste"><i class="ti ti-clock-edit"></i></button></div></div></article>';
     });
     h += '</div></section>';
@@ -313,7 +332,7 @@ function _fsHead(withViews){
 function _fsRefSel(f){
   var E = _fsE;
   var o = '<option value="prev"' + (f.cmp !== 'house' ? ' selected' : '') + '>Comparer au groupe précédent</option>'
-    + (IL_PATCHES || []).filter(function(p){ return _fsId(p.id); }).map(function(p){ return '<option value="h:' + E(p.id) + '"' + (f.cmp === 'house' && f.house === p.id ? ' selected' : '') + '>Comparer au patch maître : ' + E(p.name) + '</option>'; }).join('');
+    + _fsPatches().filter(function(p){ return _fsId(p.id); }).map(function(p){ return '<option value="h:' + E(p.id) + '"' + (f.cmp === 'house' && f.house === p.id ? ' selected' : '') + '>Comparer au patch maître : ' + E(p.name) + '</option>'; }).join('');
   return '<label class="btn fs-sel" title="Référence des changements"><i class="ti ti-git-compare"></i><select onchange="festRef(this.value)" aria-label="Comparer à">' + o + '</select><i class="ti ti-chevron-down il-chev"></i></label>';
 }
 function _fsRenderGrid(root, f, slots){
@@ -324,7 +343,7 @@ function _fsRenderGrid(root, f, slots){
     + _fsDayBar(f)
     + '<button class="btn' + (FEST.mic ? ' on' : '') + '" onclick="festGrid(\'mic\')"><i class="ti ti-' + (out ? 'tag' : 'microphone') + '"></i>' + (out ? 'Types' : 'Micros') + '</button>'
     + '<span class="il-bar-sp"></span>'
-    + '<button class="btn" onclick="festPrint()"><i class="ti ti-printer"></i><span class="fs-lbl">Feuille de changements</span></button>'
+    + '<button class="btn" onclick="festExport(event)"><i class="ti ti-file-export"></i><span class="fs-lbl">Exporter</span></button>'
     + '<button class="btn fs-full-btn" onclick="festFull()" title="' + (FEST.full ? 'Quitter le plein écran (Échap)' : 'Tableau en plein écran') + '"><i class="ti ti-' + (FEST.full ? 'minimize' : 'maximize') + '"></i>' + (FEST.full ? 'Réduire' : 'Plein écran') + '</button>'
     + '</div></div>';
   root.innerHTML = _fsHead(true) + bar + _fsGridHtml(f, slots);
@@ -340,7 +359,7 @@ document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && FEST.
 function festView(v){ FEST.view = v === 'grid' ? 'grid' : 'prog'; if(FEST.view !== 'grid') FEST.full = false; _fsPrefSave(); renderFestival(); }
 function festGrid(k, v){ if(k === 'day') FEST.day = v; if(k === 'io') FEST.io = v === 'out' ? 'out' : 'in'; if(k === 'mic') FEST.mic = !FEST.mic; _fsPrefSave(); renderFestival(); }
 function _fsPrefSave(){ try{ localStorage.setItem('pf_fest_view', JSON.stringify({ view:FEST.view, io:FEST.io, mic:FEST.mic })); }catch(e){} }
-function _fsGridHtml(f, slots){
+function _fsGridHtml(f, slots, ro){
   var E = _fsE, out = FEST.io === 'out';
   var dayList = []; slots.forEach(function(s){ if(dayList.indexOf(s.day || '') < 0) dayList.push(s.day || ''); });
   if(FEST.day !== 'all' && dayList.indexOf(FEST.day) < 0) FEST.day = 'all';
@@ -390,11 +409,159 @@ function _fsGridHtml(f, slots){
           + (ref && ((cell.p48 && (!ref[ch] || !ref[ch].p48)) || (!cell.p48 && ref[ch] && ref[ch].p48)) ? '<i class="ti ti-bolt fsg-48' + (cell.p48 ? '' : ' off') + '" title="48 V ' + (cell.p48 ? 'à activer' : 'à couper') + '"></i>' : (cell.p48 ? '<i class="ti ti-bolt fsg-48 keep" title="48 V"></i>' : ''))
           + (cell.hf ? '<em class="fsg-hf">' + E(cell.hf) + '</em>' : '') + '</b>'
           + (FEST.mic && cell.mic ? '<small>' + E(sub(cell)) + '</small>' : '');
+      if(ro){ body += '<td class="' + cls + '">' + t + '</td>'; return; }
       body += '<td class="' + cls + '" onclick="festOpen(\'' + _jsq(c.s.pid) + '\',\'' + (out ? 'out' : 'in') + '\')" title="' + E(_fsName(c.s.pid)) + ' · ' + (out ? 'OUT ' : 'CH ') + ch + '">' + t + '</td>';
     });
     body += '</tr>';
   }
   return tools + '<div class="fsg-wrap"><table class="fsg">' + '<thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>';
+}
+
+
+/* ── Retard : décaler un groupe et tous ceux qui le suivent le même jour ── */
+function festShift(slotId){
+  var f = _fsData(), s = f.slots.find(function(x){ return x.id === slotId; }); if(!s) return;
+  var v = prompt('Décaler « ' + _fsName(s.pid) + ' » et les groupes suivants du ' + _fsDayLbl(s.day).toLowerCase() + ' de combien de minutes ?\n(négatif pour avancer, ex. 15 ou -10)', '15');
+  if(v == null) return;
+  var m = parseInt(String(v).replace(/[^\d-]/g, ''), 10); if(!m || Math.abs(m) > 720){ toast('Indiquez un nombre de minutes.'); return; }
+  var from = _fsMin(s.start), n = 0;
+  f.slots.forEach(function(x){
+    if(x.day !== s.day || _fsMin(x.start) == null || _fsMin(x.start) < from) return;
+    x.start = _fsHM(_fsMin(x.start) + m); if(_fsMin(x.end) != null) x.end = _fsHM(_fsMin(x.end) + m); n++;
+  });
+  _fsSave(f); renderFestival(); _fsSync();
+  toast('✓ ' + n + ' groupe' + (n > 1 ? 's' : '') + ' décalé' + (n > 1 ? 's' : '') + ' de ' + (m > 0 ? '+' : '') + m + ' min');
+}
+
+/* ── Exporter : PDF du patch, CSV, feuille de changements, lien de partage ── */
+function festExport(ev){
+  if(ev) ev.stopPropagation();
+  var old = document.getElementById('fs-exp'); if(old){ old.remove(); return; }
+  var b = ev && ev.currentTarget, r = b ? b.getBoundingClientRect() : { left:20, bottom:80, right:220 };
+  var m = document.createElement('div'); m.id = 'fs-exp'; m.className = 'fs-exp';
+  m.innerHTML = '<button type="button" onclick="festPdf()"><i class="ti ti-file-type-pdf"></i><span><b>PDF du patch du festival</b><small>Toutes les voies, un groupe par colonne</small></span></button>'
+    + '<button type="button" onclick="festCsv()"><i class="ti ti-table-export"></i><span><b>Tableau CSV</b><small>Pour Excel ou Numbers</small></span></button>'
+    + '<button type="button" onclick="festPrint()"><i class="ti ti-printer"></i><span><b>Feuille de changements</b><small>Les changements de plateau, à imprimer</small></span></button>'
+    + '<button type="button" onclick="festShare()"><i class="ti ti-link"></i><span><b>Lien de partage</b><small>Programme et patch, sans compte, toujours à jour</small></span></button>';
+  document.body.appendChild(m);
+  var w = m.offsetWidth; m.style.top = (r.bottom + 6 + window.scrollY) + 'px'; m.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w)) + 'px';
+  setTimeout(function(){ document.addEventListener('click', function cl(e){ if(!m.contains(e.target)){ m.remove(); document.removeEventListener('click', cl); } }); }, 0);
+}
+function _fsExpClose(){ var m = document.getElementById('fs-exp'); if(m) m.remove(); }
+/* Lignes du patch (entrées ou sorties) pour l'export : [{ch, cells:[{t, mic, st}]}] avec st = same|chg|free|first */
+function _fsMatrix(f, out){
+  var slots = _fsSorted(f).filter(function(s){ return FEST.day === 'all' || s.day === FEST.day; });
+  var useHouse = f.cmp === 'house' && f.house && _fsPatch(f.house);
+  var rowsOf = function(pid){ var m = {}; if(out) _fsOuts(pid).forEach(function(o){ if(o.ch) m[o.ch] = { l:String(o.long_name || o.short_name || ''), mic:String(o.type || '') }; }); else _fsChs(pid).forEach(function(r){ m[r.ch] = { l:_fsLbl(r), mic:String(r.mic || ''), p48:!!r.phantom }; }); return m; };
+  var key = function(c){ return c ? _fsN(c.l) + '|' + _fsN(c.mic) : ''; };
+  var cols = slots.map(function(s){ return { s:s, m:rowsOf(s.pid) }; });
+  var hm = useHouse ? rowsOf(f.house) : null, max = 0;
+  cols.concat(hm ? [{ m:hm }] : []).forEach(function(c){ Object.keys(c.m).forEach(function(k){ max = Math.max(max, +k); }); });
+  var rows = [];
+  for(var ch = 1; ch <= max; ch++){
+    var cells = cols.map(function(c, i){
+      var x = c.m[ch], ref = hm || (i > 0 ? cols[i - 1].m : null);
+      return { t:x ? x.l : '', mic:x ? x.mic : '', p48:!!(x && x.p48), st:!x ? 'free' : (ref ? (key(x) === key(ref[ch]) ? 'same' : 'chg') : 'first') };
+    });
+    rows.push({ ch:ch, house:hm && hm[ch] ? hm[ch] : null, cells:cells });
+  }
+  return { cols:cols.map(function(c){ return c.s; }), house:hm ? _fsName(f.house) : '', rows:rows };
+}
+function festCsv(){
+  _fsExpClose();
+  _fsCached(function(){
+    var f = _fsData(), out = FEST.io === 'out', M = _fsMatrix(f, out);
+    var q = function(v){ v = String(v == null ? '' : v); return /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    var head = [out ? 'OUT' : 'CH'].concat(M.house ? ['Patch maître : ' + M.house, ''] : []).concat([].concat.apply([], M.cols.map(function(s){ return [_fsName(s.pid) + ' (' + _fsDayLbl(s.day) + ' ' + (s.start || '') + ')', out ? 'Type' : 'Micro']; })));
+    var lines = [head.map(q).join(';')];
+    M.rows.forEach(function(r){
+      var l = [r.ch].concat(M.house ? [r.house ? r.house.l : '', r.house ? r.house.mic : ''] : []);
+      r.cells.forEach(function(c){ l.push(c.t + (c.st === 'chg' ? ' *' : ''), c.mic); });
+      lines.push(l.map(q).join(';'));
+    });
+    lines.push('', q('* : à changer par rapport à ' + (M.house ? 'patch maître' : 'groupe précédent')));
+    var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + lines.join('\n')], { type:'text/csv;charset=utf-8' }));
+    a.download = ((typeof _pdfSlug === 'function' && _pdfSlug(CUR_SHOW.name)) || 'festival') + '-patch-' + (out ? 'sorties' : 'entrees') + '.csv';
+    document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 400);
+  });
+}
+async function festPdf(){
+  _fsExpClose();
+  if(typeof _loadAutoTable !== 'function'){ toast('Export PDF indisponible.'); return; }
+  toast('Génération PDF…');
+  try {
+    var f = _fsData(), out = FEST.io === 'out', M = _fsCached(function(){ return _fsMatrix(f, out); });
+    var JsPDF = await _loadAutoTable(), doc = new JsPDF({ orientation:'landscape', unit:'mm', format:M.cols.length > 6 ? 'a3' : 'a4' });
+    var PW = doc.internal.pageSize.getWidth(), K = _PDFK, Mg = K.M, brand = _pdfBrand(), acc = _hex2rgb(brand.color || '#ff6b1a');
+    var pf = null; try { pf = await _pfLogoPng('#FF6B2B'); } catch(e){}
+    var logo = await _pdfLogoInfo(brand.logo), title = CUR_SHOW.name || 'Festival', TOP = 26, BOT = _pdfFootH(false) + 4;
+    var days = []; M.cols.forEach(function(s){ if(days.indexOf(s.day) < 0) days.push(s.day); });
+    var y = _pdfHead(doc, { acc:acc, pf:pf, brand:brand.co || 'PatchFlow', docType:'Patch du festival · ' + (out ? 'sorties' : 'entrées'), title:title, sub:'', logo:logo,
+      rightLines:['Édité le ' + new Date().toLocaleDateString('fr-FR')],
+      meta:[['Jours', days.map(_fsDayLbl).join(', ')], ['Référence', M.house ? 'patch maître ' + M.house : 'groupe précédent'], ['Lieu', CUR_SHOW.venue]] }) + 2;
+    var head = [(out ? 'OUT' : 'CH')].concat(M.house ? ['MAÎTRE · ' + M.house.toUpperCase()] : []).concat(M.cols.map(function(s){ return _fsName(s.pid).toUpperCase() + '\n' + _fsDayLbl(s.day).split(' ')[0] + ' ' + (s.start || ''); }));
+    var body = M.rows.map(function(r){
+      return [String(r.ch)].concat(M.house ? [r.house ? r.house.l + (r.house.mic ? '\n' + r.house.mic : '') : '—'] : [])
+        .concat(r.cells.map(function(c){ return c.st === 'free' ? '—' : c.t + (c.p48 && !out ? ' (48V)' : '') + (c.mic ? '\n' + c.mic : ''); }));
+    });
+    var off = M.house ? 2 : 1;
+    doc.autoTable({ head:[head], body:body, startY:y, theme:'plain', margin:{ left:Mg, right:Mg, top:TOP, bottom:BOT },
+      styles:{ font:'helvetica', fontSize:7.5, cellPadding:1.4, textColor:K.ink, lineColor:K.line, lineWidth:0.1, valign:'middle', overflow:'linebreak' },
+      headStyles:{ fontSize:6.5, fontStyle:'bold', textColor:K.muted, fillColor:[246, 245, 242] },
+      columnStyles:{ 0:{ cellWidth:9, halign:'center', fontStyle:'bold', textColor:acc } },
+      didParseCell:function(d){
+        if(d.section !== 'body' || d.column.index < off) return;
+        var c = M.rows[d.row.index].cells[d.column.index - off]; if(!c) return;
+        if(c.st === 'same'){ d.cell.styles.textColor = [150, 150, 150]; d.cell.styles.fontStyle = 'italic'; }
+        else if(c.st === 'chg'){ d.cell.styles.fontStyle = 'bold'; d.cell.styles.fillColor = [255, 246, 214]; }
+        else if(c.st === 'free'){ d.cell.styles.textColor = [190, 190, 190]; }
+      } });
+    var n = doc.internal.getNumberOfPages();
+    for(var p = 1; p <= n; p++){ doc.setPage(p); _pdfFoot(doc, { acc:acc, pf:pf, credit:_pdfCreditFree(), creditWhat:'patch du festival', qr:null, url:'', stamp:'Fond jaune et gras : à changer · gris : identique · — : libre', page:p, pages:n }); }
+    await _pdfDeliver(doc, ((typeof _pdfSlug === 'function' && _pdfSlug(title)) || 'festival') + '-patch-festival.pdf');
+  } catch(e){ console.error('festPdf:', e); toast('Export impossible : ' + (e && e.message || e)); }
+}
+/* Lien de partage : la rubrique Festival cochée dans Partage & équipe */
+function festShare(){
+  _fsExpClose();
+  if(typeof _riderSections !== 'undefined'){ _riderSections.fest = true; _riderSections.road = true; }
+  goTab('team', null);
+  setTimeout(function(){
+    if(typeof _syncRiderBtns === 'function') _syncRiderBtns();
+    var i = document.getElementById('link-form-name'); if(i){ if(!i.value) i.value = 'Programme du festival'; i.focus(); }
+    toast('Rubriques Festival et Feuille de route cochées : créez le lien.');
+  }, 120);
+}
+
+/* ── Rider partagé : programme et patch, en lecture seule ── */
+function festSharedHtml(show, chs, esc){
+  var raw = show && show.stage_data && show.stage_data.festival;
+  if(!raw || !Array.isArray(raw.slots) || !raw.slots.length) return '<div class="sv-empty"><i class="ti ti-calendar-time"></i><b>Programme vide</b><span>Le programme du festival apparaîtra ici dès qu\'il sera préparé.</span></div>';
+  var ctx = { fest:raw, chs:chs || [], out:show.out_data || {}, patches:Array.isArray(show.il_patches) ? show.il_patches : [] };
+  return _fsWith(ctx, function(){
+    var f = _fsData(), slots = _fsSorted(f), E = _fsE, h = '';
+    var save = { day:FEST.day, io:FEST.io, mic:FEST.mic }; FEST.day = 'all'; FEST.mic = true;
+    try {
+      var days = {}, order = [];
+      slots.forEach(function(s){ if(!days[s.day]){ days[s.day] = []; order.push(s.day); } days[s.day].push(s); });
+      h += _fsNowHtml(f, false);
+      order.forEach(function(day){
+        h += '<section class="sv-card fs-sv-day"><h4><i class="ti ti-calendar-time"></i>' + E(_fsDayLbl(day)) + '</h4><ol class="fs-sv-l">';
+        days[day].forEach(function(s, i){
+          var ref = (f.cmp === 'house' && f.house && f.house !== s.pid) ? f.house : (i > 0 ? days[day][i - 1].pid : null);
+          var d = ref ? _fsDiff(ref, s.pid) : null;
+          h += '<li><b>' + E(s.start || '—') + '<small>' + E(s.end || '') + '</small></b><div><span class="fs-sv-n">' + E(_fsName(s.pid)) + '</span>'
+            + '<span class="fs-sv-m">' + _fsChs(s.pid).length + ' voie' + (_fsChs(s.pid).length > 1 ? 's' : '') + ' · ' + _fsOuts(s.pid).length + ' sortie' + (_fsOuts(s.pid).length > 1 ? 's' : '') + (s.note ? ' · ' + E(s.note) : '') + '</span>'
+            + (d ? '<details class="fs-sv-d"><summary>' + _fsDiffSum(d) + '</summary>' + _fsDiffList(d) + '</details>' : '') + '</div></li>';
+        });
+        h += '</ol></section>';
+      });
+      FEST.io = 'in';
+      h += '<section class="sv-card"><h4><i class="ti ti-table"></i>Patch du festival · entrées</h4>' + _fsGridHtml(f, slots, true) + '</section>';
+      if(Object.keys(ctx.out).length){ FEST.io = 'out'; h += '<section class="sv-card"><h4><i class="ti ti-arrow-bar-to-right"></i>Patch du festival · sorties</h4>' + _fsGridHtml(f, slots, true) + '</section>'; }
+    } finally { FEST.day = save.day; FEST.io = save.io; FEST.mic = save.mic; }
+    return h;
+  });
 }
 
 /* ── Actions ── */
@@ -571,7 +738,8 @@ function _festOvHtml(){
 }
 
 /* ── Feuille de changements à imprimer : un tableau par changement de plateau ── */
-function festPrint(){
+function festPrint(){ return _fsCached(_festPrint); }
+function _festPrint(){
   var f = _fsData(), list = _fsSorted(f), E = _fsE; if(!list.length) return;
   var body = '', lastDay = null;
   list.forEach(function(s, i){

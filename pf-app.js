@@ -2939,7 +2939,7 @@ async function processShowInvites() {
 }
 
 /* ── Rider link builder ── */
-var _riderSections={road:false,il:true,out:true,syno:true,stage:true,site:true,racks:false,rf:false,cloud:false};
+var _riderSections={road:false,il:true,out:true,syno:true,stage:true,site:true,racks:false,rf:false,fest:false,cloud:false};
 var _riderPickedFiles=new Set();
 
 /* ══════════════════════════════════════
@@ -3458,7 +3458,7 @@ function _renderLinksManager(){
     list.innerHTML='<div class="link-empty"><i class="ti ti-link-plus"></i><div><b>Aucun lien pour l\'instant</b><span>Nommez-le d\'après son destinataire&nbsp;: vous saurez toujours qui voit quoi.</span></div></div>';
     return;
   }
-  var SEC_LABELS={road:'Feuille de route',il:'Input list',out:'Output list',syno:'Synoptique',stage:'Plan de scène',site:'Plan de site',racks:'Racks',rf:'HF',cloud:'Fichiers',files:'Pièces jointes'};
+  var SEC_LABELS={road:'Feuille de route',il:'Input list',out:'Output list',syno:'Synoptique',stage:'Plan de scène',site:'Plan de site',racks:'Racks',rf:'HF',fest:'Festival',cloud:'Fichiers',files:'Pièces jointes'};
   var base=_riderBase();
   var cur=Object.keys(_riderSections).filter(function(k){return _riderSections[k];}).sort().join(',');
   list.innerHTML=_proLinks.slice().reverse().map(function(lnk){
@@ -3540,6 +3540,8 @@ function _riderSecCounts(){
   c.racks=pl((sd.racks||[]).length,'rack','racks');
   c.rf=pl(((sd.rf&&sd.rf.ch)||[]).length,'liaison','liaisons');
   var rd=sd.road; c.road=(rd&&typeof rd==='object'&&Object.keys(rd).some(function(k){ var v=rd[k]; return Array.isArray(v)?v.length:(v&&typeof v==='object'?Object.keys(v).length:!!v); }))?'remplie':'';
+  var fs=sd.festival&&Array.isArray(sd.festival.slots)?sd.festival.slots.length:0;
+  c.fest=pl(fs,'groupe','groupes');
   c.cloud='';
   return c;
 }
@@ -3552,7 +3554,7 @@ var _RIDER_PRESETS={
   backline:['il','stage','road']
 };
 function riderPreset(k){
-  var list=k==='tout'?['road','il','out','syno','stage','site','racks','rf']:_RIDER_PRESETS[k];
+  var list=k==='tout'?['road','il','out','syno','stage','site','racks','rf'].concat(canDo('multi_patches')?['fest']:[]):_RIDER_PRESETS[k];
   if(!list) return;
   Object.keys(_riderSections).forEach(function(s){ _riderSections[s]=list.indexOf(s)>=0; });
   _syncRiderBtns();
@@ -3805,7 +3807,7 @@ function selectRiderSection(key){
 }
 function _syncRiderBtns(){
   var cnt=CUR_SHOW?_riderSecCounts():{};
-  ['road','il','out','syno','stage','site','racks','rf','cloud'].forEach(function(k){
+  ['road','il','out','syno','stage','site','racks','rf','fest','cloud'].forEach(function(k){
     var btn=document.getElementById('sc-'+k);
     var empty=k!=='cloud'&&CUR_SHOW&&!cnt[k];
     if(btn)btn.className='slink-check'+(_riderSections[k]?' checked':'')+(empty?' empty':'');
@@ -3814,6 +3816,8 @@ function _syncRiderBtns(){
   });
   if(typeof _renderLinksManager==='function'&&_proLinks&&_proLinks.length) _renderLinksManager();
   /* Bouton "Fichiers cloud" visible uniquement pour les Pro */
+  var festBtn=document.getElementById('sc-fest');
+  if(festBtn) festBtn.style.display=canDo('multi_patches')?'':'none';
   var cloudBtn=document.getElementById('sc-cloud');
   if(cloudBtn) cloudBtn.style.display=canDo('storage')?'':'none';
 }
@@ -25379,7 +25383,7 @@ function _svFs(imgId, title){
           var or=_prj.data.overrideRider;
           /* La sélection du propriétaire est respectée telle quelle : un lien
              « Input List seule » (['il']) affichait auparavant TOUTES les sections. */
-          sections=(Array.isArray(or.sections)&&or.sections.length)?or.sections.filter(function(x){return ['road','il','out','syno','stage','site','racks','rf','cloud'].indexOf(x)>=0;}):['il','out','syno','stage','site'];
+          sections=(Array.isArray(or.sections)&&or.sections.length)?or.sections.filter(function(x){return ['road','il','out','syno','stage','site','racks','rf','fest','cloud'].indexOf(x)>=0;}):['il','out','syno','stage','site'];
           rTitle=or.title||'';rNote=or.note||'';rInfo=or.info||'';
           rFiles=or.files||[];
           /* Injecter les snapshots dans le preShow.stage_data.rider pour que
@@ -25403,7 +25407,7 @@ function _svFs(imgId, title){
     }
   }else{
     // Legacy ?view= URL params
-    const _VALID_SECS=new Set(['road','il','out','syno','stage','site','racks','rf','files']);
+    const _VALID_SECS=new Set(['road','il','out','syno','stage','site','racks','rf','fest','files']);
     const legacyTab=p.get('tab');
     const rawSecs=p.get('sections');
     /* Mapper le tab legacy vers la bonne section (QR codes des exports PDF) */
@@ -25426,9 +25430,9 @@ function _svFs(imgId, title){
   document.documentElement.removeAttribute('data-theme');
   var SV_LOGO='<svg width="28" height="28" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M70 60 C100 60 100 140 130 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round"/><path d="M130 60 C100 60 100 140 70 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round" opacity="0.45"/><circle cx="60" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="60" r="5" fill="#FF6B2B"/><circle cx="140" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="60" r="5" fill="#FF6B2B"/><circle cx="60" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="140" r="5" fill="#FF6B2B"/><circle cx="140" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="140" r="5" fill="#FF6B2B"/></svg>';
   var SV_LOGO_SM='<svg width="22" height="22" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M70 60 C100 60 100 140 130 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round"/><path d="M130 60 C100 60 100 140 70 140" fill="none" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round" opacity=".45"/><circle cx="60" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="60" r="5" fill="#FF6B2B"/><circle cx="140" cy="60" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="60" r="5" fill="#FF6B2B"/><circle cx="60" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="140" r="5" fill="#FF6B2B"/><circle cx="140" cy="140" r="14" fill="none" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="140" r="5" fill="#FF6B2B"/></svg>';
-  var secLabels={road:'Feuille de route',il:'Input list',out:'Output list',syno:'Synoptique',stage:'Plan de scène',site:'Plan de site',racks:'Racks',rf:'Liaisons HF',cloud:'Fichiers',files:'Pièces jointes'};
-  var secIcons={road:'ti-route',il:'ti-list-numbers',out:'ti-arrow-bar-to-right',syno:'ti-topology-star-3',stage:'ti-layout-board',site:'ti-map-2',racks:'ti-server',rf:'ti-antenna',cloud:'ti-folders',files:'ti-paperclip'};
-  var _VALID_SEC_SET=new Set(['road','il','out','syno','stage','site','racks','rf','cloud','files']);
+  var secLabels={road:'Feuille de route',il:'Input list',out:'Output list',syno:'Synoptique',stage:'Plan de scène',site:'Plan de site',racks:'Racks',rf:'Liaisons HF',fest:'Festival',cloud:'Fichiers',files:'Pièces jointes'};
+  var secIcons={road:'ti-route',il:'ti-list-numbers',out:'ti-arrow-bar-to-right',syno:'ti-topology-star-3',stage:'ti-layout-board',site:'ti-map-2',racks:'ti-server',rf:'ti-antenna',fest:'ti-calendar-time',cloud:'ti-folders',files:'ti-paperclip'};
+  var _VALID_SEC_SET=new Set(['road','il','out','syno','stage','site','racks','rf','fest','cloud','files']);
 
   /* Nettoyer les sections et rFiles :
      - uniquement les sections valides ;
@@ -26872,6 +26876,7 @@ function _svFs(imgId, title){
     else if(sec==='racks'){_paneCache.racks=_renderRacks();document.getElementById('sv-body').innerHTML=_paneCache.racks;}
     else if(sec==='rf'){document.getElementById('sv-body').innerHTML=_renderRf();}
     else if(sec==='road'){document.getElementById('sv-body').innerHTML=_renderRoad();}
+    else if(sec==='fest'){document.getElementById('sv-body').innerHTML=_showMeta+(typeof festSharedHtml==='function'?festSharedHtml(show,_chs,esc):'')+_svFoot('Festival');}
     else if(sec==='cloud'){
       _renderCloudPane(function(h){
         _paneCache.cloud=h;
