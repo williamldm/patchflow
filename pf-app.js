@@ -16900,13 +16900,16 @@ function _rkClean(list){
   return (Array.isArray(list)?list:[]).filter(function(r){ return r && typeof r==='object'; }).slice(0,30).map(function(r){
     var units=Math.round(_rkNum(r.units,1,60,12)), bays=Math.round(_rkNum(r.bays,1,3,1));
     var R={id:String(r.id||_rkId()).slice(0,24), name:String(r.name||'Rack').slice(0,60), units:units, bays:bays, depth:Math.round(_rkNum(r.depth,0,2000,0)), note:String(r.note||'').slice(0,600),
-      top:!!r.top, casters:!!r.casters,
+      top:!!r.top, casters:!!r.casters, ck:_rkNum(r.ck,0,500,0),
       items:(Array.isArray(r.items)?r.items:[]).filter(function(i){ return i && typeof i==='object'; }).slice(0,180).map(function(i){
         var h=Math.round(_rkNum(i.h,1,units,1)), kind=_rkKind(i.kind);
         var o={id:String(i.id||_rkId()).slice(0,24), n:String(i.n||'Appareil').slice(0,80), lbl:String(i.lbl||'').slice(0,40), h:h, u:Math.round(_rkNum(i.u,1,units-h+1,1)), bay:Math.round(_rkNum(i.bay,0,bays-1,0)),
                 side:i.side==='r'?'r':'f', kind:kind, grp:String(i.grp||'').slice(0,24),
                 kg:_rkNum(i.kg,0,500,0), w:Math.round(_rkNum(i.w,0,20000,0)), d:Math.round(_rkNum(i.d,0,2000,0)), note:String(i.note||'').slice(0,200)};
         if(kind==='patch') o.pp=_rkPP(i.pp,h);
+        if(i.hw==='l' || i.hw==='r') o.hw=i.hw;                                   /* demi-rack : moitié gauche ou droite, vue depuis sa face */
+        if(kind==='pdu' || kind==='ups') o.amp=_RK_AMP[i.amp]?String(i.amp):'16';  /* calibre du bandeau ou de l'onduleur */
+        if(i.pdu) o.pdu=String(i.pdu).slice(0,24);                                 /* bandeau qui l'alimente ; 'x' = hors du rack */
         return o;
       })};
     R.cables=_rkCabClean(r.cables,R.items);
@@ -16968,6 +16971,7 @@ function _rkLibClean(list){
     var h=Math.round(_rkNum(g.h,1,60,1)), kind=_rkKind(g.kind);
     var o={id:String(g.id||_rkId()).slice(0,24), n:String(g.n).trim().slice(0,80), h:h, kind:kind, kg:_rkNum(g.kg,0,500,0), w:Math.round(_rkNum(g.w,0,20000,0)), d:Math.round(_rkNum(g.d,0,2000,0))};
     if(kind==='patch') o.pp=_rkPP(g.pp,h);
+    if(g.hw==='l' || g.hw==='r') o.hw='l';
     return o;
   });
 }
@@ -16986,29 +16990,54 @@ function _rkLibSave(){
   if(typeof _pushToursSoon==='function') _pushToursSoon();
 }
 /* ── Calculs ── */
-function _rkFree(r,u,h,side,bay,skip){
+/* hw : '' pleine largeur, 'l' / 'r' demi-rack. Deux demi-racks de côtés opposés tiennent dans la même unité. */
+function _rkFree(r,u,h,side,bay,skip,hw){
   if(u<1 || u+h-1>r.units || bay<0 || bay>=(r.bays||1)) return false;
-  return !r.items.some(function(i){ return i.id!==skip && i.side===side && (i.bay||0)===bay && u<=i.u+i.h-1 && i.u<=u+h-1; });
+  return !r.items.some(function(i){ return i.id!==skip && i.side===side && (i.bay||0)===bay && u<=i.u+i.h-1 && i.u<=u+h-1 && (!hw || !i.hw || hw===i.hw); });
 }
-function _rkSlot(r,h,side,bay){
+function _rkSlot(r,h,side,bay,hw){
   var order=[]; for(var b=0;b<(r.bays||1);b++) order.push(b);
   if(bay!=null) order.sort(function(a,c){ return (a===bay?-1:0)-(c===bay?-1:0); });
-  for(var k=0;k<order.length;k++) for(var u=r.units-h+1;u>=1;u--){ if(_rkFree(r,u,h,side,order[k],null)) return {u:u,bay:order[k]}; }
+  var halves=hw?(hw==='r'?['r','l']:['l','r']):[''];
+  for(var k=0;k<order.length;k++) for(var u=r.units-h+1;u>=1;u--) for(var x=0;x<halves.length;x++){ if(_rkFree(r,u,h,side,order[k],null,halves[x])) return {u:u,bay:order[k],hw:halves[x]}; }
   return null;
 }
 function _rkDepth(r){ return r.depth || Math.max(600, r.items.reduce(function(m,i){ return Math.max(m,i.d||0); },0)); }
+/* Calibres : [ampères, phases]. La capacité d'un bandeau est ampères × phases × 230 V. */
+const _RK_AMP={'10':[10,1],'16':[16,1],'32':[32,1],'16t':[16,3],'32t':[32,3]};
+function _rkAmpLbl(a){ var x=_RK_AMP[a]||_RK_AMP['16']; return x[1]>1?'3 × '+x[0]+' A tri':x[0]+' A mono'; }
+function _rkFeeders(r){ return r.items.filter(function(i){ return i.kind==='pdu' || i.kind==='ups'; }); }
+/* Ce qui alimente un appareil : son choix explicite, sinon un câble secteur vers un bandeau, sinon le seul bandeau du rack.
+   Renvoie l'id du bandeau, 'x' (alimenté hors du rack) ou '' (à attribuer). */
+function _rkFeedOf(r,i,F){
+  var ok=function(id){ return id!==i.id && F.some(function(f){ return f.id===id; }); };
+  if(i.pdu==='x') return 'x';
+  if(i.pdu && ok(i.pdu)) return i.pdu;
+  var c=(r.cables||[]).filter(function(c){ return c.t==='pwr' && c.b && (c.a===i.id || c.b===i.id); }).map(function(c){ return c.a===i.id?c.b:c.a; }).filter(ok)[0];
+  if(c) return c;
+  var others=F.filter(function(f){ return f.id!==i.id; });
+  return (others.length===1 && !(i.kind==='pdu' && others[0].kind==='pdu')) ? others[0].id : '';
+}
+/* Charge de chaque bandeau (un onduleur branché sur un bandeau lui reporte sa charge) et appareils sans bandeau */
+function _rkPower(r){
+  var F=_rkFeeders(r), by={}, loose=0, nl=0;
+  F.forEach(function(f){ var a=_RK_AMP[f.amp]||_RK_AMP['16']; by[f.id]={it:f, load:0, n:0, cap:a[0]*a[1]*230}; });
+  r.items.forEach(function(i){ if(by[i.id] || !i.w) return; var to=_rkFeedOf(r,i,F); if(by[to]){ by[to].load+=i.w; by[to].n++; } else if(to!=='x'){ loose+=i.w; nl++; } });
+  F.forEach(function(f){ var to=_rkFeedOf(r,f,F); if(by[to] && to!==f.id){ by[to].load+=by[f.id].load+(f.w||0); by[to].n++; by[f.id].up=to; } });
+  return {list:F.map(function(f){ return by[f.id]; }), loose:loose, nl:nl};
+}
 function _rkStats(r){
-  var occ={}, kg=0, w=0, clash=[];
+  var occ={}, kg=r.ck||0, w=0, clash=[];
   r.items.forEach(function(i){ kg+=i.kg||0; w+=i.w||0; if(i.side==='f') for(var u=i.u;u<i.u+i.h;u++) occ[(i.bay||0)+':'+u]=1; });
   /* Deux appareils dos à dos, même baie, mêmes unités : leurs profondeurs ne doivent pas dépasser celle du rack */
   if(r.depth) r.items.filter(function(i){ return i.side==='f' && i.d; }).forEach(function(f){
     r.items.filter(function(b){ return b.side==='r' && b.d && (b.bay||0)===(f.bay||0) && f.u<=b.u+b.h-1 && b.u<=f.u+f.h-1; }).forEach(function(b){ if(f.d+b.d>r.depth) clash.push([f,b]); });
   });
   var deep=r.depth?r.items.filter(function(i){ return i.d>r.depth; }):[];
-  return {n:r.items.length, used:Object.keys(occ).length, total:r.units*(r.bays||1), kg:kg, w:w, a:w/230, clash:clash, deep:deep};
+  return {n:r.items.length, used:Object.keys(occ).length, total:r.units*(r.bays||1), kg:kg, ck:r.ck||0, w:w, a:w/230, clash:clash, deep:deep};
 }
 function _rkULabel(r,u){ return r.top ? r.units-u+1 : u; }
-function _rkPos(r,i){ var a=_rkULabel(r,i.u), b=_rkULabel(r,i.u+i.h-1); return 'U'+Math.min(a,b)+(i.h>1?'–'+Math.max(a,b):''); }
+function _rkPos(r,i){ var a=_rkULabel(r,i.u), b=_rkULabel(r,i.u+i.h-1); return 'U'+Math.min(a,b)+(i.h>1?'–'+Math.max(a,b):'')+(i.hw?' ½ '+(i.hw==='l'?'gauche':'droite'):''); }
 /* ── Dessin ──
    P : la palette. À l'écran ce sont des variables CSS (le dessin suit le thème) ; pour le PDF, des couleurs fixes. */
 const _RK_PAL_PDF={ink:'#1c2433', line:'#b9c0cb', fill:'#f6f7f9', bg:'#ffffff', txt:'#1c2433', mut:'#7a8494', acc:'#ff6b1a', err:'#e11d48', cs:'#e9ecf1'};
@@ -17119,7 +17148,7 @@ function _rkNameBox(it,o,w,ear){ var p=(o.rsv&&o.rsv[it.id])||[0,0], a=(ear==nul
 /* Bloc d'un appareil dans le schéma de câblage. back : monté à l'avant, on voit son dos (contour en pointillé).
    Les appareils de la face arrière gardent leur dessin tant que la baie n'est pas dédoublée. */
 function _rkBackSvg(r,it,x,y,P,o,w,ear,back,tag){
-  var h=it.h*RK_UH, g=_rkGroup(it.grp), E=_bonE, sel=o.sel===it.id||o.link===it.id, name=it.lbl||it.n, nb=_rkNameBox(it,o,w,ear);
+  var h=it.h*RK_UH, g=_rkGroup(it.grp), E=_bonE, sel=o.sel===it.id||o.link===it.id, name=it.lbl||(it.hw?it.n.replace(/\s*\(demi-rack\)/i,''):it.n), nb=_rkNameBox(it,o,w,ear);
   var max=Math.max(5,Math.floor((nb[1]-(tag?46:0))/6.5)), txt=name.length>max?name.slice(0,max-1)+'…':name;
   var s='<g class="rk-dev'+(back?' rk-back':'')+(sel?' on':'')+'" data-id="'+E(it.id)+'" transform="translate('+x+' '+y+')"'+(o.edit?' onpointerdown="rkDown(event,this.dataset.id)"':'')+'><title>'+E(it.n+(it.lbl?' — '+it.lbl:'')+' · '+_rkPos(r,it)+(back?' · monté à l\'avant, vu de dos':' · monté à l\'arrière'))+'</title>';
   s+='<rect x="0.5" y="0.5" width="'+(w-1)+'" height="'+(h-1)+'" rx="2.5" fill="'+P.fill+'" stroke="'+(sel?P.acc:P.ink)+'" stroke-width="'+(sel?2.2:1)+'"'+(back?' stroke-dasharray="7 3"':'')+'/>';
@@ -17129,8 +17158,8 @@ function _rkBackSvg(r,it,x,y,P,o,w,ear,back,tag){
   return s+'</g>';
 }
 /* Un appareil dans le rack : plaque, oreilles et vis, façade, bande de groupe, nom */
-function _rkDevSvg(r,it,x,y,P,o){
-  var w=RK_BW, h=it.h*RK_UH, g=_rkGroup(it.grp), col=g?g.color:'', E=_bonE, sel=o.sel===it.id||o.link===it.id, name=it.lbl||it.n, nb=_rkNameBox(it,o), nx=nb[0];
+function _rkDevSvg(r,it,x,y,P,o,wd){
+  var w=wd||RK_BW, h=it.h*RK_UH, g=_rkGroup(it.grp), col=g?g.color:'', E=_bonE, sel=o.sel===it.id||o.link===it.id, name=it.lbl||(it.hw?it.n.replace(/\s*\(demi-rack\)/i,''):it.n), nb=_rkNameBox(it,o,wd), nx=nb[0];
   var s='<g class="rk-dev'+(sel?' on':'')+'" data-id="'+E(it.id)+'" transform="translate('+x+' '+y+')"'+(o.edit?' onpointerdown="rkDown(event,this.dataset.id)"':'')+'><title>'+E(it.n+(it.lbl?' — '+it.lbl:'')+' · '+_rkPos(r,it))+'</title>';
   s+='<rect x="0.5" y="0.5" width="'+(w-1)+'" height="'+(h-1)+'" rx="2.5" fill="'+P.fill+'" stroke="'+(sel?P.acc:P.ink)+'" stroke-width="'+(sel?2.2:1.1)+'"/>';
   if(col && RK_OPT.grp) s+='<rect x="1" y="1" width="'+(w-2)+'" height="'+(h-2)+'" rx="2" fill="'+col+'" opacity=".13"/>';
@@ -17158,7 +17187,9 @@ function _rkSvg(r,view,P,o){
   var L=wired?plan:{split:false, CW:RK_BW, ear:RK_EAR, LZ:0, EL:0, ER:0, wires:[]}, CW=L.CW, Bw=L.EL+CW+L.LZ+(L.split?CW:0)+L.ER, iw=bays*Bw+(bays-1)*RK_GAP;
   var W=num+cs*2+iw+(num?4:0), H=cs*2+ih+(r.casters&&RK_OPT.frame?44:0), ox=num+cs, oy=cs, s='';
   var bx=function(b){ return ox+(view==='r'?bays-1-b:b)*(Bw+RK_GAP); }, uy=function(u,h){ return oy+(r.units-(u+h-1))*RK_UH; };
-  var dx=function(i){ return bx(i.bay||0)+L.EL+((L.split && i.side===view)?CW+L.LZ:0); };            /* x de l'appareil */
+  var dx=function(i){ return bx(i.bay||0)+L.EL+((L.split && i.side===view)?CW+L.LZ:0); };            /* x de la colonne de l'appareil */
+  /* Demi-rack : moitié gauche ou droite vue depuis sa face ; vu de l'autre face, les côtés s'inversent */
+  var hwd=function(i){ return i.hw?CW/2:CW; }, hx=function(i){ if(!i.hw) return 0; var right=i.hw==='r'; if(i.side!==view) right=!right; return right?CW/2:0; };
   if(RK_OPT.frame){
     s+='<rect x="'+(num+1)+'" y="1" width="'+(iw+cs*2-2)+'" height="'+(ih+cs*2-2)+'" rx="5" fill="'+P.cs+'" stroke="'+P.ink+'" stroke-width="1.6"/>';
     [[num+1,1],[num+iw+cs*2-13,1],[num+1,ih+cs*2-13],[num+iw+cs*2-13,ih+cs*2-13]].forEach(function(c){ s+='<rect x="'+c[0]+'" y="'+c[1]+'" width="12" height="12" rx="3" fill="'+P.cs+'" stroke="'+P.ink+'" stroke-width="1.2"/>'; });
@@ -17178,13 +17209,13 @@ function _rkSvg(r,view,P,o){
   if(num) for(var n=1;n<=r.units;n++) s+='<text x="'+(num-6)+'" y="'+(uy(n,1)+RK_UH/2+3.6)+'" text-anchor="end" font-size="10.5"'+F+' fill="'+P.mut+'">'+_rkULabel(r,n)+'</text>';
   var o2=wired?Object.assign({},o,{rsv:plan.rsv}):o;
   /* Câblée, la vue arrière montre le dos des appareils montés à l'avant ; sinon leur simple empreinte */
-  if(wired) r.items.filter(function(i){ return i.side!==view; }).forEach(function(i){ s+=_rkBackSvg(r,i,dx(i),uy(i.u,i.h),P,o2,CW,L.ear,true,!L.split); });
+  if(wired) r.items.filter(function(i){ return i.side!==view; }).forEach(function(i){ s+=_rkBackSvg(r,i,dx(i)+hx(i),uy(i.u,i.h),P,o2,hwd(i),L.ear,true,!L.split && !i.hw); });
   else if(RK_OPT.ghost) r.items.filter(function(i){ return i.side!==view; }).forEach(function(i){
-    var gx=dx(i), gy=uy(i.u,i.h), gh=i.h*RK_UH;
-    s+='<g class="rk-ghost" opacity=".55"><rect x="'+(gx+4)+'" y="'+(gy+3)+'" width="'+(RK_BW-8)+'" height="'+(gh-6)+'" rx="3" fill="none" stroke="'+P.mut+'" stroke-width="1" stroke-dasharray="5 4"/>'
-      +'<text x="'+(gx+RK_BW/2)+'" y="'+(gy+gh/2+3.5)+'" text-anchor="middle" font-size="10" font-style="italic"'+F+' fill="'+P.mut+'">'+E((i.lbl||i.n).slice(0,34))+' ('+(view==='f'?'arrière':'avant')+')</text></g>';
+    var gx=dx(i)+hx(i), gy=uy(i.u,i.h), gh=i.h*RK_UH, gw=i.hw?RK_BW/2:RK_BW;
+    s+='<g class="rk-ghost" opacity=".55"><rect x="'+(gx+4)+'" y="'+(gy+3)+'" width="'+(gw-8)+'" height="'+(gh-6)+'" rx="3" fill="none" stroke="'+P.mut+'" stroke-width="1" stroke-dasharray="5 4"/>'
+      +'<text x="'+(gx+gw/2)+'" y="'+(gy+gh/2+3.5)+'" text-anchor="middle" font-size="10" font-style="italic"'+F+' fill="'+P.mut+'">'+E((i.lbl||i.n).slice(0,i.hw?16:34))+' ('+(view==='f'?'arrière':'avant')+')</text></g>';
   });
-  r.items.filter(function(i){ return i.side===view; }).forEach(function(i){ s+=L.split?_rkBackSvg(r,i,dx(i),uy(i.u,i.h),P,o2,CW,L.ear,false):_rkDevSvg(r,i,dx(i),uy(i.u,i.h),P,o2); });
+  r.items.filter(function(i){ return i.side===view; }).forEach(function(i){ s+=L.split?_rkBackSvg(r,i,dx(i)+hx(i),uy(i.u,i.h),P,o2,hwd(i),L.ear,false):_rkDevSvg(r,i,dx(i)+hx(i),uy(i.u,i.h),P,o2,i.hw?hwd(i):0); });
   if(wired){
     /* Bout de câble : point sur le bord de l'appareil, étiquette juste à l'intérieur quand elle a la place */
     var end=function(x,y,side,txt,show,off,col){
@@ -17201,7 +17232,7 @@ function _rkSvg(r,view,P,o){
         d='M'+ax+' '+ay+'H'+ex;
         x='<path d="M'+ex+' '+(ay-3.6)+'l'+(dir*6.5)+' 3.6l'+(-dir*6.5)+' 3.6z" fill="'+col+'"/><text x="'+(ex+dir*10)+'" y="'+(ay+3.1)+'" text-anchor="'+(dir>0?'start':'end')+'" font-size="9" font-weight="700"'+F+' fill="'+P.txt+'">'+E(c.bp||'Hors du rack')+'</text>';
       } else {
-        var ex2=dx(w.B)+(w.sb==='R'?CW:0), ey=oy+w.yb;
+        var ex2=dx(w.B)+(w.sb==='R'?CW:0), ey=oy+w.yb;      /* demi-rack compris : le câble part du bord du rack, à hauteur de l'appareil */
         d=_rkCabPath(ax,ay,bx(w.zone)+L.EL+CW+14+w.lane*L.LW,ey,ex2);
         x=end(ex2,ey,w.sb,_rkCabLbl(c,'b'),w.lb,w.ob,col);
       }
@@ -17323,6 +17354,7 @@ function rkRack(f,v){
   if(f==='name') r.name=String(v||'').trim().slice(0,60)||'Rack';
   else if(f==='note') r.note=String(v||'').slice(0,600);
   else if(f==='depth') r.depth=Math.round(_rkNum(v,0,2000,0));
+  else if(f==='ck') r.ck=_rkNum(v,0,500,0);
   else if(f==='top' || f==='casters') r[f]=!!v;
   else if(f==='units'){
     var n=Math.round(_rkNum(v,1,60,r.units)), top=r.items.reduce(function(m,i){ return Math.max(m,i.u+i.h-1); },0);
@@ -17376,10 +17408,13 @@ function rkAdd(src,idx,sub){
   var r=_rkCur(); if(!r){ toast('Créez d\'abord un rack.'); return; }
   var g=src==='lib' ? (RK_LIB||[])[idx] : src==='show' ? (RK.need||[])[idx] : _rkCatGear(idx,sub);
   if(!g) return;
-  var side=RK.view==='r'?'r':'f', h=Math.min(g.h||1,r.units), cur=_rkItem(RK.sel), at=_rkSlot(r,h,side,cur?cur.bay:(RK.view==='s'?RK.cut:null));
+  var hw=g.hw||(/demi-rack/i.test(g.n)?'l':'');
+  var side=RK.view==='r'?'r':'f', h=Math.min(g.h||1,r.units), cur=_rkItem(RK.sel), at=_rkSlot(r,h,side,cur?cur.bay:(RK.view==='s'?RK.cut:null),hw);
   if(!at){ toast('Plus de place en face '+(side==='r'?'arrière':'avant')+' pour '+h+' U. Agrandissez le rack ou libérez des unités.'); return; }
   var it={id:_rkId(), n:g.n, lbl:'', h:h, u:at.u, bay:at.bay, side:side, kind:_rkKind(g.kind), grp:'', kg:g.kg||0, w:g.w||0, d:g.d||0, note:''};
   if(it.kind==='patch') it.pp=_rkPP(g.pp,h);
+  if(at.hw) it.hw=at.hw;
+  if(it.kind==='pdu' || it.kind==='ups') it.amp='16';
   r.items.push(it); RK.sel=it.id; _rkSave(); renderRacks();
 }
 function rkSel(id){ RK.sel=RK.sel===id?null:id; RK.cab=null; renderRacks(); }
@@ -17396,21 +17431,27 @@ function rkSet(f,v){
   else if(f==='kind'){ it.kind=_rkKind(v); if(it.kind==='patch') it.pp=_rkPP(it.pp,it.h); else delete it.pp; }
   else if(f==='h'){
     var h=Math.round(_rkNum(v,1,r.units,it.h));
-    if(_rkFree(r,it.u,h,it.side,it.bay,it.id)) it.h=h;
-    else { var at=_rkSlot(others,h,it.side,it.bay); if(at){ it.h=h; it.u=at.u; it.bay=at.bay; toast('Appareil déplacé pour tenir sur '+h+' U.'); } else toast('Pas assez de place pour '+h+' U sur cette face.'); }
+    if(_rkFree(r,it.u,h,it.side,it.bay,it.id,it.hw)) it.h=h;
+    else { var at=_rkSlot(others,h,it.side,it.bay,it.hw); if(at){ it.h=h; it.u=at.u; it.bay=at.bay; if(it.hw) it.hw=at.hw; toast('Appareil déplacé pour tenir sur '+h+' U.'); } else toast('Pas assez de place pour '+h+' U sur cette face.'); }
     if(it.pp) it.pp=_rkPP(it.pp,it.h);
   }
-  else if(f==='u'){ var nu=Math.round(_rkNum(v,1,r.units,_rkULabel(r,it.u))); if(r.top) nu=r.units-nu+1-(it.h-1); if(_rkFree(r,nu,it.h,it.side,it.bay,it.id)) it.u=nu; else toast('Cet emplacement est déjà pris.'); }
-  else if(f==='bay'){ var nb=Math.round(_rkNum(v,0,(r.bays||1)-1,it.bay)); if(_rkFree(r,it.u,it.h,it.side,nb,it.id)) it.bay=nb; else { var a2=_rkSlot(others,it.h,it.side,nb); if(a2 && a2.bay===nb){ it.bay=nb; it.u=a2.u; } else toast('Pas de place dans cette baie.'); } }
-  else if(f==='side'){ var s=v==='r'?'r':'f'; if(s!==it.side){ if(_rkFree(r,it.u,it.h,s,it.bay,it.id)) it.side=s; else { var a3=_rkSlot(others,it.h,s,it.bay); if(a3){ it.side=s; it.u=a3.u; it.bay=a3.bay; } else toast('Pas de place sur l\'autre face.'); } if(RK.view!=='s') RK.view=it.side; } }
+  else if(f==='u'){ var nu=Math.round(_rkNum(v,1,r.units,_rkULabel(r,it.u))); if(r.top) nu=r.units-nu+1-(it.h-1); if(_rkFree(r,nu,it.h,it.side,it.bay,it.id,it.hw)) it.u=nu; else toast('Cet emplacement est déjà pris.'); }
+  else if(f==='bay'){ var nb=Math.round(_rkNum(v,0,(r.bays||1)-1,it.bay)); if(_rkFree(r,it.u,it.h,it.side,nb,it.id,it.hw)) it.bay=nb; else { var a2=_rkSlot(others,it.h,it.side,nb,it.hw); if(a2 && a2.bay===nb){ it.bay=nb; it.u=a2.u; if(it.hw) it.hw=a2.hw; } else toast('Pas de place dans cette baie.'); } }
+  else if(f==='hw'){ var w2=(v==='l'||v==='r')?v:'';
+    if(w2===(it.hw||'')){}
+    else if(_rkFree(r,it.u,it.h,it.side,it.bay,it.id,w2)){ if(w2) it.hw=w2; else delete it.hw; }
+    else { var a4=_rkSlot(others,it.h,it.side,it.bay,w2); if(a4){ it.u=a4.u; it.bay=a4.bay; if(w2) it.hw=a4.hw; else delete it.hw; toast('Appareil déplacé : sa place est prise sur cette largeur.'); } else toast('Pas de place pour cette largeur sur cette face.'); } }
+  else if(f==='amp'){ if(_RK_AMP[v]) it.amp=String(v); }
+  else if(f==='pdu'){ if(v) it.pdu=String(v).slice(0,24); else delete it.pdu; }
+  else if(f==='side'){ var s=v==='r'?'r':'f'; if(s!==it.side){ if(_rkFree(r,it.u,it.h,s,it.bay,it.id,it.hw)) it.side=s; else { var a3=_rkSlot(others,it.h,s,it.bay,it.hw); if(a3){ if(it.hw) it.hw=a3.hw; it.side=s; it.u=a3.u; it.bay=a3.bay; } else toast('Pas de place sur l\'autre face.'); } if(RK.view!=='s') RK.view=it.side; } }
   _rkSave(); renderRacks();
 }
-function rkMove(d){ var r=_rkCur(), it=_rkItem(RK.sel); if(!r||!it) return; var u=it.u+d; while(u>=1 && u+it.h-1<=r.units){ if(_rkFree(r,u,it.h,it.side,it.bay,it.id)){ it.u=u; _rkSave(); renderRacks(); return; } u+=d; } toast(d>0?'Plus de place au-dessus.':'Plus de place en dessous.'); }
+function rkMove(d){ var r=_rkCur(), it=_rkItem(RK.sel); if(!r||!it) return; var u=it.u+d; while(u>=1 && u+it.h-1<=r.units){ if(_rkFree(r,u,it.h,it.side,it.bay,it.id,it.hw)){ it.u=u; _rkSave(); renderRacks(); return; } u+=d; } toast(d>0?'Plus de place au-dessus.':'Plus de place en dessous.'); }
 function rkRemove(){ var r=_rkCur(); if(!r||!RK.sel) return; r.items=r.items.filter(function(i){ return i.id!==RK.sel; }); RK.sel=null; _rkSave(); renderRacks(); }
 function rkClone(){
   var r=_rkCur(), it=_rkItem(RK.sel); if(!r||!it) return;
-  var at=_rkSlot(r,it.h,it.side,it.bay); if(!at){ toast('Plus de place pour une copie sur cette face.'); return; }
-  var c=JSON.parse(JSON.stringify(it)); c.id=_rkId(); c.u=at.u; c.bay=at.bay; r.items.push(c); RK.sel=c.id; _rkSave(); renderRacks();
+  var at=_rkSlot(r,it.h,it.side,it.bay,it.hw); if(!at){ toast('Plus de place pour une copie sur cette face.'); return; }
+  var c=JSON.parse(JSON.stringify(it)); c.id=_rkId(); c.u=at.u; c.bay=at.bay; if(c.hw) c.hw=at.hw; delete c.pdu; r.items.push(c); RK.sel=c.id; _rkSave(); renderRacks();
 }
 /* Glisser un appareil : il s'aimante aux unités et aux baies, et ne passe pas à travers les autres */
 function rkDown(ev,id){
@@ -17422,7 +17463,7 @@ function rkDown(ev,id){
   var mv=function(e){
     var nu=Math.max(1,Math.min(r.units-it.h+1,u0+Math.round((y0-e.clientY)/(RK_UH*k))));
     var nb=Math.max(0,Math.min((r.bays||1)-1,b0+dir*Math.round((e.clientX-x0)/(pitch*k))));
-    if((nu!==it.u || nb!==it.bay) && _rkFree(r,nu,it.h,it.side,nb,it.id)){ it.u=nu; it.bay=nb; moved=true; el.setAttribute('transform','translate('+(bx0+dir*(nb-b0)*pitch)+' '+(by0-(nu-u0)*RK_UH)+')'); el.classList.add('drag'); }
+    if((nu!==it.u || nb!==it.bay) && _rkFree(r,nu,it.h,it.side,nb,it.id,it.hw)){ it.u=nu; it.bay=nb; moved=true; el.setAttribute('transform','translate('+(bx0+dir*(nb-b0)*pitch)+' '+(by0-(nu-u0)*RK_UH)+')'); el.classList.add('drag'); }
   };
   var up=function(){
     el.removeEventListener('pointermove',mv); el.removeEventListener('pointerup',up); el.removeEventListener('pointercancel',up);
@@ -17499,7 +17540,7 @@ function rkPP(ri,f,v){
 function rkPPAdd(){
   var r=_rkCur(), it=_rkItem(RK.sel); if(!r||!it||it.kind!=='patch') return;
   var rows=_rkPP(it.pp,it.h).rows;
-  if(rows.length>=it.h){ if(!_rkFree(r,it.u,it.h+1,it.side,it.bay,it.id) && !_rkFree(r,it.u-1,it.h+1,it.side,it.bay,it.id)){ toast('Une rangée de plus demande une unité de plus : libérez de la place au-dessus ou en dessous.'); return; } if(!_rkFree(r,it.u,it.h+1,it.side,it.bay,it.id)) it.u-=1; it.h+=1; }
+  if(rows.length>=it.h){ if(!_rkFree(r,it.u,it.h+1,it.side,it.bay,it.id,it.hw) && !_rkFree(r,it.u-1,it.h+1,it.side,it.bay,it.id,it.hw)){ toast('Une rangée de plus demande une unité de plus : libérez de la place au-dessus ou en dessous.'); return; } if(!_rkFree(r,it.u,it.h+1,it.side,it.bay,it.id,it.hw)) it.u-=1; it.h+=1; }
   var last=rows[rows.length-1]; rows.push({t:last.t,n:last.n,p:last.p,s:last.s+last.n}); it.pp=_rkPP({rows:rows},it.h); _rkSave(); renderRacks();
 }
 function rkPPDel(ri){ var it=_rkItem(RK.sel); if(!it||!it.pp||it.pp.rows.length<2) return; it.pp.rows.splice(ri,1); _rkSave(); renderRacks(); }
@@ -17520,7 +17561,7 @@ function rkGearSave(){
 function rkGearKeep(){
   var it=_rkItem(RK.sel); if(!it) return;
   if(RK_LIB===null) RK_LIB=_rkLibLocal();
-  var fresh=_rkLibClean([{n:it.n, h:it.h, kind:it.kind, kg:it.kg, w:it.w, d:it.d, pp:it.pp}])[0], at=-1;
+  var fresh=_rkLibClean([{n:it.n, h:it.h, kind:it.kind, kg:it.kg, w:it.w, d:it.d, pp:it.pp, hw:it.hw}])[0], at=-1;
   RK_LIB.forEach(function(g,i){ if(g.n.toLowerCase()===it.n.toLowerCase()) at=i; });
   if(at>=0){ fresh.id=RK_LIB[at].id; RK_LIB[at]=fresh; toast('✓ « '+it.n+' » mis à jour dans votre matériel'); }
   else { if(RK_LIB.length>=planLimit('max_gear')){ showUpgradeModal('max_gear'); return; } RK_LIB.unshift(fresh); toast('✓ « '+it.n+' » enregistré dans votre matériel'); }
@@ -17614,6 +17655,12 @@ function _rkLibHtml(){
   if(q && !any) h+='<div class="rk-lib-none">Rien ne correspond. Créez ce matériel avec le bouton « Créer ».</div>';
   return h;
 }
+function _rkFeedSel(r,it,F){
+  var E=_bonE, auto=_rkFeedOf(r,Object.assign({},it,{pdu:''}),F), af=F.filter(function(f){ return f.id===auto; })[0];
+  return '<select class="set-inp" onchange="rkSet(\'pdu\',this.value)"><option value="">'+(af?'Automatique ('+E(af.lbl||af.n)+')':'À choisir')+'</option>'
+    +F.filter(function(f){ return f.id!==it.id; }).map(function(f){ return '<option value="'+E(f.id)+'"'+(it.pdu===f.id?' selected':'')+'>'+E(f.lbl||f.n)+' · '+_rkPos(r,f)+'</option>'; }).join('')
+    +'<option value="x"'+(it.pdu==='x'?' selected':'')+'>Hors du rack</option></select>';
+}
 function _rkInspHtml(r,it){
   var E=_bonE;
   if(!it) return '<div class="rk-hint"><i class="ti ti-hand-click"></i><b>Ajoutez un appareil</b><span>Cliquez un matériel de la bibliothèque : il se place dans le premier emplacement libre, en partant du haut. Glissez-le ensuite à sa place, ou cliquez-le pour le régler.</span></div>';
@@ -17625,7 +17672,16 @@ function _rkInspHtml(r,it){
     +'<div class="rk-form-g"><label><span>Hauteur (U)</span><input class="set-inp" type="number" min="1" max="'+r.units+'" value="'+it.h+'" onchange="rkSet(\'h\',this.value)"></label>'
     +'<label><span>Face</span><select class="set-inp" onchange="rkSet(\'side\',this.value)"><option value="f"'+(it.side==='f'?' selected':'')+'>Avant</option><option value="r"'+(it.side==='r'?' selected':'')+'>Arrière</option></select></label>'
     +((r.bays||1)>1?'<label><span>Baie</span><select class="set-inp" onchange="rkSet(\'bay\',this.value)">'+[0,1,2].slice(0,r.bays).map(function(b){ return '<option value="'+b+'"'+(it.bay===b?' selected':'')+'>Baie '+(b+1)+'</option>'; }).join('')+'</select></label>':'')
+    +'<label><span>Largeur</span><select class="set-inp" onchange="rkSet(\'hw\',this.value)" title="Un demi-rack occupe la moitié de l\'unité : deux tiennent côte à côte"><option value="">Pleine</option><option value="l"'+(it.hw==='l'?' selected':'')+'>½ gauche</option><option value="r"'+(it.hw==='r'?' selected':'')+'>½ droite</option></select></label>'
     +(RK.groups.length?grp:'')+'</div>';
+  /* Alimentation : calibre d'un bandeau (ou onduleur) et sa charge ; pour les autres appareils, le bandeau qui les alimente */
+  var F=_rkFeeders(r);
+  if(it.kind==='pdu' || it.kind==='ups'){
+    var pw=_rkPower(r).list.filter(function(x){ return x.it.id===it.id; })[0], pct=pw&&pw.cap?pw.load/pw.cap:0;
+    h+='<div class="rk-form-g"><label><span>Calibre</span><select class="set-inp" onchange="rkSet(\'amp\',this.value)">'+Object.keys(_RK_AMP).map(function(a){ return '<option value="'+a+'"'+((it.amp||'16')===a?' selected':'')+'>'+_rkAmpLbl(a)+'</option>'; }).join('')+'</select></label>'
+      +(F.length>1?'<label><span>Branché sur</span>'+_rkFeedSel(r,it,F)+'</label>':'')+'</div>'
+      +(pw?'<div class="rk-load'+(pct>1?' over':pct>0.8?' warn':'')+'"><div><b>'+pw.load.toLocaleString('fr-FR')+' W</b> sur '+pw.cap.toLocaleString('fr-FR')+' W · '+pw.n+' appareil'+(pw.n>1?'s':'')+'</div><i style="width:'+Math.min(100,Math.round(pct*100))+'%"></i></div>':'');
+  } else if(F.length) h+='<label class="set-fld"><span>Alimenté par</span>'+_rkFeedSel(r,it,F)+'</label>';
   if(it.kind==='patch'){
     h+='<div class="bon-lbl">Connecteurs du panneau</div>';
     _rkPP(it.pp,it.h).rows.forEach(function(row,ri){
@@ -17689,6 +17745,10 @@ function renderRacks(){
   h+='<div class="rk-tabs">'+RK.racks.map(function(x){ return '<button type="button" class="'+(x.id===r.id?'on':'')+'" data-id="'+E(x.id)+'" onclick="rkPick(this.dataset.id)">'+E(x.name)+'<span>'+x.units+' U'+((x.bays||1)>1?' × '+x.bays:'')+'</span></button>'; }).join('')
     +'<div class="rk-dd rk-dd-new"><button type="button" class="add'+(RK.menu==='new'?' on':'')+'" onclick="rkMenu(\'new\')" title="Nouveau rack : vide ou depuis un modèle" aria-expanded="'+(RK.menu==='new')+'"><i class="ti ti-plus"></i>Rack<i class="ti ti-chevron-down rk-dd-c"></i></button>'
     +(RK.menu==='new'?'<div class="rk-dd-p l">'+_rkTplMenuHtml()+'</div>':'')+'</div></div>';
+  if(RK.racks.length>1){
+    var fl=RK.racks.reduce(function(t,x){ var q=_rkStats(x); t.kg+=q.kg; t.w+=q.w; t.u+=x.units; t.nc+=x.ck?1:0; return t; },{kg:0,w:0,u:0,nc:0});
+    h+='<div class="rk-fleet"><i class="ti ti-truck"></i><b>Tous les racks</b><span>'+RK.racks.length+' racks · '+fl.u+' U</span><span>'+(fl.kg?_rkFmt(fl.kg,'kg')+' à charger':'poids non renseigné')+(fl.kg && fl.nc<RK.racks.length?' (case non compté pour '+(RK.racks.length-fl.nc)+')':'')+'</span><span>'+(fl.w?fl.w.toLocaleString('fr-FR')+' W · '+(Math.round(fl.w/23)/10).toLocaleString('fr-FR')+' A':'conso non renseignée')+'</span></div>';
+  }
   h+='<div class="rk-wrap"><aside class="rk-lib"><div class="adm-search"><i class="ti ti-search"></i><input type="search" placeholder="Chercher un matériel" value="'+E(RK.q)+'" oninput="rkSearch(this.value)" autocomplete="off"></div><div id="rk-lib-list">'+_rkLibHtml()+'</div></aside>';
   var ck=function(k,l,t){ return '<label class="rk-ck" title="'+t+'"><input type="checkbox" class="cb"'+(RK_OPT[k]?' checked':'')+' onchange="rkOpt(\''+k+'\',this.checked)">'+l+'</label>'; };
   var dd=function(k,icon,l,body){ return '<div class="rk-dd"><button type="button" class="btn sm'+(RK.menu===k?' on':'')+'" onclick="rkMenu(\''+k+'\')" aria-expanded="'+(RK.menu===k?'true':'false')+'"><i class="ti '+icon+'"></i>'+l+'<i class="ti ti-chevron-down rk-dd-c"></i></button>'+(RK.menu===k?'<div class="rk-dd-p">'+body+'</div>':'')+'</div>'; };
@@ -17696,7 +17756,8 @@ function renderRacks(){
     +'<label class="rk-mini"><span>Hauteur</span><input class="set-inp" type="number" min="1" max="60" value="'+r.units+'" onchange="rkRack(\'units\',this.value)"><em>U</em></label>'
     +dd('rack','ti-settings','Rack',
       '<div class="rk-dd-f"><label><span>Baies côte à côte</span><select class="set-inp" onchange="rkRack(\'bays\',this.value)">'+[1,2,3].map(function(n){ return '<option'+(bays===n?' selected':'')+'>'+n+'</option>'; }).join('')+'</select></label>'
-      +'<label><span>Profondeur (mm)</span><input class="set-inp" type="number" min="0" max="2000" step="10" value="'+(r.depth||'')+'" placeholder="—" onchange="rkRack(\'depth\',this.value)"></label></div>'
+      +'<label><span>Profondeur (mm)</span><input class="set-inp" type="number" min="0" max="2000" step="10" value="'+(r.depth||'')+'" placeholder="—" onchange="rkRack(\'depth\',this.value)"></label>'
+      +'<label title="Flight-case vide, capots compris : ajouté au poids du rack"><span>Poids du case (kg)</span><input class="set-inp" type="number" min="0" max="500" step="0.5" value="'+(r.ck||'')+'" placeholder="—" onchange="rkRack(\'ck\',this.value)"></label></div>'
       +'<label class="rk-ck" title="L\'unité 1 est en haut du rack"><input type="checkbox" class="cb"'+(r.top?' checked':'')+' onchange="rkRack(\'top\',this.checked)">Numéroter depuis le haut</label>'
       +'<label class="rk-ck" title="Dessiner le rack sur roulettes"><input type="checkbox" class="cb"'+(r.casters?' checked':'')+' onchange="rkRack(\'casters\',this.checked)">Sur roulettes</label>'
       +'<div class="rk-dd-sep"></div><button type="button" class="rk-dd-b" onclick="rkDup()"><i class="ti ti-copy"></i>Dupliquer ce rack</button>'
@@ -17711,8 +17772,13 @@ function renderRacks(){
       ck('wire','Câblage','Dessiner les câbles sur la face arrière')+ck('ghost','Empreinte de l\'autre face','Montrer en pointillé les appareils montés de l\'autre côté')+ck('grp','Couleurs de groupe','Teinter chaque appareil de la couleur de son groupe')
       +ck('num','Numéros d\'unité','Numéroter les unités sur le côté')+ck('frame','Châssis','Dessiner le flight-case autour des baies')+ck('simple','Vue simplifiée','Des blocs avec le nom, sans le dessin des façades'))
     +'<div class="rk-zoom"><button type="button" onclick="rkZoom(-1)" title="Réduire"><i class="ti ti-zoom-out"></i></button><button type="button" onclick="rkZoom(0)" title="Taille réelle">'+Math.round(RK.zoom*100)+' %</button><button type="button" onclick="rkZoom(1)" title="Agrandir"><i class="ti ti-zoom-in"></i></button></div></div>';
-  h+='<div class="rk-stats"><span><b>'+st.n+'</b>appareil'+(st.n>1?'s':'')+'</span><span><b>'+st.used+' / '+st.total+' U</b>occupés en façade</span><span><b>'+_rkFmt(st.kg,'kg')+'</b>de matériel</span><span><b>'+(st.w?st.w.toLocaleString('fr-FR')+' W':'—')+'</b>'+(st.w?'soit '+(Math.round(st.a*10)/10).toLocaleString('fr-FR')+' A sous 230 V':'consommation')+'</span></div>';
-  if(st.a>16) h+='<div class="set-warn"><i class="ti ti-bolt"></i><span>Plus de 16 A : ce rack demande plus d\'une ligne 16 A, ou une alimentation 32 A.</span></div>';
+  h+='<div class="rk-stats"><span><b>'+st.n+'</b>appareil'+(st.n>1?'s':'')+'</span><span><b>'+st.used+' / '+st.total+' U</b>occupés en façade</span><span title="'+(st.ck?'Dont '+_rkFmt(st.ck,'kg')+' de flight-case':'Poids du flight-case : menu « Rack »')+'"><b>'+_rkFmt(st.kg,'kg')+'</b>'+(st.ck?'avec le case':'de matériel')+'</span><span><b>'+(st.w?st.w.toLocaleString('fr-FR')+' W':'—')+'</b>'+(st.w?'soit '+(Math.round(st.a*10)/10).toLocaleString('fr-FR')+' A sous 230 V':'consommation')+'</span></div>';
+  var pwr=_rkPower(r);
+  if(pwr.list.length){
+    pwr.list.forEach(function(p){ if(p.load>p.cap) h+='<div class="set-warn"><i class="ti ti-bolt"></i><span>« '+E(p.it.lbl||p.it.n)+' » : '+p.load.toLocaleString('fr-FR')+' W pour '+p.cap.toLocaleString('fr-FR')+' W ('+_rkAmpLbl(p.it.amp)+'). Répartissez sur un autre bandeau ou passez à un calibre supérieur.</span></div>'; });
+    if(pwr.nl) h+='<div class="set-warn"><i class="ti ti-plug-x"></i><span>'+pwr.nl+' appareil'+(pwr.nl>1?'s consomment':' consomme')+' '+pwr.loose.toLocaleString('fr-FR')+' W sans bandeau attribué : choisissez « Alimenté par » dans l\'appareil, ou tirez un câble secteur.</span></div>';
+  }
+  else if(st.a>16) h+='<div class="set-warn"><i class="ti ti-bolt"></i><span>Plus de 16 A : ce rack demande plus d\'une ligne 16 A, ou une alimentation 32 A.</span></div>';
   if(st.clash.length) h+='<div class="set-warn"><i class="ti ti-alert-triangle"></i><span>'+st.clash.map(function(c){ return '« '+E(c[0].lbl||c[0].n)+' » et « '+E(c[1].lbl||c[1].n)+' » se touchent ('+(c[0].d+c[1].d)+' mm pour '+r.depth+' mm)'; }).join(' ; ')+'.</span>'
     +(RK.view!=='s'?'<button type="button" class="btn sm" data-b="'+(st.clash[0][0].bay||0)+'" onclick="RK.cut=+this.dataset.b;rkView(\'s\')">Voir la coupe</button>':'')+'</div>';
   st.deep.forEach(function(i){ h+='<div class="set-warn"><i class="ti ti-arrows-horizontal"></i><span>« '+E(i.lbl||i.n)+' » fait '+i.d+' mm de profondeur, le rack '+r.depth+' mm.</span></div>'; });
@@ -17787,7 +17853,7 @@ async function rackPdf(){
       var r=RK.racks[ri], st=_rkStats(r), bays=r.bays||1, rear=r.items.some(function(i){ return i.side==='r'; });
       doc.addPage(); full.push(doc.internal.getNumberOfPages());
       y=_pdfHead(doc,{acc:acc,pf:pf,brand:brand.co||'PatchFlow',docType:'Rack '+(ri+1)+' / '+RK.racks.length,title:r.name,sub:title,logo:logo,rightLines:['Édité le '+new Date().toLocaleDateString('fr-FR')],
-        meta:[['Hauteur',r.units+' U'+(bays>1?' × '+bays+' baies':'')],['Profondeur',r.depth?r.depth+' mm':''],['Appareils',String(st.n)],['Poids du matériel',st.kg?_rkFmt(st.kg,'kg'):''],['Consommation',st.w?st.w+' W · '+(Math.round(st.a*10)/10).toLocaleString('fr-FR')+' A':'']]})+5;
+        meta:[['Hauteur',r.units+' U'+(bays>1?' × '+bays+' baies':'')],['Profondeur',r.depth?r.depth+' mm':''],['Appareils',String(st.n)],[st.ck?'Poids (case compris)':'Poids du matériel',st.kg?_rkFmt(st.kg,'kg'):''],['Consommation',st.w?st.w+' W · '+(Math.round(st.a*10)/10).toLocaleString('fr-FR')+' A':'']]})+5;
       var cab=r.cables||[], views=[['f','Face avant']]; if(rear || cab.length) views.push(['r',cab.length?'Face arrière et câblage':'Face arrière']);
       var imgs=[]; for(var v=0;v<views.length;v++){ var d=_rkSvg(r,views[v][0],_RK_PAL_PDF,{}); imgs.push({t:views[v][1],d:d,png:await _rkPng(d,2.4)}); }
       /* Les vues tiennent côte à côte quand le rack n'a qu'une baie, sinon l'une sous l'autre ; le schéma de câblage prend toute la largeur */
@@ -17816,6 +17882,13 @@ async function rackPdf(){
         doc.autoTable({head:[['EMPLACEMENT','HAUTEUR','FACE','APPAREIL','NOM, GROUPE, REMARQUE','PROF.','POIDS','CONSO']],body:rows,startY:y,theme:'plain',margin:{left:M,right:M,top:TOP,bottom:BOT},styles:TS,headStyles:HS,
           columnStyles:{0:{fontStyle:'bold',textColor:acc,cellWidth:25},1:{cellWidth:15},2:{cellWidth:15},3:{fontStyle:'bold'},4:{textColor:K.txt2,fontSize:8},5:{halign:'right',cellWidth:15},6:{halign:'right',cellWidth:16},7:{halign:'right',cellWidth:16}}});
         y=doc.lastAutoTable.finalY+7; }
+      var pw=_rkPower(r);
+      if(pw.list.length){ y=room(y,22); y=hd('Alimentation',y);
+        doc.autoTable({head:[['BANDEAU','EMPLACEMENT','CALIBRE','APPAREILS','CHARGE']],body:pw.list.map(function(p){ return [p.it.lbl||p.it.n,_rkPos(r,p.it),_rkAmpLbl(p.it.amp),String(p.n),p.load?p.load+' W / '+p.cap+' W'+(p.load>p.cap?' — DÉPASSÉ':''):'—']; }),
+          startY:y,theme:'plain',margin:{left:M,right:M,top:TOP,bottom:BOT},styles:TS,headStyles:HS,columnStyles:{0:{fontStyle:'bold'},3:{halign:'right'},4:{halign:'right'}},
+          didParseCell:function(c){ if(c.section==='body' && c.column.index===4 && /DÉPASSÉ/.test(String(c.cell.raw))){ c.cell.styles.textColor=[225,29,72]; c.cell.styles.fontStyle='bold'; } }});
+        y=doc.lastAutoTable.finalY+(pw.nl?3:7);
+        if(pw.nl){ doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(225,29,72); doc.text(pw.nl+' appareil(s), '+pw.loose+' W, sans bandeau attribué.',M,y+3); y+=8; } }
       var pps=r.items.filter(function(i){ return i.kind==='patch'; });
       if(pps.length){ var pr=[]; pps.forEach(function(i){ _rkPP(i.pp,i.h).rows.forEach(function(row,k){ if(row.t==='vide') return; var c=_RK_CONN.filter(function(z){ return z[0]===row.t; })[0];
           pr.push([k?'':(i.lbl||i.n), k?'':_rkPos(r,i)+' · '+(i.side==='r'?'arrière':'avant'), String(k+1), row.n+' × '+c[1], row.p+row.s+(row.n>1?' à '+row.p+(row.s+row.n-1):'')]); }); });

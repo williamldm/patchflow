@@ -4304,6 +4304,15 @@ button.rf-tile.act:hover{box-shadow:inset 0 0 0 1px var(--bdr3)}
 .rk-tpl-pick{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:14px;max-width:560px}
 .rk-tpl-pick>span{flex-basis:100%;text-align:center;font-size:12.5px;color:var(--muted)}
 .rk-undo button:disabled{opacity:.35;cursor:default}
+.rk-fleet{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;margin:-8px 0 16px;padding:9px 14px;border-radius:10px;background:var(--surf);box-shadow:inset 0 0 0 1px var(--bdr);font-size:12.5px;color:var(--txt2)}
+.rk-fleet i{font-size:16px;color:var(--ora)}
+.rk-fleet b{color:var(--txt);font-weight:650}
+.rk-load{display:grid;gap:6px;padding:9px 10px;border-radius:9px;background:var(--surf2);font-size:12px;color:var(--txt2)}
+.rk-load b{color:var(--txt);font-weight:650}
+.rk-load i{display:block;height:4px;border-radius:2px;background:#22c55e}
+.rk-load.warn i{background:#f59e0b}
+.rk-load.over i{background:var(--err)}
+.rk-load.over b{color:var(--err)}
 .rk-spec{font-size:12px;color:var(--muted);margin-left:4px;vertical-align:-1px}
 .rk-need-n{font-style:normal;text-transform:none;letter-spacing:0;font-weight:600;font-size:12px;color:var(--ora)}
 .rk-need .rk-gear-b span i{color:var(--ok,#22c55e);margin-right:4px}
