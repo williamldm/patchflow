@@ -16852,8 +16852,16 @@ const _RK_CONN=[['xlrf','XLR femelle',16],['xlrm','XLR mâle',16],['nl4','Speako
 /* Familles de câbles : couleurs fixes, les mêmes à l'écran et dans le PDF */
 const _RK_CAB=[['xlr','Audio analogique','#16a37a'],['aes','Audio numérique','#0f9bb3'],['net','Réseau','#1a8fff'],['fib','Fibre','#9b6aff'],['rf','Antenne HF','#c99700'],['hp','Haut-parleur','#ff6b1a'],['pwr','Secteur','#e11d48'],['oth','Autre','#7a8494']];
 const _RK_CAT=[
-  {g:'Liaisons HF', items:[['Shure ULXD4D',1,'rx'],['Shure ULXD4Q',1,'rx'],['Shure AD4D',1,'rx'],['Shure AD4Q',1,'rx'],['Shure UA844+ (distribution d\'antennes)',1,'rx'],['Shure PSM1000 P10T',1,'rx'],['Shure PA821B (combineur)',1,'rx'],['Sennheiser EM 6000',1,'rx'],['Sennheiser SR 2050 IEM',1,'rx']]},
-  {g:'Amplis', items:[['L-Acoustics LA12X',2,'amp'],['L-Acoustics LA4X',2,'amp'],['L-Acoustics LA8',2,'amp'],['d&b D80',2,'amp'],['d&b D20',2,'amp'],['Powersoft X8',2,'amp'],['Powersoft X4',1,'amp'],['Lab Gruppen PLM 20K44',2,'amp']]},
+  /* Hauteurs relevées sur les fiches des fabricants. « demi-rack » : appareil d'une demi-largeur, posé sur un kit de montage 1 U */
+  {g:'HF · Shure', items:[['Shure AD4D',1,'rx'],['Shure AD4Q',1,'rx'],['Shure AD600 (gestion de spectre)',1,'rx'],['Shure AXT400',1,'rx'],['Shure AXT600 (gestion de spectre)',1,'rx'],['Shure AXT630 (distrib. antennes)',1,'rx'],
+    ['Shure ULXD4D',1,'rx'],['Shure ULXD4Q',1,'rx'],['Shure ULXD4 (demi-rack)',1,'rx'],['Shure SLXD4D',1,'rx'],['Shure SLXD4 (demi-rack)',1,'rx'],['Shure QLXD4 (demi-rack)',1,'rx'],['Shure BLX4R (demi-rack)',1,'rx'],
+    ['Shure UA844+ (distrib. antennes)',1,'rx'],['Shure UA845UWB (distrib. antennes)',1,'rx'],['Shure PSM1000 P10T',1,'rx'],['Shure PSM900 P9T (demi-rack)',1,'rx'],['Shure PSM300 P3T (demi-rack)',1,'rx'],['Shure PA821B (combineur)',1,'rx']]},
+  {g:'HF · Sennheiser', items:[['Sennheiser EM 6000',1,'rx'],['Sennheiser EM 6000 Dante',1,'rx'],['Sennheiser EM 3732-II',1,'rx'],['Sennheiser EM 2050',1,'rx'],['Sennheiser SR 2050 IEM',1,'rx'],
+    ['Sennheiser EW-DX EM 4 Dante',1,'rx'],['Sennheiser EW-DX EM 2 (demi-rack)',1,'rx'],['Sennheiser EW-DX EM 2 Dante (demi-rack)',1,'rx'],['Sennheiser EM 300-500 G4 (demi-rack)',1,'rx'],['Sennheiser SR IEM G4 (demi-rack)',1,'rx'],
+    ['Sennheiser ASA 3000 (distrib. antennes)',1,'rx'],['Sennheiser AC 3200-II (combineur)',1,'rx']]},
+  {g:'Amplis · CODA Audio', items:[['CODA Audio LINUS14D',2,'amp'],['CODA Audio LINUS14',2,'amp'],['CODA Audio LINUS12C',2,'amp'],['CODA Audio LINUS10',2,'amp'],['CODA Audio LINUS6.4',1,'amp'],
+    ['CODA Audio LINUS-V908',2,'amp'],['CODA Audio LINUS-V1804',2,'amp'],['CODA Audio LINUS CON (processeur)',1,'proc']]},
+  {g:'Amplis', items:[['L-Acoustics LA12X',2,'amp'],['L-Acoustics LA7.16',2,'amp'],['L-Acoustics LA4X',2,'amp'],['L-Acoustics LA2Xi',1,'amp'],['L-Acoustics LA8',2,'amp'],['d&b D80',2,'amp'],['d&b D20',2,'amp'],['Powersoft X8',2,'amp'],['Powersoft X4',1,'amp'],['Lab Gruppen PLM 20K44',2,'amp']]},
   {g:'Stageboxes', items:[['Behringer S16',2,'io'],['Behringer S32',3,'io'],['Midas DL16',2,'io'],['Midas DL32',3,'io'],['Yamaha Rio1608-D2',3,'io'],['Yamaha Rio3224-D2',5,'io']]},
   {g:'Régie et réseau', items:[['Processeur',1,'proc'],['Ordinateur en rack',2,'pc'],['Serveur',1,'pc'],['Switch réseau',1,'sw'],['Panneau de brassage RJ45',1,'patch']]},
   {g:'Énergie', items:[['Bandeau de prises',1,'pdu'],['Onduleur',2,'ups']]},
@@ -17427,9 +17435,9 @@ function _rkLibHtml(){
   mine.forEach(function(x){ var g=x.g; any=true; h+='<div class="rk-gear"><button type="button" class="rk-gear-b" onclick="rkAdd(\'lib\','+x.i+')" title="Ajouter au rack"><b>'+E(g.n)+'</b><span>'+g.h+' U'+(g.kg?' · '+_rkFmt(g.kg,'kg'):'')+(g.w?' · '+g.w+' W':'')+'</span></button>'
     +'<button type="button" class="rk-gear-x" onclick="rkGearDel('+x.i+')" title="Retirer de mon matériel"><i class="ti ti-x"></i></button></div>'; });
   _RK_CAT.forEach(function(c,ci){
-    var its=c.items.map(function(it,si){ return {it:it,si:si}; }).filter(function(x){ return ok(x.it[0]); }); if(!its.length) return;
+    var its=c.items.map(function(it,si){ return {it:it,si:si}; }).filter(function(x){ return ok(x.it[0]) || ok(c.g); }); if(!its.length) return;
     h+='<div class="rk-lib-g">'+E(c.g)+'</div>';
-    its.forEach(function(x){ any=true; h+='<div class="rk-gear"><button type="button" class="rk-gear-b" onclick="rkAdd(\'cat\','+ci+','+x.si+')" title="Ajouter au rack"><b>'+E(x.it[0])+'</b><span>'+x.it[1]+' U</span></button></div>'; });
+    its.forEach(function(x){ any=true; h+='<div class="rk-gear"><button type="button" class="rk-gear-b" onclick="rkAdd(\'cat\','+ci+','+x.si+')" title="Ajouter au rack : '+E(x.it[0])+'"><b>'+E(x.it[0])+'</b><span>'+x.it[1]+' U</span></button></div>'; });
   });
   if(q && !any) h+='<div class="rk-lib-none">Rien ne correspond. Créez ce matériel avec le bouton « Créer ».</div>';
   return h;
