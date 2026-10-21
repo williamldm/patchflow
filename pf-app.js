@@ -6842,7 +6842,7 @@ function _bpInfoRows(els){
   });
   if(mons.length){ rows.push(['Retours']); mons.sort(function(x,y){ return x.n-y.n; }).forEach(function(m){ rows.push([m.c1,m.c2,m.c3]); }); }
   var pk=Object.keys(pw);
-  if(pk.length) rows.push(['Électricité sur scène',pk.map(function(k){ return pw[k]+' × '+_BP_PWR[k].toLowerCase(); }).join(' · ')]);
+  if(pk.length) rows.push(['Électricité sur scène',pk.map(function(k){ return pw[k]+' × '+_BP_PWR[k].charAt(0).toLowerCase()+_BP_PWR[k].slice(1); }).join(' · ')]);
   return rows;
 }
 function _bpInfoHeight(rows){ return rows.reduce(function(t,r){ return t+(r.length===1?44:r.length===2?40:34); },0)+10; }
@@ -6866,14 +6866,17 @@ function _bpInfoDraw(ctx,rows,x,y,w,SC){
   });
   ctx.textBaseline='alphabetic';
 }
-function _makeBpCanvas(cb){
+/* opts.noInfo : sans le tableau des retours (le PDF le pose en vrai tableau) ; opts.tight : marge réduite autour du plan */
+function _makeBpCanvas(cb,opts){
+  opts=opts||{};
   const data=BandPlan.getData();
   const els=data.els||[];
   const RSCALE=75;
   // Bounds
   const _g=_bpStageGeom(data);
   const _stgW=_g.w, _stgH=_g.h, _stgX=_g.x, _stgY=_g.y;
-  let minX=_stgX-(_g.m?90:0),minY=_stgY-(_g.m?80:0),maxX=_stgX+_stgW,maxY=_stgY+_stgH;
+  /* Repères autour de la scène : cotes (en mètres), LOINTAIN, JARDIN / COUR, PUBLIC */
+  let minX=_stgX-(_g.m?90:48),minY=_stgY-(_g.m?80:44),maxX=_stgX+_stgW+48,maxY=_stgY+_stgH+70;
   const _ns=data.nodeScale||1, _ts=data.textScale||1;
   els.forEach(el=>{
     let w,h;
@@ -6894,9 +6897,9 @@ function _makeBpCanvas(cb){
     maxY=Math.max(maxY, el.y+h+lblH);
   });
   /* Tableau sous la scène : retours (sortie, destinataire, mix demandé) et prises électriques */
-  const _info=_bpInfoRows(els), _infoY=Math.max(maxY,_stgY+_stgH+(_g.m?90:70))+30;
+  const _infoAll=_bpInfoRows(els), _info=opts.noInfo?[]:_infoAll, _infoY=Math.max(maxY,_stgY+_stgH+(_g.m?90:70))+30;
   if(_info.length){ maxY=_infoY+_bpInfoHeight(_info); maxX=Math.max(maxX,_stgX+_stgW); minX=Math.min(minX,_stgX); }
-  const PAD=70;
+  const PAD=opts.tight?24:70;
   minX-=PAD;minY-=PAD;maxX+=PAD;maxY+=PAD;
   const W=maxX-minX,H=maxY-minY;
   const SC=Math.min(2,4096/Math.max(W,H));
@@ -7079,6 +7082,7 @@ function _makeBpCanvas(cb){
         if(el.type==='kit' && el.who){ var _kfs=Math.max(9,13*(data.textScale||1)*SC); ctx.font='600 '+_kfs+'px Archivo, sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top'; ctx.fillStyle='rgba(28,36,51,.7)'; ctx.fillText(el.who,wx(el.x),wy(el.y)-_kfs*1.5); ctx.textBaseline='alphabetic'; }
       });
       if(_info.length) _bpInfoDraw(ctx,_info,wx(_stgX),wy(_infoY),_stgW*SC,SC);
+      cv.bpInfo=_infoAll;
       cb(cv);
     });
     return;
@@ -7510,9 +7514,9 @@ async function doPDF(toFiles){
         try{ dataUrl=cv.toDataURL('image/png'); }
         catch(corsErr){ toast('Erreur export (image CORS) : '+corsErr.message); console.error('stage pdf toDataURL:',corsErr); return; }
         const shareUrl=_riderBase()+'?view='+(CUR_SHOW?.id||'')+'&tab=stage';
-        _openVisualPdf('Plan de scene', meta, dataUrl, shareUrl, brand, {orientation:_pdfOrient}).catch(function(e){toast('Erreur PDF : '+e.message);console.error('_openVisualPdf:',e);});
+        _openVisualPdf('Plan de scene', meta, dataUrl, shareUrl, brand, {orientation:_pdfOrient, fit:true, rows:cv.bpInfo||[]}).catch(function(e){toast('Erreur PDF : '+e.message);console.error('_openVisualPdf:',e);});
       }catch(e){toast('Erreur export PDF : '+e.message);console.error('stage pdf cb:',e);}
-    });
+    },{noInfo:true, tight:true});
     return;
   }
   if(type === 'site'){
@@ -7530,7 +7534,7 @@ async function doPDF(toFiles){
         try{ dataUrl=cv.toDataURL('image/png'); }
         catch(corsErr){ toast('Erreur export (image CORS) : '+corsErr.message); console.error('site pdf toDataURL:',corsErr); return; }
         const shareUrl=_riderBase()+'?view='+(CUR_SHOW?.id||'')+'&tab=site';
-        _openVisualPdf('Plan de site', meta, dataUrl, shareUrl, brand, {orientation:_pdfOrient}).catch(function(e){toast('Erreur PDF : '+e.message);console.error('_openVisualPdf:',e);});
+        _openVisualPdf('Plan de site', meta, dataUrl, shareUrl, brand, {orientation:_pdfOrient, fit:true}).catch(function(e){toast('Erreur PDF : '+e.message);console.error('_openVisualPdf:',e);});
       }catch(e){toast('Erreur export PDF : '+e.message);console.error('site pdf cb:',e);}
     });
     return;
@@ -7751,8 +7755,16 @@ async function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand, opts){
       planImg = r.dataUrl; ratio = r.w/r.h;
     } else { planImg = dataUrl; ratio = await _imgRatio(dataUrl); }
     /* « Les deux » : l'orientation qui convient à la forme du plan */
-    const orientation = opts.orientation==='auto' ? (ratio<1?'portrait':'landscape') : (opts.orientation==='portrait') ? 'portrait' : 'landscape';
-    const doc = new JsPDF({orientation, unit:'mm', format:'a4', compress:true});
+    /* Plans (fit) : l'orientation qui affiche le plan le plus grand, quelle que soit la forme de la scène.
+       Cadre utile : page A4 moins les marges, l'en-tête et le pied (66 mm mesurés en tout). */
+    let orientation = opts.orientation==='auto' ? (ratio<1?'portrait':'landscape') : (opts.orientation==='portrait') ? 'portrait' : 'landscape';
+    if(opts.fit){
+      const area=function(w,h){ let dw=w, dh=dw/ratio; if(dh>h){ dh=h; dw=dh*ratio; } return dw*dh; };
+      orientation = area(186,297-66) > area(273,210-66) ? 'portrait' : 'landscape';
+    }
+    const rows=(opts.rows||[]).filter(function(r){ return r && r.length; });
+    const Doc = rows.length ? await _loadAutoTable() : JsPDF;
+    const doc = new Doc({orientation, unit:'mm', format:'a4', compress:true});
     const K=_PDFK, M=K.M, PW=doc.internal.pageSize.getWidth(), PH=doc.internal.pageSize.getHeight();
     const acc = _hex2rgb(_safeColor(brand.color)||'#ff6b1a');
     const isSite=/site/i.test(docType), label=isSite?'Plan de site':/sc[eè]ne/i.test(docType)?'Plan de scène':String(docType);
@@ -7782,7 +7794,26 @@ async function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand, opts){
       doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(K.txt2[0],K.txt2[1],K.txt2[2]);
       doc.text(notes, M+17, y+4.6);
     }
-    _pdfFoot(doc,{acc:acc, pf:pfLogo, credit:_pdfCreditOn(), creditWhat:label.toLowerCase(), qr:qr, url:shareUrl, stamp:'', page:1, pages:1});
+    const pages=rows.length?2:1;
+    _pdfFoot(doc,{acc:acc, pf:pfLogo, credit:_pdfCreditOn(), creditWhat:label.toLowerCase(), qr:qr, url:shareUrl, stamp:'', page:1, pages:pages});
+    /* Retours (sortie, destinataire, mix demandé) et électricité : un vrai tableau, en page 2, pour laisser au plan toute la page 1 */
+    if(rows.length){
+      doc.addPage();
+      let y2=_pdfHead(doc,{acc:acc, pf:pfLogo, brand:brand.co||'PatchFlow', docType:label, title:title+' — retours et électricité', logo:logo, compact:true, right:'Édité le '+stamp})+2;
+      const mon=[], elec=[]; let sec='';
+      rows.forEach(function(r){ if(r.length===1){ sec=r[0]; return; } if(r.length===2){ elec.push([r[0],r[1]]); return; } mon.push([r[0],r[1]||'—',r[2]||'']); });
+      const TS={font:'helvetica',fontSize:9,textColor:K.ink,cellPadding:{top:2.2,bottom:2.2,left:1.5,right:1.5},lineColor:K.line,lineWidth:{bottom:0.2}};
+      const HS={fontStyle:'bold',fontSize:7,textColor:K.muted,lineColor:K.ink,lineWidth:{bottom:0.35}};
+      if(mon.length){
+        doc.autoTable({head:[['SORTIE ET RETOUR','POUR QUI','MIX DEMANDÉ']],body:mon,startY:y2,theme:'plain',margin:{left:M,right:M,bottom:_pdfFootH(!!qr)+4},styles:TS,headStyles:HS,
+          columnStyles:{0:{fontStyle:'bold',cellWidth:(PW-2*M)*0.32},1:{cellWidth:(PW-2*M)*0.2},2:{textColor:K.txt2}}});
+        y2=doc.lastAutoTable.finalY+8;
+      }
+      if(elec.length){
+        doc.autoTable({head:[['ÉLECTRICITÉ SUR SCÈNE','']],body:elec.map(function(e){ return [e[1],'']; }),startY:y2,theme:'plain',margin:{left:M,right:M,bottom:_pdfFootH(!!qr)+4},styles:TS,headStyles:HS});
+      }
+      _pdfFoot(doc,{acc:acc, pf:pfLogo, credit:_pdfCreditOn(), creditWhat:label.toLowerCase(), qr:qr, url:shareUrl, stamp:'', page:2, pages:pages});
+    }
     await _pdfDeliver(doc, (_pdfSlug(title)||'plan')+'-'+(_pdfSlug(label)||'document')+'.pdf');
   } catch(e){
     console.error('_openVisualPdf:',e);
