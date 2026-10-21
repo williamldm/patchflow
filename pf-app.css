@@ -5121,3 +5121,49 @@ button.il-start-card:hover{box-shadow:inset 0 0 0 1px var(--ora);transform:trans
   .fsg .fsg-house{position:static}
   .fsg-n em{display:block}
 }
+
+/* Vue d'ensemble du patch : barre unique, tableau sur toute la hauteur, cellules compactes */
+#fest-root.fs-gridmode{max-width:none}
+#fest-root.fs-full{position:fixed;inset:0;z-index:260;background:var(--bg);padding:12px 16px;overflow:hidden}
+.fsg-top{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin:0 0 10px}
+.fsg-title{display:flex;flex-direction:column;line-height:1.15;margin-right:4px}
+.fsg-title b{font-size:18px;font-weight:700;letter-spacing:-.01em}
+.fsg-title span{font-size:11.5px;color:var(--muted)}
+.fs-views.sm{margin:0;padding:3px}
+.fs-views.sm button{padding:6px 11px;font-size:12.5px}
+.fsg-ref{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--txt2)}
+.fsg-ref select{min-width:200px;padding:5px 8px}
+.fsg-grow{flex:1}
+.fsg-tools{gap:8px 14px;margin:0 0 8px}
+.fsg-tools .fs-seg button{padding:4px 10px}
+.fsg-leg{font-size:11.5px}
+.fsg-wrap{max-height:calc(100vh - 150px)}
+#fest-root.fs-full .fsg-wrap{max-height:calc(100vh - 110px)}
+.fsg{font-size:12.5px}
+.fsg th,.fsg td{padding:5px 10px;min-width:118px;max-width:190px}
+.fsg thead th{padding-top:7px;padding-bottom:7px}
+.fsg th b{font-size:12.5px}
+.fsg-n{margin-top:1px}
+.fsg td b{display:flex;align-items:center;gap:3px;line-height:1.25}
+.fsg td small{margin-top:0;line-height:1.2}
+.fsg .fsg-ch{min-width:40px;width:40px;padding-left:4px;padding-right:4px}
+.fsg .fsg-house{left:40px;min-width:110px;max-width:150px}
+.fsg-48{font-size:11px}
+@media(max-width:760px){
+  .fsg-title{display:none}
+  .fsg-ref{flex:1 1 100%}
+  .fsg-ref select{min-width:0;flex:1}
+  .fsg-hide{display:none}
+  .fsg-leg{display:none}
+  .fsg-wrap{max-height:calc(100vh - 230px)}
+  .fsg th,.fsg td{min-width:104px}
+}
+.fsg-ref span{white-space:nowrap}.fsg .fsg-house{width:150px}
+@media(max-width:760px){
+  .fsg-top{gap:8px}
+  .fsg-ref{flex:1 1 0;min-width:0}
+  .fsg-ref span{display:none}
+  .fsg .fsg-house{width:auto;min-width:96px;max-width:110px}
+  .fsg th small{font-size:9.5px}
+}
+@media(max-width:760px){ .fsg-ref{order:5;flex:1 1 100%} .fsg-ref select{width:100%} }

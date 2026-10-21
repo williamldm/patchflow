@@ -8,7 +8,7 @@
    Rangé dans shows.stage_data.festival = { slots:[{id,pid,day,start,end,scene,note}], house, cmp },
    enregistré rubrique par rubrique (_sdPatch) comme le reste de stage_data.
    ══════════════════════════════════════ */
-var FEST = { t:null, open:{}, edit:null, view:'prog', day:'all', io:'in', mic:true };
+var FEST = { t:null, open:{}, edit:null, view:'prog', day:'all', io:'in', mic:true, full:false };
 try{ var _fsPref = JSON.parse(localStorage.getItem('pf_fest_view') || '{}'); ['view','io','mic'].forEach(function(k){ if(_fsPref[k] !== undefined) FEST[k] = _fsPref[k]; }); }catch(e){}
 
 function _fsE(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -177,6 +177,9 @@ function renderFestival(){
     return;
   }
 
+  if(FEST.view === 'grid'){ _fsRenderGrid(root, f, slots); return; }
+  root.classList.remove('fs-gridmode', 'fs-full');
+
   /* Réglages : patch maître et comparaison */
   var opts = '<option value="">Aucun</option>' + (IL_PATCHES || []).map(function(p){ return '<option value="' + E(p.id) + '"' + (p.id === f.house ? ' selected' : '') + '>' + E(p.name) + '</option>'; }).join('');
   var h = head + _fsNowHtml(f, false)
@@ -188,7 +191,6 @@ function renderFestival(){
   /* Deux vues : le programme (frise et changements) ou la vue d'ensemble (toutes les voies, un groupe par colonne) */
   h += '<div class="fs-views" role="tablist"><button type="button" role="tab" class="' + (FEST.view !== 'grid' ? 'on' : '') + '" onclick="festView(\'prog\')"><i class="ti ti-calendar-time"></i>Programme</button>'
     + '<button type="button" role="tab" class="' + (FEST.view === 'grid' ? 'on' : '') + '" onclick="festView(\'grid\')"><i class="ti ti-table"></i>Vue d\'ensemble du patch</button></div>';
-  if(FEST.view === 'grid'){ root.innerHTML = h + _fsGridHtml(f, slots); return; }
 
   /* Un bloc par jour : frise, puis groupes et changements */
   var days = {}, order = [];
@@ -246,7 +248,34 @@ function renderFestival(){
 /* ── Vue d'ensemble : toutes les voies en lignes, le patch maître puis chaque groupe en colonne ──
    En clair et en italique : la voie ne change pas (même source et même micro que la référence, patch
    maître ou groupe précédent). En gras : elle change. « — » : voie libre. Un clic ouvre la liste du groupe. */
-function festView(v){ FEST.view = v === 'grid' ? 'grid' : 'prog'; _fsPrefSave(); renderFestival(); }
+
+/* Vue d'ensemble : une barre unique (vues, référence, jours, entrées/sorties, actions), puis le tableau sur
+   toute la hauteur. « Agrandir » le passe en plein écran (Échap pour revenir). */
+function _fsRenderGrid(root, f, slots){
+  var E = _fsE;
+  root.classList.add('fs-gridmode'); root.classList.toggle('fs-full', !!FEST.full);
+  var ref = '<option value="prev"' + (f.cmp !== 'house' ? ' selected' : '') + '>le groupe précédent</option>'
+    + (IL_PATCHES || []).filter(function(p){ return _fsId(p.id); }).map(function(p){ return '<option value="h:' + E(p.id) + '"' + (f.cmp === 'house' && f.house === p.id ? ' selected' : '') + '>le patch maître : ' + E(p.name) + '</option>'; }).join('');
+  var bar = '<div class="fsg-top">'
+    + '<div class="fsg-title"><b>Mode festival</b><span>' + E(CUR_SHOW.name || '') + '</span></div>'
+    + '<div class="fs-views sm" role="tablist"><button type="button" role="tab" onclick="festView(\'prog\')"><i class="ti ti-calendar-time"></i>Programme</button>'
+    + '<button type="button" role="tab" class="on"><i class="ti ti-table"></i>Vue d\'ensemble</button></div>'
+    + '<label class="fsg-ref"><span>Comparer à</span><select class="pdf-inp" onchange="festRef(this.value)">' + ref + '</select></label>'
+    + '<span class="fsg-grow"></span>'
+    + '<button class="btn sm" onclick="festPrint()" title="Feuille de changements à imprimer"><i class="ti ti-printer"></i><span class="fsg-hide">Imprimer</span></button>'
+    + '<button class="btn sm" onclick="festFull()" title="' + (FEST.full ? 'Quitter le plein écran (Échap)' : 'Tableau en plein écran') + '"><i class="ti ti-' + (FEST.full ? 'minimize' : 'maximize') + '"></i><span class="fsg-hide">' + (FEST.full ? 'Réduire' : 'Agrandir') + '</span></button>'
+    + '</div>';
+  root.innerHTML = bar + _fsGridHtml(f, slots);
+}
+function festRef(v){
+  var f = _fsData();
+  if(v === 'prev') f.cmp = 'prev';
+  else if(/^h:/.test(v) && _fsId(v.slice(2))){ f.house = v.slice(2); f.cmp = 'house'; }
+  _fsSave(f); renderFestival();
+}
+function festFull(){ FEST.full = !FEST.full; renderFestival(); }
+document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && FEST.full){ FEST.full = false; renderFestival(); } });
+function festView(v){ FEST.view = v === 'grid' ? 'grid' : 'prog'; if(FEST.view !== 'grid') FEST.full = false; _fsPrefSave(); renderFestival(); }
 function festGrid(k, v){ if(k === 'day') FEST.day = v; if(k === 'io') FEST.io = v === 'out' ? 'out' : 'in'; if(k === 'mic') FEST.mic = !FEST.mic; _fsPrefSave(); renderFestival(); }
 function _fsPrefSave(){ try{ localStorage.setItem('pf_fest_view', JSON.stringify({ view:FEST.view, io:FEST.io, mic:FEST.mic })); }catch(e){} }
 function _fsGridHtml(f, slots){
@@ -265,22 +294,22 @@ function _fsGridHtml(f, slots){
   };
   var key = function(c){ return c ? _fsN(c.l) + '|' + _fsN(c.mic) : ''; };
   var colData = cols.map(function(s){ return { s:s, m:rowsOf(s.pid) }; });
-  var hm = house ? rowsOf(house) : null;
+  var hm = useHouse ? rowsOf(house) : null;   /* la colonne du patch maître seulement quand on s'y compare */
   var max = 0;
   colData.forEach(function(c){ Object.keys(c.m).forEach(function(k){ max = Math.max(max, +k); }); });
   if(hm) Object.keys(hm).forEach(function(k){ max = Math.max(max, +k); });
   var TYPES = { main:'Façade', sub:'Sub', mon:'Retour', iem:'IEM', fx:'Effet', group:'Groupe', matrix:'Matrice', aux:'Aux' };
   var sub = function(c){ return out ? (TYPES[c.mic] || c.mic) : c.mic; };
 
-  var tools = '<div class="fsg-tools"><div class="fs-seg"><span>Jours</span><button type="button" class="' + (FEST.day === 'all' ? 'on' : '') + '" onclick="festGrid(\'day\',\'all\')">Tous</button>'
+  var tools = '<div class="fsg-tools"><div class="fs-seg"><button type="button" class="' + (FEST.day === 'all' ? 'on' : '') + '" onclick="festGrid(\'day\',\'all\')">Tous</button>'
     + (dayList.length > 1 ? dayList.map(function(d){ var t = _fsDayLbl(d); return '<button type="button" class="' + (FEST.day === d ? 'on' : '') + '" onclick="festGrid(\'day\',\'' + _jsq(d) + '\')">' + E(t.split(' ')[0]) + '</button>'; }).join('') : '') + '</div>'
-    + '<div class="fs-seg"><span>Afficher</span><button type="button" class="' + (out ? '' : 'on') + '" onclick="festGrid(\'io\',\'in\')">Entrées</button><button type="button" class="' + (out ? 'on' : '') + '" onclick="festGrid(\'io\',\'out\')">Sorties</button>'
+    + '<div class="fs-seg"><button type="button" class="' + (out ? '' : 'on') + '" onclick="festGrid(\'io\',\'in\')">Entrées</button><button type="button" class="' + (out ? 'on' : '') + '" onclick="festGrid(\'io\',\'out\')">Sorties</button>'
     + '<button type="button" class="' + (FEST.mic ? 'on' : '') + '" onclick="festGrid(\'mic\')">' + (out ? 'Types' : 'Micros') + '</button></div>'
-    + '<div class="fsg-leg"><span class="same">En clair&nbsp;: ne change pas</span><span class="chg">En gras&nbsp;: à changer</span><span>—&nbsp;: libre</span>' + (out ? '' : '<span><i class="ti ti-bolt"></i>48 V</span>') + '<span class="ref">Référence&nbsp;: ' + (useHouse ? 'patch maître' : 'groupe précédent') + '</span></div></div>';
+    + '<div class="fsg-leg"><span class="same">identique</span><span class="chg">à changer</span><span>— libre</span>' + (out ? '' : '<span><i class="ti ti-bolt"></i>48 V</span>') + '</div></div>';
   if(!max) return tools + '<div class="fs-none" style="padding:18px 4px">Aucune ' + (out ? 'sortie' : 'voie') + ' dans ces listes pour l\'instant.</div>';
 
   var head = '<tr><th class="fsg-ch">' + (out ? 'OUT' : 'CH') + '</th>'
-    + (hm ? '<th class="fsg-house"><small>Référence</small><b>' + E(_fsName(house)) + '</b><span class="fs-house">patch maître</span></th>' : '')
+    + (hm ? '<th class="fsg-house"><small>Patch maître</small><b>' + E(_fsName(house)) + '</b></th>' : '')
     + colData.map(function(c, i){
       var s = c.s, ref = useHouse ? hm : (i > 0 ? colData[i - 1].m : null), nChg = 0;
       if(ref) for(var k = 1; k <= max; k++){ if(key(c.m[k]) !== key(ref[k]) && (c.m[k] || ref[k])) nChg++; }
