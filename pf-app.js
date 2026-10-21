@@ -16857,18 +16857,19 @@ const _RK_CAB=[['xlr','Audio analogique','#16a37a'],['aes','Audio numérique','#
 const _RK_CAT=[
   /* Hauteurs relevées sur les fiches des fabricants. « demi-rack » : appareil d'une demi-largeur, posé sur un kit de montage 1 U.
      Colonnes facultatives après la famille : poids (kg), consommation (W), profondeur (mm), seulement quand la fiche du fabricant
-     les donne ; 0 = non renseigné. Consommation des amplis CODA : valeur « 1/4 de puissance » de CODA (signal musical type) ;
-     L-Acoustics LA2Xi : 1/8 de puissance. */
-  {g:'HF · Shure', items:[['Shure AD4D',1,'rx',4.6,23,333],['Shure AD4Q',1,'rx',4.8,31,333],['Shure AD600 (gestion de spectre)',1,'rx'],['Shure AXT400',1,'rx'],['Shure AXT600 (gestion de spectre)',1,'rx',5.5,0,366],['Shure AXT630 (distrib. antennes)',1,'rx'],
-    ['Shure ULXD4D',1,'rx',3.36,0,274],['Shure ULXD4Q',1,'rx',3.45,0,274],['Shure ULXD4 (demi-rack)',1,'rx'],['Shure SLXD4D',1,'rx',0,0,152],['Shure SLXD4 (demi-rack)',1,'rx'],['Shure QLXD4 (demi-rack)',1,'rx',0,0,164],['Shure BLX4R (demi-rack)',1,'rx'],
-    ['Shure UA844+ (distrib. antennes)',1,'rx'],['Shure UA845UWB (distrib. antennes)',1,'rx'],['Shure PSM1000 P10T',1,'rx',0,0,343],['Shure PSM900 P9T (demi-rack)',1,'rx'],['Shure PSM300 P3T (demi-rack)',1,'rx'],['Shure PA821B (combineur)',1,'rx']]},
-  {g:'HF · Sennheiser', items:[['Sennheiser EM 6000',1,'rx',0,0,373],['Sennheiser EM 6000 Dante',1,'rx',0,0,373],['Sennheiser EM 3732-II',1,'rx'],['Sennheiser EM 2050',1,'rx'],['Sennheiser SR 2050 IEM',1,'rx'],
-    ['Sennheiser EW-DX EM 4 Dante',1,'rx',4.56,37,373],['Sennheiser EW-DX EM 2 (demi-rack)',1,'rx'],['Sennheiser EW-DX EM 2 Dante (demi-rack)',1,'rx',1,0,189],['Sennheiser EM 300-500 G4 (demi-rack)',1,'rx'],['Sennheiser SR IEM G4 (demi-rack)',1,'rx'],
-    ['Sennheiser ASA 3000 (distrib. antennes)',1,'rx'],['Sennheiser AC 3200-II (combineur)',1,'rx']]},
-  {g:'Amplis · CODA Audio', items:[['CODA Audio LINUS14D',2,'amp',14.75,3200,454],['CODA Audio LINUS14',2,'amp',14.75,3200,454],['CODA Audio LINUS12C',2,'amp',14.7,2800,454],['CODA Audio LINUS10',2,'amp'],['CODA Audio LINUS6.4',1,'amp',0,1000,0],
-    ['CODA Audio LINUS-V908',2,'amp'],['CODA Audio LINUS-V1804',2,'amp',0,0,454],['CODA Audio LINUS CON (processeur)',1,'proc']]},
-  {g:'Amplis', items:[['L-Acoustics LA12X',2,'amp',14.5,0,455],['L-Acoustics LA7.16',2,'amp',15.8,0,0],['L-Acoustics LA4X',2,'amp',11.3,0,0],['L-Acoustics LA2Xi',1,'amp',4.4,440,0],['L-Acoustics LA8',2,'amp'],['d&b D80',2,'amp'],['d&b D20',2,'amp'],['Powersoft X8',2,'amp'],['Powersoft X4',1,'amp'],['Lab Gruppen PLM 20K44',2,'amp']]},
-  {g:'Stageboxes', items:[['Behringer S16',2,'io'],['Behringer S32',3,'io'],['Midas DL16',2,'io'],['Midas DL32',3,'io'],['Yamaha Rio1608-D2',3,'io'],['Yamaha Rio3224-D2',5,'io']]},
+     les donne ; 0 = non renseigné. Consommation : valeur publiée par le fabricant ; amplis CODA au « 1/4 de puissance » (signal
+     musical type selon CODA), L-Acoustics au 1/8 de puissance sous 4 Ω ; appareils sur bloc secteur externe : tension × courant du
+     bloc ; ULX-D : courant maximal × 100 V (majoré). Une valeur douteuse ou incluant les prises de recopie est laissée à 0. */
+  {g:'HF · Shure', items:[['Shure AD4D',1,'rx',4.6,23,333],['Shure AD4Q',1,'rx',4.8,31,333],['Shure AD600 (gestion de spectre)',1,'rx',3.7],['Shure AXT400',1,'rx',5.5],['Shure AXT600 (gestion de spectre)',1,'rx',5.5,0,366],['Shure AXT630 (distrib. antennes)',1,'rx',4.6],
+    ['Shure ULXD4D',1,'rx',3.36,26,274],['Shure ULXD4Q',1,'rx',3.45,32,274],['Shure ULXD4 (demi-rack)',1,'rx',0.9,9],['Shure SLXD4D',1,'rx',1.451,9,152],['Shure SLXD4 (demi-rack)',1,'rx',0.816,9],['Shure QLXD4 (demi-rack)',1,'rx',0.777,5,164],['Shure BLX4R (demi-rack)',1,'rx'],
+    ['Shure UA844+ (distrib. antennes)',1,'rx',1.62],['Shure UA845UWB (distrib. antennes)',1,'rx',3.32],['Shure PSM1000 P10T',1,'rx',4.7,50,343],['Shure PSM900 P9T (demi-rack)',1,'rx',0.85,6],['Shure PSM300 P3T (demi-rack)',1,'rx',0.783,4],['Shure PA821B (combineur)',1,'rx',4.8]]},
+  {g:'HF · Sennheiser', items:[['Sennheiser EM 6000',1,'rx',5.2,35,373],['Sennheiser EM 6000 Dante',1,'rx',5.2,85,373],['Sennheiser EM 3732-II',1,'rx',4.08,20],['Sennheiser EM 2050',1,'rx'],['Sennheiser SR 2050 IEM',1,'rx',2.7,20],
+    ['Sennheiser EW-DX EM 4 Dante',1,'rx',4.56,37,373],['Sennheiser EW-DX EM 2 (demi-rack)',1,'rx',0,12],['Sennheiser EW-DX EM 2 Dante (demi-rack)',1,'rx',1,12,189],['Sennheiser EM 300-500 G4 (demi-rack)',1,'rx',0.98,4],['Sennheiser SR IEM G4 (demi-rack)',1,'rx'],
+    ['Sennheiser ASA 3000 (distrib. antennes)',1,'rx',3,15],['Sennheiser AC 3200-II (combineur)',1,'rx',4,90]]},
+  {g:'Amplis · CODA Audio', items:[['CODA Audio LINUS14D',2,'amp',14.75,3200,454],['CODA Audio LINUS14',2,'amp',14.75,3200,454],['CODA Audio LINUS12C',2,'amp',14.7,2800,454],['CODA Audio LINUS10',2,'amp'],['CODA Audio LINUS6.4',1,'amp',5.75,1000],
+    ['CODA Audio LINUS-V908',2,'amp',12,3000],['CODA Audio LINUS-V1804',2,'amp',12,3000,454],['CODA Audio LINUS CON (processeur)',1,'proc']]},
+  {g:'Amplis', items:[['L-Acoustics LA12X',2,'amp',14.5,1850,455],['L-Acoustics LA7.16',2,'amp',15.8,0,0],['L-Acoustics LA4X',2,'amp',11.3,750],['L-Acoustics LA2Xi',1,'amp',4.4,440,0],['L-Acoustics LA8',2,'amp',12.2,1500],['d&b D80',2,'amp',19],['d&b D20',2,'amp',10.8],['Powersoft X8',2,'amp',24],['Powersoft X4',1,'amp'],['Lab Gruppen PLM 20K44',2,'amp',17]]},
+  {g:'Stageboxes', items:[['Behringer S16',2,'io',4.7,45],['Behringer S32',3,'io',5.6,55],['Midas DL16',2,'io',4.7,45],['Midas DL32',3,'io',5.7,55],['Yamaha Rio1608-D2',3,'io',9.6,72],['Yamaha Rio3224-D2',5,'io',13.5,120]]},
   {g:'Régie et réseau', items:[['Processeur',1,'proc'],['Ordinateur en rack',2,'pc'],['Serveur',1,'pc'],['Switch réseau',1,'sw'],['Panneau de brassage RJ45',1,'patch']]},
   {g:'Énergie', items:[['Bandeau de prises',1,'pdu'],['Onduleur',2,'ups']]},
   {g:'Patch et accessoires', items:[['Panneau de patch sur mesure',1,'patch'],['Tiroir 2U',2,'drawer'],['Tiroir 3U',3,'drawer'],['Tiroir 4U',4,'drawer'],['Tablette',1,'shelf'],['Plaque obturatrice 1U',1,'blank'],['Plaque obturatrice 2U',2,'blank'],['Grille de ventilation',1,'vent'],['Capot 4U',4,'door'],['Éclairage de rack',1,'light']]}
@@ -17292,7 +17293,7 @@ function _rkTplSave(){
 }
 /* Rack fourni → même forme qu'un rack enregistré */
 function _rkTplStdRack(t){
-  return _rkClean([{name:t.name, units:t.units, bays:1, note:t.note, items:t.items.map(function(x){ return {n:x[0],h:x[1],kind:x[2],kg:x[3],w:x[4],d:x[5],u:x[6]}; })}])[0];
+  return _rkClean([{name:t.name, units:t.units, bays:1, note:t.note, items:t.items.map(function(x){ var c=_rkCatFind(x[0])||{}; return {n:x[0],h:x[1],kind:x[2],kg:c.kg||x[3],w:c.w||x[4],d:c.d||x[5],u:x[6]}; })}])[0];      /* fiches techniques : celles du catalogue */
 }
 function rkTplUse(src,idx){
   if(RK.racks.length>=planLimit('max_racks')){ showUpgradeModal('max_racks'); return; }
