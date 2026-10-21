@@ -371,7 +371,7 @@ async function _fsNewPatch(name, fromPid){
     OUT_DATA[id] = outs.map(function(o, i){ return Object.assign({}, o, { id:'o' + Date.now().toString(36) + i }); });
     if(typeof _rebuildAllOut === 'function') _rebuildAllOut(OUT_DATA);
     CUR_SHOW.out_data = JSON.parse(JSON.stringify(OUT_DATA));
-    sb.from('shows').update({ out_data:OUT_DATA }).eq('id', CUR_SHOW.id).then(function(r){ if(r && r.error) console.warn('[festival] sorties', r.error.message); });
+    _outPatch(CUR_SHOW, [id]).then(function(r){ if(r && r.error) console.warn('[festival] sorties', r.error.message); });
   }
   if(typeof renderPatchTabs === 'function') renderPatchTabs();
   return id;

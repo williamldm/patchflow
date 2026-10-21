@@ -153,6 +153,8 @@ function renderRoad(){
       (d.sched.length < _RD_MAX_SCHED ? '<button type="button" class="rd-add" onclick="roadAdd()"><i class="ti ti-plus"></i>Ajouter un horaire</button>' : '');
   }
   h += '</section>';
+  /* Programme du festival, s'il y en a un */
+  h += _rdProgHtml(_rdProg(CUR_SHOW), E, false);
   /* Contacts */
   h += '<section class="rd-card"><div class="rd-hd"><h3><i class="ti ti-address-book"></i>Contacts</h3></div>';
   if(d.people.length){
@@ -263,6 +265,46 @@ function roadPersonDel(el){
   _rdSave(); renderRoad();
 }
 
+/* ── Programme du festival (mode festival), repris dans la feuille de route ──
+   Dans l'app : les créneaux de stage_data.festival, le nom vient de l'input list du groupe.
+   Dans le rider partagé : la forme publique préparée par get-shared-show ({days:[{d, s:[{n,a,b,o}]}]}).
+   Retour : [{d:'AAAA-MM-JJ', s:[{n, a, b, o}]}], jours et passages dans l'ordre. */
+function _rdProg(show){
+  var f = show && show.stage_data && show.stage_data.festival;
+  if(!f || typeof f !== 'object') return [];
+  var flat = [];
+  if(Array.isArray(f.days)){
+    f.days.slice(0, 30).forEach(function(d){ (Array.isArray(d && d.s) ? d.s : []).slice(0, 120).forEach(function(x){ if(x) flat.push({ d:_rdStr(d.d, 10), n:_rdLine(x.n, 60), a:_rdTime(x.a), b:_rdTime(x.b), o:_rdLine(x.o, 120) }); }); });
+  } else if(Array.isArray(f.slots)){
+    var pats = (typeof CUR_SHOW !== 'undefined' && show === CUR_SHOW && typeof IL_PATCHES !== 'undefined') ? IL_PATCHES : (Array.isArray(show.il_patches) ? show.il_patches : []);
+    f.slots.slice(0, 120).forEach(function(s){
+      var p = s && pats.find(function(x){ return x && x.id === s.pid; });
+      if(p) flat.push({ d:_rdStr(s.day, 10), n:_rdLine(p.name, 60), a:_rdTime(s.start), b:_rdTime(s.end), o:_rdLine(s.note, 120) });
+    });
+  }
+  var k = function(t){ var m = _rdMin(t); return m < 0 ? 9999 : (m < 360 ? m + 1440 : m); };   /* avant 6 h : la nuit du même jour */
+  flat = flat.filter(function(x){ return x.n; }).sort(function(x, y){ return x.d.localeCompare(y.d) || k(x.a) - k(y.a); });
+  var out = [];
+  flat.forEach(function(x){ var last = out[out.length - 1]; if(!last || last.d !== x.d){ last = { d:x.d, s:[] }; out.push(last); } last.s.push(x); });
+  return out;
+}
+function _rdProgDay(iso){
+  if(!iso) return '';
+  try { var t = _isoToDate(iso).toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' }); return t.charAt(0).toUpperCase() + t.slice(1); } catch(e){ return iso; }
+}
+function _rdProgHtml(prog, E, shared){
+  if(!prog.length) return '';
+  var multi = prog.length > 1;
+  var body = prog.map(function(day){
+    return (multi || day.d ? '<div class="rd-prog-d">' + E(_rdProgDay(day.d) || 'Sans date') + '</div>' : '') + '<ol class="rd-prog">' + day.s.map(function(x){
+      return '<li><b>' + E(x.a || '—') + (x.b ? '<small>' + E(x.b) + '</small>' : '') + '</b><span>' + E(x.n) + (x.o ? '<small>' + E(x.o) + '</small>' : '') + '</span></li>';
+    }).join('') + '</ol>';
+  }).join('');
+  return shared
+    ? '<section class="sv-card sv-rd"><h4><i class="ti ti-calendar-time"></i>Programme de la scène</h4>' + body + '</section>'
+    : '<section class="rd-card"><div class="rd-hd"><h3><i class="ti ti-calendar-time"></i>Programme de la scène</h3><span class="rd-grow"></span><button type="button" class="ov-link" onclick="goTab(\'festival\',null)"><i class="ti ti-pencil"></i>Modifier</button></div>' + body + '</section>';
+}
+
 /* ── Texte à copier (WhatsApp, SMS, mail) ── */
 function _rdText(d, show){
   var iso = _showDateISO(show.show_date), out = [];
@@ -270,6 +312,11 @@ function _rdText(d, show){
   out.push('FEUILLE DE ROUTE — ' + [show.name, show.venue, dt].filter(Boolean).join(' · '));
   var list = _rdSorted(d.sched).filter(function(x){ return x.t || x.l; });
   if(list.length){ out.push('', 'HORAIRES'); list.forEach(function(x){ out.push((x.t || '  —  ') + '  ' + x.l + (x.n ? ' (' + x.n + ')' : '')); }); }
+  var prog = _rdProg(show);
+  if(prog.length){
+    out.push('', 'PROGRAMME');
+    prog.forEach(function(day){ if(prog.length > 1 && day.d) out.push(_rdProgDay(day.d)); day.s.forEach(function(x){ out.push((x.a || '  —  ') + (x.b ? '-' + x.b : '') + '  ' + x.n + (x.o ? ' (' + x.o + ')' : '')); }); });
+  }
   var place = _RD_PLACE.filter(function(f){ return d[f[0]]; });
   if(place.length){ out.push('', 'LIEU'); place.forEach(function(f){ out.push(f[1] + ' : ' + d[f[0]]); }); }
   var ppl = d.people.filter(function(x){ return x.n || x.p || x.m; });
@@ -282,7 +329,7 @@ function _rdText(d, show){
 function roadCopy(){
   if(!CUR_SHOW) return;
   var d = _rdLoad();
-  if(_rdIsEmpty(d)){ toast('La feuille de route est vide.'); return; }
+  if(_rdIsEmpty(d) && !_rdProg(CUR_SHOW).length){ toast('La feuille de route est vide.'); return; }
   var txt = _rdText(d, CUR_SHOW);
   var done = function(){ toast('Feuille de route copiée : collez-la dans un message.'); };
   if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, function(){ _rdCopyFallback(txt, done); });
@@ -299,7 +346,7 @@ function _rdCopyFallback(txt, done){
 async function roadPdf(){
   if(!CUR_SHOW) return;
   var d = _rdLoad();
-  if(_rdIsEmpty(d)){ toast('La feuille de route est vide.'); return; }
+  if(_rdIsEmpty(d) && !_rdProg(CUR_SHOW).length){ toast('La feuille de route est vide.'); return; }
   toast('Génération PDF…');
   try {
     var JsPDF = await _loadAutoTable(), doc = new JsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
@@ -325,6 +372,14 @@ async function roadPdf(){
     var list = _rdSorted(d.sched).filter(function(x){ return x.t || x.l; });
     if(list.length){ put('Horaires'); tbl(['HEURE', 'ÉTAPE', 'PRÉCISIONS'], list.map(function(x){ return [x.t || '—', x.l, x.n]; }),
       { 0:{ fontStyle:'bold', textColor:acc, cellWidth:18, font:'courier' }, 1:{ fontStyle:'bold', cellWidth:(PW - 2 * M - 18) * 0.42 }, 2:{ textColor:K.txt2, fontSize:8.5 } }); }
+    var prog = _rdProg(CUR_SHOW);
+    if(prog.length){
+      put('Programme de la scène');
+      var rowsP = [];
+      prog.forEach(function(day){ day.s.forEach(function(x){ rowsP.push([prog.length > 1 ? _rdProgDay(day.d) : (x.a || '—'), prog.length > 1 ? (x.a || '—') : (x.b || ''), x.n, x.o]); }); });
+      tbl(prog.length > 1 ? ['JOUR', 'HEURE', 'GROUPE', 'NOTE'] : ['DÉBUT', 'FIN', 'GROUPE', 'NOTE'], rowsP,
+        { 0:{ fontStyle:'bold', textColor:acc, cellWidth:prog.length > 1 ? 34 : 18, font:prog.length > 1 ? 'helvetica' : 'courier' }, 1:{ cellWidth:18, font:'courier', textColor:K.txt2 }, 2:{ fontStyle:'bold' }, 3:{ textColor:K.txt2, fontSize:8.5 } });
+    }
     var ppl = d.people.filter(function(x){ return x.n || x.p || x.m; });
     if(ppl.length){ put('Contacts'); tbl(['RÔLE', 'NOM', 'TÉLÉPHONE', 'E-MAIL'], ppl.map(function(x){ return [x.r, x.n, x.p, x.m]; }),
       { 0:{ textColor:K.txt2, cellWidth:44 }, 1:{ fontStyle:'bold', cellWidth:44 }, 2:{ cellWidth:34 }, 3:{ textColor:K.txt2, fontSize:8.5 } }); }
@@ -348,8 +403,8 @@ async function roadPdf(){
 /* ── Vue du rider partagé (lecture seule) ──
    chg : changements depuis la dernière visite du destinataire ({ids:{id:'new'|'mod'}, fields:{clé:1}}), ou null */
 function _rdSharedHtml(raw, show, esc, chg){
-  var d = _rdClean(raw), E = esc || _bonE, iso = _showDateISO(show && show.show_date);
-  if(_rdIsEmpty(d)) return '<div class="sv-empty"><i class="ti ti-route"></i><b>Feuille de route vide</b><span>Les horaires et les contacts de la date apparaîtront ici dès qu\'ils seront saisis.</span></div>';
+  var d = _rdClean(raw), E = esc || _bonE, iso = _showDateISO(show && show.show_date), prog = _rdProg(show);
+  if(_rdIsEmpty(d) && !prog.length) return '<div class="sv-empty"><i class="ti ti-route"></i><b>Feuille de route vide</b><span>Les horaires et les contacts de la date apparaîtront ici dès qu\'ils seront saisis.</span></div>';
   var C = chg || { ids:{}, fields:{} }, mark = function(id){ return C.ids[id] ? ' sv-chg' + (C.ids[id] === 'new' ? ' new' : '') : ''; };
   var tag = function(id){ return C.ids[id] ? '<em class="sv-chg-t">' + (C.ids[id] === 'new' ? 'nouveau' : 'modifié') + '</em>' : ''; };
   var list = _rdSorted(d.sched).filter(function(x){ return x.t || x.l; }), now = _rdNow(list, iso), h = '';
@@ -361,6 +416,7 @@ function _rdSharedHtml(raw, show, esc, chg){
           (st === ' on' ? '<em class="sv-rd-now">en cours</em>' : st === ' next' ? '<em class="sv-rd-nx">à suivre</em>' : '') + tag(x.id) + '</li>';
       }).join('') + '</ol></section>';
   }
+  h += _rdProgHtml(prog, E, true);
   var ppl = d.people.filter(function(x){ return x.n || x.p || x.m; });
   if(ppl.length){
     h += '<section class="sv-card sv-rd"><h4><i class="ti ti-address-book"></i>Contacts</h4><div class="sv-rd-pp">' +

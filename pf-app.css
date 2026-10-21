@@ -5063,3 +5063,14 @@ button.il-start-card:hover{box-shadow:inset 0 0 0 1px var(--ora);transform:trans
   .fs-bar label{flex-wrap:wrap}
 }
 .fs-tl-ticks span.first{transform:none}.fs-tl-ticks span.last{transform:translateX(-100%)}
+
+/* Programme du festival dans la feuille de route (app et rider partagé) */
+.rd-prog-d{font-size:12px;font-weight:650;letter-spacing:.04em;text-transform:uppercase;color:var(--txt2);margin:12px 0 6px}
+.rd-prog-d:first-child{margin-top:2px}
+.rd-prog{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.rd-prog li{display:flex;gap:14px;align-items:baseline;padding:8px 0;border-top:1px solid var(--bdr)}
+.rd-prog li:first-child{border-top:0}
+.rd-prog li>b{min-width:58px;font-family:var(--m);font-size:13px;color:var(--ora);display:flex;flex-direction:column;line-height:1.2}
+.rd-prog li>b small{font-size:11px;color:var(--muted);font-weight:400}
+.rd-prog li>span{font-size:13.5px;font-weight:600;display:flex;flex-direction:column;gap:2px}
+.rd-prog li>span small{font-size:12px;font-weight:400;color:var(--muted)}

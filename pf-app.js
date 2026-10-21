@@ -1538,6 +1538,7 @@ async function switchPatch(id){
   await loadChs();
   loadOutData();
   if(CUR_IL_MODE==='out') renderOutTable();
+  _outRefresh(id);
 }
 
 function addPatch(){
@@ -1632,6 +1633,7 @@ function renamePatch(id){
 // ══════════════════════════════════════
 function setILMode(mode) {
   CUR_IL_MODE = mode;
+  if(mode==='out' && typeof _outRefresh==='function') _outRefresh(CUR_PATCH_ID);
   var isIn  = (mode === 'in');
   document.getElementById('pmb-il-in')?.classList.toggle('on', isIn);
   document.getElementById('pmb-il-out')?.classList.toggle('on', !isIn);
@@ -1664,6 +1666,7 @@ function loadOutData() {
   }
   OUT_DATA = _sanitizePlanJSON(raw || {});
   OUT_CHS  = (OUT_DATA[CUR_PATCH_ID] || []).slice();
+  if(!fromLocal && OUT_BASE_SHOW!==CUR_SHOW.id) _outMarkBase(CUR_SHOW);
   _rebuildAllOut(OUT_DATA);
   /* Auto-réparation : si les sorties ne venaient que du cache local (la base
      n'avait rien — ex. colonne out_data récemment ajoutée), on les remonte en
@@ -1682,11 +1685,59 @@ function saveOutData() {
   _rebuildAllOut(OUT_DATA);
   try { localStorage.setItem('out_data_'+CUR_SHOW.id, JSON.stringify(OUT_DATA)); } catch(e){}
   CUR_SHOW.out_data = JSON.parse(JSON.stringify(OUT_DATA));
+  /* Seules les output lists modifiées partent : celles d'un autre groupe, changées ailleurs, restent intactes */
+  _outPend[CUR_PATCH_ID] = 1;
+  var show = CUR_SHOW;
   clearTimeout(_saveOutTimer);
   _saveOutTimer = setTimeout(function(){
-    sb.from('shows').update({out_data: OUT_DATA}).eq('id', CUR_SHOW.id)
-      .then(function(r){ if(r&&r.error) console.warn('[out_data] sauvegarde échouée:', r.error.message); });
+    var pids = Object.keys(_outPend); _outPend = {};
+    _outPatch(show, pids).then(function(r){ if(r&&r.error) console.warn('[out_data] sauvegarde échouée:', r.error.message); });
   }, 900);
+}
+
+/* ── out_data enregistré input list par input list (fonction pf_out_patch, repli sur l'écriture complète) ──
+   OUT_BASE garde la dernière version connue du serveur pour chaque liste : une liste modifiée ici et pas
+   encore enregistrée n'est jamais remplacée par celle d'un collègue. */
+var _outRpcOk=null, _outPend={}, OUT_BASE={}, OUT_BASE_SHOW=null;
+function _outMarkBase(show){
+  show=show||CUR_SHOW; if(!show) return;
+  OUT_BASE={}; OUT_BASE_SHOW=show.id;
+  var od=show.out_data||{};
+  Object.keys(od).forEach(function(k){ OUT_BASE[k]=_sdJ(od[k]); });
+}
+async function _outPatch(show, pids){
+  if(!show||!pids.length) return {error:null};
+  var od=show.out_data||{}, patch={};
+  pids.forEach(function(k){ patch[k]=od[k]===undefined?null:od[k]; });
+  if(_outRpcOk!==false){
+    var r=await sb.rpc('pf_out_patch',{p_show:show.id,p_patch:patch});
+    if(!r||!r.error){
+      _outRpcOk=true;
+      if(OUT_BASE_SHOW===show.id) pids.forEach(function(k){ OUT_BASE[k]=_sdJ(patch[k]); });
+      return r||{error:null};
+    }
+    var m=(r.error.message||'')+' '+(r.error.code||'');
+    if(!/pf_out_patch|PGRST202|42883|Could not find the function/i.test(m)) return r;
+    _outRpcOk=false;
+  }
+  return sb.from('shows').update({out_data:od}).eq('id',show.id);
+}
+/* Relit l'output list d'un groupe si un collègue l'a changée (et qu'elle n'a pas bougé ici) */
+async function _outRefresh(pid){
+  if(!CUR_SHOW||_outRpcOk===false||!/^[A-Za-z0-9_-]{1,64}$/.test(pid||'')) return;
+  var show=CUR_SHOW;
+  var r=await sb.from('shows').select('out_data->'+pid).eq('id',show.id).maybeSingle();
+  if(!r||r.error||!r.data||CUR_SHOW!==show||!(pid in r.data)) return;
+  if(OUT_BASE_SHOW!==show.id) _outMarkBase(show);
+  var srv=_sdJ(r.data[pid]), base=OUT_BASE[pid]===undefined?_sdJ(null):OUT_BASE[pid];
+  if(srv===base) return;
+  if(_sdJ(OUT_DATA[pid]===undefined?null:OUT_DATA[pid])!==base) return;
+  if(r.data[pid]==null) delete OUT_DATA[pid]; else OUT_DATA[pid]=r.data[pid];
+  OUT_BASE[pid]=srv;
+  _rebuildAllOut(OUT_DATA);
+  CUR_SHOW.out_data=JSON.parse(JSON.stringify(OUT_DATA));
+  if(pid===CUR_PATCH_ID){ OUT_CHS=(OUT_DATA[pid]||[]).slice(); if(CUR_IL_MODE==='out') renderOutTable(); }
+  toast('↻ Sorties mises à jour par un collaborateur');
 }
 
 // ══════════════════════════════════════
@@ -8527,6 +8578,7 @@ async function _sdRefresh(force){
   }
   if(changed.road&&typeof _rdReload==='function') _rdReload();
   if(changed.festival&&typeof festReload==='function') festReload();
+  if(typeof _outRefresh==='function') _outRefresh(CUR_PATCH_ID);
   if(Object.keys(changed).length) toast('↻ Mis à jour par un collaborateur');
 }
 document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') _sdRefresh(); });
