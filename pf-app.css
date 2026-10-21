@@ -4916,3 +4916,49 @@ body:has(.modal-ov.show) .sp-empty{display:none}
   .link-create{flex-wrap:wrap}
   .link-create .btn{flex:1 1 100%;justify-content:center}
 }
+
+/* ══ Premiers pas : input list vide, carte de la vue d'ensemble, show d'exemple ══ */
+.il-start{max-width:980px;margin:28px auto 40px;padding:0 4px}
+.il-start-hd{text-align:center;margin-bottom:22px}
+.il-start-hd b{display:block;font-size:22px;font-weight:700;letter-spacing:-.02em}
+.il-start-hd span{display:block;font-size:13.5px;color:var(--muted);margin-top:6px}
+.il-start-grid{display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:14px}
+.il-start-card{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;padding:20px;border-radius:14px;
+  background:var(--surf);border:0;box-shadow:inset 0 0 0 1px var(--bdr2);color:var(--txt);font:inherit;cursor:pointer;transition:box-shadow .15s,transform .15s}
+div.il-start-card{cursor:default}
+button.il-start-card:hover{box-shadow:inset 0 0 0 1px var(--ora);transform:translateY(-1px)}
+.il-start-card.hl{background:linear-gradient(160deg,var(--ora-d),var(--surf) 70%);box-shadow:inset 0 0 0 1px var(--ora-g)}
+.il-start-ic{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:var(--surf2);color:var(--txt2);font-size:20px;margin-bottom:6px}
+.il-start-card.hl .il-start-ic{background:var(--ora);color:#160b03}
+.il-start-card b{font-size:15px;font-weight:650}
+.il-start-card>span:not(.il-start-ic){font-size:12.5px;color:var(--muted);line-height:1.5}
+.il-start-card em{position:absolute;top:16px;right:16px;font-style:normal;font-size:11px;font-weight:650;color:var(--ora);background:var(--ora-d);padding:3px 9px;border-radius:999px}
+.il-start-tpls{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.il-start-tpl{font:inherit;font-size:12px;font-weight:550;padding:5px 10px;border-radius:999px;border:1px solid var(--bdr2);background:transparent;color:var(--txt2);cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.il-start-tpl small{font-size:10.5px;color:var(--muted);font-family:var(--m)}
+.il-start-tpl:hover{border-color:var(--ora);color:var(--ora)}
+.il-start-foot{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 16px;margin-top:18px}
+.il-start-foot button{font:inherit;font-size:12.5px;background:none;border:0;color:var(--txt2);cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:6px 4px}
+.il-start-foot button:hover{color:var(--ora)}
+.il-start-foot button:last-child{color:var(--ora);font-weight:600}
+.ov-start{grid-column:1/-1;margin-bottom:16px;box-shadow:inset 0 0 0 1px var(--ora-g);background:linear-gradient(120deg,var(--ora-d),var(--surf) 45%)}
+.ov-start .ov-card-hd .ov-count{margin-left:auto}
+.ov-start-l{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.ov-start-i{display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:12px;background:var(--surf);box-shadow:inset 0 0 0 1px var(--bdr)}
+.ov-start-i .btn{align-self:flex-start;margin-top:auto}
+.ov-start-n{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;background:var(--surf2);color:var(--txt2)}
+.ov-start-i.next .ov-start-n{background:var(--ora);color:#160b03}
+.ov-start-i.done .ov-start-n{background:rgba(34,214,160,.15);color:var(--grn)}
+.ov-start-i.done{opacity:.65}
+.ov-start-t b{display:block;font-size:13.5px;font-weight:650}
+.ov-start-t span{display:block;font-size:12px;color:var(--muted);line-height:1.45;margin-top:3px}
+.ov-start-demo{margin-top:12px;font:inherit;font-size:12.5px;font-weight:600;background:none;border:0;color:var(--ora);cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:2px 0}
+.demo-ov{position:fixed;inset:0;z-index:400;background:var(--overlay);display:flex;align-items:center;justify-content:center}
+.demo-ov>div{display:flex;flex-direction:column;align-items:center;gap:10px;padding:28px 34px;border-radius:16px;background:var(--surf);box-shadow:inset 0 0 0 1px var(--bdr2)}
+.demo-ov b{font-size:15px}.demo-ov span{font-size:12.5px;color:var(--muted)}
+@media(max-width:900px){
+  .il-start{margin:16px auto 28px}
+  .il-start-hd{text-align:left}
+  .il-start-grid,.ov-start-l{grid-template-columns:1fr}
+  .il-start-foot{justify-content:flex-start;flex-direction:column;align-items:flex-start;gap:2px}
+}

@@ -101,7 +101,7 @@ function _rdSave(){
   RD.t = setTimeout(async function(){
     try {
       if(typeof setSaving === 'function') setSaving(true);
-      var r = await sb.from('shows').update({ stage_data:show.stage_data }).eq('id', show.id);
+      var r = await _sdPatch(show, ['road']);
       if(r && r.error) toast('Feuille de route non enregistrée : ' + r.error.message);
     } catch(e){ toast('Feuille de route non enregistrée : ' + (e && e.message || e)); }
     if(typeof setSaving === 'function') setSaving(false);

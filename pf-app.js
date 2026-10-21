@@ -1226,6 +1226,7 @@ async function switchShow(id, opts){
     try{ localStorage.setItem(SHOW_PERSIST_KEY, id); }catch(e){}
   }
   const n=CUR_SHOW.name;
+  _sdMarkBase(CUR_SHOW);
   document.getElementById('cur-show-name').textContent=n;
   const tbn=document.getElementById('tb-show-name');if(tbn)tbn.textContent=n;
   ['il','sf','stage','team'].forEach(k=>{const el=document.getElementById('sn-'+k);if(el)el.textContent=n;});
@@ -2534,7 +2535,7 @@ function renderTable(){
   initDragDrop();
   _renderColHead();
   if(CHS.length===0){
-    setILBody('<div class="il-empty"><i class="ti ti-list-numbers"></i><div class="il-empty-t">Aucun canal pour l\'instant</div><div class="il-empty-s">Ajoutez vos canaux un par un, ou partez d\'une base toute prête.</div><div class="il-empty-a"><button class="btn pri" onclick="addRow()"><i class="ti ti-plus"></i>Ajouter un canal</button><button class="btn" onclick="openILAssist()"><i class="ti ti-wand"></i>Assistant</button></div></div>',true);
+    setILBody(_ilStartHtml(),true);
   }
   else{
     var cols=_orderedColIds();
@@ -3035,8 +3036,7 @@ async function generateRiderLink(){
   };
   var sd=Object.assign({},CUR_SHOW.stage_data||{v:2},{rider:cfg});
   CUR_SHOW.stage_data=sd;
-  // Also explicitly persist out_data and synoptique_data in their own columns
-  var {error}=await sb.from('shows').update({stage_data:sd}).eq('id',CUR_SHOW.id);
+  var {error}=await _sdPatch(CUR_SHOW,['rider']);
   if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-link"></i>Générer le lien';}
   if(error){toast('Erreur sauvegarde : '+error.message);return;}
   // Show URL
@@ -3869,7 +3869,7 @@ function _saveILLayout(){
   CUR_SHOW.stage_data=sd;
   clearTimeout(_ilLayoutTimer);
   _ilLayoutTimer=setTimeout(function(){
-    if(CUR_SHOW) sb.from('shows').update({stage_data:CUR_SHOW.stage_data}).eq('id',CUR_SHOW.id);
+    if(CUR_SHOW) _sdPatch(CUR_SHOW,['il_col_order','il_vis_col']);
   },600);
 }
 /* Hydrate colOrder + visCol depuis le show courant (appelé au changement de
@@ -3982,7 +3982,7 @@ async function _saveCustomCols(cols){
   if(!CUR_SHOW)return;
   const sd=Object.assign({},CUR_SHOW.stage_data||{v:2},{il_custom_cols:cols});
   CUR_SHOW.stage_data=sd;
-  await sb.from('shows').update({stage_data:sd}).eq('id',CUR_SHOW.id);
+  await _sdPatch(CUR_SHOW,['il_custom_cols']);
 }
 
 /* Sauvegarde la valeur d'une colonne custom dans channels.custom_data */
@@ -7406,7 +7406,7 @@ async function _ensureShareActive(){
   if(CUR_SHOW.stage_data && CUR_SHOW.stage_data.rider) return true;
   var cfg={ sections:['il','out','syno','stage','site'], title:CUR_SHOW.name||'', note:'', info:'', files:[] };
   var sd=Object.assign({}, CUR_SHOW.stage_data||{v:2}, {rider:cfg});
-  var {error}=await sb.from('shows').update({stage_data:sd}).eq('id',CUR_SHOW.id);
+  var {error}=await _sdPatch({id:CUR_SHOW.id,stage_data:sd},['rider']);
   if(error){ toast(CUR_SHOW.owner_id!==(ME&&ME.id)?'Seul le propriétaire du show peut activer son lien de partage.':'Erreur activation du partage : '+error.message); return false; }
   CUR_SHOW.stage_data=sd;
   return true;
@@ -8460,6 +8460,74 @@ async function delAmp(idx){
 }
 
 // ══════════════════════════════════════
+// STAGE_DATA : ENREGISTREMENT PAR RUBRIQUE
+// ══════════════════════════════════════
+/* stage_data réunit des rubriques de modules différents (racks, rf, road, band, site, rider…).
+   Avant, chaque module renvoyait TOUT stage_data tel que chargé sur l'appareil : un membre (ou un
+   second appareil) qui avait ouvert le show plus tôt effaçait, en enregistrant sa rubrique, ce qui
+   avait été fait entre-temps dans les autres. On n'envoie plus que les rubriques modifiées ; la
+   fonction pf_stage_patch les fusionne en base. Repli sur l'écriture complète tant qu'elle n'est
+   pas installée. SD_BASE garde, par rubrique, la dernière version connue du serveur : elle sert à
+   savoir si une rubrique a été modifiée ici avant de la remplacer par celle d'un collègue. */
+var _sdRpcOk=null, SD_BASE={}, SD_BASE_SHOW=null, _sdLastRefresh=0;
+function _sdJ(v){ try{ return JSON.stringify(v===undefined?null:v); }catch(e){ return ''; } }
+function _sdMarkBase(show){
+  show=show||CUR_SHOW; if(!show) return;
+  SD_BASE={}; SD_BASE_SHOW=show.id;
+  var sd=show.stage_data||{};
+  _SD_LIVE.forEach(function(k){ SD_BASE[k]=_sdJ(sd[k]); });
+}
+async function _sdPatch(show, keys){
+  if(!show) return {error:null};
+  var sd=show.stage_data||{}, patch={};
+  keys.forEach(function(k){ patch[k]=sd[k]===undefined?null:sd[k]; });
+  if(_sdRpcOk!==false){
+    var r=await sb.rpc('pf_stage_patch',{p_show:show.id,p_patch:patch});
+    if(!r||!r.error){
+      _sdRpcOk=true;
+      if(SD_BASE_SHOW===show.id) keys.forEach(function(k){ if(_SD_LIVE.indexOf(k)>=0) SD_BASE[k]=_sdJ(patch[k]); });
+      return r||{error:null};
+    }
+    var m=(r.error.message||'')+' '+(r.error.code||'');
+    if(!/pf_stage_patch|PGRST202|42883|Could not find the function/i.test(m)) return r;
+    _sdRpcOk=false;   /* fonction absente : ancien comportement */
+  }
+  return sb.from('shows').update({stage_data:sd}).eq('id',show.id);
+}
+/* Rubriques relues depuis le serveur quand un collègue a pu les changer, et le module à recharger */
+var _SD_LIVE=['racks','rack_groups','rf','road'];
+async function _sdRefresh(force){
+  if(!CUR_SHOW||_sdRpcOk===false) return;
+  var now=Date.now(); if(!force&&now-_sdLastRefresh<15000) return; _sdLastRefresh=now;
+  var show=CUR_SHOW;
+  var r=await sb.from('shows').select('stage_data->racks,stage_data->rack_groups,stage_data->rf,stage_data->road').eq('id',show.id).maybeSingle();
+  if(!r||r.error||!r.data||CUR_SHOW!==show) return;
+  if(SD_BASE_SHOW!==show.id) _sdMarkBase(show);
+  var sd=show.stage_data||(show.stage_data={v:2}), changed={};
+  _SD_LIVE.forEach(function(k){
+    if(!(k in r.data)) return;
+    var srv=_sdJ(r.data[k]);
+    if(srv===SD_BASE[k]) return;                      /* rien de neuf côté serveur */
+    if(_sdJ(sd[k])!==SD_BASE[k]) return;              /* modifiée ici, pas encore enregistrée : on garde la nôtre */
+    if(r.data[k]==null) delete sd[k]; else sd[k]=r.data[k];
+    SD_BASE[k]=srv; changed[k]=1;
+  });
+  var on=function(id){ var el=document.getElementById('panel-'+id); return !!(el&&el.classList.contains('on')); };
+  if(changed.racks||changed.rack_groups){
+    var cur=RK.cur; RK.showId=null;
+    if(on('racks')){ _rkLoad(); if(cur&&RK.racks.some(function(x){return x.id===cur;})) RK.cur=cur; renderRacks(); }
+  }
+  if(changed.rf&&typeof RF!=='undefined'){
+    var act=document.activeElement, pr=document.getElementById('panel-rf');
+    if(!(pr&&act&&pr.contains(act)&&/INPUT|TEXTAREA|SELECT/.test(act.tagName))){ RF.showId=null; if(on('rf')&&typeof renderRf==='function') renderRf(); }
+  }
+  if(changed.road&&typeof _rdReload==='function') _rdReload();
+  if(Object.keys(changed).length) toast('↻ Mis à jour par un collaborateur');
+}
+document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') _sdRefresh(); });
+window.addEventListener('focus',function(){ _sdRefresh(); });
+
+// ══════════════════════════════════════
 // STAGE PLAN — persisted in shows.stage_data
 // ══════════════════════════════════════
 let _stageReady=false;   // true after loadStage() has run for the current show
@@ -8473,7 +8541,7 @@ function _saveChsSnapshot(){
     const chsSnap=(typeof CHS!=='undefined'?CHS:[]).map(function(r){return{id:r.id,ch:r.ch,short_name:r.short_name||'',long_name:r.long_name||'',source:r.source||'',mic:r.mic||'',phantom:!!r.phantom,foh:!!r.foh,mon:!!r.mon,note:r.note||''};});
     const sd=Object.assign({},CUR_SHOW.stage_data||{v:2},{chs:chsSnap});
     CUR_SHOW.stage_data=sd;
-    sb.from('shows').update({stage_data:sd}).eq('id',CUR_SHOW.id);
+    _sdPatch(CUR_SHOW,['chs']);
   },1500);
 }
 function loadStage(){
@@ -8614,8 +8682,9 @@ async function saveStage(){
     const sd=Object.assign({},existing,{v:2,planMode:PLAN_MODE,chs:chsSnap});
     CUR_SHOW.stage_data=sd;
     clearTimeout(saveStageTimer);
+    const _show=CUR_SHOW;
     saveStageTimer=setTimeout(async()=>{
-      await sb.from('shows').update({stage_data:sd}).eq('id',CUR_SHOW.id);
+      await _sdPatch(_show,['v','planMode','chs']);
     },1000);
     return;
   }
@@ -8632,8 +8701,9 @@ async function saveStage(){
   const data=Object.assign({},existing,{v:2,planMode:PLAN_MODE,band:BandPlan.getData(),site:siteData,chs:chsSnap});   /* garde racks, colonnes et réglages rangés à côté des plans */
   CUR_SHOW.stage_data=data;
   clearTimeout(saveStageTimer);
+  const _show=CUR_SHOW;
   saveStageTimer=setTimeout(async()=>{
-    await sb.from('shows').update({stage_data:data}).eq('id',CUR_SHOW.id);
+    await _sdPatch(_show,['v','planMode','band','site','chs']);
   },1000);
 }
 async function saveSite(){
@@ -17937,7 +18007,7 @@ function _rkSave(noHist){
   RK.t=setTimeout(async function(){
     if(!CUR_SHOW || CUR_SHOW.id!==RK.showId) return;
     try{ if(typeof setSaving==='function') setSaving(true);
-      var r=await sb.from('shows').update({stage_data:CUR_SHOW.stage_data}).eq('id',CUR_SHOW.id);
+      var r=await _sdPatch(CUR_SHOW,['racks','rack_groups']);
       if(r && r.error) toast('Racks non enregistrés : '+r.error.message);
     }catch(e){ toast('Racks non enregistrés : '+(e&&e.message||e)); }
     if(typeof setSaving==='function') setSaving(false);
@@ -19300,6 +19370,107 @@ function _admMailHtml(){
    VUE D'ENSEMBLE DU SHOW
    ══════════════════════════════════════════════════════════════════ */
 var _ovCache={id:null,files:null,linksAsked:false};
+/* ── Premier remplissage de l'input list : trois façons de démarrer, la plus rapide d'abord ── */
+function _ilStartHtml(){
+  var E=function(x){ return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+  var tpls=(typeof BLTPLS!=='undefined'?BLTPLS:[]).slice(0,7).map(function(t){
+    return '<button type="button" class="il-start-tpl" onclick="ilStartTpl(\''+_jsq(t.id)+'\')">'+E(t.name)+'<small>'+(t.channels||[]).length+' CH</small></button>';
+  }).join('');
+  return '<div class="il-start">'
+    +'<div class="il-start-hd"><b>Votre patch en deux minutes</b><span>Choisissez comment démarrer&nbsp;: tout se modifie ensuite, canal par canal.</span></div>'
+    +'<div class="il-start-grid">'
+      +'<button type="button" class="il-start-card hl" onclick="ilPdfImport()"><span class="il-start-ic"><i class="ti ti-file-type-pdf"></i></span>'
+        +'<b>Importer le rider du groupe</b><span>Ouvrez son PDF&nbsp;: PatchFlow lit le tableau du patch, vous validez les colonnes.</span><em>Le plus rapide</em></button>'
+      +'<div class="il-start-card"><span class="il-start-ic"><i class="ti ti-template"></i></span>'
+        +'<b>Partir d\'un modèle</b><span>Une liste type, à ajuster ensuite.</span><div class="il-start-tpls">'+tpls+'</div></div>'
+      +'<button type="button" class="il-start-card" onclick="openILAssist()"><span class="il-start-ic"><i class="ti ti-wand"></i></span>'
+        +'<b>Saisir avec l\'assistant</b><span>Batterie, basse, guitares, voix&nbsp;: cochez ce qu\'il y a sur scène, les canaux se posent.</span></button>'
+    +'</div>'
+    +'<div class="il-start-foot">'
+      +'<button type="button" onclick="ilAiImport()"><i class="ti ti-sparkles"></i>Photo ou scan du rider&nbsp;: lecture par IA</button>'
+      +'<button type="button" onclick="importCSVClick()"><i class="ti ti-table-import"></i>Fichier CSV</button>'
+      +'<button type="button" onclick="addRow()"><i class="ti ti-plus"></i>Un canal vide</button>'
+      +'<button type="button" onclick="createDemoShow()"><i class="ti ti-eye"></i>Voir un show d\'exemple rempli</button>'
+    +'</div></div>';
+}
+function ilStartTpl(id){ if(typeof setTplMode==='function') setTplMode('replace'); applyTemplate(id); }
+
+/* ── Show d'exemple : tout PatchFlow rempli, pour voir avant de saisir ──
+   C'est un vrai show du compte (modifiable, supprimable), nommé « Exemple ». */
+async function createDemoShow(){
+  if(!ME){ return; }
+  var mine=SHOWS.filter(function(x){ return x.owner_id===ME.id; });
+  var ex=mine.find(function(x){ return /^Exemple · /.test(x.name||''); });
+  if(ex){ await switchShow(ex.id); goTab('overview',null); toast('Voici votre show d\'exemple.'); return; }
+  if(mine.length>=planLimit('max_shows')){ showUpgradeModal('max_shows'); return; }
+  var ov=document.createElement('div'); ov.className='demo-ov'; ov.innerHTML='<div><div class="spinner"></div><b>Préparation du show d\'exemple…</b><span>Patch, HF, racks, plan de scène et synoptique</span></div>';
+  document.body.appendChild(ov);
+  try{
+    var dt=new Date(Date.now()+21*864e5), iso=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+    var C=[['KICK','Kick','Batterie','Beta 91A'],['SNARE','Snare','Batterie','SM57'],['HH','Charley','Batterie','SM81',1],['TOM 1','Tom 1','Batterie','e604'],['FLOOR','Floor','Batterie','e604'],['OH L','OH L','Batterie','KM184',1],['OH R','OH R','Batterie','KM184',1],
+      ['BASSE','Basse DI','Basse','Radial JDI'],['GTR 1','Gtr 1','Guitare','ULXD1 HF',0,'606.125'],['GTR 2','Gtr 2','Guitare','e906'],['KEYS L','Claviers L','Claviers','DI'],['KEYS R','Claviers R','Claviers','DI'],['VOIX L','Voix lead','Chant','AD2 Beta 58 HF',0,'518.250'],['CHOEUR','Choeur','Chant','AD2 SM58 HF',0,'521.400']];
+    var outs=[['WEDGE','Wedge guitare','mon','Gtr 2',''],['WEDGE','Wedge basse','mon','Basse',''],['IEM CH','IEM chant','iem','Voix lead','626.125'],['IEM BA','IEM batterie','iem','Batterie','631.000'],['IEM CL','IEM claviers','iem','Claviers','633.750'],['DRUM F','Drum fill','sub','Batterie','']]
+      .map(function(o,i){ return {id:'o'+Date.now().toString(36)+i,ch:i+1,short_name:o[0],long_name:o[1],type:o[2],dest:o[3],hf:o[4]}; });
+    var rid=function(){ return Math.random().toString(36).slice(2,10)+Math.random().toString(36).slice(2,6); };
+    var rf={v:1,zones:['Plateau'],ch:[
+      {id:rid(),n:'Voix lead',kind:'mic',tx:'hh',f:518250,mk:'Shure',mdl:'AD4Q',ser:'AD',band:'G57',dev:'AD4Q 1',zone:'Plateau',lk:true},
+      {id:rid(),n:'Choeur',kind:'mic',tx:'hh',f:521400,mk:'Shure',mdl:'AD4Q',ser:'AD',band:'G57',dev:'AD4Q 1',zone:'Plateau',lk:true},
+      {id:rid(),n:'Gtr 1',kind:'mic',tx:'bp',f:606125,mk:'Shure',mdl:'ULXD4Q',ser:'ULXD',band:'K51',dev:'ULXD4Q',zone:'Plateau',lk:true},
+      {id:rid(),n:'IEM chant',kind:'iem',f:626125,mk:'Shure',mdl:'PSM1000',ser:'PSM1000',band:'L8E',dev:'P10T 1',zone:'Plateau',lk:true},
+      {id:rid(),n:'IEM batterie',kind:'iem',f:631000,mk:'Shure',mdl:'PSM1000',ser:'PSM1000',band:'L8E',dev:'P10T 1',zone:'Plateau',lk:true},
+      {id:rid(),n:'IEM claviers',kind:'iem',f:633750,mk:'Shure',mdl:'PSM1000',ser:'PSM1000',band:'L8E',dev:'P10T 2',zone:'Plateau',lk:true}]};
+    var racks=[{id:'r'+rid(),name:'Rack HF plateau',units:12,bays:1,depth:600,items:[
+      {id:rid(),n:'Shure UA844+ (distribution d\'antennes)',h:1,u:12,kind:'rx',side:'f',kg:2.5,w:20},
+      {id:rid(),n:'Shure AD4Q',h:1,u:11,kind:'rx',side:'f',kg:5.9,w:75},{id:rid(),n:'Shure ULXD4Q',h:1,u:10,kind:'rx',side:'f',kg:4.6,w:50},
+      {id:rid(),n:'Shure PSM1000 P10T',h:1,u:9,kind:'rx',side:'f',kg:4.5,w:45},{id:rid(),n:'Shure PSM1000 P10T',h:1,u:8,kind:'rx',side:'f',kg:4.5,w:45},
+      {id:rid(),n:'Bandeau de prises',h:1,u:1,kind:'pdu',side:'f',kg:1.2,w:0}]}];
+    var ins=await sb.from('shows').insert({name:'Exemple · Les Marchand à La Grange',slug:'exemple-'+Date.now(),owner_id:ME.id,venue:'La Grange (salle fictive)',show_date:iso,
+      out_data:{main:outs},stage_data:{v:2,racks:racks,rf:rf}}).select().single();
+    if(ins.error) throw ins.error;
+    var show=ins.data;
+    var rows=C.map(function(c,i){ return {show_id:show.id,ch:i+1,short_name:c[0],long_name:c[1],source:c[2],mic:c[3],phantom:!!c[4],gain:0,foh:true,mon:false,bc:false,note:'',iem_group:'',custom_data:c[5]?{_hf:c[5]}:{}}; });
+    var ci=await sb.from('channels').insert(rows);
+    if(ci.error) throw ci.error;
+    SHOWS.unshift(show); renderSPShows(); if(typeof renderSessions==='function') renderSessions();
+    await switchShow(show.id);
+    /* Plan de scène posé depuis l'input list, synoptique depuis une session d'amplis */
+    try{ goTab('stage',null); await new Promise(function(r){ setTimeout(r,500); }); bpFromIL(); if(typeof _BPIL!=='undefined'&&_BPIL){ _BPIL.W=12; _BPIL.D=9; } bpILApply(); }catch(e){ console.warn('[demo] plan',e); }
+    try{
+      goTab('synoptique',null); await new Promise(function(r){ setTimeout(r,500); });
+      var T='Ampli;Modèle;Canal;Enceinte;Nombre;Groupe;Entrée\nLINUS12C #1;LINUS12C;1;SC8;6;Main L;A\nLINUS12C #1;LINUS12C;2;SCP;3;Subs L;A\nLINUS12C #2;LINUS12C;1;SC8;6;Main R;B\nLINUS12C #2;LINUS12C;2;SCP;3;Subs R;B\nLINUS12C #3;LINUS12C;1;HOPS8;2;Retours;C\nLINUS12C #3;LINUS12C;2;D5-Sub;1;Drum fill;C';
+      SynPro.importDiagram(LinusImport.layout(AmpImport.tableModel(T),{source:true}),'replace');
+      try{ await SynPro._saveNow(); }catch(e){}
+    }catch(e){ console.warn('[demo] synoptique',e); }
+    goTab('overview',null);
+    toast('✓ Show d\'exemple prêt : explorez chaque onglet, modifiez, supprimez-le quand vous voulez.');
+  }catch(e){
+    console.error('[demo]',e); toast('Impossible de créer le show d\'exemple : '+(e&&e.message||e));
+  }finally{ ov.remove(); }
+}
+
+/* ── Premiers pas, sur la vue d'ensemble d'un show peu rempli ── */
+function _ovStartHtml(s,chs,team,pend){
+  try{ if(localStorage.getItem('pf_start_hide')==='1') return ''; }catch(e){}
+  var st=[
+    {t:'Remplir l\'input list', d:'Importez le PDF du groupe, partez d\'un modèle ou saisissez-la.', done:chs.length>0, go:'navIL(\'in\')', cta:'Commencer'},
+    {t:'Envoyer le lien à l\'accueil', d:'Un lien par destinataire, ouvert sans compte, toujours à jour.', done:_showHasLink(s), go:'goTab(\'team\',null)', cta:'Créer un lien'},
+    {t:'Inviter un collègue', d:'L\'ingé retours ou le régisseur travaillent avec vous, en direct.', done:team.length>1||pend.length>0, go:'goTab(\'team\',null)', cta:'Inviter'}
+  ];
+  var n=st.filter(function(x){ return x.done; }).length;
+  if(n===st.length) return '';
+  var next=st.findIndex(function(x){ return !x.done; });
+  return '<section class="ov-card ov-start"><div class="ov-card-hd"><h2>Premiers pas</h2><span class="ov-count">'+n+' / '+st.length+'</span>'
+    +'<button class="dt-ib" onclick="ovStartHide()" title="Masquer" aria-label="Masquer les premiers pas"><i class="ti ti-x"></i></button></div>'
+    +'<div class="ov-start-l">'+st.map(function(x,i){
+      return '<div class="ov-start-i'+(x.done?' done':'')+(i===next?' next':'')+'"><span class="ov-start-n">'+(x.done?'<i class="ti ti-check"></i>':(i+1))+'</span>'
+        +'<span class="ov-start-t"><b>'+x.t+'</b><span>'+x.d+'</span></span>'
+        +(x.done?'':'<button class="btn'+(i===next?' pri':'')+' sm" onclick="'+x.go+'">'+x.cta+'</button>')+'</div>';
+    }).join('')+'</div>'
+    +(chs.length?'':'<button type="button" class="ov-start-demo" onclick="createDemoShow()"><i class="ti ti-eye"></i>Voir d\'abord un show d\'exemple rempli</button>')
+    +'</section>';
+}
+function ovStartHide(){ try{ localStorage.setItem('pf_start_hide','1'); }catch(e){} renderOverview(); }
+
 function renderOverview(){
   var root=document.getElementById('ov-root'); if(!root) return;
   var _e=function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
@@ -19326,6 +19497,7 @@ function renderOverview(){
       +'<button class="btn pri" onclick="goTab(\'team\',null)"><i class="ti ti-link"></i>Envoyer le rider</button>'
     +'</div></header>';
   if(isOwn) h+=_ovProHtml();
+  if(isOwn) h+=_ovStartHtml(s,(typeof CHS!=='undefined'&&CHS)?CHS:[],team,NF.sent.filter(function(i){ return i.show_id===s.id; }));
 
   /* Préparation */
   h+='<div class="ov-grid"><section class="ov-card ov-span2">'
@@ -19662,7 +19834,7 @@ async function applyTemplate(tplId){
   const msg=TPL_MODE==='replace'
     ?`Remplacer les ${CHS.length} canaux actuels par "${tpl.name}" (${chs.length} canaux) ?`
     :`Ajouter les ${chs.length} canaux de "${tpl.name}" à la suite ?`;
-  if(!confirm(msg))return;
+  if(CHS.length&&!confirm(msg))return;
 
   if(TPL_MODE==='replace'){
     const ids=CHS.map(r=>r.id);
@@ -23725,6 +23897,7 @@ function goTab(id,el){
   if(id==='racks') renderRacks();
   if(id==='rf' && typeof renderRf==='function') renderRf();
   if(id==='road' && typeof renderRoad==='function') renderRoad();
+  if((id==='racks'||id==='rf'||id==='road') && typeof _sdRefresh==='function') _sdRefresh(true);
   if(id==='settings' && !document.querySelector('#panel-settings .set-sec.on')) setNav('profil');
   if(typeof _ilSelSync==='function') _ilSelSync();
   if(typeof _rfSelSync==='function') _rfSelSync();

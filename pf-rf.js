@@ -869,7 +869,7 @@ function _rfSave(){
   RF.t = setTimeout(async function(){
     try {
       if(typeof setSaving === 'function') setSaving(true);
-      var r = await sb.from('shows').update({ stage_data: show.stage_data }).eq('id', show.id);
+      var r = await _sdPatch(show, ['rf']);
       if(r && r.error) toast('RF non enregistré : ' + r.error.message);
     } catch(e){ toast('RF non enregistré : ' + (e && e.message || e)); }
     if(typeof setSaving === 'function') setSaving(false);
