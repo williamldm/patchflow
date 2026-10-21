@@ -60,7 +60,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=4.28">
+<link rel="stylesheet" href="pf-app.css?v=4.29">
 </head>
 <body>
 
@@ -878,6 +878,7 @@ html.rider-boot #rider-splash{display:flex}
           <div class="bp-pal-tools">
             <input type="file" id="bp-bg-file" accept="image/*" style="display:none" onchange="BandPlan.loadBg(this)"/>
             <input type="file" id="bp-ai-file" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none" onchange="bpAiHandleFile(this)"/>
+            <button class="bp-tool" id="bp-il-btn" onclick="bpFromIL()" title="Placer les musiciens, instruments et retours à partir de l'input list et de l'output list"><i class="ti ti-list-details" style="color:var(--ora)"></i>Depuis l'input list</button>
             <button class="bp-tool" id="bp-ai-btn" onclick="bpAiImport()"><i class="ti ti-sparkles" style="color:var(--ora)"></i>Adapter un plan (IA)</button>
             <button class="bp-tool" onclick="document.getElementById('bp-bg-file').click()"><i class="ti ti-photo"></i>Image de fond</button>
             <button class="bp-tool" id="bp-stage-toggle-btn" onclick="BandPlan.toggleStageBg()"><i class="ti ti-eye-off"></i> Masquer la scène</button>
@@ -934,14 +935,7 @@ html.rider-boot #rider-splash{display:flex}
                 <button class="spl-ts-btn" onclick="BandPlan.setNodeScale(1)">+</button>
               </div>
             </div>
-            <div class="bp-insp-footer-row">
-              <span>Scène</span>
-              <div style="display:flex;gap:3px;align-items:center">
-                <button class="spl-ts-btn" onclick="BandPlan.setStageScale(-1)">−</button>
-                <span id="bp-ss-val" style="font-size:9px;font-family:var(--m);color:var(--muted);min-width:28px;text-align:center">100%</span>
-                <button class="spl-ts-btn" onclick="BandPlan.setStageScale(1)">+</button>
-              </div>
-            </div>
+            <div class="bp-insp-footer-row bp-stage-row" id="bp-stage-row"></div>
           </div>
         </div>
       </div>
@@ -1680,7 +1674,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=4.75"></script>
+<script src="pf-app.js?v=4.76"></script>
 <script src="pf-rf.js?v=1.15"></script>
 <script src="pf-road.js?v=1.0"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->

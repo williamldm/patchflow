@@ -5435,7 +5435,7 @@ function _sanitizeHtmlString(html){
 var _PLAN_ID_KEYS={id:1,fromId:1,toId:1,fromPort:1,toPort:1,from:1,to:1,network:1,type:1,direction:1,activeCableType:1,kind:1,patch_id:1,catId:1,ch:1,chR:1,outCh:1,outChR:1};
 var _PLAN_NUM_KEYS={x:1,y:1,w:1,h:1,x2:1,y2:1,elSize:1,imgPx:1,imgAspect:1,width:1,height:1,rotation:1,rot:1,opacity:1,zoom:1,panX:1,panY:1,
   textScale:1,elTextScale:1,legendScale:1,cableTextScale:1,nodeScale:1,stageScale:1,bgOpacity:1,bgRotation:1,bgX:1,bgY:1,bgScale:1,
-  wrapWidth:1,aspect:1,w0:1,riserW:1,riserH:1,size:1,fontSize:1,fs:1,num:1,position:1,nid:1,v:1,imgW:1,imgH:1,scale:1};
+  wrapWidth:1,aspect:1,w0:1,riserW:1,riserH:1,riserAlt:1,stageW:1,stageD:1,size:1,fontSize:1,fs:1,num:1,position:1,nid:1,v:1,imgW:1,imgH:1,scale:1};
 var _PLAN_IMG_KEYS={iconImg:1,bgImage:1,img:1,site_snapshot:1,stage_snapshot:1,avatar_url:1};
 function _sid(v){ return String(v==null?'':v).replace(/[^A-Za-z0-9_.:\-]/g,'').slice(0,96); }
 function _sanitizeSvgMarkup(str){
@@ -6772,17 +6772,108 @@ function closeStagePlanPicker(){
   var m=document.getElementById('stageplan-modal'); if(m) m.remove();
 }
 
+/* ── Plan de scène à l'échelle ──
+   Le plan est dessiné sur une feuille de 2400 × 1600. Échelle : 75 px = 1 m, celle des praticables.
+   Avec des dimensions (stageW × stageD, en mètres), la scène est tracée à sa vraie taille, avec une grille
+   d'un mètre et ses cotes ; sans dimensions (anciens plans), la scène garde sa taille relative (stageScale). */
+var BP_PXM=75;
+function _bpStageGeom(d){
+  d=d||{};
+  var W=+d.stageW||0, D=+d.stageD||0;
+  if(W>0 && D>0){
+    W=Math.max(2,Math.min(30,W)); D=Math.max(2,Math.min(19,D));
+    var w=Math.round(W*BP_PXM), h=Math.round(D*BP_PXM), x=Math.round(1200-w/2), y=Math.max(90,Math.round((1600-h)/2-40));
+    return {x:x,y:y,w:w,h:h,cx:1200,cy:Math.round(y+h*0.44),sepY:y+h,pubY:y+h+60,m:true,W:W,D:D};
+  }
+  var ss=d.stageScale||1;
+  var w2=Math.min(2380,Math.round(2300*ss)), h2=Math.min(1570,Math.round(1480*ss)), x2=Math.round(1200-w2/2), y2=Math.max(20,Math.round(180-(h2-900)/2));
+  return {x:x2,y:y2,w:w2,h:h2,cx:1200,cy:Math.round(y2+h2*0.44),sepY:y2+h2,pubY:Math.min(1580,y2+h2+Math.round(180*Math.max(0.5,1/ss))),m:false};
+}
+function _bpNum(v){ return String(Math.round(v*100)/100).replace('.',','); }
+/* Grille d'un mètre et cotes, en SVG (éditeur) */
+function _bpScaleSvg(g,grid){
+  if(!g.m) return '';
+  var K='#1c2433', s='', i;
+  if(grid!==false){
+    for(i=1;i<g.W;i++){ var x=g.x+i*BP_PXM; s+='<line x1="'+x+'" y1="'+(g.y+1)+'" x2="'+x+'" y2="'+(g.y+g.h-6)+'" stroke="'+K+'" stroke-opacity="'+(i%5?'.07':'.16')+'" stroke-width="'+(i%5?1:1.4)+'"/>'; }
+    for(i=1;i<g.D;i++){ var y=g.y+i*BP_PXM; s+='<line x1="'+(g.x+1)+'" y1="'+y+'" x2="'+(g.x+g.w-1)+'" y2="'+y+'" stroke="'+K+'" stroke-opacity="'+(i%5?'.07':'.16')+'" stroke-width="'+(i%5?1:1.4)+'"/>'; }
+  }
+  var ty=g.y-58, lx=g.x-62, t='font-family="Archivo,sans-serif" font-weight="700" font-size="19" fill="'+K+'" fill-opacity=".72" text-anchor="middle"';
+  s+='<g stroke="'+K+'" stroke-opacity=".5" stroke-width="1.5"><line x1="'+g.x+'" y1="'+ty+'" x2="'+(g.x+g.w)+'" y2="'+ty+'"/><line x1="'+g.x+'" y1="'+(ty-8)+'" x2="'+g.x+'" y2="'+(ty+8)+'"/><line x1="'+(g.x+g.w)+'" y1="'+(ty-8)+'" x2="'+(g.x+g.w)+'" y2="'+(ty+8)+'"/>'
+    +'<line x1="'+lx+'" y1="'+g.y+'" x2="'+lx+'" y2="'+(g.y+g.h)+'"/><line x1="'+(lx-8)+'" y1="'+g.y+'" x2="'+(lx+8)+'" y2="'+g.y+'"/><line x1="'+(lx-8)+'" y1="'+(g.y+g.h)+'" x2="'+(lx+8)+'" y2="'+(g.y+g.h)+'"/></g>';
+  s+='<rect x="'+(g.cx-46)+'" y="'+(ty-13)+'" width="92" height="26" fill="#fff"/><text x="'+g.cx+'" y="'+(ty+7)+'" '+t+'>'+_bpNum(g.W)+' m</text>';
+  s+='<g transform="translate('+lx+','+(g.y+g.h/2)+') rotate(-90)"><rect x="-46" y="-13" width="92" height="26" fill="#fff"/><text x="0" y="7" '+t+'>'+_bpNum(g.D)+' m</text></g>';
+  return s;
+}
+/* Même dessin sur le canvas d'export */
+function _bpScaleCanvas(ctx,g,grid,wx,wy,SC){
+  if(!g.m) return;
+  var i;
+  if(grid!==false){
+    for(i=1;i<g.W;i++){ var x=g.x+i*BP_PXM; ctx.strokeStyle='rgba(28,36,51,'+(i%5?'.07':'.16')+')'; ctx.lineWidth=(i%5?1:1.4)*SC; ctx.beginPath(); ctx.moveTo(wx(x),wy(g.y+1)); ctx.lineTo(wx(x),wy(g.y+g.h-6)); ctx.stroke(); }
+    for(i=1;i<g.D;i++){ var y=g.y+i*BP_PXM; ctx.strokeStyle='rgba(28,36,51,'+(i%5?'.07':'.16')+')'; ctx.lineWidth=(i%5?1:1.4)*SC; ctx.beginPath(); ctx.moveTo(wx(g.x+1),wy(y)); ctx.lineTo(wx(g.x+g.w-1),wy(y)); ctx.stroke(); }
+  }
+  var ty=g.y-58, lx=g.x-62, seg=function(a,b,c,d){ ctx.beginPath(); ctx.moveTo(wx(a),wy(b)); ctx.lineTo(wx(c),wy(d)); ctx.stroke(); };
+  ctx.strokeStyle='rgba(28,36,51,.5)'; ctx.lineWidth=1.5*SC;
+  seg(g.x,ty,g.x+g.w,ty); seg(g.x,ty-8,g.x,ty+8); seg(g.x+g.w,ty-8,g.x+g.w,ty+8);
+  seg(lx,g.y,lx,g.y+g.h); seg(lx-8,g.y,lx+8,g.y); seg(lx-8,g.y+g.h,lx+8,g.y+g.h);
+  ctx.font='700 '+(19*SC)+'px Archivo, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillStyle='#ffffff'; ctx.fillRect(wx(g.cx-46),wy(ty-13),92*SC,26*SC);
+  ctx.fillStyle='rgba(28,36,51,.72)'; ctx.fillText(_bpNum(g.W)+' m',wx(g.cx),wy(ty)+1*SC);
+  ctx.save(); ctx.translate(wx(lx),wy(g.y+g.h/2)); ctx.rotate(-Math.PI/2);
+  ctx.fillStyle='#ffffff'; ctx.fillRect(-46*SC,-13*SC,92*SC,26*SC); ctx.fillStyle='rgba(28,36,51,.72)'; ctx.fillText(_bpNum(g.D)+' m',0,1*SC);
+  ctx.restore(); ctx.textBaseline='alphabetic';
+}
+/* Nom du musicien sous l'étiquette d'un élément, plus discret */
+function _vtWho(ctx,text,cx,y,SC,TS){
+  var fs=Math.max(8,12.5*(TS||1)*SC); ctx.font='500 '+fs+'px Archivo, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top';
+  var t=String(text||''); ctx.lineJoin='round'; ctx.lineWidth=Math.max(2,4*SC); ctx.strokeStyle='#ffffff'; ctx.strokeText(t,cx,y); ctx.fillStyle='rgba(28,36,51,.68)'; ctx.fillText(t,cx,y); ctx.textBaseline='alphabetic';
+}
+var _BP_PWR={pwr16:'Prise 16 A',pwr32:'Prise 32 A tri',pwr_strip:'Multiprise'};
+/* Lignes du tableau d'export : [titre de section] ou [colonne 1, colonne 2, colonne 3] */
+function _bpInfoRows(els){
+  var rows=[], mons=[], pw={}, outs={wedge:'Retour',iem_p:'Ear',iem_r:'Ear (émetteur)',sidefill:'Side-fill',drumfill:'Drum-fill',spk:'Enceinte'};
+  els.forEach(function(e){
+    if(outs[e.type] && (e.outCh || e.who || e.mix)){
+      var a=e.outCh?_outById(e.outCh):null, b=e.outChR?_outById(e.outChR):null;
+      mons.push({n:a?a.ch:999, c1:(a?'OUT '+a.ch+(b?'+'+b.ch:''):'—')+'  '+(e.label||outs[e.type]), c2:e.who||'', c3:e.mix||''});
+    }
+    if(_BP_PWR[e.type]) pw[e.type]=(pw[e.type]||0)+1;
+  });
+  if(mons.length){ rows.push(['Retours']); mons.sort(function(x,y){ return x.n-y.n; }).forEach(function(m){ rows.push([m.c1,m.c2,m.c3]); }); }
+  var pk=Object.keys(pw);
+  if(pk.length) rows.push(['Électricité sur scène',pk.map(function(k){ return pw[k]+' × '+_BP_PWR[k].toLowerCase(); }).join(' · ')]);
+  return rows;
+}
+function _bpInfoHeight(rows){ return rows.reduce(function(t,r){ return t+(r.length===1?44:r.length===2?40:34); },0)+10; }
+function _bpInfoDraw(ctx,rows,x,y,w,SC){
+  var cy=y, c2=x+w*0.36, c3=x+w*0.55, fit=function(t,mw){ t=String(t||''); if(ctx.measureText(t).width<=mw) return t; while(t.length>1&&ctx.measureText(t+'…').width>mw) t=t.slice(0,-1); return t+'…'; };
+  ctx.textBaseline='middle'; ctx.textAlign='left';
+  rows.forEach(function(r){
+    if(r.length===1 || r.length===2){
+      var hh=(r.length===1?44:40)*SC;
+      ctx.font='700 '+(15*SC)+'px Archivo, sans-serif'; ctx.fillStyle='#1c2433'; ctx.fillText(r[0].toUpperCase(),x,cy+hh*0.6);
+      if(r[1]){ ctx.font='500 '+(15*SC)+'px Archivo, sans-serif'; ctx.fillStyle='rgba(28,36,51,.8)'; ctx.fillText(fit(r[1],w*0.62),c2,cy+hh*0.6); }
+      ctx.strokeStyle='rgba(28,36,51,.55)'; ctx.lineWidth=1.4*SC; ctx.beginPath(); ctx.moveTo(x,cy+hh-2*SC); ctx.lineTo(x+w,cy+hh-2*SC); ctx.stroke();
+      cy+=hh; return;
+    }
+    var rh=34*SC;
+    ctx.font='700 '+(14*SC)+'px Archivo, sans-serif'; ctx.fillStyle='#1c2433'; ctx.fillText(fit(r[0],c2-x-14*SC),x,cy+rh/2);
+    ctx.font='600 '+(14*SC)+'px Archivo, sans-serif'; ctx.fillText(fit(r[1],c3-c2-14*SC),c2,cy+rh/2);
+    ctx.font='400 '+(14*SC)+'px Archivo, sans-serif'; ctx.fillStyle='rgba(28,36,51,.78)'; ctx.fillText(fit(r[2],x+w-c3),c3,cy+rh/2);
+    ctx.strokeStyle='rgba(28,36,51,.12)'; ctx.lineWidth=1*SC; ctx.beginPath(); ctx.moveTo(x,cy+rh); ctx.lineTo(x+w,cy+rh); ctx.stroke();
+    cy+=rh;
+  });
+  ctx.textBaseline='alphabetic';
+}
 function _makeBpCanvas(cb){
   const data=BandPlan.getData();
   const els=data.els||[];
   const RSCALE=75;
   // Bounds
-  const _ss=data.stageScale||1;
-  const _stgW=Math.min(2380,Math.round(2300*_ss));
-  const _stgH=Math.min(1570,Math.round(1480*_ss));
-  const _stgX=Math.round(1200-_stgW/2);
-  const _stgY=Math.max(20,Math.round(180-(_stgH-900)/2));
-  let minX=_stgX,minY=_stgY,maxX=_stgX+_stgW,maxY=_stgY+_stgH;
+  const _g=_bpStageGeom(data);
+  const _stgW=_g.w, _stgH=_g.h, _stgX=_g.x, _stgY=_g.y;
+  let minX=_stgX-(_g.m?90:0),minY=_stgY-(_g.m?80:0),maxX=_stgX+_stgW,maxY=_stgY+_stgH;
   const _ns=data.nodeScale||1, _ts=data.textScale||1;
   els.forEach(el=>{
     let w,h;
@@ -6802,6 +6893,9 @@ function _makeBpCanvas(cb){
     minY=Math.min(minY, el.y-26);            // badge au-dessus
     maxY=Math.max(maxY, el.y+h+lblH);
   });
+  /* Tableau sous la scène : retours (sortie, destinataire, mix demandé) et prises électriques */
+  const _info=_bpInfoRows(els), _infoY=Math.max(maxY,_stgY+_stgH+(_g.m?90:70))+30;
+  if(_info.length){ maxY=_infoY+_bpInfoHeight(_info); maxX=Math.max(maxX,_stgX+_stgW); minX=Math.min(minX,_stgX); }
   const PAD=70;
   minX-=PAD;minY-=PAD;maxX+=PAD;maxY+=PAD;
   const W=maxX-minX,H=maxY-minY;
@@ -6841,6 +6935,7 @@ function _makeBpCanvas(cb){
       _lab('JARDIN',_stgX-20,_stgY+_stgH/2,-Math.PI/2);
       _lab('COUR',_stgX+_stgW+20,_stgY+_stgH/2,Math.PI/2);
       _lab('PUBLIC',1200,_stgY+_stgH+38,0);
+      _bpScaleCanvas(ctx,_g,data.grid,wx,wy,SC);
       ctx.strokeStyle='rgba(28,36,51,.36)';ctx.lineWidth=2*SC;ctx.lineCap='round';ctx.lineJoin='round';
       ctx.beginPath();ctx.moveTo(wx(1186),wy(_stgY+_stgH+52));ctx.lineTo(wx(1200),wy(_stgY+_stgH+62));ctx.lineTo(wx(1214),wy(_stgY+_stgH+52));ctx.stroke();
       ctx.lineCap='butt';
@@ -6979,8 +7074,11 @@ function _makeBpCanvas(cb){
           _lx=SZ/2;_ly=SZ+(3-5*ns)*SC;
         }
         ctx.restore();
-        if(_lx!=null){var _wcx=wx(el.x)+(_lx*Math.cos(_rad)-_ly*Math.sin(_rad))*_scl;var _wcy=wy(el.y)+(_lx*Math.sin(_rad)+_ly*Math.cos(_rad))*_scl;_vtLabel(ctx,el.label,_wcx,_wcy,SC,data.textScale||1);}
+        if(_lx!=null){var _wcx=wx(el.x)+(_lx*Math.cos(_rad)-_ly*Math.sin(_rad))*_scl;var _wcy=wy(el.y)+(_lx*Math.sin(_rad)+_ly*Math.cos(_rad))*_scl;_vtLabel(ctx,el.label,_wcx,_wcy,SC,data.textScale||1);
+          if(el.who && el.type!=='kit') _vtWho(ctx,el.who,_wcx,_wcy+Math.max(9,14.5*(data.textScale||1)*SC)*1.3,SC,data.textScale||1);}
+        if(el.type==='kit' && el.who){ var _kfs=Math.max(9,13*(data.textScale||1)*SC); ctx.font='600 '+_kfs+'px Archivo, sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top'; ctx.fillStyle='rgba(28,36,51,.7)'; ctx.fillText(el.who,wx(el.x),wy(el.y)-_kfs*1.5); ctx.textBaseline='alphabetic'; }
       });
+      if(_info.length) _bpInfoDraw(ctx,_info,wx(_stgX),wy(_infoY),_stgW*SC,SC);
       cb(cv);
     });
     return;
@@ -8830,6 +8928,27 @@ function _pfSymbol(t,nm){
     case 'sub':    return R(7,12,58,48,4.5,o)+C(36,36,17,g)+C(36,36,6.5,k)+Ln(13,18,19,18,d)+Ln(53,18,59,18,d)+Ln(13,54,19,54,d)+Ln(53,54,59,54,d);
     case 'wedge':  return P('M7 20H65L54 56H18Z',o)+Ln(14,29,58,29,f)+Ln(16.5,37,55.5,37,f)+Ln(19,45,53,45,f)+P('M28 56L26 63H46L44 56',d);
     /* ── Divers ── */
+    /* ── Éléments ajoutés (bibliothèque élargie) ── */
+    case 'edrum':  return Ln(8,31,64,31,d)+R(9,13,15,12,3,o)+R(28.5,8,15,12,3,o)+R(48,13,15,12,3,o)+C(21,47,9.5,o)+C(21,47,5.5,f)+C(49,47,10.5,o)+C(49,47,6.5,f)+R(29,56,14,10,2.5,k);
+    case 'spd':    return R(7,17,58,38,5,o)+[0,1,2].map(function(i){ return R(13+i*16,23,13,11,2.5,g)+R(13+i*16,38,13,11,2.5,g); }).join('');
+    case 'pedal':  return R(4,22,64,28,4,o)+R(9,27,15,18,3,g)+R(28.5,27,15,18,3,g)+R(48,27,15,18,3,g)+C(16.5,31,1.8,k)+C(36,31,1.8,k)+C(55.5,31,1.8,k);
+    case 'organ':  return R(5,12,62,48,4,o)+Ln(5,26,67,26,d)+keys(8,26,56,15,14)+Ln(5,44,67,44,d)+keys(8,44,56,14,14)+R(10,16,22,5,1.5,k)+R(40,16,22,5,1.5,g);
+    case 'violin': return R(34.4,3,3.2,16,1,k)+P('M36 17C31 17 29 21 30.5 25C27 27 26 31 28 35C24 38 23 44 26 50C28 56 32 60 36 60C40 60 44 56 46 50C49 44 48 38 44 35C46 31 45 27 41.5 25C43 21 41 17 36 17Z',o)+P('M32 38v10M40 38v10',d)+Ln(36,60,36,64,d);
+    case 'cello':  return R(34.2,1,3.6,14,1,k)+P('M36 13C29 13 26 18 28 23C23 26 21 31 24 36C19 40 18 47 22 54C25 61 30 65 36 65C42 65 47 61 50 54C54 47 53 40 48 36C51 31 49 26 44 23C46 18 43 13 36 13Z',o)+P('M31 38v13M41 38v13',d)+Ln(36,65,36,71,d);
+    case 'dbass':  return R(34,0,4,13,1,k)+P('M36 11C28 11 24 17 26 23C20 26 17 33 21 39C15 44 14 52 19 59C23 66 29 70 36 70C43 70 49 66 53 59C58 52 57 44 51 39C55 33 52 26 46 23C48 17 44 11 36 11Z',o)+P('M30 40v15M42 40v15',d);
+    case 'sidefill': return R(14,3,44,32,4,o)+C(36,19,9.5,g)+C(36,19,3.4,k)+R(14,37,44,32,4,o)+C(36,53,11,g)+C(36,53,4,k);
+    case 'drumfill': return R(18,4,36,24,4,o)+C(36,16,7,g)+C(36,16,2.6,k)+R(8,31,56,36,4.5,o)+C(36,49,13,g)+C(36,49,5,k);
+    case 'laptop': return R(12,12,48,34,3.5,o)+R(17,17,38,24,1.5,g)+P('M5 50H67L62 58H10Z',o)+Ln(30,54,42,54,d);
+    case 'dj':     return R(3,15,66,42,5,o)+C(19,36,13,g)+C(19,36,7,f)+C(19,36,2.6,k)+C(53,36,13,g)+C(53,36,7,f)+C(53,36,2.6,k)+R(32.5,21,7,30,2,o)+Ln(36,27,36,45,d);
+    case 'pwr16':  return R(8,8,56,56,10,o)+C(36,36,20,g)+C(27.5,36,3.8,k)+C(44.5,36,3.8,k)+R(33.5,15.5,5,6,1.2,k)+R(33.5,50.5,5,6,1.2,k);
+    case 'pwr32':  return R(6,6,60,60,10,o)+C(36,36,23,g)+C(36,36,23,f)+[0,72,144,216,288].map(function(a){ var r=a*Math.PI/180; return C((36+12*Math.sin(r)).toFixed(1),(36-12*Math.cos(r)).toFixed(1),3.2,k); }).join('')+R(33,10,6,6,1.5,k);
+    case 'pwr_strip': return R(3,25,66,22,6,o)+[15,32,49].map(function(x){ return C(x,36,6.5,g)+C(x-2.4,36,1.4,k)+C(x+2.4,36,1.4,k); }).join('')+R(60,33,6,6,1.5,k);
+    case 'person': return P('M12 47C12 37 22 31 36 31C50 31 60 37 60 47C60 53 52 57 36 57C20 57 12 53 12 47Z',o)+C(36,39,11,o)+P('M33 29.5L36 26L39 29.5',d);
+    case 'stand':  return P('M9 10H63L57 38H15Z',o)+Ln(17,18,55,18,f)+Ln(18,25,54,25,f)+Ln(19,32,53,32,f)+Ln(36,38,36,60,d)+P('M23 66L36 59L49 66',d);
+    case 'table':  return R(6,16,60,40,4,o)+R(10,20,52,32,2,f);
+    case 'fan':    return C(36,36,28,o)+P('M36 36C34 22 40 12 47 14C51 22 44 31 36 36Z',g)+P('M36 36C49 33 58 40 55 47C47 50 40 44 36 36Z',g)+P('M36 36C30 48 21 53 16 47C17 39 27 36 36 36Z',g)+C(36,36,4.5,k);
+    case 'curtain':return Ln(3,14,69,14,' fill="none" stroke="'+K+'" stroke-width="3"'+J)+[0,1,2,3,4,5].map(function(i){ var x=4+i*11; return P('M'+x+' 16C'+(x+3)+' 30 '+(x-1)+' 44 '+(x+2)+' 60',d); }).join('')+P('M4 60C15 64 26 56 37 60S59 64 68 60',d);
+    case 'truss':  return R(3,27,66,18,1.5,o)+P('M3 45L12 27L21 45L30 27L39 45L48 27L57 45L66 27',d);
     case 'chair':  return R(14,22,44,40,7,o)+R(12,10,48,10,5,k)+Ln(21,32,51,32,f);
     case 'stool':  return C(36,36,22,o)+C(36,36,14.5,f);
     case 'txt_bp': return R(12,18,48,36,6,' fill="none" stroke="'+K+'" stroke-width="1.3" stroke-dasharray="3 4" stroke-opacity=".55"')+P('M27 28h18M36 28v17',' fill="none" stroke="'+K+'" stroke-width="2.6"'+J);
@@ -12236,6 +12355,8 @@ const BandPlan=(()=>{
       {t:'toms',    n:'Toms',           e:'🪘'},
       {t:'cymbal',  n:'Cymbale',        e:'✦'},
       {t:'kit',     n:'Kit complet',    e:'🥁'},
+      {t:'edrum',   n:'Batterie électronique', e:'🥁', c:'#c03a50'},
+      {t:'spd',     n:'Pad (SPD)',      e:'🥁', c:'#c03a50'},
       {t:'cajon',   n:'Cajon',          e:'📦', c:'#c03a50'},
     ]},
     {id:'guitar', label:'Guitares',       color:'#f5c542', items:[
@@ -12245,12 +12366,19 @@ const BandPlan=(()=>{
       {t:'gamp',    n:'Ampli guitare',  e:'🔊', c:'#f5c542'},
       {t:'bamp',    n:'Ampli basse',    e:'🔊', c:'#22d6a0'},
       {t:'cab',     n:'Baffle',         e:'📦', c:'#888'},
+      {t:'pedal',   n:'Pédalier',       e:'🎛', c:'#888'},
     ]},
     {id:'keys',   label:'Claviers',       color:'#9b6aff', items:[
       {t:'keyboard',n:'Clavier',        e:'🎹'},
       {t:'piano',   n:'Piano',          e:'🎹', c:'#7a4aef'},
       {t:'synth',   n:'Synthes.',       e:'🎹', c:'#c4a0ff'},
       {t:'wurly',   n:'Piano electr.',  e:'🎹', c:'#6a3abf'},
+      {t:'organ',   n:'Orgue',          e:'🎹', c:'#6a3abf'},
+    ]},
+    {id:'strings',label:'Cordes',         color:'#c07a3a', items:[
+      {t:'violin',  n:'Violon',         e:'🎻'},
+      {t:'cello',   n:'Violoncelle',    e:'🎻'},
+      {t:'dbass',   n:'Contrebasse',    e:'🎻'},
     ]},
     {id:'vocals', label:'Voix',           color:'#22d6a0', items:[
       {t:'mic_s',   n:'Pied micro',     e:'🎤'},
@@ -12278,11 +12406,26 @@ const BandPlan=(()=>{
       {t:'spk',     n:'Enceinte',       e:'🔊', c:'#1a8fff'},
       {t:'sub',     n:'Sub',            e:'📢', c:'#ff6b1a'},
       {t:'wedge',   n:'Retour scene',   e:'🔺', c:'#f5c542'},
+      {t:'sidefill',n:'Side-fill',      e:'🔊', c:'#1a8fff'},
+      {t:'drumfill',n:'Drum-fill',      e:'🔊', c:'#ff6b1a'},
+      {t:'laptop',  n:'Ordinateur / playback', e:'💻', c:'#5a6580'},
+      {t:'dj',      n:'Platines DJ',    e:'🎚', c:'#5a6580'},
+    ]},
+    {id:'power',  label:'Électricité',    color:'#e11d48', items:[
+      {t:'pwr16',   n:'Prise 16 A',     e:'⚡'},
+      {t:'pwr32',   n:'Prise 32 A tri', e:'⚡'},
+      {t:'pwr_strip',n:'Multiprise',    e:'⚡'},
     ]},
     {id:'misc',   label:'Divers',         color:'#aabbdd', items:[
       {t:'chair',   n:'Chaise',         e:'💺', c:'#5a6580'},
       {t:'stool',   n:'Tabouret',       e:'🪑', c:'#5a6580'},
       {t:'riser',   n:'Praticable',     e:'▭',  c:'#777'},
+      {t:'person',  n:'Musicien',       e:'🧍', c:'#5a6580'},
+      {t:'stand',   n:'Pupitre',        e:'📄', c:'#5a6580'},
+      {t:'table',   n:'Table',          e:'▭',  c:'#5a6580'},
+      {t:'fan',     n:'Ventilateur',    e:'✳', c:'#5a6580'},
+      {t:'curtain', n:'Rideau / pendrillon', e:'〰', c:'#5a6580'},
+      {t:'truss',   n:'Truss',          e:'▤',  c:'#5a6580'},
       {t:'txt_bp',  n:'Texte libre',    e:'T',  c:'#aabbdd'},
       {t:'image_frame',n:'Image',       e:'🖼', c:'#5a6580'},
     ]},
@@ -12501,7 +12644,7 @@ const BandPlan=(()=>{
   function _itemOf(t){for(const c of CATS){const it=c.items.find(i=>i.t===t);if(it)return it;}return _customItems.find(i=>i.t===t)||null;}
   function _elColor(t){const it=_itemOf(t);const cat=_catOf(t);return(it&&it.c)||(cat&&cat.color)||'#5a6580';}
   function _chNum(chId){const r=_chById(chId);return r?r.ch:'?';}
-  const _OUTPUT_TYPES=new Set(['spk','sub','wedge','iem_r','iem_p']);
+  const _OUTPUT_TYPES=new Set(['spk','sub','wedge','iem_r','iem_p','sidefill','drumfill']);
   function _isOutput(type){return _OUTPUT_TYPES.has(type);}
   function _outChNum(outChId){const r=_outById(outChId);return r?r.ch:'?';}
 
@@ -12611,6 +12754,34 @@ const BandPlan=(()=>{
     return added;
   }
 
+  /* Pose en lot depuis l'input list : éléments déjà liés à leurs canaux et sorties (voir bpFromIL).
+     replace : vide d'abord le plan. Positions déjà calculées en coordonnées du plan. */
+  function bulkPlace(list,replace){
+    if(!Array.isArray(list)) return 0;
+    if(replace){ st.els.forEach(function(e){ if(e.iconImgB2)_b2DeleteIcon(e.iconImgB2); }); st.els=[]; _cv()?.querySelectorAll('.bp-node').forEach(n=>n.remove()); }
+    const valid=new Set(); CATS.forEach(c=>c.items.forEach(i=>valid.add(i.t)));
+    let added=0;
+    list.forEach(function(o){
+      if(!o||!valid.has(o.type)) return;
+      const it=_itemOf(o.type)||{n:o.type}, id=st.nid++;
+      const el={id,type:o.type,label:String(o.label||it.n).slice(0,40),x:Math.round(Math.max(0,Math.min(2380,+o.x||1200))),y:Math.round(Math.max(0,Math.min(1580,+o.y||800))),scl:1,rot:o.rot||0,z:id,ch:o.ch||null};
+      if(o.chR){ el.chR=o.chR; el.stereo=true; }
+      if(o.type==='kit') el.chs=(o.chs||[]).slice(0,48);
+      if(o.outCh) el.outCh=o.outCh;
+      if(o.outChR){ el.outChR=o.outChR; el.outStereo=true; }
+      if(o.type==='riser'){ el.riserW=o.riserW||2; el.riserH=o.riserH||1; el.riserAlt=o.riserAlt||0.4; el.z=0; }
+      if(o.who) el.who=String(o.who).slice(0,40);
+      st.els.push(el); renderNode(el); added++;
+    });
+    _sel=null; renderInspector(); saveStage(); setTimeout(fitView,60);
+    return added;
+  }
+  /* Canaux et sorties déjà liés à un élément du plan */
+  function linkedIds(){
+    const ids={}; st.els.forEach(function(e){ [e.ch,e.chR,e.outCh,e.outChR].concat(e.chs||[]).forEach(function(x){ if(x) ids[x]=1; }); }); return ids;
+  }
+  function stageGeom(){ return _getStageDims(); }
+
   // ---- LIGHT-THEME SVG instrument logos (72x72 viewBox) ----
   // Color palette: deep navy #1d3a5f (outlines), blue #1d9bf0 + orange #ff6b1a accents,
   // soft white/grey body fills — matches SynPro/SitePlan light theme.
@@ -12661,7 +12832,7 @@ const BandPlan=(()=>{
         :'<div class="bp-kit-none">Aucun canal li\xe9</div>';
       return '<div class="bp-kit-block">'
         +'<div class="bp-kit-hd">'
-        +'<span class="bp-kit-t">'+_lb(el.label)+'</span>'
+        +'<span class="bp-kit-t">'+_lb(el.label)+(el.who?' <em class="bp-kit-who">· '+_lb(el.who)+'</em>':'')+'</span>'
         +(rows.length?'<span class="bp-kit-n">'+rows.length+' CH</span>':'')
         +'<button class="bp-node-del" onclick="BandPlan.deleteNode('+el.id+')" title="Supprimer">\xd7</button>'
         +'</div>'
@@ -12699,7 +12870,8 @@ const BandPlan=(()=>{
       +chBadge
       +'<button class="bp-node-del" onclick="BandPlan.deleteNode('+el.id+')" title="Supprimer">\xd7</button>'
       +'</div>'
-      +'<div class="bp-vnode-lbl">'+_lb(el.label)+'</div>';
+      +'<div class="bp-vnode-lbl">'+_lb(el.label)+'</div>'
+      +(el.who?'<div class="bp-vnode-who">'+_lb(el.who)+'</div>':'');
   }
 
   function renderNode(el){
@@ -12857,13 +13029,13 @@ const BandPlan=(()=>{
       const wrap=_wrap();if(!wrap)return;
       const wr=wrap.getBoundingClientRect();
       const el=st.els.find(r=>r.id===id);if(!el)return;
-      el.x=Math.round((e.clientX-wr.left-st.view.px-_dnox)/st.view.z);
-      el.y=Math.round((e.clientY-wr.top-st.view.py-_dnoy)/st.view.z);
+      const _p=_snapXY(Math.round((e.clientX-wr.left-st.view.px-_dnox)/st.view.z),Math.round((e.clientY-wr.top-st.view.py-_dnoy)/st.view.z));
+      el.x=_p[0]; el.y=_p[1];
       div.style.left=el.x+'px';div.style.top=el.y+'px';
     });
     div.addEventListener('pointerup',()=>{
       if(_bpRsz&&_bpRsz.id===id){_bpRsz=null;saveStage();renderInspector();return;}
-      if(_dn===id){_dn=null;saveStage();}
+      if(_dn===id){_dn=null;saveStage();if(_sel===id)renderInspector();}
     });
   }
 
@@ -12912,18 +13084,26 @@ const BandPlan=(()=>{
       : '';
     const linkedCh=_chById(sel.ch);
     const chOpts=_chOpts(sel.ch);
+    const _noWho={riser:1,txt_bp:1,image_frame:1,pwr16:1,pwr32:1,pwr_strip:1,curtain:1,truss:1,fan:1,table:1,foh:1,stagebox:1};
     el.innerHTML=
       // --- Alias
       '<div class="bp-insp-sec">'
       +'<div class="bp-insp-title"><i class="ti ti-pencil"></i>Nom</div>'
       +'<input class="bp-inp" value="'+sel.label.replace(/"/g,'&quot;')+'" oninput="BandPlan.updateAlias(this.value)"/>'
+      +(_noWho[sel.type]?'':'<div class="bp-fl" style="margin-top:9px">'+(_isOutput(sel.type)?'Pour qui':'Musicien')+'</div>'
+        +'<input class="bp-inp" maxlength="40" value="'+_escO(sel.who||'')+'" placeholder="'+(_isOutput(sel.type)?'Prénom ou poste : Léa, batteur…':'Prénom : Léa, Tom…')+'" oninput="BandPlan.updateWho(this.value)"/>')
+      +(_isOutput(sel.type)&&sel.type!=='sub'?'<div class="bp-fl" style="margin-top:9px">Mix demandé</div>'
+        +'<textarea class="bp-inp bp-mix" maxlength="200" rows="3" placeholder="Voix lead fort, guitare, un peu de click…" oninput="BandPlan.updateMix(this.value)">'+_escO(sel.mix||'')+'</textarea>':'')
       +'</div>'
       // --- Transform
       +'<div class="bp-insp-sec">'
       +'<div class="bp-insp-title"><i class="ti ti-arrows-move"></i>Position et taille</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:9px">'
-      +'<div><div class="bp-fl">X</div><input class="bp-xy-inp" type="number" value="'+sel.x+'" oninput="BandPlan.updPos(\'x\',+this.value)"/></div>'
-      +'<div><div class="bp-fl">Y</div><input class="bp-xy-inp" type="number" value="'+sel.y+'" oninput="BandPlan.updPos(\'y\',+this.value)"/></div>'
+      +(()=>{ const g=_getStageDims();
+        if(!g.m) return '<div><div class="bp-fl">X</div><input class="bp-xy-inp" type="number" value="'+sel.x+'" oninput="BandPlan.updPos(\'x\',+this.value)"/></div>'
+          +'<div><div class="bp-fl">Y</div><input class="bp-xy-inp" type="number" value="'+sel.y+'" oninput="BandPlan.updPos(\'y\',+this.value)"/></div>';
+        return '<div><div class="bp-fl" title="Distance du bord jardin">Depuis jardin (m)</div><input class="bp-xy-inp" type="number" step="0.25" value="'+Math.round((sel.x-g.x)/BP_PXM*100)/100+'" onchange="BandPlan.updPos(\'x\','+g.x+'+(+this.value)*'+BP_PXM+')"/></div>'
+          +'<div><div class="bp-fl" title="Distance du fond de scène">Depuis lointain (m)</div><input class="bp-xy-inp" type="number" step="0.25" value="'+Math.round((sel.y-g.y)/BP_PXM*100)/100+'" onchange="BandPlan.updPos(\'y\','+g.y+'+(+this.value)*'+BP_PXM+')"/></div>'; })()
       +'</div>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:9px">'
       +'<div><div class="bp-fl">Échelle</div>'
@@ -13068,12 +13248,24 @@ const BandPlan=(()=>{
     const el=st.els.find(e=>e.id===_sel);if(!el)return;
     el.label=v;
     const div=document.querySelector('[data-bpid="'+_sel+'"]');
-    if(div){const lbl=div.querySelector('.bp-node-lbl');if(lbl)lbl.textContent=v;}
+    if(div){const lbl=div.querySelector('.bp-node-lbl,.bp-vnode-lbl');if(lbl)lbl.textContent=v;}
+    clearTimeout(_saveT);_saveT=setTimeout(saveStage,800);
+  }
+  /* Musicien (ou destinataire d'un retour) et mix demandé : texte libre, borné */
+  function updateWho(v){
+    const el=st.els.find(e=>e.id===_sel);if(!el)return;
+    el.who=String(v||'').slice(0,40); if(!el.who) delete el.who;
+    renderNode(el);
+    clearTimeout(_saveT);_saveT=setTimeout(saveStage,800);
+  }
+  function updateMix(v){
+    const el=st.els.find(e=>e.id===_sel);if(!el)return;
+    el.mix=String(v||'').slice(0,200); if(!el.mix) delete el.mix;
     clearTimeout(_saveT);_saveT=setTimeout(saveStage,800);
   }
   function updPos(axis,v){
     const el=st.els.find(e=>e.id===_sel);if(!el||isNaN(v))return;
-    el[axis]=v;
+    v=Math.round(v); el[axis]=v;
     const div=document.querySelector('[data-bpid="'+_sel+'"]');
     if(div)div.style[axis==='x'?'left':'top']=v+'px';
     clearTimeout(_saveT);_saveT=setTimeout(saveStage,600);
@@ -13250,9 +13442,17 @@ const BandPlan=(()=>{
     const wrap=_wrap();if(!wrap)return;
     const rect=wrap.getBoundingClientRect();
     if(!rect.width||!rect.height){requestAnimationFrame(fitView);return;}
-    st.view.z=Math.min(rect.width/2400,rect.height/1600)*.9;
-    st.view.px=(rect.width-2400*st.view.z)/2;
-    st.view.py=(rect.height-1600*st.view.z)/2;
+    const g=_getStageDims();
+    let bx=0,by=0,bw=2400,bh=1600;
+    if(g.m){
+      /* Scène à l'échelle : cadrer la scène, ses cotes et les éléments posés autour */
+      let x0=g.x-90,y0=g.y-80,x1=g.x+g.w+50,y1=g.y+g.h+80;
+      st.els.forEach(function(e){ x0=Math.min(x0,e.x-20); y0=Math.min(y0,e.y-30); x1=Math.max(x1,e.x+140); y1=Math.max(y1,e.y+140); });
+      bx=x0; by=y0; bw=x1-x0; bh=y1-y0;
+    }
+    st.view.z=Math.max(0.15,Math.min(3,Math.min(rect.width/bw,rect.height/bh)*.92));
+    st.view.px=(rect.width-bw*st.view.z)/2-bx*st.view.z;
+    st.view.py=(rect.height-bh*st.view.z)/2-by*st.view.z;
     applyTransform();
     _updateZoomSlider();
   }
@@ -13323,17 +13523,19 @@ const BandPlan=(()=>{
     _initCanvas();
     applyTransform();
     _applyGlobalScales();
+    _renderStageRow();
     _updateViewModeUI();
   }
 
   // ---- save/load ----
-  function getData(){return {els:st.els.map(e=>({...e})),nid:st.nid,view:{...st.view},textScale:st.textScale,nodeScale:st.nodeScale,stageScale:st.stageScale,viewMode:st.viewMode,bgImage:st.bgImage||null,bgOpacity:st.bgOpacity??100,bgX:st.bgX||0,bgY:st.bgY||0,bgScale:st.bgScale??1,hideStage:!!st.hideStage};}
+  function getData(){return {els:st.els.map(e=>({...e})),nid:st.nid,view:{...st.view},textScale:st.textScale,nodeScale:st.nodeScale,stageScale:st.stageScale,viewMode:st.viewMode,bgImage:st.bgImage||null,bgOpacity:st.bgOpacity??100,bgX:st.bgX||0,bgY:st.bgY||0,bgScale:st.bgScale??1,hideStage:!!st.hideStage,stageW:st.stageW||0,stageD:st.stageD||0,grid:st.grid!==false,snap:st.snap!==false};}
   function load(data){
     _sanitizePlanJSON(data);
     st.els=[];st.nid=1;
     _cv()?.querySelectorAll('.bp-node').forEach(n=>n.remove());
     st.bgImage=null;st.bgOpacity=100;st.bgX=0;st.bgY=0;st.bgScale=1;_bgEdit=false;st.hideStage=false;
-    if(!data||!data.els){_applyBg();_applyStageVis();return;}
+    st.stageW=0;st.stageD=0;st.grid=true;st.snap=true;
+    if(!data||!data.els){_rebuildStageSVG();_applyBg();_applyStageVis();return;}
     st.els=data.els;
     st.nid=data.nid||(st.els.length?Math.max(...st.els.map(e=>e.id))+1:1);
     if(data.view)Object.assign(st.view,data.view);
@@ -13349,6 +13551,8 @@ const BandPlan=(()=>{
     if(data.bgY!=null)st.bgY=data.bgY;
     if(data.bgScale!=null)st.bgScale=data.bgScale;
     if(data.hideStage!=null)st.hideStage=!!data.hideStage;
+    st.stageW=+data.stageW||0; st.stageD=+data.stageD||0; st.grid=data.grid!==false; st.snap=data.snap!==false;
+    _rebuildStageSVG();
     st.viewMode='vintage';  /* Always vintage now — toggle removed */
     st.els.forEach(el=>renderNode(el));
     applyTransform();_applyGlobalScales();_applyBg();_applyStageVis();_sel=null;renderInspector();
@@ -13360,17 +13564,7 @@ const BandPlan=(()=>{
   }
 
   /* Returns the stage rect geometry based on current stageScale */
-  function _getStageDims(){
-    const ss=st.stageScale||1;
-    const w=Math.min(2380,Math.round(2300*ss));
-    const h=Math.min(1570,Math.round(1480*ss));
-    const x=Math.round(1200-w/2);
-    const y=Math.max(20,Math.round(180-(h-900)/2));
-    const sepY=y+h;
-    const pubY=Math.min(1580,sepY+Math.round(180*Math.max(0.5,1/ss)));
-    const cy=Math.round(y+h*0.44);
-    return {x,y,w,h,cx:1200,cy,sepY,pubY};
-  }
+  function _getStageDims(){ return _bpStageGeom(st); }
 
   function _buildStageSVG(){
     const d=_getStageDims();
@@ -13403,6 +13597,7 @@ const BandPlan=(()=>{
       +'<text transform="translate('+(d.x+d.w+20)+','+my+') rotate(90)" '+lab+'>COUR</text>'
       +'<text x="1200" y="'+(d.sepY+38)+'" '+lab+'>PUBLIC</text>'
       +'<path d="M1186 '+(d.sepY+52)+'l14 10l14-10" fill="none" stroke="'+K+'" stroke-opacity=".36" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
+      +_bpScaleSvg(d,st.grid)
       +'</svg>';
   }
 
@@ -13411,6 +13606,60 @@ const BandPlan=(()=>{
     if(bg)bg.innerHTML=_buildStageSVG_vintage();
     const sl=document.getElementById('bp-ss-val');
     if(sl)sl.textContent=Math.round((st.stageScale||1)*100)+'%';
+    _renderStageRow();
+  }
+  /* Réglages de la scène, en pied de l'inspecteur : dimensions en mètres, grille, aimantation */
+  function _renderStageRow(){
+    const box=document.getElementById('bp-stage-row'); if(!box) return;
+    const g=_getStageDims();
+    box.innerHTML='<div class="bp-stage-dim"><span>Scène</span>'
+      +'<input type="number" id="bp-sw" min="2" max="30" step="0.5" inputmode="decimal" placeholder="L" value="'+(g.m?g.W:'')+'" onchange="BandPlan.dimsFromInputs()" aria-label="Largeur de la scène en mètres">'
+      +'<em>×</em><input type="number" id="bp-sd" min="2" max="19" step="0.5" inputmode="decimal" placeholder="P" value="'+(g.m?g.D:'')+'" onchange="BandPlan.dimsFromInputs()" aria-label="Profondeur de la scène en mètres"><em>m</em>'
+      +(g.m?'<button type="button" class="bp-dim-x" onclick="BandPlan.setStageDims(0,0)" title="Revenir à une scène sans dimensions">×</button>':'')+'</div>'
+      +(g.m?'<div class="bp-stage-opt"><label><input type="checkbox" class="cb"'+(st.grid!==false?' checked':'')+' onchange="BandPlan.setGrid(this.checked)">Grille 1 m</label>'
+        +'<label title="Les éléments se calent tous les 25 cm"><input type="checkbox" class="cb"'+(st.snap!==false?' checked':'')+' onchange="BandPlan.setSnap(this.checked)">Aimanter</label></div>'
+       :'<div class="bp-stage-hint">Donnez la largeur et la profondeur : la scène passe à l\'échelle, avec une grille d\'un mètre et ses cotes.</div>'
+        +'<div class="bp-stage-leg"><span>Taille relative</span><button class="spl-ts-btn" onclick="BandPlan.setStageScale(-1)">−</button><span id="bp-ss-val">'+Math.round((st.stageScale||1)*100)+'%</span><button class="spl-ts-btn" onclick="BandPlan.setStageScale(1)">+</button></div>');
+  }
+  /* Nouvelles dimensions : les éléments sont recalés proportionnellement dans la nouvelle scène (praticables
+     compris, à leur taille réelle) ; ⌘Z annule. */
+  function setStageDims(W,D){
+    W=+W||0; D=+D||0;
+    if(W>0 || D>0){ if(!(W>0 && D>0)) return; W=Math.max(2,Math.min(30,Math.round(W*2)/2)); D=Math.max(2,Math.min(19,Math.round(D*2)/2)); }
+    const a=_getStageDims();
+    if((a.m?a.W:0)===W && (a.m?a.D:0)===D){ _renderStageRow(); return; }
+    const half=function(el,ns){ return el.type==='riser'?[(el.riserW||2)*RISER_SCALE/2,(el.riserH||1)*RISER_SCALE/2]:el.type==='kit'?[105*ns,40*ns]:[60*ns,60*ns]; };
+    const ns0=st.nodeScale||1, centers=st.els.map(function(el){ const hf=half(el,ns0); return [el.x+hf[0],el.y+hf[1]]; });
+    st.stageW=W; st.stageD=D;
+    const b=_getStageDims();
+    /* Passage d'une scène relative à une scène en mètres (ou l'inverse) : les objets et le texte suivent la scène,
+       pour que le plan garde son allure */
+    if(a.m!==b.m){
+      const r=b.w/a.w, near=function(v,list){ return list.reduce(function(m,x){ return Math.abs(x-v)<Math.abs(m-v)?x:m; },list[0]); };
+      st.nodeScale=near(ns0*r,[0.55,0.7,0.85,1,1.2,1.4,1.65,2]);
+      st.textScale=Math.max(0.85,near((st.textScale||1)*r,[0.6,0.75,0.85,1,1.2,1.4,1.7,2.1]));
+      _applyGlobalScales();
+    }
+    const ns1=st.nodeScale||1;
+    st.els.forEach(function(el,i){
+      const hf=half(el,ns1), c=centers[i];
+      const nx=b.x+(c[0]-a.x)*b.w/a.w, ny=b.y+(c[1]-a.y)*b.h/a.h;
+      el.x=Math.round(Math.max(0,Math.min(2380,nx-hf[0]))); el.y=Math.round(Math.max(0,Math.min(1580,ny-hf[1])));
+      renderNode(el);
+    });
+    _rebuildStageSVG(); saveStage(); renderInspector(); setTimeout(fitView,30);
+    if(st.els.length && typeof toast==='function') toast(W?'Scène de '+_bpNum(W)+' × '+_bpNum(D)+' m : éléments recalés dans la nouvelle scène.':'Scène sans dimensions.');
+  }
+  function dimsFromInputs(){
+    const w=parseFloat(String((document.getElementById('bp-sw')||{}).value||'').replace(',','.')), d=parseFloat(String((document.getElementById('bp-sd')||{}).value||'').replace(',','.'));
+    if(w>0 && d>0) setStageDims(w,d);
+  }
+  function setGrid(on){ st.grid=!!on; _rebuildStageSVG(); saveStage(); }
+  function setSnap(on){ st.snap=!!on; saveStage(); }
+  /* Aimantation : le coin de l'élément se cale tous les 25 cm à partir du coin jardin-lointain de la scène */
+  function _snapXY(x,y){
+    const g=_getStageDims(); if(!g.m || st.snap===false) return [x,y];
+    const S=BP_PXM/4; return [Math.round(g.x+Math.round((x-g.x)/S)*S), Math.round(g.y+Math.round((y-g.y)/S)*S)];
   }
 
   function _applyGlobalScales(){
@@ -13435,6 +13684,7 @@ const BandPlan=(()=>{
     idx=Math.max(0,Math.min(steps.length-1,idx+dir));
     st.nodeScale=steps[idx];_applyGlobalScales();saveStage();
   }
+  function setScales(ns,ts){ st.nodeScale=ns; st.textScale=ts; _applyGlobalScales(); saveStage(); }
   function setStageScale(dir){
     const steps=[0.6,0.75,0.9,1,1.15,1.3,1.5];
     let idx=steps.findIndex(s=>Math.abs(s-(st.stageScale||1))<0.05);
@@ -13493,8 +13743,239 @@ const BandPlan=(()=>{
     renderNode(el); renderInspector(); saveStage();
   }
 
-  return {init,load,getData,clear,zoom,setZoomPct,resetZoom,fitView,search,toggleCat,_pdrag,_pdblclick,renderInspector,updateAlias,updPos,adjScale,adjZ,setRot,linkCh,unlinkCh,createCh,toggleStereo,linkChR,unlinkChR,createChR,linkOutCh,unlinkOutCh,createOutCh,toggleOutStereo,linkOutChR,unlinkOutChR,createOutChR,deleteNode,setTextScale,setNodeScale,setStageScale,setRiserDims,setRiserAlt,addCustomItem,removeCustomItem,linkKitCh,unlinkKitCh,createKitCh,setViewMode,getCatInfo,getVintageSVG,getViewMode,loadBg,setBgOpacity,setBgScale,toggleBgEdit,toggleStageBg,clearBg,aiPlace,uploadElementIcon,clearElementIcon,adjImgPx,setLinkPatch,toggleKitMulti,linkKitChMulti,kitMultiAll};
+  return {setScales,bulkPlace,linkedIds,stageGeom,updateWho,updateMix,setStageDims,dimsFromInputs,setGrid,setSnap,init,load,getData,clear,zoom,setZoomPct,resetZoom,fitView,search,toggleCat,_pdrag,_pdblclick,renderInspector,updateAlias,updPos,adjScale,adjZ,setRot,linkCh,unlinkCh,createCh,toggleStereo,linkChR,unlinkChR,createChR,linkOutCh,unlinkOutCh,createOutCh,toggleOutStereo,linkOutChR,unlinkOutChR,createOutChR,deleteNode,setTextScale,setNodeScale,setStageScale,setRiserDims,setRiserAlt,addCustomItem,removeCustomItem,linkKitCh,unlinkKitCh,createKitCh,setViewMode,getCatInfo,getVintageSVG,getViewMode,loadBg,setBgOpacity,setBgScale,toggleBgEdit,toggleStageBg,clearBg,aiPlace,uploadElementIcon,clearElementIcon,adjImgPx,setLinkPatch,toggleKitMulti,linkKitChMulti,kitMultiAll};
 })();
+
+/* ══════════════════════════════════════
+   PLAN DE SCÈNE DEPUIS L'INPUT LIST
+   Lit les voies (famille « source », puis nom long et court) et les sorties de la liste courante,
+   regroupe par musicien et instrument, puis propose un plan à l'échelle : batterie au lointain, section
+   rythmique et claviers au milieu, voix devant, retours devant chaque musicien, ears à côté.
+   Rien n'est posé avant validation ; ⌘Z annule la pose.
+   ══════════════════════════════════════ */
+function _bpN(t){ return String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase(); }
+var _BP_ROLE_RX=[
+  ['ignore', /talk ?back|\btb\b|\bordre\b|ambian|\bamb\b|\bpublic\b|audience|crowd|\brev(erb)?\b|\bdelay\b|\bfx\b|\bspare\b|reserve|\bvide\b|\bnc\b/],
+  ['edrum',  /e-?drum|batterie ?elec|\bspd\b|sample ?pad|octapad/],
+  ['drums',  /batterie|drums?\b|\bkit\b|kick|\bbd\b|\bgc\b|grosse ?caisse|snare|\bsn\b|caisse ?claire|\bcc\b|hi ?hat|\bhh\b|charl|\btom|\bft\b|floor|\boh\b|overhead|\bride\b|crash|cymb/],
+  ['perc',   /perc|conga|bongo|cajon|timbal|djembe|shaker|tambou?r|cowbell|marimba|xylo|vibra|glock/],
+  ['dbass',  /contre ?basse|double ?bass|upright|\bcb\b/],
+  ['bass',   /\bbass|basse|\bbs\b|\bbg\b/],
+  ['acou',   /acou|\bfolk|nylon|ukul|gtr ?ac|guit(are)? ?ac|banjo|mando/],
+  ['gtr',    /gtr|guit|gita|\bgt\b/],
+  ['keys',   /\bkey|\bkb|\bkbd|clav|synth|piano|\bpno|rhodes|wurl|orgue|organ|hammond|\bnord|moog/],
+  ['brass',  /tromp|trump|\btp\b|\btrp|trombone|\btrb|\btbn|\bsax|tuba|\bcor\b|\bhorn|flute|clarinet/],
+  ['strings',/violon|violin|\bvln|\bvl\b|\balto\b|viola|cello|violoncelle|\bvlc|harp/],
+  ['vocal',  /\bvoc|\bvox|\bvoix|chant|\blead|\bld\b|choeur|chorus|\bbv|\bbkg|\bmc\b|speech|parole|annonce/],
+  ['pb',     /track|playback|\bpb\b|click|\bclic\b|laptop|ableton|\bordi|\bmac\b|\bseq|\bstem|backing/],
+  ['dj',     /\bdj\b|\bcdj|platine|turntable/]
+];
+function _bpRoleOf(c){
+  var nm=_bpN((c.long_name||'')+' '+(c.short_name||'')), src=_bpN(c.source||'');
+  if(_BP_ROLE_RX[0][1].test(nm)) return 'ignore';
+  var find=function(t){ if(!t) return ''; for(var i=1;i<_BP_ROLE_RX.length;i++) if(_BP_ROLE_RX[i][1].test(t)) return _BP_ROLE_RX[i][0]; return ''; };
+  var a=find(src), b=find(nm), finer={gtr:['acou'],bass:['dbass'],drums:['edrum','perc'],perc:['drums']};
+  /* La famille (« source ») d'abord ; le nom l'emporte s'il précise l'instrument (guitare → acoustique, basse → contrebasse…) */
+  return (a && b && finer[a] && finer[a].indexOf(b)>=0) ? b : (a||b);
+}
+/* Nom de base d'une voie, pour regrouper un même instrument (L/R, DI/micro) : « Gtr 1 DI » → « gtr 1 » */
+function _bpBase(c){
+  return _bpN(c.long_name||c.short_name||'').replace(/\b(l|r|g|d|left|right|gauche|droite|di|mic|micro|amp|ampli|cab|in|top|bot|bottom|haut|bas|hi|lo|dry|wet)\b/g,' ').replace(/[\s\-_.()\/]+/g,' ').trim();
+}
+function _bpIsDI(c){ return /\bdi\b|\bd\.i|radial|\bbss\b|klark|countryman|\bline\b/.test(_bpN((c.mic||'')+' '+(c.long_name||'')+' '+(c.short_name||''))); }
+function _bpIsHF(c){ return /\bhf\b|wireless|sans ?fil|\bad2|ulxd2|qlxd2|slxd2|\bskm|\bew\b|beta ?58 ?a? ?hf|axient|digital ?6000/.test(_bpN((c.mic||'')+' '+(c.long_name||''))); }
+function _bpIsL(c){ return /\b(l|left|g|gauche)\b|[^a-z]l$/.test(_bpN(c.long_name||'')) || /l$/.test(_bpN(c.short_name||'')); }
+/* Propose les éléments : [{key, type, label, role, ch, chR, chs, amp:{type,ch,chR}, outs:[]}] */
+function _bpGuessFromIL(chs,outs,taken){
+  var P=[], skipped=[], unknown=[], byKey={}, used=0;
+  var get=function(key,o){ if(!byKey[key]){ byKey[key]=Object.assign({key:key, chans:[]},o); P.push(byKey[key]); } return byKey[key]; };
+  chs.slice().sort(function(a,b){ return (a.ch||0)-(b.ch||0); }).forEach(function(c){
+    if(taken[c.id]){ used++; return; }
+    var r=_bpRoleOf(c), nm=c.long_name||c.short_name||('CH '+c.ch);
+    if(r==='ignore'){ skipped.push(c); return; }
+    if(!r){ unknown.push(c); return; }
+    var base=_bpBase(c);
+    /* Batterie, percussions, playback : un seul bloc ; voix, cuivres, cordes : un élément par voie ; le reste par instrument */
+    var key=(r==='drums'||r==='perc'||r==='pb')?r:(r==='vocal'||r==='brass'||r==='strings')?r+':'+c.id:r+':'+base;
+    get(key,{role:r, label:''}).chans.push(c);
+  });
+  P.forEach(function(p){
+    var cs=p.chans, first=cs[0], nm=function(c){ return c.long_name||c.short_name||('CH '+c.ch); }, t=_bpN(cs.map(nm).join(' '));
+    var pair=function(o){ if(cs.length>=2){ var l=cs.filter(_bpIsL)[0]||cs[0], r2=cs.filter(function(c){ return c!==l; })[0]; o.ch=l.id; o.chR=r2.id; } else o.ch=first.id; return o; };
+    if(p.role==='drums'){ p.type='kit'; p.label='Batterie'; p.chs=cs.map(function(c){ return c.id; }); }
+    else if(p.role==='perc'){ if(cs.length<=2){ p.type=/cajon/.test(t)?'cajon':/marimba/.test(t)?'marimba':/xylo|vibra|glock/.test(t)?'xyl':/timbal/.test(t)?'timb':'conga'; p.label=cs.length===1?nm(first):'Percussions'; pair(p); } else { p.type='kit'; p.label='Percussions'; p.chs=cs.map(function(c){ return c.id; }); } }
+    else if(p.role==='pb'){ if(cs.length<=2){ p.type='laptop'; p.label='Playback'; pair(p); } else { p.type='kit'; p.label='Playback / ordinateur'; p.chs=cs.map(function(c){ return c.id; }); } }
+    else if(p.role==='edrum'){ p.type='edrum'; p.label='Batterie électronique'; pair(p); }
+    else if(p.role==='dj'){ p.type='dj'; p.label='DJ'; pair(p); }
+    else if(p.role==='bass'){ var di=cs.filter(_bpIsDI)[0], mic=cs.filter(function(c){ return !_bpIsDI(c); })[0];
+      p.type='bass_g'; p.label=nm(di||first).replace(/\s*\b(di|d\.i\.?)\b\s*/i,' ').trim()||'Basse'; p.ch=(di||(!mic?first:null)||{}).id||null; p.amp={type:'bamp',ch:mic?mic.id:null}; }
+    else if(p.role==='gtr'){ var dg=cs.filter(_bpIsDI)[0], mics=cs.filter(function(c){ return !_bpIsDI(c); });
+      p.type='elec'; p.label=nm(first).replace(/\s*\b(di|mic|micro|l|r|g|d)\b\s*$/i,'').trim()||'Guitare'; p.ch=dg?dg.id:null; p.amp={type:'gamp',ch:mics[0]?mics[0].id:null,chR:mics[1]?mics[1].id:null}; if(!dg && !mics.length) p.ch=first.id; }
+    else if(p.role==='acou'){ p.type='acou'; p.label=nm(first); pair(p); }
+    else if(p.role==='dbass'){ p.type='dbass'; p.label=nm(first); pair(p); }
+    else if(p.role==='keys'){ p.type=/piano|\bpno/.test(t)?'piano':/orgue|organ|hammond|leslie/.test(t)?'organ':/rhodes|wurl/.test(t)?'wurly':/synth|moog/.test(t)?'synth':'keyboard'; p.label=nm(first).replace(/\s*\b(l|r|g|d|left|right)\b\s*$/i,'').trim()||'Clavier'; pair(p); }
+    else if(p.role==='brass'){ p.type=/trombone|\btrb|\btbn/.test(t)?'trombone':/\bsax/.test(t)?'sax':/tuba|\bcor\b|\bhorn/.test(t)?'horn':/tromp|trump|\btp\b|\btrp/.test(t)?'trumpet':'sax'; p.label=nm(first); p.ch=first.id; }
+    else if(p.role==='strings'){ p.type=/cello|violoncelle|\bvlc/.test(t)?'cello':'violin'; p.label=nm(first); p.ch=first.id; }
+    else if(p.role==='vocal'){ p.type=_bpIsHF(first)?'mic_hf':'mic_s'; p.label=nm(first); p.ch=first.id; p.lead=/\blead|\bld\b|principal|\bvox ?1\b|\bvoix ?1\b/.test(t); }
+    p.outs=[];
+  });
+  /* Sorties : retours, ears (stéréo L/R regroupées), drum-fill, side-fills */
+  var ob={}, OUTS=[];
+  outs.forEach(function(o){
+    if(taken[o.id]) return;
+    var n=_bpN((o.long_name||'')+' '+(o.short_name||'')), type=null;
+    if(o.type==='mon') type=/side/.test(n)?'sidefill':/drum ?fill|\bfill\b/.test(n)?'drumfill':'wedge';
+    else if(o.type==='iem') type='iem_p';
+    else if(o.type==='sub' && /drum|batt|fill/.test(n)) type='drumfill';
+    else if(/side ?fill/.test(n)) type='sidefill';
+    if(!type) return;
+    var key=type+':'+_bpBase(o);
+    if(!ob[key]){ ob[key]={type:type, label:o.long_name||o.short_name||'Retour', list:[]}; OUTS.push(ob[key]); }
+    ob[key].list.push(o);
+  });
+  OUTS.forEach(function(g){
+    var l=g.list.filter(_bpIsL)[0]||g.list[0], r=g.list.length>1?g.list.filter(function(x){ return x!==l; })[0]:null;
+    g.outCh=l.id; g.outChR=r?r.id:null; g.label=String(g.label).replace(/\s*\b(l|r|g|d|left|right)\b\s*$/i,'').trim();
+    /* À qui : par rôle nommé dans la sortie, puis par numéro (« Gtr 2 ») */
+    var n=_bpN(g.label), role=null;
+    for(var i=1;i<_BP_ROLE_RX.length;i++) if(_BP_ROLE_RX[i][1].test(n)){ role=_BP_ROLE_RX[i][0]; break; }
+    if(g.type==='drumfill') role='drums';
+    if(role){
+      var cands=P.filter(function(p){ return p.role===role || (role==='edrum'&&p.role==='drums') || (role==='drums'&&p.role==='edrum'); });
+      var num=(n.match(/\d+/)||[])[0], hit=cands.filter(function(p){ return num && _bpN(p.label).indexOf(num)>=0 && !p.outs.length; })[0]
+        ||cands.filter(function(p){ return role!=='vocal'||p.lead; }).filter(function(p){ return !p.outs.some(function(x){ return x.type===g.type; }); })[0]
+        ||cands.filter(function(p){ return !p.outs.some(function(x){ return x.type===g.type; }); })[0];
+      if(hit){ hit.outs.push(g); g.to=hit; }
+    }
+  });
+  return {perf:P, outs:OUTS, skipped:skipped, unknown:unknown, used:used};
+}
+/* Positions à l'échelle → coordonnées du plan. Batterie au centre du lointain ; les autres musiciens de part
+   et d'autre, tous les 2 m (basse et claviers côté jardin, guitares et cuivres côté cour), leur ampli derrière eux ;
+   les voix devant ; retours devant chaque musicien, ears à côté. */
+function _bpLayout(res,g,opts){
+  var M=BP_PXM, ns=opts.ns||1, S=120*ns, out=[];            /* case d'une icône : 120 px × taille des objets */
+  var clampX=function(x,w){ return Math.max(g.x+4,Math.min(g.x+g.w-w-4,x)); }, clampY=function(y,h){ return Math.max(g.y+4,Math.min(g.y+g.h-h-8,y)); };
+  var put=function(o,cx,cy,w,h){ w=w||S; h=h||S; o.x=Math.round(clampX(cx-w/2,w)); o.y=Math.round(clampY(cy-h/2,h)); out.push(o); return o; };
+  var sel=res.perf.filter(function(p){ return !p.off; });
+  var drums=sel.filter(function(p){ return p.role==='drums'||p.role==='edrum'; })[0];
+  var voc=sel.filter(function(p){ return p.role==='vocal'; });
+  var band=sel.filter(function(p){ return p!==drums && p.role!=='vocal'; });
+  var side={bass:'L',keys:'L',dbass:'L',strings:'L',pb:'L',dj:'L',gtr:'R',acou:'R',brass:'R',perc:'R',drums:'R',edrum:'R'};
+  var order={bass:0,gtr:1,keys:2,acou:3,perc:4,dbass:5,strings:6,brass:7,pb:8,dj:9,drums:10,edrum:10};
+  band.sort(function(a,b){ return (b.amp?1:0)-(a.amp?1:0) || order[a.role]-order[b.role]; });
+  var cx0=g.x+g.w/2;
+  /* Lointain : batterie (bloc des voies) et son praticable */
+  var half=0.6*M, kitBottom=g.y+1.6*M, y0=g.y+1.2*M;
+  if(drums){
+    if(drums.type==='kit'){
+      var kw=210*ns, kh=Math.min((40+Math.max(1,drums.chs.length)*26)*ns,g.h*0.45);
+      y0=g.y+0.25*M+kh/2;
+      if(opts.riser && g.W>=6 && g.D>=4) put({type:'riser',riserW:3,riserH:2,riserAlt:0.4,label:'Praticable batterie'},cx0,g.y+0.25*M+1*M,3*M,2*M);
+      put({type:'kit',label:drums.label,chs:drums.chs},cx0,y0,kw,kh); half=kw/2; kitBottom=y0+kh/2;
+    } else { put({type:drums.type,label:drums.label,ch:drums.ch,chR:drums.chR},cx0,y0); half=0.6*M; kitBottom=y0+S/2; }
+    drums._xy=[cx0,kitBottom+0.7*M];                    /* ses retours et ears se posent juste devant */
+  }
+  /* Rangée des instruments, de part et d'autre de la batterie, couloirs de 2 m ; rangée des voix au-devant */
+  var y2=g.y+g.h-2.15*M, y1=Math.min(g.y+Math.max(2.6*M,g.h*0.38),y2-3.4*M);
+  /* Scène peu profonde : le retour d'un instrumentiste se pose à côté de lui, et les couloirs s'élargissent */
+  var sideMode=y1<g.y+2.2*M; if(sideMode) y1=Math.max(g.y+2.2*M,Math.min(y2-2.2*M,g.y+g.h*0.42));
+  var step=sideMode?2.6*M:2*M;
+  var slots={L:[],R:[]}, k;
+  for(k=0;k<14;k++){ var dx=half+1.0*M+k*step; if(cx0-dx>g.x+0.55*M) slots.L.push(cx0-dx); if(cx0+dx<g.x+g.w-0.55*M) slots.R.push(cx0+dx); }
+  var front=[];
+  band.forEach(function(p){
+    var sd=side[p.role]||'R', x=slots[sd].shift(); if(x==null){ sd=sd==='L'?'R':'L'; x=slots[sd].shift(); }
+    if(x==null){ front.push(p); return; }
+    p._xy=[x,y1];
+    if(p.amp) put({type:p.amp.type,label:p.amp.type==='bamp'?'Ampli basse':'Ampli guitare',ch:p.amp.ch,chR:p.amp.chR},x,y1-1.5*M);
+    if(p.type==='kit') put({type:'kit',label:p.label,chs:p.chs},x,y1,210*ns,Math.min((40+p.chs.length*26)*ns,g.h*0.3));
+    else put({type:p.type,label:p.label,ch:p.ch,chR:p.chR},x,y1);
+  });
+  /* Voix (puis instruments sans place) : la lead au centre ; une voix qui nomme un instrument devant son musicien */
+  voc.sort(function(a,b){ return (b.lead?1:0)-(a.lead?1:0); });
+  var taken=[], free=function(x){ return !taken.some(function(t){ return Math.abs(t-x)<1.6*M; }); };
+  /* Plus grand écart aux éléments déjà posés sur une rangée (pas de 25 cm) */
+  var widest=function(xs){ var best=cx0, bd=-1; for(var c=g.x+0.6*M;c<=g.x+g.w-0.6*M;c+=M/4){ var d=xs.reduce(function(m,t){ return Math.min(m,Math.abs(t-c)); },1e9); if(d>bd){ bd=d; best=c; } } return best; };
+  var spot=function(){ for(var q=0;q<20;q++){ var c=cx0+(q%2?1:-1)*Math.ceil(q/2)*1.8*M; if(c>=g.x+0.6*M && c<=g.x+g.w-0.6*M && free(c)) return c; } return widest(taken); };
+  voc.concat(front).forEach(function(p){
+    var x=null;
+    if(p.role==='vocal'){
+      var n=_bpN(p.label), mate=null;
+      for(var r=1;r<_BP_ROLE_RX.length && !mate;r++){ var rx=_BP_ROLE_RX[r]; if(rx[0]==='vocal'||rx[0]==='ignore') continue; if(rx[1].test(n)) mate=band.concat(drums?[drums]:[]).filter(function(q){ return q.role===rx[0] && q._xy; })[0]; }
+      if(mate && free(mate._xy[0])) x=mate._xy[0];
+      if(x==null && p.lead && free(cx0)) x=cx0;
+    }
+    if(x==null) x=spot();
+    taken.push(x); p._xy=[x,y2];
+    if(p.amp) put({type:p.amp.type,label:p.amp.type==='bamp'?'Ampli basse':'Ampli guitare',ch:p.amp.ch,chR:p.amp.chR},x+1.0*M,y2-0.9*M);
+    put({type:p.type==='kit'?'kit':p.type,label:p.label,ch:p.ch,chR:p.chR,chs:p.chs},x,y2,p.type==='kit'?210*ns:S,p.type==='kit'?Math.min((40+p.chs.length*26)*ns,g.h*0.3):S);
+  });
+  /* Retours : devant le musicien (le batteur : devant sa batterie), ears à côté ; sans destinataire, au nez de scène */
+  var edge=[], e;
+  for(e=0;e<14;e++){ var ex=cx0+(e%2?1:-1)*Math.ceil(e/2)*1.6*M; if(ex>g.x+0.6*M && ex<g.x+g.w-0.6*M) edge.push(ex); }
+  var sideN=0, drumN=0;
+  res.outs.filter(function(o){ return !o.off; }).sort(function(a,b){ return (b.to?1:0)-(a.to?1:0); }).forEach(function(o){
+    var who=o.to&&!o.to.off&&o.to._xy?o.to:null, el={type:o.type,label:o.label,outCh:o.outCh,outChR:o.outChR,who:who?who.label:''};
+    if(o.type==='sidefill'){ put(el,sideN++%2?g.x+g.w-0.6*M:g.x+0.6*M,y1); return; }
+    if(who && who===drums){ put(el,cx0+(drumN++%2?-1:1)*1.0*M,who._xy[1]); return; }
+    if(o.type==='drumfill'){ put(el,cx0-1.0*M,kitBottom+0.7*M); return; }
+    if(!who){
+      var fx=edge.filter(function(x){ return !out.some(function(z){ return (z.type==='wedge'||z.type==='iem_p') && Math.abs(z.x+S/2-x)<1.3*M && z.y>g.y+g.h-2.4*M; }) && !voc.concat(front).some(function(v){ return v._xy && Math.abs(v._xy[0]-x)<1.3*M; }); })[0];
+      if(fx!=null) edge.splice(edge.indexOf(fx),1);
+      else fx=widest(out.filter(function(z){ return z.y>g.y+g.h-2.4*M; }).map(function(z){ return z.x+S/2; }).concat(taken));
+      put(el,fx,g.y+g.h-S/2-10); return; }
+    /* Devant le musicien ; s'il a déjà un retour devant lui, l'ear se pose à côté, côté extérieur de la scène */
+    var fy=Math.min(g.y+g.h-S/2-10,who._xy[1]+(who.role==='vocal'?1.5:1.7)*M), busy=who._front, out2=(who._xy[0]<cx0?-1:1);
+    who._front=(who._front||0)+1;
+    if(sideMode && who.role!=='vocal') put(el,who._xy[0]+out2*(busy?2.4:1.25)*M,who._xy[1]+0.3*M);
+    else put(el,busy?who._xy[0]+out2*1.25*M:who._xy[0],fy);
+  });
+  return out;
+}
+var _BPIL=null;
+function bpFromIL(){
+  if(typeof CUR_SHOW==='undefined' || !CUR_SHOW){ toast('Aucun show ouvert.'); return; }
+  var chs=(typeof CHS!=='undefined'?CHS:[])||[], outs=(typeof OUT_CHS!=='undefined'?OUT_CHS:[])||[];
+  if(!chs.length){ toast('L\'input list est vide : saisissez ou importez d\'abord vos voies.'); return; }
+  var res=_bpGuessFromIL(chs,outs,BandPlan.linkedIds()), g=BandPlan.stageGeom();
+  _BPIL={res:res, W:g.m?g.W:10, D:g.m?g.D:8, riser:true, replace:false, has:(BandPlan.getData().els||[]).length};
+  _bpILRender();
+}
+function _bpILRender(){
+  var E=_bonE, S=_BPIL, r=S.res, ic=function(t){ return '<svg viewBox="0 0 72 72" class="bpil-ic">'+BandPlan.getVintageSVG(t)+'</svg>'; };
+  var chn=function(p){ var l=[p.ch,p.chR].concat(p.chs||[]).concat(p.amp?[p.amp.ch,p.amp.chR]:[]).filter(Boolean).map(function(id){ var c=_chById(id); return c?c.ch:''; }).filter(Boolean); return l.length?'CH '+l.join(', '):'sans voie'; };
+  var row=function(p,i,kind){ return '<label class="bpil-row'+(p.off?' off':'')+'"><input type="checkbox" class="cb"'+(p.off?'':' checked')+' onchange="_BPIL.res.'+kind+'['+i+'].off=!this.checked;_bpILRender()">'+ic(p.type)
+    +'<span><b>'+E(p.label)+'</b><em>'+(kind==='perf'?E(chn(p))+(p.amp?' · avec '+(p.amp.type==='bamp'?'ampli basse':'ampli guitare'):''):'OUT '+E([p.outCh,p.outChR].filter(Boolean).map(function(id){ var o=_outById(id); return o?o.ch:''; }).join('+'))+(p.to?' · pour '+E(p.to.label):' · devant la scène'))+'</em></span></label>'; };
+  var h='<div class="bpil-h"><i class="ti ti-list-details"></i><b>Plan depuis l\'input list</b><button type="button" class="bpil-x" onclick="bpILClose()" aria-label="Fermer"><i class="ti ti-x"></i></button></div><div class="bpil-b">'
+    +'<div class="bpil-dims"><span>Scène</span><input type="number" min="2" max="30" step="0.5" value="'+S.W+'" onchange="_BPIL.W=+this.value"><em>×</em><input type="number" min="2" max="19" step="0.5" value="'+S.D+'" onchange="_BPIL.D=+this.value"><em>m</em></div>';
+  if(r.perf.length) h+='<div class="bpil-t">Musiciens et instruments</div>'+r.perf.map(function(p,i){ return row(p,i,'perf'); }).join('');
+  if(r.outs.length) h+='<div class="bpil-t">Retours</div>'+r.outs.map(function(p,i){ return row(p,i,'outs'); }).join('');
+  if(!r.perf.length && !r.outs.length) h+='<div class="bpil-none">Aucune voie reconnue'+(r.used?' : '+r.used+' voie'+(r.used>1?'s sont':' est')+' déjà sur le plan.':'.')+'</div>';
+  var notes=[];
+  if(r.used) notes.push(r.used+' voie'+(r.used>1?'s':'')+' déjà sur le plan, laissée'+(r.used>1?'s':'')+' de côté');
+  if(r.unknown.length) notes.push('non reconnue'+(r.unknown.length>1?'s':'')+' : '+r.unknown.slice(0,8).map(function(c){ return 'CH '+c.ch+' '+(c.long_name||c.short_name||''); }).join(', ')+(r.unknown.length>8?'…':''));
+  if(r.skipped.length) notes.push('ignorée'+(r.skipped.length>1?'s':'')+' (talkback, ambiance, effets) : '+r.skipped.map(function(c){ return 'CH '+c.ch; }).join(', '));
+  if(notes.length) h+='<div class="bpil-note">'+notes.map(E).join('<br>')+'</div>';
+  if(r.perf.some(function(p){ return p.role==='drums'; })) h+='<label class="bpil-opt"><input type="checkbox" class="cb"'+(S.riser?' checked':'')+' onchange="_BPIL.riser=this.checked">Praticable 3 × 2 m sous la batterie</label>';
+  if(S.has) h+='<label class="bpil-opt"><input type="checkbox" class="cb"'+(S.replace?' checked':'')+' onchange="_BPIL.replace=this.checked">Remplacer le plan actuel ('+S.has+' élément'+(S.has>1?'s':'')+')</label>';
+  h+='</div><div class="bpil-f"><span>Tout se règle ensuite à la main ; ⌘Z annule la pose.</span><button type="button" class="btn pri" onclick="bpILApply()"'+(r.perf.length||r.outs.length?'':' disabled')+'><i class="ti ti-check"></i>Poser sur le plan</button></div>';
+  var m=document.getElementById('bpil-modal');
+  if(!m){ m=document.createElement('div'); m.id='bpil-modal'; m.className='bpil-ov'; m.addEventListener('click',function(e){ if(e.target===m) bpILClose(); }); document.body.appendChild(m); }
+  m.innerHTML='<div class="bpil-box" role="dialog" aria-modal="true">'+h+'</div>';
+}
+function bpILClose(){ var m=document.getElementById('bpil-modal'); if(m) m.remove(); _BPIL=null; }
+function bpILApply(){
+  var S=_BPIL; if(!S) return;
+  var W=Math.max(2,Math.min(30,+S.W||10)), D=Math.max(2,Math.min(19,+S.D||8));
+  var g0=BandPlan.stageGeom(); if(!(g0.m && g0.W===W && g0.D===D)) BandPlan.setStageDims(W,D);
+  /* À l'échelle, un symbole fait environ 1,1 m (taille des objets 70 %) sur un plan neuf */
+  var fresh=S.replace || !S.has; if(fresh) BandPlan.setScales(0.7,1);
+  var list=_bpLayout(S.res,BandPlan.stageGeom(),{riser:S.riser, ns:BandPlan.getData().nodeScale||1});
+  var n=BandPlan.bulkPlace(list,S.replace);
+  bpILClose();
+  toast('✓ '+n+' élément'+(n>1?'s':'')+' posé'+(n>1?'s':'')+' sur le plan, liés à leurs voies et sorties');
+}
 
 // ══════════════════════════════════════
 // STAGE PLAN (legacy)
