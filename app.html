@@ -60,7 +60,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=4.33">
+<link rel="stylesheet" href="pf-app.css?v=4.35">
 </head>
 <body>
 
@@ -211,6 +211,7 @@ html.rider-boot #rider-splash{display:flex}
         <div class="nav-sec">Patch</div>
         <div class="tab" data-tab="inputlist" data-mode="in" onclick="navIL('in')" title="Input list"><i class="ti ti-list-numbers"></i><span class="tab-l">Input list</span><span class="tab-n" id="nav-n-in"></span></div>
         <div class="tab" data-tab="inputlist" data-mode="out" onclick="navIL('out')" title="Output list"><i class="ti ti-arrow-bar-to-right"></i><span class="tab-l">Output list</span><span class="tab-n" id="nav-n-out"></span></div>
+        <div class="tab" data-tab="festival" onclick="goTab('festival',this)" title="Mode festival : programme et changements de plateau"><i class="ti ti-calendar-time"></i><span class="tab-l">Festival</span><span class="tab-n" id="nav-n-fest"></span></div>
         <div class="nav-sec">Plans</div>
         <div class="tab" data-tab="stage" data-mode="scene" onclick="navPlan('scene')" title="Plan de scène"><i class="ti ti-layout-board"></i><span class="tab-l">Plan de scène</span></div>
         <div class="tab" data-tab="stage" data-mode="site" onclick="navPlan('site')" title="Plan de site"><i class="ti ti-map-2"></i><span class="tab-l">Plan de site</span></div>
@@ -688,6 +689,9 @@ html.rider-boot #rider-splash{display:flex}
     <div class="panel" id="panel-road">
       <div id="road-root"></div>
     </div>
+    <div class="panel" id="panel-festival">
+      <div id="fest-root"></div>
+    </div>
     <div class="panel" id="panel-rf">
       <div id="rf-root"></div>
     </div>
@@ -1138,6 +1142,7 @@ html.rider-boot #rider-splash{display:flex}
       <section class="mm-grp mm-patch"><h3><i class="ti ti-list-numbers"></i>Patch</h3><div class="mm-grid">
           <button type="button" data-tab="inputlist" data-mode="in" onclick="mobMore(false);navIL('in')"><span class="mm-ic"><i class="ti ti-list-numbers"></i></span><span>Input list</span></button>
           <button type="button" data-tab="inputlist" data-mode="out" onclick="mobMore(false);navIL('out')"><span class="mm-ic"><i class="ti ti-arrow-bar-to-right"></i></span><span>Output list</span></button>
+          <button type="button" data-tab="festival" onclick="mobMore(false);goTab('festival',null)"><span class="mm-ic"><i class="ti ti-calendar-time"></i></span><span>Festival</span></button>
           <button type="button" data-tab="showfiles" onclick="mobMore(false);goTab('showfiles',null)"><span class="mm-ic"><i class="ti ti-adjustments-alt"></i></span><span>Exports console</span></button>
       </div></section>
       <section class="mm-grp mm-plans"><h3><i class="ti ti-map-2"></i>Plans</h3><div class="mm-grid">
@@ -1631,9 +1636,10 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=4.84"></script>
+<script src="pf-app.js?v=4.85"></script>
 <script src="pf-rf.js?v=1.16"></script>
 <script src="pf-road.js?v=1.1"></script>
+<script src="pf-fest.js?v=1.0"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
   <div class="mob-plan-bar">

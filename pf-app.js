@@ -579,7 +579,7 @@ function _showInitError(msg){
 }
 /* Au rechargement, la page où l'on était s'affiche tout de suite, sans repasser par les sessions pendant le
    chargement des données ; la rubrique est ensuite remplie par goTab, une fois le show chargé. */
-const _TABS_OK=['sessions','overview','fichiers','inputlist','showfiles','bon','racks','rf','road','synoptique','stage','team','settings'];
+const _TABS_OK=['sessions','overview','fichiers','inputlist','festival','showfiles','bon','racks','rf','road','synoptique','stage','team','settings'];
 function _preTab(){
   try{
     var id=localStorage.getItem(TAB_PERSIST_KEY);
@@ -1516,10 +1516,14 @@ function renderPatchTabs(){
       </span>`;
     return;
   }
-  el.innerHTML=IL_PATCHES.map(p=>{
+  /* Mode festival : les listes au programme d'abord, dans l'ordre de passage, avec leur heure */
+  const _fi=(typeof festPatchInfo==='function')?festPatchInfo():null;
+  const _pl=_fi?IL_PATCHES.slice().sort((x,y)=>((_fi[x.id]?_fi[x.id].i:1e6)-(_fi[y.id]?_fi[y.id].i:1e6))||(x.pos||0)-(y.pos||0)):IL_PATCHES;
+  el.innerHTML=_pl.map(p=>{
     const active=p.id===CUR_PATCH_ID;
+    const _ft=_fi&&_fi[p.id]?`<small class="il-ptab-time">${String(_fi[p.id].t||'').replace(/</g,'&lt;')}</small>`:'';
     return `<div class="il-ptab${active?' active':''}" onclick="switchPatch('${_jsq(p.id)}')" ondblclick="renamePatch('${_jsq(p.id)}')" title="Double-clic pour renommer">
-      ${p.name.replace(/</g,'&lt;')}
+      ${_ft}${p.name.replace(/</g,'&lt;')}
       <button class="il-ptab-dup" onclick="event.stopPropagation();duplicatePatch('${_jsq(p.id)}')" title="Dupliquer ce patch (avec ses canaux)"><i class="ti ti-copy"></i></button>
       ${IL_PATCHES.length>1?`<button class="il-ptab-del" onclick="event.stopPropagation();deletePatch('${_jsq(p.id)}')" title="Supprimer">×</button>`:''}
     </div>`;
@@ -8495,12 +8499,12 @@ async function _sdPatch(show, keys){
   return sb.from('shows').update({stage_data:sd}).eq('id',show.id);
 }
 /* Rubriques relues depuis le serveur quand un collègue a pu les changer, et le module à recharger */
-var _SD_LIVE=['racks','rack_groups','rf','road'];
+var _SD_LIVE=['racks','rack_groups','rf','road','festival'];
 async function _sdRefresh(force){
   if(!CUR_SHOW||_sdRpcOk===false) return;
   var now=Date.now(); if(!force&&now-_sdLastRefresh<15000) return; _sdLastRefresh=now;
   var show=CUR_SHOW;
-  var r=await sb.from('shows').select('stage_data->racks,stage_data->rack_groups,stage_data->rf,stage_data->road').eq('id',show.id).maybeSingle();
+  var r=await sb.from('shows').select(_SD_LIVE.map(function(k){ return 'stage_data->'+k; }).join(',')).eq('id',show.id).maybeSingle();
   if(!r||r.error||!r.data||CUR_SHOW!==show) return;
   if(SD_BASE_SHOW!==show.id) _sdMarkBase(show);
   var sd=show.stage_data||(show.stage_data={v:2}), changed={};
@@ -8522,6 +8526,7 @@ async function _sdRefresh(force){
     if(!(pr&&act&&pr.contains(act)&&/INPUT|TEXTAREA|SELECT/.test(act.tagName))){ RF.showId=null; if(on('rf')&&typeof renderRf==='function') renderRf(); }
   }
   if(changed.road&&typeof _rdReload==='function') _rdReload();
+  if(changed.festival&&typeof festReload==='function') festReload();
   if(Object.keys(changed).length) toast('↻ Mis à jour par un collaborateur');
 }
 document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') _sdRefresh(); });
@@ -19518,6 +19523,9 @@ function renderOverview(){
   else h+='<div class="ov-none">'+(pend.length?pend.length+' invitation'+(pend.length>1?'s':'')+' en attente de réponse. ':'')+'Les collègues qui rejoignent la session, les fichiers qu\'ils déposent ou vérifient s\'affichent ici.</div>';
   h+='</section>';
 
+  /* Festival : en ce moment et ensuite */
+  if(typeof _festOvHtml==='function') h+=_festOvHtml();
+
   /* Patch : chiffres clés et récap micros */
   var chs=(typeof CHS!=='undefined'&&CHS)?CHS:[], mics={};
   chs.forEach(function(c){ var m=String(c.mic||'').trim(); if(m) mics[m]=(mics[m]||0)+1; });
@@ -23897,7 +23905,8 @@ function goTab(id,el){
   if(id==='racks') renderRacks();
   if(id==='rf' && typeof renderRf==='function') renderRf();
   if(id==='road' && typeof renderRoad==='function') renderRoad();
-  if((id==='racks'||id==='rf'||id==='road') && typeof _sdRefresh==='function') _sdRefresh(true);
+  if(id==='festival' && typeof renderFestival==='function') renderFestival();
+  if((id==='racks'||id==='rf'||id==='road'||id==='festival') && typeof _sdRefresh==='function') _sdRefresh(true);
   if(id==='settings' && !document.querySelector('#panel-settings .set-sec.on')) setNav('profil');
   if(typeof _ilSelSync==='function') _ilSelSync();
   if(typeof _rfSelSync==='function') _rfSelSync();
@@ -24213,6 +24222,7 @@ const GATE_META = {
   max_channels:   { icon:'ti-list-numbers',     title:'48 canaux par show en Gratuit', desc:'Ce show atteint 48 canaux. Le Pro enlève la limite pour les gros plateaux, festivals et doubles plateaux.', plan:'pro', feats:['Canaux illimités','Multi-patchs : variantes A/B, festival','Récapitulatif des micros et des pieds'] },
   max_members:    { icon:'ti-users',            title:'3 collaborateurs par show en Gratuit', desc:'Ce show a déjà 3 collaborateurs (invitations en attente comprises). Le Pro invite toute l\'équipe.', plan:'pro', feats:['Collaborateurs illimités','Rôles : éditeur ou lecture seule','Tout le monde sur la même version'] },
   custom_cols:    { icon:'ti-columns-3',        title:'Colonnes personnalisées',      desc:'Ajoutez vos propres colonnes à l\'input list : insert, musicien, remarques… Elles suivent le patch dans les exports.', plan:'pro', feats:['Colonnes libres, texte ou case à cocher','Créées d\'office à l\'import d\'un PDF','Affichables et déplaçables comme les autres'] },
+  festival:       { icon:'ti-calendar-time',    title:'Mode festival', desc:'Le programme de la scène sur une frise, une input list et une output list par groupe, et chaque changement de plateau calculé voie par voie.', plan:'pro', feats:['Programme par jour, temps de changement','Voies à changer, libérées, 48 V à basculer, retours et HF','Patch maître de la scène et feuille de changements à imprimer'] },
   multi_patches:  { icon:'ti-layers-subtract',  title:'Multi-patches & multi-scènes', desc:'Créez plusieurs variantes de patch (A/B, festival) et plusieurs synoptiques / plans par show.', plan:'pro', feats:['Variantes A/B, festival, acoustique','Plusieurs synoptiques et plans par show','Inclus dans le plan Pro'] },
   custom_exports: { icon:'ti-photo',            title:'Exports personnalisés',        desc:'Ajoutez votre logo et les informations de votre société sur tous les exports PDF.', plan:'pro', feats:['Logo sur chaque page PDF','En-tête avec vos coordonnées','Charte graphique de votre société'] },
   vintage_view:   { icon:'ti-photo-film',       title:'Affichage Vintage',            desc:'Mode théâtral avec les instruments dessinés en vue de dessus sur un plateau sombre.', plan:'pro', feats:['Vue en plongée de chaque instrument','Fond de scène théâtral avec parquet','Inclus dans le plan Pro'] },
