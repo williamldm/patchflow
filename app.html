@@ -60,7 +60,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=4.31">
+<link rel="stylesheet" href="pf-app.css?v=4.32">
 </head>
 <body>
 
@@ -1026,135 +1026,92 @@ html.rider-boot #rider-splash{display:flex}
     <!-- TEAM -->
     <div class="panel" id="panel-team">
       <div class="pbar"><span class="ptitle"><i class="ti ti-link" style="color:var(--ora)"></i>Partage &amp; équipe<span class="ptitle-sep">/</span><span id="sn-team" style="color:var(--txt2)">…</span></span></div>
+      <div class="sh-intro">
+        <div class="sh-mode"><i class="ti ti-link"></i><div><b>Partager en lecture seule</b><span>Un lien par destinataire&nbsp;: régie, loueur, accueil… Ils l'ouvrent sans compte et voient toujours la dernière version.</span></div></div>
+        <div class="sh-mode"><i class="ti ti-users"></i><div><b>Inviter pour modifier</b><span>Les membres de l'équipe ont un compte et travaillent sur le show avec vous, en direct.</span></div></div>
+      </div>
       <div class="sh-grid">
-        <!-- Le rider : ce que verront les destinataires -->
+        <div class="sh-main">
+        <!-- 1. Ce que voient les destinataires -->
         <section class="slink-box sh-card" id="rider-builder">
-          <div class="sh-card-hd"><h2>Rider à partager</h2><p>Choisissez ce que verront vos destinataires. Ils ouvrent le lien sans compte, en lecture seule, toujours à jour.</p></div>
+          <div class="sh-card-hd sh-hd-row"><span class="sh-step">1</span><div class="sh-hd-t"><h2>Ce que voient les destinataires</h2><p>Cochez les rubriques à partager. Les liens créés ensuite reprennent cette sélection.</p></div>
+            <button class="btn ghost sm" id="rider-pdf-btn" onclick="exportRiderPdf()" title="PDF imprimable avec les rubriques cochées"><i class="ti ti-file-type-pdf"></i>PDF du rider</button></div>
         <div id="rider-gate-msg" class="slink-pro-gate" style="display:none">
           <i class="ti ti-lock"></i>
-          <span>La création de liens rider est réservée aux abonnés <strong>Pro</strong>.
+          <span>Le partage est réservé aux abonnés <strong>Pro</strong>.
             <button onclick="showUpgradeModal('share_link')" style="background:none;border:none;color:var(--ora);cursor:pointer;font-size:11px;padding:0 0 0 4px;font-family:var(--f);text-decoration:underline">Passer Pro</button>
           </span>
         </div>
         <div id="rider-builder-inner">
-          <div class="slink-sep sh-first">Sections</div>
+          <div class="sh-presets" id="rider-presets"><span>Préréglages</span>
+            <button type="button" onclick="riderPreset('accueil')">Accueil technique</button>
+            <button type="button" onclick="riderPreset('loueur')">Loueur</button>
+            <button type="button" onclick="riderPreset('artiste')">Artiste</button>
+            <button type="button" onclick="riderPreset('tout')">Tout</button>
+          </div>
           <div class="slink-sections" id="rider-sections">
-            <button class="slink-check" id="sc-road" onclick="selectRiderSection('road')" title="Horaires, lieu et contacts de la date">
-              <i class="ti ti-route"></i>Feuille de route
-            </button>
-            <button class="slink-check checked" id="sc-il" onclick="selectRiderSection('il')">
-              <i class="ti ti-list-numbers"></i>Input List
-            </button>
-            <button class="slink-check" id="sc-out" onclick="selectRiderSection('out')">
-              <i class="ti ti-list-letters"></i>Output List
-            </button>
-            <button class="slink-check" id="sc-syno" onclick="selectRiderSection('syno')">
-              <i class="ti ti-topology-star"></i>Synoptique
-            </button>
-            <button class="slink-check" id="sc-stage" onclick="selectRiderSection('stage')">
-              <i class="ti ti-map-2"></i>Plan de scène
-            </button>
-            <button class="slink-check" id="sc-site" onclick="selectRiderSection('site')">
-              <i class="ti ti-building-stadium"></i>Plan de site
-            </button>
-            <button class="slink-check" id="sc-racks" onclick="selectRiderSection('racks')">
-              <i class="ti ti-server"></i>Racks
-            </button>
-            <button class="slink-check" id="sc-rf" onclick="selectRiderSection('rf')">
-              <i class="ti ti-antenna"></i>Liaisons HF
-            </button>
-            <button class="slink-check" id="sc-cloud" onclick="selectRiderSection('cloud')" style="display:none">
-              <i class="ti ti-cloud"></i>Fichiers cloud <span style="font-size:9px;font-family:var(--m);color:var(--ora);margin-left:2px">Pro</span>
-            </button>
+            <button type="button" class="slink-check" id="sc-road" onclick="selectRiderSection('road')" title="Horaires, lieu et contacts de la date"><i class="ti ti-route"></i><span class="sc-t">Feuille de route<small class="sc-n" id="scn-road"></small></span></button>
+            <button type="button" class="slink-check" id="sc-il" onclick="selectRiderSection('il')"><i class="ti ti-list-numbers"></i><span class="sc-t">Input list<small class="sc-n" id="scn-il"></small></span></button>
+            <button type="button" class="slink-check" id="sc-out" onclick="selectRiderSection('out')"><i class="ti ti-list-letters"></i><span class="sc-t">Output list<small class="sc-n" id="scn-out"></small></span></button>
+            <button type="button" class="slink-check" id="sc-stage" onclick="selectRiderSection('stage')"><i class="ti ti-map-2"></i><span class="sc-t">Plan de scène<small class="sc-n" id="scn-stage"></small></span></button>
+            <button type="button" class="slink-check" id="sc-site" onclick="selectRiderSection('site')"><i class="ti ti-building-stadium"></i><span class="sc-t">Plan de site<small class="sc-n" id="scn-site"></small></span></button>
+            <button type="button" class="slink-check" id="sc-syno" onclick="selectRiderSection('syno')"><i class="ti ti-topology-star"></i><span class="sc-t">Synoptique<small class="sc-n" id="scn-syno"></small></span></button>
+            <button type="button" class="slink-check" id="sc-racks" onclick="selectRiderSection('racks')"><i class="ti ti-server"></i><span class="sc-t">Racks<small class="sc-n" id="scn-racks"></small></span></button>
+            <button type="button" class="slink-check" id="sc-rf" onclick="selectRiderSection('rf')"><i class="ti ti-antenna"></i><span class="sc-t">Liaisons HF<small class="sc-n" id="scn-rf"></small></span></button>
+            <button type="button" class="slink-check" id="sc-cloud" onclick="selectRiderSection('cloud')" style="display:none"><i class="ti ti-cloud"></i><span class="sc-t">Fichiers cloud<small class="sc-n" id="scn-cloud"></small></span></button>
           </div>
-          <!-- Pro : titre / note / infos -->
-          <div id="rider-meta-block">
-            <div class="slink-sep"><i class="ti ti-pencil" style="font-size:10px"></i>Informations du rider</div>
-            <div class="rider-meta-field">
-              <label>Titre</label>
-              <input class="rider-meta-inp" id="rider-title" placeholder="ex: Rider FOH — Festival d'été 2026">
+          <details class="sh-more" id="rider-more">
+            <summary><i class="ti ti-chevron-right"></i>Titre, note et fichiers joints<span>facultatif</span></summary>
+            <div class="sh-more-in">
+              <div id="rider-meta-block">
+                <div class="rider-meta-field"><label for="rider-title">Titre</label><input class="rider-meta-inp" id="rider-title" placeholder="ex : Rider FOH — Festival d'été 2026"></div>
+                <div class="rider-meta-field"><label for="rider-note">Note</label><textarea class="rider-meta-ta" id="rider-note" rows="2" placeholder="Instructions, contacts, remarques…"></textarea></div>
+                <div class="rider-meta-field"><label for="rider-info">Infos complémentaires</label><input class="rider-meta-inp" id="rider-info" placeholder="ex : Son FOH : Yamaha CL5 — Mon : Avid SC48"></div>
+              </div>
+              <div id="rider-files-block">
+                <div class="slink-sep">Fichiers joints <span style="font-size:9px;color:var(--ora);font-family:var(--m);margin-left:4px;text-transform:none;letter-spacing:0">Pro</span></div>
+                <div id="rider-studio-gate" class="rider-studio-gate" style="display:none">
+                  <i class="ti ti-sparkles"></i>
+                  <span>La sélection de fichiers est réservée aux abonnés <strong>Pro</strong>.
+                    <button onclick="showUpgradeModal('storage')" style="background:none;border:none;color:var(--ora);cursor:pointer;font-size:11px;padding:0 0 0 4px;font-family:var(--f);text-decoration:underline">Passer Pro</button>
+                  </span>
+                </div>
+                <div id="rider-file-list" style="display:none;max-height:180px;overflow-y:auto"></div>
+              </div>
             </div>
-            <div class="rider-meta-field">
-              <label>Note</label>
-              <textarea class="rider-meta-ta" id="rider-note" rows="2" placeholder="Instructions, contacts, remarques…"></textarea>
-            </div>
-            <div class="rider-meta-field">
-              <label>Infos complémentaires</label>
-              <input class="rider-meta-inp" id="rider-info" placeholder="ex: Son FOH: Yamaha CL5 — Mon: Avid SC48">
-            </div>
-          </div>
-          <!-- Pro : fichiers cloud -->
-          <div id="rider-files-block">
-            <div class="slink-sep"><i class="ti ti-paperclip" style="font-size:10px"></i>Fichiers joints <span style="font-size:9px;color:var(--ora);font-family:var(--m);margin-left:4px">Pro</span></div>
-            <div id="rider-studio-gate" class="rider-studio-gate" style="display:none">
-              <i class="ti ti-sparkles"></i>
-              <span>La sélection de fichiers est réservée aux abonnés <strong>Pro</strong>.
-                <button onclick="showUpgradeModal('storage')" style="background:none;border:none;color:var(--ora);cursor:pointer;font-size:11px;padding:0 0 0 4px;font-family:var(--f);text-decoration:underline">Passer Pro</button>
-              </span>
-            </div>
-            <div id="rider-file-list" style="display:none;max-height:180px;overflow-y:auto"></div>
-          </div>
-          <!-- Export PDF rider complet -->
-          <div class="sh-foot">
-            <button class="btn ghost" id="rider-pdf-btn" onclick="exportRiderPdf()" style="width:100%;justify-content:center;gap:7px">
-              <i class="ti ti-file-type-pdf" style="color:#ef4444;font-size:14px"></i>Exporter PDF rider
-            </button>
-            <div style="font-size:9.5px;color:var(--muted);font-family:var(--m);text-align:center;margin-top:5px;line-height:1.4">
-              Génère un PDF imprimable avec toutes les sections cochées ci-dessus
-            </div>
-          </div>
+          </details>
         </div>
         </section>
+        <!-- 2. Les liens : un par destinataire -->
+        <section class="sh-card" id="rider-links-card">
+          <div class="sh-card-hd sh-hd-row"><span class="sh-step">2</span><div class="sh-hd-t"><h2>Liens de partage</h2><p>Un lien par destinataire. «&nbsp;Mettre à jour&nbsp;» applique à un lien la sélection ci-dessus.</p></div><span class="sh-quota" id="rider-quota"></span></div>
+          <div class="link-create">
+            <input id="link-form-name" placeholder="Nom du lien : Régie façade, Loueur…" maxlength="60" autocomplete="off" onkeydown="if(event.key==='Enter')_createLink()">
+            <button class="btn pri" id="link-create-btn" onclick="_createLink()"><i class="ti ti-plus"></i>Créer le lien</button>
+          </div>
+          <div class="link-sugg" id="link-sugg"></div>
+          <div id="rider-legacy"></div>
+          <div class="links-mgr" id="links-mgr-list"></div>
+        </section>
+        </div>
         <div class="sh-side">
-          <!-- Les liens : un par destinataire -->
-          <section class="sh-card" id="rider-links-card">
-            <div class="sh-card-hd"><h2>Liens de partage</h2><p>Un lien par destinataire : régie, backline, groupe…</p></div>
-          <!-- Free : bouton unique + lien -->
-          <div id="rider-free-link-block">
-            <button class="btn pri" id="rider-gen-btn" onclick="generateRiderLink()" style="width:100%"><i class="ti ti-link"></i>Générer le lien</button>
-            <div id="rider-quota" style="display:none;font-size:10px;font-family:var(--m);color:var(--muted);text-align:center;margin-top:6px"></div>
-            <div id="rider-link-row" style="display:none;margin-top:10px">
-              <div class="slink-row">
-                <div class="slink-url" id="slink-url"></div>
-                <button class="btn sm slink-wa" onclick="_waShareFree()"><i class="ti ti-brand-whatsapp"></i>WhatsApp</button>
-                <button class="btn blu sm" onclick="copyRiderLink()"><i class="ti ti-copy"></i>Copier</button>
-              </div>
-              <div style="font-size:10px;color:var(--grn);font-family:var(--m);margin-top:6px;display:none" id="rider-saved-ok"><i class="ti ti-check"></i> Lien sauvegardé</div>
-            </div>
-          </div>
-          <!-- Pro : gestionnaire de liens multiples -->
-          <div id="rider-pro-links-block" style="display:none">
-            <div class="links-mgr" id="links-mgr-list"></div>
-            <button class="link-new-btn" onclick="_openNewLinkForm()" id="link-new-btn" style="margin-top:6px">
-              <i class="ti ti-plus"></i>Nouveau lien
-            </button>
-            <div id="link-new-form" class="link-form" style="display:none">
-              <div class="link-form-title"><i class="ti ti-link"></i>Nommer ce lien</div>
-              <div style="font-size:10px;color:var(--muted);margin-bottom:8px">Le lien reprend les sections et les informations choisies dans « Rider à partager ».</div>
-              <input id="link-form-name" placeholder="ex: Lien FOH, Lien Backline, Lien Client…" maxlength="60"/>
-              <div style="display:flex;gap:8px">
-                <button class="btn pri sm" onclick="_createLink()" style="flex:1;background:var(--ora);color:#000;border-color:var(--ora)"><i class="ti ti-check"></i>Créer le lien</button>
-                <button class="btn ghost sm" onclick="_closeNewLinkForm()" style="flex:1">Annuler</button>
-              </div>
-            </div>
-          </div>
-          </section>
           <!-- L'équipe : qui travaille sur le show -->
           <section class="sh-card" id="team-card">
-            <div class="sh-card-hd"><h2>Équipe</h2><p>Les membres modifient le show avec vous, en direct.</p></div>
+            <div class="sh-card-hd sh-hd-row"><span class="sh-step sh-step-t"><i class="ti ti-users"></i></span><div class="sh-hd-t"><h2>Équipe</h2><p>Les membres modifient le show avec vous, en direct.</p></div></div>
       <div id="team-grid" class="team-grid"><div class="loading"><div class="spinner"></div>Chargement…</div></div>
       <div id="team-quota" class="team-quota"></div>
       <div class="invite-box">
         <i class="ti ti-mail" style="color:var(--muted);font-size:15px;flex-shrink:0"></i>
         <input class="inv-inp" id="inv-email" type="email" placeholder="Inviter par e-mail…" list="inv-email-list" autocomplete="off" onkeydown="if(event.key==='Enter'&&!window._inviting)inviteMember()"/>
         <datalist id="inv-email-list"></datalist>
-        <select class="pdf-inp" id="inv-role" style="width:148px;padding:4px 7px;flex-shrink:0">
+        <select class="pdf-inp" id="inv-role" style="width:148px;padding:4px 7px;flex-shrink:0" onchange="_invRoleHelp()">
           <option value="admin">Administrateur</option>
           <option value="editor" selected>Éditeur</option>
           <option value="viewer">Lecture seule</option>
         </select>
         <button class="btn pri" id="inv-btn" onclick="inviteMember()"><i class="ti ti-send"></i>Inviter</button>
       </div>
+      <div class="inv-role-help" id="inv-role-help"></div>
       <div id="inv-msg" style="display:none;font-size:11px;padding:7px 12px;border-radius:6px;margin-top:8px;line-height:1.5"></div>
       <div id="contacts-bar" class="contacts-bar"></div>
           </section>
@@ -1674,7 +1631,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=4.82"></script>
+<script src="pf-app.js?v=4.83"></script>
 <script src="pf-rf.js?v=1.15"></script>
 <script src="pf-road.js?v=1.0"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->

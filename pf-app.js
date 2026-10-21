@@ -1229,7 +1229,7 @@ async function switchShow(id, opts){
   document.getElementById('cur-show-name').textContent=n;
   const tbn=document.getElementById('tb-show-name');if(tbn)tbn.textContent=n;
   ['il','sf','stage','team'].forEach(k=>{const el=document.getElementById('sn-'+k);if(el)el.textContent=n;});
-  document.getElementById('slink-url').textContent=`${_riderBase()}?view=${CUR_SHOW.id}&tab=il`;
+  const _slu=document.getElementById('slink-url');if(_slu)_slu.textContent=`${_riderBase()}?view=${CUR_SHOW.id}&tab=il`;
   renderSPShows();
   // Init patches
   IL_PATCHES=loadPatchMeta();
@@ -3347,38 +3347,17 @@ function _initRiderBuilder(){
     if(studioGate)studioGate.style.display='flex';
     if(fileList)fileList.style.display='none';
   }
-  // Afficher le bon bloc selon le plan
+  /* Liens nommés pour tous les plans (10 au total en Gratuit, illimités en Pro).
+     Les anciennes pages (rider.html) gardent leur bloc « lien unique ». */
   var freeBlock=document.getElementById('rider-free-link-block');
   var proBlock =document.getElementById('rider-pro-links-block');
-  if(isProMulti){
-    if(freeBlock) freeBlock.style.display='none';
-    if(proBlock)  proBlock.style.display='block';
-    _loadLinksManager();
-  } else {
-    if(freeBlock) freeBlock.style.display='block';
-    if(proBlock)  proBlock.style.display='none';
-    // Free : afficher le lien existant
-    if(CUR_SHOW&&CUR_SHOW.stage_data&&CUR_SHOW.stage_data.rider){
-      var url=_riderBase()+'?rider='+CUR_SHOW.id;
-      var urlEl=document.getElementById('slink-url');
-      if(urlEl)urlEl.textContent=url;
-      var row=document.getElementById('rider-link-row');
-      if(row)row.style.display='block';
-    }
-    // Compteur de liens (plan Gratuit)
-    var quota=document.getElementById('rider-quota');
-    if(quota){
-      var lim=planLimit('max_share_links');
-      if(lim===Infinity){ quota.style.display='none'; }
-      else{
-        var used=_countShareLinks();
-        var remaining=Math.max(0,lim-used);
-        quota.style.display='block';
-        quota.innerHTML='<i class="ti ti-link" style="font-size:10px"></i> '+used+' / '+lim+' liens utilisés'
-          +(remaining===0?' — <span style="color:var(--ora);cursor:pointer;text-decoration:underline" onclick="showUpgradeModal(\'max_share_links\')">Passez Pro pour des liens illimités</span>':'');
-      }
-    }
-  }
+  if(freeBlock) freeBlock.style.display='none';
+  if(proBlock)  proBlock.style.display='block';
+  _renderLinkSugg();
+  _renderLegacyLink();
+  _loadLinksManager();
+  _riderQuota();
+  _invRoleHelp();
 }
 
 /* ══ Gestionnaire de liens Pro ══════════════════════════════════ */
@@ -3398,7 +3377,7 @@ async function _loadLinksManager(){
   /* NE PAS charger `config` : elle peut contenir des snapshots de plusieurs Mo
      (site_snapshot) → requête lourde qui échouait par intermittence. On ne
      sélectionne que les colonnes utiles à l'affichage. */
-  var cols='id, show_id, name, sections, code, created_at';
+  var cols='id, show_id, name, sections, code, created_at, updated_at';
   var res;
   for(var _i=0;_i<4;_i++){ // retries avec backoff (résiste à une connexion instable)
     res=await sb.from('show_riders').select(cols).eq('show_id',showId).order('created_at');
@@ -3421,31 +3400,124 @@ function _renderLinksManager(){
   var list=document.getElementById('links-mgr-list');
   if(!list)return;
   if(!_proLinks.length){
-    list.innerHTML='<div style="font-size:11px;color:var(--muted);padding:6px 0 2px">Aucun lien créé. Créez votre premier lien de partage.</div>';
+    list.innerHTML='<div class="link-empty"><i class="ti ti-link-plus"></i><div><b>Aucun lien pour l\'instant</b><span>Nommez-le d\'après son destinataire&nbsp;: vous saurez toujours qui voit quoi.</span></div></div>';
     return;
   }
-  var SEC_LABELS={road:'Route',il:'Input List',out:'Output',syno:'Synoptique',stage:'Scène',site:'Site',racks:'Racks',rf:'HF',cloud:'Fichiers',files:'PJ'};
+  var SEC_LABELS={road:'Feuille de route',il:'Input list',out:'Output list',syno:'Synoptique',stage:'Plan de scène',site:'Plan de site',racks:'Racks',rf:'HF',cloud:'Fichiers',files:'Pièces jointes'};
   var base=_riderBase();
-  list.innerHTML=_proLinks.map(function(lnk){
+  var cur=Object.keys(_riderSections).filter(function(k){return _riderSections[k];}).sort().join(',');
+  list.innerHTML=_proLinks.slice().reverse().map(function(lnk){
     var code=lnk.code||lnk.id;
     var url=base+'?link='+code;
+    var same=(lnk.sections||[]).slice().sort().join(',')===cur;
     var secs=(lnk.sections||[]).map(function(s){
       return '<span class="link-sec-badge">'+_fEsc(SEC_LABELS[s]||s)+'</span>';
     }).join('');
+    var d=lnk.updated_at||lnk.created_at, ds='';
+    try{ if(d) ds=new Date(d).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}); }catch(e){}
     return '<div class="link-card">'
       +'<div class="link-card-head">'
-        +'<i class="ti ti-link" style="font-size:13px;color:var(--muted);flex-shrink:0"></i>'
-        +'<span class="link-card-name">'+_fEsc(lnk.name)+'</span>'
-        +'<button class="link-card-btn del" onclick="_deleteLink(\''+_jsq(lnk.id)+'\')" title="Supprimer"><i class="ti ti-trash" style="font-size:11px"></i></button>'
+        +'<span class="link-card-ic"><i class="ti ti-link"></i></span>'
+        +'<div class="link-card-t"><span class="link-card-name">'+_fEsc(lnk.name)+'</span>'+(ds?'<span class="link-card-date">'+(lnk.updated_at&&lnk.updated_at!==lnk.created_at?'mis à jour le ':'créé le ')+_fEsc(ds)+'</span>':'')+'</div>'
+        +'<button class="link-card-btn" onclick="window.open(\''+_jsq(url)+'\',\'_blank\',\'noopener\')" title="Voir ce que reçoit le destinataire"><i class="ti ti-eye"></i>Aperçu</button>'
+        +'<button class="link-card-btn'+(same?' dim':'')+'" onclick="_updateLink(\''+_jsq(lnk.id)+'\')" title="'+(same?'Ce lien a déjà la sélection actuelle':'Appliquer à ce lien les rubriques cochées ci-dessus')+'"><i class="ti ti-refresh"></i>Mettre à jour</button>'
+        +'<button class="link-card-btn del" onclick="_deleteLink(\''+_jsq(lnk.id)+'\')" title="Supprimer" aria-label="Supprimer"><i class="ti ti-trash"></i></button>'
       +'</div>'
       +(secs?'<div class="link-card-secs">'+secs+'</div>':'')
       +'<div class="link-card-url">'
-        +'<span class="link-card-url-text">'+_fEsc(url)+'</span>'
-        +'<button class="link-card-btn wa" onclick="_waShareLink(\''+_jsq(code)+'\')"><i class="ti ti-brand-whatsapp" style="font-size:11px"></i>WhatsApp</button>'
-        +'<button class="link-card-btn" onclick="_copyProLink(\''+_jsq(url)+'\')"><i class="ti ti-copy" style="font-size:10px"></i>Copier</button>'
+        +'<span class="link-card-url-text">'+_fEsc(url.replace(/^https?:\/\//,''))+'</span>'
+        +'<button class="link-card-btn wa" onclick="_waShareLink(\''+_jsq(code)+'\')"><i class="ti ti-brand-whatsapp"></i>WhatsApp</button>'
+        +'<button class="link-card-btn pri" onclick="_copyProLink(\''+_jsq(url)+'\')"><i class="ti ti-copy"></i>Copier</button>'
       +'</div>'
     +'</div>';
   }).join('');
+}
+
+/* Lien unique d'avant les liens nommés (?rider=<show>) : on le montre tant qu'il existe, pour ne pas perdre ceux déjà envoyés */
+function _renderLegacyLink(){
+  var el=document.getElementById('rider-legacy'); if(!el) return;
+  if(!CUR_SHOW||!CUR_SHOW.stage_data||!CUR_SHOW.stage_data.rider){ el.innerHTML=''; return; }
+  var url=_riderBase()+'?rider='+CUR_SHOW.id;
+  el.innerHTML='<div class="link-card legacy"><div class="link-card-head"><span class="link-card-ic"><i class="ti ti-history"></i></span>'
+    +'<div class="link-card-t"><span class="link-card-name">Lien d\'origine du show</span><span class="link-card-date">celui que vous avez peut-être déjà envoyé</span></div>'
+    +'<button class="link-card-btn" onclick="window.open(\''+_jsq(url)+'\',\'_blank\',\'noopener\')"><i class="ti ti-eye"></i>Aperçu</button>'
+    +'<button class="link-card-btn" onclick="_updateLegacyLink()" title="Appliquer les rubriques cochées ci-dessus"><i class="ti ti-refresh"></i>Mettre à jour</button></div>'
+    +'<div class="link-card-url"><span class="link-card-url-text">'+_fEsc(url.replace(/^https?:\/\//,''))+'</span>'
+    +'<button class="link-card-btn wa" onclick="_waShare(\''+_jsq(url)+'\',\'\')"><i class="ti ti-brand-whatsapp"></i>WhatsApp</button>'
+    +'<button class="link-card-btn pri" onclick="_copyProLink(\''+_jsq(url)+'\')"><i class="ti ti-copy"></i>Copier</button></div></div>';
+}
+async function _updateLegacyLink(){
+  await generateRiderLink();
+  _renderLegacyLink();
+  toast('✓ Lien d\'origine mis à jour');
+}
+
+/* Quota de liens en Gratuit : compté sur tous les shows du propriétaire, comme le contrôle en base */
+async function _riderQuota(){
+  var el=document.getElementById('rider-quota'); if(!el) return;
+  var lim=planLimit('max_share_links');
+  if(lim===Infinity||!ME){ el.textContent=''; el.style.display='none'; return; }
+  var r=await sb.from('show_riders').select('id',{count:'exact',head:true});
+  var n=(r&&typeof r.count==='number')?r.count:null;
+  if(n==null){ el.style.display='none'; return; }
+  el.style.display='';
+  el.className='sh-quota'+(n>=lim?' full':'');
+  el.innerHTML=n+' / '+lim+' liens'+(n>=lim?' · <button type="button" onclick="showUpgradeModal(\'max_share_links\')">Passer Pro</button>':'');
+}
+
+/* ── Rubriques : ce qu'elles contiennent, préréglages, suggestions de noms ── */
+function _riderSecCounts(){
+  var sd=(CUR_SHOW&&CUR_SHOW.stage_data)||{}, c={};
+  var pl=function(n,one,many){ return n?n+' '+(n>1?many:one):''; };
+  var chs=(typeof ALL_CHS!=='undefined'&&ALL_CHS.length)?ALL_CHS:(typeof CHS!=='undefined'?CHS:[]);
+  var outs=(typeof ALL_OUT!=='undefined'&&ALL_OUT.length)?ALL_OUT:(typeof OUT_CHS!=='undefined'?OUT_CHS:[]);
+  c.il=pl(chs.length,'voie','voies');
+  c.out=pl(outs.length,'sortie','sorties');
+  var syn=0; try{ syn=(SynPro.getData().nodes||[]).length; }catch(e){}
+  if(!syn) syn=((CUR_SHOW&&CUR_SHOW.synoptique_data&&CUR_SHOW.synoptique_data.nodes)||[]).length;
+  c.syno=pl(syn,'équipement','équipements');
+  var st=0; try{ st=(BandPlan.getData().els||[]).length; }catch(e){}
+  if(!st) st=((sd.band&&sd.band.els)||[]).length;
+  c.stage=pl(st,'élément','éléments');
+  var site=false; try{ site=SitePlan.hasContent(); }catch(e){}
+  if(!site) site=!!(sd.site&&sd.site.elements&&sd.site.elements.length);
+  c.site=site?'prêt':'';
+  c.racks=pl((sd.racks||[]).length,'rack','racks');
+  c.rf=pl(((sd.rf&&sd.rf.ch)||[]).length,'liaison','liaisons');
+  var rd=sd.road; c.road=(rd&&typeof rd==='object'&&Object.keys(rd).some(function(k){ var v=rd[k]; return Array.isArray(v)?v.length:(v&&typeof v==='object'?Object.keys(v).length:!!v); }))?'remplie':'';
+  c.cloud='';
+  return c;
+}
+var _RIDER_PRESETS={
+  accueil:['road','il','out','stage','site','syno'],
+  loueur:['il','out','syno','racks','rf'],
+  artiste:['road','il','stage'],
+  facade:['il','out','syno','stage'],
+  retours:['il','out','stage','rf'],
+  backline:['il','stage','road']
+};
+function riderPreset(k){
+  var list=k==='tout'?['road','il','out','syno','stage','site','racks','rf']:_RIDER_PRESETS[k];
+  if(!list) return;
+  Object.keys(_riderSections).forEach(function(s){ _riderSections[s]=list.indexOf(s)>=0; });
+  _syncRiderBtns();
+}
+var _LINK_SUGG=[['Régie façade','facade'],['Retours','retours'],['Accueil technique','accueil'],['Loueur','loueur'],['Backline','backline'],['Artiste','artiste']];
+function _renderLinkSugg(){
+  var el=document.getElementById('link-sugg'); if(!el) return;
+  el.innerHTML='<span>Suggestions</span>'+_LINK_SUGG.map(function(x,i){ return '<button type="button" onclick="_linkSugg('+i+')">'+_fEsc(x[0])+'</button>'; }).join('');
+}
+function _linkSugg(i){
+  var x=_LINK_SUGG[i]; if(!x) return;
+  var inp=document.getElementById('link-form-name');
+  if(inp){ inp.value=x[0]; inp.focus(); }
+  riderPreset(x[1]);
+  toast('Rubriques « '+x[0]+' » cochées : ajustez-les puis créez le lien.');
+}
+var _ROLE_HELP={admin:'Droits complets sur le show.',editor:'Modifie le patch, les plans, la HF, les racks et les fichiers.',viewer:'Consulte le show avec son compte, sans rien modifier.'};
+function _invRoleHelp(){
+  var el=document.getElementById('inv-role-help'), sel=document.getElementById('inv-role'); if(!el||!sel) return;
+  el.innerHTML='<i class="ti ti-info-circle"></i>'+_fEsc(_ROLE_HELP[sel.value]||'')+' Seul le propriétaire du show invite.';
 }
 
 function _openNewLinkForm(){
@@ -3465,54 +3537,13 @@ function _closeNewLinkForm(){
 
 async function _createLink(){
   if(!CUR_SHOW)return;
-  var name=(document.getElementById('link-form-name')?.value||'').trim()||'Lien partagé';
-  /* Utiliser les sections cochées en haut du builder (pas de doublon) */
+  var inp=document.getElementById('link-form-name');
+  var name=(inp&&inp.value||'').trim()||'Lien partagé';
   var sections=Object.keys(_riderSections).filter(function(k){return _riderSections[k];});
-  if(!sections.length){toast('Sélectionnez au moins une section en haut du builder.');return;}
-
-  var btn=document.querySelector('#link-new-form .btn:first-of-type');
-  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .8s linear infinite"></i>';}
-
-  /* Récupérer les infos depuis les champs existants du builder */
-  var config={
-    title:(document.getElementById('rider-title')?.value||'').trim(),
-    note: (document.getElementById('rider-note')?.value||'').trim(),
-    info: (document.getElementById('rider-info')?.value||'').trim(),
-    files: _riderPickedFiles.size>0?Array.from(_riderPickedFiles):[],
-    out_snapshot: CUR_SHOW.out_data||OUT_DATA||{}
-  };
-
-  /* Pré-calculer les snapshots visuels */
-  if(sections.includes('site')){
-    if(!SitePlan.hasContent()){
-      /* Chercher les données site dans stage_data.site (non-Studio)
-         OU dans la scène active (Pro multi-scènes) */
-      var _siteFromSD=CUR_SHOW?.stage_data?.site||null;
-      var _siteFromScene=null;
-      if(!_siteFromSD&&SHOW_SCENES.site&&SHOW_SCENES.site.length){
-        var _curSS=SHOW_SCENES.site.find(function(s){return s.id===CUR_SCENES.site;});
-        _siteFromScene=_curSS&&_curSS.data&&_curSS.data.site||null;
-      }
-      var _siteToLoad=_siteFromSD||_siteFromScene;
-      if(_siteToLoad) SitePlan.load(_siteToLoad);
-    }
-    /* On ne stocke le snapshot (gros PNG base64, souvent plusieurs Mo) QUE s'il
-       n'y a pas de données de scène site : sinon la vue rider redessine le plan
-       depuis la scène, et le serveur retire de toute façon ce snapshot de la
-       réponse. Évite de gonfler la base et accélère la création du lien. */
-    var _hasSiteScene=!!(SHOW_SCENES.site&&SHOW_SCENES.site.some(function(s){return s.data&&Object.keys(s.data).length>0;}));
-    if(!_hasSiteScene){
-      try{
-        config.site_snapshot=await new Promise(function(resolve){
-          var t=setTimeout(function(){resolve(null);},6000);
-          SitePlan.exportCanvasSafe(function(cv){clearTimeout(t);resolve(cv?_snapUrl(cv):null);});
-        });
-      }catch(e){}
-    }
-  }
-  if(sections.includes('syno')){ config.syn_snapshot=CUR_SHOW.synoptique_data||null; }
-  if(sections.includes('out')){ config.out_snapshot=CUR_SHOW.out_data||OUT_DATA||{}; }
-
+  if(!sections.length){toast('Cochez au moins une rubrique.');return;}
+  var btn=document.getElementById('link-create-btn')||document.querySelector('#link-new-form .btn:first-of-type');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .8s linear infinite"></i>Création…';}
+  var config=await _buildLinkConfig(sections);
   /* On stocke un code court pour obtenir une URL facile à partager. Si la
      colonne "code" n'existe pas encore (migration non appliquée), on retombe
      proprement sur l'insertion sans code (l'URL utilisera alors l'UUID). */
@@ -3533,14 +3564,66 @@ async function _createLink(){
     break;
   }
 
-  if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-check"></i>Créer';}
-  if(error){toast('Erreur : '+error.message);return;}
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-plus"></i>Créer le lien';}
+  if(error){
+    if(/plan_limit/.test(error.message||'')){ showUpgradeModal('max_share_links'); return; }
+    toast('Erreur : '+error.message);return;
+  }
 
   _proLinks.push(data);
   _lastLinksShowId=CUR_SHOW.id; // le cache est à jour pour ce show
   _renderLinksManager();
   _closeNewLinkForm();
-  toast('Lien "'+name+'" créé ✓');
+  _riderQuota();
+  toast('✓ Lien « '+name+' » créé : copiez-le ou envoyez-le par WhatsApp.');
+}
+
+/* Contenu d'un lien : infos du rider, fichiers cochés et instantanés des plans */
+async function _buildLinkConfig(sections){
+  var config={
+    title:(document.getElementById('rider-title')?.value||'').trim(),
+    note: (document.getElementById('rider-note')?.value||'').trim(),
+    info: (document.getElementById('rider-info')?.value||'').trim(),
+    files: _riderPickedFiles.size>0?Array.from(_riderPickedFiles):[],
+    out_snapshot: CUR_SHOW.out_data||OUT_DATA||{}
+  };
+  if(sections.includes('site')){
+    if(!SitePlan.hasContent()){
+      var _siteFromSD=CUR_SHOW?.stage_data?.site||null, _siteFromScene=null;
+      if(!_siteFromSD&&SHOW_SCENES.site&&SHOW_SCENES.site.length){
+        var _curSS=SHOW_SCENES.site.find(function(s){return s.id===CUR_SCENES.site;});
+        _siteFromScene=_curSS&&_curSS.data&&_curSS.data.site||null;
+      }
+      var _siteToLoad=_siteFromSD||_siteFromScene;
+      if(_siteToLoad) SitePlan.load(_siteToLoad);
+    }
+    /* Le gros PNG du plan de site n'est stocké que s'il n'y a pas de scène site à redessiner */
+    var _hasSiteScene=!!(SHOW_SCENES.site&&SHOW_SCENES.site.some(function(s){return s.data&&Object.keys(s.data).length>0;}));
+    if(!_hasSiteScene){
+      try{
+        config.site_snapshot=await new Promise(function(resolve){
+          var t=setTimeout(function(){resolve(null);},6000);
+          SitePlan.exportCanvasSafe(function(cv){clearTimeout(t);resolve(cv?_snapUrl(cv):null);});
+        });
+      }catch(e){}
+    }
+  }
+  if(sections.includes('syno')){ config.syn_snapshot=CUR_SHOW.synoptique_data||null; }
+  return config;
+}
+
+/* Applique à un lien existant les rubriques cochées et les infos du rider */
+async function _updateLink(id){
+  var lnk=_proLinks.find(function(l){return l.id===id;}); if(!lnk||!CUR_SHOW) return;
+  var sections=Object.keys(_riderSections).filter(function(k){return _riderSections[k];});
+  if(!sections.length){toast('Cochez au moins une rubrique.');return;}
+  if(!confirm('Mettre à jour « '+lnk.name+' » avec les rubriques cochées ?\nLe destinataire garde la même adresse.')) return;
+  var config=await _buildLinkConfig(sections), now=new Date().toISOString();
+  var {error}=await sb.from('show_riders').update({sections:sections,config:config,updated_at:now}).eq('id',id);
+  if(error){toast('Erreur : '+error.message);return;}
+  lnk.sections=sections; lnk.updated_at=now;
+  _renderLinksManager();
+  toast('✓ « '+lnk.name+' » mis à jour');
 }
 
 async function _deleteLink(id){
@@ -3666,10 +3749,15 @@ function selectRiderSection(key){
   _syncRiderBtns();
 }
 function _syncRiderBtns(){
+  var cnt=CUR_SHOW?_riderSecCounts():{};
   ['road','il','out','syno','stage','site','racks','rf','cloud'].forEach(function(k){
     var btn=document.getElementById('sc-'+k);
-    if(btn)btn.className='slink-check'+(_riderSections[k]?' checked':'');
+    var empty=k!=='cloud'&&CUR_SHOW&&!cnt[k];
+    if(btn)btn.className='slink-check'+(_riderSections[k]?' checked':'')+(empty?' empty':'');
+    var n=document.getElementById('scn-'+k);
+    if(n) n.textContent=k==='cloud'?'':(cnt[k]||'vide');
   });
+  if(typeof _renderLinksManager==='function'&&_proLinks&&_proLinks.length) _renderLinksManager();
   /* Bouton "Fichiers cloud" visible uniquement pour les Pro */
   var cloudBtn=document.getElementById('sc-cloud');
   if(cloudBtn) cloudBtn.style.display=canDo('storage')?'':'none';
