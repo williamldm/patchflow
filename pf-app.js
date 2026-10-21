@@ -6825,6 +6825,10 @@ function _bpScaleCanvas(ctx,g,grid,wx,wy,SC){
   ctx.restore(); ctx.textBaseline='alphabetic';
 }
 /* Nom du musicien sous l'étiquette d'un élément, plus discret */
+/* Nom du musicien affiché sous l'étiquette, sauf s'il y figure déjà (« Wedge basse » pour Basse) */
+/* Les retours n'affichent pas leur destinataire sur le plan (il est dans le tableau des retours et l'inspecteur) */
+var _BP_OUT_T={wedge:1,iem_p:1,iem_r:1,sidefill:1,drumfill:1,spk:1,sub:1};
+function _bpWhoShown(el){ return !!(el && el.who) && !_BP_OUT_T[el.type] && _bpN(el.label).indexOf(_bpN(el.who))<0; }
 function _vtWho(ctx,text,cx,y,SC,TS){
   var fs=Math.max(8,12.5*(TS||1)*SC); ctx.font='500 '+fs+'px Archivo, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top';
   var t=String(text||''); ctx.lineJoin='round'; ctx.lineWidth=Math.max(2,4*SC); ctx.strokeStyle='#ffffff'; ctx.strokeText(t,cx,y); ctx.fillStyle='rgba(28,36,51,.68)'; ctx.fillText(t,cx,y); ctx.textBaseline='alphabetic';
@@ -6881,15 +6885,16 @@ function _makeBpCanvas(cb,opts){
   els.forEach(el=>{
     let w,h;
     if(el.type==='riser'){ w=(el.riserW||2)*RSCALE; h=(el.riserH||1)*RSCALE; }
-    else if(el.type==='kit'){ w=210*_ns; h=(40+Math.max(1,(el.chs||[]).length)*26)*_ns; }
+    else if(el.type==='kit' && !el.kitIcon){ w=210*_ns; h=(40+Math.max(1,(el.chs||[]).length)*26)*_ns; }
     else if(el.type==='text_lbl'){ w=200; h=40; }
     else if(el.type==='image_frame'){ w=el.imgPx||120; h=Math.max(1,Math.round(w/(el.imgAspect||1))); }
     else { w=120*_ns; h=120*_ns; }
     /* Hauteur du label sous l'icône + débord horizontal du label (centré sur
        l'icône, largeur jusqu'à ~130px*textScale) : indispensable pour ne pas
        rogner les retours/labels en bordure. */
-    const lblH = (el.type==='kit'||el.type==='text_lbl') ? 0 : 14.5*_ts+12;
-    const lblHalf = (el.type==='kit'||el.type==='riser'||el.type==='text_lbl') ? w/2 : Math.max(w/2, (150*_ts)/2);
+    const _kb = el.type==='kit' && !el.kitIcon;
+    const lblH = (_kb||el.type==='text_lbl') ? 0 : 14.5*_ts+12;
+    const lblHalf = (_kb||el.type==='riser'||el.type==='text_lbl') ? w/2 : Math.max(w/2, (150*_ts)/2);
     const cx = el.x + w/2;
     minX=Math.min(minX, el.x, cx-lblHalf);
     maxX=Math.max(maxX, el.x+w, cx+lblHalf);
@@ -6946,7 +6951,7 @@ function _makeBpCanvas(cb,opts){
     // Load SVG images for standard nodes
     var sorted=els.slice().sort(function(a,b){return a.z-b.z;});
     var svgJobs=sorted.map(function(el){
-      if(el.type==='riser'||el.type==='kit')return Promise.resolve({el:el,img:null});
+      if(el.type==='riser'||(el.type==='kit'&&!el.kitIcon))return Promise.resolve({el:el,img:null});
       if(el.type==='image_frame'){
         if(!el.iconImg)return Promise.resolve({el:el,img:null,ci:{color:'#888',emoji:'🖼'},isImgFrame:true});
         return new Promise(function(resolve){
@@ -7004,7 +7009,7 @@ function _makeBpCanvas(cb,opts){
           ctx.fillText(_nm(el.riserW||2)+' \xd7 '+_nm(el.riserH||1)+' m \xb7 h '+_nm(alt)+' m',rw-8*SC,rh-8*SC);
           if(el.ch){var rc=allChs.find(function(r){return r.id===el.ch;});if(rc)_vtChBadge(ctx,rc.ch,rw,0,SC);}
           _lx=rw/2;_ly=rh+3*SC;
-        } else if(el.type==='kit'){
+        } else if(el.type==='kit' && !el.kitIcon){
           /* Reproduit _vintageInnerHTML : header ≈40px (emoji 22px × line-height
              1.2 + padding 8+7), texte CHn coloré sans pastille, lignes 26px. */
           var kitChs=el.chs||[];
@@ -7073,13 +7078,15 @@ function _makeBpCanvas(cb,opts){
           } else if(el.outCh||el.outChR){
             var _ot=_bpOutBadgeText(el);
             if(_ot)_vtChBadge(ctx,_ot,SZ,0,SC,{out:true});
+          } else if(el.chs && el.chs.length){
+            _vtChBadge(ctx,el.chs.length===1?(_chById(el.chs[0])?_chById(el.chs[0]).ch:'?'):el.chs.length+' CH',SZ,0,SC,{prefix:el.chs.length===1?'CH ':''});
           }
           _lx=SZ/2;_ly=SZ+(3-5*ns)*SC;
         }
         ctx.restore();
         if(_lx!=null){var _wcx=wx(el.x)+(_lx*Math.cos(_rad)-_ly*Math.sin(_rad))*_scl;var _wcy=wy(el.y)+(_lx*Math.sin(_rad)+_ly*Math.cos(_rad))*_scl;_vtLabel(ctx,el.label,_wcx,_wcy,SC,data.textScale||1);
-          if(el.who && el.type!=='kit') _vtWho(ctx,el.who,_wcx,_wcy+Math.max(9,14.5*(data.textScale||1)*SC)*1.3,SC,data.textScale||1);}
-        if(el.type==='kit' && el.who){ var _kfs=Math.max(9,13*(data.textScale||1)*SC); ctx.font='600 '+_kfs+'px Archivo, sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top'; ctx.fillStyle='rgba(28,36,51,.7)'; ctx.fillText(el.who,wx(el.x),wy(el.y)-_kfs*1.5); ctx.textBaseline='alphabetic'; }
+          if(_bpWhoShown(el) && !(el.type==='kit'&&!el.kitIcon)) _vtWho(ctx,el.who,_wcx,_wcy+Math.max(9,14.5*(data.textScale||1)*SC)*1.3,SC,data.textScale||1);}
+        if(el.type==='kit' && !el.kitIcon && el.who){ var _kfs=Math.max(9,13*(data.textScale||1)*SC); ctx.font='600 '+_kfs+'px Archivo, sans-serif'; ctx.textAlign='left'; ctx.textBaseline='top'; ctx.fillStyle='rgba(28,36,51,.7)'; ctx.fillText(el.who,wx(el.x),wy(el.y)-_kfs*1.5); ctx.textBaseline='alphabetic'; }
       });
       if(_info.length) _bpInfoDraw(ctx,_info,wx(_stgX),wy(_infoY),_stgW*SC,SC);
       cv.bpInfo=_infoAll;
@@ -12797,7 +12804,7 @@ const BandPlan=(()=>{
       const it=_itemOf(o.type)||{n:o.type}, id=st.nid++;
       const el={id,type:o.type,label:String(o.label!=null?o.label:it.n).slice(0,40),x:Math.round(Math.max(0,Math.min(2380,+o.x||1200))),y:Math.round(Math.max(0,Math.min(1580,+o.y||800))),scl:1,rot:o.rot||0,z:id,ch:o.ch||null};
       if(o.chR){ el.chR=o.chR; el.stereo=true; }
-      if(o.type==='kit') el.chs=(o.chs||[]).slice(0,48);
+      if(o.type==='kit'){ el.chs=(o.chs||[]).slice(0,48); if(o.kitIcon) el.kitIcon=true; }
       if(o.outCh) el.outCh=o.outCh;
       if(o.outChR){ el.outChR=o.outChR; el.outStereo=true; }
       if(o.type==='riser'){ el.riserW=o.riserW||2; el.riserH=o.riserH||1; el.riserAlt=o.riserAlt||0.4; el.z=0; }
@@ -12855,7 +12862,7 @@ const BandPlan=(()=>{
         +'</div>'
         +'<div class="bp-vnode-lbl">'+_lb(el.label)+'</div>';
     }
-    if(el.type==='kit'){
+    if(el.type==='kit' && !el.kitIcon){                /* kitIcon : la batterie dessinée, avec « n CH », au lieu de la liste des voies */
       var kitChs=el.chs||[];
       var rows=kitChs.map(function(id){return _chById(id);}).filter(Boolean);
       var rowsHtml=rows.length
@@ -12902,7 +12909,7 @@ const BandPlan=(()=>{
       +'<button class="bp-node-del" onclick="BandPlan.deleteNode('+el.id+')" title="Supprimer">\xd7</button>'
       +'</div>'
       +'<div class="bp-vnode-lbl">'+_lb(el.label)+'</div>'
-      +(el.who?'<div class="bp-vnode-who">'+_lb(el.who)+'</div>':'');
+      +(_bpWhoShown(el)?'<div class="bp-vnode-who">'+_lb(el.who)+'</div>':'');
   }
 
   function renderNode(el){
@@ -13190,6 +13197,7 @@ const BandPlan=(()=>{
               +'<button class="bp-il-create" style="margin-bottom:6px" onclick="BandPlan.toggleKitMulti()"><i class="ti ti-checkbox"></i>Sélection multiple'+(isPro?'':' <span style="font-size:8px;background:var(--ora);color:#04231a;padding:1px 4px;border-radius:4px;font-weight:700;margin-left:3px">PRO</span>')+'</button>';
           return '<div class="bp-insp-sec">'
             +'<div class="bp-insp-title"><i class="ti ti-list-numbers"></i>Canaux du kit</div>'
+            +'<label class="bp-chk"><input type="checkbox" class="cb"'+(sel.kitIcon?'':' checked')+' onchange="BandPlan.setKitIcon(!this.checked)"/>Afficher la liste des voies sur le plan</label>'
             +_listSel
             +linkedRows.map(r=>'<div class="bp-kit-ch-row"><i class="ti ti-plug-connected"></i><span>CH '+r.ch+' — '+(r.long_name||r.short_name||'—')+'</span><button class="bp-kit-ch-del" onclick="BandPlan.unlinkKitCh(\''+_jsq(r.id)+'\')" title="Dissocier">\xd7</button></div>').join('')
             +multiBlock
@@ -13289,6 +13297,7 @@ const BandPlan=(()=>{
     renderNode(el);
     clearTimeout(_saveT);_saveT=setTimeout(saveStage,800);
   }
+  function setKitIcon(on){ const el=st.els.find(e=>e.id===_sel); if(!el||el.type!=='kit') return; if(on) el.kitIcon=true; else delete el.kitIcon; renderNode(el); renderInspector(); saveStage(); }
   function updateMix(v){
     const el=st.els.find(e=>e.id===_sel);if(!el)return;
     el.mix=String(v||'').slice(0,200); if(!el.mix) delete el.mix;
@@ -13774,7 +13783,7 @@ const BandPlan=(()=>{
     renderNode(el); renderInspector(); saveStage();
   }
 
-  return {setScales,bulkPlace,linkedIds,stageGeom,updateWho,updateMix,setStageDims,dimsFromInputs,setGrid,setSnap,init,load,getData,clear,zoom,setZoomPct,resetZoom,fitView,search,toggleCat,_pdrag,_pdblclick,renderInspector,updateAlias,updPos,adjScale,adjZ,setRot,linkCh,unlinkCh,createCh,toggleStereo,linkChR,unlinkChR,createChR,linkOutCh,unlinkOutCh,createOutCh,toggleOutStereo,linkOutChR,unlinkOutChR,createOutChR,deleteNode,setTextScale,setNodeScale,setStageScale,setRiserDims,setRiserAlt,addCustomItem,removeCustomItem,linkKitCh,unlinkKitCh,createKitCh,setViewMode,getCatInfo,getVintageSVG,getViewMode,loadBg,setBgOpacity,setBgScale,toggleBgEdit,toggleStageBg,clearBg,aiPlace,uploadElementIcon,clearElementIcon,adjImgPx,setLinkPatch,toggleKitMulti,linkKitChMulti,kitMultiAll};
+  return {setKitIcon,setScales,bulkPlace,linkedIds,stageGeom,updateWho,updateMix,setStageDims,dimsFromInputs,setGrid,setSnap,init,load,getData,clear,zoom,setZoomPct,resetZoom,fitView,search,toggleCat,_pdrag,_pdblclick,renderInspector,updateAlias,updPos,adjScale,adjZ,setRot,linkCh,unlinkCh,createCh,toggleStereo,linkChR,unlinkChR,createChR,linkOutCh,unlinkOutCh,createOutCh,toggleOutStereo,linkOutChR,unlinkOutChR,createOutChR,deleteNode,setTextScale,setNodeScale,setStageScale,setRiserDims,setRiserAlt,addCustomItem,removeCustomItem,linkKitCh,unlinkKitCh,createKitCh,setViewMode,getCatInfo,getVintageSVG,getViewMode,loadBg,setBgOpacity,setBgScale,toggleBgEdit,toggleStageBg,clearBg,aiPlace,uploadElementIcon,clearElementIcon,adjImgPx,setLinkPatch,toggleKitMulti,linkKitChMulti,kitMultiAll};
 })();
 
 /* ══════════════════════════════════════
@@ -13905,12 +13914,13 @@ function _bpLayout(res,g,opts){
       /* Praticable sans étiquette : ses dimensions sont écrites dessus */
       var riserOn=opts.riser && g.W>=6 && g.D>=4;
       if(riserOn) put({type:'riser',riserW:3,riserH:2,riserAlt:0.4,label:''},cx0,g.y+0.25*M+1*M,3*M,2*M);
-      put({type:'kit',label:drums.label,chs:drums.chs},cx0,y0,kw,kh); half=kw/2; kitBottom=Math.max(y0+kh/2,riserOn?g.y+2.25*M:0);
+      y0=g.y+0.25*M+1*M;
+      put({type:'kit',label:drums.label,chs:drums.chs,kitIcon:true},cx0,y0-0.15*M,S,S); half=Math.max(S/2,riserOn?1.5*M:0); kitBottom=Math.max(y0-0.15*M+S/2+0.3*M,riserOn?g.y+2.25*M:0);
     } else { put({type:drums.type,label:drums.label,ch:drums.ch,chR:drums.chR},cx0,y0); half=0.6*M; kitBottom=y0+S/2; }
     drums._xy=[cx0,kitBottom+0.7*M];                    /* ses retours et ears se posent juste devant */
   }
   /* Rangée des instruments, de part et d'autre de la batterie, couloirs de 2 m ; rangée des voix au-devant */
-  var y2=g.y+g.h-2.15*M, y1=Math.min(g.y+Math.max(2.6*M,g.h*0.38),y2-3.4*M);
+  var y2=g.y+g.h-2.55*M, y1=Math.min(g.y+Math.max(2.6*M,g.h*0.38),y2-3.4*M);
   /* Scène peu profonde : le retour d'un instrumentiste se pose à côté de lui, et les couloirs s'élargissent */
   var sideMode=y1<g.y+2.2*M; if(sideMode) y1=Math.max(g.y+2.2*M,Math.min(y2-2.2*M,g.y+g.h*0.42));
   var step=sideMode?2.6*M:2*M;
@@ -13959,9 +13969,10 @@ function _bpLayout(res,g,opts){
       else fx=widest(out.filter(function(z){ return z.y>g.y+g.h-2.4*M; }).map(function(z){ return z.x+S/2; }).concat(taken));
       put(el,fx,g.y+g.h-S/2-10); return; }
     /* Devant le musicien ; s'il a déjà un retour devant lui, l'ear se pose à côté, côté extérieur de la scène */
-    var fy=Math.min(g.y+g.h-S/2-10,who._xy[1]+(who.role==='vocal'?1.5:1.7)*M), busy=who._front, out2=(who._xy[0]<cx0?-1:1);
+    var front2=Math.abs(who._xy[1]-y2)<M;                 /* musicien sur la rangée de devant : retour devant lui, comme une voix */
+    var fy=Math.min(g.y+g.h-S/2-10,who._xy[1]+(front2?1.65:1.7)*M), busy=who._front, out2=(who._xy[0]<cx0?-1:1);
     who._front=(who._front||0)+1;
-    if(sideMode && who.role!=='vocal') put(el,who._xy[0]+out2*(busy?2.4:1.25)*M,who._xy[1]+0.3*M);
+    if(sideMode && !front2) put(el,who._xy[0]+out2*(busy?1.9:0.95)*M,who._xy[1]+1.5*M);      /* en diagonale, devant et vers l'extérieur */
     else put(el,busy?who._xy[0]+out2*1.25*M:who._xy[0],fy);
   });
   return out;
