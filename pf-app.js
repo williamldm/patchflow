@@ -7390,6 +7390,58 @@ function _planExpPng() {
 }
 /* ── Plein écran des plans (scène, site, synoptique) ──
    Classe pf-fs sur le panneau : seul le plan reste, recadré pour tenir en entier. Échap quitte. */
+/* Plans (scène, site, synoptique) : le panneau Propriétés flotte au-dessus du plan et ne s'ouvre que
+   lorsqu'un élément est sélectionné ; « Réglages du plan » l'ouvre sur les réglages d'ensemble.
+   × le referme jusqu'au prochain clic sur le plan ; Échap le referme aussi. */
+var _PI=[
+  { col:'bp-insp', body:'bp-insp-body', empty:'.bp-insp-empty', canvas:'bp-canvas-wrap' },
+  { col:'site-inspector-col', body:'site-inspector', empty:'.syn-insp-empty', canvas:'site-canvas-wrap' },
+  { col:'sp-inspector-wrap', body:'sp-inspector', empty:'.sp-insp-empty', canvas:'sp-viewport' }
+];
+function _piEl(c){ return c.col === 'site-inspector-col' ? document.querySelector('.site-insp-col') : document.getElementById(c.col); }
+function _piSync(c){
+  var col = _piEl(c), body = document.getElementById(c.body); if(!col || !body) return;
+  var has = !!body.textContent.trim() && !body.querySelector(c.empty);
+  if(has && !col._piHide){ col.classList.remove('pi-set'); col.classList.add('pi-open'); }
+  else if(!has && !col.classList.contains('pi-set')) col.classList.remove('pi-open');
+  if(!has) col._piHide = false;
+  _piBtn();
+}
+function _piBtn(){
+  var b = document.getElementById('plan-set-btn'), c = _piCur();
+  if(b) b.classList.toggle('on', !!(c && c.classList.contains('pi-set')));
+}
+function _piCur(){
+  var site = document.getElementById('plan-site-wrap');
+  return (site && site.style.display !== 'none') ? document.querySelector('.site-insp-col') : document.getElementById('bp-insp');
+}
+function planInspSettings(){
+  var col = _piCur(); if(!col) return;
+  var on = !col.classList.contains('pi-set');
+  col.classList.toggle('pi-set', on); col.classList.toggle('pi-open', on);
+  if(!on) _PI.forEach(function(c){ if(_piEl(c) === col){ col._piHide = true; _piSync(c); col._piHide = false; } });
+  _piBtn();
+}
+function planInspClose(btn){
+  var col = btn && btn.closest('.bp-insp,.site-insp-col,.sp-inspector'); if(!col) return;
+  col._piHide = true; col.classList.remove('pi-open', 'pi-set'); _piBtn();
+}
+(function _piInit(){
+  _PI.forEach(function(c){
+    var body = document.getElementById(c.body), cv = document.getElementById(c.canvas);
+    if(!body) return;
+    new MutationObserver(function(){ _piSync(c); }).observe(body, { childList:true, subtree:true });
+    /* Un clic sur le plan rouvre le panneau pour l'élément qu'il sélectionne */
+    if(cv) cv.addEventListener('pointerdown', function(){ var col = _piEl(c); if(col){ col._piHide = false; if(col.classList.contains('pi-set')){ col.classList.remove('pi-set', 'pi-open'); _piBtn(); } } }, true);
+    _piSync(c);
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key !== 'Escape') return;
+    document.querySelectorAll('.pi-set').forEach(function(col){ col.classList.remove('pi-set', 'pi-open'); });
+    _piBtn();
+  });
+})();
+
 function pfFullscreen(which, force){
   var p=document.getElementById(which==='syno'?'panel-synoptique':'panel-stage'); if(!p) return;
   var on=force===undefined ? !p.classList.contains('pf-fs') : !!force;
