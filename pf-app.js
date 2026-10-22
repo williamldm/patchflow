@@ -7200,7 +7200,7 @@ function _makeBpCanvas(cb,opts){
         try{ctx.letterSpacing='0px';}catch(e){}
         ctx.restore();
       };
-      _lab('LOINTAIN',1200,_stgY-18,0);
+      _lab('LOINTAIN',1200,_stgY>=40?_stgY-18:_stgY+34,0);
       _lab('JARDIN',_stgX-20,_stgY+_stgH/2,-Math.PI/2);
       _lab('COUR',_stgX+_stgW+20,_stgY+_stgH/2,Math.PI/2);
       _lab('PUBLIC',1200,_stgY+_stgH+38,0);
@@ -14382,7 +14382,8 @@ const BandPlan=(()=>{
       +'<rect x="'+d.x+'" y="'+d.y+'" width="'+d.w+'" height="'+d.h+'" rx="6" fill="#f7f8fa" stroke="'+K+'" stroke-opacity=".5" stroke-width="2"/>'
       +'<line x1="1200" y1="'+(d.y+14)+'" x2="1200" y2="'+(d.sepY-14)+'" stroke="'+K+'" stroke-opacity=".14" stroke-width="1.5" stroke-dasharray="3,9"/>'
       +'<line x1="'+d.x+'" y1="'+(d.sepY-3)+'" x2="'+(d.x+d.w)+'" y2="'+(d.sepY-3)+'" stroke="'+K+'" stroke-opacity=".78" stroke-width="6"/>'
-      +'<text x="1200" y="'+(d.y-18)+'" '+lab+'>LOINTAIN</text>'
+      /* Scène qui touche le haut de la feuille : LOINTAIN passe à l'intérieur, sinon il serait coupé */
+      +'<text x="1200" y="'+(d.y>=40?d.y-18:d.y+34)+'" '+lab+'>LOINTAIN</text>'
       +'<text transform="translate('+(d.x-20)+','+my+') rotate(-90)" '+lab+'>JARDIN</text>'
       +'<text transform="translate('+(d.x+d.w+20)+','+my+') rotate(90)" '+lab+'>COUR</text>'
       +'<text x="1200" y="'+(d.sepY+38)+'" '+lab+'>PUBLIC</text>'
