@@ -5254,7 +5254,7 @@ span.fs-dayb:hover .fs-dayx,span.fs-dayb.on .fs-dayx{opacity:1}
 .sv-seg-patch button small{font-family:var(--m);font-size:10.5px;color:var(--sv-ac);margin-right:6px;font-weight:600}
 .sv-seg-patch button.on small{color:#170a02}
 .sv-seg button i{font-size:14px;margin-right:6px;vertical-align:-2px}
-.fsv-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:16px;position:sticky;top:107px;z-index:6;padding:8px 0;background:var(--sv-bg,#0b0e14)}
+.fsv-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:16px;position:sticky;top:101px;z-index:6;padding:8px 0;background:var(--sv-bg,#0b0e14)}
 .fsv-legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--sv-mu);margin:0 0 10px}
 .fsv-legend .same{font-style:italic}
 .fsv-legend .chg{color:var(--sv-tx);font-weight:700}
@@ -5309,7 +5309,7 @@ span.fs-dayb:hover .fs-dayx,span.fs-dayb.on .fs-dayx{opacity:1}
 #share-view .fsg .fsg-ch{min-width:44px;width:44px}
 #share-view .fsg .fsg-house{background:#171b24;left:44px}
 @media(max-width:760px){
-  .fsv-bar{top:96px}
+  .fsv-bar{top:95px}
   .fsv-card{flex-wrap:wrap;gap:10px 14px;padding:14px}
   .fsv-acts{width:100%}
   .fsv-acts button{flex:1;justify-content:center}
@@ -5326,4 +5326,114 @@ span.fs-dayb:hover .fs-dayx,span.fs-dayb.on .fs-dayx{opacity:1}
   .fsv-gap summary{align-items:flex-start}
   .fsv-gap .fs-chips{flex:1 1 100%}
   .fsv-legend{font-size:11.5px}
+}
+
+/* ══ Rider partagé : présentation sobre + thème clair / sombre ══
+   Moins de pastilles et d'aplats orange : l'orange ne marque plus que l'essentiel (onglet actif, numéros,
+   horaires). Rayons réduits, filets fins, typographie plus resserrée. Les variables de l'app utilisées par
+   les tableaux du festival suivent celles du rider pour que tout change de thème ensemble. */
+.sv{--sv-bg:#0c0e12;--sv-s1:#121419;--sv-s2:#191c22;--sv-s3:#20242c;--sv-bd:rgba(255,255,255,.075);--sv-bd2:rgba(255,255,255,.14);
+  --sv-tx:#eceef2;--sv-t2:#b3b9c4;--sv-mu:#7f8795;--sv-ac:#ff6b1a;--sv-ac-bg:rgba(255,107,26,.12);--sv-ok:#2fbf8c;--sv-warn:#e0a823;--sv-err:#e5484d;--sv-hf:#a78bfa;
+  --sv-topbg:rgba(12,14,18,.9);--sv-hover:rgba(255,255,255,.03);
+  --txt:var(--sv-tx);--txt2:var(--sv-t2);--muted:var(--sv-mu);--bdr:var(--sv-bd);--bdr2:var(--sv-bd2);--bdr3:var(--sv-bd2);--surf:var(--sv-s1);--surf2:var(--sv-s2);--surf3:var(--sv-s3);
+  --ora:var(--sv-ac);--ora-d:var(--sv-ac-bg);--ora-g:rgba(255,107,26,.35);--warn:var(--sv-warn);--err:var(--sv-err);--grn:var(--sv-ok);
+  font-size:14px;letter-spacing:-.003em}
+.sv[data-theme="light"]{--sv-bg:#f6f7f9;--sv-s1:#ffffff;--sv-s2:#f1f3f6;--sv-s3:#e8ebf0;--sv-bd:rgba(16,24,40,.09);--sv-bd2:rgba(16,24,40,.16);
+  --sv-tx:#111622;--sv-t2:#3b4453;--sv-mu:#687183;--sv-ac:#d9560f;--sv-ac-bg:rgba(217,86,15,.09);--sv-ok:#14875f;--sv-warn:#a36b00;--sv-err:#c62f35;--sv-hf:#6d4ed6;
+  --sv-topbg:rgba(255,255,255,.92);--sv-hover:rgba(16,24,40,.03);--ora-g:rgba(217,86,15,.35);color-scheme:light}
+html[data-sv-theme="light"],html[data-sv-theme="light"] body{background:#f6f7f9}
+html[data-sv-theme="dark"],html[data-sv-theme="dark"] body{background:#0c0e12}
+/* Barre du haut et onglets : à plat, filet fin, onglet actif souligné */
+.sv-top{background:var(--sv-topbg);border-bottom:1px solid var(--sv-bd)}
+.sv-kind{border-radius:4px;background:transparent;box-shadow:inset 0 0 0 1px var(--sv-bd2);color:var(--sv-mu);font-size:11px;letter-spacing:.04em;text-transform:uppercase;font-weight:600}
+.sv-live{font-size:11.5px;color:var(--sv-mu)}
+.sv-live i{background:var(--sv-ok);box-shadow:none;width:6px;height:6px}
+.sv-cta{height:32px;border-radius:6px;font-size:12.5px;font-weight:600;color:#fff}
+.sv[data-theme="dark"] .sv-cta{color:#160b03}
+.sv-theme{position:relative;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border:0;border-radius:6px;background:transparent;box-shadow:inset 0 0 0 1px var(--sv-bd2);color:var(--sv-t2);cursor:pointer}
+.sv-theme:hover{color:var(--sv-tx);background:var(--sv-hover)}
+.sv-theme i{font-size:16px}
+.sv[data-theme="dark"] .sv-theme .ti-moon,.sv[data-theme="light"] .sv-theme .ti-sun{display:none}
+.sv-tabs{background:var(--sv-topbg)}
+.sv-tabs-in{gap:2px;padding-top:0;padding-bottom:0}
+.sv-tab{height:44px;border-radius:0;padding:0 14px;color:var(--sv-mu);font-size:13.5px;box-shadow:inset 0 -2px 0 transparent}
+.sv-tab:hover{background:transparent;color:var(--sv-tx)}
+.sv-tab.on{background:transparent;color:var(--sv-tx);box-shadow:inset 0 -2px 0 var(--sv-ac);font-weight:600}
+.sv-tab.on i{color:var(--sv-ac)}
+.sv-intro{background:var(--sv-s1)}
+/* En-tête du show */
+.sv-head{margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--sv-bd)}
+.sv-head h1{font-size:27px;font-weight:650;letter-spacing:-.028em;margin-bottom:10px}
+.sv-chips{gap:4px 16px}
+.sv-chips span{height:auto;padding:0;border-radius:0;background:transparent;color:var(--sv-t2);font-size:13px}
+.sv-chips .sv-chip-t{box-shadow:none;font-family:var(--f);font-size:12.5px;color:var(--sv-mu)}
+/* Segments : neutres, l'actif en surface claire au lieu d'un aplat orange */
+.sv-seg{border-radius:7px;background:var(--sv-s2);box-shadow:inset 0 0 0 1px var(--sv-bd)}
+.sv-seg button{height:28px;border-radius:5px;color:var(--sv-t2);font-size:12.5px}
+.sv-seg button:hover{color:var(--sv-tx)}
+.sv-seg button.on{background:var(--sv-s1);color:var(--sv-tx);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.18),inset 0 0 0 1px var(--sv-bd2)}
+.sv[data-theme="dark"] .sv-seg button.on{background:var(--sv-s3)}
+.sv-seg button.on i{color:var(--sv-ac)}
+.sv-seg-patch button.on small{color:var(--sv-ac)}
+.sv-btn{border-radius:6px;background:var(--sv-s1);box-shadow:inset 0 0 0 1px var(--sv-bd2)}
+.sv-btn:hover{background:var(--sv-s2)}
+.sv-btn i{color:var(--sv-t2)}
+.sv-search{border-radius:6px}
+/* Cartes et tableaux : rayons courts, filets fins */
+.sv-card,.sv-empty,.sv-promo,.fsv-card,.sv-rd-c{border-radius:8px}
+.sv-card{box-shadow:inset 0 0 0 1px var(--sv-bd)}
+.sv-tbl th{background:var(--sv-s1);border-bottom:1px solid var(--sv-bd2);font-size:10.5px;color:var(--sv-mu)}
+.sv-tbl td{border-top-color:var(--sv-bd)}
+.sv-tbl tbody tr:hover td{background:var(--sv-hover)}
+.sv-ch b{min-width:0;height:auto;padding:0;border-radius:0;background:transparent!important;font-size:14px;color:var(--sv-ac)}
+.sv-ch.t-g b,.sv-ch.t-b b,.sv-ch.t-p b,.sv-ch.t-y b,.sv-ch.t-o b,.sv-ch.t-n b{color:var(--sv-ac)}
+.sv-tag,.sv-tag.y,.sv-tag.g,.sv-tag.b,.sv-tag.p,.sv-tag.o{height:19px;padding:0 6px;border-radius:4px;background:transparent;box-shadow:inset 0 0 0 1px var(--sv-bd2);color:var(--sv-t2);font-size:10.5px;letter-spacing:.04em}
+.sv-tag.g{color:var(--sv-ok);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--sv-ok) 45%,transparent)}
+.sv-tag.y{color:var(--sv-warn);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--sv-warn) 45%,transparent)}
+.sv-f{color:var(--sv-hf)}
+.sv-ok{color:var(--sv-ok)}
+.sv-grp td{font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--sv-mu)}
+/* Pied : encart discret */
+.sv-promo{background:var(--sv-s1);box-shadow:inset 0 0 0 1px var(--sv-bd)}
+.sv-promo-l{border-radius:8px;background:var(--sv-s2)}
+/* Feuille de route, changements, festival : mêmes accents, plus sobres */
+.sv-rd-btn{border-radius:6px;background:var(--sv-s2);color:var(--sv-tx);box-shadow:inset 0 0 0 1px var(--sv-bd2)}
+.sv-rd-btn:hover{background:var(--sv-s3)}
+.sv-rd-live,.sv-rd-now{color:var(--sv-ok)}
+.sv-rd-live i{background:var(--sv-ok);box-shadow:none}
+.sv-rd-t li.on>b{color:var(--sv-ok)}
+.sv-rd-t li.on{background:color-mix(in srgb,var(--sv-ok) 8%,transparent)}
+.sv-rd-t li.next{background:var(--sv-ac-bg)}
+.sv-chgb{background:var(--sv-s1)}
+.sv-chgb-ok{border-radius:6px;color:#fff}
+.sv[data-theme="dark"] .sv-chgb-ok{color:#160b03}
+.sv-chg-t{border-radius:3px}
+.sv-chg-pane{border-radius:6px;background:var(--sv-ac-bg)}
+.fsv-bar{background:var(--sv-bg)}
+.fsv-card{box-shadow:inset 0 0 0 1px var(--sv-bd)}
+.fsv-acts button{border-radius:6px;background:var(--sv-s1);box-shadow:inset 0 0 0 1px var(--sv-bd2);color:var(--sv-tx)}
+.fsv-acts button:hover{background:var(--sv-s2);box-shadow:inset 0 0 0 1px var(--sv-bd2)}
+.fsv-acts button i{color:var(--sv-mu)}
+.fsv-name em{border-radius:3px;background:transparent;box-shadow:inset 0 0 0 1px var(--ora-g)}
+.fsv-day{font-size:12px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--sv-mu);margin:24px 0 8px}
+.fsv-stats .p48 b{color:var(--sv-err)}
+#share-view .fs-chip{border-radius:4px;background:transparent;box-shadow:inset 0 0 0 1px var(--sv-bd2);color:var(--sv-t2)}
+#share-view .fs-chip.chg{color:var(--sv-warn);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--sv-warn) 45%,transparent);background:transparent}
+#share-view .fs-chip.add{color:var(--sv-ok);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--sv-ok) 45%,transparent);background:transparent}
+#share-view .fs-chip.p48{color:var(--sv-err);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--sv-err) 45%,transparent);background:transparent}
+#share-view .fs-now>div{border-radius:8px}
+#share-view .fsg thead th,#share-view .fsg .fsg-ch{background:var(--sv-s1)}
+#share-view .fsg .fsg-house{background:var(--sv-s2)}
+#share-view .fsg td.chg{box-shadow:inset 3px 0 0 var(--sv-warn),inset -1px 0 0 var(--sv-bd)}
+#share-view .fsg tbody tr:hover td{background:var(--sv-hover)}
+#share-view .fsg-hf{color:var(--sv-hf)}
+#share-view .fsg-48{color:var(--sv-err)}
+.fsv-grid .fsg-wrap{border-radius:8px;background:var(--sv-s1)}
+.fsv-legend i{color:var(--sv-err)}
+/* Plans : fond neutre autour des images en mode clair */
+.sv[data-theme="light"] .sv-card img{background:#fff}
+@media(max-width:700px){
+  .sv-theme{width:30px;height:30px}
+  .sv-tab{height:42px;padding:0 11px}
+  .sv-head h1{font-size:22px}
 }

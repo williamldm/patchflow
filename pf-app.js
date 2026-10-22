@@ -25471,6 +25471,7 @@ function _svFs(imgId, title){
       +'<span class="sv-kind">Rider partagé</span>'
       +'<span class="sv-grow"></span>'
       +'<span class="sv-live" title="Cette page affiche toujours la dernière version"><i></i>À jour</span>'
+      +'<button type="button" class="sv-theme" onclick="_svTheme()" aria-label="Passer en mode clair ou sombre" title="Mode clair / sombre"><i class="ti ti-sun"></i><i class="ti ti-moon"></i></button>'
       +(isMobile?'':'<a class="sv-cta" href="/app.html?signup=1&amp;from=rider">Créer un compte gratuit<i class="ti ti-arrow-right"></i></a>')
     +'</header>'
     +(_bannerTitle||rNote||rInfo?
@@ -25490,6 +25491,18 @@ function _svFs(imgId, title){
       +'</div>'
       +'<p class="sv-sign">PatchFlow — par des techniciens, pour des techniciens</p>'
     +'</footer>';
+  /* Thème du rider : celui choisi sur cet appareil, sinon celui du système */
+  window._svTheme=function(force){
+    var cur=wrap.getAttribute('data-theme')==='light'?'light':'dark';
+    var next=force||(cur==='light'?'dark':'light');
+    wrap.setAttribute('data-theme',next);
+    document.documentElement.setAttribute('data-sv-theme',next);
+    var m=document.querySelector('meta[name="theme-color"]'); if(m) m.setAttribute('content',next==='light'?'#f6f7f9':'#0b0d12');
+    if(!force){ try{ localStorage.setItem('pf_sv_theme',next); }catch(e){} }
+  };
+  var _svT=null; try{ _svT=localStorage.getItem('pf_sv_theme'); }catch(e){}
+  if(_svT!=='light'&&_svT!=='dark') _svT=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';
+  window._svTheme(_svT);
   document.body.prepend(wrap);
   /* La vue rider est en place : on retire le splash de démarrage. */
   var _rspEl=document.getElementById('rider-splash'); if(_rspEl)_rspEl.remove();
