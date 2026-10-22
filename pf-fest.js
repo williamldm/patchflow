@@ -449,12 +449,13 @@ function festXpSync(on){
   if(!on) return;
   ['in', 'out', 'chg'].forEach(function(k){ var b = $('pdf-fest-' + k); if(b) b.classList.toggle('on', FEST.xp === k); });
   var h = $('pdf-fest-hint');
-  if(h) h.textContent = FEST.xp === 'chg' ? 'Une feuille par jour : ce qui change entre deux groupes' : 'Toutes les voies, un groupe par colonne' + (FEST.day !== 'all' ? ' · jour affiché : ' + _fsDayLbl(FEST.day).split(' ')[0] : '');
+  if(h) h.textContent = FEST.xp === 'chg' ? 'Pour chaque passage : voie par voie, ce qui change, arrive ou se libère' : 'Toutes les voies, un groupe par colonne' + (FEST.day !== 'all' ? ' · jour affiché : ' + _fsDayLbl(FEST.day).split(' ')[0] : '');
 }
 function festDoExport(fmt, toFiles){
   var v = function(id){ var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
   var meta = { eng:v('pdf-eng'), role:v('pdf-role'), title:v('pdf-title'), co:v('pdf-co'), tel:v('pdf-tel'), venue:v('pdf-venue'), date:v('pdf-date'), rev:v('pdf-rev'), notes:v('pdf-notes') };
-  if(FEST.xp === 'chg'){ festPrint(); return; }
+  var lk = document.getElementById('pdf-incl-link'); meta.inclLink = !lk || lk.checked;
+  if(FEST.xp === 'chg'){ festChgPdf(meta, !!toFiles); return; }
   FEST.io = FEST.xp === 'out' ? 'out' : 'in';
   if(fmt === 'csv') festCsv(); else festPdf(meta, !!toFiles);
 }
@@ -494,53 +495,174 @@ function festCsv(){
     document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 400);
   });
 }
+/* ── Lien en ligne repris dans le QR des PDF : un lien nommé du show qui contient la rubrique Festival
+   (créé une fois, puis réutilisé ; il se met à jour avec le show). null si impossible (hors ligne, limite). ── */
+async function _festLiveUrl(){
+  if(!CUR_SHOW || typeof sb === 'undefined') return null;
+  try {
+    var r = await sb.from('show_riders').select('id, name, sections, code').eq('show_id', CUR_SHOW.id).order('created_at');
+    var list = (r && !r.error && Array.isArray(r.data)) ? r.data : [];
+    var hit = list.find(function(l){ return Array.isArray(l.sections) && l.sections.indexOf('fest') >= 0; });
+    if(!hit){
+      var secs = ['fest', 'road', 'il', 'out'];
+      var cfg = typeof _buildLinkConfig === 'function' ? await _buildLinkConfig(secs) : {};
+      var ins = await sb.from('show_riders').insert({ show_id:CUR_SHOW.id, name:'Festival · PDF', sections:secs, config:cfg, code:_genLinkCode() }).select().maybeSingle();
+      if(ins.error || !ins.data) return null;
+      hit = ins.data;
+      if(typeof _proLinks !== 'undefined' && _lastLinksShowId === CUR_SHOW.id) _proLinks.push(hit);
+    }
+    return _riderBase() + '?link=' + (hit.code || hit.id);
+  } catch(e){ console.warn('[festival] lien', e); return null; }
+}
+
+/* ── PDF à la charte des autres exports (même en-tête, mêmes tableaux sans grille, même pied avec QR) ── */
+async function _festPdfBase(meta, docType){
+  var JsPDF = await _loadAutoTable(), doc = new JsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
+  var brand = _pdfBrand(), acc = _hex2rgb(brand.color || '#ff6b1a'), K = _PDFK;
+  var pf = null; try { pf = await _pfLogoPng('#FF6B2B'); } catch(e){}
+  var logo = await _pdfLogoInfo(brand.logo);
+  var url = meta.inclLink ? await _festLiveUrl() : null, qr = null;
+  if(url){ try { var q = await _qrImage(url, { px:320 }); qr = q && q.dataUrl; } catch(e){} }
+  var f = _fsData(), days = []; _fsSorted(f).forEach(function(s){ if((FEST.day === 'all' || s.day === FEST.day) && days.indexOf(s.day) < 0) days.push(s.day); });
+  var when = days.length > 1 ? 'du ' + _fsDayLbl(days[0]).toLowerCase() + ' au ' + _fsDayLbl(days[days.length - 1]).toLowerCase() : (days[0] ? _fsDayLbl(days[0]) : '');
+  var title = meta.title || CUR_SHOW.name || 'Festival', venue = meta.venue || CUR_SHOW.venue || '';
+  var y = _pdfHead(doc, { acc:acc, pf:pf, brand:brand.co || 'PatchFlow', docType:docType, title:title, sub:meta.title && CUR_SHOW.name !== meta.title ? CUR_SHOW.name : '', logo:logo,
+    rightLines:[meta.rev ? 'Révision ' + meta.rev : '', 'Édité le ' + new Date().toLocaleDateString('fr-FR')].filter(Boolean),
+    meta:[['Lieu', venue], ['Dates', when], ['Réalisé par', [meta.eng, meta.role].filter(Boolean).join(' · ')], ['Société', meta.co], ['Contact', meta.tel]] });
+  var PW = doc.internal.pageSize.getWidth(), PH = doc.internal.pageSize.getHeight(), M = 12, TOP = 30, BOT = _pdfFootH(!!qr) + 4;
+  var TBL = { theme:'plain', margin:{ left:M, right:M, top:TOP, bottom:BOT },
+    styles:{ font:'helvetica', fontSize:7.8, cellPadding:{ top:1.4, bottom:1.4, left:1.8, right:1.8 }, textColor:K.ink, lineColor:K.line, lineWidth:{ bottom:0.2 }, valign:'middle', overflow:'linebreak' },
+    headStyles:{ fontSize:6.3, fontStyle:'bold', textColor:K.muted, lineColor:K.ink, lineWidth:{ bottom:0.35 }, valign:'bottom' } };
+  var sect = function(t, n, yy){ doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(K.ink[0], K.ink[1], K.ink[2]); doc.text(t, M, yy); var tw = doc.getTextWidth(t);
+    if(n !== '' && n != null){ doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(K.muted[0], K.muted[1], K.muted[2]); doc.text(String(n), M + tw + 2.5, yy); } };
+  var note = function(t, yy){ doc.setFont('helvetica', 'normal'); doc.setFontSize(7.3); doc.setTextColor(K.muted[0], K.muted[1], K.muted[2]); doc.text(t, M, yy); };
+  var finish = async function(fileName){
+    if(meta.notes){
+      var yy = (doc.lastAutoTable ? doc.lastAutoTable.finalY : y) + 10;
+      if(yy > PH - BOT - 18){ doc.addPage(); yy = TOP + 4; }
+      sect('Notes techniques', '', yy); yy += 5;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(K.txt2[0], K.txt2[1], K.txt2[2]);
+      doc.splitTextToSize(meta.notes, PW - 2 * M).forEach(function(l){ if(yy > PH - BOT - 4){ doc.addPage(); yy = TOP; } doc.text(l, M, yy); yy += 4.2; });
+    }
+    var n = doc.internal.getNumberOfPages();
+    for(var p = 1; p <= n; p++){
+      doc.setPage(p);
+      if(p > 1) _pdfHead(doc, { acc:acc, pf:pf, brand:brand.co || 'PatchFlow', docType:docType, title:title, compact:true, right:[venue, when].filter(Boolean).join(' · ') });
+      _pdfFoot(doc, { acc:acc, pf:pf, credit:_pdfCreditOn(), creditWhat:'festival', qr:p === 1 ? qr : null, url:url || '', qrNote:'Scannez : programme et patch du festival, toujours à jour', stamp:p === 1 ? '' : title, page:p, pages:n });
+    }
+    await _pdfDeliver(doc, ((typeof _pdfSlug === 'function' && _pdfSlug(title)) || 'festival') + '-' + fileName + '.pdf');
+  };
+  return { doc:doc, K:K, acc:acc, y:y, PW:PW, PH:PH, M:M, TOP:TOP, BOT:BOT, TBL:TBL, sect:sect, note:note, finish:finish, f:f };
+}
+/* Programme du jour (ou de tout le festival) : une ligne par groupe */
+function _festProgRows(f){
+  return _fsSorted(f).filter(function(s){ return FEST.day === 'all' || s.day === FEST.day; }).map(function(s){
+    var ins = _fsChs(s.pid), p48 = ins.filter(function(r){ return r.phantom; }).length, hf = ins.filter(function(r){ return _fsHf(r); }).length;
+    return [_fsDayLbl(s.day), (s.start || '—') + (s.end ? ' – ' + s.end : ''), _fsName(s.pid), String(ins.length), String(_fsOuts(s.pid).length), p48 ? String(p48) : '', hf ? String(hf) : '', s.note || ''];
+  });
+}
 async function festPdf(meta, toFiles){
   meta = meta || {};
   if(typeof _pdfSaveToFiles !== 'undefined') _pdfSaveToFiles = !!toFiles;
   if(typeof _loadAutoTable !== 'function'){ toast('Export PDF indisponible.'); return; }
   toast('Génération PDF…');
   try {
-    var f = _fsData(), out = FEST.io === 'out', M = _fsCached(function(){ return _fsMatrix(f, out); });
-    var JsPDF = await _loadAutoTable(), doc = new JsPDF({ orientation:'landscape', unit:'mm', format:M.cols.length > 6 ? 'a3' : 'a4' });
-    var PW = doc.internal.pageSize.getWidth(), K = _PDFK, Mg = K.M, brand = _pdfBrand(), acc = _hex2rgb(brand.color || '#ff6b1a');
-    var pf = null; try { pf = await _pfLogoPng('#FF6B2B'); } catch(e){}
-    var logo = await _pdfLogoInfo(brand.logo), title = meta.title || CUR_SHOW.name || 'Festival', TOP = 26, BOT = _pdfFootH(false) + 4;
-    var days = []; M.cols.forEach(function(s){ if(days.indexOf(s.day) < 0) days.push(s.day); });
-    var y = _pdfHead(doc, { acc:acc, pf:pf, brand:brand.co || 'PatchFlow', docType:'Patch du festival · ' + (out ? 'sorties' : 'entrées'), title:title, sub:'', logo:logo,
-      rightLines:['Édité le ' + new Date().toLocaleDateString('fr-FR')],
-      meta:[['Jours', days.map(_fsDayLbl).join(', ')], ['Référence', M.house ? 'patch maître ' + M.house : 'groupe précédent'], ['Lieu', meta.venue || CUR_SHOW.venue],
-            ['Édité par', [meta.eng, meta.role].filter(Boolean).join(' · ')], ['Contact', [meta.co, meta.tel].filter(Boolean).join(' · ')], ['Révision', meta.rev]].filter(function(x){ return x[1]; }) }) + 2;
-    var head = [(out ? 'OUT' : 'CH')].concat(M.house ? ['MAÎTRE · ' + M.house.toUpperCase()] : []).concat(M.cols.map(function(s){ return _fsName(s.pid).toUpperCase() + '\n' + _fsDayLbl(s.day).split(' ')[0] + ' ' + (s.start || ''); }));
-    var body = M.rows.map(function(r){
-      return [String(r.ch)].concat(M.house ? [r.house ? r.house.l + (r.house.mic ? '\n' + r.house.mic : '') : '—'] : [])
-        .concat(r.cells.map(function(c){ return c.st === 'free' ? '—' : c.t + (c.p48 && !out ? ' (48V)' : '') + (c.mic ? '\n' + c.mic : ''); }));
+    var out = FEST.io === 'out';
+    await _fsCached(async function(){
+      var B = await _festPdfBase(meta, 'Festival · ' + (out ? 'patch des sorties' : 'patch des entrées'));
+      var doc = B.doc, K = B.K, f = B.f, M = _fsMatrix(f, out), y = B.y + 1;
+      if(!M.cols.length){ toast('Aucun groupe au programme.'); return; }
+      /* 1. Programme */
+      B.sect('Programme', M.cols.length + ' groupe' + (M.cols.length > 1 ? 's' : ''), y + 3);
+      doc.autoTable(Object.assign({}, B.TBL, { startY:y + 6, head:[['JOUR', 'HORAIRE', 'GROUPE', 'VOIES', 'SORTIES', '+48V', 'HF', 'NOTE']], body:_festProgRows(f),
+        columnStyles:{ 0:{ cellWidth:38, textColor:K.txt2 }, 1:{ cellWidth:26, font:'courier', fontStyle:'bold', textColor:B.acc }, 2:{ fontStyle:'bold', cellWidth:56 }, 3:{ halign:'center', cellWidth:14 }, 4:{ halign:'center', cellWidth:16 }, 5:{ halign:'center', cellWidth:13, textColor:B.acc }, 6:{ halign:'center', cellWidth:11 }, 7:{ textColor:K.txt2 } } }));
+      /* 2. Patch : CH + patch maître + jusqu'à 5 groupes par tableau, la suite dans un tableau suivant */
+      var per = M.house ? 4 : 5, chunks = [];
+      for(var i = 0; i < M.cols.length; i += per) chunks.push(i);
+      var yy = doc.lastAutoTable.finalY + 10;
+      chunks.forEach(function(start, ci){
+        var cols = M.cols.slice(start, start + per);
+        if(yy > B.PH - B.BOT - 40){ doc.addPage(); yy = B.TOP + 4; }
+        B.sect('Patch des ' + (out ? 'sorties' : 'entrées'), chunks.length > 1 ? 'groupes ' + (start + 1) + ' à ' + (start + cols.length) + ' sur ' + M.cols.length : '', yy);
+        var head = [(out ? 'OUT' : 'CH')].concat(M.house ? ['PATCH MAÎTRE\n' + M.house.toUpperCase()] : []).concat(cols.map(function(s){ return (_fsDayLbl(s.day).split(' ')[0] + ' ' + (s.start || '')).toUpperCase() + '\n' + _fsName(s.pid); }));
+        var off = M.house ? 2 : 1;
+        var body = M.rows.map(function(r){
+          return [String(r.ch)].concat(M.house ? [r.house ? r.house.l + (r.house.mic ? '\n' + r.house.mic : '') : '—'] : [])
+            .concat(cols.map(function(s, j){ var c = r.cells[start + j]; return c.st === 'free' ? '—' : c.t + (c.p48 && !out ? '  +48V' : '') + (c.mic && FEST.mic ? '\n' + c.mic : ''); }));
+        });
+        var cw = (B.PW - 2 * B.M - 10 - (M.house ? 38 : 0)) / cols.length, cs = { 0:{ halign:'center', fontStyle:'bold', cellWidth:10, textColor:B.acc } };
+        if(M.house) cs[1] = { cellWidth:38, textColor:K.txt2, fillColor:[247, 246, 243] };
+        doc.autoTable(Object.assign({}, B.TBL, { startY:yy + 3, head:[head], body:body, columnStyles:cs,
+          didParseCell:function(d){
+            if(d.section === 'head' && d.column.index >= off){ d.cell.styles.textColor = K.ink; d.cell.styles.fontSize = 6.8; }
+            if(d.section !== 'body' || d.column.index < off) return;
+            d.cell.styles.cellWidth = cw;
+            var c = M.rows[d.row.index].cells[start + d.column.index - off]; if(!c) return;
+            if(c.st === 'same'){ d.cell.styles.textColor = [158, 158, 158]; d.cell.styles.fontStyle = 'italic'; }
+            else if(c.st === 'chg'){ d.cell.styles.fontStyle = 'bold'; d.cell.styles.textColor = K.ink; }
+            else if(c.st === 'free'){ d.cell.styles.textColor = [200, 200, 200]; }
+          },
+          didDrawCell:function(d){
+            if(d.section !== 'body' || d.column.index < off) return;
+            var c = M.rows[d.row.index].cells[start + d.column.index - off];
+            if(c && c.st === 'chg'){ doc.setFillColor(245, 181, 30); doc.rect(d.cell.x + 0.2, d.cell.y + 0.6, 0.9, d.cell.height - 1.2, 'F'); }
+          } }));
+        yy = doc.lastAutoTable.finalY + 4;
+        B.note('Gras avec un trait jaune : à changer par rapport au ' + (M.house ? 'patch maître' : 'groupe précédent') + '   ·   gris : identique   ·   — : libre' + (out ? '' : '   ·   +48V : alimentation fantôme'), yy);
+        yy += 10;
+      });
+      await B.finish('patch-' + (out ? 'sorties' : 'entrees'));
     });
-    var off = M.house ? 2 : 1;
-    doc.autoTable({ head:[head], body:body, startY:y, theme:'plain', margin:{ left:Mg, right:Mg, top:TOP, bottom:BOT },
-      styles:{ font:'helvetica', fontSize:7.5, cellPadding:1.4, textColor:K.ink, lineColor:K.line, lineWidth:0.1, valign:'middle', overflow:'linebreak' },
-      headStyles:{ fontSize:6.5, fontStyle:'bold', textColor:K.muted, fillColor:[246, 245, 242] },
-      columnStyles:{ 0:{ cellWidth:9, halign:'center', fontStyle:'bold', textColor:acc } },
-      didParseCell:function(d){
-        if(d.section !== 'body' || d.column.index < off) return;
-        var c = M.rows[d.row.index].cells[d.column.index - off]; if(!c) return;
-        if(c.st === 'same'){ d.cell.styles.textColor = [150, 150, 150]; d.cell.styles.fontStyle = 'italic'; }
-        else if(c.st === 'chg'){ d.cell.styles.fontStyle = 'bold'; d.cell.styles.fillColor = [255, 246, 214]; }
-        else if(c.st === 'free'){ d.cell.styles.textColor = [190, 190, 190]; }
-      } });
-    if(meta.notes){
-      var yy = doc.lastAutoTable.finalY + 6, H = doc.internal.pageSize.getHeight();
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(K.ink[0], K.ink[1], K.ink[2]);
-      if(yy > H - BOT - 14){ doc.addPage(); yy = TOP; }
-      doc.text('Notes techniques', Mg, yy); yy += 5;
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(K.txt2[0], K.txt2[1], K.txt2[2]);
-      doc.splitTextToSize(meta.notes, PW - 2 * Mg).forEach(function(l){ if(yy > H - BOT - 4){ doc.addPage(); yy = TOP; } doc.text(l, Mg, yy); yy += 4.2; });
-    }
-    var n = doc.internal.getNumberOfPages();
-    for(var p = 1; p <= n; p++){ doc.setPage(p); _pdfFoot(doc, { acc:acc, pf:pf, credit:_pdfCreditOn(), creditWhat:'patch du festival', qr:null, url:'', stamp:'Fond jaune et gras : à changer · gris : identique · — : libre', page:p, pages:n }); }
-    await _pdfDeliver(doc, ((typeof _pdfSlug === 'function' && _pdfSlug(title)) || 'festival') + '-patch-festival.pdf');
   } catch(e){ console.error('festPdf:', e); toast('Export impossible : ' + (e && e.message || e)); }
 }
-/* Lien de partage : la rubrique Festival cochée dans Partage & équipe */
+/* ── Feuille de changements de plateau : un tableau par changement, voie par voie ── */
+async function festChgPdf(meta, toFiles){
+  meta = meta || {};
+  if(typeof _pdfSaveToFiles !== 'undefined') _pdfSaveToFiles = !!toFiles;
+  if(typeof _loadAutoTable !== 'function'){ toast('Export PDF indisponible.'); return; }
+  toast('Génération PDF…');
+  try {
+    await _fsCached(async function(){
+      var B = await _festPdfBase(meta, 'Festival · changements de plateau');
+      var doc = B.doc, K = B.K, f = B.f, list = _fsSorted(f).filter(function(s){ return FEST.day === 'all' || s.day === FEST.day; });
+      if(!list.length){ toast('Aucun groupe au programme.'); return; }
+      var y = B.y + 4, lastDay = null;
+      list.forEach(function(s, i){
+        var prev = i > 0 && list[i - 1].day === s.day ? list[i - 1] : null;
+        var ref = (f.cmp === 'house' && f.house && f.house !== s.pid) ? f.house : (prev ? prev.pid : null);
+        if(s.day !== lastDay){
+          if(y > B.PH - B.BOT - 30){ doc.addPage(); y = B.TOP + 4; }
+          B.sect(_fsDayLbl(s.day), '', y); lastDay = s.day; y += 6;
+        }
+        if(y > B.PH - B.BOT - 26){ doc.addPage(); y = B.TOP + 4; }
+        doc.setFont('courier', 'bold'); doc.setFontSize(9.5); doc.setTextColor(B.acc[0], B.acc[1], B.acc[2]); doc.text((s.start || '—') + (s.end ? '–' + s.end : ''), B.M, y);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(K.ink[0], K.ink[1], K.ink[2]); doc.text(_fsName(s.pid), B.M + 30, y);
+        var nw = doc.getTextWidth(_fsName(s.pid));
+        if(s.note){ doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(K.muted[0], K.muted[1], K.muted[2]); doc.text(s.note, B.M + 30 + nw + 4, y); }
+        y += 2;
+        var pl = function(n, w){ return n + ' ' + w + (n > 1 ? 's' : ''); };
+        if(!ref){ B.note('Premier passage : ' + pl(_fsChs(s.pid).length, 'voie') + ' et ' + pl(_fsOuts(s.pid).length, 'sortie') + ' à installer.', y + 3.5); y += 10; return; }
+        var d = _fsDiff(ref, s.pid), rows = [];
+        var lm = function(r){ return (_fsLbl(r) || 'sans nom') + (r.mic ? '  (' + r.mic + ')' : ''); };
+        d.chg.forEach(function(x){ rows.push(['CH ' + x.ch, 'À changer', lm(x.a), lm(x.b)]); });
+        d.add.forEach(function(x){ rows.push(['CH ' + x.ch, 'Arrive', '—', lm(x.b)]); });
+        d.free.forEach(function(x){ rows.push(['CH ' + x.ch, 'Libérée', lm(x.a), '—']); });
+        d.p48.forEach(function(x){ rows.push(['CH ' + x.ch, x.on ? '+48V à activer' : '+48V à couper', '', x.b ? _fsLbl(x.b) : '']); });
+        d.hf.forEach(function(x){ rows.push(['CH ' + x.ch, 'HF', '', _fsHf(x.b) + ' MHz · ' + _fsLbl(x.b)]); });
+        d.outs.forEach(function(x){ var o = function(v){ return v ? (v.long_name || v.short_name || 'sortie') + (v.hf ? '  (' + v.hf + ' MHz)' : '') : '—'; }; rows.push(['OUT ' + x.ch, 'Retour', o(x.a), o(x.b)]); });
+        var head = [['VOIE', 'ACTION', (f.cmp === 'house' && f.house ? 'PATCH MAÎTRE · ' + _fsName(f.house) : 'AVANT · ' + _fsName(prev.pid)).toUpperCase(), ('APRÈS · ' + _fsName(s.pid)).toUpperCase()]];
+        if(!rows.length) rows = [['', 'Rien à changer', '', '']];
+        doc.autoTable(Object.assign({}, B.TBL, { startY:y + 1.5, head:head, body:rows,
+          columnStyles:{ 0:{ cellWidth:18, font:'courier', fontStyle:'bold', textColor:B.acc }, 1:{ cellWidth:32, fontStyle:'bold' }, 2:{ textColor:[150, 150, 150] }, 3:{ fontStyle:'bold' } },
+          didParseCell:function(c){ if(c.section === 'body' && c.column.index === 1 && /48V/.test(String(c.cell.raw))) c.cell.styles.textColor = [212, 63, 63]; } }));
+        y = doc.lastAutoTable.finalY + 3.5;
+        B.note([pl(d.same, 'identique'), d.chg.length + ' à changer', d.add.length + (d.add.length > 1 ? ' arrivent' : ' arrive'), pl(d.free.length, 'libérée'), pl(d.p48.length, 'bascule') + ' +48V'].join('  ·  '), y);
+        y += 9;
+      });
+      await B.finish('changements-de-plateau');
+    });
+  } catch(e){ console.error('festChgPdf:', e); toast('Export impossible : ' + (e && e.message || e)); }
+}
 function festShare(){
   if(typeof _riderSections !== 'undefined'){ _riderSections.fest = true; _riderSections.road = true; }
   goTab('team', null);
@@ -753,34 +875,4 @@ function _festOvHtml(){
     + '<div class="ov-stats"><div><b>' + list.length + '</b><span>groupe' + (list.length > 1 ? 's' : '') + '</span></div><div><b>' + nd + '</b><span>jour' + (nd > 1 ? 's' : '') + '</span></div></div>'
     + (_fsNowHtml(f, true) || '<div class="ov-none">Premier passage&nbsp;: ' + _fsE(_fsName(list[0].pid)) + ', ' + _fsE(_fsDayLbl(list[0].day).toLowerCase()) + ' à ' + _fsE(list[0].start) + '.</div>')
     + '</section>';
-}
-
-/* ── Feuille de changements à imprimer : un tableau par changement de plateau ── */
-function festPrint(){ return _fsCached(_festPrint); }
-function _festPrint(){
-  var f = _fsData(), list = _fsSorted(f), E = _fsE; if(!list.length) return;
-  var body = '', lastDay = null;
-  list.forEach(function(s, i){
-    if(s.day !== lastDay){ body += '<h2>' + E(_fsDayLbl(s.day)) + '</h2>'; lastDay = s.day; }
-    var prev = i > 0 && list[i - 1].day === s.day ? list[i - 1] : null;
-    var ref = (f.cmp === 'house' && f.house && f.house !== s.pid) ? f.house : (prev ? prev.pid : null);
-    body += '<section><h3><span>' + E(s.start) + '–' + E(s.end) + '</span>' + E(_fsName(s.pid)) + '</h3>' + (s.note ? '<p class="n">' + E(s.note) + '</p>' : '');
-    if(ref){
-      var d = _fsDiff(ref, s.pid);
-      body += '<p class="sub">' + (f.cmp === 'house' && f.house ? 'Par rapport au patch maître (' + E(_fsName(f.house)) + ')' : 'Après ' + E(_fsName(prev.pid))) + ' : ' + d.same + ' voies identiques, ' + d.chg.length + ' à changer, ' + d.add.length + ' ajoutées, ' + d.free.length + ' libérées, ' + d.p48.length + ' bascules 48 V.</p>';
-      body += _fsDiffList(d).replace(/<i class="ti ti-arrow-right"><\/i>/g, '→').replace(/<i class="ti ti-bolt"><\/i>/g, '⚡ ');
-    } else {
-      body += '<p class="sub">Premier groupe : ' + _fsChs(s.pid).length + ' voies, ' + _fsOuts(s.pid).length + ' sorties.</p>';
-    }
-    body += '</section>';
-  });
-  var css = '@page{size:A4;margin:14mm}body{font:12px/1.4 -apple-system,Segoe UI,Arial,sans-serif;color:#111}h1{font-size:20px;margin:0 0 2px}.h{color:#666;margin-bottom:14px}h2{font-size:14px;margin:18px 0 6px;border-bottom:2px solid #ff6b1a;padding-bottom:3px}'
-    + 'section{break-inside:avoid;margin:0 0 12px}h3{font-size:13px;margin:8px 0 2px}h3 span{display:inline-block;min-width:92px;color:#b5400d;font-variant-numeric:tabular-nums}.sub{margin:2px 0 6px;color:#444}.n{margin:0 0 4px;color:#666;font-style:italic}'
-    + 'ul{list-style:none;padding:0;margin:0;border:1px solid #ddd;border-radius:6px}li{display:flex;gap:10px;padding:4px 8px;border-top:1px solid #eee}li:first-child{border-top:0}li b{min-width:58px}li em{color:#666;font-style:normal}'
-    + 'li.p48{background:#fff4e5}li.add b{color:#15803d}li.free b{color:#888}.fs-none{color:#666;font-style:italic}';
-  var html = '<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Changements de plateau — ' + E(CUR_SHOW.name || '') + '</title><style>' + css + '</style></head><body>'
-    + '<h1>Changements de plateau</h1><div class="h">' + E(CUR_SHOW.name || '') + (CUR_SHOW.venue ? ' · ' + E(CUR_SHOW.venue) : '') + ' · PatchFlow</div>' + body
-    + '<script>window.onload=function(){window.print();};<\/script></body></html>';
-  var w = window.open('', '_blank');
-  if(w){ w.document.write(html); w.document.close(); } else toast('Autorisez les fenêtres surgissantes pour imprimer.');
 }

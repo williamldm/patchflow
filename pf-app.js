@@ -5337,7 +5337,9 @@ function setPdfExportType(type){
   const zc = document.getElementById('pdf-zoom'); if(zc) zc.checked = _pdfZoom;
   // Hide link/recap checkboxes for visual plans
   const foot1 = document.getElementById('pdf-checks');
-  if(foot1) foot1.style.display = isTable ? '' : 'none';
+  if(foot1) foot1.style.display = (isTable||isFest) ? '' : 'none';
+  const recapLbl = document.getElementById('pdf-recap-label');
+  if(recapLbl) recapLbl.style.display = isFest ? 'none' : '';
   // Hide toggle row entirely if only one option visible
   const toggleRow = document.getElementById('pdf-type-row');
   if(toggleRow) toggleRow.style.display = _pdfVisibleTypes.length <= 1 ? 'none' : '';
