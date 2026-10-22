@@ -8415,6 +8415,20 @@ async function _openSynoPdf(meta, synHtml, shareUrl, brand){
             doc.setFillColor(c[0],c[1],c[2]); doc.roundedRect(d.cell.x+1.2,d.cell.y+d.cell.height/2-1.1,2.2,2.2,0.6,0.6,'F'); } }}));
       }
     }
+    /* ── Adresses IP : la fiche réseau des équipements, triée par adresse ── */
+    var ipr=(SynPro.ipList&&SynPro.ipList())||[];
+    if(ipr.length){
+      doc.addPage('a4',orientation);
+      var y3=_pdfHead(doc,{acc:acc, pf:pfLogo, brand:head.brand, docType:'Synoptique · adresses IP', title:title, compact:true, right:[meta.venue,_pdfDateFr(meta.date)].filter(Boolean).join(' · ')});
+      var seenIp={}, dupIp={}; ipr.forEach(function(r){ if(r.ip){ if(seenIp[r.ip]) dupIp[r.ip]=1; seenIp[r.ip]=1; } });
+      doc.autoTable({theme:'plain', startY:y3+3, margin:{left:M,right:M,bottom:_pdfFootH(false)+4,top:28},
+        styles:{font:'helvetica',fontSize:8.5,cellPadding:{top:1.9,bottom:1.9,left:2,right:2},textColor:K.ink,lineColor:K.line,lineWidth:{bottom:0.2}},
+        headStyles:{fontSize:6.5,fontStyle:'bold',textColor:K.muted,lineColor:K.line,lineWidth:{bottom:0.3}},
+        head:[['ÉQUIPEMENT','ADRESSE IP','MASQUE','VLAN','FIRMWARE','RÉSEAU REDONDANT']],
+        body:ipr.map(function(r){ return [r.name, r.ip||'—', r.mask, r.vlan, r.fw, r.role]; }),
+        columnStyles:{0:{fontStyle:'bold'},1:{font:'courier',fontStyle:'bold'},2:{font:'courier',textColor:K.txt2},3:{font:'courier',textColor:K.txt2},4:{textColor:K.txt2},5:{textColor:K.txt2}},
+        didParseCell:function(d){ if(d.section==='body' && d.column.index===1 && dupIp[ipr[d.row.index].ip]){ d.cell.styles.textColor=[200,40,50]; d.cell.text=[String(d.cell.raw)+'  (en double)']; } }});
+    }
     /* Pieds et filigrane : posés à la fin, quand le nombre total de pages est connu */
     pages=doc.getNumberOfPages();
     for(var p=1;p<=pages;p++){
@@ -9834,6 +9848,11 @@ const SynPro = (() => {
   let _tmpBoxes = {};   // boîtes temporaires (pointeur) pour l'aperçu d'une liaison
   let ctoolAt = null;   // { cid, x, y } — endroit du clic qui a sélectionné la liaison (barre d'outils au-dessus)
   let view = { zoom:1, panX:0, panY:0 };
+  let multi = [];        // sélection multiple : équipements choisis (selected.kind === 'multi')
+  let lasso = null;      // { x0, y0, x1, y1, base } — Maj + glisser dans le vide
+  let zoneDrag = null;   // { id, w0, x, y, nodes, wps, moved } — zone déplacée avec son contenu
+  let zoneRsz = null;    // { id, w0, w, h, moved }
+  let netOnly = null;    // réseau isolé depuis la légende : les autres liaisons s'estompent
 
   function _defaultState() {
     return {
@@ -9843,6 +9862,7 @@ const SynPro = (() => {
       footer:'www.patchflow.fr',
       nodes:[],
       cables:[],
+      zones:[],
       networks: DEFAULT_NETWORKS.map(function(n){return Object.assign({},n);}),
     };
   }
@@ -9859,6 +9879,152 @@ const SynPro = (() => {
   function nodeById(id){ return state.nodes.find(function(n){ return n.id===id; }); }
   function cableById(id){ return state.cables.find(function(c){ return c.id===id; }); }
   function netById(id){ return state.networks.find(function(n){ return n.id===id; }); }
+  function zoneById(id){ return (state.zones || []).find(function(z){ return z.id===id; }); }
+
+  /* ── Sélection : un équipement (kind 'node'), plusieurs (kind 'multi', liste dans multi), une zone ou une liaison ── */
+  function _selIds(){ return selected.kind === 'multi' ? multi.slice() : (selected.kind === 'node' && selected.id ? [selected.id] : []); }
+  function _isSel(id){ return selected.kind === 'multi' ? multi.indexOf(id) >= 0 : (selected.kind === 'node' && selected.id === id); }
+  function _setSel(ids){
+    ids = ids.filter(function(id, i){ return nodeById(id) && ids.indexOf(id) === i; });
+    multi = ids.length > 1 ? ids : [];
+    selected = ids.length > 1 ? { kind:'multi', id:null } : (ids.length ? { kind:'node', id:ids[0] } : { kind:null, id:null });
+    selWp = null;
+  }
+  function _paintSel(){
+    document.querySelectorAll('.sp-node').forEach(function(el){ el.classList.toggle('sel', _isSel(el.dataset.id)); });
+    document.querySelectorAll('.sp-zone').forEach(function(el){ el.classList.toggle('sel', selected.kind === 'zone' && selected.id === el.dataset.zid); });
+  }
+  function _boxOf(ids){
+    var b = { minX:Infinity, minY:Infinity, maxX:-Infinity, maxY:-Infinity };
+    ids.forEach(function(id){ var n = nodeById(id); if (!n) return; var s = _nodeSize(n);
+      b.minX = Math.min(b.minX, n.x); b.minY = Math.min(b.minY, n.y); b.maxX = Math.max(b.maxX, n.x + s.w); b.maxY = Math.max(b.maxY, n.y + s.h); });
+    return b;
+  }
+  /* Angles des liaisons dont les deux bouts bougent ensemble (ils suivent le déplacement) */
+  function _innerWps(ids){
+    var set = {}, out = []; ids.forEach(function(id){ set[id] = 1; });
+    state.cables.forEach(function(c){ if (set[c.from] && set[c.to]) (c.waypoints || []).forEach(function(p, i){ out.push({ c:c, i:i, x:p.x, y:p.y }); }); });
+    return out;
+  }
+  function _moveWps(wps, dx, dy){ wps.forEach(function(p){ if (p.c.waypoints && p.c.waypoints[p.i]) p.c.waypoints[p.i] = { x:Math.round(p.x + dx), y:Math.round(p.y + dy) }; }); }
+
+  /* ── Réseau d'un équipement : adresse IP, masque, VLAN, firmware, rôle sur un réseau redondant ── */
+  function _ipOk(v){ var m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(String(v || '').trim()); return !!m && m.slice(1).every(function(x){ return +x <= 255; }); }
+  function _ipNum(v){ return _ipOk(v) ? String(v).trim().split('.').reduce(function(a, x){ return a * 256 + (+x); }, 0) : Infinity; }
+  var ROLE_TXT = { pri:'Primaire', sec:'Secondaire' };
+  function _netTxt(t){ return t ? [t.ip, t.vlan ? 'VLAN ' + t.vlan : '', ROLE_TXT[t.role] || ''].filter(Boolean).join(' · ') : ''; }
+  function _netSet(n, k, v){
+    v = String(v == null ? '' : v).trim().slice(0, k === 'fw' ? 40 : 24);
+    var t = n.net || {}; if (v) t[k] = v; else delete t[k];
+    if (Object.keys(t).length) n.net = t; else delete n.net;
+  }
+  /* Réseau isolé : équipements reliés par au moins une liaison de ce réseau */
+  function _isDim(id){
+    if (!netOnly) return false;
+    return !state.cables.some(function(c){ return c.network === netOnly && (c.from === id || c.to === id); });
+  }
+
+  /* ── Zones : cadres nommés (Régie FOH, Plateau, Retours…) ; une zone déplacée emmène ce qu'elle contient ── */
+  var ZONE_COLORS = ['#1d9bf0','#22c55e','#eab308','#ff6b1a','#a855f7','#ef4444','#14b8a6','#64748b'];
+  function _zoneMembers(z){
+    return state.nodes.filter(function(n){ var s = _nodeSize(n), cx = n.x + s.w / 2, cy = n.y + s.h / 2; return cx >= z.x && cx <= z.x + z.w && cy >= z.y && cy <= z.y + z.h; });
+  }
+  function createZone(x, y, w, h, label, color){
+    if (!state.zones) state.zones = [];
+    var z = { id:uid(), label:String(label || 'Zone').slice(0, 40), x:Math.round(x), y:Math.round(y), w:Math.max(160, Math.round(w)), h:Math.max(90, Math.round(h)),
+              color:color || ZONE_COLORS[state.zones.length % ZONE_COLORS.length] };
+    state.zones.push(z);
+    multi = []; selected = { kind:'zone', id:z.id }; selWp = null;
+    scheduleSave(); render();
+    return z;
+  }
+  function zoneAroundSelection(){
+    var ids = _selIds(); if (!ids.length) return;
+    var b = _boxOf(ids);
+    createZone(b.minX - 28, b.minY - 44, b.maxX - b.minX + 56, b.maxY - b.minY + 72, 'Zone');
+    setTimeout(function(){ var i = $('sp-zn-label'); if (i) { i.focus(); i.select(); } }, 60);
+  }
+  /* Zone posée au centre de la vue */
+  function addZone(){
+    if (!state) return;
+    var vp = $('sp-viewport'), r = vp ? vp.getBoundingClientRect() : null;
+    var c = r ? clientToWorld(r.left + r.width / 2, r.top + r.height / 2) : { x:400, y:300 };
+    createZone(c.x - 210, c.y - 130, 420, 260, 'Zone');
+    setTimeout(function(){ var i = $('sp-zn-label'); if (i) { i.focus(); i.select(); } }, 60);
+  }
+  function deleteZone(id){
+    state.zones = (state.zones || []).filter(function(z){ return z.id !== id; });
+    if (selected.kind === 'zone' && selected.id === id) selected = { kind:null, id:null };
+    scheduleSave(); render();
+  }
+  function _renderZones(){
+    var world = $('sp-world'); if (!world) return;
+    var host = $('sp-zones');
+    if (!host) { host = document.createElement('div'); host.id = 'sp-zones'; world.insertBefore(host, $('sp-edges') || world.firstChild); }
+    host.innerHTML = (state.zones || []).map(function(z){
+      var c = _safeColor(z.color) || '#64748b', sel = selected.kind === 'zone' && selected.id === z.id;
+      return '<div class="sp-zone' + (sel ? ' sel' : '') + '" data-zid="' + esc(z.id) + '" style="left:' + z.x + 'px;top:' + z.y + 'px;width:' + z.w + 'px;height:' + z.h + 'px;--zc:' + c + '">' +
+        '<div class="sp-zone-hd" data-zid="' + esc(z.id) + '" title="Glisser pour déplacer la zone et son contenu">' + esc(z.label || 'Zone') + '</div>' +
+        '<span class="sp-zone-rsz" data-zid="' + esc(z.id) + '" title="Redimensionner"></span></div>';
+    }).join('');
+  }
+  function _renderLasso(){
+    var world = $('sp-world'); if (!world) return;
+    var el = $('sp-lasso');
+    if (!lasso) { if (el) el.remove(); return; }
+    if (!el) { el = document.createElement('div'); el.id = 'sp-lasso'; world.appendChild(el); }
+    var x = Math.min(lasso.x0, lasso.x1), y = Math.min(lasso.y0, lasso.y1);
+    el.style.left = x + 'px'; el.style.top = y + 'px';
+    el.style.width = Math.abs(lasso.x1 - lasso.x0) + 'px'; el.style.height = Math.abs(lasso.y1 - lasso.y0) + 'px';
+  }
+  /* Alignement et répartition de la sélection */
+  function alignSel(mode){
+    var ns = _selIds().map(nodeById).filter(Boolean); if (ns.length < 2) return;
+    var B = ns.map(function(n){ var s = _nodeSize(n); return { n:n, w:s.w, h:s.h }; });
+    var minX = Math.min.apply(null, B.map(function(b){ return b.n.x; })), maxX = Math.max.apply(null, B.map(function(b){ return b.n.x + b.w; }));
+    var minY = Math.min.apply(null, B.map(function(b){ return b.n.y; })), maxY = Math.max.apply(null, B.map(function(b){ return b.n.y + b.h; }));
+    if (mode === 'dh' || mode === 'dv') {
+      var H = mode === 'dh', k = H ? 'x' : 'y', d = H ? 'w' : 'h';
+      B.sort(function(a, b){ return (a.n[k] + a[d] / 2) - (b.n[k] + b[d] / 2); });
+      var total = B.reduce(function(s, b){ return s + b[d]; }, 0), span = (H ? maxX - minX : maxY - minY), gap = (span - total) / (B.length - 1);
+      if (gap >= 0) { var p = H ? minX : minY; B.forEach(function(b){ b.n[k] = Math.round(p); p += b[d] + gap; }); }
+      else { var c0 = B[0].n[k] + B[0][d] / 2, c1 = B[B.length - 1].n[k] + B[B.length - 1][d] / 2;
+             B.forEach(function(b, i){ b.n[k] = Math.round(c0 + (c1 - c0) * i / (B.length - 1) - b[d] / 2); }); }
+    } else B.forEach(function(b){
+      if (mode === 'l') b.n.x = minX; else if (mode === 'r') b.n.x = Math.round(maxX - b.w); else if (mode === 'ch') b.n.x = Math.round((minX + maxX) / 2 - b.w / 2);
+      else if (mode === 't') b.n.y = minY; else if (mode === 'b') b.n.y = Math.round(maxY - b.h); else if (mode === 'cv') b.n.y = Math.round((minY + maxY) / 2 - b.h / 2);
+    });
+    scheduleSave(); render();
+  }
+  function deleteNodes(ids){
+    if (!ids.length) return;
+    if (ids.length === 1) { deleteNode(ids[0]); return; }
+    /* Sans annulation (offre Gratuit), une suppression en lot se confirme */
+    var canUndo = typeof SectionUndo !== 'undefined' && SectionUndo.isPro();
+    if (!canUndo && ids.length > 2 && !confirm('Supprimer ces ' + ids.length + ' équipements et leurs liaisons ?')) return;
+    var set = {}; ids.forEach(function(id){ set[id] = 1; var n = nodeById(id); if (n && n.iconImgB2) _b2DeleteIcon(n.iconImgB2); });
+    state.nodes = state.nodes.filter(function(n){ return !set[n.id]; });
+    state.cables = state.cables.filter(function(c){ return !set[c.from] && !set[c.to]; });
+    _setSel([]);
+    scheduleSave(); render();
+    toast(ids.length + ' équipements supprimés' + (canUndo ? ' · Ctrl/⌘ Z pour annuler' : ''));
+  }
+  /* Le panneau Propriétés flotte sur la droite du plan : si la sélection passe dessous, le plan glisse vers la gauche */
+  function _revealSel(){
+    var ids = selected.kind === 'zone' ? [] : _selIds(), z = selected.kind === 'zone' ? zoneById(selected.id) : null;
+    var panel = $('sp-inspector-wrap'), vp = $('sp-viewport');
+    if ((!ids.length && !z) || !panel || !vp || getComputedStyle(panel).position !== 'absolute') return;
+    var pr = panel.getBoundingClientRect(), vr = vp.getBoundingClientRect();
+    if (!pr.width) return;
+    var b = z ? { minX:z.x, minY:z.y, maxX:z.x + z.w, maxY:z.y + z.h } : _boxOf(ids);
+    var sx0 = vr.left + view.panX + b.minX * view.zoom, sx1 = vr.left + view.panX + b.maxX * view.zoom;
+    var sy0 = vr.top + view.panY + b.minY * view.zoom, sy1 = vr.top + view.panY + b.maxY * view.zoom;
+    if (sx1 + 16 <= pr.left || sy1 < pr.top || sy0 > pr.bottom) return;
+    var shift = Math.min(sx1 + 24 - pr.left, Math.max(0, sx0 - vr.left - 24));
+    if (shift <= 0) return;
+    view.panX -= shift; _applyWorld();
+  }
+  function selectAll(){ _setSel(state.nodes.map(function(n){ return n.id; })); _paintSel(); _renderEdges(); _renderInspector(); }
 
   /* ── Save status indicator ── */
   function _setSaveStatus(st) {
@@ -10139,11 +10305,15 @@ const SynPro = (() => {
       maxX = Math.max(maxX, bgr.maxX); maxY = Math.max(maxY, bgr.maxY);
     }
     state.nodes.forEach(function(n){
-      var sp = _nodeSize(n);
+      var sp = _nodeSize(n), ipH = (n.net && _netTxt(n.net)) ? 18 : 0;
       if (n.x - pad < minX) minX = n.x - pad;
       if (n.y - pad < minY) minY = n.y - pad;
       if (n.x + sp.w + pad > maxX) maxX = n.x + sp.w + pad;
-      if (n.y + sp.h + pad > maxY) maxY = n.y + sp.h + pad;
+      if (n.y + sp.h + ipH + pad > maxY) maxY = n.y + sp.h + ipH + pad;
+    });
+    (state.zones || []).forEach(function(z){
+      minX = Math.min(minX, z.x - pad); minY = Math.min(minY, z.y - 14 - pad);
+      maxX = Math.max(maxX, z.x + z.w + pad); maxY = Math.max(maxY, z.y + z.h + pad);
     });
     /* Les angles des liaisons peuvent sortir du cadre des équipements */
     state.cables.forEach(function(c){
@@ -10574,7 +10744,8 @@ const SynPro = (() => {
     var label = n.label || (sp ? sp.label : '');
     var sub = n.sub != null ? n.sub : (sp ? sp.defaultSub : '');
     var w = sp ? sp.w : 140;
-    var sel = (selected.kind === 'node' && selected.id === n.id) ? ' sel' : '';
+    var sel = _isSel(n.id) ? ' sel' : '';
+    if (_isDim(n.id)) sel += ' sp-dim';
     var target = ((linkDraw && linkDraw.target === n.id) || (endDrag && endDrag.target === n.id)) ? ' target-hint' : '';
     var iconHtml = '';
     if (n.type === 'note') {
@@ -10627,7 +10798,9 @@ const SynPro = (() => {
     /* Sur la carte quand il y en a une (c'est elle qui reçoit les liaisons), sinon sur l'élément */
     var hasCard = /<div class="sp-node-card/.test(iconHtml);
     if (hasCard) iconHtml = iconHtml.replace(/(<div class="sp-node-card[^"]*"[^>]*>)/, '$1' + ports);
-    return '<div class="sp-node' + sel + target + '" data-id="' + n.id + '" data-type="' + esc(n.type) + '" style="left:' + n.x + 'px;top:' + n.y + 'px;min-width:' + nodeMinW + '">' + iconHtml + (hasCard ? '' : ports) + '<button type="button" class="sp-node-del" data-del="' + n.id + '" title="Supprimer">&times;</button></div>';
+    var ipTxt = (n.type !== 'note' && n.type !== 'text_label') ? _netTxt(n.net) : '';
+    var ipHtml = ipTxt ? '<div class="sp-node-ip' + (n.net.role ? ' r-' + n.net.role : '') + '">' + esc(ipTxt) + '</div>' : '';
+    return '<div class="sp-node' + sel + target + '" data-id="' + n.id + '" data-type="' + esc(n.type) + '" style="left:' + n.x + 'px;top:' + n.y + 'px;min-width:' + nodeMinW + '">' + iconHtml + (hasCard ? '' : ports) + ipHtml + '<button type="button" class="sp-node-del" data-del="' + n.id + '" title="Supprimer">&times;</button></div>';
   }
 
   /* Lignes d'entrées / sorties d'une carte : points colorés selon la prise */
@@ -10732,9 +10905,10 @@ const SynPro = (() => {
       var dir = c.dir || 'none', colId = net.color.replace('#','');
       var mEnd   = (dir === 'forward'  || dir === 'both') ? ' marker-end="url(#arr-'   + colId + '-fwd)"' : '';
       var mStart = (dir === 'backward' || dir === 'both') ? ' marker-start="url(#arr-' + colId + '-bwd)"' : '';
+      var dimC = !!(netOnly && c.network !== netOnly);
       html += '<path class="sp-edge-hit" data-cid="' + c.id + '" d="' + g.d + '" stroke="' + net.color + '" stroke-width="16" fill="none"/>';
-      html += '<path class="sp-edge' + (sel ? ' sel' : '') + '" data-cid="' + c.id + '" d="' + g.d + '" stroke="' + net.color + '" stroke-width="' + (sel ? 3.5 : 2.5) + '" stroke-linejoin="round" stroke-linecap="round" fill="none"' + mEnd + mStart + '/>';
-      if (c.label && c.label.trim()) html += _labelSvg(c.label, g.label, net.color, ' class="sp-elabel" data-cid="' + c.id + '"');
+      html += '<path class="sp-edge' + (sel ? ' sel' : '') + (dimC ? ' dim' : '') + '" data-cid="' + c.id + '" d="' + g.d + '" stroke="' + net.color + '" stroke-width="' + (sel ? 3.5 : 2.5) + '" stroke-linejoin="round" stroke-linecap="round" fill="none"' + mEnd + mStart + '/>';
+      if (c.label && c.label.trim()) html += _labelSvg(c.label, g.label, net.color, ' class="sp-elabel' + (dimC ? ' dim' : '') + '" data-cid="' + c.id + '"');
     });
     svg.innerHTML = html;
     _renderOverlay();
@@ -10890,13 +11064,16 @@ const SynPro = (() => {
   function _renderLegend() {
     var el = $('sp-legend');
     if (!el) return;
-    var used = {};
-    state.cables.forEach(function(c){ used[c.network] = true; });
+    var used = {}, nUsed = 0;
+    state.cables.forEach(function(c){ if (!used[c.network]) nUsed++; used[c.network] = true; });
+    if (netOnly && !used[netOnly]) netOnly = null;
     var h = '';
     state.networks.forEach(function(n){
       if (!used[n.id]) return;
-      h += '<span class="sp-legend-item"><span class="sp-legend-line" style="background:' + esc(n.color) + '"></span>' + esc(n.name) + '</span>';
+      h += '<button type="button" class="sp-legend-item' + (netOnly === n.id ? ' on' : (netOnly ? ' off' : '')) + '" data-net="' + esc(n.id) + '" title="' + (netOnly === n.id ? 'Tout afficher' : 'Isoler ce réseau') + '"><span class="sp-legend-line" style="background:' + esc(n.color) + '"></span>' + esc(n.name) + '</button>';
     });
+    if (netOnly) h += '<button type="button" class="sp-legend-all" data-net=""><i class="ti ti-eye"></i>Tout afficher</button>';
+    else if (nUsed > 1) h += '<span class="sp-legend-hint">Cliquez un réseau pour l\'isoler</span>';
     el.innerHTML = h;
   }
 
@@ -10980,6 +11157,41 @@ const SynPro = (() => {
     });
   }
   /* Choix du point de départ / d'arrivée d'une liaison */
+  function _netInspHtml(n) {
+    if (n.type === 'note' || n.type === 'text_label' || n.type === 'image_frame') return '';
+    var t = n.net || {};
+    var f = function(k, lbl, ph, mono){ return '<div><label class="sp-insp-lbl">' + lbl + '</label><input class="sp-insp-inp' + (mono ? ' sp-mono' : '') + '" data-net="' + k + '" value="' + esc(t[k] || '') + '" placeholder="' + ph + '" spellcheck="false" autocomplete="off"></div>'; };
+    return '<details class="sp-net-insp"' + (n.net ? ' open' : '') + '><summary><i class="ti ti-network"></i>Réseau<span id="sp-net-sum">' + esc(_netTxt(n.net) || 'IP, VLAN, firmware') + '</span><i class="ti ti-chevron-down sp-net-chev"></i></summary>' +
+      f('ip', 'Adresse IP', '192.168.1.10', 1) +
+      '<div class="sp-net-row2">' + f('mask', 'Masque', '255.255.255.0', 1) + f('vlan', 'VLAN', '10', 1) + '</div>' +
+      f('fw', 'Firmware', 'v4.2') +
+      '<label class="sp-insp-lbl">Réseau redondant</label><div class="sp-dir-grp sp-role-grp">' +
+      [['', 'Aucun'], ['pri', 'Primaire'], ['sec', 'Secondaire']].map(function(r){ return '<button type="button" class="sp-dir-btn' + ((t.role || '') === r[0] ? ' active' : '') + '" data-role="' + r[0] + '">' + r[1] + '</button>'; }).join('') +
+      '</div><div class="sp-net-warn" id="sp-net-warn" style="display:none"></div></details>';
+  }
+  function _netWarn(n) {
+    var w = $('sp-net-warn'); if (!w) return;
+    var t = n.net || {}, msg = '';
+    if (t.ip && !_ipOk(t.ip)) msg = 'Adresse IP incomplète ou invalide.';
+    else if (t.ip) { var d = state.nodes.filter(function(x){ return x !== n && x.net && x.net.ip === t.ip; }); if (d.length) msg = 'Adresse déjà donnée à ' + (d[0].label || 'un autre équipement') + '.'; }
+    if (!msg && t.mask && !_ipOk(t.mask)) msg = 'Masque invalide.';
+    w.textContent = msg; w.style.display = msg ? '' : 'none';
+  }
+  function _bindNetInsp(n, el) {
+    var sum = function(){ var s = $('sp-net-sum'); if (s) s.textContent = _netTxt(n.net) || 'IP, VLAN, firmware'; };
+    el.querySelectorAll('.sp-net-insp input[data-net]').forEach(function(inp){
+      inp.addEventListener('input', function(){ _netSet(n, inp.dataset.net, inp.value); _netWarn(n); _refreshNodeDom(n.id); sum(); scheduleSave(); });
+    });
+    el.querySelectorAll('.sp-role-grp [data-role]').forEach(function(b){
+      b.addEventListener('click', function(){
+        _netSet(n, 'role', b.dataset.role);
+        el.querySelectorAll('.sp-role-grp .sp-dir-btn').forEach(function(x){ x.classList.toggle('active', x === b); });
+        _refreshNodeDom(n.id); sum(); scheduleSave();
+      });
+    });
+    _netWarn(n);
+  }
+
   function _portSelHtml(c, end) {
     var nid = end === 'from' ? c.from : c.to, nd = nodeById(nid);
     if (!nd) return '';
@@ -10997,6 +11209,7 @@ const SynPro = (() => {
   function _renderInspector() {
     var el = $('sp-inspector');
     if (!el) return;
+    if (!dragging && !lasso && !zoneDrag) setTimeout(_revealSel, 0);
     if (selected.kind === 'node') {
       var n = nodeById(selected.id);
       if (!n) { selected = { kind:null, id:null }; _renderInspector(); return; }
@@ -11011,6 +11224,7 @@ const SynPro = (() => {
         ((n.iconImg || n.type==='image_frame') ? '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr2)"><div style="font-size:12px;font-family:var(--f);color:var(--muted);margin-bottom:5px;font-weight:500">Taille de l\'image</div><div style="display:flex;align-items:center;gap:7px"><button class="spl-ts-btn" onclick="SynPro.adjImgPx(\''+ nId +'\',-20)">−</button><span id="sp-img-px-lbl" style="flex:1;text-align:center;font-size:10px;color:var(--muted)">'+(n.imgPx||90)+'px</span><button class="spl-ts-btn" onclick="SynPro.adjImgPx(\''+ nId +'\',20)">+</button></div></div>' : '') +
         (n.type !== 'note' && n.type !== 'text_label' ? _iconImgInspHtml(nId, !!n.iconImg, n.iconImg||'', "SynPro.uploadNodeIcon('"+nId+"')", "SynPro.clearNodeIcon('"+nId+"')") : '') +
         _ioInspHtml(n) +
+        _netInspHtml(n) +
         '<button class="btn sm" id="sp-ins-dup" style="width:100%;margin-top:12px"><i class="ti ti-copy"></i> Dupliquer <span style="font-size:8px;color:var(--muted);font-family:var(--m);margin-left:3px">Ctrl/⌘ D</span></button>' +
         '<button class="btn ghost sm" id="sp-ins-del" style="margin-top:8px;width:100%;color:var(--err)"><i class="ti ti-trash"></i>Supprimer</button>';
       /* Re-rendu complet du nœud à chaque frappe (au lieu de patcher un enfant
@@ -11021,8 +11235,48 @@ const SynPro = (() => {
       $('sp-ins-label').addEventListener('input', function(e){ n.label = e.target.value; _refreshNodeDom(n.id); scheduleSave(); });
       $('sp-ins-sub').addEventListener('input', function(e){ n.sub = e.target.value; _refreshNodeDom(n.id); scheduleSave(); });
       _bindIoInsp(n, el);
+      _bindNetInsp(n, el);
       $('sp-ins-dup').addEventListener('click', function(){ duplicateSelectedNode(); });
       $('sp-ins-del').addEventListener('click', function(){ deleteNode(n.id); });
+    } else if (selected.kind === 'multi') {
+      var ids = _selIds();
+      if (ids.length < 2) { _setSel(ids); _renderInspector(); return; }
+      var AL = [['l', 'ti-layout-align-left', 'Aligner à gauche'], ['ch', 'ti-layout-align-center', 'Centrer horizontalement'], ['r', 'ti-layout-align-right', 'Aligner à droite'],
+                ['t', 'ti-layout-align-top', 'Aligner en haut'], ['cv', 'ti-layout-align-middle', 'Centrer verticalement'], ['b', 'ti-layout-align-bottom', 'Aligner en bas']];
+      el.innerHTML =
+        '<div class="sp-insp-title"><i class="ti ti-select"></i>' + ids.length + ' équipements</div>' +
+        '<label class="sp-insp-lbl">Aligner</label><div class="sp-al-grp">' + AL.map(function(a){ return '<button type="button" class="sp-al-btn" data-al="' + a[0] + '" title="' + a[2] + '" aria-label="' + a[2] + '"><i class="ti ' + a[1] + '"></i></button>'; }).join('') + '</div>' +
+        (ids.length > 2 ? '<label class="sp-insp-lbl">Répartir régulièrement</label><div class="sp-al-grp two">' +
+          '<button type="button" class="sp-al-btn" data-al="dh" title="Même écart de gauche à droite"><i class="ti ti-layout-distribute-vertical"></i>Horizontalement</button>' +
+          '<button type="button" class="sp-al-btn" data-al="dv" title="Même écart de haut en bas"><i class="ti ti-layout-distribute-horizontal"></i>Verticalement</button></div>' : '') +
+        '<button class="btn sm" id="sp-ms-zone" style="width:100%;margin-top:14px"><i class="ti ti-border-corners"></i>Créer une zone autour</button>' +
+        '<button class="btn sm" id="sp-ms-dup" style="width:100%;margin-top:8px"><i class="ti ti-copy"></i>Dupliquer <span style="font-size:8px;color:var(--muted);font-family:var(--m);margin-left:3px">Ctrl/⌘ D</span></button>' +
+        '<button class="btn ghost sm" id="sp-ms-del" style="width:100%;margin-top:8px;color:var(--err)"><i class="ti ti-trash"></i>Supprimer les ' + ids.length + '</button>' +
+        '<div class="sp-insp-help"><b>Sélection :</b> Maj + clic ajoute ou retire un équipement, Maj + glisser dans le vide trace un lasso, Ctrl/⌘ A prend tout. Glissez l\'un d\'eux pour déplacer l\'ensemble.</div>';
+      el.querySelectorAll('.sp-al-btn').forEach(function(b){ b.addEventListener('click', function(){ alignSel(b.dataset.al); }); });
+      $('sp-ms-zone').addEventListener('click', zoneAroundSelection);
+      $('sp-ms-dup').addEventListener('click', duplicateSelectedNode);
+      $('sp-ms-del').addEventListener('click', function(){ deleteNodes(_selIds()); });
+    } else if (selected.kind === 'zone') {
+      var z = zoneById(selected.id);
+      if (!z) { selected = { kind:null, id:null }; _renderInspector(); return; }
+      var inZ = _zoneMembers(z).length;
+      el.innerHTML =
+        '<div class="sp-insp-title"><i class="ti ti-border-corners"></i>Zone</div>' +
+        '<label class="sp-insp-lbl">Nom</label><input class="sp-insp-inp" id="sp-zn-label" value="' + esc(z.label || '') + '" placeholder="Régie FOH, Plateau, Retours…" maxlength="40">' +
+        '<label class="sp-insp-lbl">Couleur</label><div class="sp-zn-cols">' + ZONE_COLORS.map(function(c){ return '<button type="button" class="sp-zn-col' + ((z.color || '').toLowerCase() === c ? ' on' : '') + '" data-c="' + c + '" style="--zc:' + c + '" aria-label="Couleur ' + c + '"></button>'; }).join('') + '</div>' +
+        '<p class="sp-zn-n">' + (inZ ? inZ + ' équipement' + (inZ > 1 ? 's' : '') + ' dans la zone : ils la suivent quand on la déplace.' : 'Aucun équipement dans la zone pour l\'instant.') + '</p>' +
+        (inZ ? '<button class="btn sm" id="sp-zn-fit" style="width:100%"><i class="ti ti-arrows-minimize"></i>Ajuster à son contenu</button>' : '') +
+        '<button class="btn ghost sm" id="sp-zn-del" style="width:100%;margin-top:8px;color:var(--err)"><i class="ti ti-trash"></i>Supprimer la zone</button>' +
+        '<div class="sp-insp-help">La zone se déplace par son étiquette et se redimensionne par son coin en bas à droite. Supprimer la zone garde les équipements.</div>';
+      $('sp-zn-label').addEventListener('input', function(e){ z.label = e.target.value.slice(0, 40); var hd = document.querySelector('.sp-zone-hd[data-zid="' + z.id + '"]'); if (hd) hd.textContent = z.label || 'Zone'; scheduleSave(); });
+      el.querySelectorAll('.sp-zn-col').forEach(function(b){ b.addEventListener('click', function(){ z.color = b.dataset.c; _renderZones(); _renderInspector(); scheduleSave(); }); });
+      $('sp-zn-fit')?.addEventListener('click', function(){
+        var b = _boxOf(_zoneMembers(z).map(function(n){ return n.id; }));
+        z.x = Math.round(b.minX - 28); z.y = Math.round(b.minY - 44); z.w = Math.round(b.maxX - b.minX + 56); z.h = Math.round(b.maxY - b.minY + 72);
+        scheduleSave(); render();
+      });
+      $('sp-zn-del').addEventListener('click', function(){ deleteZone(z.id); });
     } else if (selected.kind === 'cable') {
       var c = cableById(selected.id);
       if (!c) { selected = { kind:null, id:null }; _renderInspector(); return; }
@@ -11094,6 +11348,7 @@ const SynPro = (() => {
     _updateZoomHud();
     _renderHeader();
     _applyBg();
+    _renderZones();
     _renderNodes();
     _renderEdges();
     _renderLegend();
@@ -11112,7 +11367,8 @@ const SynPro = (() => {
         '<div class="sp-empty-ic"><i class="ti ti-topology-star"></i></div>' +
         '<b>Partez de votre session d\'amplis</b>' +
         '<p>Amplis, sorties, enceintes branchées et câbles HP : le synoptique se dessine tout seul.</p>' +
-        '<button type="button" class="btn pri" onclick="AmpImport.open()"><i class="ti ti-file-import"></i>Importer une session d\'amplis</button>' +
+        '<div class="sp-empty-acts"><button type="button" class="btn pri" onclick="AmpImport.open()"><i class="ti ti-file-import"></i>Importer une session d\'amplis</button>' +
+        '<button type="button" class="btn" onclick="SynFromShow.open()"><i class="ti ti-wand"></i>Créer depuis le show</button></div>' +
         '<div class="sp-empty-brands"><span>CODA · LINUS Control</span><span>d&amp;b · ArrayCalc / R1</span><span>Toutes marques · tableau</span></div>' +
         '<small>Ou déposez le fichier ici, ou glissez un équipement depuis la bibliothèque.</small></div>';
       vp.appendChild(e);
@@ -11149,32 +11405,45 @@ const SynPro = (() => {
      image...) — meme fonctionnement que le Plan de site, pour ne pas
      depayser l'utilisateur. ── */
   var _synClip = null;
-  function copySelectedNode(){
-    if (!selected || selected.kind !== 'node') return false;
-    var n = nodeById(selected.id);
-    if (!n) return false;
-    _synClip = JSON.parse(JSON.stringify(n));
-    toast('Élément copié');
+  function copySelectedNode(quiet){
+    var ids = _selIds(); if (!ids.length) return false;
+    var set = {}; ids.forEach(function(id){ set[id] = 1; });
+    _synClip = { nodes: ids.map(function(id){ return JSON.parse(JSON.stringify(nodeById(id))); }),
+                 cables: state.cables.filter(function(c){ return set[c.from] && set[c.to]; }).map(function(c){ return JSON.parse(JSON.stringify(c)); }) };
+    if (!quiet) toast(ids.length > 1 ? ids.length + ' éléments copiés' : 'Élément copié');
     return true;
   }
-  function pasteNode(){
-    if (!_synClip) return;
-    var n = JSON.parse(JSON.stringify(_synClip));
-    n.id = uid();
-    n.x = Math.round((_synClip.x || 0) + 24);
-    n.y = Math.round((_synClip.y || 0) + 24);
-    /* La copie est independante : on garde l'image (base64) mais on retire
-       la cle B2 partagee — supprimer l'un n'efface pas le fichier serveur
-       de l'autre. */
-    delete n.iconImgB2;
-    state.nodes.push(n);
-    selected = { kind:'node', id:n.id };
+  function pasteNode(quiet){
+    if (!_synClip || !_synClip.nodes) return;
+    var map = {};
+    var made = _synClip.nodes.map(function(src){
+      var n = JSON.parse(JSON.stringify(src));
+      n.id = map[src.id] = uid();
+      n.x = Math.round((src.x || 0) + 24); n.y = Math.round((src.y || 0) + 24);
+      src.x = n.x; src.y = n.y;   /* collages successifs : en escalier */
+      /* La copie est independante : on garde l'image (base64) mais on retire
+         la cle B2 partagee — supprimer l'un n'efface pas le fichier serveur
+         de l'autre. */
+      delete n.iconImgB2;
+      state.nodes.push(n);
+      return n.id;
+    });
+    _synClip.cables.forEach(function(src){
+      var c = JSON.parse(JSON.stringify(src));
+      c.id = uid(); c.from = map[src.from]; c.to = map[src.to];
+      if (c.waypoints) c.waypoints = c.waypoints.map(function(p){ return { x:Math.round(p.x + 24), y:Math.round(p.y + 24) }; });
+      src.waypoints = c.waypoints;
+      state.cables.push(c);
+    });
+    _setSel(made);
     scheduleSave();
     render();
-    toast('Élément collé');
+    if (!quiet) toast(made.length > 1 ? made.length + ' éléments collés' : 'Élément collé');
   }
   function duplicateSelectedNode(){
-    if (copySelectedNode()) pasteNode();
+    var keep = _synClip;
+    if (copySelectedNode(true)) { pasteNode(true); toast(_selIds().length > 1 ? _selIds().length + ' éléments dupliqués' : 'Élément dupliqué'); }
+    _synClip = keep || _synClip;
   }
 
   /* ── Menu contextuel (clic droit) sur un equipement ──────────────
@@ -11380,8 +11649,9 @@ const SynPro = (() => {
       /* Belt-and-braces : a previous interaction's pointerup may have been
          missed (browser bug, release outside window, focus shift...). Clear
          any stale drag/pan state so this click starts fresh. */
-      if (dragging || panning || resizing || wpDrag || labelDrag || endDrag) {
+      if (dragging || panning || resizing || wpDrag || labelDrag || endDrag || zoneDrag || zoneRsz || lasso) {
         dragging = null; panning = null; resizing = null; wpDrag = null; labelDrag = null; endDrag = null; snapGuides = null;
+        zoneDrag = null; zoneRsz = null; if (lasso) { lasso = null; _renderLasso(); }
         vp.style.cursor = '';
       }
 
@@ -11465,6 +11735,26 @@ const SynPro = (() => {
         return;
       }
 
+      /* Zone : l'étiquette la déplace (avec son contenu), le coin la redimensionne */
+      var zr = e.target.closest('.sp-zone-rsz'), zh = !zr && e.target.closest('.sp-zone-hd');
+      if ((zr || zh) && e.button === 0 && !activeCable) {
+        var zz = zoneById((zr || zh).dataset.zid);
+        if (!zz) return;
+        multi = []; selected = { kind:'zone', id:zz.id }; selWp = null;
+        var zw = _evWorld(e);
+        if (zr) zoneRsz = { id:zz.id, w0:zw, w:zz.w, h:zz.h, moved:false };
+        else {
+          var inside = _zoneMembers(zz);
+          zoneDrag = { id:zz.id, w0:zw, x:zz.x, y:zz.y, moved:false,
+                       nodes: inside.map(function(m){ return { id:m.id, x:m.x, y:m.y }; }),
+                       wps: _innerWps(inside.map(function(m){ return m.id; })) };
+        }
+        _paintSel(); _renderEdges(); _renderInspector();
+        vp.setPointerCapture(e.pointerId);
+        e.preventDefault(); e.stopPropagation();
+        return;
+      }
+
       var nodeEl = e.target.closest('.sp-node');
       var edgeEl = e.target.closest('.sp-edge-hit,.sp-edge');
 
@@ -11479,16 +11769,22 @@ const SynPro = (() => {
         var nid2 = nodeEl.dataset.id;
         var n = nodeById(nid2);
         if (!n) return;
-        var wasCable = selected.kind === 'cable';
-        selected = { kind:'node', id:nid2 }; selWp = null;
+        var wasCable = selected.kind === 'cable', collapse = false;
+        /* Maj + clic : ajoute ou retire de la sélection ; clic sur un équipement déjà choisi : déplace tout le groupe */
+        if (e.shiftKey) {
+          var cur = _selIds(), at = cur.indexOf(nid2);
+          if (at >= 0) { cur.splice(at, 1); _setSel(cur); _paintSel(); if (wasCable) _renderEdges(); _renderInspector(); e.preventDefault(); return; }
+          cur.push(nid2); _setSel(cur);
+        } else if (!_isSel(nid2)) _setSel([nid2]);
+        else collapse = selected.kind === 'multi';
         /* Apply .sel class immediately so the delete badge becomes visible
            and the user gets visual feedback even before they release */
-        document.querySelectorAll('.sp-node').forEach(function(el){
-          el.classList.toggle('sel', el.dataset.id === nid2);
-        });
+        _paintSel();
         if (wasCable) _renderEdges();
-        var w = clientToWorld(e.clientX, e.clientY);
-        dragging = { id:nid2, ox: w.x - n.x, oy: w.y - n.y, moved:false };
+        var w = clientToWorld(e.clientX, e.clientY), gIds = _selIds();
+        dragging = { id:nid2, ox: w.x - n.x, oy: w.y - n.y, w0:w, collapse:collapse, moved:false,
+                     starts: gIds.map(function(id){ var m = nodeById(id); return { id:id, x:m.x, y:m.y }; }),
+                     wps: gIds.length > 1 ? _innerWps(gIds) : [] };
         vp.setPointerCapture(e.pointerId);
         /* Inspector is re-rendered on pointerup so it doesn't interfere
            with the drag (no DOM churn while dragging) */
@@ -11506,10 +11802,20 @@ const SynPro = (() => {
         return;
       }
 
+      /* Maj + glisser dans le vide : lasso (s'ajoute à la sélection en cours) */
+      if (e.shiftKey && e.button === 0) {
+        var lw = _evWorld(e);
+        if (selected.kind === 'cable' || selected.kind === 'zone') { selected = { kind:null, id:null }; selWp = null; _renderEdges(); }
+        lasso = { x0:lw.x, y0:lw.y, x1:lw.x, y1:lw.y, base:_selIds() };
+        _paintSel(); _renderLasso();
+        vp.setPointerCapture(e.pointerId);
+        e.preventDefault();
+        return;
+      }
       /* Pan empty canvas — deselect any current selection */
-      selected = { kind:null, id:null }; selWp = null;
+      multi = []; selected = { kind:null, id:null }; selWp = null;
       /* Clear .sel class from every node + edge so visual feedback matches state */
-      document.querySelectorAll('.sp-node.sel').forEach(function(el){ el.classList.remove('sel'); });
+      _paintSel();
       _renderEdges();
       _renderInspector();
       panning = { x: e.clientX, y: e.clientY, px: view.panX, py: view.panY };
@@ -11559,6 +11865,33 @@ const SynPro = (() => {
         }
         return;
       }
+      if (lasso) {
+        var lp = _evWorld(e); lasso.x1 = lp.x; lasso.y1 = lp.y;
+        var lx0 = Math.min(lasso.x0, lasso.x1), lx1 = Math.max(lasso.x0, lasso.x1), ly0 = Math.min(lasso.y0, lasso.y1), ly1 = Math.max(lasso.y0, lasso.y1);
+        var hit = state.nodes.filter(function(m){ var s = _nodeSize(m); return m.x < lx1 && m.x + s.w > lx0 && m.y < ly1 && m.y + s.h > ly0; }).map(function(m){ return m.id; });
+        _setSel(lasso.base.concat(hit)); _paintSel(); _renderLasso();
+        return;
+      }
+      if (zoneDrag) {
+        var zp = _evWorld(e), zdx = zp.x - zoneDrag.w0.x, zdy = zp.y - zoneDrag.w0.y, zm = zoneById(zoneDrag.id);
+        if (!zm) return;
+        if (!zoneDrag.moved && Math.abs(zdx) + Math.abs(zdy) < 1) return;
+        zoneDrag.moved = true;
+        zm.x = Math.round(zoneDrag.x + zdx); zm.y = Math.round(zoneDrag.y + zdy);
+        var ze = document.querySelector('.sp-zone[data-zid="' + zm.id + '"]'); if (ze) { ze.style.left = zm.x + 'px'; ze.style.top = zm.y + 'px'; }
+        zoneDrag.nodes.forEach(function(s){ var m = nodeById(s.id); if (!m) return; m.x = Math.round(s.x + zdx); m.y = Math.round(s.y + zdy);
+          var me = document.querySelector('.sp-node[data-id="' + s.id + '"]'); if (me) { me.style.left = m.x + 'px'; me.style.top = m.y + 'px'; } });
+        _moveWps(zoneDrag.wps, zdx, zdy);
+        _renderEdges();
+        return;
+      }
+      if (zoneRsz) {
+        var zq = _evWorld(e), zr2 = zoneById(zoneRsz.id); if (!zr2) return;
+        zoneRsz.moved = true;
+        zr2.w = Math.max(160, Math.round(zoneRsz.w + zq.x - zoneRsz.w0.x)); zr2.h = Math.max(90, Math.round(zoneRsz.h + zq.y - zoneRsz.w0.y));
+        var ze2 = document.querySelector('.sp-zone[data-zid="' + zr2.id + '"]'); if (ze2) { ze2.style.width = zr2.w + 'px'; ze2.style.height = zr2.h + 'px'; }
+        return;
+      }
       if (resizing) {
         var rn2 = nodeById(resizing.id);
         if (rn2) {
@@ -11578,20 +11911,20 @@ const SynPro = (() => {
         return;
       }
       if (dragging) {
+        var w = clientToWorld(e.clientX, e.clientY), ddx = w.x - dragging.w0.x, ddy = w.y - dragging.w0.y;
+        if (!dragging.moved && Math.abs(ddx) + Math.abs(ddy) < 1) return;
         dragging.moved = true;
-        var n = nodeById(dragging.id);
-        var el = document.querySelector('.sp-node[data-id="' + dragging.id + '"]');
-        if (n && el) {
-          var w = clientToWorld(e.clientX, e.clientY);
-          /* No clamp : the canvas extends in both directions ; user can
-             freely place elements anywhere, including negative coords
-             (visible when zoomed out or panned). */
-          n.x = Math.round(w.x - dragging.ox);
-          n.y = Math.round(w.y - dragging.oy);
-          el.style.left = n.x + 'px';
-          el.style.top = n.y + 'px';
-          _renderEdges();
-        }
+        /* No clamp : the canvas extends in both directions ; user can
+           freely place elements anywhere, including negative coords
+           (visible when zoomed out or panned). Tout le groupe sélectionné suit. */
+        dragging.starts.forEach(function(s){
+          var m = nodeById(s.id); if (!m) return;
+          m.x = Math.round(s.x + ddx); m.y = Math.round(s.y + ddy);
+          var me = document.querySelector('.sp-node[data-id="' + s.id + '"]');
+          if (me) { me.style.left = m.x + 'px'; me.style.top = m.y + 'px'; }
+        });
+        _moveWps(dragging.wps, ddx, ddy);
+        _renderEdges();
         return;
       }
       if (!panning) return;
@@ -11638,8 +11971,13 @@ const SynPro = (() => {
         return;
       }
       if (resizing) { scheduleSave(); resizing = null; _renderInspector(); return; }
+      if (lasso) { lasso = null; _renderLasso(); _renderEdges(); _renderInspector(); return; }
+      if (zoneDrag) { if (zoneDrag.moved) scheduleSave(); zoneDrag = null; _renderInspector(); return; }
+      if (zoneRsz) { if (zoneRsz.moved) scheduleSave(); zoneRsz = null; _renderInspector(); return; }
       if (dragging) {
         if (dragging.moved) scheduleSave();
+        /* Clic simple sur un équipement d'une sélection multiple : on ne garde que lui */
+        else if (dragging.collapse && !e.shiftKey) { _setSel([dragging.id]); _paintSel(); }
         dragging = null;
         /* Now that the drag is done, refresh inspector for the selected node */
         _renderInspector();
@@ -11655,6 +11993,9 @@ const SynPro = (() => {
       if (endDrag) { endDrag = null; vp.classList.remove('sp-linking'); _setTargetHint(null); _renderEdges(); }
       if (linkDraw && linkDraw.mode === 'drag') { linkDraw.mode = 'click'; _updateBanner(); }
       if (resizing) { scheduleSave(); resizing = null; _renderInspector(); }
+      if (lasso) { lasso = null; _renderLasso(); _renderInspector(); }
+      if (zoneDrag) { if (zoneDrag.moved) scheduleSave(); zoneDrag = null; }
+      if (zoneRsz) { if (zoneRsz.moved) scheduleSave(); zoneRsz = null; }
       if (dragging) {
         if (dragging.moved) scheduleSave();
         dragging = null;
@@ -11668,7 +12009,7 @@ const SynPro = (() => {
        clean up so the next click can be processed normally. */
     vp.addEventListener('lostpointercapture', function(){
       /* pointerup a déjà tout rangé dans le cas normal ; ici on ne rattrape que les gestes restés ouverts */
-      if (wpDrag || labelDrag || endDrag || resizing || dragging || panning || (linkDraw && linkDraw.mode === 'drag')) _abortGestures();
+      if (wpDrag || labelDrag || endDrag || resizing || dragging || panning || lasso || zoneDrag || zoneRsz || (linkDraw && linkDraw.mode === 'drag')) _abortGestures();
     });
 
     /* Document-level failsafe : if vp.pointerup never fires (e.g. release
@@ -11699,7 +12040,7 @@ const SynPro = (() => {
         return;
       }
       var ne = e.target.closest('.sp-node');
-      if (ne) { selected = { kind:'node', id: ne.dataset.id }; _renderInspector(); return; }
+      if (ne) { _setSel([ne.dataset.id]); _paintSel(); _renderInspector(); return; }
       var ee = e.target.closest('.sp-edge-hit,.sp-edge');
       if (ee) {
         e.preventDefault(); e.stopPropagation();
@@ -11730,11 +12071,19 @@ const SynPro = (() => {
       if (ne) {
         e.preventDefault(); e.stopPropagation();
         var nid = ne.dataset.id;
-        selected = { kind:'node', id:nid };
-        document.querySelectorAll('.sp-node').forEach(function(el){ el.classList.toggle('sel', el.dataset.id === nid); });
+        if (!_isSel(nid)) _setSel([nid]);
+        _paintSel();
         render();
         _showNodeCtxMenu(nid, e.clientX, e.clientY);
       }
+    });
+
+    /* Légende : un clic isole un réseau (les autres liaisons et les équipements hors réseau s'estompent) */
+    $('sp-legend')?.addEventListener('click', function(e){
+      var b = e.target.closest('[data-net]'); if (!b) return;
+      var id = b.dataset.net;
+      netOnly = (!id || netOnly === id) ? null : id;
+      _renderNodes(); _renderEdges(); _renderLegend();
     });
 
     /* Toolbar buttons */
@@ -11787,7 +12136,8 @@ const SynPro = (() => {
       var k = (e.key || '').toLowerCase();
       if (k === 'c') { if (copySelectedNode()) e.preventDefault(); }
       else if (k === 'v') { if (_synClip) { pasteNode(); e.preventDefault(); } }
-      else if (k === 'd') { if (selected.kind === 'node') { duplicateSelectedNode(); e.preventDefault(); } }
+      else if (k === 'd') { if (selected.kind === 'node' || selected.kind === 'multi') { duplicateSelectedNode(); e.preventDefault(); } }
+      else if (k === 'a') { if (state && state.nodes.length) { selectAll(); e.preventDefault(); } }
     });
 
     /* Editable header texts (in canvas header) */
@@ -11809,6 +12159,7 @@ const SynPro = (() => {
       if (e.key === 'Escape') {
         if (linkDraw || activeCable || endDrag) { cancelCable(); e.preventDefault(); return; }
         if (!typing && selected.kind === 'cable') { selected = { kind:null, id:null }; selWp = null; render(); }
+        else if (!typing && (selected.kind === 'multi' || selected.kind === 'zone' || selected.kind === 'node')) { _setSel([]); _paintSel(); _renderEdges(); _renderInspector(); }
         return;
       }
       if (typing) return;
@@ -11816,6 +12167,8 @@ const SynPro = (() => {
         if (linkDraw.pts.length) { linkDraw.pts.pop(); _renderOverlay(); _updateBanner(); }
         e.preventDefault(); return;
       }
+      if ((e.key === 'Delete' || e.key === 'Backspace') && (selected.kind === 'multi' || selected.kind === 'node')) { deleteNodes(_selIds()); e.preventDefault(); return; }
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selected.kind === 'zone') { deleteZone(selected.id); e.preventDefault(); return; }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selected.kind === 'cable') {
         if (selWp && selWp.cid === selected.id) { _synDelWp(selWp.cid, selWp.idx); _renderInspector(); }
         else deleteCable(selected.id);
@@ -11849,7 +12202,7 @@ const SynPro = (() => {
 
   function fitView() {
     var vp = $('sp-viewport');
-    if (!vp || (!state.nodes.length && !_hasBg())) { view = { zoom:1, panX:0, panY:0 }; render(); return; }
+    if (!vp || (!state.nodes.length && !_hasBg() && !(state.zones || []).length)) { view = { zoom:1, panX:0, panY:0 }; render(); return; }
     var r = vp.getBoundingClientRect();
     var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     var bgr = _bgRect();
@@ -11858,6 +12211,9 @@ const SynPro = (() => {
       var sp = spec(n.type) || { w:140, h:100 };
       minX = Math.min(minX, n.x); minY = Math.min(minY, n.y);
       maxX = Math.max(maxX, n.x + sp.w); maxY = Math.max(maxY, n.y + sp.h);
+    });
+    (state.zones || []).forEach(function(z){
+      minX = Math.min(minX, z.x); minY = Math.min(minY, z.y - 14); maxX = Math.max(maxX, z.x + z.w); maxY = Math.max(maxY, z.y + z.h);
     });
     var pad = 40;
     var bw = maxX - minX + pad*2;
@@ -12008,6 +12364,8 @@ const SynPro = (() => {
       var ns = _nodeSize(n);
       return ns.io.length ? SynIO.portPos(ns.io, pid, { x:n.x, y:n.y, w:ns.w, h:ns.h }, ns.head, toward) : null;
     }
+    /* ── Zones : cadre teinté et étiquette, sous tout le reste ── */
+    svg += _zonesSvg(state.zones, ox, oy + headH);
     /* ── Liaisons : même moteur de tracé que l'éditeur ── */
     var geoE = SynRoute.layout(state.cables, boxExport, { defRoute:'straight', portOf:portExport });
     svg += '<g transform="translate(' + ox + ',' + (oy + headH) + ')">';
@@ -12090,6 +12448,9 @@ const SynPro = (() => {
           svg += '<text x="' + (x+w/2) + '" y="' + (y+h-6+i*10) + '" text-anchor="middle" font-family="Archivo,sans-serif" font-size="9" fill="#1c2433" fill-opacity=".6">' + esc(sl) + '</text>';
         });
       }
+      /* Adresse IP, VLAN, rôle : sous la carte */
+      var ipE = _netTxt(n.net);
+      if (ipE) svg += '<text x="' + (x+w/2) + '" y="' + (y+nsE.h+13) + '" text-anchor="middle" font-family="DM Mono,monospace" font-size="9.5" font-weight="500" fill="#1c2433" fill-opacity=".72">' + esc(ipE) + '</text>';
     });
 
     /* ── Legend (noms de câbles / réseaux) — toujours conservée ── */
@@ -12108,6 +12469,59 @@ const SynPro = (() => {
     }
     svg += '</svg>';
     return { svg: svg, w: fullW, h: fullH };
+  }
+
+  /* Zones en SVG (export, PDF) : cadre pointillé teinté et étiquette pleine */
+  function _zonesSvg(zones, ox, oy) {
+    var s = '';
+    (zones || []).forEach(function(z){
+      var c = _safeColor(z.color) || '#64748b', x = z.x + ox, y = z.y + oy, lbl = String(z.label || 'Zone');
+      var lw = Math.min(z.w - 16, lbl.length * 6.9 + 22);
+      s += '<rect x="' + x + '" y="' + y + '" width="' + z.w + '" height="' + z.h + '" rx="14" fill="' + c + '" fill-opacity=".055" stroke="' + c + '" stroke-opacity=".6" stroke-width="1.5" stroke-dasharray="7 5"/>';
+      s += '<rect x="' + (x + 14) + '" y="' + (y - 11) + '" width="' + lw + '" height="22" rx="11" fill="' + c + '"/>';
+      s += '<text x="' + (x + 14 + lw / 2) + '" y="' + (y + 4) + '" text-anchor="middle" font-family="Archivo,sans-serif" font-size="11.5" font-weight="700" fill="#ffffff">' + esc(lbl) + '</text>';
+    });
+    return s;
+  }
+
+  /* ── Adresses IP : liste à l'écran, copie, CSV ── */
+  function _ipRows() {
+    return state.nodes.filter(function(n){ return n.net && (n.net.ip || n.net.vlan || n.net.fw); }).map(function(n){
+      return { n:n, name:String(n.label || (spec(n.type) || {}).label || '').replace(/\s*\n\s*/g, ' '), ip:n.net.ip || '', mask:n.net.mask || '', vlan:n.net.vlan || '', fw:n.net.fw || '', role:ROLE_TXT[n.net.role] || '' };
+    }).sort(function(a, b){ return _ipNum(a.ip) - _ipNum(b.ip) || a.name.localeCompare(b.name); });
+  }
+  function ipList() { return _ipRows().map(function(r){ return { name:r.name, ip:r.ip, mask:r.mask, vlan:r.vlan, fw:r.fw, role:r.role }; }); }
+  function openIpList() {
+    var rows = _ipRows(), seen = {}, dup = {};
+    rows.forEach(function(r){ if (r.ip) { if (seen[r.ip]) dup[r.ip] = 1; seen[r.ip] = 1; } });
+    var m = $('sp-ip-modal');
+    if (!m) { m = document.createElement('div'); m.id = 'sp-ip-modal'; m.className = 'modal-ov'; m.addEventListener('click', function(e){ if (e.target === m) m.classList.remove('show'); }); document.body.appendChild(m); }
+    var nDup = Object.keys(dup).length, bad = rows.filter(function(r){ return r.ip && !_ipOk(r.ip); }).length;
+    m.innerHTML = '<div class="modal-box sp-ip-box"><div class="modal-head"><span class="modal-title">Adresses IP</span><button class="modal-close" onclick="document.getElementById(\'sp-ip-modal\').classList.remove(\'show\')" aria-label="Fermer"><i class="ti ti-x"></i></button></div><div class="modal-body">' +
+      (rows.length
+        ? ((nDup || bad) ? '<div class="sp-ip-warn"><i class="ti ti-alert-triangle"></i>' + [nDup ? nDup + ' adresse' + (nDup > 1 ? 's' : '') + ' en double' : '', bad ? bad + ' adresse' + (bad > 1 ? 's' : '') + ' incomplète' + (bad > 1 ? 's' : '') : ''].filter(Boolean).join(' · ') + '</div>' : '') +
+          '<div class="sp-ip-wrap"><table class="sp-ip-t"><thead><tr><th>Équipement</th><th>Adresse IP</th><th>Masque</th><th>VLAN</th><th>Firmware</th><th>Rôle</th></tr></thead><tbody>' +
+          rows.map(function(r){ var cls = dup[r.ip] ? ' class="dup"' : (r.ip && !_ipOk(r.ip) ? ' class="bad"' : '');
+            return '<tr' + cls + ' data-id="' + esc(r.n.id) + '"><td>' + esc(r.name) + '</td><td class="mono">' + esc(r.ip || '—') + '</td><td class="mono">' + esc(r.mask) + '</td><td class="mono">' + esc(r.vlan) + '</td><td>' + esc(r.fw) + '</td><td>' + esc(r.role) + '</td></tr>'; }).join('') +
+          '</tbody></table></div><p class="sp-ip-note">Cliquez une ligne pour retrouver l\'équipement sur le synoptique. La liste figure aussi dans le PDF du synoptique.</p>'
+        : '<div class="sp-ip-empty"><i class="ti ti-network"></i><b>Aucune adresse pour l\'instant</b><span>Sélectionnez un équipement et ouvrez « Réseau » dans ses propriétés : adresse IP, masque, VLAN, firmware, primaire ou secondaire.</span></div>') +
+      '</div>' + (rows.length ? '<div class="modal-foot"><button class="btn" type="button" id="sp-ip-copy"><i class="ti ti-copy"></i>Copier</button><button class="btn pri" type="button" id="sp-ip-csv"><i class="ti ti-download"></i>Exporter (CSV)</button></div>' : '') + '</div>';
+    m.classList.add('show');
+    var tsv = function(sep){ var q = function(v){ v = String(v || ''); return sep === ';' && /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+      return [['Équipement', 'Adresse IP', 'Masque', 'VLAN', 'Firmware', 'Rôle']].concat(rows.map(function(r){ return [r.name, r.ip, r.mask, r.vlan, r.fw, r.role]; })).map(function(l){ return l.map(q).join(sep); }).join('\n'); };
+    $('sp-ip-copy')?.addEventListener('click', function(){ try { navigator.clipboard.writeText(tsv('\t')).then(function(){ toast('Liste copiée : collez-la dans un tableur'); }); } catch(e) {} });
+    $('sp-ip-csv')?.addEventListener('click', function(){
+      var blob = new Blob(['\ufeff' + tsv(';')], { type:'text/csv;charset=utf-8' }), a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = ((state.title || 'synoptique').replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'synoptique') + '-adresses-ip.csv';
+      document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    });
+    m.querySelectorAll('tr[data-id]').forEach(function(tr){ tr.addEventListener('click', function(){
+      var n = nodeById(tr.dataset.id); if (!n) return;
+      m.classList.remove('show'); _setSel([n.id]);
+      var vp = $('sp-viewport'), r = vp ? vp.getBoundingClientRect() : null, s = _nodeSize(n);
+      if (r) { view.zoom = Math.max(view.zoom, 0.9); view.panX = r.width / 2 - (n.x + s.w / 2) * view.zoom; view.panY = r.height / 2 - (n.y + s.h / 2) * view.zoom; }
+      render();
+    }); });
   }
 
   /* ── SVG → Canvas (Promise) ── */
@@ -12384,7 +12798,7 @@ const SynPro = (() => {
      mode 'replace' vide d'abord le plan ; 'append' ajoute le lot sous l'existant. */
   function importDiagram(plan, mode){
     if (!loaded || !state || !plan || !Array.isArray(plan.nodes) || !plan.nodes.length) return false;
-    if (mode === 'replace') { state.nodes = []; state.cables = []; }
+    if (mode === 'replace') { state.nodes = []; state.cables = []; state.zones = []; }
     var minX = Infinity, minY = Infinity;
     plan.nodes.forEach(function(n){ minX = Math.min(minX, n.x); minY = Math.min(minY, n.y); });
     var dx = 60 - minX, dy = 60 - minY;
@@ -12411,7 +12825,13 @@ const SynPro = (() => {
                 label:String(p.label || sp.label || '').slice(0, 60), sub:String(p.sub || '').slice(0, 80), iconSvg:sp.icon || '' };
       if (Array.isArray(p.io)) n.io = SynIO.clean(p.io);
       if (p.showIo) n.showIo = true;
+      if (p.ip && _ipOk(p.ip)) n.net = { ip:String(p.ip).trim() };
       state.nodes.push(n);
+    });
+    if (!state.zones) state.zones = [];
+    (plan.zones || []).forEach(function(z){
+      state.zones.push({ id:fresh(), label:String(z.label || 'Zone').slice(0, 40), x:Math.round(z.x + dx), y:Math.round(z.y + dy),
+                         w:Math.max(160, Math.round(z.w)), h:Math.max(90, Math.round(z.h)), color:_safeColor(z.color) || ZONE_COLORS[state.zones.length % ZONE_COLORS.length] });
     });
     plan.cables.forEach(function(p){
       var net = netMap[p.network] || p.network;
@@ -12442,7 +12862,7 @@ const SynPro = (() => {
     setTimeout(fitView, 80);
     return true;
   }
-  return { libDef:function(t){ return LIB.find(function(d){ return d.type===t; })||null; }, init, show, render, resetLoaded, isLoaded, getData, setData, cancelCable, _saveNow, buildExportSvg: _buildExportSvg, specSize, specIo, importDiagram, openExport: _openPdfMetaModal, exportPng: _exportPng, exportSvg: _exportSvg, setSceneId, setSceneData, loadSceneDirect, getIconByType, uploadNodeIcon, clearNodeIcon, adjImgPx,
+  return { libDef:function(t){ return LIB.find(function(d){ return d.type===t; })||null; }, libList:function(){ return LIB.slice(); }, openIpList, ipList, zonesSvg:_zonesSvg, addZone, init, show, render, resetLoaded, isLoaded, getData, setData, cancelCable, _saveNow, buildExportSvg: _buildExportSvg, specSize, specIo, importDiagram, openExport: _openPdfMetaModal, exportPng: _exportPng, exportSvg: _exportSvg, setSceneId, setSceneData, loadSceneDirect, getIconByType, uploadNodeIcon, clearNodeIcon, adjImgPx,
            loadBg, setBgOpacity, setBgRotation, rotateBg, scaleBg, toggleBgEdit, clearBg };
 })();
 
@@ -12698,7 +13118,7 @@ const LinusImport = (function(){
     });
     amps.forEach(function(a){
       nodes.push({ key:a.key, type:ampNodeType(a.model),
-                   x:a.x, y:a.y, label:a.label, sub:[a.ip, KIND[a.kind].txt].filter(Boolean).join(' · '), io:a.io, showIo:true });
+                   x:a.x, y:a.y, label:a.label, sub:[/^\d+\.\d+\.\d+\.\d+$/.test(a.ip || '') ? '' : a.ip, KIND[a.kind].txt].filter(Boolean).join(' · '), ip:a.ip, io:a.io, showIo:true });
       /* Liaisons HP : un tronc vertical par câble, décalé pour qu'ils ne se croisent pas */
       var links = a.outs.map(function(o, i){ return o.unit ? { o:o, u:o.unit, py:a.y + AMP_HEAD + PAD + i * ROW + ROW / 2, cy:o.unit.y + o.unit.size.h / 2 + 10 } : null; }).filter(Boolean);
       var ups = links.filter(function(l){ return l.cy < l.py - 8; }), downs = links.filter(function(l){ return l.cy > l.py + 8; });
@@ -12824,6 +13244,265 @@ window.LinusImport = LinusImport;
 //     formats fermés ; un tableau (CSV, ou collé depuis Excel / Numbers) décrit amplis, canaux et enceintes.
 // Les trois produisent le même modèle, mis en page par LinusImport.layout.
 // ══════════════════════════════════════
+/* ══════════════════════════════════════════════════════════════════
+   SYNOPTIQUE CRÉÉ DEPUIS LE SHOW
+   Ne reprend que ce que le show sait vraiment, et le dit :
+   · console et stageboxes : plan de site et racks (modèle reconnu dans la bibliothèque), sinon génériques
+   · nombre de voies : la plus grande input list du show
+   · HF : onglet RF (modèles et nombre de liaisons), sinon la colonne HF de l'input list
+   · retours, ears, façade, subs, fills : output list (et plan de site s'il en dit plus)
+   · amplis, processeurs, switchs : racks et plan de site
+   · lecture : voies click / séquences de l'input list
+   Rien n'est inventé : un modèle inconnu reste « générique, à préciser ». Chaque équipement est rangé dans
+   sa zone (Régie FOH, Plateau, Retours, Diffusion) et relié par le type de liaison de sa famille.
+   ══════════════════════════════════════════════════════════════════ */
+const SynFromShow = (function(){
+  var esc = function(s){ return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+  var NETS = { dante:['Dante','#1d9bf0'], aes50:['AES50','#a855f7'], madi:['MADI','#fbbf24'], avb:['AVB','#22d3ee'], gigaace:['gigaACE','#ea8a3b'],
+               dxlink:['DX-Link','#5db865'], dsnake:['dSNAKE','#84cc16'], twinlane:['TWINLANe','#06b6d4'], xlr:['XLR','#94a3b8'], speakon:['Speakon NL4','#dc2626'] };
+  var ZC = { foh:'#1d9bf0', stage:'#22c55e', mon:'#eab308', pa:'#ff6b1a' };
+  var cur = null;
+  function norm(s){ return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, ''); }
+  function pl(n, one, many){ return n + ' ' + (n > 1 ? (many || one + 's') : one); }
+
+  /* Modèle de la bibliothèque cité dans un texte libre (« 2x LA12X », « DL32 jardin ») : le nom le plus long gagne */
+  function libMatch(text, prefixes){
+    var tx = norm(text); if (tx.length < 2) return null;
+    var best = null, bl = 0;
+    SynPro.libList().forEach(function(it){
+      if (prefixes && !prefixes.some(function(p){ return it.type.indexOf(p) === 0; })) return;
+      if (/ancien|generi/i.test(it.label)) return;
+      var l = norm(it.label); if (l.length < 2) return;
+      if (tx.indexOf(l) >= 0 && l.length > bl) { best = it; bl = l.length; }
+    });
+    return best;
+  }
+  /* Liaison console ↔ stagebox selon la famille du matériel */
+  function proto(type){
+    var t = String(type || '');
+    if (/mid-|beh-/.test(t)) return 'aes50';
+    if (/dlive-dm|dlive-s|dlive-c/.test(t)) return 'gigaace';
+    if (/dx168|dx32|ah-avantis|\.sq\d/.test(t)) return 'dxlink';
+    if (/ar2412|ar84|\.qu\d/.test(t)) return 'dsnake';
+    if (/rpio|rivage/.test(t)) return 'twinlane';
+    if (/yam-|\.cl5/.test(t)) return 'dante';
+    if (/dig-|sc-|ssl-/.test(t)) return 'madi';
+    if (/av-/.test(t)) return 'avb';
+    return '';
+  }
+  function ampNet(type){ var t = String(type || ''); if (/la12x/.test(t)) return 'avb'; if (/linus14|ps-x|lab-gruppen/.test(t)) return 'dante'; return 'xlr'; }
+
+  /* ── Ce que le show contient ── */
+  function gather(){
+    var S = (typeof CUR_SHOW !== 'undefined' && CUR_SHOW) || {}, sd = S.stage_data || {}, src = {};
+    var G = { consoles:[], boxes:[], amps:[], procs:[], sws:[], hf:null, iem:null, ch:0, pb:0, wedge:0, side:0, mains:[], subs:0, fills:{}, src:src };
+    /* Racks */
+    var racks = []; try { racks = _rkClean(sd.racks); } catch(e) {}
+    var take = function(list, it, from){ var k = it.type + '|' + it.label; var f = list.filter(function(x){ return x.k === k; })[0]; if (f) { f.n++; return; } list.push({ k:k, type:it.type, label:it.label, n:1, from:from }); };
+    racks.forEach(function(r){ r.items.forEach(function(i){
+      var txt = i.n + ' ' + (i.lbl || '');
+      if (i.kind === 'amp') { var a = libMatch(txt, ['amp.']); take(G.amps, a || { type:'amp.generic', label:i.n }, 'racks'); }
+      else if (i.kind === 'io') { var b = libMatch(txt, ['rack.', 'io.']); take(G.boxes, b || { type:'io.stagebox', label:i.n }, 'racks'); }
+      else if (i.kind === 'proc') take(G.procs, { type:'rack.generic', label:i.n }, 'racks');
+      else if (i.kind === 'sw') take(G.sws, { type:'net.switch', label:i.n }, 'racks');
+      else { var c = libMatch(txt, ['console.']); if (c) take(G.consoles, c, 'racks'); }
+    }); });
+    /* Plan de site */
+    var site = null;
+    try { site = (typeof SitePlan !== 'undefined' && SitePlan.hasContent && SitePlan.hasContent()) ? SitePlan.getData() : sd.site; } catch(e) { site = sd.site; }
+    var els = (site && Array.isArray(site.elements)) ? site.elements : [], siteMon = false, siteSpk = {};
+    els.forEach(function(el){
+      var ty = String(el.type || ''), lb = String(el.label || '');
+      if (ty === 'console_foh' || ty === 'console_mon' || ty === 'regie_mon') {
+        if (ty !== 'console_foh') siteMon = true;
+        if (ty !== 'regie_mon') { var c = libMatch(lb, ['console.']); G.consoles.push({ type:c ? c.type : 'console.generic', label:c ? c.label : '', n:1, from:'site', mon:ty === 'console_mon' }); }
+      }
+      else if (ty === 'stagebox' && !G.boxes.some(function(b){ return b.from === 'racks'; })) { var b = libMatch(lb, ['rack.', 'io.']); take(G.boxes, b || { type:'io.stagebox', label:'Stagebox' }, 'site'); }
+      else if (/^linus/.test(ty) && !G.amps.some(function(a){ return a.from === 'racks'; })) { var a = SynPro.libDef('amp.' + ty.replace('linuscon', 'linus14').replace('linus14d', 'linus14').replace('linus12c', 'linus12')); if (a) take(G.amps, a, 'site'); }
+      else if ((ty === 'sw_dante' || /^lmx/.test(ty)) && !G.sws.length) take(G.sws, { type:'net.switch', label:lb || 'Switch' }, 'site');
+      else if (/^(main_array|sub|frontfill|delay|wedge|iem_tx)$/.test(ty)) siteSpk[ty] = (siteSpk[ty] || 0) + 1;
+    });
+    /* Consoles : une seule console de face par défaut ; la seconde est celle des retours */
+    G.consoles.sort(function(a, b){ return (a.mon ? 1 : 0) - (b.mon ? 1 : 0); });
+    if (G.consoles.length) src.console = G.consoles[0].from === 'site' ? 'plan de site' : 'racks';
+    G.monDesk = siteMon || G.consoles.length > 1;
+    if (G.boxes.length) src.boxes = G.boxes[0].from === 'racks' ? 'racks' : 'plan de site';
+    if (G.amps.length) src.amps = G.amps[0].from === 'racks' ? 'racks' : 'plan de site';
+    /* Voies : la plus grande input list (festival : la plus chargée) */
+    var chs = (typeof ALL_CHS !== 'undefined' && ALL_CHS && ALL_CHS.length) ? ALL_CHS : ((typeof CHS !== 'undefined' && CHS) || []);
+    var byP = {}, hfP = {}, pbP = {};
+    chs.forEach(function(c){
+      var p = c.patch_id || 'main'; byP[p] = (byP[p] || 0) + 1;
+      if (c.custom_data && String(c.custom_data._hf || '').trim()) hfP[p] = (hfP[p] || 0) + 1;
+      if (typeof _instrGroup === 'function' && _instrGroup(c) === 'track') pbP[p] = (pbP[p] || 0) + 1;
+    });
+    var mx = function(o){ return Object.keys(o).reduce(function(m, k){ return Math.max(m, o[k]); }, 0); };
+    G.ch = mx(byP); G.pb = mx(pbP);
+    if (G.ch) src.ch = 'input list';
+    /* HF : l'onglet RF d'abord (modèles), sinon la colonne HF */
+    var rf = null;
+    try { rf = (typeof RF !== 'undefined' && RF.data && RF.showId === S.id) ? RF.data : (typeof _rfClean === 'function' ? _rfClean(sd.rf) : null); } catch(e) { rf = null; }
+    var grp = function(kind){
+      var list = (rf && rf.ch || []).filter(function(c){ return c.kind === kind; }); if (!list.length) return null;
+      var by = {}; list.forEach(function(c){ var m = String(c.mdl || '').trim() || 'Liaison HF'; by[m] = (by[m] || 0) + 1; });
+      return { n:list.length, models:Object.keys(by).sort(function(a, b){ return by[b] - by[a]; }).map(function(m){ return by[m] + ' × ' + m; }) };
+    };
+    G.hf = grp('mic'); G.iem = grp('iem');
+    if (G.hf || G.iem) src.hf = 'onglet RF';
+    if (!G.hf && mx(hfP)) { G.hf = { n:mx(hfP), models:[] }; src.hf = 'colonne HF de l\'input list'; }
+    /* Sorties : output list (la plus fournie par type, toutes listes confondues) */
+    var outs = (typeof OUT_DATA !== 'undefined' && OUT_DATA) || S.out_data || {};
+    var per = {}, mains = {};
+    Object.keys(outs).forEach(function(p){
+      var cnt = {};
+      (Array.isArray(outs[p]) ? outs[p] : []).forEach(function(o){
+        var nm = norm((o.long_name || '') + ' ' + (o.short_name || '')), ty = o.type || 'other', k = ty;
+        if (/side/.test(nm)) k = 'side';
+        else if (/front|^ff|ffill/.test(nm)) k = 'front';
+        else if (/delay|tour/.test(nm)) k = 'delay';
+        else if (/outfill|^of/.test(nm)) k = 'outfill';
+        else if (ty === 'main') mains[String(o.short_name || o.long_name || '').trim()] = 1;
+        cnt[k] = (cnt[k] || 0) + 1;
+      });
+      Object.keys(cnt).forEach(function(k){ per[k] = Math.max(per[k] || 0, cnt[k]); });
+    });
+    G.wedge = per.mon || 0; G.side = per.side || 0; G.subs = per.sub || 0;
+    if (!G.iem && per.iem) G.iem = { n:per.iem, models:[] };
+    G.main = per.main || 0; G.mains = Object.keys(mains).filter(Boolean).slice(0, 4);
+    ['front', 'delay', 'outfill'].forEach(function(k){ if (per[k]) G.fills[k] = per[k]; });
+    if (per.mon || per.iem || per.main || per.sub) src.outs = 'output list';
+    if (!per.main && siteSpk.main_array) { G.main = siteSpk.main_array; src.outs = src.outs || 'plan de site'; }
+    if (!per.sub && siteSpk.sub) G.subs = siteSpk.sub;
+    if (!G.fills.front && siteSpk.frontfill) G.fills.front = siteSpk.frontfill;
+    if (!G.fills.delay && siteSpk.delay) G.fills.delay = siteSpk.delay;
+    if (!G.wedge && siteSpk.wedge) G.wedge = siteSpk.wedge;
+    return G;
+  }
+
+  /* ── Le plan : équipements, liaisons, zones ── */
+  function build(G){
+    var P = { nodes:[], cables:[], zones:[], networks:[] }, used = {}, zoneOf = {};
+    var size = function(type){ var d = SynPro.libDef(type) || {}; return { w:d.w || 150, h:d.h || 100 }; };
+    var node = function(key, type, x, y, label, sub, zone){ P.nodes.push({ key:key, type:type, x:x, y:y, label:label, sub:sub || '' }); zoneOf[key] = zone; var s = size(type); return y + s.h; };
+    var link = function(a, b, net, label, dir){ if (!net) net = 'xlr'; used[net] = 1; P.cables.push({ from:a, to:b, network:net, label:label || '', dir:dir || 'forward', route:'ortho' }); };
+    var GAP = 56, X = { foh:80, stage:470, src:830, mon:1190 }, Y0 = 100;
+
+    /* Régie FOH */
+    var foh = G.consoles[0], fohT = foh ? foh.type : 'console.generic';
+    node('foh', fohT, X.foh, Y0, foh && foh.label ? foh.label : 'Console FOH', foh && foh.label ? 'Régie façade' : 'Modèle à préciser', 'foh');
+    /* Plateau : stageboxes */
+    var boxes = [], yb = Y0;
+    G.boxes.forEach(function(b){ for (var i = 0; i < b.n && boxes.length < 4; i++) boxes.push(b); });
+    if (!boxes.length && (G.ch || G.hf || G.wedge)) boxes.push({ type:'io.stagebox', label:'Stagebox' });
+    var rest = G.boxes.reduce(function(s, b){ return s + b.n; }, 0) - boxes.length;
+    boxes.forEach(function(b, i){
+      var k = 'sb' + i, sub = b.type === 'io.stagebox' ? (G.ch ? G.ch + ' voies au plus' : '') : '';
+      if (i === boxes.length - 1 && rest > 0) sub = '+ ' + pl(rest, 'autre');
+      yb = node(k, b.type, X.stage, yb, b.label || 'Stagebox', sub, 'stage') + GAP;
+      var pr = proto(b.type) || proto(fohT);
+      link('foh', k, pr || 'xlr', pr ? '' : 'Multipaire', 'both');
+    });
+    var sb0 = boxes.length ? 'sb0' : 'foh';
+    /* Plateau : sources */
+    var ys = Y0;
+    if (G.hf) { ys = node('hf', 'src.mic', X.src, ys, 'Récepteurs HF', [pl(G.hf.n, 'liaison')].concat(G.hf.models.slice(0, 2)).join('\n'), 'stage') + GAP; link('hf', sb0, 'xlr', G.hf.n + ' × XLR'); }
+    if (G.pb) { ys = node('pb', 'src.computer', X.src, ys, 'Lecture', pl(G.pb, 'voie') + ' · click, séquences', 'stage') + GAP; link('pb', sb0, 'xlr', G.pb + ' × XLR'); }
+    /* Retours */
+    var ym = Y0, monSrc = sb0;
+    if (G.monDesk) {
+      var mon = G.consoles[1] || G.consoles.filter(function(c){ return c.mon; })[0] || null, monT = mon ? mon.type : 'console.generic';
+      ym = node('mon', monT, X.mon, ym, mon && mon.label ? mon.label : 'Console retours', mon && mon.label ? 'Régie retours' : 'Modèle à préciser', 'mon') + GAP;
+      if (boxes.length) { var pm = proto(boxes[0].type) || proto(monT); link('mon', sb0, pm || 'xlr', pm ? 'Split' : 'Split analogique', 'both'); }
+      monSrc = boxes.length ? sb0 : 'mon';
+    }
+    if (G.wedge) { ym = node('wedge', 'spk.wedge', X.mon, ym, 'Retours', pl(G.wedge, 'wedge'), 'mon') + GAP; link(monSrc, 'wedge', 'xlr', G.wedge + ' × XLR'); }
+    if (G.side) { ym = node('side', 'spk.side-fill', X.mon, ym, 'Side fills', pl(G.side, 'sortie'), 'mon') + GAP; link(monSrc, 'side', 'xlr', G.side + ' × XLR'); }
+    if (G.iem) { ym = node('iem', 'src.iem', X.mon, ym, 'Ears', [pl(G.iem.n, 'mix', 'mix')].concat(G.iem.models.slice(0, 2)).join('\n'), 'mon') + GAP; link(monSrc, 'iem', 'xlr', G.iem.n + ' × XLR'); }
+
+    /* Diffusion : sous le reste */
+    var spk = [];
+    if (G.main) spk.push(['main', 'spk.line-top', 'Façade', G.mains.length ? G.mains.join(' / ') : pl(G.main, 'sortie')]);
+    if (G.subs) spk.push(['subs', 'spk.sub', 'Subs', pl(G.subs, 'sortie')]);
+    if (G.fills.front) spk.push(['ff', 'spk.front-fill', 'Front fills', pl(G.fills.front, 'sortie')]);
+    if (G.fills.outfill) spk.push(['of', 'spk.out-fill', 'Out fills', pl(G.fills.outfill, 'sortie')]);
+    if (G.fills.delay) spk.push(['dl', 'spk.delay', 'Delays', pl(G.fills.delay, 'sortie')]);
+    if (spk.length || G.amps.length) {
+      var top = Math.max(yb, ys, ym, Y0 + size(fohT).h + GAP) + 70, yd = top, chain = 'foh';
+      G.procs.slice(0, 2).forEach(function(p, i){ var k = 'proc' + i; node(k, 'rack.generic', X.foh + 30, yd + i * 170, p.label, (p.n > 1 ? p.n + ' × · ' : '') + 'Processeur', 'pa'); link(chain, k, 'xlr', 'AES / analogique'); chain = k; });
+      var ya = top, ampKeys = [];
+      /* Le premier modèle d'ampli reçoit le signal de la régie, les suivants en sont repiqués (link) */
+      G.amps.slice(0, 4).forEach(function(a, i){ var k = 'amp' + i; ya = node(k, a.type, X.stage, ya, a.label, pl(a.n, 'ampli'), 'pa') + GAP;
+        var net = ampNet(a.type); link(i ? ampKeys[i - 1] : chain, k, net, i ? 'Link' : (net === 'xlr' ? 'AES / analogique' : ''), 'forward'); ampKeys.push(k); });
+      if (G.sws.length && ampKeys.length) { var swk = 'sw'; node(swk, 'net.switch', X.foh + 30, Math.max(yd + G.procs.slice(0, 2).length * 170, top), G.sws[0].label || 'Switch', G.sws.reduce(function(s, x){ return s + x.n; }, 0) > 1 ? pl(G.sws.reduce(function(s, x){ return s + x.n; }, 0), 'switch', 'switchs') : 'Réseau de contrôle', 'pa'); link('foh', swk, ampNet(G.amps[0].type) === 'avb' ? 'avb' : 'dante', 'Contrôle', 'both'); }
+      var yk = top;
+      spk.forEach(function(s, i){
+        node(s[0], s[1], X.src, yk, s[2], s[3], 'pa'); yk += size(s[1]).h + GAP;
+        /* Façade et subs sur le premier modèle d'ampli, les renforts sur le second s'il y en a un */
+        var from = ampKeys.length ? ampKeys[(i >= 2 && ampKeys.length > 1) ? 1 : 0] : chain;
+        link(from, s[0], ampKeys.length ? 'speakon' : 'xlr', '', 'forward');
+      });
+    }
+
+    /* Zones autour de leurs équipements */
+    var ZN = { foh:'Régie FOH', stage:'Plateau', mon:'Retours', pa:'Diffusion' };
+    ['foh', 'stage', 'mon', 'pa'].forEach(function(z){
+      var ns = P.nodes.filter(function(n){ return zoneOf[n.key] === z; }); if (!ns.length) return;
+      var b = { x0:Infinity, y0:Infinity, x1:-Infinity, y1:-Infinity };
+      ns.forEach(function(n){ var s = size(n.type); b.x0 = Math.min(b.x0, n.x); b.y0 = Math.min(b.y0, n.y); b.x1 = Math.max(b.x1, n.x + s.w); b.y1 = Math.max(b.y1, n.y + s.h); });
+      P.zones.push({ label:ZN[z], x:b.x0 - 34, y:b.y0 - 46, w:b.x1 - b.x0 + 68, h:b.y1 - b.y0 + 80, color:ZC[z] });
+    });
+    P.networks = Object.keys(used).map(function(k){ return { id:k, name:NETS[k] ? NETS[k][0] : k, color:NETS[k] ? NETS[k][1] : '#5a6a80' }; });
+    return P;
+  }
+
+  /* ── Fenêtre : ce qui a été trouvé, d'où ça vient, puis création ── */
+  function modal(){
+    var m = document.getElementById('sfs-modal');
+    if (!m) { m = document.createElement('div'); m.id = 'sfs-modal'; m.className = 'modal-ov'; m.addEventListener('click', function(e){ if (e.target === m) close(); }); document.body.appendChild(m); }
+    return m;
+  }
+  function close(){ var m = document.getElementById('sfs-modal'); if (m) m.classList.remove('show'); }
+  function open(){
+    if (typeof SynPro === 'undefined' || !SynPro.isLoaded()) return;
+    var G = gather(); cur = G;
+    var rows = [], S = G.src, nm = function(c){ return c && c.label ? c.label : ''; };
+    var row = function(ic, t, d, from, warn){ rows.push('<li' + (warn ? ' class="warn"' : '') + '><i class="ti ' + ic + '"></i><div><b>' + t + '</b><span>' + d + (from ? ' <em>· ' + esc(from) + '</em>' : '') + '</span></div></li>'); };
+    row('ti-device-desktop', 'Régie FOH', G.consoles.length ? esc(nm(G.consoles[0]) || 'Console (modèle à préciser)') : 'Console générique : le modèle n\'est indiqué ni dans les racks ni dans le plan de site', S.console, !G.consoles.length || !nm(G.consoles[0]));
+    if (G.monDesk) row('ti-device-desktop', 'Régie retours', esc(nm(G.consoles[1]) || 'Console retours (modèle à préciser)'), 'plan de site');
+    var nb = G.boxes.reduce(function(s, b){ return s + b.n; }, 0);
+    if (nb) row('ti-box', 'Stageboxes', G.boxes.map(function(b){ return b.n + ' × ' + esc(b.label); }).join(', ') + (G.ch ? ' · ' + pl(G.ch, 'voie') + ' au plus' : ''), S.boxes);
+    else if (G.ch || G.hf || G.wedge) row('ti-box', 'Stagebox', 'Générique' + (G.ch ? ', ' + pl(G.ch, 'voie') + ' au plus (' + esc(S.ch) + ')' : '') + ' : aucun modèle dans les racks', '', true);
+    if (G.hf) row('ti-antenna', 'Récepteurs HF', pl(G.hf.n, 'liaison') + (G.hf.models.length ? ' · ' + esc(G.hf.models.slice(0, 3).join(', ')) : ''), S.hf);
+    if (G.pb) row('ti-player-play', 'Lecture', pl(G.pb, 'voie') + ' click / séquences', 'input list');
+    var ret = [G.wedge ? pl(G.wedge, 'wedge') : '', G.side ? pl(G.side, 'side fill') : '', G.iem ? pl(G.iem.n, 'mix ear', 'mix ears') + (G.iem.models.length ? ' (' + esc(G.iem.models[0]) + ')' : '') : ''].filter(Boolean);
+    if (ret.length) row('ti-headphones', 'Retours', ret.join(' · '), S.outs);
+    var dif = [G.main ? 'façade' + (G.mains.length ? ' ' + esc(G.mains.join(' / ')) : '') : '', G.subs ? 'subs' : '', G.fills.front ? 'front fills' : '', G.fills.outfill ? 'out fills' : '', G.fills.delay ? 'delays' : ''].filter(Boolean);
+    var amps = G.amps.map(function(a){ return a.n + ' × ' + esc(a.label); });
+    if (dif.length || amps.length) row('ti-speakerphone', 'Diffusion', dif.concat(amps).join(' · ') + (G.procs.length ? ' · ' + esc(G.procs.map(function(p){ return p.label; }).join(', ')) : ''), [S.outs, S.amps].filter(Boolean).filter(function(v, i, a){ return a.indexOf(v) === i; }).join(', '));
+    if (G.sws.length && G.amps.length) row('ti-network', 'Réseau', G.sws.map(function(s){ return s.n + ' × ' + esc(s.label); }).join(', '), S.amps || 'racks');
+    var empty = !(G.ch || G.hf || G.wedge || G.iem || G.main || G.subs || G.amps.length || G.boxes.length || G.consoles.length);
+    var has = 0; try { has = (SynPro.getData().nodes || []).length; } catch(e) {}
+    var m = modal();
+    m.innerHTML = '<div class="modal-box sfs-box"><div class="modal-head"><span class="modal-title">Créer le synoptique depuis le show</span><button class="modal-close" onclick="SynFromShow.close()" aria-label="Fermer"><i class="ti ti-x"></i></button></div><div class="modal-body">' +
+      (empty
+        ? '<div class="sfs-empty"><i class="ti ti-list-search"></i><b>Rien à reprendre pour l\'instant</b><span>Remplissez l\'input list, l\'output list, les racks ou le plan de site : le synoptique se dessinera à partir d\'eux.</span></div>'
+        : '<p class="sfs-lead">Seul ce que le show indique est repris. Les équipements sont rangés par zone et reliés ; vous complétez ensuite.</p><ul class="sfs-list">' + rows.join('') + '</ul>' +
+          (has ? '<div class="sfs-mode"><label><input type="radio" name="sfs-mode" value="add" checked><span><b>Ajouter en dessous</b> du synoptique actuel (' + pl(has, 'équipement') + ')</span></label><label><input type="radio" name="sfs-mode" value="replace"><span><b>Remplacer</b> le synoptique actuel</span></label></div>' : '')) +
+      '</div><div class="modal-foot"><button class="btn" type="button" onclick="SynFromShow.close()">' + (empty ? 'Fermer' : 'Annuler') + '</button>' + (empty ? '' : '<button class="btn pri" type="button" onclick="SynFromShow.apply()"><i class="ti ti-sparkles"></i>Créer le synoptique</button>') + '</div></div>';
+    m.classList.add('show');
+  }
+  function apply(){
+    if (!cur) return;
+    var md = document.querySelector('input[name="sfs-mode"]:checked');
+    var mode = md ? md.value : 'replace';
+    if (mode === 'replace') { var has = 0; try { has = (SynPro.getData().nodes || []).length; } catch(e) {} if (has && !confirm('Remplacer le synoptique actuel (' + pl(has, 'équipement') + ') ?')) return; }
+    var ok = SynPro.importDiagram(build(cur), mode);
+    close();
+    toast(ok ? 'Synoptique créé depuis le show : précisez les modèles et les liaisons au besoin' : 'Rien à créer');
+  }
+  return { open:open, close:close, apply:apply, gather:gather, build:build };
+})();
+
 const AmpImport = (function(){
   var L = LinusImport, cur = null;     // { name, src, model }
   var esc = function(s){ return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
@@ -26531,7 +27210,9 @@ function _svFs(imgId, title){
       return {w:on?Math.max(base.w,SynIO.MINW):base.w,h:base.h+(on?SynIO.metrics(ps).h:0),head:base.h,io:on?ps:[]};
     }
     var minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
-    nodes.forEach(function(n){var s=sz(n);minX=Math.min(minX,n.x||0);minY=Math.min(minY,n.y||0);maxX=Math.max(maxX,(n.x||0)+s.w);maxY=Math.max(maxY,(n.y||0)+s.h);});
+    nodes.forEach(function(n){var s=sz(n);minX=Math.min(minX,n.x||0);minY=Math.min(minY,n.y||0);maxX=Math.max(maxX,(n.x||0)+s.w);maxY=Math.max(maxY,(n.y||0)+s.h+(n.net&&n.net.ip?18:0));});
+    var szones=(Array.isArray(synData.zones)?synData.zones:[]).filter(function(z){return z&&isFinite(+z.x)&&isFinite(+z.y)&&+z.w>0&&+z.h>0;});
+    szones.forEach(function(z){minX=Math.min(minX,+z.x);minY=Math.min(minY,+z.y-14);maxX=Math.max(maxX,+z.x+(+z.w));maxY=Math.max(maxY,+z.y+(+z.h));});
     /* Les angles des liaisons peuvent sortir du cadre des équipements */
     cables.forEach(function(c){(c.waypoints||[]).forEach(function(p){if(!p||!isFinite(+p.x)||!isFinite(+p.y))return;minX=Math.min(minX,+p.x);minY=Math.min(minY,+p.y);maxX=Math.max(maxX,+p.x);maxY=Math.max(maxY,+p.y);});});
     var sbgW=0,sbgH=0;
@@ -26562,7 +27243,7 @@ function _svFs(imgId, title){
     edgeDefs+='</defs>';
     var sGeo=SynRoute.layout(cables,function(id){var n=nodeMap[id];if(!n)return null;var s2=sz(n);return{x:+n.x||0,y:+n.y||0,w:s2.w,h:s2.h};},
       {defRoute:'straight',portOf:function(id,pid,toward){var n=nodeMap[id];if(!n)return null;var s2=sz(n);return(s2.io&&s2.io.length)?SynIO.portPos(s2.io,pid,{x:+n.x||0,y:+n.y||0,w:s2.w,h:s2.h},s2.head,toward):null;}});
-    var edgeSvg=edgeDefs+'<g transform="translate('+ox+','+(oy+headH)+')">';
+    var edgeSvg=edgeDefs+((typeof SynPro!=='undefined'&&SynPro.zonesSvg)?SynPro.zonesSvg(szones.map(function(z){return{label:z.label,x:+z.x,y:+z.y,w:+z.w,h:+z.h,color:z.color};}),ox,oy+headH):'')+'<g transform="translate('+ox+','+(oy+headH)+')">';
     cables.forEach(function(c){
       var g=sGeo[c.id];if(!g)return;
       var col=(netMap[c.network]&&_safeColor(netMap[c.network].color))||'#5a6a80';
@@ -26625,6 +27306,9 @@ function _svFs(imgId, title){
         nodeSvg+='<text x="'+(x+w/2)+'" y="'+(y+h-22)+'" text-anchor="middle" font-family="Archivo,sans-serif" font-weight="600" font-size="12" fill="#1c2433">'+esc(n.label||'')+'</text>';
         if(n.sub){var sublines=n.sub.split('\n');sublines.forEach(function(s2,i){nodeSvg+='<text x="'+(x+w/2)+'" y="'+(y+h-8+i*11)+'" text-anchor="middle" font-family="Archivo,sans-serif" font-size="9" fill="#1c2433" fill-opacity=".6">'+esc(s2)+'</text>';});}
         if(s.io&&s.io.length) nodeSvg+=SynIO.svg(s.io,{x:x,y:y,w:w,h:s.h},h,esc);
+        /* Fiche réseau : adresse IP, VLAN, rôle, sous la carte */
+        var _nt=n.net&&typeof n.net==='object'?[n.net.ip,n.net.vlan?'VLAN '+n.net.vlan:'',n.net.role==='pri'?'Primaire':n.net.role==='sec'?'Secondaire':''].filter(Boolean).map(String).join(' · '):'';
+        if(_nt) nodeSvg+='<text x="'+(x+w/2)+'" y="'+(y+s.h+13)+'" text-anchor="middle" font-family="DM Mono,monospace" font-size="9.5" font-weight="500" fill="#1c2433" fill-opacity=".72">'+esc(_nt)+'</text>';
       }
     });
     /* Plus de bandeau titre */
