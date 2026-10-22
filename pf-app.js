@@ -26886,7 +26886,18 @@ function _svFs(imgId, title){
   // ── Pane cache & tab switcher ──
   var _paneCache={};
   /* Festival : rendu à chaque changement de vue ou de jour ; un groupe ouvre sa liste dans le même rider */
-  window._svFest=function(){ var b=document.getElementById('sv-body'); if(b) b.innerHTML=_showMeta+(typeof festSharedHtml==='function'?festSharedHtml(show,_chs,esc):'')+_svFoot('Festival'); };
+  window._svFest=function(){ var b=document.getElementById('sv-body'); if(b) b.innerHTML=_showMeta+(typeof festSharedHtml==='function'?festSharedHtml(show,_chs,esc):'')+_svFoot('Festival'); _svFestFit(); };
+  /* Patch du festival sur ordinateur : quand toutes les colonnes tiennent en largeur, le tableau suit le défilement
+     de la page (en-têtes figés sous la barre) au lieu d'un cadre à faire défiler ; sinon il garde son propre cadre. */
+  function _svFestFit(){
+    requestAnimationFrame(function(){
+      var w=document.querySelector('.fsv-grid .fsg-wrap'), tb=w&&w.querySelector('.fsg'); if(!w||!tb) return;
+      var flow=window.innerWidth>760 && tb.scrollWidth<=w.clientWidth+1;
+      w.classList.toggle('fsv-flow',flow);
+      var bar=document.querySelector('.fsv-bar'); if(bar) w.style.setProperty('--fsv-top',(bar.getBoundingClientRect().height+(parseFloat(getComputedStyle(bar).top)||0))+'px');
+    });
+  }
+  window.addEventListener('resize',function(){ if(_svCurSec==='fest') _svFestFit(); });
   window._svOpenPatch=function(pid,sec){
     CUR_PATCH_ID=pid;
     rows=_allRows.filter(function(r){return (r.patch_id||'main')===CUR_PATCH_ID;});

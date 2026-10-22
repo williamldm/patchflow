@@ -5437,3 +5437,24 @@ html[data-sv-theme="dark"],html[data-sv-theme="dark"] body{background:#0c0e12}
   .sv-tab{height:42px;padding:0 11px}
   .sv-head h1{font-size:22px}
 }
+
+/* Patch du festival dans le rider, sur ordinateur : lignes resserrées (micro sur la même ligne),
+   et, quand tout tient en largeur, défilement avec la page et en-têtes figés sous la barre */
+@media(min-width:761px){
+  #share-view .fsv-grid .fsg td{height:auto;padding:7px 12px}
+  #share-view .fsv-grid .fsg td b{display:inline}
+  #share-view .fsv-grid .fsg td small{display:inline;margin:0 0 0 8px;font-size:11px}
+  #share-view .fsv-grid .fsg td b,#share-view .fsv-grid .fsg td small{white-space:nowrap}
+  #share-view .fsv-grid .fsg td{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #share-view .fsv-grid .fsg thead th{padding-top:9px;padding-bottom:9px}
+  .fsv-grid .fsg-wrap.fsv-flow{max-height:none;overflow:visible}
+  .fsv-grid .fsg-wrap.fsv-flow .fsg thead th{top:var(--fsv-top,153px)}
+  .fsv-grid .fsg-wrap.fsv-flow .fsg thead th:first-child{border-top-left-radius:8px}
+  .fsv-grid .fsg-wrap.fsv-flow .fsg thead th:last-child{border-top-right-radius:8px}
+}
+/* La barre du haut et les onglets ne se tassent plus (la barre perdait la moitié de sa hauteur et laissait
+   passer le contenu entre elle et les onglets au défilement) */
+.sv>.sv-top,.sv>.sv-tabs,.sv>.sv-intro,.sv>.sv-chgb,.sv>.sv-foot{flex-shrink:0}
+/* Barres opaques : le contenu ne transparaît plus derrière les onglets au défilement */
+.sv,.sv[data-theme="light"]{--sv-topbg:var(--sv-bg)}
+.sv-top,.sv-tabs{-webkit-backdrop-filter:none;backdrop-filter:none}
