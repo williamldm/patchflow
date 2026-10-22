@@ -727,14 +727,132 @@ function festShare(){
    Quatre vues (programme, patch des entrées, des sorties, changements de plateau), un filtre par jour,
    « sur scène / ensuite » le jour même. Le patch occupe toute la largeur, en-têtes et voies figés.
    Chaque groupe renvoie à son input list et à son output list dans le même rider. */
-var FSV = { v:'prog', d:'all' };
-function festSv(k, v){ FSV[k] = v; if(typeof window._svFest === 'function') window._svFest(); }
+var FSV = { v:'prog', d:'all', off:0 };
+function festSv(k, v){ FSV[k] = v; if(k === 'v') FSV.picked = true; if(typeof window._svFest === 'function') window._svFest(); }
+
+/* ── Direct (rider partagé) : l'heure de l'appareil dit qui est sur scène, quel changement de plateau
+   arrive et ce qu'il faut toucher. FSV.off décale l'horloge pour un aperçu (« voir la suite »). ── */
+function _fsClock(){ return new Date(Date.now() + (FSV.off || 0)); }
+/* Jour du festival : avant 6 h, on est encore dans la soirée de la veille */
+function _fsFestDay(d){ var x = new Date(d.getTime() - 6 * 3600e3); return x.getFullYear() + '-' + _fsPad(x.getMonth() + 1) + '-' + _fsPad(x.getDate()); }
+function _fsLive(f, d){
+  var day = _fsFestDay(d), now = d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60; if(now < 360) now += 1440;
+  var dated = f.slots.some(function(s){ return s.day; });
+  var list = _fsSorted(f).filter(function(s){ return (dated ? s.day === day : true) && _fsMin(s.start) != null; });
+  var T = list.map(function(s, i){
+    var a = _fsMin(s.start), b = _fsMin(s.end);
+    if(b != null && b <= a) b += 1440;
+    if(b == null){ var n = list[i + 1]; b = n ? _fsMin(n.start) : a + 60; }
+    return { s:s, a:a, b:b };
+  });
+  var L = { day:day, now:now, T:T, cur:-1, next:-1, last:-1, dated:dated };
+  T.forEach(function(t, i){ if(now >= t.a && now < t.b) L.cur = i; if(t.b <= now) L.last = i; if(t.a > now && L.next < 0) L.next = i; });
+  L.phase = !T.length ? 'off' : L.cur >= 0 ? 'show' : (L.next >= 0 && L.last >= 0) ? 'chg' : L.next >= 0 ? 'before' : 'done';
+  return L;
+}
+function _fsIn(m){ m = Math.ceil(m); return m <= 0 ? 'maintenant' : 'dans ' + _fsDur(m); }
+/* En direct, on compare à ce qui est réellement sur scène juste avant (le groupe précédent) ;
+   le patch maître ne sert que pour le premier groupe de la journée */
+function _fsLiveRef(f, L, i){ var s = L.T[i].s; return i > 0 ? (L.T[i - 1].s.pid !== s.pid ? L.T[i - 1].s.pid : null) : (f.cmp === 'house' && f.house && f.house !== s.pid ? f.house : null); }
+function _fsLiveActs(pid){
+  var no = _fsOuts(pid).length;
+  return '<div class="fsv-acts"><button type="button" onclick="window._svOpenPatch&&_svOpenPatch(\'' + _jsq(pid) + '\',\'il\')"><i class="ti ti-list-numbers"></i>Input list</button>'
+    + (no ? '<button type="button" onclick="window._svOpenPatch&&_svOpenPatch(\'' + _jsq(pid) + '\',\'out\')"><i class="ti ti-arrow-bar-to-right"></i>Output list</button>' : '') + '</div>';
+}
+function _fsLiveHtml(f){
+  var E = _fsE, d = _fsClock(), L = _fsLive(f, d), T = L.T, h = '<div class="fsl">';
+  var bar = function(p){ p = Math.max(0, Math.min(1, p)); return '<div class="fsl-bar"><i style="width:' + (p * 100).toFixed(1) + '%"></i></div>'; };
+  h += '<div class="fsl-top"><span class="fsl-on' + (FSV.off ? ' sim' : '') + '"><i></i>' + (FSV.off ? 'Aperçu' : 'En direct') + '</span>'
+    + '<b class="fsl-clock">' + _fsPad(d.getHours()) + ':' + _fsPad(d.getMinutes()) + '</b>'
+    + '<span class="fsl-day">' + E(L.dated ? _fsDayLbl(L.day) : 'Aujourd\'hui') + '</span><span class="sv-grow"></span>'
+    + '<span class="fsl-sim"><button type="button" onclick="festLiveStep(-15)" title="Reculer de 15 minutes">&minus;15 min</button><button type="button" onclick="festLiveStep(15)" title="Avancer de 15 minutes">+15 min</button>'
+    + (FSV.off ? '<button type="button" class="on" onclick="festLiveStep(0)"><i class="ti ti-clock"></i>Heure réelle</button>' : '') + '</span></div>';
+
+  /* Où en est la scène */
+  if(L.phase === 'show'){
+    var c = T[L.cur];
+    h += '<section class="fsl-hero"><span class="fsl-k"><i class="ti ti-microphone-2"></i>Sur scène</span><div class="fsl-n">' + E(_fsName(c.s.pid)) + '</div>'
+      + '<div class="fsl-sub">' + E(c.s.start) + ' – ' + _fsHM(c.b) + ' · fin ' + _fsIn(c.b - L.now) + '</div>' + bar((L.now - c.a) / (c.b - c.a)) + '</section>';
+  } else if(L.phase === 'before'){
+    var b0 = T[L.next];
+    h += '<section class="fsl-hero idle"><span class="fsl-k"><i class="ti ti-hourglass"></i>Avant le premier groupe</span><div class="fsl-n">' + E(_fsName(b0.s.pid)) + '</div>'
+      + '<div class="fsl-sub">à ' + E(b0.s.start) + ' · ' + _fsIn(b0.a - L.now) + '</div></section>';
+  } else if(L.phase === 'done' || L.phase === 'off'){
+    var later = f.days.filter(function(x){ return x > L.day; })[0], earlier = f.days.length && f.days[0] > L.day;
+    var first = later ? _fsSorted(f).filter(function(s){ return s.day === later && _fsMin(s.start) != null; })[0] : null;
+    h += '<section class="fsl-hero idle"><span class="fsl-k"><i class="ti ti-moon"></i>' + (L.phase === 'done' ? 'Fin de la journée' : earlier ? 'Le festival n\'a pas commencé' : later ? 'Pas de groupe aujourd\'hui' : 'Festival terminé') + '</span>'
+      + (L.phase === 'done' ? '<div class="fsl-n">' + E(_fsName(T[T.length - 1].s.pid)) + '</div><div class="fsl-sub">dernier passage, terminé à ' + _fsHM(T[T.length - 1].b) + '</div>' : '')
+      + (later ? '<div class="fsl-sub">Prochain jour : <b>' + E(_fsDayLbl(later)) + '</b>' + (first ? ', ' + E(_fsName(first.pid)) + ' à ' + E(first.start) : '') + '</div>' : '')
+      + (f.days.length ? '<div class="fsl-prev"><span>Voir le direct comme s\'il était l\'heure :</span>' + f.days.map(function(x){ return '<button type="button" onclick="festLiveAt(\'' + _jsq(x) + '\')">' + E(_fsDayLbl(x)) + '</button>'; }).join('') + '</div>' : '') + '</section>';
+  }
+
+  /* Le prochain changement de plateau (ou celui en cours) */
+  if(L.next >= 0){
+    var n = T[L.next], p = L.next > 0 ? T[L.next - 1] : null, r = _fsLiveRef(f, L, L.next), df = r ? _fsDiff(r, n.s.pid) : null;
+    var inChg = L.phase === 'chg', gap = p ? n.a - p.b : null, house = f.cmp === 'house' && f.house;
+    h += '<section class="fsl-chg' + (inChg ? ' live' : '') + '"><div class="fsl-h"><span class="fsl-k"><i class="ti ti-arrows-exchange"></i>' + (inChg ? 'Changement de plateau en cours' : p ? 'Prochain changement de plateau' : 'Installation du premier groupe') + '</span>'
+      + '<span class="fsl-cd">' + (inChg ? E(_fsName(n.s.pid)) + ' sur scène ' : 'commence ') + '<b>' + _fsIn((inChg || !p ? n.a : p.b) - L.now) + '</b></span></div>'
+      + '<div class="fsl-tr">' + (p ? '<span>' + E(_fsName(p.s.pid)) + '</span><i class="ti ti-arrow-right"></i>' : '') + '<b>' + E(_fsName(n.s.pid)) + '</b></div>'
+      + '<div class="fsl-meta">' + (p ? _fsHM(p.b) + ' → ' : '') + E(n.s.start) + (gap != null && gap > 0 ? ' · ' + _fsDur(gap) + ' de changement' : gap != null && gap <= 0 ? ' · enchaîné, sans temps de changement' : '') + (n.s.note ? ' · ' + E(n.s.note) : '') + '</div>'
+      + (inChg && gap > 0 ? bar((L.now - p.b) / gap) : '')
+      + (df ? (house && !p ? '<div class="fsl-ref">Comparé au patch maître (' + E(_fsName(f.house)) + ')</div>' : '') + '<div class="fsv-chips">' + _fsDiffSum(df) + '</div>' + _fsDiffList(df)
+        : '<div class="fs-none">' + _fsChs(n.s.pid).length + ' voies et ' + _fsOuts(n.s.pid).length + ' sorties à installer.</div>')
+      + _fsLiveActs(n.s.pid) + '</section>';
+  }
+
+  /* La suite, puis ce qui est passé */
+  var rows = function(from, to, past){
+    var out = '';
+    for(var i = from; i < to; i++){
+      var t = T[i], r = _fsLiveRef(f, L, i), dd = r ? _fsDiff(r, t.s.pid) : null;
+      out += '<details class="fsl-row' + (past ? ' past' : '') + '" data-k="' + E(t.s.id) + '"><summary><b class="fsl-t">' + E(t.s.start) + '</b><span class="fsl-rn">' + E(_fsName(t.s.pid)) + '</span>'
+        + '<span class="fsl-rc">' + (past ? 'terminé' : _fsIn(t.a - L.now)) + '</span><i class="ti ti-chevron-down fsv-chev"></i></summary>'
+        + '<div class="fsl-rb">' + (dd ? '<div class="fsv-chips">' + _fsDiffSum(dd) + '</div>' + _fsDiffList(dd) : '<div class="fs-none">Premier passage : ' + _fsChs(t.s.pid).length + ' voies à installer.</div>') + _fsLiveActs(t.s.pid) + '</div></details>';
+    }
+    return out;
+  };
+  if(L.next >= 0 && L.next + 1 < T.length) h += '<h3 class="fsl-sec">À suivre <span>' + (T.length - L.next - 1) + '</span></h3>' + rows(L.next + 1, T.length, false);
+  var nPast = L.cur >= 0 ? L.cur : L.next >= 0 ? L.next : (L.phase === 'done' ? T.length : 0);
+  if(nPast) h += '<details class="fsl-past"' + (FSV.pastOpen ? ' open' : '') + ' ontoggle="FSV.pastOpen=this.open"><summary>Déjà passés <span>' + nPast + '</span><i class="ti ti-chevron-down fsv-chev"></i></summary>' + rows(0, nPast, true) + '</details>';
+  return h + '</div>';
+}
+function festLiveStep(m){ FSV.off = m ? (FSV.off || 0) + m * 60000 : 0; FSV._lm = null; if(typeof window._svFest === 'function') window._svFest(); }
+/* Aperçu d'un jour : l'horloge est placée 20 minutes avant le premier groupe */
+function festLiveAt(day){
+  var raw = FSV._f; if(!raw || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return;
+  var first = _fsWith({ fest:raw, chs:[], out:{}, patches:[] }, function(){ return _fsSorted(_fsData()).filter(function(s){ return s.day === day && _fsMin(s.start) != null; })[0]; });
+  var m = first ? _fsMin(first.start) - 20 : 18 * 60, at = new Date(day + 'T00:00:00'); at.setMinutes(m);
+  FSV.off = at.getTime() - Date.now(); FSV._lm = null; if(typeof window._svFest === 'function') window._svFest();
+}
+/* Mise à jour à chaque nouvelle minute, en gardant les lignes ouvertes ; l'écran reste allumé */
+function _fsLiveTick(){
+  var on = FSV.v === 'live' && !!document.querySelector('.fsl');
+  _fsWake(on && !document.hidden);
+  if(!on || document.hidden) return;
+  var d = _fsClock(), k = d.getHours() * 60 + d.getMinutes();
+  if(k === FSV._lm) return;
+  var open = [].map.call(document.querySelectorAll('.fsl-row[open]'), function(x){ return x.getAttribute('data-k'); });
+  if(typeof window._svFest === 'function') window._svFest();
+  open.forEach(function(id){ var x = _fsId(id) && document.querySelector('.fsl-row[data-k="' + id + '"]'); if(x) x.open = true; });
+}
+function _fsWake(on){
+  try {
+    if(on && !FSV._wl && !FSV._wlp && navigator.wakeLock){
+      FSV._wlp = true;
+      navigator.wakeLock.request('screen').then(function(l){ FSV._wl = l; FSV._wlp = false; l.addEventListener('release', function(){ FSV._wl = null; }); }).catch(function(){ FSV._wlp = false; });
+    } else if(!on && FSV._wl){ FSV._wl.release(); FSV._wl = null; }
+  } catch(e){}
+}
 function festSharedHtml(show, chs, esc){
   var raw = show && show.stage_data && show.stage_data.festival;
   if(!raw || !Array.isArray(raw.slots) || !raw.slots.length) return '<div class="sv-empty"><i class="ti ti-calendar-time"></i><b>Programme vide</b><span>Le programme du festival apparaîtra ici dès qu\'il sera préparé.</span></div>';
   var ctx = { fest:raw, chs:chs || [], out:show.out_data || {}, patches:Array.isArray(show.il_patches) ? show.il_patches : [] };
   return _fsWith(ctx, function(){
     var f = _fsData(), E = _fsE, all = _fsSorted(f);
+    FSV._f = raw;
+    /* Le jour du festival, le direct s'ouvre de lui-même (tant qu'on n'a pas choisi une autre vue) */
+    if(!FSV.picked){ var L0 = _fsLive(f, _fsClock()); if(L0.T.length && L0.phase !== 'done') FSV.v = 'live'; }
+    if(!FSV._tick){ FSV._tick = setInterval(_fsLiveTick, 5000); document.addEventListener('visibilitychange', _fsLiveTick); }
     if(FSV.d !== 'all' && f.days.indexOf(FSV.d) < 0) FSV.d = 'all';
     var slots = all.filter(function(s){ return FSV.d === 'all' || s.day === FSV.d; });
     var hasOut = Object.keys(ctx.out).some(function(k){ return Array.isArray(ctx.out[k]) && ctx.out[k].length; });
@@ -742,13 +860,17 @@ function festSharedHtml(show, chs, esc){
     var save = { day:FEST.day, io:FEST.io, mic:FEST.mic }; FEST.day = FSV.d; FEST.mic = true;
     try {
       var nIn = 0; slots.forEach(function(s){ nIn = Math.max(nIn, _fsChs(s.pid).length); });
-      var V = [['prog', 'Programme', 'ti-calendar-time'], ['in', 'Entrées', 'ti-list-numbers']].concat(hasOut ? [['out', 'Sorties', 'ti-arrow-bar-to-right']] : []).concat([['chg', 'Changements', 'ti-arrows-exchange']]);
-      var h = _fsNowHtml(f, false)
+      var V = [['live', 'Direct', 'ti-broadcast'], ['prog', 'Programme', 'ti-calendar-time'], ['in', 'Entrées', 'ti-list-numbers']].concat(hasOut ? [['out', 'Sorties', 'ti-arrow-bar-to-right']] : []).concat([['chg', 'Changements', 'ti-arrows-exchange']]);
+      var live = FSV.v === 'live';
+      var h = (live ? '' : _fsNowHtml(f, false))
         + '<div class="fsv-bar"><div class="sv-seg" role="tablist">' + V.map(function(v){ return '<button type="button" class="' + (FSV.v === v[0] ? 'on' : '') + '" onclick="festSv(\'v\',\'' + v[0] + '\')"><i class="ti ' + v[2] + '"></i>' + v[1] + '</button>'; }).join('') + '</div>'
-        + (f.days.length > 1 ? '<div class="sv-seg" role="tablist"><button type="button" class="' + (FSV.d === 'all' ? 'on' : '') + '" onclick="festSv(\'d\',\'all\')">Tous les jours</button>' + f.days.map(function(d){ var l = _fsDayLbl(d).split(' '); return '<button type="button" class="' + (FSV.d === d ? 'on' : '') + '" onclick="festSv(\'d\',\'' + _jsq(d) + '\')">' + E(l[0] + ' ' + (l[1] || '')) + '</button>'; }).join('') + '</div>' : '')
+        + (f.days.length > 1 && !live ? '<div class="sv-seg" role="tablist"><button type="button" class="' + (FSV.d === 'all' ? 'on' : '') + '" onclick="festSv(\'d\',\'all\')">Tous les jours</button>' + f.days.map(function(d){ var l = _fsDayLbl(d).split(' '); return '<button type="button" class="' + (FSV.d === d ? 'on' : '') + '" onclick="festSv(\'d\',\'' + _jsq(d) + '\')">' + E(l[0] + ' ' + (l[1] || '')) + '</button>'; }).join('') + '</div>' : '')
         + '<span class="sv-grow"></span><span class="sv-count"><b>' + slots.length + '</b> groupe' + (slots.length > 1 ? 's' : '') + (nIn ? ' · jusqu\'à <b>' + nIn + '</b> voies' : '') + '</span></div>';
       var ref = function(s, i, list){ return (f.cmp === 'house' && f.house) ? (f.house !== s.pid ? f.house : null) : (i > 0 && list[i - 1].day === s.day ? list[i - 1].pid : null); };
-      if(FSV.v === 'in' || FSV.v === 'out'){
+      if(live){
+        FSV._lm = (function(d){ return d.getHours() * 60 + d.getMinutes(); })(_fsClock());
+        h += _fsLiveHtml(f);
+      } else if(FSV.v === 'in' || FSV.v === 'out'){
         FEST.io = FSV.v;
         h += '<div class="fsv-legend"><span class="same">Italique gris : identique</span><span class="chg">Gras, trait jaune : à changer</span><span>— : voie libre</span>' + (FSV.v === 'in' ? '<span><i class="ti ti-bolt"></i>+48V</span>' : '') + '<span class="ref">Comparé au ' + (f.cmp === 'house' && f.house ? 'patch maître (' + E(_fsName(f.house)) + ')' : 'groupe précédent') + '</span></div>'
           + '<div class="fsv-grid">' + _fsGridHtml(f, slots, true) + '</div>';
