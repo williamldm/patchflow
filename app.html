@@ -68,7 +68,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=4.67">
+<link rel="stylesheet" href="pf-app.css?v=4.68">
 </head>
 <body>
 
@@ -964,6 +964,7 @@ html.rider-boot #rider-splash{display:flex}
           <div class="site-pal-hd"><i class="ti ti-box"></i>Bibliothèque</div>
           <div class="bp-pal-tools">
             <input type="file" id="site-bg-file" accept="image/*,application/pdf" style="display:none" onchange="SitePlan.loadBg(this)"/>
+            <button class="bp-tool sp-amp-tool" onclick="SitePlan.openSatellite()" title="Vue aérienne de l'IGN autour d'une adresse : le plan est mis à l'échelle tout seul"><i class="ti ti-world" style="color:var(--ora)"></i>Vue satellite<span>IGN · déjà à l'échelle</span></button>
             <button class="bp-tool" onclick="document.getElementById('site-bg-file').click()" title="Image ou PDF (1re page utilisée comme fond)"><i class="ti ti-photo"></i>Image ou PDF de fond</button>
             <div id="site-bg-controls" style="display:none">
               <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)">
@@ -1658,7 +1659,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=5.10"></script>
+<script src="pf-app.js?v=5.13"></script>
 <script src="pf-rf.js?v=1.16"></script>
 <script src="pf-road.js?v=1.2"></script>
 <script src="pf-fest.js?v=1.18"></script>

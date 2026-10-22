@@ -5809,3 +5809,66 @@ html[data-sv-theme="dark"],html[data-sv-theme="dark"] body{background:#0c0e12}
 .spl-cq-t td small{font-size:10.5px;color:var(--muted)}
 .spl-cq-dot{display:inline-block;width:10px;height:4px;border-radius:2px;margin-right:7px;vertical-align:middle}
 .spl-cq-t i.ti{font-size:13px;color:var(--muted);vertical-align:-2px}
+
+/* ── Plan de site : calques, sélection multiple, zones, vue satellite ── */
+.spl-node.spl-ghost{opacity:.35;pointer-events:none}
+#spl-lasso{position:absolute;z-index:30;border:1.5px dashed #ff6b1a;background:rgba(255,107,26,.07);border-radius:4px;pointer-events:none}
+#site-areas{position:absolute;top:0;left:0;transform-origin:0 0;width:5000px;height:4000px;pointer-events:none}
+.spl-area{position:absolute;border-radius:14px;border:1.5px dashed color-mix(in srgb,var(--zc) 65%,transparent);background:color-mix(in srgb,var(--zc) 7%,transparent);pointer-events:none}
+.spl-area.sel{border-style:solid;border-color:var(--zc);box-shadow:0 0 0 3px color-mix(in srgb,var(--zc) 20%,transparent)}
+.spl-area:has(.spl-area-e:hover,.spl-area-hd:hover){border-style:solid;background:color-mix(in srgb,var(--zc) 11%,transparent)}
+.spl-area-hd{position:absolute;left:14px;top:-12px;z-index:3;display:inline-flex;align-items:center;gap:8px;max-width:calc(100% - 28px);height:24px;padding:0 11px;border-radius:12px;background:var(--zc);color:#fff;font:700 12px/24px Archivo,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:move;pointer-events:auto;user-select:none}
+.spl-area-hd em{font-style:normal;font-weight:600;opacity:.85}
+.spl-area-e{position:absolute;pointer-events:auto;cursor:move}
+.spl-area-e.e-n{left:0;right:0;top:-7px;height:14px}.spl-area-e.e-s{left:0;right:0;bottom:-7px;height:14px}
+.spl-area-e.e-w{top:0;bottom:0;left:-7px;width:14px}.spl-area-e.e-e{top:0;bottom:0;right:-7px;width:14px}
+.spl-area-h{position:absolute;z-index:2;width:12px;height:12px;border-radius:3px;background:#fff;box-shadow:0 0 0 1.5px var(--zc);pointer-events:auto;opacity:0;transition:opacity .12s}
+.spl-area.sel .spl-area-h,.spl-area:has(.spl-area-e:hover,.spl-area-hd:hover,.spl-area-h:hover) .spl-area-h{opacity:1}
+.spl-area-h.h-nw,.spl-area-h.h-n,.spl-area-h.h-ne{top:-6px}.spl-area-h.h-sw,.spl-area-h.h-s,.spl-area-h.h-se{bottom:-6px}
+.spl-area-h.h-nw,.spl-area-h.h-w,.spl-area-h.h-sw{left:-6px}.spl-area-h.h-ne,.spl-area-h.h-e,.spl-area-h.h-se{right:-6px}
+.spl-area-h.h-n,.spl-area-h.h-s{left:calc(50% - 6px)}.spl-area-h.h-w,.spl-area-h.h-e{top:calc(50% - 6px)}
+.spl-area-h.h-nw,.spl-area-h.h-se{cursor:nwse-resize}.spl-area-h.h-ne,.spl-area-h.h-sw{cursor:nesw-resize}
+.spl-area-h.h-n,.spl-area-h.h-s{cursor:ns-resize}.spl-area-h.h-e,.spl-area-h.h-w{cursor:ew-resize}
+.spl-lay-wrap{position:relative;display:inline-flex}
+.spl-lay-wrap>button{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border:0;border-radius:8px;background:transparent;color:var(--txt2);font:500 12.5px var(--f);cursor:pointer}
+.spl-lay-wrap>button i{font-size:16px}
+.spl-lay-wrap>button:hover{background:var(--surf2);color:var(--txt)}
+.spl-lay-wrap>button.part{color:var(--txt);box-shadow:inset 0 0 0 1px var(--bdr2)}
+.spl-lay-wrap>button b{font:600 10.5px var(--m);color:var(--ora);background:var(--ora-d);border-radius:999px;padding:0 6px;line-height:16px}
+.spl-lay-pop{position:absolute;left:0;top:calc(100% + 8px);z-index:60;width:260px;padding:6px;border-radius:12px;background:var(--surf);box-shadow:inset 0 0 0 1px var(--bdr2),0 14px 36px rgba(0,0,0,.35);display:none}
+.spl-lay-pop.show{display:block}
+.spl-lay{display:flex;align-items:center;gap:9px;width:100%;height:36px;padding:0 10px;border:0;border-radius:8px;background:transparent;color:var(--muted);font:500 13px var(--f);cursor:pointer;text-align:left}
+.spl-lay:hover{background:var(--surf2)}
+.spl-lay.on{color:var(--txt)}
+.spl-lay>i:first-child{font-size:16px}
+.spl-lay span{flex:1}
+.spl-lay em{font:500 11px var(--m);font-style:normal;color:var(--muted)}
+.spl-lay-eye{font-size:16px;color:var(--muted)}
+.spl-lay.on .spl-lay-eye{color:var(--ora)}
+.spl-lay-note{padding:8px 10px 4px;font-size:11px;line-height:1.45;color:var(--muted);border-top:1px solid var(--bdr);margin-top:4px}
+.spl-sat-box{width:min(960px,calc(100vw - 32px))}
+.spl-sat-search{position:relative;display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.spl-sat-search>i{position:absolute;left:11px;color:var(--muted);font-size:16px;pointer-events:none}
+.spl-sat-search input{flex:1;padding-left:34px;height:38px}
+.spl-sat-res{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:5;display:flex;flex-direction:column;border-radius:10px;background:var(--surf);box-shadow:inset 0 0 0 1px var(--bdr2),0 12px 30px rgba(0,0,0,.35);overflow:hidden}
+.spl-sat-res:empty{display:none}
+.spl-sat-res button{display:flex;align-items:center;gap:10px;padding:9px 12px;border:0;background:transparent;color:var(--txt);text-align:left;cursor:pointer;font-family:var(--f)}
+.spl-sat-res button:hover{background:var(--surf2)}
+.spl-sat-res button>i{color:var(--muted);font-size:16px}
+.spl-sat-res button span{display:flex;flex-direction:column;min-width:0}
+.spl-sat-res b{font-size:13px;font-weight:600}
+.spl-sat-res em{font-style:normal;font-size:11.5px;color:var(--muted)}
+.spl-sat-none{padding:10px 12px;font-size:12.5px;color:var(--muted)}
+.spl-sat-map{position:relative;height:min(56vh,520px);border-radius:12px;overflow:hidden;background:#d9dde3;cursor:grab;touch-action:none;user-select:none}
+.spl-sat-map.grab{cursor:grabbing}
+.spl-sat-tiles{position:absolute;inset:0}
+.spl-sat-tiles img{position:absolute;width:257px;height:257px;max-width:none;pointer-events:none}
+.spl-sat-frame{position:absolute;inset:0;box-shadow:inset 0 0 0 2px rgba(255,107,26,.85);border-radius:12px;pointer-events:none}
+.spl-sat-zoom{position:absolute;right:12px;top:12px;display:flex;flex-direction:column;border-radius:9px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+.spl-sat-zoom button{width:34px;height:34px;border:0;background:#fff;color:#1c2433;font:600 18px var(--f);cursor:pointer}
+.spl-sat-zoom button+button{border-top:1px solid #e3e5ea}
+.spl-sat-attr{position:absolute;right:8px;bottom:6px;padding:1px 6px;border-radius:4px;background:rgba(255,255,255,.85);color:#1c2433;font:500 10.5px var(--f)}
+.spl-sat-info{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;color:var(--txt2)}
+.spl-sat-info i{color:var(--ora);font-size:16px}
+.spl-sat-info b{color:var(--txt)}
+.spl-sat-note{font-size:11.5px;color:var(--muted)}

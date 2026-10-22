@@ -15972,10 +15972,32 @@ const SiteMeasure = (function(){
     for (var i = 0; i < steps.length; i++){ var px = steps[i] * p * zoom; if (px >= minPx) return { m:steps[i], px:Math.min(px, maxPx * 1.5) }; }
     return { m:steps[steps.length - 1], px:steps[steps.length - 1] * p * zoom };
   }
+  function rr(ctx, x, y, w, h, r){ ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h); }
+  /* Zones (export et rider) : surface teintée, bord pointillé, étiquette avec la surface */
+  function drawAreas(ctx, d, wx, wy, SCALE, font){
+    var p = ppm(d); font = font || 'Archivo, sans-serif';
+    (d.areas || []).forEach(function(a){
+      if (![a.x, a.y, a.w, a.h].every(function(v){ return isFinite(+v); })) return;
+      var c = (typeof _safeColor === 'function' && _safeColor(a.color)) || '#22c55e', x = wx(+a.x), y = wy(+a.y), w = +a.w * SCALE, h = +a.h * SCALE;
+      ctx.save(); ctx.globalAlpha = 0.08; ctx.fillStyle = c; rr(ctx, x, y, w, h, 12 * SCALE); ctx.fill(); ctx.restore();
+      ctx.save(); ctx.globalAlpha = 0.75; ctx.strokeStyle = c; ctx.lineWidth = 1.6 * SCALE; ctx.setLineDash([7 * SCALE, 5 * SCALE]); rr(ctx, x, y, w, h, 12 * SCALE); ctx.stroke(); ctx.restore();
+      var lbl = String(a.label || 'Zone') + (p ? '  ·  ' + num((+a.w / p) * (+a.h / p), 0) + ' m²' : '');
+      ctx.font = '700 ' + (12 * SCALE) + 'px ' + font;
+      var tw = ctx.measureText(lbl).width + 22 * SCALE, th = 22 * SCALE;
+      ctx.fillStyle = c; rr(ctx, x + 14 * SCALE, y - th / 2, tw, th, th / 2); ctx.fill();
+      ctx.fillStyle = '#ffffff'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(lbl, x + 25 * SCALE, y + 0.5 * SCALE);
+    });
+  }
   /* Dessin (export PNG / PDF et rider partagé) : cotes, délais, barre d'échelle */
   function drawOverlay(ctx, d, wx, wy, SCALE, cw, ch, font){
-    var p = ppm(d); if (!p) return;
     font = font || 'Archivo, sans-serif';
+    if (d.bgGeo) {   /* licence ouverte : la source du fond est citée */
+      ctx.font = '500 ' + (10 * SCALE) + 'px ' + font; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+      var at = 'Fond : orthophotos © IGN', aw = ctx.measureText(at).width;
+      ctx.fillStyle = 'rgba(255,255,255,.88)'; rr(ctx, cw - aw - 26 * SCALE, 8 * SCALE, aw + 16 * SCALE, 18 * SCALE, 5 * SCALE); ctx.fill();
+      ctx.fillStyle = '#1c2433'; ctx.fillText(at, cw - 18 * SCALE, 17 * SCALE);
+    }
+    var p = ppm(d); if (!p) return;
     var ink = '#1c2433';
     var chip = function(txt, x, y, col, bold){
       ctx.font = (bold ? '700 ' : '600 ') + (11.5 * SCALE) + 'px ' + font;
@@ -16034,7 +16056,7 @@ const SiteMeasure = (function(){
     return { rows:rows, groups:Object.keys(by).map(function(k){ return by[k]; }) };
   }
   return { STD:STD, ppm:ppm, opts:opts, num:num, fmtM:fmtM, center:center, cablePts:cablePts, cableLen:cableLen, cableText:cableText, cableMeters:cableMeters,
-           delays:delays, soundSpeed:soundSpeed, niceBar:niceBar, drawOverlay:drawOverlay, drawGrid:drawGrid, cableSchedule:cableSchedule, DELAY_TYPES:DELAY_TYPES };
+           delays:delays, soundSpeed:soundSpeed, niceBar:niceBar, drawOverlay:drawOverlay, drawAreas:drawAreas, drawGrid:drawGrid, cableSchedule:cableSchedule, DELAY_TYPES:DELAY_TYPES };
 })();
 
 const SitePlan = (() => {
@@ -16170,8 +16192,8 @@ const SitePlan = (() => {
     renderCablePicker(); renderCables(); renderLegend();
   }
 
-  let state = { elements:[], cables:[], bgImage:null, bgOpacity:100, bgRotation:0, view:{panX:60,panY:60,zoom:1}, selected:null, linkFrom:null, freePt1:null, drawPts:[], activeCableType:'xlr', textScale:1, legendScale:1, cableTextScale:1, cableMode:false, scale:null, measureOpts:{}, measures:[], tool:null, toolPts:[], toolCur:null };
-  let dragging=null, panning=null, inited=false, resizing=null, _wpDrag=null, _wpAddCid=null, rotating=null, _mDrag=null;
+  let state = { elements:[], cables:[], bgImage:null, bgOpacity:100, bgRotation:0, view:{panX:60,panY:60,zoom:1}, selected:null, linkFrom:null, freePt1:null, drawPts:[], activeCableType:'xlr', textScale:1, legendScale:1, cableTextScale:1, cableMode:false, scale:null, measureOpts:{}, measures:[], tool:null, toolPts:[], toolCur:null, multi:[], areas:[], layersOff:{}, bgGeo:null, bgScale:1 };
+  let dragging=null, panning=null, inited=false, resizing=null, _wpDrag=null, _wpAddCid=null, rotating=null, _mDrag=null, lasso=null, areaDrag=null, areaRsz=null;
 
   const $  = id => document.getElementById(id);
   const uid = () => Math.random().toString(36).slice(2,9);
@@ -16277,13 +16299,13 @@ const SitePlan = (() => {
          rotation à l'INTÉRIEUR du translate/scale de la vue (origine 0 0
          partagée avec les nœuds) : translate(centre) rotate translate(-centre)
          tourne l'image sur elle-même sans casser l'alignement pan/zoom. */
-      const rot = state.bgRotation || 0;
-      let bt = t;
+      const rot = state.bgRotation || 0, S = +state.bgScale || 1;
+      let bt = S!==1 ? `${t} scale(${S})` : t;   /* fond agrandi (vue satellite) : 1 px d'image = S px du plan */
       if(rot){
         const w = bg.naturalWidth || 0, h = bg.naturalHeight || 0;
         bt = (w && h)
-          ? `${t} translate(${w/2}px,${h/2}px) rotate(${rot}deg) translate(${-w/2}px,${-h/2}px)`
-          : `${t} rotate(${rot}deg)`;
+          ? `${bt} translate(${w/2}px,${h/2}px) rotate(${rot}deg) translate(${-w/2}px,${-h/2}px)`
+          : `${bt} rotate(${rot}deg)`;
       }
       bg.style.transform = bt;
     }
@@ -16300,7 +16322,7 @@ const SitePlan = (() => {
     return { x:(cx-r.left-state.view.panX)/state.view.zoom, y:(cy-r.top-state.view.panY)/state.view.zoom };
   }
 
-  function render() { renderNodes(); renderCables(); renderInspector(); renderLegend(); _renderMTools(); _renderMeasureSettings(); }
+  function render() { _renderAreas(); renderNodes(); renderCables(); renderInspector(); renderLegend(); _renderMTools(); _renderMeasureSettings(); }
 
   function renderCablePicker() {
     const el = $('site-cable-picker');
@@ -16354,7 +16376,7 @@ const SitePlan = (() => {
   function renderLegend() {
     const leg = $('site-cable-legend');
     if(!leg) return;
-    const usedIds = [...new Set(state.cables.map(c=>c.type))];
+    const usedIds = [...new Set(_visCables().map(c=>c.type))];
     if(usedIds.length===0){ leg.style.display='none'; return; }
     leg.style.display='';
     const rows = usedIds.map(id=>{
@@ -16374,7 +16396,7 @@ const SitePlan = (() => {
   function renderNodes() {
     const host = $('site-nodes');
     if(!host) return;
-    const _dl = SiteMeasure.delays(getData());
+    const _dl = SiteMeasure.delays(getData()), _vis = _elVisMap();
     // Remove stale
     host.querySelectorAll('.spl-node').forEach(div => {
       if(!state.elements.find(e=>e.id===div.dataset.id)) div.remove();
@@ -16383,10 +16405,11 @@ const SitePlan = (() => {
       let div = host.querySelector(`.spl-node[data-id="${el.id}"]`);
       if(!div){ div=document.createElement('div'); div.className='spl-node'; div.dataset.id=el.id; host.appendChild(div); }
       const it = findItem(el.type);
-      const isSel = state.selected?.kind==='el' && state.selected.id===el.id;
+      const isSel = _isSel(el.id) && _vis[el.id]==='on', _single = state.selected?.kind==='el' && state.selected.id===el.id;
       const isLink = state.linkFrom===el.id;
       const isCard = el.type!=='text_lbl' && el.type!=='image_frame';
-      div.className = `spl-node${isCard?' spl-card':''}${el.noBg?' no-bg':''}${el.type==='image_frame'?' spl-img':''}${isSel?' sel':''}${isLink?' link-src':''}`;
+      div.className = `spl-node${isCard?' spl-card':''}${el.noBg?' no-bg':''}${el.type==='image_frame'?' spl-img':''}${isSel?' sel':''}${isLink?' link-src':''}${_vis[el.id]==='ghost'?' spl-ghost':''}`;
+      div.style.display = _vis[el.id]==='off' ? 'none' : '';
       div.style.left = el.x+'px'; div.style.top = el.y+'px';
       div.style.setProperty('--el-ts', el.elTextScale || 1);
       if(el.type==='text_lbl'){
@@ -16438,7 +16461,7 @@ const SitePlan = (() => {
         const _rot=((+el.rot||0)%360+360)%360, _d=_dl[el.id];
         div.innerHTML =
           `<button class="spl-del" data-del="${el.id}">×</button>`+
-          (isSel?`<span class="spl-rot" data-rot="${el.id}" title="Glisser pour tourner (Maj : par 15°) · touche R"><i class="ti ti-rotate-clockwise"></i></span>`:'')+
+          (isSel&&_single?`<span class="spl-rot" data-rot="${el.id}" title="Glisser pour tourner (Maj : par 15°) · touche R"><i class="ti ti-rotate-clockwise"></i></span>`:'')+
           `<div class="spl-body" style="width:${sz}px;height:${sz}px${_rot?`;transform:rotate(${_rot}deg)`:''}">${iconMarkup}</div>`+
           `<div class="spl-lbl">${esc(el.label)}</div>`+
           (el.note?`<div class="spl-note">${esc(el.note)}</div>`:'')+
@@ -16564,6 +16587,7 @@ const SitePlan = (() => {
     let paths = '';
     const _D = getData();
     state.cables.forEach(cable => {
+      if(!_layerOn(_cabLayer(cable))) return;
       const g = _cableGeom(cable, pairMap, state.view.zoom);
       if(!g) return;
       const {afx,afy,atx,aty,myo,mxo,nx,ny,bnx,bny,pathFwd} = g;
@@ -16654,6 +16678,15 @@ const SitePlan = (() => {
     const insp = $('site-inspector');
     if(!insp) return;
     if(!dragging && !rotating) setTimeout(_revealSel, 0);
+    if(state.selected && state.selected.kind==='multi'){
+      if(_selIds().length<2){ _setSel(_selIds()); renderInspector(); return; }
+      insp.innerHTML=_multiInspHtml(); _bindMultiInsp(insp); return;
+    }
+    if(state.selected && state.selected.kind==='area'){
+      const ar=(state.areas||[]).find(x=>x.id===state.selected.id);
+      if(!ar){ state.selected=null; renderInspector(); return; }
+      insp.innerHTML=_areaInspHtml(ar); _bindAreaInsp(ar, insp); return;
+    }
     if(state.selected && state.selected.kind==='measure'){
       const mm=(state.measures||[]).find(x=>x.id===state.selected.id);
       if(!mm){ state.selected=null; renderInspector(); return; }
@@ -16709,6 +16742,7 @@ const SitePlan = (() => {
         `<span id="si-etval" style="flex:1;font-size:10px;color:var(--muted);text-align:center">${Math.round(elTs*100)}%</span>`+
         `<button class="spl-ts-btn" id="si-etplus">A+</button></div>`+
         _elMeasureHtml(el)+
+        `<label class="syn-insp-lbl">Calque</label><select class="syn-insp-inp" id="si-layer">${LAYERS.map(l=>`<option value="${l[0]}"${_elLayer(el)===l[0]?' selected':''}>${l[1]}</option>`).join('')}</select>`+
         (connList?`<div style="padding-top:8px;border-top:1px solid var(--bdr2);margin-bottom:6px"><div style="font-size:9px;color:var(--muted);font-family:var(--m);margin-bottom:5px">CONNEXIONS</div>${connList}</div>`:``) +
         ((el.iconImg || el.type==='image_frame') ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr2)"><div style="font-size:12px;font-family:var(--f);color:var(--muted);margin-bottom:5px;font-weight:500">Taille de l'image</div><div style="display:flex;align-items:center;gap:7px"><button class="spl-ts-btn" onclick="SitePlan.adjImgPx('${_jsq(el.id)}',-16)">−</button><span id="si-img-px-lbl" style="flex:1;text-align:center;font-size:10px;color:var(--muted)">${el.imgPx||el.elSize||72}px</span><button class="spl-ts-btn" onclick="SitePlan.adjImgPx('${_jsq(el.id)}',16)">+</button></div></div>` : '') +
         (el.type!=='text_lbl' ? _iconImgInspHtml(el.id, !!el.iconImg, el.iconImg||'', `SitePlan.uploadElementIcon('${el.id}')`, `SitePlan.clearElementIcon('${el.id}')`) : '') +
@@ -16750,6 +16784,7 @@ const SitePlan = (() => {
       });
       $('si-nobg')?.addEventListener('change',e=>{ el.noBg=e.target.checked; saveSite(); renderNodes(); });
       _bindElMeasure(el);
+      $('si-layer')?.addEventListener('change',e=>{ if(e.target.value===(_EL_LAYER[el.type]||'son')) delete el.layer; else el.layer=e.target.value; saveSite(); render(); });
       $('si-dup')?.addEventListener('click',()=>{ duplicateSelectedEl(); });
       $('si-del')?.addEventListener('click',()=>{ if(el.iconImgB2)_b2DeleteIcon(el.iconImgB2); state.elements=state.elements.filter(x=>x.id!==el.id); state.cables=state.cables.filter(c=>c.fromId!==el.id&&c.toId!==el.id); state.selected=null; saveSite(); render(); });
     }
@@ -16784,6 +16819,7 @@ const SitePlan = (() => {
         `<button class="spl-ts-btn" id="si-wplus">+</button>`+
         `<span id="si-wval" style="font-size:10px;color:var(--muted);min-width:18px;text-align:right">${w}</span></div>`+
         `<label class="syn-insp-lbl">Référence / label</label><input class="syn-insp-inp" id="si-cl" value="${esc(cable.label||'')}"/>`+
+        `<label class="syn-insp-lbl">Calque</label><select class="syn-insp-inp" id="si-clayer">${LAYERS.filter(l=>l[0]!=='notes').map(l=>`<option value="${l[0]}"${_cabLayer(cable)===l[0]?' selected':''}>${l[1]}</option>`).join('')}</select>`+
         _cableLenHtml(cable)+
         `<label class="syn-insp-lbl">Texte</label>`+
         `<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">`+
@@ -16798,6 +16834,7 @@ const SitePlan = (() => {
       $('si-ct')?.addEventListener('change',e=>{cable.type=e.target.value;saveSite();render();});
       $('si-cl')?.addEventListener('change',e=>{cable.label=e.target.value;saveSite();renderCables();});
       $('si-clen')?.addEventListener('change',e=>{cable.length=String(e.target.value).trim().slice(0,24);if(!cable.length)delete cable.length;saveSite();renderCables();renderInspector();});
+      $('si-clayer')?.addEventListener('change',e=>{ if(e.target.value===(_CAB_LAYER[cable.type]||'son')) delete cable.layer; else cable.layer=e.target.value; saveSite(); render(); });
       $('si-cextra')?.addEventListener('change',e=>{ const v=parseFloat(String(e.target.value).replace(',','.')); if(v>0) cable.extraM=Math.round(v*10)/10; else delete cable.extraM; saveSite(); renderCables(); renderInspector(); });
       const CT_STEPS=[0.6,0.75,0.85,1,1.2,1.5,1.8,2.2];
       const updCt=()=>{ const ctv=$('si-ctval'); if(ctv)ctv.textContent=Math.round((cable.textScale||1)*100)+'%'; };
@@ -16821,6 +16858,288 @@ const SitePlan = (() => {
   }
 
 
+  /* ══ Fond satellite : orthophotos de l'IGN (Géoplateforme, licence ouverte Etalab 2.0) ══
+     On cherche un lieu (adresse ou lieu-dit), on cadre la vue, et la zone visible devient le fond du plan,
+     composée à un niveau de zoom au-dessus (deux fois plus de détail) et mise à l'échelle d'office :
+     en Web Mercator, un pixel vaut 156 543,03 × cos(latitude) / 2^zoom mètres. */
+  const IGN_TILE=(z,x,y)=>`https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX=${z}&TILEROW=${y}&TILECOL=${x}&FORMAT=image/jpeg`;
+  const _mx=(lon,z)=>(lon+180)/360*256*Math.pow(2,z);
+  const _my=(lat,z)=>{ const r=lat*Math.PI/180; return (1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*256*Math.pow(2,z); };
+  const _mlon=(x,z)=>x/(256*Math.pow(2,z))*360-180;
+  const _mlat=(y,z)=>{ const n=Math.PI-2*Math.PI*y/(256*Math.pow(2,z)); return 180/Math.PI*Math.atan(0.5*(Math.exp(n)-Math.exp(-n))); };
+  const _mres=(lat,z)=>156543.03392*Math.cos(lat*Math.PI/180)/Math.pow(2,z);
+  const SAT_MAXZ=18;   /* vue la plus proche ; le fond est composé au niveau suivant (19) */
+  let _sat=null, _satDrag=null, _satSearchT=null, _satRaf=false;
+  function openSatellite(){
+    _sat = state.bgGeo ? {lat:state.bgGeo.lat, lon:state.bgGeo.lon, z:Math.min(SAT_MAXZ, Math.max(14,(state.bgGeo.z||18)-1))} : {lat:46.6, lon:2.4, z:6};
+    let m=$('spl-sat');
+    if(!m){ m=document.createElement('div'); m.id='spl-sat'; m.className='modal-ov'; document.body.appendChild(m); m.addEventListener('click',e=>{ if(e.target===m) m.classList.remove('show'); }); }
+    m.innerHTML=`<div class="modal-box spl-sat-box"><div class="modal-head"><span class="modal-title">Vue satellite</span><button class="modal-close" type="button" onclick="document.getElementById('spl-sat').classList.remove('show')" aria-label="Fermer"><i class="ti ti-x"></i></button></div>`+
+      `<div class="modal-body"><div class="spl-sat-search"><i class="ti ti-search"></i><input id="spl-sat-q" class="set-inp" type="text" placeholder="Adresse, lieu, ville… (ex. Parc de la Villette, Paris)" autocomplete="off" spellcheck="false"><div class="spl-sat-res" id="spl-sat-res"></div></div>`+
+      `<div class="spl-sat-map" id="spl-sat-map"><div class="spl-sat-tiles" id="spl-sat-tiles"></div><div class="spl-sat-frame"></div>`+
+      `<div class="spl-sat-zoom"><button type="button" data-z="1" aria-label="Zoomer">+</button><button type="button" data-z="-1" aria-label="Dézoomer">−</button></div>`+
+      `<div class="spl-sat-attr">Orthophotos © IGN — Géoplateforme</div></div>`+
+      `<div class="spl-sat-info" id="spl-sat-info"></div></div>`+
+      `<div class="modal-foot"><span class="spl-sat-note">France métropolitaine et outre-mer. Les éléments déjà posés gardent leur place.</span><span class="sp-grow"></span>`+
+      `<button class="btn" type="button" onclick="document.getElementById('spl-sat').classList.remove('show')">Annuler</button><button class="btn pri" type="button" id="spl-sat-ok"><i class="ti ti-check"></i>Utiliser comme fond</button></div></div>`;
+    m.classList.add('show');
+    const map=$('spl-sat-map'), q=$('spl-sat-q');
+    setTimeout(()=>{ _satRender(); q.focus(); }, 30);
+    map.addEventListener('pointerdown', e=>{ if(e.target.closest('.spl-sat-zoom')) return; _satDrag={x:e.clientX, y:e.clientY, cx:_mx(_sat.lon,_sat.z), cy:_my(_sat.lat,_sat.z)}; map.setPointerCapture(e.pointerId); map.classList.add('grab'); });
+    map.addEventListener('pointermove', e=>{ if(!_satDrag) return; const cx=_satDrag.cx-(e.clientX-_satDrag.x), cy=_satDrag.cy-(e.clientY-_satDrag.y); _sat.lon=_mlon(cx,_sat.z); _sat.lat=_mlat(cy,_sat.z); _satRenderRaf(); });
+    map.addEventListener('pointerup', ()=>{ _satDrag=null; map.classList.remove('grab'); });
+    map.addEventListener('wheel', e=>{ e.preventDefault(); _satZoom(e.deltaY<0?1:-1, e); }, {passive:false});
+    map.querySelectorAll('[data-z]').forEach(b=>b.addEventListener('click',()=>_satZoom(+b.dataset.z)));
+    q.addEventListener('input', ()=>{ clearTimeout(_satSearchT); _satSearchT=setTimeout(_satSearch, 280); });
+    q.addEventListener('keydown', e=>{ if(e.key==='Enter'){ const f=$('spl-sat-res').querySelector('button'); if(f) f.click(); } });
+    $('spl-sat-ok').addEventListener('click', _satApply);
+  }
+  function _satRenderRaf(){ if(_satRaf) return; _satRaf=true; requestAnimationFrame(()=>{ _satRaf=false; _satRender(); }); }
+  function _satZoom(d, e){
+    const map=$('spl-sat-map'); if(!map) return;
+    const nz=Math.max(3, Math.min(SAT_MAXZ, _sat.z+d)); if(nz===_sat.z) return;
+    if(e){ /* zoom autour du pointeur */
+      const r=map.getBoundingClientRect(), ox=e.clientX-r.left-r.width/2, oy=e.clientY-r.top-r.height/2;
+      const px=_mx(_sat.lon,_sat.z)+ox, py=_my(_sat.lat,_sat.z)+oy, k=Math.pow(2,nz-_sat.z);
+      _sat.lon=_mlon(px*k-ox,nz); _sat.lat=_mlat(py*k-oy,nz);
+    }
+    _sat.z=nz; _satRender();
+  }
+  function _satRender(){
+    const map=$('spl-sat-map'), host=$('spl-sat-tiles'); if(!map||!host||!_sat) return;
+    const W=map.clientWidth, H=map.clientHeight, z=_sat.z, cx=_mx(_sat.lon,z), cy=_my(_sat.lat,z), n=Math.pow(2,z);
+    const x0=Math.floor((cx-W/2)/256), x1=Math.floor((cx+W/2)/256), y0=Math.floor((cy-H/2)/256), y1=Math.floor((cy+H/2)/256);
+    let h='';
+    for(let ty=y0; ty<=y1; ty++){ if(ty<0||ty>=n) continue;
+      for(let tx=x0; tx<=x1; tx++){ const wx=((tx%n)+n)%n; h+=`<img src="${IGN_TILE(z,wx,ty)}" style="left:${Math.floor(tx*256-cx+W/2)}px;top:${Math.floor(ty*256-cy+H/2)}px" alt="" draggable="false">`; } }
+    host.innerHTML=h;
+    const zc=Math.min(19,z+1), res=_mres(_sat.lat,zc), wm=W*Math.pow(2,zc-z)*res, hm=H*Math.pow(2,zc-z)*res;
+    const info=$('spl-sat-info');
+    if(info) info.innerHTML = z<14 ? `<i class="ti ti-zoom-in"></i>Rapprochez-vous du lieu (molette ou +) pour cadrer le site.`
+      : `<i class="ti ti-ruler-measure"></i>Zone cadrée : <b>${_N(wm,0)} × ${_N(hm,0)} m</b> · détail ${_N(res*100,0)} cm par pixel · le plan sera mis à l'échelle tout seul`;
+    const ok=$('spl-sat-ok'); if(ok) ok.disabled = z<14;
+  }
+  async function _satSearch(){
+    const q=$('spl-sat-q'), box=$('spl-sat-res'); if(!q||!box) return;
+    const v=q.value.trim();
+    const ll=/^\s*(-?\d+(?:[.,]\d+)?)\s*[,; ]\s*(-?\d+(?:[.,]\d+)?)\s*$/.exec(v);
+    if(ll){ _sat.lat=+ll[1].replace(',','.'); _sat.lon=+ll[2].replace(',','.'); _sat.z=17; box.innerHTML=''; _satRender(); return; }
+    if(v.length<3){ box.innerHTML=''; return; }
+    try{
+      const r=await fetch('https://data.geopf.fr/geocodage/search?q='+encodeURIComponent(v)+'&index=address,poi&limit=6');
+      const j=await r.json();
+      const f=(j.features||[]).filter(x=>x&&x.geometry&&Array.isArray(x.geometry.coordinates));
+      box.innerHTML=f.length ? f.map((x,i)=>{ const p=x.properties||{}, name=Array.isArray(p.name)?p.name[0]:(p.label||p.name||''), sub=p._type==='poi'?(p.city?(Array.isArray(p.city)?p.city[0]:p.city):''):(p.context||'');
+          return `<button type="button" data-i="${i}"><i class="ti ${p._type==='poi'?'ti-map-pin':'ti-home'}"></i><span><b>${esc(name)}</b><em>${esc(sub)}</em></span></button>`; }).join('')
+        : '<div class="spl-sat-none">Aucun lieu trouvé</div>';
+      box.querySelectorAll('button[data-i]').forEach(b=>b.addEventListener('click',()=>{ const c=f[+b.dataset.i].geometry.coordinates; _sat.lon=+c[0]; _sat.lat=+c[1]; _sat.z=17; box.innerHTML=''; _satRender(); }));
+    }catch(e){ box.innerHTML='<div class="spl-sat-none">Recherche impossible (réseau)</div>'; }
+  }
+  async function _satApply(){
+    const map=$('spl-sat-map'), ok=$('spl-sat-ok'); if(!map||!_sat||_sat.z<14) return;
+    const W=map.clientWidth, H=map.clientHeight, zv=_sat.z, zc=Math.min(19,zv+1), k=Math.pow(2,zc-zv), OW=Math.round(W*k), OH=Math.round(H*k);
+    const cx=_mx(_sat.lon,zc), cy=_my(_sat.lat,zc), left=cx-OW/2, top=cy-OH/2;
+    if(ok){ ok.disabled=true; ok.innerHTML='<i class="ti ti-loader-2"></i>Composition…'; }
+    const cv=document.createElement('canvas'); cv.width=OW; cv.height=OH; const ctx=cv.getContext('2d');
+    ctx.fillStyle='#e6e9ee'; ctx.fillRect(0,0,OW,OH);
+    const jobs=[];
+    for(let ty=Math.floor(top/256); ty<=Math.floor((top+OH)/256); ty++) for(let tx=Math.floor(left/256); tx<=Math.floor((left+OW)/256); tx++){
+      jobs.push(new Promise(res=>{ const im=new Image(); im.crossOrigin='anonymous';
+        const done=()=>res(); const to=setTimeout(done, 12000);
+        im.onload=()=>{ clearTimeout(to); try{ ctx.drawImage(im, Math.floor(tx*256-left), Math.floor(ty*256-top), 257, 257); }catch(e){} res(); };
+        im.onerror=()=>{ clearTimeout(to); res(); };
+        im.src=IGN_TILE(zc,tx,ty); }));
+    }
+    await Promise.all(jobs);
+    /* Sous la limite d'une image de plan : qualité, puis taille si besoin */
+    let url='', q=0.86, c2=cv, scale=1;
+    try{
+      for(;;){ url=c2.toDataURL('image/jpeg', q); if(_dataUrlBytes(url)<=_IMG_STORE_CAP || (q<=0.5 && scale<=0.5)) break;
+        if(q>0.55) q-=0.08; else { scale*=0.85; const c3=document.createElement('canvas'); c3.width=Math.round(OW*scale); c3.height=Math.round(OH*scale); c3.getContext('2d').drawImage(cv,0,0,c3.width,c3.height); c2=c3; q=0.8; } }
+    }catch(e){ toast('Fond satellite impossible : '+(e&&e.message||e)); if(ok){ ok.disabled=false; ok.innerHTML='<i class="ti ti-check"></i>Utiliser comme fond'; } return; }
+    if(!await _quotaCheck(_dataUrlBytes(url)) || !await _dbImgCheck(_dataUrlBytes(url))){ if(ok){ ok.disabled=false; ok.innerHTML='<i class="ti ti-check"></i>Utiliser comme fond'; } return; }
+    const res=_mres(_sat.lat, zc)/scale, w0=c2.width, h0=c2.height;
+    /* Un symbole fait 72 px : sans agrandir le fond, il couvrirait 20 à 30 m. On agrandit l'image pour viser
+       8 px par mètre (un symbole ≈ 9 m), sans dépasser 6 000 px de large. */
+    const S=Math.max(1, Math.min(8*res, 6000/w0, 12)), ppm=Math.round(S/res*10000)/10000, w=Math.round(w0*S), h=Math.round(h0*S);
+    state.bgImage=url; state.bgRotation=0; state.bgOpacity=100; state.bgScale=Math.round(S*1000)/1000;
+    state.bgGeo={lat:Math.round(_sat.lat*1e6)/1e6, lon:Math.round(_sat.lon*1e6)/1e6, z:zc, src:'ign'};
+    state.scale={ppm, a:{x:0,y:h-30}, b:{x:w,y:h-30}, m:Math.round(w/ppm*10)/10};
+    const sl=$('site-bg-opacity'); if(sl) sl.value=100; const rl=$('site-bg-rotation'); if(rl) rl.value=0; const rv=$('site-bg-rot-val'); if(rv) rv.textContent='0°';
+    applyBg(); saveSite(); render();
+    $('spl-sat').classList.remove('show');
+    /* Cadrer le fond */
+    const vp=$('site-viewport'); if(vp){ const r=vp.getBoundingClientRect(), zz=Math.min(r.width/w, r.height/h)*0.94; state.view={zoom:zz, panX:(r.width-w*zz)/2, panY:(r.height-h*zz)/2}; applyTransform(); }
+    toast('Fond satellite posé, plan à l\'échelle : 1 m = '+_N(ppm,1)+' px ('+_N(w/ppm,0)+' × '+_N(h/ppm,0)+' m)');
+  }
+
+  /* ══ Calques, sélection multiple, zones ══ */
+  const LAYERS=[['son','Son','ti-speakerphone'],['reseau','Réseau','ti-network'],['secteur','Secteur','ti-plug'],['notes','Annotations','ti-note']];
+  const _EL_LAYER={lmx14r:'reseau',lmx10p:'reseau',lmx25g:'reseau',sw_dante:'reseau',wifi_ap:'reseau',distrib:'secteur',zone_lbl:'notes',text_lbl:'notes',image_frame:'notes'};
+  const _CAB_LAYER={rj45:'reseau',dante:'reseau',luminex:'reseau',fiber:'reseau',power:'secteur'};
+  function _elLayer(el){ return (el.layer&&_layerName(el.layer))?el.layer:(_EL_LAYER[el.type]||'son'); }
+  function _cabLayer(c){ return (c.layer&&_layerName(c.layer))?c.layer:(_CAB_LAYER[c.type]||'son'); }
+  function _layerName(id){ const l=LAYERS.find(x=>x[0]===id); return l?l[1]:''; }
+  function _layerOn(id){ return !(state.layersOff&&state.layersOff[id]); }
+  function _visCables(){ return state.cables.filter(c=>_layerOn(_cabLayer(c))); }
+  /* Un élément d'un calque masqué reste visible (estompé) s'il est raccordé par un câble affiché :
+     le plan secteur montre où vont les alimentations */
+  function _elVisMap(){
+    const vc=_visCables(), m={};
+    state.elements.forEach(e=>{ m[e.id]=_layerOn(_elLayer(e)) ? 'on' : (vc.some(c=>c.fromId===e.id||c.toId===e.id) ? 'ghost' : 'off'); });
+    return m;
+  }
+  function toggleLayer(id){
+    const o=Object.assign({}, state.layersOff||{}); if(o[id]) delete o[id]; else o[id]=true;
+    state.layersOff=o; saveSite(); render();
+  }
+  function _layersPopHtml(){
+    const cnt={son:0,reseau:0,secteur:0,notes:0};
+    state.elements.forEach(e=>cnt[_elLayer(e)]++); state.cables.forEach(c=>cnt[_cabLayer(c)]++);
+    cnt.notes+=(state.measures||[]).length+(state.areas||[]).length;
+    return LAYERS.map(l=>`<button type="button" class="spl-lay${_layerOn(l[0])?' on':''}" data-lay="${l[0]}"><i class="ti ${l[2]}"></i><span>${l[1]}</span><em>${cnt[l[0]]}</em><i class="ti ${_layerOn(l[0])?'ti-eye':'ti-eye-off'} spl-lay-eye"></i></button>`).join('')+
+      `<div class="spl-lay-note">L'export (PNG, PDF) suit les calques affichés. Le lien partagé montre tout.</div>`;
+  }
+
+  /* Sélection : un élément (kind 'el'), plusieurs (kind 'multi', liste dans state.multi), une zone, un câble, une cote */
+  function _selIds(){ const s=state.selected; return !s ? [] : s.kind==='multi' ? state.multi.slice() : (s.kind==='el' ? [s.id] : []); }
+  function _isSel(id){ const s=state.selected; return !!s && (s.kind==='multi' ? state.multi.indexOf(id)>=0 : (s.kind==='el' && s.id===id)); }
+  function _setSel(ids){
+    ids=ids.filter((id,i)=>ids.indexOf(id)===i && state.elements.find(e=>e.id===id));
+    state.multi = ids.length>1 ? ids : [];
+    state.selected = ids.length>1 ? {kind:'multi'} : (ids.length ? {kind:'el', id:ids[0]} : null);
+  }
+  function _elBox(e){ const s=e.type==='text_lbl'?40:(e.type==='image_frame'?(e.imgPx||e.elSize||120):(e.elSize||72)); return {x:e.x, y:e.y, w:s, h:s}; }
+  function _innerWps(ids){
+    const set={}, out=[]; ids.forEach(id=>set[id]=1);
+    state.cables.forEach(c=>{ if(set[c.fromId] && set[c.toId]) (c.waypoints||[]).forEach((p,i)=>out.push({c, i, x:p.x, y:p.y})); });
+    return out;
+  }
+  function _moveWps(wps,dx,dy){ wps.forEach(p=>{ if(p.c.waypoints&&p.c.waypoints[p.i]) p.c.waypoints[p.i]={x:Math.round(p.x+dx), y:Math.round(p.y+dy)}; }); }
+  function alignSel(mode){
+    const B=_selIds().map(id=>state.elements.find(e=>e.id===id)).filter(Boolean).map(e=>Object.assign({e},_elBox(e)));
+    if(B.length<2) return;
+    const minX=Math.min(...B.map(b=>b.x)), maxX=Math.max(...B.map(b=>b.x+b.w)), minY=Math.min(...B.map(b=>b.y)), maxY=Math.max(...B.map(b=>b.y+b.h));
+    if(mode==='dh'||mode==='dv'){
+      const H=mode==='dh', k=H?'x':'y', d=H?'w':'h';
+      B.sort((a,b)=>(a[k]+a[d]/2)-(b[k]+b[d]/2));
+      const c0=B[0][k]+B[0][d]/2, c1=B[B.length-1][k]+B[B.length-1][d]/2;
+      B.forEach((b,i)=>{ b.e[k]=Math.max(0,Math.round(c0+(c1-c0)*i/(B.length-1)-b[d]/2)); });
+    } else B.forEach(b=>{
+      if(mode==='l') b.e.x=minX; else if(mode==='r') b.e.x=Math.round(maxX-b.w); else if(mode==='ch') b.e.x=Math.round((minX+maxX)/2-b.w/2);
+      else if(mode==='t') b.e.y=minY; else if(mode==='b') b.e.y=Math.round(maxY-b.h); else if(mode==='cv') b.e.y=Math.round((minY+maxY)/2-b.h/2);
+    });
+    saveSite(); render();
+  }
+  function rotateSel(delta){
+    _selIds().forEach(id=>{ const e=state.elements.find(x=>x.id===id); if(!e||e.type==='text_lbl'||e.type==='image_frame') return; e.rot=(((+e.rot||0)+delta)%360+360)%360; if(!e.rot) delete e.rot; });
+    saveSite(); renderNodes(); renderMeasures();
+  }
+  function deleteSel(){
+    const ids=_selIds(); if(!ids.length) return;
+    const canUndo=typeof SectionUndo!=='undefined' && SectionUndo.isPro();
+    if(!canUndo && ids.length>2 && !confirm('Supprimer ces '+ids.length+' éléments et leurs câbles ?')) return;
+    const set={}; ids.forEach(id=>{ set[id]=1; const e=state.elements.find(x=>x.id===id); if(e&&e.iconImgB2) _b2DeleteIcon(e.iconImgB2); });
+    state.elements=state.elements.filter(e=>!set[e.id]); state.cables=state.cables.filter(c=>!set[c.fromId]&&!set[c.toId]);
+    _setSel([]); saveSite(); render();
+    if(ids.length>1) toast(ids.length+' éléments supprimés'+(canUndo?' · Ctrl/⌘ Z pour annuler':''));
+  }
+  function selectAllEls(){ _setSel(state.elements.filter(e=>_elVisMap()[e.id]==='on').map(e=>e.id)); renderNodes(); renderCables(); renderInspector(); }
+
+  /* Zones : surfaces nommées (public, régie, backstage…), surface en m² et capacité une fois à l'échelle */
+  const AREA_COLORS=['#22c55e','#1d9bf0','#eab308','#ff6b1a','#a855f7','#ef4444','#14b8a6','#64748b'];
+  function _areaM2(a){ const p=SiteMeasure.ppm(getData()); return p ? (a.w/p)*(a.h/p) : 0; }
+  function _areaMembers(a){ return state.elements.filter(e=>{ const b=_elBox(e), cx=b.x+b.w/2, cy=b.y+b.h/2; return cx>=a.x&&cx<=a.x+a.w&&cy>=a.y&&cy<=a.y+a.h; }); }
+  function _areaAt(p){ let best=null, ba=Infinity; if(!_layerOn('notes')) return null; (state.areas||[]).forEach(a=>{ if(p.x>=a.x&&p.x<=a.x+a.w&&p.y>=a.y&&p.y<=a.y+a.h&&a.w*a.h<ba){ best=a; ba=a.w*a.h; } }); return best?best.id:null; }
+  function addArea(around){
+    const p=SiteMeasure.ppm(getData());
+    let x,y,w,h;
+    if(around && around.length){ const bs=around.map(id=>state.elements.find(e=>e.id===id)).filter(Boolean).map(_elBox);
+      x=Math.min(...bs.map(b=>b.x))-30; y=Math.min(...bs.map(b=>b.y))-46; w=Math.max(...bs.map(b=>b.x+b.w))-x+30; h=Math.max(...bs.map(b=>b.y+b.h))-y+60; }
+    else { const vp=$('site-viewport'), r=vp?vp.getBoundingClientRect():null, c=r?clientToWorld(r.left+r.width/2, r.top+r.height/2):{x:400,y:300};
+      w=p?Math.min(1600,30*p):320; h=p?Math.min(1200,20*p):220; x=c.x-w/2; y=c.y-h/2; }
+    const a={id:uid(), label:'Zone', x:Math.max(0,Math.round(x)), y:Math.max(0,Math.round(y)), w:Math.round(w), h:Math.round(h), color:AREA_COLORS[(state.areas||[]).length%AREA_COLORS.length]};
+    if(!state.areas) state.areas=[];
+    state.areas.push(a); if(state.layersOff&&state.layersOff.notes){ delete state.layersOff.notes; }
+    state.multi=[]; state.selected={kind:'area', id:a.id}; saveSite(); render();
+    const _f=()=>{ const i=$('si-area-lbl'); if(i && document.activeElement!==i){ i.focus(); i.select(); } }; _f(); setTimeout(_f, 60);
+  }
+  function _renderAreas(){
+    const vp=$('site-viewport'); if(!vp) return;
+    let host=$('site-areas');
+    if(!host){
+      host=document.createElement('div'); host.id='site-areas'; vp.insertBefore(host, $('site-nodes')||vp.firstChild);
+      host.addEventListener('pointerdown', e=>{
+        if(state.tool||state.cableMode||_drawing()||e.button!==0) return;
+        const hd=e.target.closest('.spl-area-hd,.spl-area-e'), hh=e.target.closest('.spl-area-h');
+        if(!hd && !hh) return;
+        const a=(state.areas||[]).find(x=>x.id===(hd||hh).dataset.aid); if(!a) return;
+        state.multi=[]; state.selected={kind:'area', id:a.id};
+        const w=clientToWorld(e.clientX,e.clientY);
+        if(hh) areaRsz={id:a.id, d:hh.dataset.d, w0:w, x:a.x, y:a.y, w:a.w, h:a.h, moved:false};
+        else { const mem=_areaMembers(a); areaDrag={id:a.id, w0:w, x:a.x, y:a.y, nodes:mem.map(m=>({id:m.id,x:m.x,y:m.y})), wps:_innerWps(mem.map(m=>m.id)), moved:false}; }
+        renderNodes(); _renderAreas(); renderInspector();
+        e.stopPropagation(); e.preventDefault();
+      });
+      host.addEventListener('dblclick', e=>{ const hd=e.target.closest('.spl-area-hd,.spl-area-e'); if(!hd) return; state.selected={kind:'area', id:hd.dataset.aid}; renderInspector(); setTimeout(()=>{ const i=$('si-area-lbl'); if(i){ i.focus(); i.select(); } },60); });
+    }
+    const p=SiteMeasure.ppm(getData()), on=_layerOn('notes');
+    host.style.display=on?'':'none';
+    host.innerHTML=(state.areas||[]).map(a=>{
+      const sel=state.selected?.kind==='area'&&state.selected.id===a.id, c=_safeColor(a.color)||'#22c55e', m2=p?(a.w/p)*(a.h/p):0;
+      return `<div class="spl-area${sel?' sel':''}" style="left:${a.x}px;top:${a.y}px;width:${a.w}px;height:${a.h}px;--zc:${c}">`+
+        `<div class="spl-area-hd" data-aid="${esc(a.id)}" title="Glisser pour déplacer la zone et ce qu'elle contient">${esc(a.label||'Zone')}${m2?`<em>${_N(m2,0)} m²</em>`:''}</div>`+
+        ['n','e','s','w'].map(d=>`<span class="spl-area-e e-${d}" data-aid="${esc(a.id)}"></span>`).join('')+
+        ['nw','n','ne','e','se','s','sw','w'].map(d=>`<span class="spl-area-h h-${d}" data-aid="${esc(a.id)}" data-d="${d}"></span>`).join('')+`</div>`;
+    }).join('');
+  }
+  function _renderLasso(){
+    const host=$('site-nodes'); if(!host) return;
+    let el=$('spl-lasso');
+    if(!lasso){ if(el) el.remove(); return; }
+    if(!el){ el=document.createElement('div'); el.id='spl-lasso'; host.appendChild(el); }
+    el.style.left=Math.min(lasso.x0,lasso.x1)+'px'; el.style.top=Math.min(lasso.y0,lasso.y1)+'px';
+    el.style.width=Math.abs(lasso.x1-lasso.x0)+'px'; el.style.height=Math.abs(lasso.y1-lasso.y0)+'px';
+  }
+  function _multiInspHtml(){
+    const ids=_selIds();
+    const AL=[['l','ti-layout-align-left','Aligner à gauche'],['ch','ti-layout-align-center','Centrer horizontalement'],['r','ti-layout-align-right','Aligner à droite'],['t','ti-layout-align-top','Aligner en haut'],['cv','ti-layout-align-middle','Centrer verticalement'],['b','ti-layout-align-bottom','Aligner en bas']];
+    return `<div class="syn-insp-title" style="display:flex;align-items:center;gap:7px"><i class="ti ti-select"></i>${ids.length} éléments</div>`+
+      `<label class="syn-insp-lbl">Aligner</label><div class="sp-al-grp">${AL.map(a=>`<button type="button" class="sp-al-btn" data-al="${a[0]}" title="${a[2]}" aria-label="${a[2]}"><i class="ti ${a[1]}"></i></button>`).join('')}</div>`+
+      (ids.length>2?`<label class="syn-insp-lbl">Répartir régulièrement</label><div class="sp-al-grp two"><button type="button" class="sp-al-btn" data-al="dh"><i class="ti ti-layout-distribute-vertical"></i>Horizontalement</button><button type="button" class="sp-al-btn" data-al="dv"><i class="ti ti-layout-distribute-horizontal"></i>Verticalement</button></div>`:'')+
+      `<label class="syn-insp-lbl">Orientation</label><div class="sp-al-grp two"><button type="button" class="sp-al-btn" data-rot="-15"><i class="ti ti-rotate"></i>−15°</button><button type="button" class="sp-al-btn" data-rot="15"><i class="ti ti-rotate-clockwise"></i>+15°</button></div>`+
+      `<button class="btn sm" type="button" id="si-ms-area" style="width:100%;margin-top:14px"><i class="ti ti-border-corners"></i>Créer une zone autour</button>`+
+      `<button class="btn sm" type="button" id="si-ms-dup" style="width:100%;margin-top:8px"><i class="ti ti-copy"></i>Dupliquer <span style="font-size:8px;color:var(--muted);font-family:var(--m);margin-left:3px">Ctrl/⌘ D</span></button>`+
+      `<button class="btn ghost sm" type="button" id="si-ms-del" style="width:100%;margin-top:8px;color:var(--err)"><i class="ti ti-trash"></i>Supprimer les ${ids.length}</button>`+
+      `<div class="sp-insp-help"><b>Sélection :</b> Maj + clic ajoute ou retire un élément, Maj + glisser dans le vide trace un lasso, Ctrl/⌘ A prend tout. Glissez l'un d'eux pour déplacer l'ensemble.</div>`;
+  }
+  function _bindMultiInsp(insp){
+    insp.querySelectorAll('[data-al]').forEach(b=>b.addEventListener('click',()=>alignSel(b.dataset.al)));
+    insp.querySelectorAll('[data-rot]').forEach(b=>b.addEventListener('click',()=>rotateSel(+b.dataset.rot)));
+    $('si-ms-area')?.addEventListener('click',()=>addArea(_selIds()));
+    $('si-ms-dup')?.addEventListener('click',()=>duplicateSelectedEl());
+    $('si-ms-del')?.addEventListener('click',()=>deleteSel());
+  }
+  function _areaInspHtml(a){
+    const p=SiteMeasure.ppm(getData()), m2=_areaM2(a), dens=Number.isFinite(+a.dens)?+a.dens:2, nIn=_areaMembers(a).length;
+    return `<div class="syn-insp-title" style="display:flex;align-items:center;gap:7px"><i class="ti ti-border-corners"></i>Zone</div>`+
+      `<label class="syn-insp-lbl">Nom</label><input class="syn-insp-inp" id="si-area-lbl" value="${esc(a.label||'')}" maxlength="40" placeholder="Public, régie, backstage…">`+
+      `<label class="syn-insp-lbl">Couleur</label><div class="sp-zn-cols">${AREA_COLORS.map(c=>`<button type="button" class="sp-zn-col${(a.color||'').toLowerCase()===c?' on':''}" data-c="${c}" style="--zc:${c}" aria-label="Couleur"></button>`).join('')}</div>`+
+      (p ? `<div class="spl-len" style="margin-top:12px"><div class="spl-len-big">${_N(m2,0)} m²</div><div class="spl-len-det">${_N(a.w/p)} × ${_N(a.h/p)} m</div>`+
+           `<div class="spl-len-row"><span>Densité</span><span class="spl-ms-in"><input type="text" inputmode="decimal" id="si-area-dens" value="${_N(dens)}"><em>pers./m²</em></span></div>`+
+           `<div class="spl-len-det" style="margin-top:6px">Capacité estimée : <b>≈ ${_N(Math.floor(m2*dens),0)} personnes</b></div></div>`
+         : `<div class="spl-len-none" style="margin-top:12px"><i class="ti ti-ruler-measure"></i><span>Mettez le plan à l'échelle pour connaître la surface et la capacité.</span></div>`)+
+      `<p class="sp-zn-n">${nIn?nIn+' élément'+(nIn>1?'s':'')+' dans la zone : ils la suivent quand on la déplace.':'Aucun élément dans la zone.'}</p>`+
+      `<button class="btn ghost sm" type="button" id="si-area-del" style="width:100%;color:var(--err)"><i class="ti ti-trash"></i>Supprimer la zone</button>`+
+      `<div class="sp-insp-help">Cliquez dans la zone pour la sélectionner. Son étiquette ou un bord la déplace avec son contenu, ses poignées (coins et côtés) l'agrandissent.</div>`;
+  }
+  function _bindAreaInsp(a, insp){
+    $('si-area-lbl')?.addEventListener('input',e=>{ a.label=e.target.value.slice(0,40); _renderAreas(); saveSite(); });
+    insp.querySelectorAll('.sp-zn-col').forEach(b=>b.addEventListener('click',()=>{ a.color=b.dataset.c; saveSite(); _renderAreas(); renderInspector(); }));
+    $('si-area-dens')?.addEventListener('change',e=>{ const v=parseFloat(String(e.target.value).replace(',','.')); if(v>0&&v<10) a.dens=Math.round(v*10)/10; saveSite(); renderInspector(); });
+    $('si-area-del')?.addEventListener('click',()=>{ state.areas=state.areas.filter(x=>x.id!==a.id); state.selected=null; saveSite(); render(); });
+  }
+
   /* ══ Échelle, mètre, cotes, délais, quantitatif (moteur : SiteMeasure) ══ */
   const _N = (v,d)=>SiteMeasure.num(v,d);
   /* Calques : grille sous les éléments (#site-grid), cotes et outils au-dessus (#site-mt) */
@@ -16839,6 +17158,9 @@ const SitePlan = (() => {
     }
     applyTransform();
   }
+  /* Étendue du plan : au moins 5 000 × 4 000, plus si le fond (agrandi) est plus grand */
+  function _gw(){ const b=$('site-bg-img'); return Math.max(5000, b&&state.bgImage ? Math.round((b.naturalWidth||0)*(+state.bgScale||1))+400 : 0); }
+  function _gh(){ const b=$('site-bg-img'); return Math.max(4000, b&&state.bgImage ? Math.round((b.naturalHeight||0)*(+state.bgScale||1))+400 : 0); }
   let _mtPending=false;
   function _mtRaf(){ if(_mtPending) return; _mtPending=true; requestAnimationFrame(()=>{ _mtPending=false; renderMeasures(); _renderScaleBar(); }); }
   /* Pastille de texte à taille constante à l'écran (z = zoom) */
@@ -16856,12 +17178,12 @@ const SitePlan = (() => {
         const step=p*z>=7?1:(p*5*z>=7?5:10), major=step===1?5:10, s=p*step, M=p*major;
         gr.innerHTML=`<defs><pattern id="spl-g1" width="${s}" height="${s}" patternUnits="userSpaceOnUse"><path d="M${s} 0H0V${s}" fill="none" stroke="rgba(28,36,51,.09)" stroke-width="${1/z}"/></pattern>`+
           `<pattern id="spl-g5" width="${M}" height="${M}" patternUnits="userSpaceOnUse"><path d="M${M} 0H0V${M}" fill="none" stroke="rgba(28,36,51,.2)" stroke-width="${1.2/z}"/></pattern></defs>`+
-          `<rect width="5000" height="4000" fill="url(#spl-g1)"/><rect width="5000" height="4000" fill="url(#spl-g5)"/>`;
+          `<rect width="${_gw()}" height="${_gh()}" fill="url(#spl-g1)"/><rect width="${_gw()}" height="${_gh()}" fill="url(#spl-g5)"/>`;
       } else gr.innerHTML='';
     }
     let h='';
-    /* Cotes */
-    (state.measures||[]).forEach(m=>{
+    /* Cotes (calque Annotations) */
+    (_layerOn('notes')?(state.measures||[]):[]).forEach(m=>{
       const sel=state.selected?.kind==='measure' && state.selected.id===m.id, col=sel?'#ff6b1a':'#1c2433';
       const L=p?Math.hypot(m.b.x-m.a.x,m.b.y-m.a.y)/p:0, ang=Math.atan2(m.b.y-m.a.y,m.b.x-m.a.x), nx=-Math.sin(ang)*7/z, ny=Math.cos(ang)*7/z;
       const mx=(m.a.x+m.b.x)/2, my=(m.a.y+m.b.y)/2;
@@ -16900,12 +17222,16 @@ const SitePlan = (() => {
       el=document.createElement('div'); el.id='site-mtools'; el.className='site-mtools'; wrap.appendChild(el);
       el.addEventListener('pointerdown', e=>e.stopPropagation());
       el.addEventListener('click', e=>{
+        const lb=e.target.closest('[data-lay]'); if(lb){ toggleLayer(lb.dataset.lay); setTimeout(()=>{ const p2=$('spl-lay-pop'); if(p2) p2.classList.add('show'); },0); return; }
         const b=e.target.closest('[data-mt]'); if(!b) return;
         const k=b.dataset.mt;
         if(k==='calib'||k==='measure') { if(state.tool===k) stopTool(); else startTool(k); }
         else if(k==='cables') openCableList();
         else if(k==='exit') stopTool();
+        else if(k==='area') addArea();
+        else if(k==='layers'){ const pop=$('spl-lay-pop'); if(pop){ pop.classList.toggle('show'); } }
       });
+      document.addEventListener('pointerdown', e=>{ const pop=$('spl-lay-pop'); if(pop && pop.classList.contains('show') && !e.target.closest('#site-mtools')) pop.classList.remove('show'); });
     }
     const p=SiteMeasure.ppm(getData()), n=state.cables.length;
     const hint = state.tool==='calib' ? (state.toolPts.length ? 'Cliquez le second point de la distance connue' : 'Cliquez le premier point d\'une distance connue : un mur, une scène, une cote du plan')
@@ -16915,6 +17241,8 @@ const SitePlan = (() => {
       `<button type="button" data-mt="calib" class="${state.tool==='calib'?'on':''}${p?' ok':' todo'}" title="${p?'Recalibrer l\'échelle sur une autre distance connue':'Cliquez deux points d\'une distance connue, puis indiquez-la en mètres'}"><i class="ti ti-ruler-measure"></i><span>${p?'Échelle':'Mettre à l\'échelle'}</span></button>`+
       `<button type="button" data-mt="measure" class="${state.tool==='measure'?'on':''}" title="Mesurer une distance et la garder comme cote"><i class="ti ti-ruler-2"></i><span>Mètre</span></button>`+
       `<button type="button" data-mt="cables" title="Quantitatif des câbles : longueurs par type"><i class="ti ti-list-details"></i><span>Câbles</span>${n?`<b>${n}</b>`:''}</button>`+
+      `<button type="button" data-mt="area" title="Zone nommée : public, régie, backstage… avec sa surface"><i class="ti ti-border-corners"></i><span>Zone</span></button>`+
+      `<span class="spl-lay-wrap"><button type="button" data-mt="layers" class="${LAYERS.some(l=>!_layerOn(l[0]))?'part':''}" title="Afficher ou masquer Son, Réseau, Secteur, Annotations"><i class="ti ti-stack-2"></i><span>Calques</span>${LAYERS.some(l=>!_layerOn(l[0]))?`<b>${LAYERS.filter(l=>_layerOn(l[0])).length}/4</b>`:''}</button><div class="spl-lay-pop" id="spl-lay-pop">${_layersPopHtml()}</div></span>`+
       (p?`<span class="site-sbar" id="site-sbar" title="1 m = ${_N(p,1)} px"></span>`:'')+
       (hint?`<span class="site-mt-hint"><i class="ti ti-pointer"></i>${hint}<button type="button" data-mt="exit">Terminer</button></span>`:'');
     _renderScaleBar();
@@ -17187,13 +17515,21 @@ const SitePlan = (() => {
         _drawClickElement(id);
         ev.stopPropagation(); ev.preventDefault(); return;
       }
-      state.selected={kind:'el',id};
       const el=state.elements.find(e=>e.id===id);
       if(!el) return;
-      const w=clientToWorld(ev.clientX,ev.clientY);
-      dragging={id,ox:w.x-el.x,oy:w.y-el.y,moved:false};
+      let collapse=false;
+      /* Maj + clic : ajoute ou retire ; clic sur un élément déjà choisi : déplace tout le groupe */
+      if(ev.shiftKey){
+        const cur=_selIds(), at=cur.indexOf(id);
+        if(at>=0){ cur.splice(at,1); _setSel(cur); renderNodes(); renderInspector(); ev.preventDefault(); return; }
+        cur.push(id); _setSel(cur);
+      } else if(!_isSel(id)) _setSel([id]);
+      else collapse = state.selected && state.selected.kind==='multi';
+      const w=clientToWorld(ev.clientX,ev.clientY), gIds=_selIds();
+      dragging={id, ox:w.x-el.x, oy:w.y-el.y, w0:w, collapse, moved:false,
+                starts:gIds.map(i=>{ const m=state.elements.find(e=>e.id===i); return {id:i, x:m.x, y:m.y}; }), wps:gIds.length>1?_innerWps(gIds):[]};
       host.setPointerCapture?.(ev.pointerId);
-      renderNodes(); renderInspector();
+      renderNodes(); _renderAreas(); renderInspector();
       ev.preventDefault();
     });
 
@@ -17226,18 +17562,23 @@ const SitePlan = (() => {
         return;
       }
       if(!dragging) return;
-      dragging.moved=true;
-      const el=state.elements.find(e=>e.id===dragging.id);
-      const div=host.querySelector(`.spl-node[data-id="${dragging.id}"]`);
-      if(!el||!div) return;
       const w=clientToWorld(ev.clientX,ev.clientY);
-      el.x=Math.max(0,Math.round(w.x-dragging.ox));
-      el.y=Math.max(0,Math.round(w.y-dragging.oy));
-      div.style.left=el.x+'px'; div.style.top=el.y+'px';
+      let dx=w.x-dragging.w0.x, dy=w.y-dragging.w0.y;
+      if(!dragging.moved && Math.abs(dx)+Math.abs(dy)<1) return;
+      dragging.moved=true;
+      /* Le groupe reste dans le plan : on bloque le décalage au bord, pour tous à la fois */
+      dragging.starts.forEach(s=>{ dx=Math.max(dx,-s.x); dy=Math.max(dy,-s.y); });
+      dragging.starts.forEach(s=>{
+        const m=state.elements.find(e=>e.id===s.id); if(!m) return;
+        m.x=Math.round(s.x+dx); m.y=Math.round(s.y+dy);
+        const d=host.querySelector(`.spl-node[data-id="${s.id}"]`); if(d){ d.style.left=m.x+'px'; d.style.top=m.y+'px'; }
+      });
+      _moveWps(dragging.wps, dx, dy);
       renderCables();
     });
 
-    host.addEventListener('pointerup',()=>{ if(rotating){ if(!state.elements.find(e=>e.id===rotating.id)?.rot) { const e0=state.elements.find(e=>e.id===rotating.id); if(e0) delete e0.rot; } if(rotating.moved) saveSite(); rotating=null; renderMeasures(); return; } if(resizing){saveSite(); resizing=null; renderInspector();} if(dragging?.moved){ saveSite(); renderNodes(); renderMeasures(); } dragging=null; });
+    host.addEventListener('pointerup',()=>{ if(rotating){ if(!state.elements.find(e=>e.id===rotating.id)?.rot) { const e0=state.elements.find(e=>e.id===rotating.id); if(e0) delete e0.rot; } if(rotating.moved) saveSite(); rotating=null; renderMeasures(); return; } if(resizing){saveSite(); resizing=null; renderInspector();} if(dragging?.moved){ saveSite(); renderNodes(); renderMeasures(); } else if(dragging && dragging.collapse && !(_lastUpEv&&_lastUpEv.shiftKey)){ _setSel([dragging.id]); renderNodes(); renderInspector(); } dragging=null; });
+    let _lastUpEv=null; host.addEventListener('pointerup', e=>{ _lastUpEv=e; }, true);
 
     // Click on empty = deselect / cancel link / place free cable point
     vp.addEventListener('pointerdown',e=>{
@@ -17247,9 +17588,15 @@ const SitePlan = (() => {
         _drawClickCanvas(clientToWorld(e.clientX,e.clientY), e);
         e.stopPropagation(); e.preventDefault(); return;
       }
-      if(e.target!==vp&&e.target.id!=='site-bg-img'&&e.target.id!=='site-nodes'&&!e.target.id.startsWith('site-')) return;
-      if(state.selected){ state.selected=null; renderNodes(); renderInspector(); }
-      panning={sx:e.clientX-state.view.panX,sy:e.clientY-state.view.panY};
+      if(e.target!==vp&&e.target.id!=='site-bg-img'&&e.target.id!=='site-nodes'&&!String(e.target.id||'').startsWith('site-')) return;
+      if(e.shiftKey && e.button===0){
+        const w=clientToWorld(e.clientX,e.clientY);
+        lasso={x0:w.x, y0:w.y, x1:w.x, y1:w.y, base:_selIds()};
+        if(state.selected && state.selected.kind!=='el' && state.selected.kind!=='multi') state.selected=null;
+        _renderLasso(); vp.setPointerCapture?.(e.pointerId); e.preventDefault(); return;
+      }
+      if(state.selected){ state.multi=[]; state.selected=null; renderNodes(); _renderAreas(); renderMeasures(); renderInspector(); }
+      panning={sx:e.clientX-state.view.panX,sy:e.clientY-state.view.panY, x0:e.clientX, y0:e.clientY, area:_areaAt(clientToWorld(e.clientX,e.clientY))};
       vp.setPointerCapture?.(e.pointerId);
     });
     vp.addEventListener('pointermove',e=>{
@@ -17258,9 +17605,44 @@ const SitePlan = (() => {
         _lastMoveEv=e;
         _renderDrawPreview(e);
       }
+      if(lasso){
+        const w=clientToWorld(e.clientX,e.clientY); lasso.x1=w.x; lasso.y1=w.y;
+        const x0=Math.min(lasso.x0,lasso.x1), x1=Math.max(lasso.x0,lasso.x1), y0=Math.min(lasso.y0,lasso.y1), y1=Math.max(lasso.y0,lasso.y1), vis=_elVisMap();
+        const hit=state.elements.filter(el=>{ if(vis[el.id]!=='on') return false; const b=_elBox(el); return b.x<x1&&b.x+b.w>x0&&b.y<y1&&b.y+b.h>y0; }).map(el=>el.id);
+        _setSel(lasso.base.concat(hit)); renderNodes(); _renderLasso(); return;
+      }
       if(!panning) return; state.view.panX=e.clientX-panning.sx; state.view.panY=e.clientY-panning.sy; applyTransform();
     });
-    vp.addEventListener('pointerup',()=>{ panning=null; });
+    vp.addEventListener('pointerup',e=>{
+      if(lasso){ lasso=null; _renderLasso(); renderNodes(); renderInspector(); return; }
+      /* Clic sans glisser dans une zone : la zone est sélectionnée */
+      if(panning && panning.area && Math.hypot(e.clientX-panning.x0, e.clientY-panning.y0)<5){ state.multi=[]; state.selected={kind:'area', id:panning.area}; _renderAreas(); renderInspector(); }
+      panning=null;
+    });
+    /* Zone tirée par son étiquette, un bord ou une poignée */
+    document.addEventListener('pointermove', e=>{
+      if(!areaDrag && !areaRsz) return;
+      const w=clientToWorld(e.clientX,e.clientY);
+      if(areaDrag){
+        const a=(state.areas||[]).find(x=>x.id===areaDrag.id); if(!a) return;
+        let dx=w.x-areaDrag.w0.x, dy=w.y-areaDrag.w0.y;
+        if(!areaDrag.moved && Math.abs(dx)+Math.abs(dy)<1) return;
+        dx=Math.max(dx,-areaDrag.x); dy=Math.max(dy,-areaDrag.y); areaDrag.nodes.forEach(s=>{ dx=Math.max(dx,-s.x); dy=Math.max(dy,-s.y); });
+        areaDrag.moved=true; a.x=Math.round(areaDrag.x+dx); a.y=Math.round(areaDrag.y+dy);
+        areaDrag.nodes.forEach(s=>{ const m=state.elements.find(x=>x.id===s.id); if(!m) return; m.x=Math.round(s.x+dx); m.y=Math.round(s.y+dy); const d=host.querySelector(`.spl-node[data-id="${s.id}"]`); if(d){ d.style.left=m.x+'px'; d.style.top=m.y+'px'; } });
+        _moveWps(areaDrag.wps, dx, dy);
+        _renderAreas(); renderCables();
+      } else {
+        const a=(state.areas||[]).find(x=>x.id===areaRsz.id); if(!a) return;
+        const R=areaRsz, dx=w.x-R.w0.x, dy=w.y-R.w0.y; R.moved=true;
+        if(R.d.indexOf('e')>=0) a.w=Math.max(40,Math.round(R.w+dx));
+        if(R.d.indexOf('w')>=0){ const nw=Math.max(40,Math.round(R.w-dx)); a.x=Math.max(0,Math.round(R.x+R.w-nw)); a.w=Math.round(R.x+R.w-a.x); }
+        if(R.d.indexOf('s')>=0) a.h=Math.max(30,Math.round(R.h+dy));
+        if(R.d.indexOf('n')>=0){ const nh=Math.max(30,Math.round(R.h-dy)); a.y=Math.max(0,Math.round(R.y+R.h-nh)); a.h=Math.round(R.y+R.h-a.y); }
+        _renderAreas();
+      }
+    });
+    document.addEventListener('pointerup', ()=>{ if(areaDrag||areaRsz){ if((areaDrag&&areaDrag.moved)||(areaRsz&&areaRsz.moved)) saveSite(); areaDrag=null; areaRsz=null; renderNodes(); renderMeasures(); renderInspector(); } });
     vp.addEventListener('wheel',e=>{
       e.preventDefault();
       if(e.ctrlKey){
@@ -17283,7 +17665,7 @@ const SitePlan = (() => {
     document.addEventListener('keydown',e=>{
       if(e.key==='Escape'&&_wpAddCid){ _setWpAddMode(null); return; }
       if(e.key==='Escape'&&state.tool&&host.offsetParent!==null){ if(state.toolPts.length){ state.toolPts=[]; renderMeasures(); _renderMTools(); } else stopTool(); e.preventDefault(); return; }
-      if(e.key==='Escape'&&state.selected&&host.offsetParent!==null&&!_drawing()&&!state.cableMode){ const tg0=e.target, tn0=tg0&&tg0.tagName; if(tn0!=='INPUT'&&tn0!=='TEXTAREA'&&tn0!=='SELECT'){ state.selected=null; renderNodes(); renderCables(); renderInspector(); return; } }
+      if(e.key==='Escape'&&state.selected&&host.offsetParent!==null&&!_drawing()&&!state.cableMode){ const tg0=e.target, tn0=tg0&&tg0.tagName; if(tn0!=='INPUT'&&tn0!=='TEXTAREA'&&tn0!=='SELECT'){ state.multi=[]; state.selected=null; renderNodes(); _renderAreas(); renderCables(); renderInspector(); return; } }
       if(host.offsetParent!==null && !_drawing() && !e.ctrlKey && !e.metaKey && !e.altKey){
         const tg=e.target, tn=tg&&tg.tagName, typing=tn==='INPUT'||tn==='TEXTAREA'||tn==='SELECT'||(tg&&tg.isContentEditable);
         const sel=state.selected;
@@ -17291,6 +17673,9 @@ const SitePlan = (() => {
           const el=state.elements.find(x=>x.id===sel.id);
           if(el && el.type!=='text_lbl' && el.type!=='image_frame'){ el.rot=(((+el.rot||0)+(e.key==='R'?-15:15))%360+360)%360; if(!el.rot) delete el.rot; saveSite(); renderNodes(); renderMeasures(); const ri=$('si-rot'); if(ri) ri.value=Math.round(+el.rot||0); e.preventDefault(); return; }
         }
+        if(!typing && sel && sel.kind==='multi' && (e.key==='Delete'||e.key==='Backspace')){ deleteSel(); e.preventDefault(); return; }
+        if(!typing && sel && sel.kind==='multi' && (e.key==='r'||e.key==='R')){ rotateSel(e.key==='R'?-15:15); e.preventDefault(); return; }
+        if(!typing && sel && sel.kind==='area' && (e.key==='Delete'||e.key==='Backspace')){ state.areas=state.areas.filter(x=>x.id!==sel.id); state.selected=null; saveSite(); render(); e.preventDefault(); return; }
         if(!typing && sel && (e.key==='Delete'||e.key==='Backspace')){
           if(sel.kind==='measure'){ state.measures=state.measures.filter(x=>x.id!==sel.id); }
           else if(sel.kind==='cable'){ state.cables=state.cables.filter(c=>c.id!==sel.id); }
@@ -17319,7 +17704,8 @@ const SitePlan = (() => {
       var k=(e.key||'').toLowerCase();
       if(k==='c'){ if(copySelectedEl()) e.preventDefault(); }
       else if(k==='v'){ if(_siteClip){ pasteEl(); e.preventDefault(); } }
-      else if(k==='d'){ if(state.selected&&state.selected.kind==='el'){ duplicateSelectedEl(); e.preventDefault(); } }
+      else if(k==='d'){ if(state.selected&&(state.selected.kind==='el'||state.selected.kind==='multi')){ duplicateSelectedEl(); e.preventDefault(); } }
+      else if(k==='a'){ if(state.elements.length){ selectAllEls(); e.preventDefault(); } }
     });
 
     document.addEventListener('keyup',e=>{
@@ -17384,33 +17770,39 @@ const SitePlan = (() => {
 
   /* ── Copier / coller / dupliquer un élément (mêmes nom, taille, image…) ── */
   let _siteClip=null;
-  function copySelectedEl(){
-    if(!state.selected || state.selected.kind!=='el') return false;
-    var el=state.elements.find(function(e){return e.id===state.selected.id;});
-    if(!el) return false;
-    _siteClip=JSON.parse(JSON.stringify(el));
-    toast('Élément copié');
+  function copySelectedEl(quiet){
+    const ids=_selIds(); if(!ids.length) return false;
+    const set={}; ids.forEach(id=>set[id]=1);
+    _siteClip={ els:ids.map(id=>JSON.parse(JSON.stringify(state.elements.find(e=>e.id===id)))).filter(Boolean),
+                cables:state.cables.filter(c=>set[c.fromId]&&set[c.toId]).map(c=>JSON.parse(JSON.stringify(c))) };
+    if(!quiet) toast(ids.length>1?ids.length+' éléments copiés':'Élément copié');
     return true;
   }
-  function pasteEl(){
-    if(!_siteClip) return;
-    var el=JSON.parse(JSON.stringify(_siteClip));
-    el.id=uid();
-    el.x=Math.round((_siteClip.x||0)+24);
-    el.y=Math.round((_siteClip.y||0)+24);
-    /* La copie est indépendante : on garde l'image (base64, ré-affichée et
-       comptée en DB) mais on retire la clé B2 partagée — ainsi supprimer
-       l'un n'efface pas le fichier serveur de l'autre. */
-    delete el.iconImgB2;
-    state.elements.push(el);
-    state.selected={kind:'el',id:el.id};
-    /* Cascade : la prochaine collure se décale à partir de cette copie. */
-    _siteClip=JSON.parse(JSON.stringify(el));
-    saveSite(); render();
-    toast('Élément collé');
+  function pasteEl(quiet){
+    if(!_siteClip || !_siteClip.els) return;
+    const map={}, made=[];
+    _siteClip.els.forEach(src=>{
+      const el=JSON.parse(JSON.stringify(src));
+      el.id=map[src.id]=uid(); el.x=Math.round((src.x||0)+24); el.y=Math.round((src.y||0)+24);
+      src.x=el.x; src.y=el.y;   /* collages successifs : en escalier */
+      /* La copie est indépendante : on garde l'image (base64, ré-affichée et
+         comptée en DB) mais on retire la clé B2 partagée — ainsi supprimer
+         l'un n'efface pas le fichier serveur de l'autre. */
+      delete el.iconImgB2;
+      state.elements.push(el); made.push(el.id);
+    });
+    _siteClip.cables.forEach(src=>{
+      const c=JSON.parse(JSON.stringify(src)); c.id=uid(); c.fromId=map[src.fromId]; c.toId=map[src.toId];
+      if(c.waypoints) c.waypoints=c.waypoints.map(p=>({x:Math.round(p.x+24),y:Math.round(p.y+24)}));
+      src.waypoints=c.waypoints; state.cables.push(c);
+    });
+    _setSel(made); saveSite(); render();
+    if(!quiet) toast(made.length>1?made.length+' éléments collés':'Élément collé');
   }
   function duplicateSelectedEl(){
-    if(copySelectedEl()) pasteEl();
+    const keep=_siteClip;
+    if(copySelectedEl(true)){ pasteEl(true); toast(_selIds().length>1?_selIds().length+' éléments dupliqués':'Élément dupliqué'); }
+    _siteClip=keep||_siteClip;
   }
 
   /* ── Tracé point à point ─────────────────────────────────────────────
@@ -17596,7 +17988,7 @@ const SitePlan = (() => {
     if(d>180) d-=360;         // -179..180 (180 reste 180)
     setBgRotation(d);
   }
-  function clearBg() { state.bgImage=null; state.bgRotation=0; const sl=$('site-bg-rotation'); if(sl)sl.value=0; const lbl=$('site-bg-rot-val'); if(lbl)lbl.textContent='0°'; applyBg(); saveSite(); }
+  function clearBg() { state.bgGeo=null; state.bgScale=1; state.bgImage=null; state.bgRotation=0; const sl=$('site-bg-rotation'); if(sl)sl.value=0; const lbl=$('site-bg-rot-val'); if(lbl)lbl.textContent='0°'; applyBg(); saveSite(); }
 
   function load(data) {
     _sanitizePlanJSON(data);
@@ -17612,9 +18004,13 @@ const SitePlan = (() => {
       /* Cotes : coordonnées numériques uniquement (elles sont écrites dans le SVG du plan) */
       state.measures=Array.isArray(data.measures)?data.measures.filter(m=>m&&m.a&&m.b&&[m.a.x,m.a.y,m.b.x,m.b.y].every(v=>Number.isFinite(+v)))
         .map(m=>({id:_sid(m.id)||uid(), a:{x:+m.a.x,y:+m.a.y}, b:{x:+m.b.x,y:+m.b.y}})):[];
+      state.areas=Array.isArray(data.areas)?data.areas.filter(a=>a&&[a.x,a.y,a.w,a.h].every(v=>Number.isFinite(+v))).map(a=>({id:_sid(a.id)||uid(), label:String(a.label||'Zone').slice(0,40), x:+a.x, y:+a.y, w:Math.max(40,+a.w), h:Math.max(30,+a.h), color:_safeColor(a.color)||'#22c55e', dens:Number.isFinite(+a.dens)?+a.dens:undefined})):[];
+      state.layersOff=(data.layersOff&&typeof data.layersOff==='object')?data.layersOff:{};
+      state.bgScale=(Number.isFinite(+data.bgScale)&&+data.bgScale>0&&+data.bgScale<=20)?+data.bgScale:1;
+      state.bgGeo=(data.bgGeo&&Number.isFinite(+data.bgGeo.lat)&&Number.isFinite(+data.bgGeo.lon))?{lat:+data.bgGeo.lat,lon:+data.bgGeo.lon,z:+data.bgGeo.z||0,src:'ign'}:null;
       if(state.scale) state.scale={ppm:+state.scale.ppm, m:+state.scale.m||0, a:state.scale.a?{x:+state.scale.a.x||0,y:+state.scale.a.y||0}:null, b:state.scale.b?{x:+state.scale.b.x||0,y:+state.scale.b.y||0}:null};
     } else {
-      state.scale=null; state.measureOpts={}; state.measures=[];
+      state.scale=null; state.measureOpts={}; state.measures=[]; state.areas=[]; state.layersOff={}; state.bgGeo=null; state.bgScale=1;
       state.elements=[];state.cables=[];state.bgImage=null;state.bgOpacity=100;state.bgRotation=0;state.view={panX:60,panY:60,zoom:1};
     }
     if(Array.isArray(data?.cableTypes)){
@@ -17627,7 +18023,7 @@ const SitePlan = (() => {
     if(data?.textScale) state.textScale=data.textScale;
     if(data?.legendScale) state.legendScale=data.legendScale;
     state.cableTextScale=data?.cableTextScale||1;
-    state.selected=null;state.linkFrom=null;state.freePt1=null;state.drawPts=[];state.tool=null;state.toolPts=[];
+    state.selected=null;state.linkFrom=null;state.freePt1=null;state.drawPts=[];state.tool=null;state.toolPts=[];state.multi=[];
     const sl=$('site-bg-opacity');if(sl)sl.value=state.bgOpacity;
     const rl=$('site-bg-rotation');if(rl)rl.value=state.bgRotation||0;
     const rv=$('site-bg-rot-val');if(rv)rv.textContent=(state.bgRotation||0)+'°';
@@ -17638,7 +18034,7 @@ const SitePlan = (() => {
     if(inited){ renderCablePicker(); render(); }
   }
 
-  function getData() { return {elements:state.elements,cables:state.cables,bgImage:state.bgImage,bgOpacity:state.bgOpacity,bgRotation:state.bgRotation||0,view:state.view,activeCableType:state.activeCableType,textScale:state.textScale,legendScale:state.legendScale,cableTextScale:state.cableTextScale,cableTypes:_usedCableTypes(),scale:state.scale||null,measureOpts:state.measureOpts||{},measures:state.measures||[]}; }
+  function getData() { return {elements:state.elements,cables:state.cables,bgImage:state.bgImage,bgOpacity:state.bgOpacity,bgRotation:state.bgRotation||0,view:state.view,activeCableType:state.activeCableType,textScale:state.textScale,legendScale:state.legendScale,cableTextScale:state.cableTextScale,cableTypes:_usedCableTypes(),scale:state.scale||null,measureOpts:state.measureOpts||{},measures:state.measures||[],areas:state.areas||[],layersOff:state.layersOff||{},bgGeo:state.bgGeo||null,bgScale:+state.bgScale||1}; }
   /* Définition (libellé/couleur/trait) des types réellement utilisés, écrite
      dans le plan : les types personnalisés et les couleurs modifiées ne vivent
      sinon que dans le navigateur de leur auteur, et le lien partagé (ou un
@@ -17810,10 +18206,12 @@ const SitePlan = (() => {
 
   function _makeCanvas(cb) {
     const _draw = bgImg => {
-      const els=state.elements, cables=state.cables;
+      /* L'export suit les calques affichés ; un élément raccordé à un câble visible est estompé */
+      const _vm=_elVisMap(), _notes=_layerOn('notes');
+      const els=state.elements.filter(e=>_vm[e.id]!=='off'), cables=_visCables();
       let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
       if(bgImg){
-        const _bw=bgImg.naturalWidth, _bh=bgImg.naturalHeight;
+        const _BS=+state.bgScale||1, _bw=bgImg.naturalWidth*_BS, _bh=bgImg.naturalHeight*_BS;
         const _brot=(state.bgRotation||0)*Math.PI/180;
         if(_brot){
           /* Boîte englobante de l'image pivotée (autour de son centre) pour
@@ -17837,6 +18235,7 @@ const SitePlan = (() => {
       /* Cotes et tracés des câbles (points de passage, bouts libres) : rien ne doit être rogné */
       (state.measures||[]).forEach(m=>{ [m.a,m.b].forEach(pt=>{ minX=Math.min(minX,pt.x-40); minY=Math.min(minY,pt.y-40); maxX=Math.max(maxX,pt.x+40); maxY=Math.max(maxY,pt.y+40); }); });
       cables.forEach(c=>{ (c.waypoints||[]).concat(c.fromPt?[c.fromPt]:[], c.toPt?[c.toPt]:[]).forEach(pt=>{ if(!pt||!isFinite(+pt.x)||!isFinite(+pt.y)) return; minX=Math.min(minX,pt.x-50); minY=Math.min(minY,pt.y-50); maxX=Math.max(maxX,pt.x+50); maxY=Math.max(maxY,pt.y+50); }); });
+      if(_notes) (state.areas||[]).forEach(a=>{ minX=Math.min(minX,a.x-30); minY=Math.min(minY,a.y-30); maxX=Math.max(maxX,a.x+a.w+30); maxY=Math.max(maxY,a.y+a.h+30); });
       if(!isFinite(minX)){ minX=0;minY=0;maxX=1200;maxY=800; }
       const W=maxX-minX, H=maxY-minY;
       const SCALE=Math.min(2, 3840/Math.max(W,H));
@@ -17851,13 +18250,14 @@ const SitePlan = (() => {
         ctx.save(); ctx.globalAlpha=state.bgOpacity/100;
         const _brot=(state.bgRotation||0)*Math.PI/180;
         if(_brot){
-          const _cx=wx(bgImg.naturalWidth/2), _cy=wy(bgImg.naturalHeight/2);
+          const _cx=wx(bgImg.naturalWidth*(+state.bgScale||1)/2), _cy=wy(bgImg.naturalHeight*(+state.bgScale||1)/2);
           ctx.translate(_cx,_cy); ctx.rotate(_brot); ctx.translate(-_cx,-_cy);
         }
-        ctx.drawImage(bgImg, wx(0), wy(0), bgImg.naturalWidth*SCALE, bgImg.naturalHeight*SCALE);
+        ctx.drawImage(bgImg, wx(0), wy(0), bgImg.naturalWidth*(+state.bgScale||1)*SCALE, bgImg.naturalHeight*(+state.bgScale||1)*SCALE);
         ctx.restore();
       }
       SiteMeasure.drawGrid(ctx, _D, wx, wy, minX, minY, maxX, maxY, SCALE);
+      if(_notes) SiteMeasure.drawAreas(ctx, _D, wx, wy, SCALE, _SP_FONT);
       const drawArrow=(tx,ty,dx,dy,color,sz)=>{
         const bx=tx-dx*sz, by=ty-dy*sz;
         ctx.save(); ctx.fillStyle=color; ctx.beginPath();
@@ -17904,9 +18304,11 @@ const SitePlan = (() => {
         const _icImg=_siteIconImgs&&_siteIconImgs[el.type];
         const _iconImg=_customImg||_icImg||null;
         const _emoji=(it&&typeof it.icon==='string'&&it.icon.charAt(0)!=='<')?it.icon:'';
+        const _gh=_vm[el.id]==='ghost'; if(_gh){ ctx.save(); ctx.globalAlpha=0.35; }
         _spDrawSiteNode(ctx, el, ex, ey, SCALE, TS, {color:(it&&it.color)||'#5a6580', iconImg:_iconImg, emoji:_emoji});
+        if(_gh) ctx.restore();
       });
-      SiteMeasure.drawOverlay(ctx, _D, wx, wy, SCALE, cw, ch, _SP_FONT);
+      SiteMeasure.drawOverlay(ctx, Object.assign({}, _D, {elements:els, cables:cables, measures:_notes?(_D.measures||[]):[]}), wx, wy, SCALE, cw, ch, _SP_FONT);
       const usedIds=[...new Set(cables.map(c=>c.type))];
       _spLegend(ctx, usedIds.map(function(id){ const c=CABLE_TYPES.find(t=>t.id===id)||CABLE_TYPES[0]; return {color:c.color, dash:c.dash, label:c.label}; }), state.legendScale||1, SCALE, ch);
       cb(canvas);
@@ -17984,7 +18386,7 @@ const SitePlan = (() => {
     saveSite(); render(); renderInspector();
     setTimeout(function(){ uploadElementIcon(id); },80);
   }
-  return {openCableList,startTool,stopTool,cablePdfRows,init,load,getData,loadBg,setBgOpacity,setBgRotation,rotateBg,clearBg,clear,zoom,setZoomPct,fitView,resetView,selectCable,exportPng,exportCanvas,exportCanvasSafe,hasContent,setActiveCableType,toggleCableMode,cancelDraw:()=>_cancelDraw(),setTextScale,setLegendScale,setCableTextScale,deleteCustomCableType,updateCableType,uploadElementIcon,clearElementIcon,adjImgPx,
+  return {openCableList,startTool,stopTool,cablePdfRows,openSatellite,addArea,toggleLayer,init,load,getData,loadBg,setBgOpacity,setBgRotation,rotateBg,clearBg,clear,zoom,setZoomPct,fitView,resetView,selectCable,exportPng,exportCanvas,exportCanvasSafe,hasContent,setActiveCableType,toggleCableMode,cancelDraw:()=>_cancelDraw(),setTextScale,setLegendScale,setCableTextScale,deleteCustomCableType,updateCableType,uploadElementIcon,clearElementIcon,adjImgPx,
     /* Exposés pour le rendu fidèle côté lien partagé (couleur + icône réelles
        de la palette, identiques à _makeCanvas). */
     itemMeta:function(t){var it=findItem(t); return {color:(it&&it.color)||'#5a6a80', icon:(it&&it.icon)||null, label:(it&&it.label)||t};},
@@ -27548,7 +27950,7 @@ function _svFs(imgId, title){
         var minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
         var _brotDeg=siteData.bgRotation||0, _brot=_brotDeg*Math.PI/180;
         if(_bgImg){
-          var _bw=_bgImg.naturalWidth, _bh=_bgImg.naturalHeight;
+          var _RBS=(+siteData.bgScale>0&&+siteData.bgScale<=20)?+siteData.bgScale:1, _bw=_bgImg.naturalWidth*_RBS, _bh=_bgImg.naturalHeight*_RBS;
           if(_brot){
             /* Boîte englobante de l'image pivotée (autour de son centre) — cf. éditeur */
             var _cos=Math.abs(Math.cos(_brot)), _sin=Math.abs(Math.sin(_brot));
@@ -27571,6 +27973,7 @@ function _svFs(imgId, title){
         });
         (Array.isArray(siteData.measures)?siteData.measures:[]).forEach(function(m){ if(!m||!m.a||!m.b) return; [m.a,m.b].forEach(function(pt){ minX=Math.min(minX,pt.x-40); minY=Math.min(minY,pt.y-40); maxX=Math.max(maxX,pt.x+40); maxY=Math.max(maxY,pt.y+40); }); });
         cables.forEach(function(c){ (c.waypoints||[]).concat(c.fromPt?[c.fromPt]:[], c.toPt?[c.toPt]:[]).forEach(function(pt){ if(!pt||!isFinite(+pt.x)||!isFinite(+pt.y)) return; minX=Math.min(minX,pt.x-50); minY=Math.min(minY,pt.y-50); maxX=Math.max(maxX,pt.x+50); maxY=Math.max(maxY,pt.y+50); }); });
+        (Array.isArray(siteData.areas)?siteData.areas:[]).forEach(function(a){ if(![a.x,a.y,a.w,a.h].every(function(v){return isFinite(+v);})) return; minX=Math.min(minX,+a.x-30); minY=Math.min(minY,+a.y-30); maxX=Math.max(maxX,+a.x+(+a.w)+30); maxY=Math.max(maxY,+a.y+(+a.h)+30); });
         if(!isFinite(minX)){ minX=0;minY=0;maxX=1200;maxY=800; }
         var W=maxX-minX, H=maxY-minY;
         var SCALE=Math.min(2,3840/Math.max(W,H));
@@ -27586,13 +27989,15 @@ function _svFs(imgId, title){
         if(_bgImg){
           ctx.save(); ctx.globalAlpha=(siteData.bgOpacity??100)/100;
           if(_brot){
-            var _bcx=wx(_bgImg.naturalWidth/2), _bcy=wy(_bgImg.naturalHeight/2);
+            var _RBS2=(+siteData.bgScale>0&&+siteData.bgScale<=20)?+siteData.bgScale:1, _bcx=wx(_bgImg.naturalWidth*_RBS2/2), _bcy=wy(_bgImg.naturalHeight*_RBS2/2);
             ctx.translate(_bcx,_bcy); ctx.rotate(_brot); ctx.translate(-_bcx,-_bcy);
           }
-          ctx.drawImage(_bgImg, wx(0), wy(0), _bgImg.naturalWidth*SCALE, _bgImg.naturalHeight*SCALE);
+          var _RBS3=(+siteData.bgScale>0&&+siteData.bgScale<=20)?+siteData.bgScale:1;
+          ctx.drawImage(_bgImg, wx(0), wy(0), _bgImg.naturalWidth*_RBS3*SCALE, _bgImg.naturalHeight*_RBS3*SCALE);
           ctx.restore();
         }
         SiteMeasure.drawGrid(ctx, siteData, wx, wy, minX, minY, maxX, maxY, SCALE);
+        SiteMeasure.drawAreas(ctx, siteData, wx, wy, SCALE, _SP_FONT);
 
         /* Câbles — fidèle à l'éditeur : waypoints (polyligne), câbles libres,
            flèches de direction, jointures arrondies. */
