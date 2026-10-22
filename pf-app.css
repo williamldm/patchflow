@@ -5621,9 +5621,27 @@ html[data-sv-theme="dark"],html[data-sv-theme="dark"] body{background:#0c0e12}
 .sp-zone{position:absolute;border-radius:14px;border:1.5px dashed color-mix(in srgb,var(--zc) 62%,transparent);background:color-mix(in srgb,var(--zc) 6%,transparent);pointer-events:none}
 .sp-zone.sel{border-style:solid;border-color:var(--zc);box-shadow:0 0 0 3px color-mix(in srgb,var(--zc) 18%,transparent)}
 .sp-zone-hd{position:absolute;left:14px;top:-11px;max-width:calc(100% - 28px);height:22px;padding:0 11px;border-radius:11px;background:var(--zc);color:#fff;font:700 11.5px/22px Archivo,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:move;pointer-events:auto;user-select:none}
-.sp-zone-rsz{position:absolute;right:-6px;bottom:-6px;width:14px;height:14px;border-radius:4px;background:#fff;box-shadow:0 0 0 1.5px var(--zc);cursor:nwse-resize;pointer-events:auto;opacity:0;transition:opacity .12s}
-.sp-zone:hover .sp-zone-rsz,.sp-zone.sel .sp-zone-rsz{opacity:1}
-.sp-zone:hover{border-color:color-mix(in srgb,var(--zc) 85%,transparent)}
+.sp-zone:has(.sp-zone-e:hover,.sp-zone-hd:hover){border-style:solid;border-color:color-mix(in srgb,var(--zc) 85%,transparent);background:color-mix(in srgb,var(--zc) 10%,transparent)}
+/* Bords saisissables : une bande de 14 px à l'écran, quel que soit le zoom */
+.sp-zone-e{position:absolute;pointer-events:auto;cursor:move;--b:calc(14px / var(--z,1))}
+.sp-zone-e.e-n{left:0;right:0;top:calc(var(--b) / -2);height:var(--b)}
+.sp-zone-e.e-s{left:0;right:0;bottom:calc(var(--b) / -2);height:var(--b)}
+.sp-zone-e.e-w{top:0;bottom:0;left:calc(var(--b) / -2);width:var(--b)}
+.sp-zone-e.e-e{top:0;bottom:0;right:calc(var(--b) / -2);width:var(--b)}
+/* Poignées : quatre coins et milieu des côtés, 12 px à l'écran, visibles au survol et sur la zone choisie */
+.sp-zone-h{position:absolute;z-index:2;--h:calc(12px / var(--z,1));width:var(--h);height:var(--h);border-radius:calc(3px / var(--z,1));background:#fff;box-shadow:0 0 0 calc(1.5px / var(--z,1)) var(--zc);pointer-events:auto;opacity:0;transition:opacity .12s}
+.sp-zone.sel .sp-zone-h,.sp-zone:has(.sp-zone-e:hover,.sp-zone-hd:hover,.sp-zone-h:hover) .sp-zone-h{opacity:1}
+.sp-zone-h.h-nw,.sp-zone-h.h-n,.sp-zone-h.h-ne{top:calc(var(--h) / -2)}
+.sp-zone-h.h-sw,.sp-zone-h.h-s,.sp-zone-h.h-se{bottom:calc(var(--h) / -2)}
+.sp-zone-h.h-nw,.sp-zone-h.h-w,.sp-zone-h.h-sw{left:calc(var(--h) / -2)}
+.sp-zone-h.h-ne,.sp-zone-h.h-e,.sp-zone-h.h-se{right:calc(var(--h) / -2)}
+.sp-zone-h.h-n,.sp-zone-h.h-s{left:calc(50% - var(--h) / 2)}
+.sp-zone-h.h-w,.sp-zone-h.h-e{top:calc(50% - var(--h) / 2)}
+.sp-zone-h.h-nw,.sp-zone-h.h-se{cursor:nwse-resize}
+.sp-zone-h.h-ne,.sp-zone-h.h-sw{cursor:nesw-resize}
+.sp-zone-h.h-n,.sp-zone-h.h-s{cursor:ns-resize}
+.sp-zone-h.h-e,.sp-zone-h.h-w{cursor:ew-resize}
+.sp-zone-hd{z-index:3}
 #sp-lasso{position:absolute;z-index:30;border:calc(1.5px / var(--z,1)) dashed #ff6b1a;background:rgba(255,107,26,.07);border-radius:calc(4px / var(--z,1));pointer-events:none}
 /* Propriétés : alignement, zone, réseau */
 .sp-al-grp{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
@@ -5684,3 +5702,29 @@ html[data-sv-theme="dark"],html[data-sv-theme="dark"] body{background:#0c0e12}
 .sp-empty-acts{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
 @media(max-width:1100px){ #sp-ips span{display:none} }
 .sp-net-row2{display:grid;grid-template-columns:minmax(0,1fr) 64px;gap:6px}
+/* Plan d'adressage */
+.sp-ip-box{width:min(900px,calc(100vw - 32px))}
+.sp-ip-bar{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;margin-bottom:10px}
+.sp-ip-seg{display:inline-flex;gap:2px;padding:3px;border-radius:9px;background:var(--surf2)}
+.sp-ip-seg button{height:28px;padding:0 11px;border:0;border-radius:7px;background:transparent;color:var(--txt2);font:500 12.5px var(--f);cursor:pointer}
+.sp-ip-seg button b{font-weight:600;color:var(--muted);margin-left:3px}
+.sp-ip-seg button.on{background:var(--surf);color:var(--txt);box-shadow:0 0 0 1px var(--bdr2)}
+.sp-ip-auto{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.sp-ip-auto .sp-ip-in{width:132px}
+.sp-ip-in{width:100%;height:30px;padding:0 8px;border:0;border-radius:7px;background:var(--surf2);color:var(--txt);font:400 12.5px var(--f);box-shadow:inset 0 0 0 1px var(--bdr);outline:0;box-sizing:border-box}
+.sp-ip-in.mono{font-family:var(--m)}
+.sp-ip-in:focus{box-shadow:inset 0 0 0 1px var(--ora)}
+.sp-ip-in.dup,.sp-ip-in.bad{box-shadow:inset 0 0 0 1.5px var(--err);color:var(--err)}
+.sp-ip-t td{padding:5px 6px;vertical-align:middle}
+.sp-ip-t th{padding:9px 6px}
+.sp-ip-t td:first-child{padding-left:12px;min-width:150px}
+.sp-ip-t td:first-child b{display:block;font-weight:600;color:var(--txt)}
+.sp-ip-t td:first-child small{font-size:10.5px;color:var(--muted);font-weight:400}
+.sp-ip-t td.w-vlan{width:64px}
+.sp-ip-t td.w-fw{width:90px}
+.sp-ip-t tr:hover td{background:transparent}
+.sp-ip-loc{width:28px;height:28px;border:0;border-radius:7px;background:transparent;color:var(--muted);cursor:pointer}
+.sp-ip-loc:hover{background:var(--surf2);color:var(--txt)}
+.sp-node-ip.none{background:rgba(255,255,255,.7);box-shadow:0 0 0 1px rgba(28,36,51,.18);border:0;color:rgba(28,36,51,.45);font-style:italic}
+.sp-node-ip.bad{box-shadow:0 0 0 1.5px #e5484d;color:#c62f35}
+.sp-grow{flex:1}

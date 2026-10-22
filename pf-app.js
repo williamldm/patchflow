@@ -9851,7 +9851,7 @@ const SynPro = (() => {
   let multi = [];        // sélection multiple : équipements choisis (selected.kind === 'multi')
   let lasso = null;      // { x0, y0, x1, y1, base } — Maj + glisser dans le vide
   let zoneDrag = null;   // { id, w0, x, y, nodes, wps, moved } — zone déplacée avec son contenu
-  let zoneRsz = null;    // { id, w0, w, h, moved }
+  let zoneRsz = null;    // { id, d:'nw'|'n'|…, w0, x, y, w, h, moved } — poignée tirée (coins et côtés)
   let netOnly = null;    // réseau isolé depuis la légende : les autres liaisons s'estompent
 
   function _defaultState() {
@@ -9938,6 +9938,13 @@ const SynPro = (() => {
     scheduleSave(); render();
     return z;
   }
+  function _zoneAt(p){
+    var best = null, ba = Infinity;
+    (state.zones || []).forEach(function(z){
+      if (p.x >= z.x && p.x <= z.x + z.w && p.y >= z.y && p.y <= z.y + z.h && z.w * z.h < ba) { best = z; ba = z.w * z.h; }
+    });
+    return best ? best.id : null;
+  }
   function zoneAroundSelection(){
     var ids = _selIds(); if (!ids.length) return;
     var b = _boxOf(ids);
@@ -9965,7 +9972,9 @@ const SynPro = (() => {
       var c = _safeColor(z.color) || '#64748b', sel = selected.kind === 'zone' && selected.id === z.id;
       return '<div class="sp-zone' + (sel ? ' sel' : '') + '" data-zid="' + esc(z.id) + '" style="left:' + z.x + 'px;top:' + z.y + 'px;width:' + z.w + 'px;height:' + z.h + 'px;--zc:' + c + '">' +
         '<div class="sp-zone-hd" data-zid="' + esc(z.id) + '" title="Glisser pour déplacer la zone et son contenu">' + esc(z.label || 'Zone') + '</div>' +
-        '<span class="sp-zone-rsz" data-zid="' + esc(z.id) + '" title="Redimensionner"></span></div>';
+        /* Bords saisissables (déplacer) puis poignées aux quatre coins et au milieu des côtés (agrandir) */
+        ['n', 'e', 's', 'w'].map(function(d){ return '<span class="sp-zone-e e-' + d + '" data-zid="' + esc(z.id) + '" title="Glisser pour déplacer la zone"></span>'; }).join('') +
+        ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].map(function(d){ return '<span class="sp-zone-h h-' + d + '" data-zid="' + esc(z.id) + '" data-d="' + d + '"></span>'; }).join('') + '</div>';
     }).join('');
   }
   function _renderLasso(){
@@ -10799,7 +10808,8 @@ const SynPro = (() => {
     var hasCard = /<div class="sp-node-card/.test(iconHtml);
     if (hasCard) iconHtml = iconHtml.replace(/(<div class="sp-node-card[^"]*"[^>]*>)/, '$1' + ports);
     var ipTxt = (n.type !== 'note' && n.type !== 'text_label') ? _netTxt(n.net) : '';
-    var ipHtml = ipTxt ? '<div class="sp-node-ip' + (n.net.role ? ' r-' + n.net.role : '') + '">' + esc(ipTxt) + '</div>' : '';
+    var ipHtml = ipTxt ? '<div class="sp-node-ip' + (n.net.role ? ' r-' + n.net.role : '') + (n.net.ip && !_ipOk(n.net.ip) ? ' bad' : '') + '" title="Réseau : cliquez l\'équipement pour modifier">' + esc(ipTxt) + '</div>'
+      : ((_netMode() && _isNetNode(n)) ? '<div class="sp-node-ip none" title="Adresse à définir : Adresses IP, ou propriétés de l\'équipement">IP à définir</div>' : '');
     return '<div class="sp-node' + sel + target + '" data-id="' + n.id + '" data-type="' + esc(n.type) + '" style="left:' + n.x + 'px;top:' + n.y + 'px;min-width:' + nodeMinW + '">' + iconHtml + (hasCard ? '' : ports) + ipHtml + '<button type="button" class="sp-node-del" data-del="' + n.id + '" title="Supprimer">&times;</button></div>';
   }
 
@@ -11268,7 +11278,7 @@ const SynPro = (() => {
         '<p class="sp-zn-n">' + (inZ ? inZ + ' équipement' + (inZ > 1 ? 's' : '') + ' dans la zone : ils la suivent quand on la déplace.' : 'Aucun équipement dans la zone pour l\'instant.') + '</p>' +
         (inZ ? '<button class="btn sm" id="sp-zn-fit" style="width:100%"><i class="ti ti-arrows-minimize"></i>Ajuster à son contenu</button>' : '') +
         '<button class="btn ghost sm" id="sp-zn-del" style="width:100%;margin-top:8px;color:var(--err)"><i class="ti ti-trash"></i>Supprimer la zone</button>' +
-        '<div class="sp-insp-help">La zone se déplace par son étiquette et se redimensionne par son coin en bas à droite. Supprimer la zone garde les équipements.</div>';
+        '<div class="sp-insp-help">Cliquez dans la zone pour la sélectionner. Glissez son étiquette ou un de ses bords pour la déplacer avec son contenu, ses poignées (coins et côtés) pour l\'agrandir. Double-clic sur l\'étiquette pour la renommer. Supprimer la zone garde les équipements.</div>';
       $('sp-zn-label').addEventListener('input', function(e){ z.label = e.target.value.slice(0, 40); var hd = document.querySelector('.sp-zone-hd[data-zid="' + z.id + '"]'); if (hd) hd.textContent = z.label || 'Zone'; scheduleSave(); });
       el.querySelectorAll('.sp-zn-col').forEach(function(b){ b.addEventListener('click', function(){ z.color = b.dataset.c; _renderZones(); _renderInspector(); scheduleSave(); }); });
       $('sp-zn-fit')?.addEventListener('click', function(){
@@ -11735,14 +11745,14 @@ const SynPro = (() => {
         return;
       }
 
-      /* Zone : l'étiquette la déplace (avec son contenu), le coin la redimensionne */
-      var zr = e.target.closest('.sp-zone-rsz'), zh = !zr && e.target.closest('.sp-zone-hd');
+      /* Zone : l'étiquette ou un bord la déplace (avec son contenu), une poignée l'agrandit depuis n'importe quel coin ou côté */
+      var zr = e.target.closest('.sp-zone-h'), zh = !zr && e.target.closest('.sp-zone-hd,.sp-zone-e');
       if ((zr || zh) && e.button === 0 && !activeCable) {
         var zz = zoneById((zr || zh).dataset.zid);
         if (!zz) return;
         multi = []; selected = { kind:'zone', id:zz.id }; selWp = null;
         var zw = _evWorld(e);
-        if (zr) zoneRsz = { id:zz.id, w0:zw, w:zz.w, h:zz.h, moved:false };
+        if (zr) zoneRsz = { id:zz.id, d:zr.dataset.d || 'se', w0:zw, x:zz.x, y:zz.y, w:zz.w, h:zz.h, moved:false };
         else {
           var inside = _zoneMembers(zz);
           zoneDrag = { id:zz.id, w0:zw, x:zz.x, y:zz.y, moved:false,
@@ -11818,7 +11828,7 @@ const SynPro = (() => {
       _paintSel();
       _renderEdges();
       _renderInspector();
-      panning = { x: e.clientX, y: e.clientY, px: view.panX, py: view.panY };
+      panning = { x: e.clientX, y: e.clientY, px: view.panX, py: view.panY, zone: _zoneAt(_evWorld(e)) };
       vp.setPointerCapture(e.pointerId);
       vp.style.cursor = 'grabbing';
       e.preventDefault();
@@ -11888,8 +11898,14 @@ const SynPro = (() => {
       if (zoneRsz) {
         var zq = _evWorld(e), zr2 = zoneById(zoneRsz.id); if (!zr2) return;
         zoneRsz.moved = true;
-        zr2.w = Math.max(160, Math.round(zoneRsz.w + zq.x - zoneRsz.w0.x)); zr2.h = Math.max(90, Math.round(zoneRsz.h + zq.y - zoneRsz.w0.y));
-        var ze2 = document.querySelector('.sp-zone[data-zid="' + zr2.id + '"]'); if (ze2) { ze2.style.width = zr2.w + 'px'; ze2.style.height = zr2.h + 'px'; }
+        var R = zoneRsz, rdx = zq.x - R.w0.x, rdy = zq.y - R.w0.y, MW = 160, MH = 90;
+        /* Le côté opposé reste en place : on ne bouge que le bord ou le coin tiré */
+        if (R.d.indexOf('e') >= 0) zr2.w = Math.max(MW, Math.round(R.w + rdx));
+        if (R.d.indexOf('w') >= 0) { var nw = Math.max(MW, Math.round(R.w - rdx)); zr2.x = Math.round(R.x + R.w - nw); zr2.w = nw; }
+        if (R.d.indexOf('s') >= 0) zr2.h = Math.max(MH, Math.round(R.h + rdy));
+        if (R.d.indexOf('n') >= 0) { var nh = Math.max(MH, Math.round(R.h - rdy)); zr2.y = Math.round(R.y + R.h - nh); zr2.h = nh; }
+        var ze2 = document.querySelector('.sp-zone[data-zid="' + zr2.id + '"]');
+        if (ze2) { ze2.style.left = zr2.x + 'px'; ze2.style.top = zr2.y + 'px'; ze2.style.width = zr2.w + 'px'; ze2.style.height = zr2.h + 'px'; }
         return;
       }
       if (resizing) {
@@ -11983,6 +11999,11 @@ const SynPro = (() => {
         _renderInspector();
         return;
       }
+      /* Clic sans glisser dans une zone : la zone est sélectionnée */
+      if (panning && panning.zone && Math.hypot(e.clientX - panning.x, e.clientY - panning.y) < 5) {
+        multi = []; selected = { kind:'zone', id:panning.zone }; selWp = null;
+        _paintSel(); _renderInspector();
+      }
       panning = null;
     });
 
@@ -12033,6 +12054,13 @@ const SynPro = (() => {
       if (linkDraw) return;
       var wpe = e.target.closest('.sp-h-wp');
       if (wpe) { e.preventDefault(); e.stopPropagation(); _synDelWp(wpe.dataset.cid, +wpe.dataset.idx); _renderInspector(); return; }
+      var zhd = e.target.closest('.sp-zone-hd,.sp-zone-e');
+      if (zhd) {
+        e.preventDefault(); e.stopPropagation();
+        multi = []; selected = { kind:'zone', id:zhd.dataset.zid }; _paintSel(); _renderInspector();
+        setTimeout(function(){ var i = $('sp-zn-label'); if (i) { i.focus(); i.select(); } }, 60);
+        return;
+      }
       var le = e.target.closest('.sp-elabel');
       if (le) {
         selected = { kind:'cable', id: le.dataset.cid }; render();
@@ -12491,37 +12519,97 @@ const SynPro = (() => {
     }).sort(function(a, b){ return _ipNum(a.ip) - _ipNum(b.ip) || a.name.localeCompare(b.name); });
   }
   function ipList() { return _ipRows().map(function(r){ return { name:r.name, ip:r.ip, mask:r.mask, vlan:r.vlan, fw:r.fw, role:r.role }; }); }
+  /* Équipement en réseau : prise réseau dans ses entrées / sorties, liaison numérique, ou adresse déjà donnée */
+  var NET_IDS = { dante:1, aes50:1, madi:1, avb:1, gigaace:1, dxlink:1, dsnake:1, twinlane:1, fibre:1 };
+  function _isNetNode(n) {
+    if (!n || n.type === 'note' || n.type === 'text_label' || n.type === 'image_frame') return false;
+    if (n.net && n.net.ip) return true;
+    var sp = spec(n.type);
+    if (SynIO.ports(n, sp && sp.io).some(function(p){ return p.dir === 'net'; })) return true;
+    return state.cables.some(function(c){ return (c.from === n.id || c.to === n.id) && NET_IDS[c.network]; });
+  }
+  /* Le plan d'adressage est commencé dès qu'un équipement a une adresse : les autres équipements en réseau le montrent */
+  function _netMode() { return state.nodes.some(function(n){ return n.net && n.net.ip; }); }
+  var _TYPE_RANK = function(n){ var t = n.type || ''; return /^console\./.test(t) ? 0 : /^(rack|io)\./.test(t) ? 1 : /^net\./.test(t) ? 2 : /^amp\./.test(t) ? 3 : 4; };
+  function _nextIp(ip, used) {
+    var p = ip.split('.').map(Number);
+    do { p[3]++; if (p[3] > 254) return null; } while (used[p.join('.')]);
+    return p.join('.');
+  }
+  /* Plan d'adressage : toutes les adresses se saisissent ici, d'un coup, et peuvent être attribuées à la suite */
+  var _ipAll = false;
   function openIpList() {
-    var rows = _ipRows(), seen = {}, dup = {};
-    rows.forEach(function(r){ if (r.ip) { if (seen[r.ip]) dup[r.ip] = 1; seen[r.ip] = 1; } });
     var m = $('sp-ip-modal');
     if (!m) { m = document.createElement('div'); m.id = 'sp-ip-modal'; m.className = 'modal-ov'; m.addEventListener('click', function(e){ if (e.target === m) m.classList.remove('show'); }); document.body.appendChild(m); }
-    var nDup = Object.keys(dup).length, bad = rows.filter(function(r){ return r.ip && !_ipOk(r.ip); }).length;
-    m.innerHTML = '<div class="modal-box sp-ip-box"><div class="modal-head"><span class="modal-title">Adresses IP</span><button class="modal-close" onclick="document.getElementById(\'sp-ip-modal\').classList.remove(\'show\')" aria-label="Fermer"><i class="ti ti-x"></i></button></div><div class="modal-body">' +
-      (rows.length
-        ? ((nDup || bad) ? '<div class="sp-ip-warn"><i class="ti ti-alert-triangle"></i>' + [nDup ? nDup + ' adresse' + (nDup > 1 ? 's' : '') + ' en double' : '', bad ? bad + ' adresse' + (bad > 1 ? 's' : '') + ' incomplète' + (bad > 1 ? 's' : '') : ''].filter(Boolean).join(' · ') + '</div>' : '') +
-          '<div class="sp-ip-wrap"><table class="sp-ip-t"><thead><tr><th>Équipement</th><th>Adresse IP</th><th>Masque</th><th>VLAN</th><th>Firmware</th><th>Rôle</th></tr></thead><tbody>' +
-          rows.map(function(r){ var cls = dup[r.ip] ? ' class="dup"' : (r.ip && !_ipOk(r.ip) ? ' class="bad"' : '');
-            return '<tr' + cls + ' data-id="' + esc(r.n.id) + '"><td>' + esc(r.name) + '</td><td class="mono">' + esc(r.ip || '—') + '</td><td class="mono">' + esc(r.mask) + '</td><td class="mono">' + esc(r.vlan) + '</td><td>' + esc(r.fw) + '</td><td>' + esc(r.role) + '</td></tr>'; }).join('') +
-          '</tbody></table></div><p class="sp-ip-note">Cliquez une ligne pour retrouver l\'équipement sur le synoptique. La liste figure aussi dans le PDF du synoptique.</p>'
-        : '<div class="sp-ip-empty"><i class="ti ti-network"></i><b>Aucune adresse pour l\'instant</b><span>Sélectionnez un équipement et ouvrez « Réseau » dans ses propriétés : adresse IP, masque, VLAN, firmware, primaire ou secondaire.</span></div>') +
-      '</div>' + (rows.length ? '<div class="modal-foot"><button class="btn" type="button" id="sp-ip-copy"><i class="ti ti-copy"></i>Copier</button><button class="btn pri" type="button" id="sp-ip-csv"><i class="ti ti-download"></i>Exporter (CSV)</button></div>' : '') + '</div>';
+    var gear = state.nodes.filter(function(n){ return n.type !== 'note' && n.type !== 'text_label' && n.type !== 'image_frame'; });
+    var netN = gear.filter(_isNetNode);
+    var list = (_ipAll || !netN.length ? gear : netN).slice().sort(function(a, b){
+      var ia = _ipNum(a.net && a.net.ip), ib = _ipNum(b.net && b.net.ip);
+      return ia - ib || _TYPE_RANK(a) - _TYPE_RANK(b) || String(a.label || '').localeCompare(String(b.label || ''));
+    });
+    var nm = function(n){ return String(n.label || (spec(n.type) || {}).label || '').replace(/\s*\n\s*/g, ' '); };
+    var inp = function(n, k, ph, cls){ return '<input class="sp-ip-in' + (cls || '') + '" data-id="' + esc(n.id) + '" data-k="' + k + '" value="' + esc((n.net && n.net[k]) || '') + '" placeholder="' + ph + '" spellcheck="false" autocomplete="off">'; };
+    var last = '192.168.1.9';
+    gear.forEach(function(n){ if (n.net && _ipOk(n.net.ip) && _ipNum(n.net.ip) > _ipNum(last) && n.net.ip.split('.').slice(0, 3).join('.') === '192.168.1') last = n.net.ip; });
+    var firstFree = (function(){ var used = {}; gear.forEach(function(n){ if (n.net && n.net.ip) used[n.net.ip] = 1; }); return _nextIp(last, used) || '192.168.1.10'; })();
+    m.innerHTML = '<div class="modal-box sp-ip-box"><div class="modal-head"><span class="modal-title">Plan d\'adressage</span><button class="modal-close" onclick="document.getElementById(\'sp-ip-modal\').classList.remove(\'show\')" aria-label="Fermer"><i class="ti ti-x"></i></button></div><div class="modal-body">' +
+      (gear.length
+        ? '<div class="sp-ip-bar"><div class="sp-ip-seg"><button type="button" data-all="0" class="' + (_ipAll ? '' : 'on') + '">En réseau <b>' + netN.length + '</b></button><button type="button" data-all="1" class="' + (_ipAll ? 'on' : '') + '">Tous <b>' + gear.length + '</b></button></div>' +
+            '<span class="sp-grow"></span><div class="sp-ip-auto"><span>Attribuer à la suite à partir de</span><input id="sp-ip-start" class="sp-ip-in mono" value="' + esc(firstFree) + '" spellcheck="false"><button type="button" class="btn sm" id="sp-ip-go"><i class="ti ti-wand"></i>Attribuer</button></div></div>' +
+          '<div class="sp-ip-warn" id="sp-ip-warn" style="display:none"></div>' +
+          '<div class="sp-ip-wrap"><table class="sp-ip-t"><thead><tr><th>Équipement</th><th>Adresse IP</th><th>Masque</th><th>VLAN</th><th>Firmware</th><th>Redondance</th><th></th></tr></thead><tbody>' +
+          list.map(function(n){ var r = (n.net && n.net.role) || '';
+            return '<tr data-row="' + esc(n.id) + '"><td><b>' + esc(nm(n)) + '</b>' + (_isNetNode(n) ? '' : '<small>sans prise réseau</small>') + '</td>' +
+              '<td>' + inp(n, 'ip', '192.168.1.10', ' mono') + '</td><td>' + inp(n, 'mask', '255.255.255.0', ' mono') + '</td><td class="w-vlan">' + inp(n, 'vlan', '—', ' mono') + '</td><td class="w-fw">' + inp(n, 'fw', '—') + '</td>' +
+              '<td><select class="sp-ip-in" data-id="' + esc(n.id) + '" data-k="role"><option value=""' + (r ? '' : ' selected') + '>—</option><option value="pri"' + (r === 'pri' ? ' selected' : '') + '>Primaire</option><option value="sec"' + (r === 'sec' ? ' selected' : '') + '>Secondaire</option></select></td>' +
+              '<td><button type="button" class="sp-ip-loc" data-id="' + esc(n.id) + '" title="Voir sur le synoptique"><i class="ti ti-focus-2"></i></button></td></tr>'; }).join('') +
+          '</tbody></table></div><p class="sp-ip-note">Les adresses s\'affichent sous chaque équipement, dans le PDF et le rider partagé. « Attribuer » ne remplit que les équipements en réseau encore sans adresse, dans l\'ordre de la liste.</p>'
+        : '<div class="sp-ip-empty"><i class="ti ti-network"></i><b>Aucun équipement</b><span>Ajoutez des équipements au synoptique, ou créez-le depuis le show : leurs adresses se saisissent ensuite ici.</span></div>') +
+      '</div>' + (gear.length ? '<div class="modal-foot"><button class="btn" type="button" id="sp-ip-copy"><i class="ti ti-copy"></i>Copier</button><button class="btn" type="button" id="sp-ip-csv"><i class="ti ti-download"></i>CSV</button><span class="sp-grow"></span><button class="btn pri" type="button" onclick="document.getElementById(\'sp-ip-modal\').classList.remove(\'show\')">Terminé</button></div>' : '') + '</div>';
     m.classList.add('show');
-    var tsv = function(sep){ var q = function(v){ v = String(v || ''); return sep === ';' && /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
-      return [['Équipement', 'Adresse IP', 'Masque', 'VLAN', 'Firmware', 'Rôle']].concat(rows.map(function(r){ return [r.name, r.ip, r.mask, r.vlan, r.fw, r.role]; })).map(function(l){ return l.map(q).join(sep); }).join('\n'); };
-    $('sp-ip-copy')?.addEventListener('click', function(){ try { navigator.clipboard.writeText(tsv('\t')).then(function(){ toast('Liste copiée : collez-la dans un tableur'); }); } catch(e) {} });
+    /* Doublons et adresses invalides, vérifiés à chaque frappe */
+    var check = function(){
+      var seen = {}, dup = {}, bad = 0;
+      state.nodes.forEach(function(n){ var ip = n.net && n.net.ip; if (!ip) return; if (!_ipOk(ip)) bad++; if (seen[ip]) dup[ip] = 1; seen[ip] = 1; });
+      m.querySelectorAll('input[data-k="ip"]').forEach(function(i){ var v = i.value.trim(); i.classList.toggle('dup', !!dup[v]); i.classList.toggle('bad', !!v && !_ipOk(v)); });
+      var nDup = Object.keys(dup).length, w = $('sp-ip-warn');
+      if (w) { var msg = [nDup ? nDup + ' adresse' + (nDup > 1 ? 's' : '') + ' en double' : '', bad ? bad + ' adresse' + (bad > 1 ? 's' : '') + ' incomplète' + (bad > 1 ? 's' : '') : ''].filter(Boolean).join(' · ');
+        w.innerHTML = msg ? '<i class="ti ti-alert-triangle"></i>' + msg : ''; w.style.display = msg ? '' : 'none'; }
+    };
+    m.querySelectorAll('.sp-ip-in[data-k]').forEach(function(el){
+      el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', function(){
+        var n = nodeById(el.dataset.id); if (!n) return;
+        _netSet(n, el.dataset.k, el.value); _refreshNodeDom(n.id); check(); scheduleSave();
+      });
+    });
+    m.querySelectorAll('.sp-ip-seg [data-all]').forEach(function(b){ b.addEventListener('click', function(){ _ipAll = b.dataset.all === '1'; openIpList(); }); });
+    $('sp-ip-go')?.addEventListener('click', function(){
+      var start = String($('sp-ip-start').value || '').trim();
+      if (!_ipOk(start)) { toast('Première adresse invalide (ex. 192.168.1.10)'); return; }
+      var used = {}; state.nodes.forEach(function(n){ if (n.net && n.net.ip) used[n.net.ip] = 1; });
+      var todo = list.filter(function(n){ return _isNetNode(n) && !(n.net && n.net.ip); });
+      if (!todo.length) { toast('Tous les équipements en réseau ont déjà une adresse'); return; }
+      var ip = used[start] ? _nextIp(start, used) : start, k = 0;
+      todo.forEach(function(n){ if (!ip) return; _netSet(n, 'ip', ip); if (!n.net.mask) _netSet(n, 'mask', '255.255.255.0'); used[ip] = 1; k++; ip = _nextIp(ip, used); });
+      scheduleSave(); _renderNodes(); _renderEdges(); openIpList();
+      toast(k + ' adresse' + (k > 1 ? 's' : '') + ' attribuée' + (k > 1 ? 's' : ''));
+    });
+    var rowsOut = function(){ return [['Équipement', 'Adresse IP', 'Masque', 'VLAN', 'Firmware', 'Redondance']].concat(_ipRows().map(function(r){ return [r.name, r.ip, r.mask, r.vlan, r.fw, r.role]; })); };
+    $('sp-ip-copy')?.addEventListener('click', function(){ try { navigator.clipboard.writeText(rowsOut().map(function(l){ return l.join('\t'); }).join('\n')).then(function(){ toast('Plan d\'adressage copié : collez-le dans un tableur'); }); } catch(e) {} });
     $('sp-ip-csv')?.addEventListener('click', function(){
-      var blob = new Blob(['\ufeff' + tsv(';')], { type:'text/csv;charset=utf-8' }), a = document.createElement('a');
+      var q = function(v){ v = String(v || ''); return /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+      var blob = new Blob(['﻿' + rowsOut().map(function(l){ return l.map(q).join(';'); }).join('\n')], { type:'text/csv;charset=utf-8' }), a = document.createElement('a');
       a.href = URL.createObjectURL(blob); a.download = ((state.title || 'synoptique').replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'synoptique') + '-adresses-ip.csv';
       document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 500);
     });
-    m.querySelectorAll('tr[data-id]').forEach(function(tr){ tr.addEventListener('click', function(){
-      var n = nodeById(tr.dataset.id); if (!n) return;
+    m.querySelectorAll('.sp-ip-loc').forEach(function(b){ b.addEventListener('click', function(){
+      var n = nodeById(b.dataset.id); if (!n) return;
       m.classList.remove('show'); _setSel([n.id]);
       var vp = $('sp-viewport'), r = vp ? vp.getBoundingClientRect() : null, s = _nodeSize(n);
       if (r) { view.zoom = Math.max(view.zoom, 0.9); view.panX = r.width / 2 - (n.x + s.w / 2) * view.zoom; view.panY = r.height / 2 - (n.y + s.h / 2) * view.zoom; }
       render();
     }); });
+    check();
   }
 
   /* ── SVG → Canvas (Promise) ── */
@@ -13385,7 +13473,7 @@ const SynFromShow = (function(){
     var size = function(type){ var d = SynPro.libDef(type) || {}; return { w:d.w || 150, h:d.h || 100 }; };
     var node = function(key, type, x, y, label, sub, zone){ P.nodes.push({ key:key, type:type, x:x, y:y, label:label, sub:sub || '' }); zoneOf[key] = zone; var s = size(type); return y + s.h; };
     var link = function(a, b, net, label, dir){ if (!net) net = 'xlr'; used[net] = 1; P.cables.push({ from:a, to:b, network:net, label:label || '', dir:dir || 'forward', route:'ortho' }); };
-    var GAP = 56, X = { foh:80, stage:470, src:830, mon:1190 }, Y0 = 100;
+    var GAP = 70, X = { foh:80, stage:470, src:830, mon:1190 }, Y0 = 100;   /* écart : place pour l'adresse IP sous chaque carte */
 
     /* Régie FOH */
     var foh = G.consoles[0], fohT = foh ? foh.type : 'console.generic';
