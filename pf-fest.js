@@ -600,6 +600,12 @@ function _festProgRows(f){
     return [_fsDayLbl(s.day), (s.start || '—') + (s.end ? ' – ' + s.end : ''), _fsName(s.pid), String(ins.length), String(_fsOuts(s.pid).length), p48 ? String(p48) : '', hf ? String(hf) : '', s.note || ''];
   });
 }
+/* Ligne du patch d'une cellule autotable, retrouvée par son numéro de voie (les lignes coupées entre deux
+   pages sont renumérotées par autotable : l'index ne suffit pas) */
+function _fxRow(M, d){
+  var raw = d && d.row && d.row.raw, ch = raw && raw.length ? parseInt(raw[0], 10) : NaN;
+  return isNaN(ch) ? null : (M.rows[ch - 1] && M.rows[ch - 1].ch === ch ? M.rows[ch - 1] : M.rows.find(function(r){ return r.ch === ch; }) || null);
+}
 async function festDossierPdf(meta, toFiles, sel){
   meta = meta || {}; sel = sel && sel.length ? sel : ['in'];
   if(typeof _pdfSaveToFiles !== 'undefined') _pdfSaveToFiles = !!toFiles;
@@ -643,19 +649,19 @@ async function festDossierPdf(meta, toFiles, sel){
         });
         var cw = (B.PW - 2 * B.M - 10 - (M.house ? 38 : 0)) / cols.length, cs = { 0:{ halign:'center', fontStyle:'bold', cellWidth:10, textColor:B.acc } };
         if(M.house) cs[1] = { cellWidth:38, textColor:K.txt2, fillColor:[247, 246, 243] };
-        doc.autoTable(Object.assign({}, B.TBL, { startY:yy + 3, head:[head], body:body, columnStyles:cs,
+        doc.autoTable(Object.assign({}, B.TBL, { startY:yy + 3, head:[head], body:body, columnStyles:cs, rowPageBreak:'avoid',
           didParseCell:function(d){
             if(d.section === 'head' && d.column.index >= off){ d.cell.styles.textColor = K.ink; d.cell.styles.fontSize = 6.8; }
             if(d.section !== 'body' || d.column.index < off) return;
             d.cell.styles.cellWidth = cw;
-            var c = M.rows[d.row.index].cells[start + d.column.index - off]; if(!c) return;
+            var rr = _fxRow(M, d); var c = rr && rr.cells[start + d.column.index - off]; if(!c) return;
             if(c.st === 'same'){ d.cell.styles.textColor = [158, 158, 158]; d.cell.styles.fontStyle = 'italic'; }
             else if(c.st === 'chg'){ d.cell.styles.fontStyle = 'bold'; d.cell.styles.textColor = K.ink; }
             else if(c.st === 'free'){ d.cell.styles.textColor = [200, 200, 200]; }
           },
           didDrawCell:function(d){
             if(d.section !== 'body' || d.column.index < off) return;
-            var c = M.rows[d.row.index].cells[start + d.column.index - off];
+            var rr = _fxRow(M, d); var c = rr && rr.cells[start + d.column.index - off];
             if(c && c.st === 'chg'){ doc.setFillColor(245, 181, 30); doc.rect(d.cell.x + 0.2, d.cell.y + 0.6, 0.9, d.cell.height - 1.2, 'F'); }
           } }));
         yy = doc.lastAutoTable.finalY + 4;
