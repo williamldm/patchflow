@@ -17609,7 +17609,10 @@ const SitePlan = (() => {
       if(data.view)state.view=data.view;
       state.scale=(data.scale&&+data.scale.ppm>0)?data.scale:null;
       state.measureOpts=(data.measureOpts&&typeof data.measureOpts==='object')?data.measureOpts:{};
-      state.measures=Array.isArray(data.measures)?data.measures.filter(m=>m&&m.a&&m.b):[];
+      /* Cotes : coordonnées numériques uniquement (elles sont écrites dans le SVG du plan) */
+      state.measures=Array.isArray(data.measures)?data.measures.filter(m=>m&&m.a&&m.b&&[m.a.x,m.a.y,m.b.x,m.b.y].every(v=>Number.isFinite(+v)))
+        .map(m=>({id:_sid(m.id)||uid(), a:{x:+m.a.x,y:+m.a.y}, b:{x:+m.b.x,y:+m.b.y}})):[];
+      if(state.scale) state.scale={ppm:+state.scale.ppm, m:+state.scale.m||0, a:state.scale.a?{x:+state.scale.a.x||0,y:+state.scale.a.y||0}:null, b:state.scale.b?{x:+state.scale.b.x||0,y:+state.scale.b.y||0}:null};
     } else {
       state.scale=null; state.measureOpts={}; state.measures=[];
       state.elements=[];state.cables=[];state.bgImage=null;state.bgOpacity=100;state.bgRotation=0;state.view={panX:60,panY:60,zoom:1};
