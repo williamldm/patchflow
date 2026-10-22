@@ -1613,19 +1613,11 @@ html[data-view=mobile] .notes h3{margin-top:0}
     });
   });
 
-  /* Capture du haut qui se redresse, téléphones en léger décalage */
-  var heroShot=document.querySelector('.hero .shot'), phones=document.querySelector('.phones'), ticking=false;
+  /* Téléphones du partage en léger décalage ; la capture du haut reste à plat */
+  var phones=document.querySelector('.phones'), ticking=false;
   function motion(){
     ticking=false;
     var vh=window.innerHeight;
-    if(heroShot){
-      if(window.innerWidth>760){
-        var r=heroShot.getBoundingClientRect();
-        var p=Math.min(1,Math.max(0,(vh-r.top)/(vh*0.85)));
-        /* Une fois redressée, plus aucune transformation : une 3D résiduelle fait rééchantillonner l'image (flou) */
-        heroShot.style.transform= p>=0.995 ? '' : 'perspective(1800px) rotateX('+((1-p)*11).toFixed(2)+'deg)';
-      } else heroShot.style.transform='';
-    }
     if(phones){
       var q=phones.getBoundingClientRect();
       var c=(q.top+q.height/2-vh/2)/vh;
