@@ -68,7 +68,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=4.66">
+<link rel="stylesheet" href="pf-app.css?v=4.67">
 </head>
 <body>
 
@@ -1011,6 +1011,8 @@ html.rider-boot #rider-splash{display:flex}
             <p class="syn-insp-empty" style="color:var(--muted);font-size:11px;text-align:center;padding:24px 16px;line-height:1.5">Cliquez un élément.<br/><br/>Pour relier : « Tracer une liaison » à gauche, ou survolez un élément et cliquez sa pastille <i class="ti ti-plug-connected"></i>.</p>
           </div>
           <div class="site-insp-footer">
+            <div id="site-measure-set" class="spl-ms"></div>
+            <div class="spl-ms-h"><i class="ti ti-typography"></i>Textes</div>
             <div class="site-insp-footer-row">
               <span>Texte global</span>
               <div style="display:flex;gap:3px;align-items:center">
@@ -1656,7 +1658,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=5.05"></script>
+<script src="pf-app.js?v=5.09"></script>
 <script src="pf-rf.js?v=1.16"></script>
 <script src="pf-road.js?v=1.2"></script>
 <script src="pf-fest.js?v=1.18"></script>

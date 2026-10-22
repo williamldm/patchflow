@@ -7854,7 +7854,7 @@ async function doPDF(toFiles){
         try{ dataUrl=cv.toDataURL('image/png'); }
         catch(corsErr){ toast('Erreur export (image CORS) : '+corsErr.message); console.error('site pdf toDataURL:',corsErr); return; }
         const shareUrl=_riderBase()+'?view='+(CUR_SHOW?.id||'')+'&tab=site';
-        _openVisualPdf('Plan de site', meta, dataUrl, shareUrl, brand, {orientation:_pdfOrient, fit:true}).catch(function(e){toast('Erreur PDF : '+e.message);console.error('_openVisualPdf:',e);});
+        _openVisualPdf('Plan de site', meta, dataUrl, shareUrl, brand, {orientation:_pdfOrient, fit:true, cables:SitePlan.cablePdfRows()}).catch(function(e){toast('Erreur PDF : '+e.message);console.error('_openVisualPdf:',e);});
       }catch(e){toast('Erreur export PDF : '+e.message);console.error('site pdf cb:',e);}
     });
     return;
@@ -8083,7 +8083,8 @@ async function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand, opts){
       orientation = area(186,297-66) > area(273,210-66) ? 'portrait' : 'landscape';
     }
     const rows=(opts.rows||[]).filter(function(r){ return r && r.length; });
-    const Doc = rows.length ? await _loadAutoTable() : JsPDF;
+    const cab=opts.cables&&opts.cables.rows&&opts.cables.rows.length?opts.cables:null;
+    const Doc = (rows.length||cab) ? await _loadAutoTable() : JsPDF;
     const doc = new Doc({orientation, unit:'mm', format:'a4', compress:true});
     const K=_PDFK, M=K.M, PW=doc.internal.pageSize.getWidth(), PH=doc.internal.pageSize.getHeight();
     const acc = _hex2rgb(_safeColor(brand.color)||'#ff6b1a');
@@ -8114,7 +8115,7 @@ async function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand, opts){
       doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(K.txt2[0],K.txt2[1],K.txt2[2]);
       doc.text(notes, M+17, y+4.6);
     }
-    const pages=rows.length?2:1;
+    const pages=1+(rows.length?1:0)+(cab?1:0);
     _pdfFoot(doc,{acc:acc, pf:pfLogo, credit:_pdfCreditOn(), creditWhat:label.toLowerCase(), qr:qr, url:shareUrl, stamp:'', page:1, pages:pages});
     /* Retours (sortie, destinataire, mix demandé) et électricité : un vrai tableau, en page 2, pour laisser au plan toute la page 1 */
     if(rows.length){
@@ -8133,6 +8134,21 @@ async function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand, opts){
         doc.autoTable({head:[['ÉLECTRICITÉ SUR SCÈNE','']],body:elec.map(function(e){ return [e[1],'']; }),startY:y2,theme:'plain',margin:{left:M,right:M,bottom:_pdfFootH(!!qr)+4},styles:TS,headStyles:HS});
       }
       _pdfFoot(doc,{acc:acc, pf:pfLogo, credit:_pdfCreditOn(), creditWhat:label.toLowerCase(), qr:qr, url:shareUrl, stamp:'', page:2, pages:pages});
+    }
+    /* Câbles du plan de site : récapitulatif par type, puis chaque liaison avec sa longueur */
+    if(cab){
+      doc.addPage();
+      let y3=_pdfHead(doc,{acc:acc, pf:pfLogo, brand:brand.co||'PatchFlow', docType:label, title:title+' · câbles', logo:logo, compact:true, right:'Édité le '+stamp})+2;
+      const TS3={font:'helvetica',fontSize:9,textColor:K.ink,cellPadding:{top:2,bottom:2,left:1.5,right:1.5},lineColor:K.line,lineWidth:{bottom:0.2}};
+      const HS3={fontStyle:'bold',fontSize:7,textColor:K.muted,lineColor:K.ink,lineWidth:{bottom:0.35}};
+      doc.autoTable({head:[['','TYPE','QUANTITÉS','TOTAL']],body:cab.groups.map(function(g){ return ['',g.label,(g.sizes||'')+(g.unknown?(g.sizes?' · ':'')+g.unknown+' à préciser':''),g.total?String(Math.round(g.total*10)/10).replace('.',',')+' m':'']; }),
+        startY:y3,theme:'plain',margin:{left:M,right:M,bottom:_pdfFootH(!!qr)+4},styles:TS3,headStyles:HS3,
+        columnStyles:{0:{cellWidth:5},1:{fontStyle:'bold',cellWidth:(PW-2*M)*0.3},3:{halign:'right',cellWidth:24}},
+        didDrawCell:function(d){ if(d.section==='body' && d.column.index===0){ var c=_hex2rgb(cab.groups[d.row.index].color); doc.setFillColor(c[0],c[1],c[2]); doc.roundedRect(d.cell.x+1,d.cell.y+d.cell.height/2-1.1,2.2,2.2,0.6,0.6,'F'); } }});
+      y3=doc.lastAutoTable.finalY+8;
+      doc.autoTable({head:[['TYPE','LIAISON','REPÈRE','MESURÉ','MONTÉE','LONGUEUR']],body:cab.rows,startY:y3,theme:'plain',margin:{left:M,right:M,bottom:_pdfFootH(!!qr)+4},styles:TS3,headStyles:HS3,
+        columnStyles:{0:{cellWidth:(PW-2*M)*0.18},1:{fontStyle:'bold'},3:{halign:'right',textColor:K.txt2},4:{halign:'right',textColor:K.txt2},5:{halign:'right',fontStyle:'bold'}}});
+      _pdfFoot(doc,{acc:acc, pf:pfLogo, credit:_pdfCreditOn(), creditWhat:label.toLowerCase(), qr:qr, url:shareUrl, stamp:'', page:pages, pages:pages});
     }
     await _pdfDeliver(doc, (_pdfSlug(title)||'plan')+'-'+(_pdfSlug(label)||'document')+'.pdf');
   } catch(e){
@@ -15828,6 +15844,9 @@ function _spDrawSiteNode(ctx, el, ex, ey, SCALE, TS, opt){
 
   /* Icône centrée en haut (SVG navy ou image custom), sans boîte colorée. */
   var bodyX=ex+(cardW-bodyW)/2, bodyY=ey+padT;
+  /* Orientation de l'élément : seule l'icône tourne, le nom reste lisible */
+  var _rot=((+el.rot||0)%360)*Math.PI/180;
+  if(_rot){ ctx.save(); ctx.translate(bodyX+bodyW/2, bodyY+bodyH/2); ctx.rotate(_rot); ctx.translate(-(bodyX+bodyW/2), -(bodyY+bodyH/2)); }
   if(iconImg){
     var ipad=bodyW*0.06;
     var iar=(iconImg.naturalWidth||1)/(iconImg.naturalHeight||1); if(!isFinite(iar)||iar<=0)iar=1;
@@ -15843,6 +15862,7 @@ function _spDrawSiteNode(ctx, el, ex, ey, SCALE, TS, opt){
     ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.fillStyle=color; ctx.fillText((el.type||'').slice(0,4).toUpperCase(), bodyX+bodyW/2, bodyY+bodyH/2);
   }
+  if(_rot) ctx.restore();
 
   /* Label gras navy + note, centrés sous l'icône. */
   var cy=bodyY+bodyH+gap;
@@ -15875,6 +15895,147 @@ function _siteCableEnds(c, findEl){
   if(!f||!t) return null;
   return {fcx:f.x, fcy:f.y, tcx:t.x, tcy:t.y, fR:f.r, tR:t.r};
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   PLAN DE SITE À L'ÉCHELLE — moteur commun à l'éditeur, à l'export et au rider partagé
+   · data.scale = { ppm, a, b, m } : points par mètre, calibré sur deux points (a, b) distants de m mètres
+   · data.measureOpts = { slack (%), round (longueurs standard), temp (°C), haas (ms), grid }
+   · data.measures = [{ id, a, b }] : cotes posées au mètre
+   · un câble : longueur mesurée sur son tracé (centre à centre, par ses points de passage), plus la montée
+     ou descente saisie (c.extraM), plus la marge ; arrondie à la longueur de câble standard au-dessus.
+     c.length (saisi à la main) reste prioritaire.
+   · délais : un delay ou un front fill est aligné sur la façade la plus proche (ou celle choisie, el.alignTo) :
+     distance / vitesse du son (331,3 + 0,606 × T m/s), plus l'avance éventuelle (effet Haas).
+   ══════════════════════════════════════════════════════════════════ */
+const SiteMeasure = (function(){
+  var STD = [1, 2, 3, 5, 10, 15, 20, 25, 30, 40, 50, 75, 100];
+  var DELAY_TYPES = { delay:1, frontfill:1 };
+  function ppm(d){ var s = d && d.scale; return (s && +s.ppm > 0) ? +s.ppm : 0; }
+  function opts(d){
+    var o = (d && d.measureOpts) || {};
+    return { slack: isFinite(+o.slack) ? Math.max(0, Math.min(100, +o.slack)) : 10, round: o.round !== false,
+             temp: isFinite(+o.temp) ? Math.max(-20, Math.min(50, +o.temp)) : 20, haas: isFinite(+o.haas) ? Math.max(0, Math.min(50, +o.haas)) : 0, grid: !!o.grid };
+  }
+  function num(v, dec){ var p = Math.pow(10, dec == null ? 1 : dec); return String(Math.round(v * p) / p).replace('.', ','); }
+  function fmtM(m){ return (m >= 100 ? String(Math.round(m)) : num(m, 1)) + ' m'; }
+  function center(el){ if (!el) return null; var h = el.type === 'text_lbl' ? 20 : (el.elSize || 72) / 2; return { x:el.x + h, y:el.y + h }; }
+  function finder(d){ var by = {}; (d.elements || []).forEach(function(e){ by[e.id] = e; }); return function(id){ return by[id]; }; }
+  /* Tracé réel d'un câble : centre de départ, points de passage, centre d'arrivée */
+  function cablePts(c, d, find){
+    find = find || finder(d);
+    var a = c.fromPt ? { x:c.fromPt.x, y:c.fromPt.y } : center(find(c.fromId));
+    var b = c.toPt ? { x:c.toPt.x, y:c.toPt.y } : center(find(c.toId));
+    if (!a || !b) return null;
+    return [a].concat((c.waypoints || []).map(function(p){ return { x:p.x, y:p.y }; })).concat([b]);
+  }
+  function polyLen(pts){ var L = 0; for (var i = 1; i < pts.length; i++) L += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y); return L; }
+  function stdOf(m){ for (var i = 0; i < STD.length; i++) if (STD[i] >= m - 1e-9) return STD[i]; return Math.ceil(m / 25) * 25; }
+  /* Longueur d'un câble, en mètres ; null tant que le plan n'est pas à l'échelle */
+  function cableLen(c, d, find){
+    var p = ppm(d); if (!p) return null;
+    var pts = cablePts(c, d, find); if (!pts) return null;
+    var o = opts(d), path = polyLen(pts) / p, extra = Math.max(0, +c.extraM || 0), total = (path + extra) * (1 + o.slack / 100);
+    return { path:path, extra:extra, slack:o.slack, total:total, std:o.round ? stdOf(total) : null, direct:!(c.waypoints && c.waypoints.length) };
+  }
+  /* Ce qui s'affiche sur le câble : longueur imposée, sinon calculée */
+  function cableText(c, d, find){
+    var man = String(c.length || '').trim(); if (man) return man;
+    var r = cableLen(c, d, find); if (!r) return '';
+    return r.std ? r.std + ' m' : fmtM(r.total);
+  }
+  /* Longueur retenue pour le quantitatif (nombre en mètres, ou null) */
+  function cableMeters(c, d, find){
+    var man = String(c.length || '').trim();
+    if (man) { var m = /(\d+(?:[.,]\d+)?)/.exec(man); return m ? +m[1].replace(',', '.') : null; }
+    var r = cableLen(c, d, find); return r ? (r.std || Math.round(r.total * 10) / 10) : null;
+  }
+  function soundSpeed(d){ return 331.3 + 0.606 * opts(d).temp; }
+  /* Délais : { [idÉlément]: { ref, refLabel, dist, ms } } */
+  function delays(d){
+    var p = ppm(d); if (!p) return {};
+    var els = d.elements || [], mains = els.filter(function(e){ return e.type === 'main_array'; }), out = {}, c = soundSpeed(d), o = opts(d);
+    els.forEach(function(e){
+      if (!DELAY_TYPES[e.type] && !e.alignTo) return;
+      if (e.alignTo === 'none') return;
+      var ref = e.alignTo ? els.filter(function(x){ return x.id === e.alignTo; })[0] : null;
+      var ce = center(e);
+      if (!ref) { var best = Infinity; mains.forEach(function(m){ var cm = center(m), dd = Math.hypot(cm.x - ce.x, cm.y - ce.y); if (dd < best) { best = dd; ref = m; } }); }
+      if (!ref || ref === e) return;
+      var cr = center(ref), dist = Math.hypot(cr.x - ce.x, cr.y - ce.y) / p;
+      out[e.id] = { ref:ref.id, refLabel:String(ref.label || ''), dist:dist, ms:dist / c * 1000 + o.haas };
+    });
+    return out;
+  }
+  /* Longueur « ronde » de la barre d'échelle : entre minPx et maxPx à l'écran */
+  function niceBar(p, zoom, minPx, maxPx){
+    var steps = [0.5, 1, 2, 5, 10, 20, 25, 50, 100, 200, 500];
+    for (var i = 0; i < steps.length; i++){ var px = steps[i] * p * zoom; if (px >= minPx) return { m:steps[i], px:Math.min(px, maxPx * 1.5) }; }
+    return { m:steps[steps.length - 1], px:steps[steps.length - 1] * p * zoom };
+  }
+  /* Dessin (export PNG / PDF et rider partagé) : cotes, délais, barre d'échelle */
+  function drawOverlay(ctx, d, wx, wy, SCALE, cw, ch, font){
+    var p = ppm(d); if (!p) return;
+    font = font || 'Archivo, sans-serif';
+    var ink = '#1c2433';
+    var chip = function(txt, x, y, col, bold){
+      ctx.font = (bold ? '700 ' : '600 ') + (11.5 * SCALE) + 'px ' + font;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      var w = ctx.measureText(txt).width + 14 * SCALE, h = 20 * SCALE, r = h / 2;
+      ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x - w / 2, y - h / 2, w, h, r); else ctx.rect(x - w / 2, y - h / 2, w, h);
+      ctx.fillStyle = '#ffffff'; ctx.fill(); ctx.strokeStyle = col; ctx.lineWidth = 1.4 * SCALE; ctx.stroke();
+      ctx.fillStyle = ink; ctx.fillText(txt, x, y + 0.5 * SCALE);
+    };
+    /* Cotes */
+    (d.measures || []).forEach(function(m){
+      if (!m || !m.a || !m.b) return;
+      var ax = wx(m.a.x), ay = wy(m.a.y), bx = wx(m.b.x), by = wy(m.b.y), L = Math.hypot(m.b.x - m.a.x, m.b.y - m.a.y) / p;
+      var ang = Math.atan2(by - ay, bx - ax), nx = -Math.sin(ang), ny = Math.cos(ang), t = 7 * SCALE;
+      ctx.strokeStyle = ink; ctx.lineWidth = 1.4 * SCALE; ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by);
+      ctx.moveTo(ax + nx * t, ay + ny * t); ctx.lineTo(ax - nx * t, ay - ny * t);
+      ctx.moveTo(bx + nx * t, by + ny * t); ctx.lineTo(bx - nx * t, by - ny * t); ctx.stroke();
+      chip(fmtM(L), (ax + bx) / 2, (ay + by) / 2, ink, true);
+    });
+    /* Délais : sous l'élément, reliés à leur référence par un trait fin */
+    var dl = delays(d), find = finder(d);
+    Object.keys(dl).forEach(function(id){
+      var e = find(id), r = dl[id], ce = center(e); if (!ce) return;
+      var sz = (e.elSize || 72);
+      chip('Délai ' + num(r.ms, 1) + ' ms', wx(ce.x), wy(e.y) - 14 * SCALE, '#7c3aed', true);
+    });
+    /* Barre d'échelle, en bas à droite */
+    var bar = niceBar(p, SCALE, 90 * SCALE, 220 * SCALE), bx2 = cw - 24 * SCALE, bx1 = bx2 - bar.px, byy = ch - 26 * SCALE;
+    ctx.fillStyle = 'rgba(255,255,255,.9)';
+    ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(bx1 - 12 * SCALE, byy - 26 * SCALE, bar.px + 24 * SCALE, 40 * SCALE, 8 * SCALE); else ctx.rect(bx1 - 12 * SCALE, byy - 26 * SCALE, bar.px + 24 * SCALE, 40 * SCALE); ctx.fill();
+    ctx.strokeStyle = ink; ctx.lineWidth = 2 * SCALE;
+    ctx.beginPath(); ctx.moveTo(bx1, byy); ctx.lineTo(bx2, byy); ctx.moveTo(bx1, byy - 6 * SCALE); ctx.lineTo(bx1, byy + 4 * SCALE); ctx.moveTo(bx2, byy - 6 * SCALE); ctx.lineTo(bx2, byy + 4 * SCALE); ctx.stroke();
+    ctx.font = '600 ' + (11 * SCALE) + 'px ' + font; ctx.fillStyle = ink; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText(String(bar.m).replace('.', ',') + ' m', (bx1 + bx2) / 2, byy - 9 * SCALE);
+  }
+  /* Grille au mètre (export) */
+  function drawGrid(ctx, d, wx, wy, minX, minY, maxX, maxY, SCALE){
+    var p = ppm(d); if (!p || !opts(d).grid) return;
+    var step = p >= 6 ? 1 : (p * 5 >= 6 ? 5 : 10), major = step === 1 ? 5 : 10;
+    var x0 = Math.floor(minX / (p * step)) * step, x1 = Math.ceil(maxX / (p * step)) * step;
+    var y0 = Math.floor(minY / (p * step)) * step, y1 = Math.ceil(maxY / (p * step)) * step;
+    for (var m = x0; m <= x1; m += step){ var X = wx(m * p); ctx.strokeStyle = (m % major === 0) ? 'rgba(28,36,51,.16)' : 'rgba(28,36,51,.07)'; ctx.lineWidth = SCALE; ctx.beginPath(); ctx.moveTo(X, wy(minY)); ctx.lineTo(X, wy(maxY)); ctx.stroke(); }
+    for (var n = y0; n <= y1; n += step){ var Y = wy(n * p); ctx.strokeStyle = (n % major === 0) ? 'rgba(28,36,51,.16)' : 'rgba(28,36,51,.07)'; ctx.lineWidth = SCALE; ctx.beginPath(); ctx.moveTo(wx(minX), Y); ctx.lineTo(wx(maxX), Y); ctx.stroke(); }
+  }
+  /* Quantitatif : par type de câble, longueurs retenues */
+  function cableSchedule(d, typeLabel){
+    var find = finder(d), rows = [], by = {};
+    (d.cables || []).forEach(function(c){
+      var fa = c.fromPt ? 'Point libre' : String((find(c.fromId) || {}).label || '?'), fb = c.toPt ? 'Point libre' : String((find(c.toId) || {}).label || '?');
+      var r = cableLen(c, d, find), m = cableMeters(c, d, find), lbl = typeLabel ? typeLabel(c.type) : c.type;
+      rows.push({ c:c, type:c.type, typeLabel:lbl, from:fa, to:fb, ref:String(c.label || ''), len:r, manual:String(c.length || '').trim(), meters:m });
+      var g = by[c.type] || (by[c.type] = { type:c.type, label:lbl, n:0, total:0, unknown:0, sizes:{} });
+      g.n++; if (m == null) g.unknown++; else { g.total += m; g.sizes[m] = (g.sizes[m] || 0) + 1; }
+    });
+    return { rows:rows, groups:Object.keys(by).map(function(k){ return by[k]; }) };
+  }
+  return { STD:STD, ppm:ppm, opts:opts, num:num, fmtM:fmtM, center:center, cablePts:cablePts, cableLen:cableLen, cableText:cableText, cableMeters:cableMeters,
+           delays:delays, soundSpeed:soundSpeed, niceBar:niceBar, drawOverlay:drawOverlay, drawGrid:drawGrid, cableSchedule:cableSchedule, DELAY_TYPES:DELAY_TYPES };
+})();
 
 const SitePlan = (() => {
   /* ── Professional SVG icon library ── */
@@ -16009,8 +16170,8 @@ const SitePlan = (() => {
     renderCablePicker(); renderCables(); renderLegend();
   }
 
-  let state = { elements:[], cables:[], bgImage:null, bgOpacity:100, bgRotation:0, view:{panX:60,panY:60,zoom:1}, selected:null, linkFrom:null, freePt1:null, drawPts:[], activeCableType:'xlr', textScale:1, legendScale:1, cableTextScale:1, cableMode:false };
-  let dragging=null, panning=null, inited=false, resizing=null, _wpDrag=null, _wpAddCid=null;
+  let state = { elements:[], cables:[], bgImage:null, bgOpacity:100, bgRotation:0, view:{panX:60,panY:60,zoom:1}, selected:null, linkFrom:null, freePt1:null, drawPts:[], activeCableType:'xlr', textScale:1, legendScale:1, cableTextScale:1, cableMode:false, scale:null, measureOpts:{}, measures:[], tool:null, toolPts:[], toolCur:null };
+  let dragging=null, panning=null, inited=false, resizing=null, _wpDrag=null, _wpAddCid=null, rotating=null, _mDrag=null;
 
   const $  = id => document.getElementById(id);
   const uid = () => Math.random().toString(36).slice(2,9);
@@ -16025,6 +16186,7 @@ const SitePlan = (() => {
     _applyCableOverrides();
     renderPalette();
     renderCablePicker();
+    _ensureLayers();
     bindEvents();
     applyTransform();
     render();
@@ -16108,6 +16270,8 @@ const SitePlan = (() => {
     const nn = $('site-nodes'), cc = $('site-cables'), bg = $('site-bg-img');
     if(nn){ nn.style.transform = t; nn.style.setProperty('--spl-ts', state.textScale); }
     if(cc) cc.style.transform = t;
+    const mt = $('site-mt'); if(mt) mt.style.transform = t;
+    _mtRaf();
     if(bg){
       /* Le fond peut être pivoté autour de son propre centre. On compose la
          rotation à l'INTÉRIEUR du translate/scale de la vue (origine 0 0
@@ -16136,7 +16300,7 @@ const SitePlan = (() => {
     return { x:(cx-r.left-state.view.panX)/state.view.zoom, y:(cy-r.top-state.view.panY)/state.view.zoom };
   }
 
-  function render() { renderNodes(); renderCables(); renderInspector(); renderLegend(); }
+  function render() { renderNodes(); renderCables(); renderInspector(); renderLegend(); _renderMTools(); _renderMeasureSettings(); }
 
   function renderCablePicker() {
     const el = $('site-cable-picker');
@@ -16210,6 +16374,7 @@ const SitePlan = (() => {
   function renderNodes() {
     const host = $('site-nodes');
     if(!host) return;
+    const _dl = SiteMeasure.delays(getData());
     // Remove stale
     host.querySelectorAll('.spl-node').forEach(div => {
       if(!state.elements.find(e=>e.id===div.dataset.id)) div.remove();
@@ -16270,11 +16435,14 @@ const SitePlan = (() => {
           : isSvg
             ? it.icon
             : (it.icon ? `<div class="spl-body-emoji" style="font-size:${iconSz}px">${it.icon}</div>` : _siteSvg(el.type));
+        const _rot=((+el.rot||0)%360+360)%360, _d=_dl[el.id];
         div.innerHTML =
           `<button class="spl-del" data-del="${el.id}">×</button>`+
-          `<div class="spl-body" style="width:${sz}px;height:${sz}px">${iconMarkup}</div>`+
+          (isSel?`<span class="spl-rot" data-rot="${el.id}" title="Glisser pour tourner (Maj : par 15°) · touche R"><i class="ti ti-rotate-clockwise"></i></span>`:'')+
+          `<div class="spl-body" style="width:${sz}px;height:${sz}px${_rot?`;transform:rotate(${_rot}deg)`:''}">${iconMarkup}</div>`+
           `<div class="spl-lbl">${esc(el.label)}</div>`+
           (el.note?`<div class="spl-note">${esc(el.note)}</div>`:'')+
+          (_d?`<div class="spl-delay" title="Aligné sur ${esc(_d.refLabel)} : ${SiteMeasure.num(_d.dist)} m">Délai ${SiteMeasure.num(_d.ms)} ms</div>`:'')+
           `<button class="spl-conn" data-conn="${el.id}" title="Tirer une liaison"><i class="ti ti-plug-connected" style="font-size:11px"></i></button>`;
         }
       }
@@ -16394,6 +16562,7 @@ const SitePlan = (() => {
       return `${tx},${ty} ${bx-dy*ARR_W},${by+dx*ARR_W} ${bx+dy*ARR_W},${by-dx*ARR_W}`;
     };
     let paths = '';
+    const _D = getData();
     state.cables.forEach(cable => {
       const g = _cableGeom(cable, pairMap, state.view.zoom);
       if(!g) return;
@@ -16409,8 +16578,9 @@ const SitePlan = (() => {
       paths += `<path class="spl-cable${isSel?' sel':''}" d="${pathFwd}" stroke="${c.color}" stroke-width="${sw}" fill="none" stroke-linejoin="round" stroke-linecap="round" ${dash} opacity="${op}"/>`;
       if(dir==='forward'||dir==='both')  paths += `<polygon points="${arrPoly(atx,aty,nx,ny)}"   fill="${c.color}" opacity="${op}"/>`;
       if(dir==='backward'||dir==='both') paths += `<polygon points="${arrPoly(afx,afy,-bnx,-bny)}" fill="${c.color}" opacity="${op}"/>`;
-      if(cable.label||cable.length) {
-        const txt=[cable.label,cable.length].filter(Boolean).join(' · ');
+      const _lenTxt=SiteMeasure.cableText(cable,_D);
+      if(cable.label||_lenTxt) {
+        const txt=[cable.label,_lenTxt].filter(Boolean).join(' · ');
         const cts=(state.cableTextScale||1)*(cable.textScale||1);
         const fs=(13*cts), tw=_measureCableLbl(txt, fs), rh=22*cts;
         paths += `<rect x="${mxo-tw/2-7*cts}" y="${myo-rh-5}" width="${tw+14*cts}" height="${rh}" rx="${rh/2}" fill="#ffffff" stroke="${c.color}" stroke-width="${1.5*cts}"/>`;
@@ -16425,6 +16595,7 @@ const SitePlan = (() => {
       }
     });
     svg.innerHTML = paths;
+    renderMeasures();
     svg.querySelectorAll('.sp-cable-hit').forEach(p => {
       p.style.pointerEvents='stroke';
       p.addEventListener('click', e => {
@@ -16468,9 +16639,30 @@ const SitePlan = (() => {
     });
   }
 
+  /* Le panneau Propriétés flotte à droite du plan : si l'élément choisi passe dessous, le plan glisse vers la gauche */
+  function _revealSel(){
+    const sel=state.selected; if(!sel || sel.kind!=='el') return;
+    const panel=document.querySelector('.site-insp-col'), vp=$('site-viewport');
+    if(!panel || !vp || getComputedStyle(panel).position!=='absolute') return;
+    const node=document.querySelector(`.spl-node[data-id="${sel.id}"]`); if(!node) return;
+    const pr=panel.getBoundingClientRect(), nr=node.getBoundingClientRect(), vr=vp.getBoundingClientRect();
+    if(!pr.width || nr.right+16<=pr.left || nr.bottom<pr.top || nr.top>pr.bottom) return;
+    const shift=Math.min(nr.right+28-pr.left, Math.max(0, nr.left-vr.left-28));
+    if(shift>0){ state.view.panX-=shift; applyTransform(); }
+  }
   function renderInspector() {
     const insp = $('site-inspector');
     if(!insp) return;
+    if(!dragging && !rotating) setTimeout(_revealSel, 0);
+    if(state.selected && state.selected.kind==='measure'){
+      const mm=(state.measures||[]).find(x=>x.id===state.selected.id);
+      if(!mm){ state.selected=null; renderInspector(); return; }
+      const p=SiteMeasure.ppm(getData()), L=p?Math.hypot(mm.b.x-mm.a.x,mm.b.y-mm.a.y)/p:0;
+      insp.innerHTML=`<div class="syn-insp-title">Cote</div><div class="spl-len"><div class="spl-len-big">${SiteMeasure.fmtM(L)}</div><div class="spl-len-det">Glissez une extrémité pour la déplacer : elle s'accroche au centre des éléments (Maj : à angle droit).</div></div>`+
+        `<button class="btn sm" type="button" style="width:100%;margin-top:12px;color:var(--err)" id="si-mdel"><i class="ti ti-trash"></i> Supprimer la cote</button>`;
+      $('si-mdel').onclick=()=>{ state.measures=state.measures.filter(x=>x.id!==mm.id); state.selected=null; saveSite(); render(); };
+      return;
+    }
     if(!state.selected){ insp.innerHTML='<p class="syn-insp-empty">Cliquez un élément.<br/><br/>Pour relier : « Tracer une liaison » à gauche, ou survolez un élément et cliquez sa pastille <i class="ti ti-plug-connected"></i>.</p>'; return; }
     if(state.selected.kind==='el') {
       const el = state.elements.find(e=>e.id===state.selected.id);
@@ -16516,6 +16708,7 @@ const SitePlan = (() => {
         `<button class="spl-ts-btn" id="si-etminus">A−</button>`+
         `<span id="si-etval" style="flex:1;font-size:10px;color:var(--muted);text-align:center">${Math.round(elTs*100)}%</span>`+
         `<button class="spl-ts-btn" id="si-etplus">A+</button></div>`+
+        _elMeasureHtml(el)+
         (connList?`<div style="padding-top:8px;border-top:1px solid var(--bdr2);margin-bottom:6px"><div style="font-size:9px;color:var(--muted);font-family:var(--m);margin-bottom:5px">CONNEXIONS</div>${connList}</div>`:``) +
         ((el.iconImg || el.type==='image_frame') ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr2)"><div style="font-size:12px;font-family:var(--f);color:var(--muted);margin-bottom:5px;font-weight:500">Taille de l'image</div><div style="display:flex;align-items:center;gap:7px"><button class="spl-ts-btn" onclick="SitePlan.adjImgPx('${_jsq(el.id)}',-16)">−</button><span id="si-img-px-lbl" style="flex:1;text-align:center;font-size:10px;color:var(--muted)">${el.imgPx||el.elSize||72}px</span><button class="spl-ts-btn" onclick="SitePlan.adjImgPx('${_jsq(el.id)}',16)">+</button></div></div>` : '') +
         (el.type!=='text_lbl' ? _iconImgInspHtml(el.id, !!el.iconImg, el.iconImg||'', `SitePlan.uploadElementIcon('${el.id}')`, `SitePlan.clearElementIcon('${el.id}')`) : '') +
@@ -16556,6 +16749,7 @@ const SitePlan = (() => {
         el.elTextScale=ET_STEPS[Math.min(ET_STEPS.length-1,idx+1)]; saveSite(); renderNodes(); updEt();
       });
       $('si-nobg')?.addEventListener('change',e=>{ el.noBg=e.target.checked; saveSite(); renderNodes(); });
+      _bindElMeasure(el);
       $('si-dup')?.addEventListener('click',()=>{ duplicateSelectedEl(); });
       $('si-del')?.addEventListener('click',()=>{ if(el.iconImgB2)_b2DeleteIcon(el.iconImgB2); state.elements=state.elements.filter(x=>x.id!==el.id); state.cables=state.cables.filter(c=>c.fromId!==el.id&&c.toId!==el.id); state.selected=null; saveSite(); render(); });
     }
@@ -16590,7 +16784,7 @@ const SitePlan = (() => {
         `<button class="spl-ts-btn" id="si-wplus">+</button>`+
         `<span id="si-wval" style="font-size:10px;color:var(--muted);min-width:18px;text-align:right">${w}</span></div>`+
         `<label class="syn-insp-lbl">Référence / label</label><input class="syn-insp-inp" id="si-cl" value="${esc(cable.label||'')}"/>`+
-        `<label class="syn-insp-lbl">Longueur</label><input class="syn-insp-inp" id="si-clen" value="${esc(cable.length||'')}" placeholder="ex: 30m"/>`+
+        _cableLenHtml(cable)+
         `<label class="syn-insp-lbl">Texte</label>`+
         `<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">`+
         `<button class="spl-ts-btn" id="si-ctminus">A−</button>`+
@@ -16603,7 +16797,8 @@ const SitePlan = (() => {
         `<button class="btn sm" style="width:100%;margin-top:12px;background:rgba(255,77,106,.12);border-color:var(--err);color:var(--err)" id="si-cdel"><i class="ti ti-trash"></i> Supprimer</button>`;
       $('si-ct')?.addEventListener('change',e=>{cable.type=e.target.value;saveSite();render();});
       $('si-cl')?.addEventListener('change',e=>{cable.label=e.target.value;saveSite();renderCables();});
-      $('si-clen')?.addEventListener('change',e=>{cable.length=e.target.value;saveSite();renderCables();});
+      $('si-clen')?.addEventListener('change',e=>{cable.length=String(e.target.value).trim().slice(0,24);if(!cable.length)delete cable.length;saveSite();renderCables();renderInspector();});
+      $('si-cextra')?.addEventListener('change',e=>{ const v=parseFloat(String(e.target.value).replace(',','.')); if(v>0) cable.extraM=Math.round(v*10)/10; else delete cable.extraM; saveSite(); renderCables(); renderInspector(); });
       const CT_STEPS=[0.6,0.75,0.85,1,1.2,1.5,1.8,2.2];
       const updCt=()=>{ const ctv=$('si-ctval'); if(ctv)ctv.textContent=Math.round((cable.textScale||1)*100)+'%'; };
       $('si-ctminus')?.addEventListener('click',()=>{
@@ -16625,6 +16820,282 @@ const SitePlan = (() => {
     }
   }
 
+
+  /* ══ Échelle, mètre, cotes, délais, quantitatif (moteur : SiteMeasure) ══ */
+  const _N = (v,d)=>SiteMeasure.num(v,d);
+  /* Calques : grille sous les éléments (#site-grid), cotes et outils au-dessus (#site-mt) */
+  function _ensureLayers(){
+    const vp=$('site-viewport'); if(!vp) return;
+    const NS='http://www.w3.org/2000/svg';
+    if(!$('site-grid')){ const g=document.createElementNS(NS,'svg'); g.id='site-grid'; vp.insertBefore(g, $('site-nodes')||vp.firstChild); }
+    if(!$('site-mt')){
+      const m=document.createElementNS(NS,'svg'); m.id='site-mt'; vp.appendChild(m);
+      m.addEventListener('pointerdown', e=>{
+        if(state.tool || state.cableMode || _drawing()) return;
+        const h=e.target.closest('.spl-mh'), g=e.target.closest('.spl-meas');
+        if(h){ _mDrag={id:h.dataset.mid, end:h.dataset.end, moved:false}; e.stopPropagation(); e.preventDefault(); return; }
+        if(g){ state.selected={kind:'measure', id:g.dataset.mid}; state.linkFrom=null; renderNodes(); renderMeasures(); renderInspector(); e.stopPropagation(); e.preventDefault(); }
+      });
+    }
+    applyTransform();
+  }
+  let _mtPending=false;
+  function _mtRaf(){ if(_mtPending) return; _mtPending=true; requestAnimationFrame(()=>{ _mtPending=false; renderMeasures(); _renderScaleBar(); }); }
+  /* Pastille de texte à taille constante à l'écran (z = zoom) */
+  function _chipSvg(txt, x, y, col, z, bold){
+    const fs=11.5/z, h=20/z, w=(_measureCableLbl(txt,11.5)+16)/z;
+    return `<rect x="${x-w/2}" y="${y-h/2}" width="${w}" height="${h}" rx="${h/2}" fill="#fff" stroke="${col}" stroke-width="${1.4/z}"/>`+
+           `<text x="${x}" y="${y+fs*0.36}" text-anchor="middle" font-family="Archivo,sans-serif" font-size="${fs}" font-weight="${bold?700:600}" fill="#1c2433">${esc(txt)}</text>`;
+  }
+  function renderMeasures(){
+    const mt=$('site-mt'), gr=$('site-grid'); if(!mt) return;
+    const D=getData(), z=state.view.zoom||1, p=SiteMeasure.ppm(D), o=SiteMeasure.opts(D);
+    /* Grille au mètre (1 m, traits forts tous les 5 m ; 5 ou 10 m quand on est loin) */
+    if(gr){
+      if(p && o.grid){
+        const step=p*z>=7?1:(p*5*z>=7?5:10), major=step===1?5:10, s=p*step, M=p*major;
+        gr.innerHTML=`<defs><pattern id="spl-g1" width="${s}" height="${s}" patternUnits="userSpaceOnUse"><path d="M${s} 0H0V${s}" fill="none" stroke="rgba(28,36,51,.09)" stroke-width="${1/z}"/></pattern>`+
+          `<pattern id="spl-g5" width="${M}" height="${M}" patternUnits="userSpaceOnUse"><path d="M${M} 0H0V${M}" fill="none" stroke="rgba(28,36,51,.2)" stroke-width="${1.2/z}"/></pattern></defs>`+
+          `<rect width="5000" height="4000" fill="url(#spl-g1)"/><rect width="5000" height="4000" fill="url(#spl-g5)"/>`;
+      } else gr.innerHTML='';
+    }
+    let h='';
+    /* Cotes */
+    (state.measures||[]).forEach(m=>{
+      const sel=state.selected?.kind==='measure' && state.selected.id===m.id, col=sel?'#ff6b1a':'#1c2433';
+      const L=p?Math.hypot(m.b.x-m.a.x,m.b.y-m.a.y)/p:0, ang=Math.atan2(m.b.y-m.a.y,m.b.x-m.a.x), nx=-Math.sin(ang)*7/z, ny=Math.cos(ang)*7/z;
+      const mx=(m.a.x+m.b.x)/2, my=(m.a.y+m.b.y)/2;
+      h+=`<g class="spl-meas${sel?' sel':''}" data-mid="${esc(m.id)}"><line class="spl-meas-hit" x1="${m.a.x}" y1="${m.a.y}" x2="${m.b.x}" y2="${m.b.y}" stroke="transparent" stroke-width="${16/z}"/>`+
+         `<path d="M${m.a.x} ${m.a.y}L${m.b.x} ${m.b.y}M${m.a.x+nx} ${m.a.y+ny}L${m.a.x-nx} ${m.a.y-ny}M${m.b.x+nx} ${m.b.y+ny}L${m.b.x-nx} ${m.b.y-ny}" stroke="${col}" stroke-width="${1.6/z}" fill="none"/>`+
+         `<g class="spl-meas-lbl">${_chipSvg(p?SiteMeasure.fmtM(L):'?', mx, my, col, z, true)}</g></g>`;
+      if(sel) ['a','b'].forEach(k=>{ h+=`<circle class="spl-mh" cx="${m[k].x}" cy="${m[k].y}" r="${6/z}" data-mid="${esc(m.id)}" data-end="${k}" fill="#fff" stroke="#ff6b1a" stroke-width="${2/z}"/>`; });
+    });
+    /* Élément sélectionné aligné en temps : trait vers sa référence et distance */
+    const sel=state.selected;
+    if(sel && sel.kind==='el'){
+      const d=SiteMeasure.delays(D)[sel.id];
+      if(d){
+        const e=state.elements.find(x=>x.id===sel.id), r=state.elements.find(x=>x.id===d.ref);
+        const ce=SiteMeasure.center(e), cr=SiteMeasure.center(r);
+        if(ce&&cr){ h+=`<line x1="${cr.x}" y1="${cr.y}" x2="${ce.x}" y2="${ce.y}" stroke="#7c3aed" stroke-width="${1.6/z}" stroke-dasharray="${6/z} ${4/z}"/>`+_chipSvg(_N(d.dist)+' m · '+_N(d.ms)+' ms', (ce.x+cr.x)/2, (ce.y+cr.y)/2, '#7c3aed', z, true); }
+      }
+    }
+    /* Outil en cours : segment suivi au pointeur, avec sa longueur */
+    if(state.tool){
+      const pts=state.toolPts.concat(state.toolCur && state.toolPts.length<2 ? [state.toolCur] : []);
+      if(pts.length>=2){
+        const a=pts[0], b=pts[1], L=Math.hypot(b.x-a.x,b.y-a.y);
+        h+=`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="#ff6b1a" stroke-width="${2/z}" stroke-dasharray="${7/z} ${4/z}"/>`;
+        h+=_chipSvg(state.tool==='calib'?(p?SiteMeasure.fmtM(L/p):'?'):(p?SiteMeasure.fmtM(L/p):''), (a.x+b.x)/2, (a.y+b.y)/2-16/z, '#ff6b1a', z, true);
+      }
+      pts.forEach(pt=>{ h+=`<circle cx="${pt.x}" cy="${pt.y}" r="${4.5/z}" fill="#ff6b1a" stroke="#fff" stroke-width="${1.5/z}"/>`; });
+    }
+    mt.innerHTML=h;
+  }
+  /* Barre d'outils du plan : échelle, mètre, câbles */
+  function _renderMTools(){
+    const wrap=$('site-canvas-wrap'); if(!wrap) return;
+    let el=$('site-mtools');
+    if(!el){
+      el=document.createElement('div'); el.id='site-mtools'; el.className='site-mtools'; wrap.appendChild(el);
+      el.addEventListener('pointerdown', e=>e.stopPropagation());
+      el.addEventListener('click', e=>{
+        const b=e.target.closest('[data-mt]'); if(!b) return;
+        const k=b.dataset.mt;
+        if(k==='calib'||k==='measure') { if(state.tool===k) stopTool(); else startTool(k); }
+        else if(k==='cables') openCableList();
+        else if(k==='exit') stopTool();
+      });
+    }
+    const p=SiteMeasure.ppm(getData()), n=state.cables.length;
+    const hint = state.tool==='calib' ? (state.toolPts.length ? 'Cliquez le second point de la distance connue' : 'Cliquez le premier point d\'une distance connue : un mur, une scène, une cote du plan')
+               : state.tool==='measure' ? (state.toolPts.length ? 'Cliquez le second point · Maj : à angle droit' : 'Cliquez deux points pour poser une cote · ils s\'accrochent aux éléments')
+               : '';
+    el.innerHTML=
+      `<button type="button" data-mt="calib" class="${state.tool==='calib'?'on':''}${p?' ok':' todo'}" title="${p?'Recalibrer l\'échelle sur une autre distance connue':'Cliquez deux points d\'une distance connue, puis indiquez-la en mètres'}"><i class="ti ti-ruler-measure"></i><span>${p?'Échelle':'Mettre à l\'échelle'}</span></button>`+
+      `<button type="button" data-mt="measure" class="${state.tool==='measure'?'on':''}" title="Mesurer une distance et la garder comme cote"><i class="ti ti-ruler-2"></i><span>Mètre</span></button>`+
+      `<button type="button" data-mt="cables" title="Quantitatif des câbles : longueurs par type"><i class="ti ti-list-details"></i><span>Câbles</span>${n?`<b>${n}</b>`:''}</button>`+
+      (p?`<span class="site-sbar" id="site-sbar" title="1 m = ${_N(p,1)} px"></span>`:'')+
+      (hint?`<span class="site-mt-hint"><i class="ti ti-pointer"></i>${hint}<button type="button" data-mt="exit">Terminer</button></span>`:'');
+    _renderScaleBar();
+  }
+  function _renderScaleBar(){
+    const sb=$('site-sbar'); if(!sb) return;
+    const p=SiteMeasure.ppm(getData()); if(!p) return;
+    const bar=SiteMeasure.niceBar(p, state.view.zoom||1, 56, 140);
+    sb.innerHTML=`<i style="width:${Math.round(bar.px)}px"></i><em>${_N(bar.m)} m</em>`;
+  }
+  function startTool(k){
+    if(k==='measure' && !SiteMeasure.ppm(getData())){ toast('Mettez d\'abord le plan à l\'échelle : cliquez deux points d\'une distance connue.'); k='calib'; }
+    if(state.cableMode){ state.cableMode=false; renderCablePicker(); }
+    _cancelDraw(); _setWpAddMode(null);
+    /* L'outil a besoin de tout le plan : la sélection (et son panneau) se referme */
+    if(state.selected){ state.selected=null; renderNodes(); renderInspector(); }
+    state.tool=k; state.toolPts=[]; state.toolCur=null;
+    const w=$('site-canvas-wrap'); if(w) w.classList.add('spl-tooling');
+    _renderMTools(); renderMeasures();
+  }
+  function stopTool(){
+    state.tool=null; state.toolPts=[]; state.toolCur=null;
+    const w=$('site-canvas-wrap'); if(w) w.classList.remove('spl-tooling');
+    _renderMTools(); renderMeasures();
+  }
+  /* Point visé par l'outil : accroché au centre d'un élément proche ; Maj = droit ou à 45° ; Alt = libre */
+  function _toolSnap(w, ev, from){
+    const z=state.view.zoom||1;
+    if(ev && ev.shiftKey && from){ const dx=w.x-from.x, dy=w.y-from.y, a=Math.round(Math.atan2(dy,dx)/(Math.PI/4))*(Math.PI/4), L=Math.hypot(dx,dy); return {x:from.x+Math.cos(a)*L, y:from.y+Math.sin(a)*L}; }
+    if(ev && ev.altKey) return w;
+    let best=null, bd=14/z;
+    state.elements.forEach(e=>{ const c=SiteMeasure.center(e), d=Math.hypot(c.x-w.x,c.y-w.y); if(d<bd){ bd=d; best=c; } });
+    return best ? {x:best.x, y:best.y} : w;
+  }
+  const _r1=p=>({x:Math.round(p.x*10)/10, y:Math.round(p.y*10)/10});
+  function _openCalib(a,b){
+    const dpx=Math.hypot(b.x-a.x,b.y-a.y);
+    let m=$('spl-cal');
+    if(!m){ m=document.createElement('div'); m.id='spl-cal'; m.className='modal-ov'; document.body.appendChild(m); m.addEventListener('click',e=>{ if(e.target===m) _calCancel(); }); }
+    const cur=state.scale ? _N(dpx/state.scale.ppm) : '';
+    m.innerHTML=`<div class="modal-box spl-cal-box"><div class="modal-head"><span class="modal-title">Mettre le plan à l'échelle</span><button class="modal-close" id="spl-cal-x" aria-label="Fermer"><i class="ti ti-x"></i></button></div>`+
+      `<div class="modal-body"><p class="spl-cal-lead">Distance réelle entre les deux points cliqués :</p>`+
+      `<div class="spl-cal-row"><input id="spl-cal-m" class="set-inp" type="text" inputmode="decimal" value="${cur}" placeholder="ex. 40" autocomplete="off"><span>mètres</span></div>`+
+      `<p class="spl-cal-help">Prenez la plus grande distance connue du plan (largeur de la salle, profondeur de la scène, cote d'un plan d'architecte) : plus elle est grande, plus les mesures sont justes. Longueurs de câbles, cotes et délais en découlent.</p></div>`+
+      `<div class="modal-foot"><button class="btn" type="button" id="spl-cal-no">Annuler</button><button class="btn pri" type="button" id="spl-cal-ok"><i class="ti ti-check"></i>Mettre à l'échelle</button></div></div>`;
+    m.classList.add('show');
+    const inp=$('spl-cal-m'); setTimeout(()=>{ inp.focus(); inp.select(); }, 40);
+    const ok=()=>{
+      const v=parseFloat(String(inp.value).replace(',','.'));
+      if(!(v>0 && v<100000)){ inp.focus(); toast('Indiquez la distance en mètres (ex. 40)'); return; }
+      state.scale={ppm:Math.round(dpx/v*10000)/10000, a:_r1(a), b:_r1(b), m:v};
+      m.classList.remove('show'); stopTool(); saveSite(); render();
+      toast('Plan à l\'échelle : 1 m = '+_N(state.scale.ppm,1)+' px. Longueurs de câbles, cotes et délais sont calculés.');
+    };
+    $('spl-cal-ok').onclick=ok; $('spl-cal-no').onclick=_calCancel; $('spl-cal-x').onclick=_calCancel;
+    inp.addEventListener('keydown', e=>{ if(e.key==='Enter') ok(); if(e.key==='Escape') _calCancel(); });
+  }
+  function _calCancel(){ const m=$('spl-cal'); if(m) m.classList.remove('show'); state.toolPts=[]; renderMeasures(); _renderMTools(); }
+  function clearScale(){
+    if(!state.scale) return;
+    if(!confirm('Retirer l\'échelle du plan ? Les longueurs calculées, les cotes et les délais ne s\'afficheront plus (les longueurs saisies à la main restent).')) return;
+    state.scale=null; saveSite(); render();
+  }
+
+  /* Réglages : échelle, marge, longueurs standard, grille, température, avance */
+  function _renderMeasureSettings(){
+    const box=$('site-measure-set'); if(!box) return;
+    if(box.contains(document.activeElement)) return;
+    const D=getData(), p=SiteMeasure.ppm(D), o=SiteMeasure.opts(D);
+    const num=(k,v,unit,step)=>`<span class="spl-ms-in"><input type="text" inputmode="decimal" data-mo="${k}" value="${_N(v)}" aria-label="${k}"><em>${unit}</em></span>`;
+    const chk=(k,v)=>`<input type="checkbox" class="cb" data-mo="${k}" ${v?'checked':''}>`;
+    box.innerHTML=`<div class="spl-ms-h"><i class="ti ti-ruler-measure"></i>Échelle et mesures</div>`+
+      `<div class="site-insp-footer-row"><span>Échelle</span>`+(p
+        ? `<span class="spl-ms-act"><b>1 m = ${_N(p,1)} px</b><button class="spl-ts-btn" type="button" data-ms="cal" title="Recalibrer">↻</button><button class="spl-ts-btn" type="button" data-ms="clr" title="Retirer l'échelle">×</button></span>`
+        : `<button class="spl-ms-btn" type="button" data-ms="cal">Mettre à l'échelle</button>`)+`</div>`+
+      (p ? `<div class="site-insp-footer-row"><span>Marge des câbles</span>${num('slack',o.slack,'%')}</div>`+
+           `<div class="site-insp-footer-row"><span title="Arrondir à la longueur de câble au-dessus : ${SiteMeasure.STD.join(', ')} m">Longueurs standard</span>${chk('round',o.round)}</div>`+
+           `<div class="site-insp-footer-row"><span>Grille au mètre</span>${chk('grid',o.grid)}</div>`+
+           `<div class="site-insp-footer-row"><span title="Vitesse du son : ${_N(SiteMeasure.soundSpeed(D),1)} m/s">Température</span>${num('temp',o.temp,'°C')}</div>`+
+           `<div class="site-insp-footer-row"><span title="Ajoutée à chaque délai (effet de précédence)">Avance des delays</span>${num('haas',o.haas,'ms')}</div>` : '');
+    box.querySelectorAll('[data-ms]').forEach(b=>b.addEventListener('click',()=>{ if(b.dataset.ms==='cal') startTool('calib'); else clearScale(); }));
+    box.querySelectorAll('[data-mo]').forEach(inp=>inp.addEventListener('change',()=>{
+      const k=inp.dataset.mo, v=inp.type==='checkbox'?inp.checked:parseFloat(String(inp.value).replace(',','.'));
+      if(inp.type!=='checkbox' && !isFinite(v)) { _renderMeasureSettings(); return; }
+      state.measureOpts=Object.assign({}, state.measureOpts, {[k]:v});
+      saveSite(); inp.blur(); render();
+    }));
+  }
+
+  /* Longueur dans les propriétés d'un câble */
+  function _cableLenHtml(cable){
+    const D=getData(), r=SiteMeasure.cableLen(cable,D), man=String(cable.length||'').trim();
+    let h='<label class="syn-insp-lbl">Longueur</label>';
+    if(r){
+      h+=`<div class="spl-len${man?' over':''}"><div class="spl-len-big">${r.std?r.std+' m':SiteMeasure.fmtM(r.total)}${r.std?'<span>câble standard</span>':''}</div>`+
+         `<div class="spl-len-det">${_N(r.path)} m mesurés${r.extra?' + '+_N(r.extra)+' m de montée':''}${r.slack?' + '+_N(r.slack,0)+' % de marge':''} = <b>${_N(r.total)} m</b></div>`+
+         (r.direct && !cable.fromPt && !cable.toPt ? '<div class="spl-len-warn"><i class="ti ti-route"></i>Mesuré en ligne droite : ajoutez des points de passage (bouton « + Point » ou double-clic) pour suivre le vrai chemin.</div>' : '')+`</div>`+
+         `<div class="spl-len-row"><span title="Câble qui monte vers un line array accroché, descend dans une tranchée…">Montée / descente</span><input class="syn-insp-inp" id="si-cextra" type="text" inputmode="decimal" value="${cable.extraM?_N(cable.extraM):''}" placeholder="0"><em>m</em></div>`;
+    } else {
+      h+=`<div class="spl-len-none"><i class="ti ti-ruler-measure"></i><span>Mettez le plan à l'échelle (en haut à gauche du plan) : la longueur se calcule sur le tracé.</span></div>`;
+    }
+    h+=`<div class="spl-len-row"><span>${r?'Imposer':'Longueur'}</span><input class="syn-insp-inp" id="si-clen" value="${esc(cable.length||'')}" placeholder="${r?'calculée':'ex. 30 m'}"></div>`;
+    if(man && r) h+='<div class="spl-len-note">Longueur imposée : elle remplace le calcul. Videz le champ pour revenir au calcul.</div>';
+    return h;
+  }
+  /* Orientation et alignement temporel dans les propriétés d'un élément */
+  const _ALIGN_TYPES={main_array:1, sub:1, frontfill:1, delay:1};
+  function _elMeasureHtml(el){
+    let h='';
+    if(el.type!=='text_lbl' && el.type!=='image_frame'){
+      h+=`<label class="syn-insp-lbl">Orientation</label><div class="spl-rot-row">`+
+         `<button class="spl-ts-btn" type="button" id="si-rotm" title="Tourner de −15°"><i class="ti ti-rotate"></i></button>`+
+         `<span class="spl-ms-in"><input type="text" inputmode="numeric" id="si-rot" value="${Math.round(+el.rot||0)}"><em>°</em></span>`+
+         `<button class="spl-ts-btn" type="button" id="si-rotp" title="Tourner de +15°"><i class="ti ti-rotate-clockwise"></i></button>`+
+         `<button class="spl-ts-btn" type="button" id="si-rot0" title="Remettre droit">0°</button></div>`+
+         `<div class="spl-hint">Ou glissez la poignée au-dessus de l'élément (Maj : par 15°) · touche R</div>`;
+    }
+    if(_ALIGN_TYPES[el.type] || el.alignTo){
+      const D=getData(), d=SiteMeasure.delays(D)[el.id], auto=!!SiteMeasure.DELAY_TYPES[el.type], p=SiteMeasure.ppm(D);
+      const refs=state.elements.filter(x=>x.id!==el.id && _ALIGN_TYPES[x.type]);
+      h+=`<label class="syn-insp-lbl">Alignement temporel</label><select class="syn-insp-inp" id="si-align">`+
+         `<option value=""${!el.alignTo?' selected':''}>${auto?'Façade la plus proche':'Aucun'}</option>`+
+         (auto?`<option value="none"${el.alignTo==='none'?' selected':''}>Aucun</option>`:'')+
+         refs.map(x=>`<option value="${esc(x.id)}"${el.alignTo===x.id?' selected':''}>Sur ${esc(String(x.label||'').split('\n')[0])}</option>`).join('')+`</select>`;
+      if(d) h+=`<div class="spl-dl"><div class="spl-dl-big">${_N(d.ms)} ms</div><div class="spl-len-det">${_N(d.dist)} m de ${esc(d.refLabel)} · son à ${_N(SiteMeasure.soundSpeed(D),1)} m/s (${_N(SiteMeasure.opts(D).temp,0)} °C)${SiteMeasure.opts(D).haas?' + '+_N(SiteMeasure.opts(D).haas)+' ms d\'avance':''}</div></div>`;
+      else if(!p && (auto || el.alignTo)) h+=`<div class="spl-len-none"><i class="ti ti-ruler-measure"></i><span>Mettez le plan à l'échelle pour calculer le délai.</span></div>`;
+      else if(auto && el.alignTo!=='none') h+=`<div class="spl-len-none"><i class="ti ti-info-circle"></i><span>Aucun line array (façade) sur le plan : choisissez la référence.</span></div>`;
+    }
+    return h;
+  }
+  function _bindElMeasure(el){
+    const setRot=v=>{ el.rot=((Math.round(v)%360)+360)%360; if(!el.rot) delete el.rot; saveSite(); renderNodes(); renderMeasures(); const i=$('si-rot'); if(i) i.value=Math.round(+el.rot||0); };
+    $('si-rotm')?.addEventListener('click',()=>setRot((+el.rot||0)-15));
+    $('si-rotp')?.addEventListener('click',()=>setRot((+el.rot||0)+15));
+    $('si-rot0')?.addEventListener('click',()=>setRot(0));
+    $('si-rot')?.addEventListener('change',e=>{ const v=parseFloat(String(e.target.value).replace(',','.')); setRot(isFinite(v)?v:0); });
+    $('si-align')?.addEventListener('change',e=>{ if(e.target.value) el.alignTo=e.target.value; else delete el.alignTo; saveSite(); renderNodes(); renderMeasures(); renderInspector(); });
+  }
+
+  /* Quantitatif des câbles : par type, longueurs retenues, CSV */
+  function _schedule(){ return SiteMeasure.cableSchedule(getData(), id=>ct(id).label); }
+  function cablePdfRows(){
+    const S=_schedule(); if(!S.rows.length) return null;
+    return { groups:S.groups.map(g=>({ label:g.label, color:_safeColor(ct(g.type).color)||'#888888', n:g.n, total:g.total, unknown:g.unknown,
+               sizes:Object.keys(g.sizes).map(Number).sort((a,b)=>b-a).map(m=>g.sizes[m]+' × '+_N(m)+' m').join(', ') })),
+             rows:S.rows.map(r=>[r.typeLabel, r.from+'  >  '+r.to, r.ref, r.len?_N(r.len.path)+' m':'', r.len&&r.len.extra?_N(r.len.extra)+' m':'', r.meters!=null?_N(r.meters)+' m'+(r.manual?' (imposée)':''):'à préciser']) };
+  }
+  function openCableList(){
+    const D=getData(), S=_schedule(), p=SiteMeasure.ppm(D), o=SiteMeasure.opts(D);
+    let m=$('spl-cab-modal');
+    if(!m){ m=document.createElement('div'); m.id='spl-cab-modal'; m.className='modal-ov'; document.body.appendChild(m); m.addEventListener('click',e=>{ if(e.target===m) m.classList.remove('show'); }); }
+    const close=`document.getElementById('spl-cab-modal').classList.remove('show')`;
+    const grp=S.groups.map(g=>{ const c=_safeColor(ct(g.type).color)||'#888';
+      const sizes=Object.keys(g.sizes).map(Number).sort((a,b)=>b-a).map(x=>`<span>${g.sizes[x]} × ${_N(x)} m</span>`).join('');
+      return `<div class="spl-cq-g"><div class="spl-cq-h"><i style="background:${c}"></i><b>${esc(g.label)}</b><em>${g.n} câble${g.n>1?'s':''}${g.total?' · '+_N(g.total)+' m':''}</em></div><div class="spl-cq-s">${sizes}${g.unknown?`<span class="u">${g.unknown} sans longueur</span>`:''}</div></div>`; }).join('');
+    m.innerHTML=`<div class="modal-box spl-cq-box"><div class="modal-head"><span class="modal-title">Câbles du plan de site</span><button class="modal-close" onclick="${close}" aria-label="Fermer"><i class="ti ti-x"></i></button></div><div class="modal-body">`+
+      (!S.rows.length ? `<div class="sp-ip-empty"><i class="ti ti-plug-connected"></i><b>Aucun câble tracé</b><span>Tracez les liaisons sur le plan (« Tracer une liaison » dans la bibliothèque) : leur longueur se calcule une fois le plan à l'échelle.</span></div>`
+      : (!p ? `<div class="spl-cq-warn"><i class="ti ti-ruler-measure"></i><span>Le plan n'est pas à l'échelle : seules les longueurs saisies à la main sont comptées.</span><button class="btn sm" type="button" id="spl-cq-cal">Mettre à l'échelle</button></div>`
+            : `<div class="spl-cq-opts"><span>Marge</span><span class="spl-ms-in"><input type="text" inputmode="decimal" id="spl-cq-slack" value="${_N(o.slack)}"><em>%</em></span><label><input type="checkbox" class="cb" id="spl-cq-round" ${o.round?'checked':''}> Arrondir aux longueurs standard</label></div>`)+
+        `<div class="spl-cq-grid">${grp}</div>`+
+        `<div class="sp-ip-wrap"><table class="sp-ip-t spl-cq-t"><thead><tr><th>Type</th><th>Liaison</th><th>Repère</th><th>Mesuré</th><th>Montée</th><th>Longueur</th></tr></thead><tbody>`+
+        S.rows.map(r=>`<tr data-cid="${esc(r.c.id)}"><td><i class="spl-cq-dot" style="background:${_safeColor(ct(r.type).color)||'#888'}"></i>${esc(r.typeLabel)}</td><td>${esc(r.from)} <i class="ti ti-arrow-right"></i> ${esc(r.to)}</td><td>${esc(r.ref)}</td>`+
+          `<td class="mono">${r.len?_N(r.len.path)+' m':'—'}${r.len&&r.len.direct&&!r.c.fromPt&&!r.c.toPt?' <i class="ti ti-route" title="Mesuré en ligne droite"></i>':''}</td><td class="mono">${r.len&&r.len.extra?_N(r.len.extra)+' m':''}</td>`+
+          `<td class="mono"><b>${r.meters!=null?_N(r.meters)+' m':'à préciser'}</b>${r.manual?' <small>imposée</small>':''}</td></tr>`).join('')+
+        `</tbody></table></div><p class="sp-ip-note">Cliquez une ligne pour retrouver le câble. Ces longueurs vont dans la demande au loueur et dans le PDF du plan de site.</p>`)+
+      `</div>`+(S.rows.length?`<div class="modal-foot"><button class="btn" type="button" id="spl-cq-copy"><i class="ti ti-copy"></i>Copier</button><button class="btn" type="button" id="spl-cq-csv"><i class="ti ti-download"></i>CSV</button><span class="sp-grow"></span><button class="btn pri" type="button" onclick="${close}">Terminé</button></div>`:'')+`</div>`;
+    m.classList.add('show');
+    $('spl-cq-cal')?.addEventListener('click',()=>{ m.classList.remove('show'); startTool('calib'); });
+    $('spl-cq-slack')?.addEventListener('change',e=>{ const v=parseFloat(String(e.target.value).replace(',','.')); if(isFinite(v)){ state.measureOpts=Object.assign({},state.measureOpts,{slack:v}); saveSite(); render(); } openCableList(); });
+    $('spl-cq-round')?.addEventListener('change',e=>{ state.measureOpts=Object.assign({},state.measureOpts,{round:e.target.checked}); saveSite(); render(); openCableList(); });
+    const lines=()=>[['Type','De','Vers','Repère','Mesuré (m)','Montée (m)','Longueur (m)']].concat(S.rows.map(r=>[r.typeLabel,r.from,r.to,r.ref,r.len?_N(r.len.path):'',r.len&&r.len.extra?_N(r.len.extra):'',r.meters!=null?_N(r.meters):'']));
+    $('spl-cq-copy')?.addEventListener('click',()=>{ try{ navigator.clipboard.writeText(lines().map(l=>l.join('\t')).join('\n')).then(()=>toast('Liste des câbles copiée : collez-la dans un tableur')); }catch(e){} });
+    $('spl-cq-csv')?.addEventListener('click',()=>{
+      const q=v=>{ v=String(v==null?'':v); return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; };
+      const blob=new Blob(['﻿'+lines().map(l=>l.map(q).join(';')).join('\n')],{type:'text/csv;charset=utf-8'}), a=document.createElement('a');
+      a.href=URL.createObjectURL(blob); a.download=((CUR_SHOW&&CUR_SHOW.name)||'plan-de-site').replace(/[^a-z0-9]+/gi,'-').toLowerCase()+'-cables.csv';
+      document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },500);
+    });
+    m.querySelectorAll('tr[data-cid]').forEach(tr=>tr.addEventListener('click',()=>{ m.classList.remove('show'); state.selected={kind:'cable',id:tr.dataset.cid}; render(); }));
+  }
+
   function bindEvents() {
     const host=$('site-nodes'), vp=$('site-viewport'), wrap=$('site-canvas-wrap'), svg=$('site-cables');
     if(!host||!vp||!wrap) return;
@@ -16642,6 +17113,22 @@ const SitePlan = (() => {
         state.selected={kind:'cable',id:cable.id}; state.linkFrom=null;
         saveSite(); render();
       }
+      e.stopPropagation(); e.preventDefault();
+    }, true);
+
+    /* Outil Échelle ou Mètre : chaque clic pose un point (avant tout autre geste) */
+    wrap.addEventListener('pointerdown', e => {
+      if(!state.tool || e.button!==0) return;
+      if(e.target.closest('#site-mtools,.site-zoom-bar,.site-cable-legend-ov')) return;
+      const from=state.toolPts[state.toolPts.length-1];
+      state.toolPts.push(_r1(_toolSnap(clientToWorld(e.clientX,e.clientY), e, from)));
+      if(state.toolPts.length===2){
+        const a=state.toolPts[0], b=state.toolPts[1];
+        if(Math.hypot(b.x-a.x,b.y-a.y) < 3/(state.view.zoom||1)) state.toolPts=[b];
+        else if(state.tool==='calib') _openCalib(a,b);
+        else { state.measures.push({id:uid(), a, b}); state.toolPts=[]; saveSite(); }
+      }
+      renderMeasures(); _renderMTools();
       e.stopPropagation(); e.preventDefault();
     }, true);
 
@@ -16667,6 +17154,15 @@ const SitePlan = (() => {
         state.cables=state.cables.filter(c=>c.fromId!==id&&c.toId!==id);
         if(state.selected?.id===id)state.selected=null;
         saveSite(); render(); ev.stopPropagation(); return;
+      }
+      const rot=ev.target.closest('.spl-rot');
+      if(rot){
+        const id=rot.dataset.rot, body=rot.parentElement && rot.parentElement.querySelector('.spl-body');
+        if(!body || !state.elements.find(e=>e.id===id)){ ev.stopPropagation(); return; }
+        const r=body.getBoundingClientRect();
+        rotating={id, cx:r.left+r.width/2, cy:r.top+r.height/2, moved:false};
+        host.setPointerCapture?.(ev.pointerId);
+        ev.stopPropagation(); ev.preventDefault(); return;
       }
       const rsz=ev.target.closest('.spl-rsz');
       if(rsz){
@@ -16702,6 +17198,16 @@ const SitePlan = (() => {
     });
 
     host.addEventListener('pointermove',ev=>{
+      if(rotating){
+        const el=state.elements.find(e=>e.id===rotating.id); if(!el) return;
+        const step=ev.shiftKey?15:5;
+        let a=Math.atan2(ev.clientY-rotating.cy, ev.clientX-rotating.cx)*180/Math.PI+90;
+        a=((Math.round(a/step)*step)%360+360)%360;
+        el.rot=a; rotating.moved=true;
+        const b=host.querySelector(`.spl-node[data-id="${el.id}"] .spl-body`); if(b) b.style.transform=a?`rotate(${a}deg)`:'';
+        const ri=$('si-rot'); if(ri) ri.value=a;
+        return;
+      }
       if(resizing){
         const el=state.elements.find(e=>e.id===resizing.id);
         if(!el) return;
@@ -16731,7 +17237,7 @@ const SitePlan = (() => {
       renderCables();
     });
 
-    host.addEventListener('pointerup',()=>{ if(resizing){saveSite(); resizing=null; renderInspector();} if(dragging?.moved)saveSite(); dragging=null; });
+    host.addEventListener('pointerup',()=>{ if(rotating){ if(!state.elements.find(e=>e.id===rotating.id)?.rot) { const e0=state.elements.find(e=>e.id===rotating.id); if(e0) delete e0.rot; } if(rotating.moved) saveSite(); rotating=null; renderMeasures(); return; } if(resizing){saveSite(); resizing=null; renderInspector();} if(dragging?.moved){ saveSite(); renderNodes(); renderMeasures(); } dragging=null; });
 
     // Click on empty = deselect / cancel link / place free cable point
     vp.addEventListener('pointerdown',e=>{
@@ -16747,6 +17253,7 @@ const SitePlan = (() => {
       vp.setPointerCapture?.(e.pointerId);
     });
     vp.addEventListener('pointermove',e=>{
+      if(state.tool){ state.toolCur=_toolSnap(clientToWorld(e.clientX,e.clientY), e, state.toolPts[state.toolPts.length-1]); _mtRaf(); }
       if(_drawing()){
         _lastMoveEv=e;
         _renderDrawPreview(e);
@@ -16775,6 +17282,22 @@ const SitePlan = (() => {
     // Escape cancels link / free cable drawing
     document.addEventListener('keydown',e=>{
       if(e.key==='Escape'&&_wpAddCid){ _setWpAddMode(null); return; }
+      if(e.key==='Escape'&&state.tool&&host.offsetParent!==null){ if(state.toolPts.length){ state.toolPts=[]; renderMeasures(); _renderMTools(); } else stopTool(); e.preventDefault(); return; }
+      if(e.key==='Escape'&&state.selected&&host.offsetParent!==null&&!_drawing()&&!state.cableMode){ const tg0=e.target, tn0=tg0&&tg0.tagName; if(tn0!=='INPUT'&&tn0!=='TEXTAREA'&&tn0!=='SELECT'){ state.selected=null; renderNodes(); renderCables(); renderInspector(); return; } }
+      if(host.offsetParent!==null && !_drawing() && !e.ctrlKey && !e.metaKey && !e.altKey){
+        const tg=e.target, tn=tg&&tg.tagName, typing=tn==='INPUT'||tn==='TEXTAREA'||tn==='SELECT'||(tg&&tg.isContentEditable);
+        const sel=state.selected;
+        if(!typing && sel && (e.key==='r'||e.key==='R') && sel.kind==='el'){
+          const el=state.elements.find(x=>x.id===sel.id);
+          if(el && el.type!=='text_lbl' && el.type!=='image_frame'){ el.rot=(((+el.rot||0)+(e.key==='R'?-15:15))%360+360)%360; if(!el.rot) delete el.rot; saveSite(); renderNodes(); renderMeasures(); const ri=$('si-rot'); if(ri) ri.value=Math.round(+el.rot||0); e.preventDefault(); return; }
+        }
+        if(!typing && sel && (e.key==='Delete'||e.key==='Backspace')){
+          if(sel.kind==='measure'){ state.measures=state.measures.filter(x=>x.id!==sel.id); }
+          else if(sel.kind==='cable'){ state.cables=state.cables.filter(c=>c.id!==sel.id); }
+          else if(sel.kind==='el'){ const _d=state.elements.find(x=>x.id===sel.id); if(_d&&_d.iconImgB2) _b2DeleteIcon(_d.iconImgB2); state.elements=state.elements.filter(x=>x.id!==sel.id); state.cables=state.cables.filter(c=>c.fromId!==sel.id&&c.toId!==sel.id); }
+          state.selected=null; saveSite(); render(); e.preventDefault(); return;
+        }
+      }
       if(_drawing()){
         var tg=e.target, tn=tg&&tg.tagName;
         if(tn==='INPUT'||tn==='TEXTAREA'||tn==='SELECT'||(tg&&tg.isContentEditable)) return;
@@ -16814,6 +17337,14 @@ const SitePlan = (() => {
       renderCables();
     });
     document.addEventListener('pointerup', () => { if(_wpDrag){ _wpDrag=null; saveSite(); } });
+    document.addEventListener('pointermove', e => {
+      if(!_mDrag) return;
+      const m=(state.measures||[]).find(x=>x.id===_mDrag.id); if(!m) return;
+      const other=m[_mDrag.end==='a'?'b':'a'];
+      m[_mDrag.end]=_r1(_toolSnap(clientToWorld(e.clientX,e.clientY), e, other)); _mDrag.moved=true;
+      renderMeasures();
+    });
+    document.addEventListener('pointerup', () => { if(_mDrag){ if(_mDrag.moved) saveSite(); _mDrag=null; renderInspector(); } });
   }
 
   function updateLinkBanner() {
@@ -17076,7 +17607,11 @@ const SitePlan = (() => {
       state.bgOpacity=data.bgOpacity??100;
       state.bgRotation=data.bgRotation||0;
       if(data.view)state.view=data.view;
+      state.scale=(data.scale&&+data.scale.ppm>0)?data.scale:null;
+      state.measureOpts=(data.measureOpts&&typeof data.measureOpts==='object')?data.measureOpts:{};
+      state.measures=Array.isArray(data.measures)?data.measures.filter(m=>m&&m.a&&m.b):[];
     } else {
+      state.scale=null; state.measureOpts={}; state.measures=[];
       state.elements=[];state.cables=[];state.bgImage=null;state.bgOpacity=100;state.bgRotation=0;state.view={panX:60,panY:60,zoom:1};
     }
     if(Array.isArray(data?.cableTypes)){
@@ -17089,7 +17624,7 @@ const SitePlan = (() => {
     if(data?.textScale) state.textScale=data.textScale;
     if(data?.legendScale) state.legendScale=data.legendScale;
     state.cableTextScale=data?.cableTextScale||1;
-    state.selected=null;state.linkFrom=null;state.freePt1=null;state.drawPts=[];
+    state.selected=null;state.linkFrom=null;state.freePt1=null;state.drawPts=[];state.tool=null;state.toolPts=[];
     const sl=$('site-bg-opacity');if(sl)sl.value=state.bgOpacity;
     const rl=$('site-bg-rotation');if(rl)rl.value=state.bgRotation||0;
     const rv=$('site-bg-rot-val');if(rv)rv.textContent=(state.bgRotation||0)+'°';
@@ -17100,7 +17635,7 @@ const SitePlan = (() => {
     if(inited){ renderCablePicker(); render(); }
   }
 
-  function getData() { return {elements:state.elements,cables:state.cables,bgImage:state.bgImage,bgOpacity:state.bgOpacity,bgRotation:state.bgRotation||0,view:state.view,activeCableType:state.activeCableType,textScale:state.textScale,legendScale:state.legendScale,cableTextScale:state.cableTextScale,cableTypes:_usedCableTypes()}; }
+  function getData() { return {elements:state.elements,cables:state.cables,bgImage:state.bgImage,bgOpacity:state.bgOpacity,bgRotation:state.bgRotation||0,view:state.view,activeCableType:state.activeCableType,textScale:state.textScale,legendScale:state.legendScale,cableTextScale:state.cableTextScale,cableTypes:_usedCableTypes(),scale:state.scale||null,measureOpts:state.measureOpts||{},measures:state.measures||[]}; }
   /* Définition (libellé/couleur/trait) des types réellement utilisés, écrite
      dans le plan : les types personnalisés et les couleurs modifiées ne vivent
      sinon que dans le navigateur de leur auteur, et le lien partagé (ou un
@@ -17296,9 +17831,13 @@ const SitePlan = (() => {
         const _es=(e.elSize||72), _iw=(e.type==='image_frame'?(e.imgPx||_es):_es);
         maxX=Math.max(maxX,e.x+Math.max(_iw,200)+24); maxY=Math.max(maxY,e.y+_es+150);
       });
+      /* Cotes et tracés des câbles (points de passage, bouts libres) : rien ne doit être rogné */
+      (state.measures||[]).forEach(m=>{ [m.a,m.b].forEach(pt=>{ minX=Math.min(minX,pt.x-40); minY=Math.min(minY,pt.y-40); maxX=Math.max(maxX,pt.x+40); maxY=Math.max(maxY,pt.y+40); }); });
+      cables.forEach(c=>{ (c.waypoints||[]).concat(c.fromPt?[c.fromPt]:[], c.toPt?[c.toPt]:[]).forEach(pt=>{ if(!pt||!isFinite(+pt.x)||!isFinite(+pt.y)) return; minX=Math.min(minX,pt.x-50); minY=Math.min(minY,pt.y-50); maxX=Math.max(maxX,pt.x+50); maxY=Math.max(maxY,pt.y+50); }); });
       if(!isFinite(minX)){ minX=0;minY=0;maxX=1200;maxY=800; }
       const W=maxX-minX, H=maxY-minY;
       const SCALE=Math.min(2, 3840/Math.max(W,H));
+      const _D=getData();
       const cw=Math.round(W*SCALE), ch=Math.round(H*SCALE);
       const canvas=document.createElement('canvas');
       canvas.width=cw; canvas.height=ch;
@@ -17315,6 +17854,7 @@ const SitePlan = (() => {
         ctx.drawImage(bgImg, wx(0), wy(0), bgImg.naturalWidth*SCALE, bgImg.naturalHeight*SCALE);
         ctx.restore();
       }
+      SiteMeasure.drawGrid(ctx, _D, wx, wy, minX, minY, maxX, maxY, SCALE);
       const drawArrow=(tx,ty,dx,dy,color,sz)=>{
         const bx=tx-dx*sz, by=ty-dy*sz;
         ctx.save(); ctx.fillStyle=color; ctx.beginPath();
@@ -17346,8 +17886,9 @@ const SitePlan = (() => {
         const ARR=14*SCALE;
         if(dir==='forward'||dir==='both') drawArrow(wx(atx),wy(aty), nx, ny, c.color, ARR);
         if(dir==='backward'||dir==='both') drawArrow(wx(afx),wy(afy),-bnx,-bny, c.color, ARR);
-        if(cable.label||cable.length){
-          const txt=[cable.label,cable.length].filter(Boolean).join(' · ');
+        const _lt=SiteMeasure.cableText(cable,_D);
+        if(cable.label||_lt){
+          const txt=[cable.label,_lt].filter(Boolean).join(' · ');
           const cts=(state.cableTextScale||1)*(cable.textScale||1);
           _spCableLabel(ctx, txt, wx(mxo), wy(myo)-16*cts*SCALE, cts, SCALE, c.color);
         }
@@ -17362,6 +17903,7 @@ const SitePlan = (() => {
         const _emoji=(it&&typeof it.icon==='string'&&it.icon.charAt(0)!=='<')?it.icon:'';
         _spDrawSiteNode(ctx, el, ex, ey, SCALE, TS, {color:(it&&it.color)||'#5a6580', iconImg:_iconImg, emoji:_emoji});
       });
+      SiteMeasure.drawOverlay(ctx, _D, wx, wy, SCALE, cw, ch, _SP_FONT);
       const usedIds=[...new Set(cables.map(c=>c.type))];
       _spLegend(ctx, usedIds.map(function(id){ const c=CABLE_TYPES.find(t=>t.id===id)||CABLE_TYPES[0]; return {color:c.color, dash:c.dash, label:c.label}; }), state.legendScale||1, SCALE, ch);
       cb(canvas);
@@ -17439,7 +17981,7 @@ const SitePlan = (() => {
     saveSite(); render(); renderInspector();
     setTimeout(function(){ uploadElementIcon(id); },80);
   }
-  return {init,load,getData,loadBg,setBgOpacity,setBgRotation,rotateBg,clearBg,clear,zoom,setZoomPct,fitView,resetView,selectCable,exportPng,exportCanvas,exportCanvasSafe,hasContent,setActiveCableType,toggleCableMode,cancelDraw:()=>_cancelDraw(),setTextScale,setLegendScale,setCableTextScale,deleteCustomCableType,updateCableType,uploadElementIcon,clearElementIcon,adjImgPx,
+  return {openCableList,startTool,stopTool,cablePdfRows,init,load,getData,loadBg,setBgOpacity,setBgRotation,rotateBg,clearBg,clear,zoom,setZoomPct,fitView,resetView,selectCable,exportPng,exportCanvas,exportCanvasSafe,hasContent,setActiveCableType,toggleCableMode,cancelDraw:()=>_cancelDraw(),setTextScale,setLegendScale,setCableTextScale,deleteCustomCableType,updateCableType,uploadElementIcon,clearElementIcon,adjImgPx,
     /* Exposés pour le rendu fidèle côté lien partagé (couleur + icône réelles
        de la palette, identiques à _makeCanvas). */
     itemMeta:function(t){var it=findItem(t); return {color:(it&&it.color)||'#5a6a80', icon:(it&&it.icon)||null, label:(it&&it.label)||t};},
@@ -18711,10 +19253,13 @@ function _demBuild(){
   var cab={};
   docs.site.forEach(function(d){
     var ct={}; (d.data.cableTypes||[]).concat(d.data.customCableTypes||[]).forEach(function(t){ if(t&&t.id) ct[t.id]=t.label; });
-    var mine={}; (d.data.cables||[]).forEach(function(k){ var id=k.type||'x', g=mine[id]||(mine[id]={name:ct[id]||_BON_CABLE_LBL[id]||id,n:0,len:[]}); g.n++; var L=String(k.length||'').trim(); if(L) g.len.push(L); });
-    Object.keys(mine).forEach(function(id){ if(!cab[id] || mine[id].n>cab[id].n) cab[id]=mine[id]; });
+    /* Une ligne par type et par longueur (calculée sur le plan à l'échelle, ou saisie) ; sans longueur : une ligne « à préciser » */
+    var mine={}; (d.data.cables||[]).forEach(function(k){ var id=k.type||'x', m=(typeof SiteMeasure!=='undefined')?SiteMeasure.cableMeters(k, d.data):null, key=id+'|'+(m==null?'?':m);
+      var g=mine[key]||(mine[key]={id:id,m:m,name:ct[id]||_BON_CABLE_LBL[id]||id,n:0}); g.n++; });
+    Object.keys(mine).forEach(function(k){ if(!cab[k] || mine[k].n>cab[k].n) cab[k]=mine[k]; });
   });
-  var crow=Object.keys(cab).map(function(id){ var g=cab[id]; return {key:'cab:'+_bonNorm(id),name:'Liaison '+g.name,det:g.len.length?'longueurs : '+g.len.join(', '):'longueur à préciser',qty:g.n}; });
+  var crow=Object.keys(cab).sort(function(a,b){ var A=cab[a], B=cab[b]; return A.name.localeCompare(B.name) || (B.m||0)-(A.m||0); }).map(function(k){ var g=cab[k];
+    return {key:'cab:'+_bonNorm(g.id)+(g.m==null?'':':'+String(g.m).replace('.','_')),name:'Câble '+g.name+(g.m!=null?' '+String(g.m).replace('.',',')+' m':''),det:g.m!=null?'tracé sur le plan de site':'longueur à préciser (plan pas à l\'échelle)',qty:g.n}; });
   /* Conseils : câblage XLR selon le nombre de sources, pieds en spare */
   if(src>0){ var goal=src>=8?Math.ceil(src*1.5):src+2; crow.push({key:'adv:xlr',name:'Câble XLR (modules)',det:'conseillé pour '+pl(src,'source','sources')+' : '+(src>=8?'un câble et demi par source':'deux de marge'),qty:goal,adv:true}); }
   if(nStands>0) crow.push({key:'adv:stand',name:'Pied de micro en spare',det:'conseillé : casse, micro d\'ordre, antennes HF',qty:2,adv:true});
@@ -27021,6 +27566,8 @@ function _svFs(imgId, title){
           maxX=Math.max(maxX,e.x+Math.max(iw,200)+24);
           maxY=Math.max(maxY,e.y+esz+150);
         });
+        (Array.isArray(siteData.measures)?siteData.measures:[]).forEach(function(m){ if(!m||!m.a||!m.b) return; [m.a,m.b].forEach(function(pt){ minX=Math.min(minX,pt.x-40); minY=Math.min(minY,pt.y-40); maxX=Math.max(maxX,pt.x+40); maxY=Math.max(maxY,pt.y+40); }); });
+        cables.forEach(function(c){ (c.waypoints||[]).concat(c.fromPt?[c.fromPt]:[], c.toPt?[c.toPt]:[]).forEach(function(pt){ if(!pt||!isFinite(+pt.x)||!isFinite(+pt.y)) return; minX=Math.min(minX,pt.x-50); minY=Math.min(minY,pt.y-50); maxX=Math.max(maxX,pt.x+50); maxY=Math.max(maxY,pt.y+50); }); });
         if(!isFinite(minX)){ minX=0;minY=0;maxX=1200;maxY=800; }
         var W=maxX-minX, H=maxY-minY;
         var SCALE=Math.min(2,3840/Math.max(W,H));
@@ -27042,6 +27589,7 @@ function _svFs(imgId, title){
           ctx.drawImage(_bgImg, wx(0), wy(0), _bgImg.naturalWidth*SCALE, _bgImg.naturalHeight*SCALE);
           ctx.restore();
         }
+        SiteMeasure.drawGrid(ctx, siteData, wx, wy, minX, minY, maxX, maxY, SCALE);
 
         /* Câbles — fidèle à l'éditeur : waypoints (polyligne), câbles libres,
            flèches de direction, jointures arrondies. */
@@ -27086,8 +27634,9 @@ function _svFs(imgId, title){
           var ARR=14*SCALE, dir=c.direction||'forward';
           if(dir==='forward'||dir==='both') _arrow(wx(atx),wy(aty), nx, ny, ct.color, ARR);
           if(dir==='backward'||dir==='both') _arrow(wx(afx),wy(afy), -bnx, -bny, ct.color, ARR);
-          if(c.label||c.length){
-            var txt=[c.label,c.length].filter(Boolean).join(' · ');
+          var _lt=SiteMeasure.cableText(c, siteData);
+          if(c.label||_lt){
+            var txt=[c.label,_lt].filter(Boolean).join(' · ');
             var cts=(siteData.cableTextScale||1)*(c.textScale||1);
             _spCableLabel(ctx, txt, wx(mx), wy(my)-16*cts*SCALE, cts, SCALE, ct.color);
           }
@@ -27103,6 +27652,7 @@ function _svFs(imgId, title){
           _spDrawSiteNode(ctx, e, ex, ey, SCALE, TS, {color:ic, iconImg:iconImg, emoji:''});
         });
 
+        SiteMeasure.drawOverlay(ctx, siteData, wx, wy, SCALE, cw, ch, _SP_FONT);
         /* Légende des liaisons — même rendu que l'export PDF/PNG. */
         var usedIds=[];
         cables.forEach(function(c){ if(usedIds.indexOf(c.type)<0) usedIds.push(c.type); });
