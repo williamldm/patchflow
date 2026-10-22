@@ -465,6 +465,9 @@ html[data-view=mobile] .notes h3{margin-top:0}
 .mat-t h3{font-size:clamp(24px,2.6vw,32px);line-height:1.15;letter-spacing:-.015em;margin-bottom:16px}
 .mat-t>p{color:var(--ink2)}
 .mat-t .fine{margin-top:14px;font-size:14px;color:var(--ink3)}
+.mat-ph{display:flex;justify-content:center}
+.mat-ph .phone{width:min(78%,300px);transform:none}
+.kicker .tag{margin-left:8px;vertical-align:1px}
 .ticks{list-style:none;margin-top:22px;border-top:1px solid var(--rule2)}
 .ticks li{position:relative;padding:12px 0 12px 28px;border-bottom:1px solid var(--rule2);font-size:15.5px;color:var(--ink)}
 .ticks li::before{content:'';position:absolute;left:3px;top:19px;width:11px;height:6px;border-left:2px solid var(--acc);border-bottom:2px solid var(--acc);transform:rotate(-45deg)}
@@ -684,6 +687,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
     <nav class="menu" aria-label="Sections">
       <a href="#fonctions">Fonctionnalités</a>
       <a href="#materiel">Matériel</a>
+      <a href="#festival">Festival</a>
       <a href="#partage">Partage</a>
       <a href="#tarifs">Tarifs</a>
       <a href="#questions">Questions</a>
@@ -699,6 +703,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
   <div class="drawer" id="drawer">
     <a href="#fonctions" data-m="0">Fonctionnalités</a>
     <a href="#materiel" data-m="2">Matériel</a>
+    <a href="#festival">Festival</a>
     <a href="#partage">Partage</a>
     <a href="#tarifs">Tarifs</a>
     <a href="#questions">Questions</a>
@@ -799,7 +804,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
     <p class="mt-sub">De l'input list au bon du loueur, pour la façade, les retours, la régie et la presta.</p>
     <div class="mt-tabs" role="tablist" aria-label="Familles de fonctionnalités"><button type="button" role="tab" aria-selected="true" aria-controls="mt-0" data-i="0"><span>01</span>Patch</button><button type="button" role="tab" aria-selected="false" aria-controls="mt-1" data-i="1"><span>02</span>Plans</button><button type="button" role="tab" aria-selected="false" aria-controls="mt-2" data-i="2"><span>03</span>Matériel</button><button type="button" role="tab" aria-selected="false" aria-controls="mt-3" data-i="3"><span>04</span>Sortie</button></div>
   </div>
-  <div class="mt-track" id="mt-track"><article class="mt-p" id="mt-0" role="tabpanel" aria-label="Patch"><div class="mt-vis ph"><span class="mt-phone"><picture><source type="image/avif" srcset="img/lp-m-output.avif?v=2"/><img src="img/lp-m-output.jpg?v=2" width="1170" height="2532" loading="lazy" decoding="async" alt="L'output list sur téléphone : wedges, in-ears, side fills, chacun avec son type"/></picture></span></div><ul class="mt-list"><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg><div><b>Input list</b><span>Micros et DI, +48&nbsp;V, envois façade et retours, colonnes à la carte.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h11M11 8l4 4-4 4M19 5v14"/></svg><div><b>Output list</b><span>Wedges, in-ears et leur fréquence HF, une couleur par type de sortie.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 18v-6M9.5 14.5 12 12l2.5 2.5"/></svg><div><b>Reprise d'un rider</b><span>Le patch du groupe lu dans son PDF, sans rien retaper. Scans lus par IA <span class="tag">Pro</span></span></div></li></ul></article><article class="mt-p" id="mt-1" role="tabpanel" aria-label="Plans"><div class="mt-vis ph"><span class="mt-phone"><picture><source type="image/avif" srcset="img/lp-m-plan-site.avif?v=3"/><img src="img/lp-m-plan-site.jpg?v=3" width="1170" height="2532" loading="lazy" decoding="async" alt="Le plan de site dans l'app, sur téléphone : enceintes, régies et tirages de câbles"/></picture></span></div><ul class="mt-list"><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg><div><b>Plan de scène</b><span>Instruments et retours placés, numéros de voies repris du patch.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg><div><b>Plan de site</b><span>Enceintes, régies et tirages de câbles sur le plan de la salle.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M7 6h10M6.2 7.6l4.7 8.6M17.8 7.6l-4.7 8.6"/></svg><div><b>Synoptique</b><span>Généré depuis la session de vos amplis, réseau par réseau.</span></div></li></ul></article><article class="mt-p" id="mt-2" role="tabpanel" aria-label="Matériel"><div class="mt-vis ph"><span class="mt-phone"><picture><source type="image/avif" srcset="img/lp-m-racks.avif?v=1"/><img src="img/lp-m-racks.jpg?v=1" width="1170" height="2532" loading="lazy" decoding="async" alt="La page Racks de l'app sur téléphone : rack de régie à deux baies, poids et consommation"/></picture></span></div><ul class="mt-list"><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16M4 15h16M8 6h.01M8 12h.01M8 18h.01"/></svg><div><b>Racks</b><span>Dessinés unité par unité, câblage, poids et consommation compris.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21V11M8 7a5 5 0 0 1 8 0M5 4a9 9 0 0 1 14 0"/><circle cx="12" cy="10" r="1.2"/></svg><div><b>Liaisons HF</b><span>Fréquences compatibles calculées, intermodulation comprise.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 12.5l2 2 4-4.5"/></svg><div><b>Bon du loueur</b><span>La demande de matériel, puis le pointage du bon avant de charger.</span></div></li></ul></article><article class="mt-p" id="mt-3" role="tabpanel" aria-label="Sortie"><div class="mt-vis ph"><span class="mt-phone"><picture><source type="image/avif" srcset="img/lp-share-il.avif?v=2"/><img src="img/lp-share-il.jpg?v=2" width="1170" height="2532" loading="lazy" decoding="async" alt="Le rider partagé sur téléphone : input list en cartes, avec micro, +48 V, façade et retours"/></picture></span></div><ul class="mt-list"><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg><div><b>Lien toujours à jour</b><span>Un lien par destinataire, ouvert sans compte, toujours la dernière version.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4v6M6 14v6M12 4v2M12 10v10M18 4v9M18 17v3"/><circle cx="6" cy="12" r="2"/><circle cx="12" cy="8" r="2"/><circle cx="18" cy="15" r="2"/></svg><div><b>Exports console</b><span>X32, M32, WING, dLive, SQ, Yamaha&nbsp;: 3 shows par mois en Gratuit, illimités en Pro.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5M16 5.2a3.2 3.2 0 0 1 0 5.6M18 14.8c1.9.7 3 2.4 3 5.2"/></svg><div><b>Équipe et rôles</b><span>Ingé retours en éditeur, régisseur en lecture&nbsp;: tout le monde sur la même version.</span></div></li></ul></article></div>
+  <div class="mt-track" id="mt-track"><article class="mt-p" id="mt-0" role="tabpanel" aria-label="Patch"><div class="mt-vis ph"><span class="mt-phone"><picture><source type="image/avif" srcset="img/lp-m-output.avif?v=2"/><img src="img/lp-m-output.jpg?v=2" width="1170" height="2532" loading="lazy" decoding="async" alt="L'output list sur téléphone : wedges, in-ears, side fills, chacun avec son type"/></picture></span></div><ul class="mt-list"><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg><div><b>Input list</b><span>Micros et DI, +48&nbsp;V, envois façade et retours, colonnes à la carte.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h11M11 8l4 4-4 4M19 5v14"/></svg><div><b>Output list</b><span>Wedges, in-ears et leur fréquence HF, une couleur par type de sortie.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 18v-6M9.5 14.5 12 12l2.5 2.5"/></svg><div><b>Reprise d'un rider</b><span>Le patch du groupe lu dans son PDF, sans rien retaper. Scans lus par IA <span class="tag">Pro</span></span></div></li></ul></article><article class="mt-p" id="mt-1" role="tabpanel" aria-label="Plans"><div class="mt-vis ph"><span class="mt-phone"><picture><source type="image/avif" srcset="img/lp-m-plan-site.avif?v=3"/><img src="img/lp-m-plan-site.jpg?v=3" width="1170" height="2532" loading="lazy" decoding="async" alt="Le plan de site dans l'app, sur téléphone : enceintes, régies et tirages de câbles"/></picture></span></div><ul class="mt-list"><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg><div><b>Plan de scène</b><span>Instruments et retours placés, numéros de voies repris du patch.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg><div><b>Plan de site</b><span>Enceintes, régies et tirages de câbles sur le plan de la salle.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M7 6h10M6.2 7.6l4.7 8.6M17.8 7.6l-4.7 8.6"/></svg><div><b>Synoptique</b><span>Généré depuis la session de vos amplis, réseau par réseau.</span></div></li></ul></article><article class="mt-p" id="mt-2" role="tabpanel" aria-label="Matériel"><div class="mt-vis ph"><span class="mt-phone"><picture><source type="image/avif" srcset="img/lp-m-racks.avif?v=1"/><img src="img/lp-m-racks.jpg?v=1" width="1170" height="2532" loading="lazy" decoding="async" alt="La page Racks de l'app sur téléphone : rack de régie à deux baies, poids et consommation"/></picture></span></div><ul class="mt-list"><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16M4 15h16M8 6h.01M8 12h.01M8 18h.01"/></svg><div><b>Racks</b><span>Dessinés unité par unité, câblage, poids et consommation compris.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21V11M8 7a5 5 0 0 1 8 0M5 4a9 9 0 0 1 14 0"/><circle cx="12" cy="10" r="1.2"/></svg><div><b>Liaisons HF</b><span>Fréquences compatibles calculées, intermodulation comprise.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 12.5l2 2 4-4.5"/></svg><div><b>Bon du loueur</b><span>La demande de matériel, puis le pointage du bon avant de charger.</span></div></li></ul></article><article class="mt-p" id="mt-3" role="tabpanel" aria-label="Sortie"><div class="mt-vis ph"><span class="mt-phone"><picture><source type="image/avif" srcset="img/lp-share-il.avif?v=3"/><img src="img/lp-share-il.jpg?v=3" width="1170" height="2532" loading="lazy" decoding="async" alt="Le rider partagé sur téléphone : input list en cartes, avec micro, +48 V, façade et retours"/></picture></span></div><ul class="mt-list"><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg><div><b>Lien toujours à jour</b><span>Un lien par destinataire, ouvert sans compte, toujours la dernière version.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4v6M6 14v6M12 4v2M12 10v10M18 4v9M18 17v3"/><circle cx="6" cy="12" r="2"/><circle cx="12" cy="8" r="2"/><circle cx="18" cy="15" r="2"/></svg><div><b>Exports console</b><span>X32, M32, WING, dLive, SQ, Yamaha&nbsp;: 3 shows par mois en Gratuit, illimités en Pro.</span></div></li><li><svg class="mt-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5M16 5.2a3.2 3.2 0 0 1 0 5.6M18 14.8c1.9.7 3 2.4 3 5.2"/></svg><div><b>Équipe et rôles</b><span>Ingé retours en éditeur, régisseur en lecture&nbsp;: tout le monde sur la même version.</span></div></li></ul></article></div>
   <div class="w">
     <div class="mt-dots" aria-hidden="true"><i class="on"></i><i></i><i></i><i></i></div>
     <p class="mt-aussi"><b>Et aussi&nbsp;:</b> feuille de route, colonne ALT, templates, import et export CSV, enregistrement en continu, mode sombre, corbeille de 30&nbsp;jours <span class="tag">Pro</span>.</p>
@@ -1061,34 +1066,95 @@ html[data-view=mobile] .notes h3{margin-top:0}
   </div>
 </section>
 
+<!-- ══════════ FESTIVAL ══════════ -->
+<section class="chapter band" id="festival">
+  <div class="w">
+    <div class="head">
+      <div>
+        <p class="kicker"><span class="kn">04</span>Le festival <span class="tag">Pro</span></p>
+        <h2>Tous les groupes d'une scène, dans un seul show.</h2>
+      </div>
+      <p class="lede">Chaque groupe garde son input list et son output list, placées sur le programme du festival. PatchFlow les compare entre elles&nbsp;: à chaque changement de plateau, vous savez ce qui reste et ce qui bouge.</p>
+    </div>
+
+    <div class="mat" id="festival-patch">
+      <div class="mat-t">
+        <p class="kicker">Le patch du festival</p>
+        <h3>Ce qui change d'un groupe à l'autre, voie par voie.</h3>
+        <p>Les groupes de la journée côte à côte, dans l'ordre de passage. Ce qui ne bouge pas s'efface en gris, ce qu'il faut repatcher ressort avec un trait jaune.</p>
+        <ul class="ticks">
+          <li>Plusieurs jours, avec les horaires et les temps de changement</li>
+          <li>Comparé au groupe précédent ou au patch maître de la scène</li>
+          <li>Voies libérées, 48&nbsp;V à basculer, retours et fréquences HF qui changent</li>
+          <li>Dossier PDF par poste (plateau, façade, retours) avec un QR code vers la version en ligne</li>
+        </ul>
+      </div>
+      <figure class="shot">
+        <div class="shot-in">
+          <picture>
+            <source type="image/avif" srcset="img/lp-fest-grid.avif?v=1"/>
+            <img src="img/lp-fest-grid.jpg?v=1" width="2880" height="1800" loading="lazy" decoding="async"
+              alt="Le patch d'une journée de festival&nbsp;: quatre groupes côte à côte, les voies identiques en gris, les voies à changer en gras avec un trait jaune."/>
+          </picture>
+        </div>
+      </figure>
+    </div>
+
+    <div class="mat rev" id="direct">
+      <div class="mat-t">
+        <p class="kicker">Le direct</p>
+        <h3>Le plateau sait toujours ce qui arrive.</h3>
+        <p>Dans le lien partagé, la vue Direct suit l'heure du téléphone&nbsp;: le groupe sur scène, le temps qu'il lui reste, et le prochain changement de plateau avec son compte à rebours et la liste des voies à toucher.</p>
+        <ul class="ticks">
+          <li>Le changement en cours, avec ce qu'il reste à faire</li>
+          <li>La suite de la journée, groupe par groupe</li>
+          <li>Mise à jour toute seule, l'écran reste allumé</li>
+          <li>Un aperçu pour voir la suite avant l'heure</li>
+        </ul>
+        <p class="fine">Le lien s'ouvre sans compte&nbsp;: les techniciens du plateau n'ont rien à installer.</p>
+      </div>
+      <div class="mat-ph">
+        <div class="phone">
+          <picture>
+            <source type="image/avif" srcset="img/lp-fest-live.avif?v=1"/>
+            <img src="img/lp-fest-live.jpg?v=1" width="1170" height="2532" loading="lazy" decoding="async"
+              alt="La vue Direct du rider partagé sur téléphone&nbsp;: en direct à 20&nbsp;h&nbsp;52, changement de plateau en cours entre Nadia K. et Tempête Douce, sur scène dans 23 minutes, avec les voies à changer."/>
+          </picture>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ══════════ PARTAGE ══════════ -->
 <section class="night share" id="partage">
   <div class="w">
     <div class="share-grid">
       <div>
-        <p class="kicker"><span class="kn">04</span>La sortie · Partage</p>
+        <p class="kicker"><span class="kn">05</span>La sortie · Partage</p>
         <h2>Un lien par destinataire, toujours la dernière version.</h2>
         <p class="lede" style="margin-top:24px">Chaque destinataire a son propre lien, en lecture seule, sans compte ni appli. Vous corrigez une voie à 17&nbsp;h&nbsp;: le régisseur recharge, il a la bonne version.</p>
         <ul class="share-list">
           <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg><div><h3>Sans compte</h3><p>Le destinataire ouvre le lien, c'est tout. Un lien par personne, supprimé en un clic.</p></div></li>
           <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg><div><h3>Sections au choix</h3><p>L'input list pour la presta, les plans pour la salle, la feuille de route pour le groupe.</p></div></li>
           <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg><div><h3>Changements signalés</h3><p>À chaque visite, le destinataire voit ce qui a bougé depuis la dernière fois.</p></div></li>
-          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg><div><h3>Lisible au plateau</h3><p>Pensé pour le téléphone, avec des plans qui se zooment au doigt.</p></div></li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg><div><h3>Lisible au plateau</h3><p>Pensé pour le téléphone, en mode clair ou sombre, avec des plans qui se zooment au doigt.</p></div></li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg><div><h3>Même sans réseau</h3><p>Une fois ouvert, le rider reste consultable hors ligne, avec la date de la dernière version.</p></div></li>
         </ul>
       </div>
       <div class="phones">
         <div class="phone">
           <picture>
-            <source type="image/avif" srcset="img/lp-share-il.avif?v=2"/>
-            <img src="img/lp-share-il.jpg?v=2" width="1170" height="2531" loading="lazy" decoding="async"
-              alt="Le rider partagé sur téléphone&nbsp;: l'input list en cartes, avec micro, +48&nbsp;V, façade et retours."/>
+            <source type="image/avif" srcset="img/lp-share-il.avif?v=3"/>
+            <img src="img/lp-share-il.jpg?v=3" width="1170" height="2532" loading="lazy" decoding="async"
+              alt="Le rider partagé sur téléphone, en mode sombre&nbsp;: les groupes du festival dans l'ordre de passage, puis l'input list en cartes avec micro, 48&nbsp;V, façade et retours."/>
           </picture>
         </div>
         <div class="phone">
           <picture>
-            <source type="image/avif" srcset="img/lp-share-stage.avif?v=2"/>
-            <img src="img/lp-share-stage.jpg?v=2" width="1170" height="2531" loading="lazy" decoding="async"
-              alt="Le rider partagé sur téléphone&nbsp;: le plan de scène, consultable en plein écran."/>
+            <source type="image/avif" srcset="img/lp-share-road.avif?v=1"/>
+            <img src="img/lp-share-road.jpg?v=1" width="1170" height="2532" loading="lazy" decoding="async"
+              alt="Le rider partagé sur téléphone, en mode clair&nbsp;: la feuille de route avec les horaires et les contacts, appelables d'un geste."/>
           </picture>
         </div>
       </div>
@@ -1114,7 +1180,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
   <div class="w">
     <div class="head">
       <div>
-        <p class="kicker"><span class="kn">04</span>La sortie · Console, fichiers, équipe</p>
+        <p class="kicker"><span class="kn">05</span>La sortie · Console, fichiers, équipe</p>
         <h2>La console, les fichiers et l'équipe, avec le patch.</h2>
       </div>
       <p class="lede">Exports console, riders, show files et équipe sont rattachés au show. Plus besoin de chercher la bonne version dans un dossier partagé.</p>
@@ -1218,7 +1284,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
         <p class="plan-for">Pour enchaîner les dates</p>
         <p class="plus">Tout le Gratuit, sans ses limites, et&nbsp;:</p>
         <ul>
-          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg><div><b>Enchaîner les dates</b><span>Shows, canaux, racks et calcul HF sans limite, multi-patchs, versions de plans, corbeille de 30 jours</span></div></li>
+          <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg><div><b>Enchaîner les dates</b><span>Shows, canaux, racks et calcul HF sans limite, multi-patchs et mode festival, versions de plans, corbeille de 30 jours</span></div></li>
           <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg><div><b>Prêt pour la console</b><span>Exports illimités&nbsp;: X32, M32, WING, dLive, Avantis, SQ, Yamaha CL/QL/DM7, retour vers Wireless Workbench</span></div></li>
           <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg><div><b>Documents à votre nom</b><span>PDF sans mention, à votre logo, fichiers joints aux riders, 50&nbsp;Go</span></div></li>
           <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg><div><b>Toute l'équipe</b><span>Collaborateurs illimités, récap des micros et des pieds, reprise d'une liste par IA, bon du loueur illimité, liaisons HF reliées au patch</span></div></li>
