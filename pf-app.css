@@ -5872,3 +5872,14 @@ html[data-sv-theme="dark"],html[data-sv-theme="dark"] body{background:#0c0e12}
 .spl-sat-info i{color:var(--ora);font-size:16px}
 .spl-sat-info b{color:var(--txt)}
 .spl-sat-note{font-size:11.5px;color:var(--muted)}
+
+/* Taille des symboles du plan de site (--spl-k) : la carte, ses boutons et ses marges suivent */
+#site-nodes .spl-card{padding:calc(8px * var(--spl-k,1)) calc(11px * var(--spl-k,1)) calc(10px * var(--spl-k,1));gap:calc(4px * var(--spl-k,1));border-radius:calc(10px * var(--spl-k,1))}
+#site-nodes .spl-node{gap:calc(4px * var(--spl-k,1))}
+#site-nodes .spl-del,#site-nodes .spl-conn{width:calc(20px * var(--spl-k,1));height:calc(20px * var(--spl-k,1));font-size:calc(11px * var(--spl-k,1))}
+#site-nodes .spl-del .ti,#site-nodes .spl-conn .ti{font-size:calc(11px * var(--spl-k,1))!important}
+#site-nodes .spl-card .spl-del,#site-nodes .spl-del{top:calc(-8px * var(--spl-k,1));right:calc(-8px * var(--spl-k,1))}
+#site-nodes .spl-img .spl-del{right:auto}
+#site-nodes .spl-rot{width:calc(24px * var(--spl-k,1));height:calc(24px * var(--spl-k,1));top:calc(-30px * var(--spl-k,1));font-size:calc(13px * var(--spl-k,1))}
+.spl-sym-auto{margin-left:4px;padding:1px 6px;border:1px solid var(--ora);border-radius:9px;background:transparent;color:var(--ora);font:600 9px/1.4 var(--f);cursor:pointer}
+#site-nodes .spl-conn{bottom:calc(-9px * var(--spl-k,1))}

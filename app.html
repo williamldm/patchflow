@@ -68,7 +68,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=4.68">
+<link rel="stylesheet" href="pf-app.css?v=4.69">
 </head>
 <body>
 
@@ -1015,6 +1015,14 @@ html.rider-boot #rider-splash{display:flex}
             <div id="site-measure-set" class="spl-ms"></div>
             <div class="spl-ms-h"><i class="ti ti-typography"></i>Textes</div>
             <div class="site-insp-footer-row">
+              <span>Symboles <button type="button" id="spl-sym-auto" class="spl-sym-auto" style="display:none" onclick="SitePlan.setSymScale('auto')" title="Adapter à l'étendue du fond satellite">Adapter</button></span>
+              <div style="display:flex;gap:3px;align-items:center">
+                <button class="spl-ts-btn" onclick="SitePlan.setSymScale(-1)" title="Symboles plus petits">−</button>
+                <span id="spl-sym-val" style="font-size:9px;font-family:var(--m);color:var(--muted);min-width:28px;text-align:center">100%</span>
+                <button class="spl-ts-btn" onclick="SitePlan.setSymScale(1)" title="Symboles plus grands">+</button>
+              </div>
+            </div>
+            <div class="site-insp-footer-row">
               <span>Texte global</span>
               <div style="display:flex;gap:3px;align-items:center">
                 <button class="spl-ts-btn" onclick="SitePlan.setTextScale(-1)">A−</button>
@@ -1659,7 +1667,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=5.14"></script>
+<script src="pf-app.js?v=5.15"></script>
 <script src="pf-rf.js?v=1.16"></script>
 <script src="pf-road.js?v=1.2"></script>
 <script src="pf-fest.js?v=1.18"></script>

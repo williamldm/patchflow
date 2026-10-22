@@ -15813,12 +15813,12 @@ function _spDrawSiteNode(ctx, el, ex, ey, SCALE, TS, opt){
   }
 
   /* ── Élément standard : carte blanche fidèle à .spl-card ── */
-  var esz=(el.elSize||72);
+  var esz=(el.elSize||72), PK=SCALE*(+opt.k>0?+opt.k:1);
   var bodyW=esz*SCALE, bodyH=esz*SCALE;
-  var padL=12*SCALE, padR=12*SCALE, padT=9*SCALE, padB=12*SCALE, gap=5*SCALE;
+  var padL=12*PK, padR=12*PK, padT=9*PK, padB=12*PK, gap=5*PK;
   var lblFs=Math.max(9,12*TS*elTS*SCALE);
   var noteFs=Math.max(8,10*TS*elTS*SCALE);
-  var maxInner=Math.max(bodyW,170*SCALE);
+  var maxInner=Math.max(bodyW,170*PK);
   var label=(el.label!=null&&el.label!=='')?el.label:'';
   var note=el.note||'';
 
@@ -15835,11 +15835,11 @@ function _spDrawSiteNode(ctx, el, ex, ey, SCALE, TS, opt){
 
   if(!el.noBg){
     ctx.save();
-    ctx.shadowColor='rgba(16,24,40,.10)'; ctx.shadowBlur=6*SCALE; ctx.shadowOffsetY=1*SCALE;
-    _spRR(ctx,ex,ey,cardW,cardH,10*SCALE); ctx.fillStyle='#ffffff'; ctx.fill();
+    ctx.shadowColor='rgba(16,24,40,.10)'; ctx.shadowBlur=6*PK; ctx.shadowOffsetY=1*PK;
+    _spRR(ctx,ex,ey,cardW,cardH,10*PK); ctx.fillStyle='#ffffff'; ctx.fill();
     ctx.restore();
-    ctx.strokeStyle='rgba(28,36,51,.26)'; ctx.lineWidth=Math.max(1,1.2*SCALE);
-    _spRR(ctx,ex,ey,cardW,cardH,10*SCALE); ctx.stroke();
+    ctx.strokeStyle='rgba(28,36,51,.26)'; ctx.lineWidth=Math.max(1,1.2*PK);
+    _spRR(ctx,ex,ey,cardW,cardH,10*PK); ctx.stroke();
   }
 
   /* Icône centrée en haut (SVG navy ou image custom), sans boîte colorée. */
@@ -16192,7 +16192,7 @@ const SitePlan = (() => {
     renderCablePicker(); renderCables(); renderLegend();
   }
 
-  let state = { elements:[], cables:[], bgImage:null, bgOpacity:100, bgRotation:0, view:{panX:60,panY:60,zoom:1}, selected:null, linkFrom:null, freePt1:null, drawPts:[], activeCableType:'xlr', textScale:1, legendScale:1, cableTextScale:1, cableMode:false, scale:null, measureOpts:{}, measures:[], tool:null, toolPts:[], toolCur:null, multi:[], areas:[], layersOff:{}, bgGeo:null, bgScale:1 };
+  let state = { elements:[], cables:[], bgImage:null, bgOpacity:100, bgRotation:0, view:{panX:60,panY:60,zoom:1}, selected:null, linkFrom:null, freePt1:null, drawPts:[], activeCableType:'xlr', textScale:1, legendScale:1, cableTextScale:1, cableMode:false, scale:null, measureOpts:{}, measures:[], tool:null, toolPts:[], toolCur:null, multi:[], areas:[], layersOff:{}, bgGeo:null, bgScale:1, symK:1 };
   let dragging=null, panning=null, inited=false, resizing=null, _wpDrag=null, _wpAddCid=null, rotating=null, _mDrag=null, lasso=null, areaDrag=null, areaRsz=null;
 
   const $  = id => document.getElementById(id);
@@ -16290,7 +16290,7 @@ const SitePlan = (() => {
   function applyTransform() {
     const t = `translate(${state.view.panX}px,${state.view.panY}px) scale(${state.view.zoom})`;
     const nn = $('site-nodes'), cc = $('site-cables'), bg = $('site-bg-img');
-    if(nn){ nn.style.transform = t; nn.style.setProperty('--spl-ts', state.textScale); }
+    if(nn){ nn.style.transform = t; nn.style.setProperty('--spl-ts', state.textScale*_K()); nn.style.setProperty('--spl-k', _K()); }
     if(cc) cc.style.transform = t;
     const mt = $('site-mt'); if(mt) mt.style.transform = t;
     _mtRaf();
@@ -16593,8 +16593,8 @@ const SitePlan = (() => {
       const {afx,afy,atx,aty,myo,mxo,nx,ny,bnx,bny,pathFwd} = g;
       const c = ct(cable.type);
       const isSel = state.selected?.kind==='cable' && state.selected.id===cable.id;
-      const w = cable.width ?? 4;
-      const dash = c.dash ? `stroke-dasharray="${c.dash}"` : '';
+      const _ck=_K(), w = (cable.width ?? 4)*_ck;
+      const dash = c.dash ? `stroke-dasharray="${_ck===1?c.dash:c.dash.split(' ').map(n=>(parseFloat(n)||0)*_ck).join(' ')}"` : '';
       const dir = cable.direction ?? 'forward';
       const op = isSel ? 1 : 0.85;
       const sw = isSel ? w+2 : w;
@@ -16605,7 +16605,7 @@ const SitePlan = (() => {
       const _lenTxt=SiteMeasure.cableText(cable,_D);
       if(cable.label||_lenTxt) {
         const txt=[cable.label,_lenTxt].filter(Boolean).join(' · ');
-        const cts=(state.cableTextScale||1)*(cable.textScale||1);
+        const cts=(state.cableTextScale||1)*(cable.textScale||1)*_K();
         const fs=(13*cts), tw=_measureCableLbl(txt, fs), rh=22*cts;
         paths += `<rect x="${mxo-tw/2-7*cts}" y="${myo-rh-5}" width="${tw+14*cts}" height="${rh}" rx="${rh/2}" fill="#ffffff" stroke="${c.color}" stroke-width="${1.5*cts}"/>`;
         paths += `<text x="${mxo}" y="${myo-rh/2-5+fs*0.35}" fill="#1c2433" font-size="${fs.toFixed(1)}" font-family="Archivo,sans-serif" text-anchor="middle" font-weight="600">${esc(txt)}</text>`;
@@ -16704,9 +16704,10 @@ const SitePlan = (() => {
       const elSz = el.elSize || (el.type==='text_lbl'?18:72);
       const elTs = el.elTextScale || 1;
       const sizeLabel = el.type==='text_lbl' ? 'Taille police' : 'Taille element';
-      const sizeMin  = el.type==='text_lbl' ? 10 : 32;
-      const sizeMax  = el.type==='text_lbl' ? 72 : 180;
-      const sizeStep = el.type==='text_lbl' ? 2  : 8;
+      const _k=_K();
+      const sizeMin  = el.type==='text_lbl' ? 10 : Math.round(32*_k);
+      const sizeMax  = el.type==='text_lbl' ? 72 : Math.round(180*_k);
+      const sizeStep = el.type==='text_lbl' ? 2  : Math.max(1,Math.round(8*_k));
       const connList = state.cables.filter(c=>c.fromId===el.id||c.toId===el.id).map(c=>{
         const other=state.elements.find(e=>e.id===(c.fromId===el.id?c.toId:c.fromId));
         const cc=ct(c.type);
@@ -16980,6 +16981,7 @@ const SitePlan = (() => {
     state.bgImage=url; state.bgRotation=0; state.bgOpacity=100; state.bgScale=Math.round(S*1000)/1000;
     state.bgGeo={lat:Math.round(_sat.lat*1e6)/1e6, lon:Math.round(_sat.lon*1e6)/1e6, z:zc, src:'ign'};
     state.scale={ppm, a:{x:0,y:h-30}, b:{x:w,y:h-30}, m:Math.round(w/ppm*10)/10};
+    { const a=_symAuto(); if(a) _setSymK(a, true); } _symLbl();
     const sl=$('site-bg-opacity'); if(sl) sl.value=100; const rl=$('site-bg-rotation'); if(rl) rl.value=0; const rv=$('site-bg-rot-val'); if(rv) rv.textContent='0°';
     applyBg(); saveSite(); render();
     $('spl-sat').classList.remove('show');
@@ -17482,7 +17484,7 @@ const SitePlan = (() => {
       const type=e.dataTransfer.getData('spl-type');
       if(!type) return;
       const w=clientToWorld(e.clientX,e.clientY);
-      addElement(type,w.x-31,w.y-31);
+      const _h=(type==='image_frame'?60:(type==='text_lbl'?20:36))*_K(); addElement(type,w.x-_h,w.y-_h);
     });
 
     // Node pointer events
@@ -17776,7 +17778,9 @@ const SitePlan = (() => {
   function addElement(type,x,y) {
     const it=findItem(type);
     const el={id:uid(),type,label:it.label,x:Math.round(x),y:Math.round(y),note:''};
-    if(type==='image_frame'){el.imgPx=120;el.elSize=120;el.label='';}
+    const K=_K();
+    if(type==='image_frame'){el.imgPx=Math.round(120*K);el.elSize=el.imgPx;el.label='';}
+    else if(type!=='text_lbl' && K!==1) el.elSize=Math.round(72*K);
     state.elements.push(el);
     state.selected={kind:'el',id:el.id};
     saveSite(); render();
@@ -18024,8 +18028,11 @@ const SitePlan = (() => {
       state.bgScale=(Number.isFinite(+data.bgScale)&&+data.bgScale>0&&+data.bgScale<=20)?+data.bgScale:1;
       state.bgGeo=(data.bgGeo&&Number.isFinite(+data.bgGeo.lat)&&Number.isFinite(+data.bgGeo.lon))?{lat:+data.bgGeo.lat,lon:+data.bgGeo.lon,z:+data.bgGeo.z||0,src:'ign'}:null;
       if(state.scale) state.scale={ppm:+state.scale.ppm, m:+state.scale.m||0, a:state.scale.a?{x:+state.scale.a.x||0,y:+state.scale.a.y||0}:null, b:state.scale.b?{x:+state.scale.b.x||0,y:+state.scale.b.y||0}:null};
+      state.symK=_symClamp(data.symK);
+      /* Plan posé sur un fond satellite avant la taille des symboles : on l'adapte d'office */
+      if(data.symK==null && state.bgGeo){ const a=_symAuto(); if(a && a!==1) _setSymK(a, true); }
     } else {
-      state.scale=null; state.measureOpts={}; state.measures=[]; state.areas=[]; state.layersOff={}; state.bgGeo=null; state.bgScale=1;
+      state.scale=null; state.measureOpts={}; state.measures=[]; state.areas=[]; state.layersOff={}; state.bgGeo=null; state.bgScale=1; state.symK=1;
       state.elements=[];state.cables=[];state.bgImage=null;state.bgOpacity=100;state.bgRotation=0;state.view={panX:60,panY:60,zoom:1};
     }
     if(Array.isArray(data?.cableTypes)){
@@ -18045,11 +18052,12 @@ const SitePlan = (() => {
     const tl=$('spl-ts-val');if(tl)tl.textContent=Math.round(state.textScale*100)+'%';
     const ll=$('spl-leg-val');if(ll)ll.textContent=Math.round((state.legendScale||1)*100)+'%';
     const cl=$('spl-cab-val');if(cl)cl.textContent=Math.round((state.cableTextScale||1)*100)+'%';
+    _symLbl();
     applyBg(); applyTransform();
     if(inited){ renderCablePicker(); render(); }
   }
 
-  function getData() { return {elements:state.elements,cables:state.cables,bgImage:state.bgImage,bgOpacity:state.bgOpacity,bgRotation:state.bgRotation||0,view:state.view,activeCableType:state.activeCableType,textScale:state.textScale,legendScale:state.legendScale,cableTextScale:state.cableTextScale,cableTypes:_usedCableTypes(),scale:state.scale||null,measureOpts:state.measureOpts||{},measures:state.measures||[],areas:state.areas||[],layersOff:state.layersOff||{},bgGeo:state.bgGeo||null,bgScale:+state.bgScale||1}; }
+  function getData() { return {elements:state.elements,cables:state.cables,bgImage:state.bgImage,bgOpacity:state.bgOpacity,bgRotation:state.bgRotation||0,view:state.view,activeCableType:state.activeCableType,textScale:state.textScale,legendScale:state.legendScale,cableTextScale:state.cableTextScale,cableTypes:_usedCableTypes(),scale:state.scale||null,measureOpts:state.measureOpts||{},measures:state.measures||[],areas:state.areas||[],layersOff:state.layersOff||{},bgGeo:state.bgGeo||null,bgScale:+state.bgScale||1,symK:_K()}; }
   /* Définition (libellé/couleur/trait) des types réellement utilisés, écrite
      dans le plan : les types personnalisés et les couleurs modifiées ne vivent
      sinon que dans le navigateur de leur auteur, et le lien partagé (ou un
@@ -18156,6 +18164,41 @@ const SitePlan = (() => {
     const lbl=$('spl-cab-val'); if(lbl) lbl.textContent=Math.round(state.cableTextScale*100)+'%';
   }
 
+  /* ── Taille des symboles : un coefficient pour tout le plan (symboles, textes, câbles).
+     Il suit l'étendue du fond satellite : un plan de 750 m n'a pas les symboles d'un plan de 80 m. ── */
+  function _symClamp(v){ v=+v; return (Number.isFinite(v)&&v>0) ? Math.max(0.25,Math.min(20,v)) : 1; }
+  function _K(){ return _symClamp(state.symK); }
+  /* Coefficient conseillé : un symbole ≈ 1/18 de la largeur du fond (lisible plan entier affiché) */
+  function _symAuto(){
+    const s=state.scale; if(!state.bgGeo || !s || !(+s.ppm>0) || !(+s.m>0)) return null;
+    return Math.round(Math.max(1, Math.min(12, s.m*s.ppm/(18*72)))*20)/20;
+  }
+  /* Change le coefficient : chaque élément garde son centre, sa taille suit */
+  function _setSymK(k, quiet){
+    k=_symClamp(k); const r=k/_K(); if(Math.abs(r-1)<1e-6){ state.symK=k; return; }
+    state.elements.forEach(el=>{
+      if(el.type==='text_lbl') return;
+      const w0=el.type==='image_frame'?(el.imgPx||el.elSize||120):(el.elSize||72), h0=el.type==='image_frame'?w0/(el.imgAspect||1):w0;
+      const cx=el.x+w0/2, cy=el.y+h0/2;
+      el.elSize=Math.max(8, Math.round((el.elSize||(el.type==='image_frame'?120:72))*r));
+      if(el.type==='image_frame') el.imgPx=Math.max(8, Math.round(w0*r));
+      const w1=el.type==='image_frame'?el.imgPx:el.elSize, h1=el.type==='image_frame'?w1/(el.imgAspect||1):w1;
+      el.x=Math.round(cx-w1/2); el.y=Math.round(cy-h1/2);
+    });
+    state.symK=k;
+    if(quiet) return;
+    _symLbl(); applyTransform(); saveSite(); render();
+  }
+  function _symLbl(){
+    const l=$('spl-sym-val'); if(l) l.textContent=Math.round(_K()*100)+'%';
+    const a=$('spl-sym-auto'), v=_symAuto(); if(a) a.style.display=(v && Math.abs(v-_K())>0.01)?'':'none';
+  }
+  function setSymScale(dir){
+    if(dir==='auto'){ const a=_symAuto(); if(a) _setSymK(a); return; }
+    _setSymK(Math.round(_K()*(dir>0?1.25:0.8)*100)/100);
+    toast('Symboles à '+Math.round(_K()*100)+' %');
+  }
+
   function _rrect(ctx,x,y,w,h,r){
     ctx.beginPath();
     ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
@@ -18240,12 +18283,12 @@ const SitePlan = (() => {
       els.forEach(e=>{
         minX=Math.min(minX,e.x-40); minY=Math.min(minY,e.y-40);
         if(e.type==='text_lbl'){
-          const tb=_spTextLblBox(e, state.textScale||1);
+          const tb=_spTextLblBox(e, (state.textScale||1)*_K());
           maxX=Math.max(maxX,e.x+tb.w+24); maxY=Math.max(maxY,e.y+tb.h+40);
           return;
         }
         const _es=(e.elSize||72), _iw=(e.type==='image_frame'?(e.imgPx||_es):_es);
-        maxX=Math.max(maxX,e.x+Math.max(_iw,200)+24); maxY=Math.max(maxY,e.y+_es+150);
+        maxX=Math.max(maxX,e.x+Math.max(_iw,200*_K())+24); maxY=Math.max(maxY,e.y+_es+150*_K());
       });
       /* Cotes et tracés des câbles (points de passage, bouts libres) : rien ne doit être rogné */
       (state.measures||[]).forEach(m=>{ [m.a,m.b].forEach(pt=>{ minX=Math.min(minX,pt.x-40); minY=Math.min(minY,pt.y-40); maxX=Math.max(maxX,pt.x+40); maxY=Math.max(maxY,pt.y+40); }); });
@@ -18287,11 +18330,11 @@ const SitePlan = (() => {
         if(!g) return;
         const {afx,afy,atx,aty,myo,mxo,nx,ny,bnx,bny,pts}=g;
         const c=CABLE_TYPES.find(t=>t.id===cable.type)||CABLE_TYPES[0];
-        const w=(cable.width??4)*SCALE;
+        const w=(cable.width??4)*SCALE*_K();
         const dir=cable.direction??'forward';
         ctx.beginPath(); ctx.strokeStyle=c.color; ctx.lineWidth=w;
         ctx.lineJoin='round'; ctx.lineCap='round';
-        if(c.dash) ctx.setLineDash(c.dash.split(' ').map(n=>parseFloat(n)*SCALE));
+        if(c.dash) ctx.setLineDash(c.dash.split(' ').map(n=>parseFloat(n)*SCALE*_K()));
         else ctx.setLineDash([]);
         if(pts && pts.length>2){
           ctx.moveTo(wx(pts[0].x),wy(pts[0].y));
@@ -18307,11 +18350,11 @@ const SitePlan = (() => {
         const _lt=SiteMeasure.cableText(cable,_D);
         if(cable.label||_lt){
           const txt=[cable.label,_lt].filter(Boolean).join(' · ');
-          const cts=(state.cableTextScale||1)*(cable.textScale||1);
+          const cts=(state.cableTextScale||1)*(cable.textScale||1)*_K();
           _spCableLabel(ctx, txt, wx(mxo), wy(myo)-16*cts*SCALE, cts, SCALE, c.color);
         }
       });
-      const TS=state.textScale||1;
+      const TS=(state.textScale||1)*_K();
       els.forEach(el=>{
         const it=findItem(el.type);
         const ex=wx(el.x), ey=wy(el.y);
@@ -18320,7 +18363,7 @@ const SitePlan = (() => {
         const _iconImg=_customImg||_icImg||null;
         const _emoji=(it&&typeof it.icon==='string'&&it.icon.charAt(0)!=='<')?it.icon:'';
         const _gh=_vm[el.id]==='ghost'; if(_gh){ ctx.save(); ctx.globalAlpha=0.35; }
-        _spDrawSiteNode(ctx, el, ex, ey, SCALE, TS, {color:(it&&it.color)||'#5a6580', iconImg:_iconImg, emoji:_emoji});
+        _spDrawSiteNode(ctx, el, ex, ey, SCALE, TS, {color:(it&&it.color)||'#5a6580', iconImg:_iconImg, emoji:_emoji, k:_K()});
         if(_gh) ctx.restore();
       });
       SiteMeasure.drawOverlay(ctx, Object.assign({}, _D, {elements:els, cables:cables, measures:_notes?(_D.measures||[]):[]}), wx, wy, SCALE, cw, ch, _SP_FONT);
@@ -18388,7 +18431,7 @@ const SitePlan = (() => {
   }
   function adjImgPx(elId, delta){
     var el=state.elements.find(function(e){return e.id===elId;}); if(!el)return;
-    el.imgPx=Math.max(24,Math.min(600,(el.imgPx||el.elSize||72)+delta));
+    el.imgPx=Math.max(Math.round(24*_K()),Math.min(Math.round(600*_K()),(el.imgPx||el.elSize||72)+Math.round(delta*_K())));
     var lbl=document.getElementById('si-img-px-lbl'); if(lbl)lbl.textContent=el.imgPx+'px';
     _siteCustomImgCache=null;
     saveSite(); renderNodes();
@@ -18401,7 +18444,7 @@ const SitePlan = (() => {
     saveSite(); render(); renderInspector();
     setTimeout(function(){ uploadElementIcon(id); },80);
   }
-  return {openCableList,startTool,stopTool,cablePdfRows,openSatellite,addArea,toggleLayer,init,load,getData,loadBg,setBgOpacity,setBgRotation,rotateBg,clearBg,clear,zoom,setZoomPct,fitView,resetView,selectCable,exportPng,exportCanvas,exportCanvasSafe,hasContent,setActiveCableType,toggleCableMode,cancelDraw:()=>_cancelDraw(),setTextScale,setLegendScale,setCableTextScale,deleteCustomCableType,updateCableType,uploadElementIcon,clearElementIcon,adjImgPx,
+  return {openCableList,startTool,stopTool,cablePdfRows,openSatellite,addArea,toggleLayer,init,load,getData,loadBg,setBgOpacity,setBgRotation,rotateBg,clearBg,clear,zoom,setZoomPct,fitView,resetView,selectCable,exportPng,exportCanvas,exportCanvasSafe,hasContent,setActiveCableType,toggleCableMode,cancelDraw:()=>_cancelDraw(),setTextScale,setLegendScale,setCableTextScale,setSymScale,deleteCustomCableType,updateCableType,uploadElementIcon,clearElementIcon,adjImgPx,
     /* Exposés pour le rendu fidèle côté lien partagé (couleur + icône réelles
        de la palette, identiques à _makeCanvas). */
     itemMeta:function(t){var it=findItem(t); return {color:(it&&it.color)||'#5a6a80', icon:(it&&it.icon)||null, label:(it&&it.label)||t};},
@@ -27888,7 +27931,8 @@ function _svFs(imgId, title){
       return {color:'#4a90d9', dash:null, label:type};
     }
 
-    var TS = siteData.textScale||1;
+    var _RK=(+siteData.symK>0)?Math.max(0.25,Math.min(20,+siteData.symK)):1;
+    var TS = (siteData.textScale||1)*_RK;
 
     /* Pré-charger : images custom (iconImg) + icônes INTÉGRÉES de la palette,
        recolorées vers la couleur de l'élément pour rester visibles sur le fond
@@ -27983,8 +28027,8 @@ function _svFs(imgId, title){
             return;
           }
           var esz=(e.elSize||72), iw=(e.type==='image_frame'?(e.imgPx||esz):esz);
-          maxX=Math.max(maxX,e.x+Math.max(iw,200)+24);
-          maxY=Math.max(maxY,e.y+esz+150);
+          maxX=Math.max(maxX,e.x+Math.max(iw,200*_RK)+24);
+          maxY=Math.max(maxY,e.y+esz+150*_RK);
         });
         (Array.isArray(siteData.measures)?siteData.measures:[]).forEach(function(m){ if(!m||!m.a||!m.b) return; [m.a,m.b].forEach(function(pt){ minX=Math.min(minX,pt.x-40); minY=Math.min(minY,pt.y-40); maxX=Math.max(maxX,pt.x+40); maxY=Math.max(maxY,pt.y+40); }); });
         cables.forEach(function(c){ (c.waypoints||[]).concat(c.fromPt?[c.fromPt]:[], c.toPt?[c.toPt]:[]).forEach(function(pt){ if(!pt||!isFinite(+pt.x)||!isFinite(+pt.y)) return; minX=Math.min(minX,pt.x-50); minY=Math.min(minY,pt.y-50); maxX=Math.max(maxX,pt.x+50); maxY=Math.max(maxY,pt.y+50); }); });
@@ -28030,9 +28074,9 @@ function _svFs(imgId, title){
           var fcx=ends.fcx,fcy=ends.fcy,tcx=ends.tcx,tcy=ends.tcy,fR=ends.fR,tR=ends.tR;
           var ct=_cableColor(c.type);
           var wps=(c.waypoints&&c.waypoints.length)?c.waypoints:null;
-          ctx.strokeStyle=ct.color; ctx.lineWidth=(c.width||4)*SCALE;
+          ctx.strokeStyle=ct.color; ctx.lineWidth=(c.width||4)*SCALE*_RK;
           ctx.lineJoin='round'; ctx.lineCap='round';
-          if(ct.dash) ctx.setLineDash(ct.dash.split(' ').map(function(n){return parseFloat(n)*SCALE;})); else ctx.setLineDash([]);
+          if(ct.dash) ctx.setLineDash(ct.dash.split(' ').map(function(n){return parseFloat(n)*SCALE*_RK;})); else ctx.setLineDash([]);
           var afx,afy,atx,aty,nx,ny,bnx,bny,mx,my,pts;
           if(wps){
             var first=wps[0], last=wps[wps.length-1];
@@ -28060,7 +28104,7 @@ function _svFs(imgId, title){
           var _lt=SiteMeasure.cableText(c, siteData);
           if(c.label||_lt){
             var txt=[c.label,_lt].filter(Boolean).join(' · ');
-            var cts=(siteData.cableTextScale||1)*(c.textScale||1);
+            var cts=(siteData.cableTextScale||1)*(c.textScale||1)*_RK;
             _spCableLabel(ctx, txt, wx(mx), wy(my)-16*cts*SCALE, cts, SCALE, ct.color);
           }
         });
@@ -28072,7 +28116,7 @@ function _svFs(imgId, title){
           var customImg=_imgs[e.id];
           var builtinIcon=_iconImgs[e.type];
           var iconImg=customImg||((builtinIcon&&builtinIcon!=='loading')?builtinIcon:null);
-          _spDrawSiteNode(ctx, e, ex, ey, SCALE, TS, {color:ic, iconImg:iconImg, emoji:''});
+          _spDrawSiteNode(ctx, e, ex, ey, SCALE, TS, {color:ic, iconImg:iconImg, emoji:'', k:_RK});
         });
 
         SiteMeasure.drawOverlay(ctx, siteData, wx, wy, SCALE, cw, ch, _SP_FONT);
