@@ -68,7 +68,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=4.69">
+<link rel="stylesheet" href="pf-app.css?v=4.70">
 </head>
 <body>
 
@@ -972,12 +972,7 @@ html.rider-boot #rider-splash{display:flex}
                 <input type="range" id="site-bg-opacity" min="5" max="100" value="100" style="flex:1;accent-color:var(--ora)" oninput="SitePlan.setBgOpacity(this.value)"/>
                 <button onclick="SitePlan.clearBg()" title="Retirer l'image de fond" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0">&#x2715;</button>
               </div>
-              <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);margin-top:5px">
-                <i class="ti ti-rotate" style="font-size:11px"></i>
-                <input type="range" id="site-bg-rotation" min="-180" max="180" value="0" step="1" style="flex:1;accent-color:var(--ora)" oninput="SitePlan.setBgRotation(this.value)"/>
-                <span id="site-bg-rot-val" style="font-family:var(--m);font-size:9px;min-width:30px;text-align:right">0&deg;</span>
-                <button onclick="SitePlan.rotateBg(90)" title="Pivoter de 90&deg;" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0"><i class="ti ti-rotate-clockwise"></i></button>
-              </div>
+              <button type="button" class="spl-bgadj-btn" onclick="SitePlan.adjustBg()" title="Faire tourner le fond et le rogner : les éléments posés suivent, l'échelle est conservée"><i class="ti ti-crop"></i>Pivoter / rogner le fond</button>
             </div>
           </div>
           <!-- Cable type picker -->
@@ -1667,7 +1662,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=5.15"></script>
+<script src="pf-app.js?v=5.16"></script>
 <script src="pf-rf.js?v=1.16"></script>
 <script src="pf-road.js?v=1.2"></script>
 <script src="pf-fest.js?v=1.18"></script>

@@ -16290,9 +16290,12 @@ const SitePlan = (() => {
   function applyTransform() {
     const t = `translate(${state.view.panX}px,${state.view.panY}px) scale(${state.view.zoom})`;
     const nn = $('site-nodes'), cc = $('site-cables'), bg = $('site-bg-img');
-    if(nn){ nn.style.transform = t; nn.style.setProperty('--spl-ts', state.textScale*_K()); nn.style.setProperty('--spl-k', _K()); }
-    if(cc) cc.style.transform = t;
-    const mt = $('site-mt'); if(mt) mt.style.transform = t;
+    /* Pivoter le fond : aperçu du plan qui tourne avec lui (autour du centre du fond) */
+    let tc = t; const _ad = _adj && _bgDims(), _dr = _adj ? _adj.rot-_adj.rot0 : 0;
+    if(_ad && _dr) tc = `${t} translate(${_ad.w/2}px,${_ad.h/2}px) rotate(${_dr}deg) translate(${-_ad.w/2}px,${-_ad.h/2}px)`;
+    if(nn){ nn.style.transform = tc; nn.style.setProperty('--spl-ts', state.textScale*_K()); nn.style.setProperty('--spl-k', _K()); }
+    if(cc) cc.style.transform = tc;
+    const mt = $('site-mt'); if(mt) mt.style.transform = tc;
     _mtRaf();
     if(bg){
       /* Le fond peut être pivoté autour de son propre centre. On compose la
@@ -16309,6 +16312,7 @@ const SitePlan = (() => {
       }
       bg.style.transform = bt;
     }
+    if(_adj) _adjDraw();
     const lbl = $('site-zoom-lbl');
     if(lbl) lbl.textContent = Math.round(state.view.zoom*100)+'%';
     const sl  = $('site-zoom-slider');
@@ -17680,6 +17684,7 @@ const SitePlan = (() => {
 
     // Escape cancels link / free cable drawing
     document.addEventListener('keydown',e=>{
+      if(_adj&&host.offsetParent!==null){ const tn=e.target&&e.target.tagName; if(e.key==='Escape'){ _adjEnd(false); e.preventDefault(); return; } if(e.key==='Enter'&&tn!=='INPUT'){ _adjApply(); e.preventDefault(); return; } if(tn!=='INPUT') return; }
       if(e.key==='Escape'&&_wpAddCid){ _setWpAddMode(null); return; }
       if(e.key==='Escape'&&state.tool&&host.offsetParent!==null){ if(state.toolPts.length){ state.toolPts=[]; renderMeasures(); _renderMTools(); } else stopTool(); e.preventDefault(); return; }
       if(e.key==='Escape'&&state.selected&&host.offsetParent!==null&&!_drawing()&&!state.cableMode){ const tg0=e.target, tn0=tg0&&tg0.tagName; if(tn0!=='INPUT'&&tn0!=='TEXTAREA'&&tn0!=='SELECT'){ state.multi=[]; state.selected=null; renderNodes(); _renderAreas(); renderCables(); renderInspector(); return; } }
@@ -18006,6 +18011,135 @@ const SitePlan = (() => {
     d=((d%360)+360)%360;      // 0..359
     if(d>180) d-=360;         // -179..180 (180 reste 180)
     setBgRotation(d);
+  }
+  /* ══ Pivoter / rogner le fond ══
+     Une poignée ronde fait tourner le fond autour de son centre, un cadre le rogne. À la validation,
+     rotation et rognage sont « cuits » dans l'image : l'échelle (px par mètre) ne bouge pas et tout ce
+     qui est posé sur le plan (éléments, câbles, cotes, zones) tourne et se décale avec le fond. */
+  let _adj=null;
+  function _bgDims(){ const b=$('site-bg-img'), S=+state.bgScale||1; return b&&b.naturalWidth ? {w:b.naturalWidth*S, h:b.naturalHeight*S, S} : null; }
+  function _rotBox(d, deg){
+    const a=deg*Math.PI/180, c=Math.abs(Math.cos(a)), s2=Math.abs(Math.sin(a)), W=d.w*c+d.h*s2, H=d.w*s2+d.h*c;
+    return {x:d.w/2-W/2, y:d.h/2-H/2, w:W, h:H};
+  }
+  function adjustBg(){
+    const d=_bgDims(); if(!state.bgImage || !d){ toast('Ajoutez d\'abord un fond (vue satellite, image ou PDF).'); return; }
+    if(state.tool) stopTool();
+    state.selected=null; state.multi=[];
+    _adj={rot0:+state.bgRotation||0, rot:+state.bgRotation||0, crop:_rotBox(d, +state.bgRotation||0), touched:false, drag:null};
+    const vp=$('site-viewport'); vp.classList.add('spl-bgadj');
+    let ov=$('spl-adj'); if(!ov){ ov=document.createElement('div'); ov.id='spl-adj'; vp.appendChild(ov); }
+    ov.innerHTML=`<svg class="spl-adj-svg"><path class="spl-adj-mask" fill-rule="evenodd"/><line class="spl-adj-stem"/><rect class="spl-adj-rect" data-h="move"/><g class="spl-adj-hs"></g><g class="spl-adj-rot" data-h="rot"><circle r="13"/><path d="M-5 -1a5.5 5.5 0 1 0 2-4.2M-3 -7.5l0 3.6l3.6 0" fill="none"/></g></svg>`+
+      `<div class="spl-adj-bar"><span class="spl-adj-tip"><i class="ti ti-info-circle"></i>Poignée ronde : pivoter (Maj : par 15°). Bords et coins : rogner.</span>`+
+      `<label class="spl-adj-ang"><i class="ti ti-rotate"></i><input id="spl-adj-deg" type="text" inputmode="decimal" autocomplete="off"><span>°</span></label>`+
+      `<button type="button" class="btn" data-a="m90" title="−90°"><i class="ti ti-rotate-2"></i></button><button type="button" class="btn" data-a="p90" title="+90°"><i class="ti ti-rotate-clockwise-2"></i></button>`+
+      `<button type="button" class="btn" data-a="all" title="Reprendre tout le fond"><i class="ti ti-maximize"></i>Tout</button>`+
+      `<button type="button" class="btn" data-a="no">Annuler</button><button type="button" class="btn pri" data-a="ok"><i class="ti ti-check"></i>Valider</button></div>`;
+    ov.querySelector('.spl-adj-hs').innerHTML=['nw','n','ne','e','se','s','sw','w'].map(h=>`<rect class="spl-adj-h" data-h="${h}" width="12" height="12"/>`).join('');
+    const deg=$('spl-adj-deg');
+    deg.addEventListener('change',()=>{ const v=parseFloat(String(deg.value).replace(',','.')); if(Number.isFinite(v)) _adjSetRot(v); });
+    deg.addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Enter') deg.blur(); if(e.key==='Escape') _adjEnd(false); });
+    ov.querySelector('.spl-adj-bar').addEventListener('pointerdown',e=>e.stopPropagation());
+    ov.querySelector('.spl-adj-bar').addEventListener('click',e=>{
+      const a=e.target.closest('[data-a]'); if(!a) return; const k=a.dataset.a;
+      if(k==='ok') _adjApply(); else if(k==='no') _adjEnd(false);
+      else if(k==='all'){ _adj.touched=false; _adj.crop=_rotBox(_bgDims(), _adj.rot); _adjDraw(); }
+      else _adjSetRot(_adj.rot+(k==='p90'?90:-90));
+    });
+    ov.querySelector('svg').addEventListener('pointerdown',_adjDown);
+    _adjDraw();
+  }
+  function _adjSetRot(v){
+    v=((Math.round(v*10)/10)%360+540)%360-180; if(v===-180) v=180;
+    _adj.rot=v; state.bgRotation=v;
+    if(!_adj.touched) _adj.crop=_rotBox(_bgDims(), v);
+    applyTransform();
+  }
+  function _adjDraw(){
+    const ov=$('spl-adj'), vp=$('site-viewport'); if(!ov||!_adj||!vp) return;
+    const z=state.view.zoom, px=state.view.panX, py=state.view.panY, c=_adj.crop, W=vp.clientWidth, H=vp.clientHeight;
+    const X=x=>px+x*z, Y=y=>py+y*z, x0=X(c.x), y0=Y(c.y), x1=X(c.x+c.w), y1=Y(c.y+c.h), mx=(x0+x1)/2;
+    const svg=ov.querySelector('svg'); svg.setAttribute('width',W); svg.setAttribute('height',H);
+    ov.querySelector('.spl-adj-mask').setAttribute('d',`M0 0H${W}V${H}H0Z M${x0} ${y0}V${y1}H${x1}V${y0}Z`);
+    const r=ov.querySelector('.spl-adj-rect'); r.setAttribute('x',x0); r.setAttribute('y',y0); r.setAttribute('width',Math.max(1,x1-x0)); r.setAttribute('height',Math.max(1,y1-y0));
+    const P={nw:[x0,y0],n:[mx,y0],ne:[x1,y0],e:[x1,(y0+y1)/2],se:[x1,y1],s:[mx,y1],sw:[x0,y1],w:[x0,(y0+y1)/2]};
+    ov.querySelectorAll('.spl-adj-h').forEach(h=>{ const p=P[h.dataset.h]; h.setAttribute('x',p[0]-6); h.setAttribute('y',p[1]-6); });
+    /* Poignée ronde au-dessus du cadre ; dessous ou dedans si le haut est caché (barre d'outils) */
+    const ry=y0-34>=70 ? y0-34 : (y1+34<=H-90 ? y1+34 : Math.min(Math.max(y0+40,70), H-90));
+    ov.querySelector('.spl-adj-rot').setAttribute('transform',`translate(${mx},${ry})`);
+    const st=ov.querySelector('.spl-adj-stem'); st.setAttribute('x1',mx); st.setAttribute('y1',ry<y0?ry+13:ry-13); st.setAttribute('x2',mx); st.setAttribute('y2',ry<y0?y0:(ry>y1?y1:ry-13));
+    const deg=$('spl-adj-deg'); if(deg && document.activeElement!==deg) deg.value=String(_adj.rot).replace('.',',');
+  }
+  function _adjDown(e){
+    const t=e.target.closest('[data-h]'); if(!t||!_adj) return;
+    e.stopPropagation(); e.preventDefault();
+    const w=clientToWorld(e.clientX,e.clientY), d=_bgDims();
+    _adj.drag={h:t.dataset.h, w0:w, c0:{..._adj.crop}, r0:_adj.rot, a0:Math.atan2(w.y-d.h/2, w.x-d.w/2)};
+    const mv=ev=>_adjMove(ev), up=()=>{ window.removeEventListener('pointermove',mv); window.removeEventListener('pointerup',up); if(_adj) _adj.drag=null; };
+    window.addEventListener('pointermove',mv); window.addEventListener('pointerup',up);
+  }
+  function _adjMove(e){
+    const g=_adj&&_adj.drag; if(!g) return;
+    const w=clientToWorld(e.clientX,e.clientY), d=_bgDims();
+    if(g.h==='rot'){
+      let v=g.r0+(Math.atan2(w.y-d.h/2, w.x-d.w/2)-g.a0)*180/Math.PI;
+      v=e.shiftKey ? Math.round(v/15)*15 : Math.round(v*10)/10;
+      _adjSetRot(v); return;
+    }
+    const dx=w.x-g.w0.x, dy=w.y-g.w0.y, c={...g.c0}, mn=24/state.view.zoom, h=g.h;
+    if(h==='move'){ c.x+=dx; c.y+=dy; }
+    else {
+      if(h.includes('w')){ const nx=Math.min(c.x+c.w-mn, c.x+dx); c.w+=c.x-nx; c.x=nx; }
+      if(h.includes('e')) c.w=Math.max(mn, c.w+dx);
+      if(h.includes('n')){ const ny=Math.min(c.y+c.h-mn, c.y+dy); c.h+=c.y-ny; c.y=ny; }
+      if(h.includes('s')) c.h=Math.max(mn, c.h+dy);
+    }
+    _adj.crop=c; _adj.touched=true; _adjDraw();
+  }
+  function _adjEnd(keep){
+    if(!_adj) return;
+    if(!keep){ state.bgRotation=_adj.rot0; }
+    _adj=null;
+    const ov=$('spl-adj'); if(ov) ov.remove();
+    $('site-viewport')?.classList.remove('spl-bgadj');
+    const sl=$('site-bg-rotation'); if(sl) sl.value=state.bgRotation||0; const lbl=$('site-bg-rot-val'); if(lbl) lbl.textContent=(state.bgRotation||0)+'°';
+    applyTransform();
+  }
+  async function _adjApply(){
+    const A=_adj, img=$('site-bg-img'), d=_bgDims(); if(!A||!d||!img) return;
+    const c={x:Math.round(A.crop.x), y:Math.round(A.crop.y), w:Math.max(8,Math.round(A.crop.w)), h:Math.max(8,Math.round(A.crop.h))};
+    const ok=$('spl-adj')?.querySelector('[data-a="ok"]'); if(ok){ ok.disabled=true; ok.innerHTML='<i class="ti ti-loader-2"></i>Calcul…'; }
+    const reset=()=>{ if(ok){ ok.disabled=false; ok.innerHTML='<i class="ti ti-check"></i>Valider'; } };
+    /* Résolution : celle de l'image d'origine, 6 000 px au plus de côté */
+    let S2=d.S; if(c.w/S2>6000) S2=c.w/6000; if(c.h/S2>6000) S2=c.h/6000;
+    const cv=document.createElement('canvas'); cv.width=Math.max(1,Math.round(c.w/S2)); cv.height=Math.max(1,Math.round(c.h/S2));
+    const ctx=cv.getContext('2d'); ctx.fillStyle=state.bgGeo?'#e6e9ee':'#ffffff'; ctx.fillRect(0,0,cv.width,cv.height);
+    ctx.setTransform(1/S2,0,0,1/S2,0,0); ctx.translate(-c.x,-c.y);
+    ctx.translate(d.w/2,d.h/2); ctx.rotate(A.rot*Math.PI/180); ctx.translate(-d.w/2,-d.h/2);
+    try{ ctx.drawImage(img,0,0,d.w,d.h); }catch(e){ reset(); toast('Fond impossible à modifier : '+(e&&e.message||e)); return; }
+    let url='', q=0.88, c2=cv;
+    try{
+      for(;;){ url=c2.toDataURL('image/jpeg', q); if(_dataUrlBytes(url)<=_IMG_STORE_CAP || c2.width<400) break;
+        if(q>0.6) q-=0.08; else { const c3=document.createElement('canvas'); c3.width=Math.round(c2.width*0.85); c3.height=Math.round(c2.height*0.85); c3.getContext('2d').drawImage(c2,0,0,c3.width,c3.height); c2=c3; q=0.8; } }
+    }catch(e){ reset(); toast('Fond impossible à modifier : '+(e&&e.message||e)); return; }
+    if(!await _quotaCheck(_dataUrlBytes(url)) || !await _dbImgCheck(_dataUrlBytes(url))){ reset(); return; }
+    /* Tout ce qui est posé suit : rotation autour du centre du fond, puis décalage du rognage */
+    const dr=A.rot-A.rot0, a=dr*Math.PI/180, co=Math.cos(a), si=Math.sin(a), cx=d.w/2, cy=d.h/2;
+    const T=p=>{ if(!p||!Number.isFinite(+p.x)||!Number.isFinite(+p.y)) return p; const x=+p.x-cx, y=+p.y-cy; return {...p, x:Math.round((cx+x*co-y*si-c.x)*10)/10, y:Math.round((cy+x*si+y*co-c.y)*10)/10}; };
+    state.elements.forEach(el=>{
+      const ce=_elCenter(el), n=T(ce); el.x=Math.round(el.x+n.x-ce.x); el.y=Math.round(el.y+n.y-ce.y);
+      if(dr && el.type!=='text_lbl' && el.type!=='image_frame'){ let r=((+el.rot||0)+dr)%360; if(r<0) r+=360; el.rot=Math.round(r*10)/10; }
+    });
+    state.cables.forEach(cb=>{ if(cb.fromPt) cb.fromPt=T(cb.fromPt); if(cb.toPt) cb.toPt=T(cb.toPt); if(Array.isArray(cb.waypoints)) cb.waypoints=cb.waypoints.map(T); });
+    state.measures=(state.measures||[]).map(m=>({...m, a:T(m.a), b:T(m.b)}));
+    state.areas=(state.areas||[]).map(ar=>{ const n=T({x:ar.x+ar.w/2, y:ar.y+ar.h/2}); return {...ar, x:Math.round(n.x-ar.w/2), y:Math.round(n.y-ar.h/2)}; });
+    if(state.scale){ state.scale={...state.scale, a:state.scale.a?T(state.scale.a):null, b:state.scale.b?T(state.scale.b):null}; }
+    state.bgImage=url; state.bgRotation=0; state.bgScale=Math.round(c.w/c2.width*10000)/10000;
+    state.view={...state.view, panX:state.view.panX+c.x*state.view.zoom, panY:state.view.panY+c.y*state.view.zoom};
+    _adj=null; const ov=$('spl-adj'); if(ov) ov.remove(); $('site-viewport')?.classList.remove('spl-bgadj');
+    const sl=$('site-bg-rotation'); if(sl) sl.value=0; const lbl=$('site-bg-rot-val'); if(lbl) lbl.textContent='0°';
+    applyBg(); saveSite(); render();
+    toast(dr ? 'Fond pivoté de '+_N(dr,1)+'° et rogné : les éléments ont suivi, l\'échelle est conservée' : 'Fond rogné, l\'échelle est conservée');
   }
   function clearBg() { state.bgGeo=null; state.bgScale=1; state.bgImage=null; state.bgRotation=0; const sl=$('site-bg-rotation'); if(sl)sl.value=0; const lbl=$('site-bg-rot-val'); if(lbl)lbl.textContent='0°'; applyBg(); saveSite(); }
 
@@ -18444,7 +18578,7 @@ const SitePlan = (() => {
     saveSite(); render(); renderInspector();
     setTimeout(function(){ uploadElementIcon(id); },80);
   }
-  return {openCableList,startTool,stopTool,cablePdfRows,openSatellite,addArea,toggleLayer,init,load,getData,loadBg,setBgOpacity,setBgRotation,rotateBg,clearBg,clear,zoom,setZoomPct,fitView,resetView,selectCable,exportPng,exportCanvas,exportCanvasSafe,hasContent,setActiveCableType,toggleCableMode,cancelDraw:()=>_cancelDraw(),setTextScale,setLegendScale,setCableTextScale,setSymScale,deleteCustomCableType,updateCableType,uploadElementIcon,clearElementIcon,adjImgPx,
+  return {openCableList,startTool,stopTool,cablePdfRows,openSatellite,addArea,toggleLayer,init,load,getData,loadBg,setBgOpacity,setBgRotation,rotateBg,clearBg,clear,zoom,setZoomPct,fitView,resetView,selectCable,exportPng,exportCanvas,exportCanvasSafe,hasContent,setActiveCableType,toggleCableMode,cancelDraw:()=>_cancelDraw(),setTextScale,setLegendScale,setCableTextScale,setSymScale,adjustBg,deleteCustomCableType,updateCableType,uploadElementIcon,clearElementIcon,adjImgPx,
     /* Exposés pour le rendu fidèle côté lien partagé (couleur + icône réelles
        de la palette, identiques à _makeCanvas). */
     itemMeta:function(t){var it=findItem(t); return {color:(it&&it.color)||'#5a6a80', icon:(it&&it.icon)||null, label:(it&&it.label)||t};},
