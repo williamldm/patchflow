@@ -16888,36 +16888,51 @@ const SitePlan = (() => {
     map.addEventListener('pointerdown', e=>{ if(e.target.closest('.spl-sat-zoom')) return; _satDrag={x:e.clientX, y:e.clientY, cx:_mx(_sat.lon,_sat.z), cy:_my(_sat.lat,_sat.z)}; map.setPointerCapture(e.pointerId); map.classList.add('grab'); });
     map.addEventListener('pointermove', e=>{ if(!_satDrag) return; const cx=_satDrag.cx-(e.clientX-_satDrag.x), cy=_satDrag.cy-(e.clientY-_satDrag.y); _sat.lon=_mlon(cx,_sat.z); _sat.lat=_mlat(cy,_sat.z); _satRenderRaf(); });
     map.addEventListener('pointerup', ()=>{ _satDrag=null; map.classList.remove('grab'); });
-    map.addEventListener('wheel', e=>{ e.preventDefault(); _satZoom(e.deltaY<0?1:-1, e); }, {passive:false});
-    map.querySelectorAll('[data-z]').forEach(b=>b.addEventListener('click',()=>_satZoom(+b.dataset.z)));
+    /* Zoom progressif : la molette avance par quarts de niveau, le pincement du trackpad suit le geste */
+    map.addEventListener('wheel', e=>{
+      e.preventDefault();
+      const dy = e.deltaMode===1 ? e.deltaY*33 : e.deltaY;
+      const k = e.ctrlKey ? 0.012 : 0.0028;
+      _satZoom(Math.max(-0.5, Math.min(0.5, -dy*k)), e);
+    }, {passive:false});
+    map.querySelectorAll('[data-z]').forEach(b=>b.addEventListener('click',()=>_satZoom(+b.dataset.z*0.5)));
     q.addEventListener('input', ()=>{ clearTimeout(_satSearchT); _satSearchT=setTimeout(_satSearch, 280); });
     q.addEventListener('keydown', e=>{ if(e.key==='Enter'){ const f=$('spl-sat-res').querySelector('button'); if(f) f.click(); } });
     $('spl-sat-ok').addEventListener('click', _satApply);
   }
-  function _satRenderRaf(){ if(_satRaf) return; _satRaf=true; requestAnimationFrame(()=>{ _satRaf=false; _satRender(); }); }
+  function _satRenderRaf(){ if(_satRaf) return; _satRaf=true; const go=()=>{ if(!_satRaf) return; _satRaf=false; _satRender(); }; requestAnimationFrame(go); setTimeout(go,50); }
   function _satZoom(d, e){
     const map=$('spl-sat-map'); if(!map) return;
-    const nz=Math.max(3, Math.min(SAT_MAXZ, _sat.z+d)); if(nz===_sat.z) return;
-    if(e){ /* zoom autour du pointeur */
-      const r=map.getBoundingClientRect(), ox=e.clientX-r.left-r.width/2, oy=e.clientY-r.top-r.height/2;
-      const px=_mx(_sat.lon,_sat.z)+ox, py=_my(_sat.lat,_sat.z)+oy, k=Math.pow(2,nz-_sat.z);
-      _sat.lon=_mlon(px*k-ox,nz); _sat.lat=_mlat(py*k-oy,nz);
-    }
-    _sat.z=nz; _satRender();
+    const nz=Math.max(3, Math.min(SAT_MAXZ, _sat.z+d)); if(Math.abs(nz-_sat.z)<1e-4) return;
+    /* Le point sous le pointeur (ou le centre) reste en place */
+    const r=map.getBoundingClientRect(), ox=e?e.clientX-r.left-r.width/2:0, oy=e?e.clientY-r.top-r.height/2:0;
+    const px=_mx(_sat.lon,_sat.z)+ox, py=_my(_sat.lat,_sat.z)+oy, k=Math.pow(2,nz-_sat.z);
+    _sat.lon=_mlon(px*k-ox,nz); _sat.lat=_mlat(py*k-oy,nz); _sat.z=nz;
+    _satRenderRaf();
   }
+  /* Dalles au niveau entier le plus proche, mises à l'échelle pour le zoom fractionnaire ; les images déjà posées
+     sont réutilisées (pas de clignotement pendant le zoom) */
   function _satRender(){
     const map=$('spl-sat-map'), host=$('spl-sat-tiles'); if(!map||!host||!_sat) return;
-    const W=map.clientWidth, H=map.clientHeight, z=_sat.z, cx=_mx(_sat.lon,z), cy=_my(_sat.lat,z), n=Math.pow(2,z);
-    const x0=Math.floor((cx-W/2)/256), x1=Math.floor((cx+W/2)/256), y0=Math.floor((cy-H/2)/256), y1=Math.floor((cy+H/2)/256);
-    let h='';
+    const W=map.clientWidth, H=map.clientHeight, zf=_sat.z, zt=Math.max(0, Math.min(19, Math.round(zf))), sc=Math.pow(2, zf-zt), ts=256*sc;
+    const cx=_mx(_sat.lon,zt), cy=_my(_sat.lat,zt), n=Math.pow(2,zt);
+    const x0=Math.floor((cx-W/2/sc)/256), x1=Math.floor((cx+W/2/sc)/256), y0=Math.floor((cy-H/2/sc)/256), y1=Math.floor((cy+H/2/sc)/256);
+    const keep={};
     for(let ty=y0; ty<=y1; ty++){ if(ty<0||ty>=n) continue;
-      for(let tx=x0; tx<=x1; tx++){ const wx=((tx%n)+n)%n; h+=`<img src="${IGN_TILE(z,wx,ty)}" style="left:${Math.floor(tx*256-cx+W/2)}px;top:${Math.floor(ty*256-cy+H/2)}px" alt="" draggable="false">`; } }
-    host.innerHTML=h;
-    const zc=Math.min(19,z+1), res=_mres(_sat.lat,zc), wm=W*Math.pow(2,zc-z)*res, hm=H*Math.pow(2,zc-z)*res;
+      for(let tx=x0; tx<=x1; tx++){
+        const wx=((tx%n)+n)%n, key=zt+'/'+tx+'/'+ty; keep[key]=1;
+        let im=host.querySelector(`img[data-k="${key}"]`);
+        if(!im){ im=document.createElement('img'); im.dataset.k=key; im.alt=''; im.draggable=false; im.src=IGN_TILE(zt,wx,ty); host.appendChild(im); }
+        im.style.left=Math.floor((tx*256-cx)*sc+W/2)+'px'; im.style.top=Math.floor((ty*256-cy)*sc+H/2)+'px';
+        im.style.width=im.style.height=Math.ceil(ts)+1+'px';
+      }
+    }
+    host.querySelectorAll('img').forEach(im=>{ if(!keep[im.dataset.k]) im.remove(); });
+    const zc=Math.min(19, Math.floor(zf)+1), res=_mres(_sat.lat,zc), wm=W*_mres(_sat.lat,zf), hm=H*_mres(_sat.lat,zf);
     const info=$('spl-sat-info');
-    if(info) info.innerHTML = z<14 ? `<i class="ti ti-zoom-in"></i>Rapprochez-vous du lieu (molette ou +) pour cadrer le site.`
+    if(info) info.innerHTML = zf<14 ? `<i class="ti ti-zoom-in"></i>Rapprochez-vous du lieu (molette, pincement ou +) pour cadrer le site.`
       : `<i class="ti ti-ruler-measure"></i>Zone cadrée : <b>${_N(wm,0)} × ${_N(hm,0)} m</b> · détail ${_N(res*100,0)} cm par pixel · le plan sera mis à l'échelle tout seul`;
-    const ok=$('spl-sat-ok'); if(ok) ok.disabled = z<14;
+    const ok=$('spl-sat-ok'); if(ok) ok.disabled = zf<14;
   }
   async function _satSearch(){
     const q=$('spl-sat-q'), box=$('spl-sat-res'); if(!q||!box) return;
@@ -16937,7 +16952,7 @@ const SitePlan = (() => {
   }
   async function _satApply(){
     const map=$('spl-sat-map'), ok=$('spl-sat-ok'); if(!map||!_sat||_sat.z<14) return;
-    const W=map.clientWidth, H=map.clientHeight, zv=_sat.z, zc=Math.min(19,zv+1), k=Math.pow(2,zc-zv), OW=Math.round(W*k), OH=Math.round(H*k);
+    const W=map.clientWidth, H=map.clientHeight, zv=_sat.z, zc=Math.min(19,Math.floor(zv)+1), k=Math.pow(2,zc-zv), OW=Math.round(W*k), OH=Math.round(H*k);
     const cx=_mx(_sat.lon,zc), cy=_my(_sat.lat,zc), left=cx-OW/2, top=cy-OH/2;
     if(ok){ ok.disabled=true; ok.innerHTML='<i class="ti ti-loader-2"></i>Composition…'; }
     const cv=document.createElement('canvas'); cv.width=OW; cv.height=OH; const ctx=cv.getContext('2d');
@@ -17162,7 +17177,7 @@ const SitePlan = (() => {
   function _gw(){ const b=$('site-bg-img'); return Math.max(5000, b&&state.bgImage ? Math.round((b.naturalWidth||0)*(+state.bgScale||1))+400 : 0); }
   function _gh(){ const b=$('site-bg-img'); return Math.max(4000, b&&state.bgImage ? Math.round((b.naturalHeight||0)*(+state.bgScale||1))+400 : 0); }
   let _mtPending=false;
-  function _mtRaf(){ if(_mtPending) return; _mtPending=true; requestAnimationFrame(()=>{ _mtPending=false; renderMeasures(); _renderScaleBar(); }); }
+  function _mtRaf(){ if(_mtPending) return; _mtPending=true; const go=()=>{ if(!_mtPending) return; _mtPending=false; renderMeasures(); _renderScaleBar(); }; requestAnimationFrame(go); setTimeout(go,50); }
   /* Pastille de texte à taille constante à l'écran (z = zoom) */
   function _chipSvg(txt, x, y, col, z, bold){
     const fs=11.5/z, h=20/z, w=(_measureCableLbl(txt,11.5)+16)/z;
