@@ -25082,22 +25082,22 @@ function _pfInstCard(on){
   var c = document.getElementById('pf-inst-card');
   if(!on){ if(c) c.remove(); return; }
   if(c || _pfOff.on) return;
-  c = document.createElement('div'); c.id = 'pf-inst-card'; c.setAttribute('role', 'dialog'); c.setAttribute('aria-label', 'Installer PatchFlow');
-  c.innerHTML = '<img src="/img/app-192.png" alt="" width="40" height="40"/>'
-    + '<div><b>Installer PatchFlow</b><span>Sa propre fenêtre, ouverte depuis le Dock ou l\'écran d\'accueil, et vos shows consultables sans réseau.</span></div>'
-    + '<button type="button" class="btn pri sm" onclick="pfInstall()">Installer</button>'
-    + '<button type="button" class="pf-inst-x" onclick="_pfInstSeen(\'later\');_pfInstCard(false)" title="Plus tard" aria-label="Fermer"><i class="ti ti-x"></i></button>';
+  c = document.createElement('div'); c.id = 'pf-inst-card';
+  c.innerHTML = '<button type="button" class="pf-inst-pill" onclick="pfInstall()"><img src="/img/app-192.png" alt="" width="22" height="22"/><span>Installer l\'app</span></button>'
+    + '<button type="button" class="pf-inst-x" onclick="_pfInstSeen(\'later\');_pfInstCard(false)" title="Plus tard" aria-label="Ne plus proposer"><i class="ti ti-x"></i></button>';
   document.body.appendChild(c);
 }
-async function pfInstall(){
+function pfInstall(){
   _pfInstCard(false); _pfInstSeen('later');
   if(_pfStandalone()){ toast('PatchFlow est déjà ouvert comme application.'); return; }
-  if(_pfInstEvt){
-    var ev = _pfInstEvt; _pfInstEvt = null;
-    try{ ev.prompt(); var r = await ev.userChoice; if(r && r.outcome === 'accepted') _pfInstSeen('done'); }catch(e){ _pfInstHelp(); }
-    return;
-  }
   _pfInstHelp();
+}
+/* Bouton « Installer » de la fenêtre : la fenêtre d'installation du navigateur (Chrome, Edge) */
+async function _pfInstGo(){
+  var ev = _pfInstEvt; if(!ev) return;
+  _pfInstEvt = null;
+  var d = document.getElementById('pf-inst-dlg'); if(d) d.remove();
+  try{ ev.prompt(); var r = await ev.userChoice; if(r && r.outcome === 'accepted') _pfInstSeen('done'); }catch(e){ _pfInstHelp(); }
 }
 function _pfInstHelp(){
   var b = _pfBrowser().k;
@@ -25115,12 +25115,14 @@ function _pfInstHelp(){
   d.innerHTML = '<div class="pf-inst-box" role="dialog" aria-modal="true" aria-labelledby="pf-inst-t">'
     + '<div class="pf-inst-hd"><img src="/img/app-192.png" alt="" width="44" height="44"/><div><b id="pf-inst-t">Installer PatchFlow</b><span>Comme une application, sur cet appareil</span></div>'
     + '<button type="button" class="pf-inst-x" onclick="document.getElementById(\'pf-inst-dlg\').remove()" aria-label="Fermer"><i class="ti ti-x"></i></button></div>'
-    + '<ol class="pf-inst-steps">' + steps.map(function(s){ return '<li>' + s + '</li>'; }).join('') + '</ol>'
-    + '<ul class="pf-inst-why"><li><i class="ti ti-app-window"></i>Sa propre fenêtre, sans onglets ni barre d\'adresse</li>'
+    + (_pfInstEvt ? '' : '<ol class="pf-inst-steps">' + steps.map(function(s){ return '<li>' + s + '</li>'; }).join('') + '</ol>')
+    + '<ul class="pf-inst-why' + (_pfInstEvt ? ' first' : '') + '"><li><i class="ti ti-app-window"></i>Sa propre fenêtre, sans onglets ni barre d\'adresse</li>'
     + '<li><i class="ti ti-cloud-off"></i>Sans réseau : les shows déjà ouverts sur cet appareil restent consultables</li>'
     + '<li><i class="ti ti-refresh"></i>Toujours à jour : rien à télécharger ni à mettre à jour</li></ul>'
     + '<p class="pf-inst-note">Hors ligne, PatchFlow est en consultation : pour modifier un show, il faut être connecté.</p>'
-    + '<div class="pf-inst-ft"><button type="button" class="btn pri" onclick="document.getElementById(\'pf-inst-dlg\').remove()">Compris</button></div></div>';
+    + '<div class="pf-inst-ft">' + (_pfInstEvt
+      ? '<button type="button" class="btn ghost" onclick="document.getElementById(\'pf-inst-dlg\').remove()">Plus tard</button><button type="button" class="btn pri" onclick="_pfInstGo()"><i class="ti ti-download"></i>Installer</button>'
+      : '<button type="button" class="btn pri" onclick="document.getElementById(\'pf-inst-dlg\').remove()">Compris</button>') + '</div></div>';
   d.addEventListener('click', function(e){ if(e.target === d) d.remove(); });
   document.body.appendChild(d);
 }
