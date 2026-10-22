@@ -25357,14 +25357,35 @@ function _svFs(imgId, title){
   var _sharedResp=null;
   /* Consomme le préchargement lancé très tôt dans le <head> (en parallèle du
      parsing du gros script) si disponible ; sinon lance l'appel maintenant. */
+  /* Hors ligne : la dernière réponse reçue pour ce lien est gardée sur l'appareil (Cache API) et reprise
+     quand le réseau manque. Seules les réponses valides sont gardées ; un lien supprimé (erreur du serveur)
+     n'est jamais remplacé par une ancienne copie. */
+  var _svOff=null;
+  var _svDataKey=location.origin+'/__rider-data/'+encodeURIComponent(linkId||sid||riderId||'');
+  async function _svDataSave(j){
+    try{ if(!window.caches||!j||j.error||!j.data) return; var c=await caches.open('pf-rider-data');
+      await c.put(_svDataKey,new Response(JSON.stringify(j),{headers:{'Content-Type':'application/json','X-Saved-At':new Date().toISOString()}})); }catch(e){}
+  }
+  async function _svDataLoad(){
+    try{ if(!window.caches) return null; var c=await caches.open('pf-rider-data'); var r=await c.match(_svDataKey); if(!r) return null;
+      _svOff={at:r.headers.get('X-Saved-At')||''}; return await r.json(); }catch(e){ return null; }
+  }
   async function _getShared(){
+    var j=null;
     if(window.__riderPrefetch){
       var _pp=window.__riderPrefetch; window.__riderPrefetch=null;
-      try{ var _pj=await _pp; if(_pj) return _pj; }catch(_e){}
+      try{ j=await _pp; }catch(_e){ j=null; }
     }
-    var _b=linkId?{linkId:linkId}:{showId:(sid||riderId)};
-    var _r=await fetch(SB_URL+'/functions/v1/get-shared-show',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},body:JSON.stringify(_b)});
-    return await _r.json();
+    if(!j){
+      try{
+        var _b=linkId?{linkId:linkId}:{showId:(sid||riderId)};
+        var _r=await fetch(SB_URL+'/functions/v1/get-shared-show',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},body:JSON.stringify(_b)});
+        j=await _r.json();
+      }catch(_e){ j=null; }
+    }
+    if(j&&!j.error&&j.data){ _svDataSave(j); return j; }
+    if(!j){ var _c=await _svDataLoad(); if(_c) return _c; }
+    return j;
   }
 
   if(linkId||riderId){
@@ -25504,6 +25525,17 @@ function _svFs(imgId, title){
   if(_svT!=='light'&&_svT!=='dark') _svT=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';
   window._svTheme(_svT);
   document.body.prepend(wrap);
+  /* Lecture sans réseau : service worker limité aux pages /rider (l'application n'est pas concernée) */
+  try{ if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostname==='127.0.0.1'||location.hostname==='localhost')) navigator.serviceWorker.register('/sw-rider.js',{scope:'/rider'}).catch(function(){}); }catch(e){}
+  /* Version hors ligne : le badge « À jour » indique de quand date la copie affichée */
+  if(_svOff){
+    var _lv=wrap.querySelector('.sv-live');
+    if(_lv){ var _d=_svOff.at?new Date(_svOff.at):null;
+      _lv.classList.add('off'); _lv.title='Pas de réseau : dernière version enregistrée sur cet appareil';
+      _lv.innerHTML='<i></i>Hors ligne'+(_d&&!isNaN(_d)?' · version du '+_d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+' à '+_d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''); }
+  }
+  window.addEventListener('online',function(){ var l=wrap.querySelector('.sv-live.off'); if(l){ l.innerHTML='<i></i>Réseau revenu · <u style="cursor:pointer">recharger</u>'; l.onclick=function(){ location.reload(); }; } });
+  window.addEventListener('offline',function(){ var l=wrap.querySelector('.sv-live'); if(l&&!l.classList.contains('off')){ l.classList.add('off'); l.innerHTML='<i></i>Hors ligne · affichage conservé'; } });
   /* La vue rider est en place : on retire le splash de démarrage. */
   var _rspEl=document.getElementById('rider-splash'); if(_rspEl)_rspEl.remove();
 
@@ -25602,7 +25634,9 @@ function _svFs(imgId, title){
     +'<div class="sv-chips">'
     +(show.venue?'<span><i class="ti ti-map-pin"></i>'+esc(show.venue)+'</span>':'')
     +(show.show_date?'<span><i class="ti ti-calendar"></i>'+esc(_fmtShowDate(show.show_date))+'</span>':_svFestDates())
-    +'<span class="sv-chip-t" title="Page ouverte le '+esc(now)+' : rechargez-la pour la dernière version"><i class="ti ti-refresh"></i>Consulté à '+esc(new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}))+'</span>'
+    +(_svOff
+      ? '<span class="sv-chip-t sv-chip-off" title="Pas de réseau : copie enregistrée sur cet appareil lors de la dernière ouverture"><i class="ti ti-wifi-off"></i>Copie hors ligne'+(_svOff.at&&!isNaN(new Date(_svOff.at))?' du '+esc(new Date(_svOff.at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})):'')+'</span>'
+      : '<span class="sv-chip-t" title="Page ouverte le '+esc(now)+' : rechargez-la pour la dernière version"><i class="ti ti-refresh"></i>Consulté à '+esc(new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}))+'</span>')
     +'</div></div>';
   var _svPatchSel=function(fn){
     if(!(IL_PATCHES&&IL_PATCHES.length>1)) return '';

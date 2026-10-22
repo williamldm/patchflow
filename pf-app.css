@@ -5458,3 +5458,7 @@ html[data-sv-theme="dark"],html[data-sv-theme="dark"] body{background:#0c0e12}
 /* Barres opaques : le contenu ne transparaît plus derrière les onglets au défilement */
 .sv,.sv[data-theme="light"]{--sv-topbg:var(--sv-bg)}
 .sv-top,.sv-tabs{-webkit-backdrop-filter:none;backdrop-filter:none}
+/* Rider hors ligne : badge orange à la place de « À jour » */
+.sv-live.off{color:var(--sv-warn)}
+.sv-live.off i{background:var(--sv-warn)}
+.sv-chips .sv-chip-off{color:var(--sv-warn)}.sv-chips .sv-chip-off i{color:var(--sv-warn)}

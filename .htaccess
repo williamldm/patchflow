@@ -70,6 +70,11 @@
     Header set Cache-Control "public, max-age=31536000, immutable"
   </FilesMatch>
 
+  # Service worker du rider : jamais mis en cache (sinon une mise à jour n'arriverait pas)
+  <Files "sw-rider.js">
+    Header set Cache-Control "no-cache, must-revalidate, max-age=0"
+  </Files>
+
   # Images (captures de la page d'accueil, icônes) : non versionnées → une
   # semaine seulement. Pour remplacer une image tout de suite, changer son nom.
   <FilesMatch "\.(avif|jpe?g|png|svg|webp)$">
