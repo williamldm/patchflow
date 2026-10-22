@@ -437,33 +437,64 @@ function festShift(slotId){
 
 /* ── Exporter : la même fenêtre que l'input list et les plans (openPDFModal), avec ses réglages d'en-tête,
    logo et couleurs, le choix PDF ou CSV et « Vers Fichiers ». Ici : le patch (entrées ou sorties), ou les changements. ── */
+var _FX_PARTS = [['prog', 'Programme', 'ti-calendar-time', 'Jour, horaire, voies, sorties, +48V, HF'], ['in', 'Patch · entrées', 'ti-list-numbers', 'Toutes les voies, un groupe par colonne'],
+  ['out', 'Patch · sorties', 'ti-arrow-bar-to-right', 'Retours et ears, un groupe par colonne'], ['chg', 'Changements de plateau', 'ti-arrows-exchange', 'Voie par voie : à changer, arrive, libérée, +48V']];
 function festOpenExport(){
-  FEST.xp = FEST.view === 'grid' ? (FEST.io === 'out' ? 'out' : 'in') : (FEST.xp || 'in');
+  /* Préréglage : ce que l'on regarde à l'écran */
+  if(!FEST.xs) FEST.xs = FEST.view === 'grid' ? { prog:false, in:FEST.io !== 'out', out:FEST.io === 'out', chg:false } : { prog:true, in:true, out:false, chg:true };
+  FEST.xd = FEST.day;
   if(typeof openPDFModal === 'function') openPDFModal('fest');
 }
-function festXp(k){ FEST.xp = k === 'out' ? 'out' : (k === 'chg' ? 'chg' : 'in'); if(FEST.xp !== 'chg') FEST.io = FEST.xp; if(typeof setPdfExportType === 'function') setPdfExportType('fest'); }
-/* Met à jour les lignes du festival dans la fenêtre commune */
-function festXpSync(on){
-  var $ = function(id){ return document.getElementById(id); };
-  var row = $('pdf-fest-row'); if(row) row.style.display = on ? '' : 'none';
-  if(!on) return;
-  ['in', 'out', 'chg'].forEach(function(k){ var b = $('pdf-fest-' + k); if(b) b.classList.toggle('on', FEST.xp === k); });
-  var h = $('pdf-fest-hint');
-  if(h) h.textContent = FEST.xp === 'chg' ? 'Pour chaque passage : voie par voie, ce qui change, arrive ou se libère' : 'Toutes les voies, un groupe par colonne' + (FEST.day !== 'all' ? ' · jour affiché : ' + _fsDayLbl(FEST.day).split(' ')[0] : '');
+function festXp(k){ if(!FEST.xs) FEST.xs = {}; FEST.xs[k] = !FEST.xs[k]; if(!Object.keys(FEST.xs).some(function(x){ return FEST.xs[x]; })) FEST.xs[k] = true; _fxRefresh(); }
+function festXpDay(d){ FEST.xd = d; _fxRefresh(); }
+function festXpMic(){ FEST.mic = !FEST.mic; _fsPrefSave(); _fxRefresh(); }
+function festXpRef(v){ festRef(v); _fxRefresh(); }
+function festXpPreset(k){
+  FEST.xs = k === 'plateau' ? { prog:true, in:false, out:false, chg:true } : k === 'facade' ? { prog:true, in:true, out:false, chg:false } : k === 'retours' ? { prog:true, in:false, out:true, chg:false } : { prog:true, in:true, out:true, chg:true };
+  _fxRefresh();
 }
+function _fxRefresh(){ if(typeof setPdfExportType === 'function') setPdfExportType('fest'); }
+function _fxSel(){ var x = FEST.xs || { in:true }; return _FX_PARTS.map(function(p){ return p[0]; }).filter(function(k){ return x[k]; }); }
+/* La partie propre au festival dans la fenêtre Exporter commune */
+function festXpSync(on){
+  var row = document.getElementById('pdf-fest-row'); if(row) row.style.display = on ? '' : 'none';
+  if(!on || !row) return;
+  var E = _fsE, f = _fsData(), x = FEST.xs || {}, sel = _fxSel();
+  if(FEST.xd !== 'all' && f.days.indexOf(FEST.xd) < 0) FEST.xd = 'all';
+  var nG = f.slots.filter(function(s){ return FEST.xd === 'all' || s.day === FEST.xd; }).length;
+  var refO = '<option value="prev"' + (f.cmp !== 'house' ? ' selected' : '') + '>au groupe précédent</option>' + _fsPatches().filter(function(p){ return _fsId(p.id); }).map(function(p){ return '<option value="h:' + E(p.id) + '"' + (f.cmp === 'house' && f.house === p.id ? ' selected' : '') + '>au patch maître : ' + E(p.name) + '</option>'; }).join('');
+  row.innerHTML = '<div class="fx-pre"><span class="xp-lbl">Pour</span>'
+      + [['plateau', 'Régie plateau'], ['facade', 'Façade'], ['retours', 'Retours'], ['tout', 'Dossier complet']].map(function(q){ return '<button type="button" onclick="festXpPreset(\'' + q[0] + '\')">' + q[1] + '</button>'; }).join('') + '</div>'
+    + '<div class="fx-parts">' + _FX_PARTS.map(function(p){
+      return '<button type="button" class="fx-part' + (x[p[0]] ? ' on' : '') + '" onclick="festXp(\'' + p[0] + '\')" aria-pressed="' + !!x[p[0]] + '"><i class="ti ' + p[2] + '"></i><span><b>' + p[1] + '</b><small>' + p[3] + '</small></span><em class="fx-ck"><i class="ti ti-check"></i></em></button>';
+    }).join('') + '</div>'
+    + '<div class="xp-row"><span class="xp-lbl">Jours</span><div class="xp-seg"><button type="button" class="xp-seg-b' + (FEST.xd === 'all' ? ' on' : '') + '" onclick="festXpDay(\'all\')">Tous</button>'
+      + f.days.map(function(d){ var l = _fsDayLbl(d).split(' '); return '<button type="button" class="xp-seg-b' + (FEST.xd === d ? ' on' : '') + '" onclick="festXpDay(\'' + _jsq(d) + '\')">' + E(l[0] + ' ' + (l[1] || '')) + '</button>'; }).join('') + '</div>'
+      + '<span class="xp-hint">' + nG + ' groupe' + (nG > 1 ? 's' : '') + '</span></div>'
+    + ((x.in || x.out || x.chg) ? '<div class="xp-row"><span class="xp-lbl">Comparer</span><select class="pdf-inp fx-ref" onchange="festXpRef(this.value)">' + refO + '</select>'
+      + ((x.in || x.out) ? '<label class="fx-mic"><input type="checkbox" class="cb"' + (FEST.mic ? ' checked' : '') + ' onchange="festXpMic()"/>' + (x.out && !x.in ? 'Types de sortie' : 'Micros') + ' sous chaque nom</label>' : '') + '</div>' : '');
+  /* CSV : un fichier par tableau coché (le changement de plateau reste en PDF) */
+  var hint = document.getElementById('pdf-fmt-hint');
+  if(hint && typeof _pdfCurFmt === 'function' && _pdfCurFmt() === 'csv'){
+    var n = sel.filter(function(k){ return k !== 'chg'; }).length;
+    hint.textContent = n + ' fichier' + (n > 1 ? 's' : '') + ' CSV' + (x.chg ? ' · les changements de plateau ne sont qu\'en PDF' : '');
+  }
+}
+function _fxFormats(){ var sel = _fxSel(); return sel.length === 1 && sel[0] === 'chg' ? ['pdf'] : ['pdf', 'csv']; }
 function festDoExport(fmt, toFiles){
   var v = function(id){ var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
   var meta = { eng:v('pdf-eng'), role:v('pdf-role'), title:v('pdf-title'), co:v('pdf-co'), tel:v('pdf-tel'), venue:v('pdf-venue'), date:v('pdf-date'), rev:v('pdf-rev'), notes:v('pdf-notes') };
   var lk = document.getElementById('pdf-incl-link'); meta.inclLink = !lk || lk.checked;
-  if(FEST.xp === 'chg'){ festChgPdf(meta, !!toFiles); return; }
-  FEST.io = FEST.xp === 'out' ? 'out' : 'in';
-  if(fmt === 'csv') festCsv(); else festPdf(meta, !!toFiles);
+  var sel = _fxSel(), keep = FEST.day; FEST.day = FEST.xd || 'all';
+  var done = function(){ FEST.day = keep; };
+  if(fmt === 'csv'){ try { festCsvAll(sel.filter(function(k){ return k !== 'chg'; })); } finally { done(); } return; }
+  festDossierPdf(meta, !!toFiles, sel).then(done, done);
 }
 /* Lignes du patch (entrées ou sorties) pour l'export : [{ch, cells:[{t, mic, st}]}] avec st = same|chg|free|first */
 function _fsMatrix(f, out){
   var slots = _fsSorted(f).filter(function(s){ return FEST.day === 'all' || s.day === FEST.day; });
   var useHouse = f.cmp === 'house' && f.house && _fsPatch(f.house);
-  var rowsOf = function(pid){ var m = {}; if(out) _fsOuts(pid).forEach(function(o){ if(o.ch) m[o.ch] = { l:String(o.long_name || o.short_name || ''), mic:String(o.type || '') }; }); else _fsChs(pid).forEach(function(r){ m[r.ch] = { l:_fsLbl(r), mic:String(r.mic || ''), p48:!!r.phantom }; }); return m; };
+  var rowsOf = function(pid){ var m = {}; if(out) _fsOuts(pid).forEach(function(o){ if(o.ch) m[o.ch] = { l:String(o.long_name || o.short_name || ''), mic:({ main:'Façade', sub:'Sub', mon:'Retour', iem:'IEM', fx:'Effet', group:'Groupe', matrix:'Matrice', aux:'Aux' })[o.type] || String(o.type || '') }; }); else _fsChs(pid).forEach(function(r){ m[r.ch] = { l:_fsLbl(r), mic:String(r.mic || ''), p48:!!r.phantom }; }); return m; };
   var key = function(c){ return c ? _fsN(c.l) + '|' + _fsN(c.mic) : ''; };
   var cols = slots.map(function(s){ return { s:s, m:rowsOf(s.pid) }; });
   var hm = useHouse ? rowsOf(f.house) : null, max = 0;
@@ -478,21 +509,29 @@ function _fsMatrix(f, out){
   }
   return { cols:cols.map(function(c){ return c.s; }), house:hm ? _fsName(f.house) : '', rows:rows };
 }
-function festCsv(){
+function _fxDownload(rows, name){
+  var q = function(v){ v = String(v == null ? '' : v); return /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + rows.map(function(r){ return r.map(q).join(';'); }).join('\n')], { type:'text/csv;charset=utf-8' }));
+  a.download = ((typeof _pdfSlug === 'function' && _pdfSlug(CUR_SHOW.name)) || 'festival') + '-' + name + '.csv';
+  document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 400);
+}
+function festCsvAll(parts){
   _fsCached(function(){
-    var f = _fsData(), out = FEST.io === 'out', M = _fsMatrix(f, out);
-    var q = function(v){ v = String(v == null ? '' : v); return /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
-    var head = [out ? 'OUT' : 'CH'].concat(M.house ? ['Patch maître : ' + M.house, ''] : []).concat([].concat.apply([], M.cols.map(function(s){ return [_fsName(s.pid) + ' (' + _fsDayLbl(s.day) + ' ' + (s.start || '') + ')', out ? 'Type' : 'Micro']; })));
-    var lines = [head.map(q).join(';')];
-    M.rows.forEach(function(r){
-      var l = [r.ch].concat(M.house ? [r.house ? r.house.l : '', r.house ? r.house.mic : ''] : []);
-      r.cells.forEach(function(c){ l.push(c.t + (c.st === 'chg' ? ' *' : ''), c.mic); });
-      lines.push(l.map(q).join(';'));
+    var f = _fsData();
+    parts.forEach(function(k, i){
+      setTimeout(function(){
+        if(k === 'prog'){ _fxDownload([['Jour', 'Horaire', 'Groupe', 'Voies', 'Sorties', '+48V', 'HF', 'Note']].concat(_festProgRows(f)), 'programme'); return; }
+        var out = k === 'out', M = _fsMatrix(f, out);
+        var rows = [[out ? 'OUT' : 'CH'].concat(M.house ? ['Patch maître : ' + M.house, ''] : []).concat([].concat.apply([], M.cols.map(function(s){ return [_fsName(s.pid) + ' (' + _fsDayLbl(s.day) + ' ' + (s.start || '') + ')', out ? 'Type' : 'Micro']; })))];
+        M.rows.forEach(function(r){
+          var l = [r.ch].concat(M.house ? [r.house ? r.house.l : '', r.house ? r.house.mic : ''] : []);
+          r.cells.forEach(function(c){ l.push(c.t + (c.st === 'chg' ? ' *' : '') + (c.p48 ? ' (+48V)' : ''), c.mic); });
+          rows.push(l);
+        });
+        rows.push([], ['* : à changer par rapport au ' + (M.house ? 'patch maître' : 'groupe précédent')]);
+        _fxDownload(rows, 'patch-' + (out ? 'sorties' : 'entrees'));
+      }, i * 350);
     });
-    lines.push('', q('* : à changer par rapport à ' + (M.house ? 'patch maître' : 'groupe précédent')));
-    var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + lines.join('\n')], { type:'text/csv;charset=utf-8' }));
-    a.download = ((typeof _pdfSlug === 'function' && _pdfSlug(CUR_SHOW.name)) || 'festival') + '-patch-' + (out ? 'sorties' : 'entrees') + '.csv';
-    document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 400);
   });
 }
 /* ── Lien en ligne repris dans le QR des PDF : un lien nommé du show qui contient la rubrique Festival
@@ -561,25 +600,37 @@ function _festProgRows(f){
     return [_fsDayLbl(s.day), (s.start || '—') + (s.end ? ' – ' + s.end : ''), _fsName(s.pid), String(ins.length), String(_fsOuts(s.pid).length), p48 ? String(p48) : '', hf ? String(hf) : '', s.note || ''];
   });
 }
-async function festPdf(meta, toFiles){
-  meta = meta || {};
+async function festDossierPdf(meta, toFiles, sel){
+  meta = meta || {}; sel = sel && sel.length ? sel : ['in'];
   if(typeof _pdfSaveToFiles !== 'undefined') _pdfSaveToFiles = !!toFiles;
   if(typeof _loadAutoTable !== 'function'){ toast('Export PDF indisponible.'); return; }
   toast('Génération PDF…');
+  var LBL = { prog:'programme', in:'patch des entrées', out:'patch des sorties', chg:'changements de plateau' };
   try {
-    var out = FEST.io === 'out';
     await _fsCached(async function(){
-      var B = await _festPdfBase(meta, 'Festival · ' + (out ? 'patch des sorties' : 'patch des entrées'));
-      var doc = B.doc, K = B.K, f = B.f, M = _fsMatrix(f, out), y = B.y + 1;
-      if(!M.cols.length){ toast('Aucun groupe au programme.'); return; }
-      /* 1. Programme */
-      B.sect('Programme', M.cols.length + ' groupe' + (M.cols.length > 1 ? 's' : ''), y + 3);
-      doc.autoTable(Object.assign({}, B.TBL, { startY:y + 6, head:[['JOUR', 'HORAIRE', 'GROUPE', 'VOIES', 'SORTIES', '+48V', 'HF', 'NOTE']], body:_festProgRows(f),
-        columnStyles:{ 0:{ cellWidth:38, textColor:K.txt2 }, 1:{ cellWidth:26, font:'courier', fontStyle:'bold', textColor:B.acc }, 2:{ fontStyle:'bold', cellWidth:56 }, 3:{ halign:'center', cellWidth:14 }, 4:{ halign:'center', cellWidth:16 }, 5:{ halign:'center', cellWidth:13, textColor:B.acc }, 6:{ halign:'center', cellWidth:11 }, 7:{ textColor:K.txt2 } } }));
-      /* 2. Patch : CH + patch maître + jusqu'à 5 groupes par tableau, la suite dans un tableau suivant */
+      var B = await _festPdfBase(meta, 'Festival · ' + (sel.length === 1 ? LBL[sel[0]] : 'dossier technique'));
+      var doc = B.doc, K = B.K, f = B.f, first = true;
+      if(!_fsSorted(f).some(function(s){ return FEST.day === 'all' || s.day === FEST.day; })){ toast('Aucun groupe au programme ' + (FEST.day === 'all' ? '' : 'ce jour-là') + '.'); return; }
+      B.cy = B.y + 4;
+      var part = function(){ if(!first){ doc.addPage(); B.cy = B.TOP + 6; } first = false; };
+      if(sel.indexOf('prog') >= 0){
+        part();
+        var rowsP = _festProgRows(f);
+        B.sect('Programme', rowsP.length + ' groupe' + (rowsP.length > 1 ? 's' : ''), B.cy);
+        doc.autoTable(Object.assign({}, B.TBL, { startY:B.cy + 3, head:[['JOUR', 'HORAIRE', 'GROUPE', 'VOIES', 'SORTIES', '+48V', 'HF', 'NOTE']], body:rowsP,
+          columnStyles:{ 0:{ cellWidth:38, textColor:K.txt2 }, 1:{ cellWidth:26, font:'courier', fontStyle:'bold', textColor:B.acc }, 2:{ fontStyle:'bold', cellWidth:56 }, 3:{ halign:'center', cellWidth:14 }, 4:{ halign:'center', cellWidth:16 }, 5:{ halign:'center', cellWidth:13, textColor:B.acc }, 6:{ halign:'center', cellWidth:11 }, 7:{ textColor:K.txt2 } } }));
+        B.cy = doc.lastAutoTable.finalY + 10;
+        /* Le programme seul tient en tête de la partie suivante quand il est court */
+        if(rowsP.length <= 8 && sel.length > 1) first = true;
+      }
+      ['in', 'out'].forEach(function(k){
+        if(sel.indexOf(k) < 0) return;
+        var out = k === 'out', M = _fsMatrix(f, out);
+        if(!M.rows.length) return;
+        part();
       var per = M.house ? 4 : 5, chunks = [];
       for(var i = 0; i < M.cols.length; i += per) chunks.push(i);
-      var yy = doc.lastAutoTable.finalY + 10;
+      var yy = B.cy;
       chunks.forEach(function(start, ci){
         var cols = M.cols.slice(start, start + per);
         if(yy > B.PH - B.BOT - 40){ doc.addPage(); yy = B.TOP + 4; }
@@ -611,22 +662,12 @@ async function festPdf(meta, toFiles){
         B.note('Gras avec un trait jaune : à changer par rapport au ' + (M.house ? 'patch maître' : 'groupe précédent') + '   ·   gris : identique   ·   — : libre' + (out ? '' : '   ·   +48V : alimentation fantôme'), yy);
         yy += 10;
       });
-      await B.finish('patch-' + (out ? 'sorties' : 'entrees'));
-    });
-  } catch(e){ console.error('festPdf:', e); toast('Export impossible : ' + (e && e.message || e)); }
-}
-/* ── Feuille de changements de plateau : un tableau par changement, voie par voie ── */
-async function festChgPdf(meta, toFiles){
-  meta = meta || {};
-  if(typeof _pdfSaveToFiles !== 'undefined') _pdfSaveToFiles = !!toFiles;
-  if(typeof _loadAutoTable !== 'function'){ toast('Export PDF indisponible.'); return; }
-  toast('Génération PDF…');
-  try {
-    await _fsCached(async function(){
-      var B = await _festPdfBase(meta, 'Festival · changements de plateau');
-      var doc = B.doc, K = B.K, f = B.f, list = _fsSorted(f).filter(function(s){ return FEST.day === 'all' || s.day === FEST.day; });
-      if(!list.length){ toast('Aucun groupe au programme.'); return; }
-      var y = B.y + 4, lastDay = null;
+      B.cy = yy;
+      });
+      if(sel.indexOf('chg') >= 0){
+        part();
+      var list = _fsSorted(f).filter(function(s){ return FEST.day === 'all' || s.day === FEST.day; });
+      var y = B.cy, lastDay = null;
       list.forEach(function(s, i){
         var prev = i > 0 && list[i - 1].day === s.day ? list[i - 1] : null;
         var ref = (f.cmp === 'house' && f.house && f.house !== s.pid) ? f.house : (prev ? prev.pid : null);
@@ -659,9 +700,11 @@ async function festChgPdf(meta, toFiles){
         B.note([pl(d.same, 'identique'), d.chg.length + ' à changer', d.add.length + (d.add.length > 1 ? ' arrivent' : ' arrive'), pl(d.free.length, 'libérée'), pl(d.p48.length, 'bascule') + ' +48V'].join('  ·  '), y);
         y += 9;
       });
-      await B.finish('changements-de-plateau');
+      B.cy = y;
+      }
+      await B.finish(sel.length === 1 ? ({ prog:'programme', in:'patch-entrees', out:'patch-sorties', chg:'changements-de-plateau' })[sel[0]] : 'dossier-festival');
     });
-  } catch(e){ console.error('festChgPdf:', e); toast('Export impossible : ' + (e && e.message || e)); }
+  } catch(e){ console.error('festDossierPdf:', e); toast('Export impossible : ' + (e && e.message || e)); }
 }
 function festShare(){
   if(typeof _riderSections !== 'undefined'){ _riderSections.fest = true; _riderSections.road = true; }

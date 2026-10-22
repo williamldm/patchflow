@@ -5359,7 +5359,7 @@ try{ if(localStorage.getItem('pf_export_fmt')==='csv') _pdfFormat='csv'; var _pv
 var _PDF_FMT_HINT={pdf:'Document mis en page, prêt à envoyer',csv:'Tableau brut, pour Excel ou Numbers',png:'Image, à glisser dans un mail ou un document',svg:'Dessin vectoriel, à retoucher dans un logiciel de dessin'};
 function _pdfFormats(){
   var t=_pdfExportType;
-  if(t==='fest') return (typeof FEST!=='undefined' && FEST.xp==='chg') ? ['pdf'] : ['pdf','csv'];
+  if(t==='fest') return (typeof _fxFormats==='function') ? _fxFormats() : ['pdf','csv'];
   if(t==='syno') return ['pdf','png','svg'];
   if(t==='stage'||t==='site') return ['pdf','png'];
   return ['pdf','csv'];
@@ -5386,6 +5386,7 @@ function _pdfSyncFormat(){
   });
   if($('pdf-fmt-row')) $('pdf-fmt-row').style.display='';
   if($('pdf-fmt-hint')) $('pdf-fmt-hint').textContent=_PDF_FMT_HINT[cur]||'';
+  if(_pdfExportType==='fest' && typeof festXpSync==='function') festXpSync(true);
   if($('pdf-opts')) $('pdf-opts').style.display=isPdf?'':'none';
   if($('pdf-tofiles-btn')) $('pdf-tofiles-btn').style.display=isPdf?'':'none';
   _pdfHeadSum();
