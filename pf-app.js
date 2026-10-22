@@ -25505,12 +25505,9 @@ function _svFs(imgId, title){
     +tabsHtml
     +'<main id="sv-body" class="sv-body"><div class="sv-wait"><span></span>Chargement du rider…</div></main>'
     +'<footer class="sv-foot">'
-      +'<div class="sv-promo">'
-        +'<span class="sv-promo-l">'+SV_LOGO_SM+'</span>'
-        +'<div><b>Ce rider est fait avec PatchFlow</b><p>Input list, plans, synoptique, racks, liaisons HF et fichiers de prod : créés et partagés en un lien, toujours à jour pour toute l\'équipe. C\'est gratuit.</p></div>'
-        +'<a class="sv-cta" href="/app.html?signup=1&amp;from=rider">Créer un compte gratuit<i class="ti ti-arrow-right"></i></a>'
-      +'</div>'
-      +'<p class="sv-sign">PatchFlow — par des techniciens, pour des techniciens</p>'
+      +'<p class="sv-made"><a href="/?from=rider" aria-label="PatchFlow">'+SV_LOGO_SM+'<span>Fait avec <b>PatchFlow</b></span></a>'
+        +'<span class="sv-made-s">Input list, plans, HF et racks partagés en un lien, toujours à jour</span>'
+        +'<a class="sv-made-c" href="/app.html?signup=1&amp;from=rider">Créer le vôtre, c\'est gratuit</a></p>'
     +'</footer>';
   /* Thème du rider : celui choisi sur cet appareil, sinon celui du système */
   window._svTheme=function(force){

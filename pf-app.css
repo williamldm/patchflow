@@ -5462,3 +5462,14 @@ html[data-sv-theme="dark"],html[data-sv-theme="dark"] body{background:#0c0e12}
 .sv-live.off{color:var(--sv-warn)}
 .sv-live.off i{background:var(--sv-warn)}
 .sv-chips .sv-chip-off{color:var(--sv-warn)}.sv-chips .sv-chip-off i{color:var(--sv-warn)}
+
+/* Mention « Fait avec PatchFlow » : une ligne discrète en pied de page, au lieu d'un encart */
+.sv-foot{margin-top:34px;padding-bottom:28px}
+.sv-made{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px 14px;margin:0;padding-top:16px;border-top:1px solid var(--sv-bd);font-size:12px;color:var(--sv-mu)}
+.sv-made a{color:inherit;text-decoration:none}
+.sv-made>a:first-child{display:inline-flex;align-items:center;gap:7px}
+.sv-made>a:first-child svg{width:15px;height:15px;opacity:.85}
+.sv-made b{color:var(--sv-t2);font-weight:600}
+.sv-made-c{color:var(--sv-t2)!important;text-decoration:underline!important;text-decoration-color:var(--sv-bd2)!important;text-underline-offset:3px}
+.sv-made-c:hover{color:var(--sv-ac)!important;text-decoration-color:currentColor!important}
+@media(max-width:700px){.sv-made-s{display:none}}
