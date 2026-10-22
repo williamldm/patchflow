@@ -279,7 +279,7 @@ function _renderFestival(){
       + '<div class="fs-tl"><div class="fs-tl-ticks">' + ticks + '</div><div class="fs-tl-track">' + blocks + nowMark + '</div></div><div class="fs-list">';
     list.forEach(function(s, i){
       var prev = i > 0 ? list[i - 1] : null;
-      var ref = (f.cmp === 'house' && f.house && f.house !== s.pid) ? f.house : (prev ? prev.pid : null);
+      var ref = (f.cmp === 'house' && f.house) ? (f.house !== s.pid ? f.house : null) : (prev ? prev.pid : null);
       if(ref){
         var d = _fsDiff(ref, s.pid), gap = null;
         if(prev && f.cmp !== 'house'){ var pe = _fsMin(prev.end), ns = _fsMin(s.start); if(pe != null && ns != null) gap = ns - pe; }
@@ -378,6 +378,7 @@ function _fsGridHtml(f, slots, ro){
   var key = function(c){ return c ? _fsN(c.l) + '|' + _fsN(c.mic) : ''; };
   var colData = cols.map(function(s){ return { s:s, m:rowsOf(s.pid) }; });
   var hm = useHouse ? rowsOf(house) : null;   /* la colonne du patch maître seulement quand on s'y compare */
+  var hcol = !!hm && !cols.some(function(s){ return s.pid === house; });   /* et pas en double s'il joue dans les colonnes affichées */
   var max = 0;
   colData.forEach(function(c){ Object.keys(c.m).forEach(function(k){ max = Math.max(max, +k); }); });
   if(hm) Object.keys(hm).forEach(function(k){ max = Math.max(max, +k); });
@@ -388,11 +389,11 @@ function _fsGridHtml(f, slots, ro){
   if(!max) return tools + '<div class="fs-none" style="padding:18px 4px">Aucune ' + (out ? 'sortie' : 'voie') + ' dans ces listes pour l\'instant.</div>';
 
   var head = '<tr><th class="fsg-ch">' + (out ? 'OUT' : 'CH') + '</th>'
-    + (hm ? '<th class="fsg-house"><small>Patch maître</small><b>' + E(_fsName(house)) + '</b></th>' : '')
+    + (hm && hcol ? '<th class="fsg-house"><small>Patch maître</small><b>' + E(_fsName(house)) + '</b></th>' : '')
     + colData.map(function(c, i){
-      var s = c.s, ref = useHouse ? hm : (i > 0 ? colData[i - 1].m : null), nChg = 0;
+      var s = c.s, ref = useHouse ? (s.pid === house ? null : hm) : (i > 0 ? colData[i - 1].m : null), nChg = 0;
       if(ref) for(var k = 1; k <= max; k++){ if(key(c.m[k]) !== key(ref[k]) && (c.m[k] || ref[k])) nChg++; }
-      return '<th><small>' + E(_fsDayLbl(s.day).split(' ')[0]) + ' · ' + E(s.start || '') + (s.end ? '–' + E(s.end) : '') + '</small><b>' + E(_fsName(s.pid)) + '</b>'
+      return '<th' + (useHouse && s.pid === house ? ' class="fsg-ishouse"' : '') + '><small>' + E(_fsDayLbl(s.day).split(' ')[0]) + ' · ' + E(s.start || '') + (s.end ? '–' + E(s.end) : '') + (useHouse && s.pid === house ? ' · patch maître' : '') + '</small><b>' + E(_fsName(s.pid)) + '</b>'
         + '<span class="fsg-n">' + Object.keys(c.m).length + ' ' + (out ? 'sorties' : 'voies') + (ref ? ' · <em>' + nChg + ' à changer</em>' : '') + '</span></th>';
     }).join('') + '</tr>';
 
@@ -401,9 +402,9 @@ function _fsGridHtml(f, slots, ro){
     var h0 = hm ? hm[ch] : null;
     var allSame = colData.every(function(c){ return key(c.m[ch]) === key(colData[0].m[ch]); }) && (!hm || key(h0) === key(colData[0].m[ch]));
     body += '<tr' + (allSame ? ' class="fsg-common"' : '') + '><td class="fsg-ch">' + ch + '</td>';
-    if(hm) body += '<td class="fsg-house">' + (h0 ? '<b>' + E(h0.l || 'sans nom') + '</b>' + (FEST.mic && h0.mic ? '<small>' + E(sub(h0)) + '</small>' : '') : '<span class="fsg-free">—</span>') + '</td>';
+    if(hm && hcol) body += '<td class="fsg-house">' + (h0 ? '<b>' + E(h0.l || 'sans nom') + '</b>' + (FEST.mic && h0.mic ? '<small>' + E(sub(h0)) + '</small>' : '') : '<span class="fsg-free">—</span>') + '</td>';
     colData.forEach(function(c, i){
-      var cell = c.m[ch], ref = useHouse ? hm : (i > 0 ? colData[i - 1].m : null);
+      var cell = c.m[ch], ref = useHouse ? (c.s.pid === house ? null : hm) : (i > 0 ? colData[i - 1].m : null);
       var same = ref ? key(cell) === key(ref[ch]) : false;
       var cls = !cell ? 'free' : (ref ? (same ? 'same' : 'chg') : 'first');
       var t = !cell ? '<span class="fsg-free">—</span>'
@@ -502,7 +503,7 @@ function _fsMatrix(f, out){
   var rows = [];
   for(var ch = 1; ch <= max; ch++){
     var cells = cols.map(function(c, i){
-      var x = c.m[ch], ref = hm || (i > 0 ? cols[i - 1].m : null);
+      var x = c.m[ch], ref = hm ? (c.s.pid === f.house ? null : hm) : (i > 0 ? cols[i - 1].m : null);
       return { t:x ? x.l : '', mic:x ? x.mic : '', p48:!!(x && x.p48), st:!x ? 'free' : (ref ? (key(x) === key(ref[ch]) ? 'same' : 'chg') : 'first') };
     });
     rows.push({ ch:ch, house:hm && hm[ch] ? hm[ch] : null, cells:cells });
@@ -676,7 +677,7 @@ async function festDossierPdf(meta, toFiles, sel){
       var y = B.cy, lastDay = null;
       list.forEach(function(s, i){
         var prev = i > 0 && list[i - 1].day === s.day ? list[i - 1] : null;
-        var ref = (f.cmp === 'house' && f.house && f.house !== s.pid) ? f.house : (prev ? prev.pid : null);
+        var ref = (f.cmp === 'house' && f.house) ? (f.house !== s.pid ? f.house : null) : (prev ? prev.pid : null);
         if(s.day !== lastDay){
           if(y > B.PH - B.BOT - 30){ doc.addPage(); y = B.TOP + 4; }
           B.sect(_fsDayLbl(s.day), '', y); lastDay = s.day; y += 6;
@@ -722,34 +723,74 @@ function festShare(){
   }, 120);
 }
 
-/* ── Rider partagé : programme et patch, en lecture seule ── */
+/* ── Rider partagé : la rubrique Festival, en lecture seule ──
+   Quatre vues (programme, patch des entrées, des sorties, changements de plateau), un filtre par jour,
+   « sur scène / ensuite » le jour même. Le patch occupe toute la largeur, en-têtes et voies figés.
+   Chaque groupe renvoie à son input list et à son output list dans le même rider. */
+var FSV = { v:'prog', d:'all' };
+function festSv(k, v){ FSV[k] = v; if(typeof window._svFest === 'function') window._svFest(); }
 function festSharedHtml(show, chs, esc){
   var raw = show && show.stage_data && show.stage_data.festival;
   if(!raw || !Array.isArray(raw.slots) || !raw.slots.length) return '<div class="sv-empty"><i class="ti ti-calendar-time"></i><b>Programme vide</b><span>Le programme du festival apparaîtra ici dès qu\'il sera préparé.</span></div>';
   var ctx = { fest:raw, chs:chs || [], out:show.out_data || {}, patches:Array.isArray(show.il_patches) ? show.il_patches : [] };
   return _fsWith(ctx, function(){
-    var f = _fsData(), slots = _fsSorted(f), E = _fsE, h = '';
-    var save = { day:FEST.day, io:FEST.io, mic:FEST.mic }; FEST.day = 'all'; FEST.mic = true;
+    var f = _fsData(), E = _fsE, all = _fsSorted(f);
+    if(FSV.d !== 'all' && f.days.indexOf(FSV.d) < 0) FSV.d = 'all';
+    var slots = all.filter(function(s){ return FSV.d === 'all' || s.day === FSV.d; });
+    var hasOut = Object.keys(ctx.out).some(function(k){ return Array.isArray(ctx.out[k]) && ctx.out[k].length; });
+    if(FSV.v === 'out' && !hasOut) FSV.v = 'prog';
+    var save = { day:FEST.day, io:FEST.io, mic:FEST.mic }; FEST.day = FSV.d; FEST.mic = true;
     try {
-      var days = {}, order = [];
-      slots.forEach(function(s){ if(!days[s.day]){ days[s.day] = []; order.push(s.day); } days[s.day].push(s); });
-      h += _fsNowHtml(f, false);
-      order.forEach(function(day){
-        h += '<section class="sv-card fs-sv-day"><h4><i class="ti ti-calendar-time"></i>' + E(_fsDayLbl(day)) + '</h4><ol class="fs-sv-l">';
-        days[day].forEach(function(s, i){
-          var ref = (f.cmp === 'house' && f.house && f.house !== s.pid) ? f.house : (i > 0 ? days[day][i - 1].pid : null);
-          var d = ref ? _fsDiff(ref, s.pid) : null;
-          h += '<li><b>' + E(s.start || '—') + '<small>' + E(s.end || '') + '</small></b><div><span class="fs-sv-n">' + E(_fsName(s.pid)) + '</span>'
-            + '<span class="fs-sv-m">' + _fsChs(s.pid).length + ' voie' + (_fsChs(s.pid).length > 1 ? 's' : '') + ' · ' + _fsOuts(s.pid).length + ' sortie' + (_fsOuts(s.pid).length > 1 ? 's' : '') + (s.note ? ' · ' + E(s.note) : '') + '</span>'
-            + (d ? '<details class="fs-sv-d"><summary>' + _fsDiffSum(d) + '</summary>' + _fsDiffList(d) + '</details>' : '') + '</div></li>';
+      var nIn = 0; slots.forEach(function(s){ nIn = Math.max(nIn, _fsChs(s.pid).length); });
+      var V = [['prog', 'Programme', 'ti-calendar-time'], ['in', 'Entrées', 'ti-list-numbers']].concat(hasOut ? [['out', 'Sorties', 'ti-arrow-bar-to-right']] : []).concat([['chg', 'Changements', 'ti-arrows-exchange']]);
+      var h = _fsNowHtml(f, false)
+        + '<div class="fsv-bar"><div class="sv-seg" role="tablist">' + V.map(function(v){ return '<button type="button" class="' + (FSV.v === v[0] ? 'on' : '') + '" onclick="festSv(\'v\',\'' + v[0] + '\')"><i class="ti ' + v[2] + '"></i>' + v[1] + '</button>'; }).join('') + '</div>'
+        + (f.days.length > 1 ? '<div class="sv-seg" role="tablist"><button type="button" class="' + (FSV.d === 'all' ? 'on' : '') + '" onclick="festSv(\'d\',\'all\')">Tous les jours</button>' + f.days.map(function(d){ var l = _fsDayLbl(d).split(' '); return '<button type="button" class="' + (FSV.d === d ? 'on' : '') + '" onclick="festSv(\'d\',\'' + _jsq(d) + '\')">' + E(l[0] + ' ' + (l[1] || '')) + '</button>'; }).join('') + '</div>' : '')
+        + '<span class="sv-grow"></span><span class="sv-count"><b>' + slots.length + '</b> groupe' + (slots.length > 1 ? 's' : '') + (nIn ? ' · jusqu\'à <b>' + nIn + '</b> voies' : '') + '</span></div>';
+      var ref = function(s, i, list){ return (f.cmp === 'house' && f.house) ? (f.house !== s.pid ? f.house : null) : (i > 0 && list[i - 1].day === s.day ? list[i - 1].pid : null); };
+      if(FSV.v === 'in' || FSV.v === 'out'){
+        FEST.io = FSV.v;
+        h += '<div class="fsv-legend"><span class="same">Italique gris : identique</span><span class="chg">Gras, trait jaune : à changer</span><span>— : voie libre</span>' + (FSV.v === 'in' ? '<span><i class="ti ti-bolt"></i>+48V</span>' : '') + '<span class="ref">Comparé au ' + (f.cmp === 'house' && f.house ? 'patch maître (' + E(_fsName(f.house)) + ')' : 'groupe précédent') + '</span></div>'
+          + '<div class="fsv-grid">' + _fsGridHtml(f, slots, true) + '</div>';
+      } else if(FSV.v === 'chg'){
+        var lastDay = null;
+        slots.forEach(function(s, i){
+          if(s.day !== lastDay){ h += '<h3 class="fsv-day">' + E(_fsDayLbl(s.day)) + '</h3>'; lastDay = s.day; }
+          var r = ref(s, i, slots), d = r ? _fsDiff(r, s.pid) : null;
+          h += '<section class="sv-card fsv-chg"><div class="fsv-chg-hd"><b class="fsv-t">' + E(s.start || '—') + '</b><span class="fsv-n">' + E(_fsName(s.pid)) + '</span>'
+            + (r ? '<span class="fsv-from">' + (f.cmp === 'house' && f.house ? 'comparé au patch maître ' : 'après ') + E(_fsName(r)) + '</span>' : '<span class="fsv-from">' + (s.pid === f.house && f.cmp === 'house' ? 'patch maître : la référence' : 'premier passage') + '</span>') + '</div>'
+            + (d ? '<div class="fsv-chips">' + _fsDiffSum(d) + '</div>' + _fsDiffList(d) : '<div class="fs-none">' + _fsChs(s.pid).length + ' voies et ' + _fsOuts(s.pid).length + ' sorties à installer.</div>') + '</section>';
         });
-        h += '</ol></section>';
-      });
-      FEST.io = 'in';
-      h += '<section class="sv-card"><h4><i class="ti ti-table"></i>Patch du festival · entrées</h4>' + _fsGridHtml(f, slots, true) + '</section>';
-      if(Object.keys(ctx.out).length){ FEST.io = 'out'; h += '<section class="sv-card"><h4><i class="ti ti-arrow-bar-to-right"></i>Patch du festival · sorties</h4>' + _fsGridHtml(f, slots, true) + '</section>'; }
+      } else {
+        var lastD = null;
+        slots.forEach(function(s, i){
+          if(s.day !== lastD){ h += '<h3 class="fsv-day">' + E(_fsDayLbl(s.day)) + '</h3>'; lastD = s.day; }
+          var r = ref(s, i, slots), d = r ? _fsDiff(r, s.pid) : null;
+          var ins = _fsChs(s.pid), p48 = ins.filter(function(x){ return x.phantom; }).length, hf = ins.filter(function(x){ return _fsHf(x); }).length, no = _fsOuts(s.pid).length;
+          if(d && (d.chg.length || d.add.length || d.free.length || d.p48.length || d.outs.length))
+            h += '<details class="fsv-gap"><summary><i class="ti ti-arrows-exchange"></i>' + (f.cmp === 'house' && f.house ? 'Écart avec le patch maître' : 'Changement de plateau') + (r !== s.pid && i > 0 && f.cmp !== 'house' && _fsMin(slots[i - 1].end) != null && _fsMin(s.start) != null ? ' · ' + _fsDur(_fsMin(s.start) - _fsMin(slots[i - 1].end)) : '') + '<span class="fs-chips">' + _fsDiffSum(d) + '</span><i class="ti ti-chevron-down fsv-chev"></i></summary>' + _fsDiffList(d) + '</details>';
+          h += '<article class="fsv-card"><div class="fsv-time"><b>' + E(s.start || '—') + '</b><span>' + E(s.end || '') + '</span></div>'
+            + '<div class="fsv-main"><div class="fsv-name">' + E(_fsName(s.pid)) + (s.pid === f.house ? '<em>patch maître</em>' : '') + '</div>'
+            + (s.note ? '<div class="fsv-note">' + E(s.note) + '</div>' : '')
+            + '<div class="fsv-stats"><span><b>' + ins.length + '</b> voie' + (ins.length > 1 ? 's' : '') + '</span>' + (no ? '<span><b>' + no + '</b> sortie' + (no > 1 ? 's' : '') + '</span>' : '') + (p48 ? '<span class="p48"><b>' + p48 + '</b> en +48V</span>' : '') + (hf ? '<span><b>' + hf + '</b> HF</span>' : '') + '</div></div>'
+            + '<div class="fsv-acts"><button type="button" onclick="window._svOpenPatch&&_svOpenPatch(\'' + _jsq(s.pid) + '\',\'il\')"><i class="ti ti-list-numbers"></i>Input list</button>'
+            + (no ? '<button type="button" onclick="window._svOpenPatch&&_svOpenPatch(\'' + _jsq(s.pid) + '\',\'out\')"><i class="ti ti-arrow-bar-to-right"></i>Output list</button>' : '') + '</div></article>';
+        });
+      }
+      return h;
     } finally { FEST.day = save.day; FEST.io = save.io; FEST.mic = save.mic; }
-    return h;
+  });
+}
+/* Pour le rider partagé : les listes dans l'ordre de passage, avec leur heure */
+function festPatchOrder(show){
+  var raw = show && show.stage_data && show.stage_data.festival;
+  if(!raw || !Array.isArray(raw.slots) || !raw.slots.length) return null;
+  return _fsWith({ fest:raw, chs:[], out:{}, patches:show.il_patches || [] }, function(){
+    var f = _fsData(), m = {}, days = {};
+    _fsSorted(f).forEach(function(s, i){ if(!m[s.pid]){ m[s.pid] = { i:i, t:s.start, day:s.day }; days[s.day] = 1; } });
+    var multi = Object.keys(days).length > 1;
+    Object.keys(m).forEach(function(k){ if(multi) m[k].t = _fsDayLbl(m[k].day).split(' ')[0].slice(0, 3) + '. ' + m[k].t; });
+    return m;
   });
 }
 

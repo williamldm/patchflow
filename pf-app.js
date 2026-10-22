@@ -25485,7 +25485,7 @@ function _svFs(imgId, title){
     +'<footer class="sv-foot">'
       +'<div class="sv-promo">'
         +'<span class="sv-promo-l">'+SV_LOGO_SM+'</span>'
-        +'<div><b>Ce rider est fait avec PatchFlow</b><p>Input list, plans, synoptique, racks, liaisons HF et fichiers de prod : créés et partagés en un lien, toujours à jour pour toute l\'équipe. Gratuit pour commencer.</p></div>'
+        +'<div><b>Ce rider est fait avec PatchFlow</b><p>Input list, plans, synoptique, racks, liaisons HF et fichiers de prod : créés et partagés en un lien, toujours à jour pour toute l\'équipe. C\'est gratuit.</p></div>'
         +'<a class="sv-cta" href="/app.html?signup=1&amp;from=rider">Créer un compte gratuit<i class="ti ti-arrow-right"></i></a>'
       +'</div>'
       +'<p class="sv-sign">PatchFlow — par des techniciens, pour des techniciens</p>'
@@ -25576,17 +25576,28 @@ function _svFs(imgId, title){
   var now=new Date().toLocaleString('fr-FR');
   /* Chips méta : style carte (cohérent avec la landing), icônes Tabler */
   /* En-tête de chaque section : le show, son lieu, sa date */
+  function _svFestDates(){
+    var fs=show.stage_data&&show.stage_data.festival, ds=[];
+    if(fs&&Array.isArray(fs.slots)) fs.slots.forEach(function(x){ if(x&&/^\d{4}-\d{2}-\d{2}$/.test(x.day||'')&&ds.indexOf(x.day)<0) ds.push(x.day); });
+    if(!ds.length) return '';
+    ds.sort();
+    var f=function(d){ try{ return new Date(d+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'}); }catch(e){ return d; } };
+    return '<span><i class="ti ti-calendar"></i>'+esc(f(ds[0])+(ds.length>1?' → '+f(ds[ds.length-1]):''))+'</span>';
+  }
   var _showMeta='<div class="sv-head">'
     +'<h1>'+esc(show.name||'')+'</h1>'
     +'<div class="sv-chips">'
     +(show.venue?'<span><i class="ti ti-map-pin"></i>'+esc(show.venue)+'</span>':'')
-    +(show.show_date?'<span><i class="ti ti-calendar"></i>'+esc(_fmtShowDate(show.show_date))+'</span>':'')
-    +'<span class="sv-chip-t" title="Heure d\'ouverture de cette page"><i class="ti ti-refresh"></i>'+now+'</span>'
+    +(show.show_date?'<span><i class="ti ti-calendar"></i>'+esc(_fmtShowDate(show.show_date))+'</span>':_svFestDates())
+    +'<span class="sv-chip-t" title="Page ouverte le '+esc(now)+' : rechargez-la pour la dernière version"><i class="ti ti-refresh"></i>Consulté à '+esc(new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}))+'</span>'
     +'</div></div>';
   var _svPatchSel=function(fn){
     if(!(IL_PATCHES&&IL_PATCHES.length>1)) return '';
-    return '<div class="sv-seg" role="tablist">'+IL_PATCHES.map(function(p){
-      return '<button type="button" class="'+(p.id===CUR_PATCH_ID?'on':'')+'" onclick="'+fn+'(\''+_jsq(jsq(p.id))+'\')">'+esc(p.name||'Patch')+'</button>';
+    /* Festival : les groupes dans l'ordre de passage, avec leur heure */
+    var fo=(typeof festPatchOrder==='function')?festPatchOrder(show):null;
+    var pl=fo?IL_PATCHES.slice().sort(function(a,b){ return ((fo[a.id]?fo[a.id].i:1e6)-(fo[b.id]?fo[b.id].i:1e6)); }):IL_PATCHES;
+    return '<div class="sv-seg sv-seg-patch" role="tablist">'+pl.map(function(p){
+      return '<button type="button" class="'+(p.id===CUR_PATCH_ID?'on':'')+'" onclick="'+fn+'(\''+_jsq(jsq(p.id))+'\')">'+(fo&&fo[p.id]?'<small>'+esc(fo[p.id].t||'')+'</small>':'')+esc(p.name||'Patch')+'</button>';
     }).join('')+'</div>';
   };
   var _svEmpty=function(icon,t,sub){ return '<div class="sv-empty"><i class="ti '+icon+'"></i><b>'+t+'</b>'+(sub?'<span>'+sub+'</span>':'')+'</div>'; };
@@ -26861,8 +26872,19 @@ function _svFs(imgId, title){
 
   // ── Pane cache & tab switcher ──
   var _paneCache={};
+  /* Festival : rendu à chaque changement de vue ou de jour ; un groupe ouvre sa liste dans le même rider */
+  window._svFest=function(){ var b=document.getElementById('sv-body'); if(b) b.innerHTML=_showMeta+(typeof festSharedHtml==='function'?festSharedHtml(show,_chs,esc):'')+_svFoot('Festival'); };
+  window._svOpenPatch=function(pid,sec){
+    CUR_PATCH_ID=pid;
+    rows=_allRows.filter(function(r){return (r.patch_id||'main')===CUR_PATCH_ID;});
+    if(rows.length){CHS.splice(0,CHS.length,...rows);}
+    _paneCache.il=undefined; _paneCache.out=undefined;
+    window._svSwitch(sec);
+    window.scrollTo({top:0,behavior:'smooth'});
+  };
   window._svSwitch=function(sec){
     _svCurSec=sec;
+    var _sv=document.getElementById('share-view'); if(_sv) _sv.classList.toggle('sv-wide', sec==='fest');
     allSections.forEach(function(s){
       var t=document.getElementById('svt-'+s);
       if(t) t.classList.toggle('on',s===sec);
@@ -26886,7 +26908,7 @@ function _svFs(imgId, title){
     else if(sec==='racks'){_paneCache.racks=_renderRacks();document.getElementById('sv-body').innerHTML=_paneCache.racks;}
     else if(sec==='rf'){document.getElementById('sv-body').innerHTML=_renderRf();}
     else if(sec==='road'){document.getElementById('sv-body').innerHTML=_renderRoad();}
-    else if(sec==='fest'){document.getElementById('sv-body').innerHTML=_showMeta+(typeof festSharedHtml==='function'?festSharedHtml(show,_chs,esc):'')+_svFoot('Festival');}
+    else if(sec==='fest'){window._svFest();}
     else if(sec==='cloud'){
       _renderCloudPane(function(h){
         _paneCache.cloud=h;
