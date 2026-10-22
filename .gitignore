@@ -14,6 +14,8 @@
 !pf-road.js
 !pf-fest.js
 !sw-rider.js
+!sw-app.js
+!app.webmanifest
 !pf-rf-catalog.json
 !tests/
 !tests/rf.html

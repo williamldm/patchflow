@@ -36,6 +36,102 @@ var _inPasswordRecovery = (function(){
 /* Si on est en mode reset, créer le client avec persistSession:false et
    detectSessionInUrl:false pour empêcher Supabase de créer la session
    automatiquement (ce qui ouvrirait l'app au lieu du formulaire). */
+/* ── Sans réseau (app installée ou onglet) ──
+   Chaque lecture Supabase réussie est gardée sur l'appareil (Cache API « pf-app-data », rangée par compte) ;
+   quand le réseau manque, la dernière copie est rendue à la place. Hors ligne, l'app est en consultation :
+   une écriture échoue tout de suite (au lieu d'attendre) et le bandeau prévient. Copie effacée à la déconnexion. */
+var PF_DATA = 'pf-app-data';
+var _PF_RPC_READ = /\/rest\/v1\/rpc\/(is_app_admin|usage_status|refresh_my_plan)$/;
+var _pfOff = { on:false, at:null, warned:0 };
+function _pfUid(){
+  try{ if(typeof ME !== 'undefined' && ME && ME.id) return ME.id; return localStorage.getItem('pf_last_uid') || ''; }catch(e){ return ''; }
+}
+async function _pfFetch(input, init){
+  var url = typeof input === 'string' ? input : (input && input.url) || String(input);
+  var method = String((init && init.method) || (input && input.method) || 'GET').toUpperCase();
+  if(url.indexOf(SB_URL + '/rest/v1/') !== 0 || !window.caches) return fetch(input, init);
+  var read = method === 'GET' || (method === 'POST' && _PF_RPC_READ.test(url.split('?')[0]));
+  if(!read){
+    if(_pfOff.on || navigator.onLine === false){ _pfOffWrite(); return new Response(JSON.stringify({ message:'Hors ligne : modification non enregistrée', code:'PF_OFFLINE' }), { status:503, headers:{ 'Content-Type':'application/json' } }); }
+    return fetch(input, init);
+  }
+  var uid = _pfUid();
+  var body = method === 'POST' && init && typeof init.body === 'string' ? '#' + init.body : '';
+  var key = location.origin + '/__pf-data/' + encodeURIComponent(uid) + '/' + encodeURIComponent(url.slice(SB_URL.length) + body);
+  try{
+    var res = await fetch(input, init);
+    if(res.ok && uid){
+      var cp = res.clone();
+      caches.open(PF_DATA).then(function(c){
+        var h = new Headers(cp.headers); h.set('X-PF-Saved-At', new Date().toISOString());
+        return cp.blob().then(function(b){ return c.put(key, new Response(b, { status:cp.status, statusText:cp.statusText, headers:h })); });
+      }).catch(function(){});
+    }
+    if(_pfOff.on && res.ok) _pfOffline(false);
+    return res;
+  }catch(err){
+    var hit = uid ? await caches.open(PF_DATA).then(function(c){ return c.match(key); }).catch(function(){ return null; }) : null;
+    if(hit){ _pfOffline(true, hit.headers.get('X-PF-Saved-At')); return hit; }
+    throw err;
+  }
+}
+function _pfOffline(on, at){
+  if(on && at && (!_pfOff.at || at < _pfOff.at)) _pfOff.at = at;
+  if(on && typeof _pfInstCard === 'function') _pfInstCard(false);
+  if(_pfOff.on === on) { _pfOffBar(); return; }
+  _pfOff.on = on; if(!on) _pfOff.at = null;
+  document.documentElement.classList.toggle('pf-offline', on);
+  _pfOffBar();
+}
+function _pfOffBar(){
+  var b = document.getElementById('pf-off-bar');
+  if(!_pfOff.on){ if(b) b.remove(); return; }
+  if(!b){
+    b = document.createElement('div'); b.id = 'pf-off-bar'; b.setAttribute('role', 'status');
+    document.body.appendChild(b);
+  }
+  var d = _pfOff.at ? new Date(_pfOff.at) : null;
+  var when = d && !isNaN(d) ? ' du ' + d.toLocaleDateString('fr-FR', { day:'numeric', month:'short' }) + ' à ' + d.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }) : '';
+  b.innerHTML = '<i class="ti ti-cloud-off"></i><span><b>Hors ligne</b> · copie enregistrée sur cet appareil' + when + '. Consultation seule : les modifications ne sont pas enregistrées.</span>'
+    + '<button type="button" onclick="location.reload()">Réessayer</button>';
+}
+function _pfOffWrite(){
+  var now = Date.now(); if(now - _pfOff.warned < 8000) return; _pfOff.warned = now;
+  if(typeof toast === 'function') toast('Hors ligne : cette modification n\'est pas enregistrée. Reconnectez-vous pour modifier le show.');
+}
+window.addEventListener('online', function(){
+  try{ if(localStorage.getItem('pf_exp_real') && typeof sb !== 'undefined'){ localStorage.removeItem('pf_exp_real'); sb.auth.refreshSession().catch(function(){}); } }catch(e){}
+  if(_pfOff.on){ var b = document.getElementById('pf-off-bar'); if(b) b.innerHTML = '<i class="ti ti-cloud-check"></i><span><b>Connexion revenue</b> · rechargez pour retrouver la dernière version et pouvoir modifier.</span><button type="button" onclick="location.reload()">Recharger</button>'; } });
+window.addEventListener('offline', function(){ _pfOffline(true); });
+/* Session gardée sur l'appareil (utilisée seulement sans réseau, quand Supabase ne peut pas la rafraîchir) */
+function _pfStoredUser(){
+  try{
+    var k = 'sb-' + SB_URL.split('//')[1].split('.')[0] + '-auth-token', s = JSON.parse(localStorage.getItem(k) || 'null');
+    var u = s && (s.user || (s.currentSession && s.currentSession.user));
+    return u && u.id && u.id === localStorage.getItem('pf_last_uid') ? u : null;
+  }catch(e){ return null; }
+}
+/* Démarrage sans réseau avec une session expirée : Supabase essaierait de la rafraîchir pendant ~30 s
+   avant chaque lecture, puis la déclarerait vide. On la date d'une heure de plus (l'heure réelle est gardée
+   dans pf_exp_real) ; au premier démarrage avec réseau, on remet l'heure réelle, et Supabase la rafraîchit. */
+(function _pfSessFix(){
+  if(_inPasswordRecovery) return;
+  try{
+    var k = 'sb-' + SB_URL.split('//')[1].split('.')[0] + '-auth-token', raw = localStorage.getItem(k); if(!raw) return;
+    var s = JSON.parse(raw), now = Math.floor(Date.now() / 1000), real = localStorage.getItem('pf_exp_real');
+    if(!s || !s.expires_at) return;
+    if(navigator.onLine === false){
+      if(s.expires_at - now < 600){ if(!real) localStorage.setItem('pf_exp_real', String(s.expires_at)); s.expires_at = now + 3600; localStorage.setItem(k, JSON.stringify(s)); }
+    } else if(real){
+      s.expires_at = Math.min(s.expires_at, +real || 0); localStorage.setItem(k, JSON.stringify(s)); localStorage.removeItem('pf_exp_real');
+    }
+  }catch(e){}
+})();
+async function _pfDataClear(){
+  try{ localStorage.removeItem('pf_last_uid'); localStorage.removeItem('pf_exp_real'); }catch(e){}
+  try{ if(window.caches) await caches.delete(PF_DATA); }catch(e){}
+}
+
 const sb = _inPasswordRecovery
   ? supabase.createClient(SB_URL, SB_KEY, {
       auth: {
@@ -44,7 +140,7 @@ const sb = _inPasswordRecovery
         autoRefreshToken: false,
       }
     })
-  : supabase.createClient(SB_URL, SB_KEY);
+  : supabase.createClient(SB_URL, SB_KEY, { global:{ fetch:_pfFetch } });
 
 /* Base d'URL des liens PARTAGES : page rider dediee (sans login),
    pas l'app. Remplace le dernier segment du chemin par rider.html. */
@@ -313,6 +409,7 @@ document.addEventListener('DOMContentLoaded',function(){
 });
 async function doLogout(){
   await sb.auth.signOut();
+  await _pfDataClear();
   /* Masquer les overlays mobiles avant de revenir à l'auth */
   ['mob-syno-ov','mob-stage-ov'].forEach(function(id){
     var el=document.getElementById(id);if(el)el.classList.remove('mob-plan-show');
@@ -393,12 +490,18 @@ sb.auth.onAuthStateChange(async(event,session)=>{
   }
   /* Bloquer SIGNED_IN et TOKEN_REFRESHED pendant le reset */
   if(_inPasswordRecovery && (event==='SIGNED_IN'||event==='TOKEN_REFRESHED')) return;
+  /* Sans réseau, Supabase ne peut pas rafraîchir une session expirée et la déclare vide :
+     on rouvre l'app avec le compte gardé sur l'appareil, en consultation (voir _pfFetch). */
+  if(!session?.user && event==='INITIAL_SESSION' && navigator.onLine===false){
+    var _su=_pfStoredUser(); if(_su){ session={user:_su}; _pfOffline(true); }
+  }
   if(!session?.user){
     /* Déconnexion : réarmer le guard pour autoriser une ré-init au prochain login */
     window._appInitDone=false; window._appInitUser=null;
     return;
   }
   ME=session.user;
+  try{ localStorage.setItem('pf_last_uid', ME.id); }catch(e){}
   document.getElementById('auth-wrap').className='auth-wrap';
   document.getElementById('app').className='show';
   /* N'initialiser qu'UNE fois par utilisateur. onAuthStateChange refire
@@ -409,6 +512,7 @@ sb.auth.onAuthStateChange(async(event,session)=>{
   if(window._appInitDone && window._appInitUser===ME.id) return;
   window._appInitDone=true; window._appInitUser=ME.id;
   initApp();
+  setTimeout(_pfInstNudge, 20000);
 });
 
 async function doResetPassword(){
@@ -24943,6 +25047,89 @@ function setTheme(pref){
     var on=function(){ var p='dark'; try{ p=localStorage.getItem('pf_theme')||'dark'; }catch(e){} if(p==='auto') _applyTheme('auto'); };
     if(mq.addEventListener) mq.addEventListener('change',on); else if(mq.addListener) mq.addListener(on);
   }
+})();
+
+/* ── Installer l'application (ordinateur, tablette, téléphone) ──
+   Chrome / Edge : le navigateur propose l'installation (beforeinstallprompt) ; Safari : marche à suivre.
+   Une fois installée, l'app s'ouvre dans sa propre fenêtre et reste consultable sans réseau (sw-app.js). */
+var _pfInstEvt = null;
+function _pfStandalone(){ try{ return matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; }catch(e){ return false; } }
+function _pfBrowser(){
+  var ua = navigator.userAgent;
+  var ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if(/Edg\//.test(ua)) return { k:'edge', ios:ios };
+  if(/Firefox|FxiOS/.test(ua)) return { k:'firefox', ios:ios };
+  if(/Chrome|Chromium|CriOS/.test(ua)) return { k:ios ? 'ios-other' : (/Android/.test(ua) ? 'android' : 'chrome'), ios:ios };
+  if(/Safari/.test(ua)) return { k:ios ? 'ios' : 'safari', ios:ios };
+  return { k:'other', ios:ios };
+}
+function _pfInstSeen(v){ try{ if(v) localStorage.setItem('pf_inst', v); return localStorage.getItem('pf_inst') || ''; }catch(e){ return ''; } }
+window.addEventListener('beforeinstallprompt', function(e){ e.preventDefault(); _pfInstEvt = e; _pfInstSync(); });
+window.addEventListener('appinstalled', function(){
+  _pfInstEvt = null; _pfInstSeen('done'); _pfInstCard(false); _pfInstSync();
+  toast('PatchFlow est installé : ouvrez-le depuis le Dock, le menu Démarrer ou l\'écran d\'accueil.');
+});
+function _pfInstSync(){ var it = document.getElementById('u-inst-item'); if(it) it.style.display = _pfStandalone() ? 'none' : ''; }
+/* Proposition discrète, une fois, un peu après l'ouverture de l'app (pas dans l'app installée, pas sur Firefox ordinateur) */
+function _pfInstNudge(){
+  _pfInstSync();
+  if(_pfStandalone() || _pfInstSeen() || window.__riderMode) return;
+  var b = _pfBrowser().k; if(b === 'firefox' || b === 'other' || b === 'ios-other') return;
+  if((b === 'chrome' || b === 'edge' || b === 'android') && !_pfInstEvt) return;
+  _pfInstCard(true);
+}
+function _pfInstCard(on){
+  var c = document.getElementById('pf-inst-card');
+  if(!on){ if(c) c.remove(); return; }
+  if(c || _pfOff.on) return;
+  c = document.createElement('div'); c.id = 'pf-inst-card'; c.setAttribute('role', 'dialog'); c.setAttribute('aria-label', 'Installer PatchFlow');
+  c.innerHTML = '<img src="/img/app-192.png" alt="" width="40" height="40"/>'
+    + '<div><b>Installer PatchFlow</b><span>Sa propre fenêtre, ouverte depuis le Dock ou l\'écran d\'accueil, et vos shows consultables sans réseau.</span></div>'
+    + '<button type="button" class="btn pri sm" onclick="pfInstall()">Installer</button>'
+    + '<button type="button" class="pf-inst-x" onclick="_pfInstSeen(\'later\');_pfInstCard(false)" title="Plus tard" aria-label="Fermer"><i class="ti ti-x"></i></button>';
+  document.body.appendChild(c);
+}
+async function pfInstall(){
+  _pfInstCard(false); _pfInstSeen('later');
+  if(_pfStandalone()){ toast('PatchFlow est déjà ouvert comme application.'); return; }
+  if(_pfInstEvt){
+    var ev = _pfInstEvt; _pfInstEvt = null;
+    try{ ev.prompt(); var r = await ev.userChoice; if(r && r.outcome === 'accepted') _pfInstSeen('done'); }catch(e){ _pfInstHelp(); }
+    return;
+  }
+  _pfInstHelp();
+}
+function _pfInstHelp(){
+  var b = _pfBrowser().k;
+  var steps = {
+    safari: ['Dans Safari, menu <b>Fichier</b> → <b>Ajouter au Dock…</b>', 'ou bouton <b>Partager</b> <i class="ti ti-share-2"></i> → <b>Ajouter au Dock</b>'],
+    ios: ['Touchez <b>Partager</b> <i class="ti ti-share-2"></i> en bas de Safari', 'puis <b>Sur l\'écran d\'accueil</b> → <b>Ajouter</b>'],
+    chrome: ['Cliquez l\'icône <b>Installer</b> <i class="ti ti-screen-share"></i> à droite de la barre d\'adresse', 'ou menu <b>⋮</b> → <b>Caster, enregistrer et partager</b> → <b>Installer la page en tant qu\'application</b>'],
+    edge: ['Cliquez l\'icône <b>Installer</b> <i class="ti ti-apps"></i> à droite de la barre d\'adresse', 'ou menu <b>…</b> → <b>Applications</b> → <b>Installer ce site en tant qu\'application</b>'],
+    android: ['Menu <b>⋮</b> en haut à droite', 'puis <b>Installer l\'application</b> (ou <b>Ajouter à l\'écran d\'accueil</b>)'],
+    firefox: ['Firefox ne sait pas installer de site comme application sur ordinateur.', 'Ouvrez PatchFlow dans <b>Chrome</b>, <b>Edge</b> ou <b>Safari</b> pour l\'installer.'],
+    'ios-other': ['Sur iPhone et iPad, l\'installation passe par <b>Safari</b> :', 'ouvrez patchflow.fr/app.html dans Safari, puis <b>Partager</b> → <b>Sur l\'écran d\'accueil</b>']
+  }[b] || ['Utilisez Chrome, Edge ou Safari pour installer PatchFlow.'];
+  var d = document.getElementById('pf-inst-dlg'); if(d) d.remove();
+  d = document.createElement('div'); d.id = 'pf-inst-dlg';
+  d.innerHTML = '<div class="pf-inst-box" role="dialog" aria-modal="true" aria-labelledby="pf-inst-t">'
+    + '<div class="pf-inst-hd"><img src="/img/app-192.png" alt="" width="44" height="44"/><div><b id="pf-inst-t">Installer PatchFlow</b><span>Comme une application, sur cet appareil</span></div>'
+    + '<button type="button" class="pf-inst-x" onclick="document.getElementById(\'pf-inst-dlg\').remove()" aria-label="Fermer"><i class="ti ti-x"></i></button></div>'
+    + '<ol class="pf-inst-steps">' + steps.map(function(s){ return '<li>' + s + '</li>'; }).join('') + '</ol>'
+    + '<ul class="pf-inst-why"><li><i class="ti ti-app-window"></i>Sa propre fenêtre, sans onglets ni barre d\'adresse</li>'
+    + '<li><i class="ti ti-cloud-off"></i>Sans réseau : les shows déjà ouverts sur cet appareil restent consultables</li>'
+    + '<li><i class="ti ti-refresh"></i>Toujours à jour : rien à télécharger ni à mettre à jour</li></ul>'
+    + '<p class="pf-inst-note">Hors ligne, PatchFlow est en consultation : pour modifier un show, il faut être connecté.</p>'
+    + '<div class="pf-inst-ft"><button type="button" class="btn pri" onclick="document.getElementById(\'pf-inst-dlg\').remove()">Compris</button></div></div>';
+  d.addEventListener('click', function(e){ if(e.target === d) d.remove(); });
+  document.body.appendChild(d);
+}
+/* Service worker de l'app : seulement sur app.html (le rider partagé a le sien) */
+(function(){
+  if(!/^\/app(\.html)?$/.test(location.pathname) || !('serviceWorker' in navigator)) return;
+  if(location.protocol !== 'https:' && location.hostname !== '127.0.0.1' && location.hostname !== 'localhost') return;
+  navigator.serviceWorker.register('/sw-app.js', { scope:'/' }).catch(function(){});
+  _pfInstSync();
 })();
 
 function toast(msg){

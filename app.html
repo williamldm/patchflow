@@ -8,6 +8,14 @@
 (function(){var m=document.querySelector('meta[name=viewport]');if(m&&(/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)))m.setAttribute('content','width=device-width,initial-scale=1,maximum-scale=1');})();</script>
 <title>PatchFlow</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
+<!-- Application installable (ordinateur, téléphone) et utilisable sans réseau : voir sw-app.js -->
+<link rel="manifest" href="/app.webmanifest"/>
+<meta name="theme-color" content="#0b0d12"/>
+<link rel="apple-touch-icon" href="/img/apple-touch-icon.png"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-title" content="PatchFlow"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <!-- Preconnect aux CDN critiques pour réduire la latence sur connexion lente -->
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -60,7 +68,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=4.60">
+<link rel="stylesheet" href="pf-app.css?v=4.61">
 </head>
 <body>
 
@@ -257,6 +265,7 @@ html.rider-boot #rider-splash{display:flex}
           <div class="user-dd-item" onclick="closeUD();openPlanModal()"><i class="ti ti-credit-card"></i>Mon abonnement</div>
           <div class="user-dd-item" onclick="closeUD();openPortal()"><i class="ti ti-receipt"></i>Facturation</div>
           <div class="user-dd-item" onclick="closeUD();openSupport()"><i class="ti ti-headset"></i>Support</div>
+          <div class="user-dd-item" id="u-inst-item" onclick="closeUD();pfInstall()"><i class="ti ti-download"></i>Installer l'application</div>
           <div class="user-dd-item adm-only" style="display:none" onclick="closeUD();goTab('admin',null)"><i class="ti ti-shield-lock"></i>Administration</div>
           <div class="user-dd-sep"></div>
           <div class="user-dd-lbl">Thème</div>
@@ -1644,7 +1653,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=4.97"></script>
+<script src="pf-app.js?v=4.98"></script>
 <script src="pf-rf.js?v=1.16"></script>
 <script src="pf-road.js?v=1.2"></script>
 <script src="pf-fest.js?v=1.18"></script>

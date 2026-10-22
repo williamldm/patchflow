@@ -74,6 +74,9 @@
   <Files "sw-rider.js">
     Header set Cache-Control "no-cache, must-revalidate, max-age=0"
   </Files>
+  <FilesMatch "^(sw-app\.js|app\.webmanifest)$">
+    Header set Cache-Control "no-cache, must-revalidate, max-age=0"
+  </FilesMatch>
 
   # Images (captures de la page d'accueil, icônes) : non versionnées → une
   # semaine seulement. Pour remplacer une image tout de suite, changer son nom.
@@ -85,6 +88,7 @@
 # Type MIME des images AVIF (absent des configurations Apache anciennes)
 <IfModule mod_mime.c>
   AddType image/avif .avif
+  AddType application/manifest+json .webmanifest
 </IfModule>
 
 # mod_pagespeed (o2switch) : ne pas réécrire nos en-têtes de cache, pour
