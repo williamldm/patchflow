@@ -27319,10 +27319,29 @@ function _hideMobilePlanView(type){
 }
 
 /* Re-fit les vues mobiles au changement d'orientation / redimensionnement */
-let _mobResizeTimer=null;
+let _mobResizeTimer=null, _mobWasNarrow=window.innerWidth<=768;
 window.addEventListener('resize',function(){
   clearTimeout(_mobResizeTimer);
   _mobResizeTimer=setTimeout(function(){
+    /* Fenêtre élargie (rotation, redimensionnement) : la vue mobile en lecture seule ne doit pas rester
+       posée sur l'éditeur, elle bloquerait tous les clics ; fenêtre rétrécie : on la remet */
+    var narrow=window.innerWidth<=768;
+    if(narrow!==_mobWasNarrow){
+      _mobWasNarrow=narrow;
+      var tab=(document.querySelector('.panel.on')||{}).id||'';
+      if(!narrow){
+        ['mob-syno-ov','mob-stage-ov'].forEach(function(oid){ var ov=document.getElementById(oid); if(ov) ov.classList.remove('mob-plan-show','mob-fs'); });
+        try{
+          if(tab==='panel-synoptique') SynPro.show();
+          else if(tab==='panel-stage'){ SitePlan.init(); BandPlan.init(); setTimeout(function(){ try{ BandPlan.fitView(); }catch(e){} },80); }
+        }catch(e){ console.warn('[resize]',e); }
+      } else {
+        try{
+          if(tab==='panel-synoptique') _showMobilePlanView('syno');
+          else if(tab==='panel-stage') _showMobilePlanView(PLAN_MODE==='site'?'site':'stage');
+        }catch(e){ console.warn('[resize]',e); }
+      }
+    }
     ['mob-syno-scroll','mob-stage-scroll'].forEach(function(cid){
       const s=_mobZoomState[cid];
       const ov=document.getElementById(cid)?.closest('.mob-plan-ov');
