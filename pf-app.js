@@ -2554,8 +2554,9 @@ const _IL_CELL_RENDERERS={
   short:  r=>`<td data-col="short" data-label="Court"><input class="ilinp sh" maxlength="4" value="${_oh((r.short_name||'').trim())}" onchange="scheduleSave('${_jsq(r.id)}','short_name',this.value.toUpperCase().slice(0,4));renderPills()"/></td>`,
   long:   r=>`<td data-col="long" data-label="Nom long"><input class="ilinp" value="${_oh(r.long_name||'')}" onchange="scheduleSave('${_jsq(r.id)}','long_name',this.value);renderPills()"/></td>`,
   src:    r=>`<td data-col="src" data-label="Source"><input class="ilinp" style="color:var(--txt2)" value="${_oh(r.source||'')}" onchange="scheduleSave('${_jsq(r.id)}','source',this.value)"/></td>`,
-  mic:    r=>`<td data-col="mic" data-label="Micro/DI"><span class="rf-hfw"><input class="ilinp m" value="${_oh(r.mic||'')}" onchange="scheduleSave('${_jsq(r.id)}','mic',this.value)"/>${typeof _rfIlBtn==='function'?_rfIlBtn('il',r):''}</span></td>`,
-  alt:    r=>`<td data-col="alt" data-label="ALT"><input class="ilinp m" style="color:var(--txt2)" value="${_oh((r.custom_data&&r.custom_data._alt)||'')}" placeholder="—" title="Micro ou DI de remplacement accepté (ex. e906, i5). Plusieurs : séparez-les par /" onchange="saveCustomCell('${_jsq(r.id)}','_alt',_ilAltClean(this.value))"/></td>`,
+  patch:  r=>sbCell(r),
+  mic:    r=>`<td data-col="mic" data-label="Micro/DI"><span class="rf-hfw"><input class="ilinp m" value="${_oh(r.mic||'')}" data-mac="mic" data-id="${_oh(r.id)}" autocomplete="off" onchange="ilMicChange(this)"/>${typeof _rfIlBtn==='function'?_rfIlBtn('il',r):''}</span></td>`,
+  alt:    r=>`<td data-col="alt" data-label="ALT"><input class="ilinp m" data-mac="alt" autocomplete="off" style="color:var(--txt2)" value="${_oh((r.custom_data&&r.custom_data._alt)||'')}" placeholder="—" title="Micro ou DI de remplacement accepté (ex. e906, i5). Plusieurs : séparez-les par /" onchange="saveCustomCell('${_jsq(r.id)}','_alt',_ilAltClean(this.value))"/></td>`,
   gain:   r=>`<td data-col="gain" data-label="Gain"><input class="ilinp m" type="number" style="width:42px" value="${r.gain||0}" min="-60" max="60" step="1" onchange="scheduleSave('${_jsq(r.id)}','gain',parseInt(this.value)||0)"/></td>`,
   phantom:r=>`<td data-col="phantom" data-label="+48V" style="text-align:center"><label class="il-tog" title="Alimentation fantôme +48V"><input type="checkbox" class="cb" ${r.phantom?'checked':''} onchange="scheduleSave('${_jsq(r.id)}','phantom',this.checked)"/><span>48V</span></label></td>`,
   iem:    r=>`<td data-col="iem" data-label="IEM"><input class="ilinp m" style="color:var(--grn);width:46px" value="${_oh(r.iem_group||'')}" onchange="scheduleSave('${_jsq(r.id)}','iem_group',this.value)" placeholder="GR1"/></td>`,
@@ -2565,7 +2566,7 @@ const _IL_CELL_RENDERERS={
   bc:     r=>`<td data-col="bc" data-label="BC" style="text-align:center"><label class="il-dot grn" title="Envoyé au broadcast"><input type="checkbox" class="cb grn" ${r.bc?'checked':''} onchange="scheduleSave('${_jsq(r.id)}','bc',this.checked)"/><span></span></label></td>`,
   note:   r=>`<td data-col="note" data-label="Note"><input class="ilinp" list="il-note-list" style="color:var(--txt2)" value="${_oh(r.note||'')}" placeholder="—" onchange="scheduleSave('${_jsq(r.id)}','note',_expandNoteAbbr(this))" onblur="_expandNoteAbbr(this)"/></td>`,
 };
-const _IL_COL_LABELS={short:'Court',long:'Nom long',src:'Source',mic:'Micro/DI',alt:'ALT',gain:'Gain',phantom:'+48V',iem:'IEM',hf:'Fréq. HF',foh:'FOH',mon:'MON',bc:'BC',note:'Note'};
+const _IL_COL_LABELS={short:'Court',long:'Nom long',src:'Source',patch:'Patch',mic:'Micro/DI',alt:'ALT',gain:'Gain',phantom:'+48V',iem:'IEM',hf:'Fréq. HF',foh:'FOH',mon:'MON',bc:'BC',note:'Note'};
 /* Reconstruit le thead selon l'ordre effectif (colonnes natives ET
    personnalisées, cf. _orderedColIds). Chaque en-tête est déplaçable. */
 function _renderColHead(){
@@ -3946,6 +3947,7 @@ const COLS=[
   {id:'short',label:'Nom court',icon:'ti-letter-a'},
   {id:'long',label:'Nom long',icon:'ti-text-size'},
   {id:'src',label:'Source',icon:'ti-music'},
+  {id:'patch',label:'Patch stagebox',icon:'ti-plug-connected'},
   {id:'mic',label:'Micro/DI',icon:'ti-microphone'},
   {id:'alt',label:'ALT (remplacement)',icon:'ti-replace'},
   {id:'gain',label:'Gain',icon:'ti-adjustments'},
@@ -5212,7 +5214,7 @@ function _doCSVImportOut(dataRows){
   }
 }
 // ────────────────────────────────────────────────────────────────
-function exportCSV(){let c='CH,Court,Nom Long,Source,Micro/DI,ALT,Gain,Phantom,IEM,FOH,MON,BC,Note\n';CHS.forEach(r=>{c+=`${r.ch},"${(r.short_name||'').trim()}","${r.long_name||''}","${r.source||''}","${r.mic||''}","${_ilAltOf(r).replace(/"/g,'""')}",${r.gain||0},${r.phantom?'On':'Off'},"${r.iem_group||''}",${r.foh?1:0},${r.mon?1:0},${r.bc?1:0},"${r.note||''}"\n`;});dl(c,'text/csv',(CUR_SHOW?.slug||'show')+'_inputlist.csv');}
+function exportCSV(){let c='CH,Court,Nom Long,Source,Micro/DI,ALT,Gain,Phantom,IEM,FOH,MON,BC,Note,Patch\n';CHS.forEach(r=>{c+=`${r.ch},"${(r.short_name||'').trim()}","${r.long_name||''}","${r.source||''}","${r.mic||''}","${_ilAltOf(r).replace(/"/g,'""')}",${r.gain||0},${r.phantom?'On':'Off'},"${r.iem_group||''}",${r.foh?1:0},${r.mon?1:0},${r.bc?1:0},"${r.note||''}","${sbLabel(r)}"\n`;});dl(c,'text/csv',(CUR_SHOW?.slug||'show')+'_inputlist.csv');}
 function _sfGen(id){ return id==='x32'?genX32():id==='wing'?genW():genAH(id); }
 function sfSelect(id){ if(!_SF[id]) return; SF_CUR=id; try{localStorage.setItem('pf_sf_cur',id);}catch(e){} renderShowfiles(); }
 function sfSetOpt(key,val){
@@ -8501,7 +8503,7 @@ function _loadAutoTable(){
 /* Colonnes Input List retenues pour le PDF (mêmes que la vue, filtrées par
    la visibilité choisie). */
 function _ilColsForPdf(){
-  return [{id:'short',label:'Court'},{id:'long',label:'Nom Long'},{id:'src',label:'Source'},{id:'mic',label:'Micro/DI'},{id:'alt',label:'ALT'},{id:'gain',label:'Gain'},{id:'phantom',label:'+48V'},{id:'iem',label:'IEM'},{id:'hf',label:'Fréq. HF'},{id:'foh',label:'FOH'},{id:'mon',label:'MON'},{id:'bc',label:'BC'},{id:'note',label:'Pied micro'}].filter(function(c){return visCol.has(c.id);});
+  return [{id:'short',label:'Court'},{id:'long',label:'Nom Long'},{id:'src',label:'Source'},{id:'patch',label:'Patch'},{id:'mic',label:'Micro/DI'},{id:'alt',label:'ALT'},{id:'gain',label:'Gain'},{id:'phantom',label:'+48V'},{id:'iem',label:'IEM'},{id:'hf',label:'Fréq. HF'},{id:'foh',label:'FOH'},{id:'mon',label:'MON'},{id:'bc',label:'BC'},{id:'note',label:'Pied micro'}].filter(function(c){return visCol.has(c.id);});
 }
 
 /* Génère un vrai PDF vectoriel des listes (Input / Output / Les deux) — texte
@@ -8563,6 +8565,7 @@ async function _openTablePdf(type, meta, brand, shareUrl){
           var v;
           if(c.id==='hf') v=(r.custom_data&&r.custom_data._hf)||'';
           else if(c.id==='alt') v=_ilAltOf(r);
+          else if(c.id==='patch') v=sbLabel(r);
           else v=r[fm[c.id]];
           if(c.id==='phantom') v=v?'+48V':'';
           else if(c.id==='foh'||c.id==='mon'||c.id==='bc') v=v?'X':'';
@@ -8638,15 +8641,35 @@ async function _openTablePdf(type, meta, brand, shareUrl){
       return Math.max(fyLeft,fyRight)+4;
     }
 
+    /* Patch de scène : une liste par stagebox (entrée -> voie), pour l'équipe plateau */
+    function drawPatch(sy){
+      var boxes=_sbBoxes(), occ=_sbOcc();
+      boxes=boxes.filter(function(b){ return occ[b.id] && Object.keys(occ[b.id]).length; });
+      if(!boxes.length || !visCol.has('patch')) return sy;
+      var y2=sy; if(y2>PH-BOT-40){ doc.addPage(); y2=TOP; } else y2+=8;
+      _sect('Patch de scène',boxes.length+' stagebox'+(boxes.length>1?'es':''),y2+2); y2+=5;
+      boxes.forEach(function(b){
+        var o=occ[b.id], body=[];
+        for(var i=1;i<=b.n;i++){ var r=o[i]; if(r) body.push([String(i), String(r.ch), (r.short_name||'').trim(), r.long_name||'', r.mic||'']); }
+        if(y2>PH-BOT-24){ doc.addPage(); y2=TOP; }
+        doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(K.ink[0],K.ink[1],K.ink[2]); doc.text(b.name+(b.model?'  ·  '+b.model:'')+'  ·  '+body.length+'/'+b.n,M,y2+3); y2+=5;
+        doc.autoTable(Object.assign({},TBL,{head:[['ENTRÉE','CH','COURT','NOM','MICRO/DI']],body:body,startY:y2,columnStyles:{0:{halign:'center',fontStyle:'bold',cellWidth:16},1:{halign:'center',cellWidth:12}}}));
+        y2=doc.lastAutoTable.finalY+6;
+      });
+      return y2;
+    }
+
     var fy=startY;
     if(type==='in'){
       fy=drawInput(startY);
       if(meta.inclRecap) fy=drawRecap(fy);
+      fy=drawPatch(fy);
     }
     else if(type==='out'){ fy=drawOutput(startY); }
     else {
       fy=drawInput(startY);
       if(meta.inclRecap) fy=drawRecap(fy);
+      fy=drawPatch(fy);
       if(fy>PH-BOT-34){ doc.addPage(); fy=TOP; } else { fy+=8; }
       _sect('Output list',OUT_CHS.length,fy+2); fy+=5;
       fy=drawOutput(fy);
@@ -19443,7 +19466,8 @@ function _ilStats(){
   if(!chs.length){ el.style.display='none'; return; }
   el.style.display='';
   var _e=function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
-  var h='<span><b>'+chs.length+'</b> '+(chs.length>1?'canaux':'canal')+'</span><span><b>'+chs.filter(function(c){return c.phantom;}).length+'</b> en 48V</span><span><b>'+chs.filter(function(c){return c.mon;}).length+'</b> aux retours</span>';
+  var _bx=_sbBoxes(), _oc=_bx.length?_sbOcc():null;
+  var h=_ilChecksHtml()+'<span class="il-stats-sep"></span>'+(_bx.length?'<button type="button" class="il-sb-sum" onclick="ilBoxesOpen()" title="Stageboxes">'+_bx.map(function(b){ var u=Object.keys(_oc[b.id]||{}).length; return '<span class="'+(u>b.n?'bad':'')+'">'+_e(b.name)+' <b>'+u+'/'+b.n+'</b></span>'; }).join('')+'</button><span class="il-stats-sep"></span>':'')+'<span><b>'+chs.length+'</b> '+(chs.length>1?'canaux':'canal')+'</span><span><b>'+chs.filter(function(c){return c.phantom;}).length+'</b> en 48V</span><span><b>'+chs.filter(function(c){return c.mon;}).length+'</b> aux retours</span>';
   var _lim=planLimit('max_channels');
   if(_lim!==Infinity && chs.length>=_lim-8) h+='<span class="il-stats-sep"></span><span class="plan-quota'+(chs.length>=_lim?' full':'')+'">'+chs.length+' / '+_lim+' canaux en Gratuit · <button type="button" onclick="showUpgradeModal(\'max_channels\')">Illimité en Pro</button></span>';
   if(canDo('recap_matos')){
@@ -19455,6 +19479,321 @@ function _ilStats(){
   el.innerHTML=h;
 }
 
+
+/* ══════════════════════════════════════════════════════════════════
+   MICROS CONNUS — suggestions à la saisie et +48 V automatique
+   Chaque référence porte son type : statique, DI active et ruban actif
+   demandent le +48 V ; dynamique, ruban passif, DI passive, sans fil,
+   ligne et micros à alimentation propre n'en veulent pas.
+   ══════════════════════════════════════════════════════════════════ */
+var MIC_TYPES={d:'Dynamique',c:'Statique',pa:'Préampli intégré',r:'Ruban',ra:'Ruban actif',dp:'DI passive',da:'DI active',hf:'Sans fil',l:'Ligne',t:'Alim. propre'};
+var MIC_48V={c:1,pa:1,ra:1,da:1};
+var _MIC_SRC=["d|Shure|SM58|58", "d|Shure|SM57|57", "d|Shure|Beta 58A|beta58|b58", "d|Shure|Beta 57A|beta57|b57", "d|Shure|Beta 56A|beta56|b56", "d|Shure|Beta 52A|beta52|b52", "c|Shure|Beta 91A|beta91|b91", "c|Shure|Beta 98A|beta98|b98", "c|Shure|Beta 98AMP|b98amp", "c|Shure|Beta 98H/C|b98hc|beta98hc", "c|Shure|Beta 98AD/C|b98adc", "c|Shure|Beta 87A|beta87|b87", "c|Shure|Beta 181|b181", "c|Shure|Beta 27", "c|Shure|SM81|81", "c|Shure|SM137|137", "c|Shure|SM27", "c|Shure|SM86|86", "c|Shure|SM87A|87", "c|Shure|SM91", "d|Shure|SM7B|sm7", "pa|Shure|SM7dB|sm7db", "d|Shure|SM48", "d|Shure|Super 55", "d|Shure|55SH", "c|Shure|KSM9", "d|Shure|KSM8", "c|Shure|KSM11", "c|Shure|KSM32", "c|Shure|KSM44A|ksm44", "c|Shure|KSM137", "c|Shure|KSM141", "r|Shure|KSM313", "r|Shure|KSM353", "d|Shure|PGA48", "d|Shure|PGA52", "d|Shure|PGA56", "d|Shure|PGA57", "d|Shure|PGA58", "c|Shure|PGA81", "c|Shure|PGA27", "c|Shure|PGA98H", "d|Shure|Nexadyne 8/C|nexadyne", "d|Shure|Nexadyne 8/S", "d|Sennheiser|e835|835", "d|Sennheiser|e845|845", "c|Sennheiser|e865|865", "d|Sennheiser|e935|935", "d|Sennheiser|e945|945", "c|Sennheiser|e965|965", "d|Sennheiser|e602-II|e602|602", "d|Sennheiser|e604|604", "d|Sennheiser|e606|606", "d|Sennheiser|e609|609", "d|Sennheiser|e608|608", "c|Sennheiser|e614|614", "d|Sennheiser|e902|902", "d|Sennheiser|e904|904", "d|Sennheiser|e905|905", "d|Sennheiser|e906|906", "c|Sennheiser|e908|908", "c|Sennheiser|e914|914", "c|Sennheiser|e901|901", "d|Sennheiser|MD 421-II|md421|421", "d|Sennheiser|MD 421 Kompakt|421 kompakt", "d|Sennheiser|MD 441|md441|441", "d|Sennheiser|MD 431-II|md431", "d|Sennheiser|MD 445|md445", "c|Sennheiser|MK 4|mk4", "c|Sennheiser|MKH 416|mkh416|416", "c|Sennheiser|MKH 50|mkh50", "c|Sennheiser|MKH 40|mkh40", "c|Sennheiser|MKE 600|mke600", "c|Sennheiser|MKE 2|mke2", "c|Sennheiser|HSP 4|hsp4", "d|Audix|D6|d6", "d|Audix|D2|d2", "d|Audix|D4|d4", "d|Audix|D1|d1", "d|Audix|i5|i5", "d|Audix|f5", "d|Audix|f6", "d|Audix|f2", "d|Audix|OM2", "d|Audix|OM5", "d|Audix|OM6", "d|Audix|OM7", "c|Audix|ADX51", "c|Audix|SCX25A|scx25", "c|Audix|SCX1", "c|Audix|VX5", "c|Audix|M1250", "c|Audix|Micro-D|microd", "c|Audix|ADX10", "d|Electro-Voice|RE20|re20", "d|Electro-Voice|RE320|re320", "d|Electro-Voice|RE27N/D|re27", "d|Electro-Voice|N/D468|nd468|468", "d|Electro-Voice|N/D868|nd868|868", "d|Electro-Voice|N/D767a|nd767", "d|Electro-Voice|N/D967|nd967", "d|Electro-Voice|ND44", "d|Electro-Voice|ND46", "c|Electro-Voice|ND66", "d|Electro-Voice|ND76", "d|Electro-Voice|ND86", "d|Electro-Voice|ND96", "d|Electro-Voice|PL33", "d|Electro-Voice|PL35", "c|Electro-Voice|RE200", "c|Electro-Voice|RE510", "d|AKG|D112 MkII|d112|112", "d|AKG|D12 VR|d12", "c|AKG|C414 XLS|c414|414", "c|AKG|C414 XLII|414 xlii", "c|AKG|C451 B|c451|451", "c|AKG|C214|c214|214", "c|AKG|C518 M|c518|518", "c|AKG|C519 M|c519|519", "c|AKG|C411 PP|c411", "c|AKG|C1000 S|c1000", "c|AKG|C3000|c3000", "c|AKG|C535 EB|c535", "c|AKG|C5|akg c5", "c|AKG|C480 B|c480", "c|AKG|C391 B|c391", "c|AKG|C516 ML|c516", "c|AKG|C555 L|c555", "c|AKG|C520|c520", "d|AKG|D5", "d|AKG|D7", "d|AKG|D40", "c|AKG|P170", "c|AKG|P220", "d|Beyerdynamic|M88 TG|m88|88", "d|Beyerdynamic|M201 TG|m201|201", "r|Beyerdynamic|M160|m160|160", "r|Beyerdynamic|M130|m130", "d|Beyerdynamic|M69 TG|m69", "d|Beyerdynamic|TG D70|tgd70", "c|Beyerdynamic|TG D71c|tgd71", "c|Beyerdynamic|TG D57c|tgd57", "c|Beyerdynamic|TG D35|tgd35", "d|Beyerdynamic|TG V70d|tgv70", "d|Beyerdynamic|TG V50d|tgv50", "d|Beyerdynamic|TG V35d|tgv35", "c|Beyerdynamic|TG V96c|tgv96", "c|Beyerdynamic|TG I53c|tgi53", "d|Beyerdynamic|TG I51|tgi51", "c|Beyerdynamic|MC 930|mc930", "c|Beyerdynamic|MCE 90|mce90", "c|Neumann|KM 184|km184|184", "c|Neumann|KM 185|km185|185", "c|Neumann|KM 183|km183|183", "c|Neumann|KM 84|km84", "c|Neumann|KMS 104|kms104", "c|Neumann|KMS 104 plus|kms104plus", "c|Neumann|KMS 105|kms105", "c|Neumann|TLM 102|tlm102", "c|Neumann|TLM 103|tlm103", "c|Neumann|TLM 107|tlm107", "c|Neumann|TLM 170|tlm170", "c|Neumann|U 87 Ai|u87", "c|Neumann|U 47 fet|u47", "t|Neumann|U 67|u67", "t|Neumann|M 147|m147", "c|DPA|4099|d:vote|dvote", "c|DPA|4011|4011a", "c|DPA|4015", "c|DPA|4006", "c|DPA|4018V|d:facto|dfacto", "c|DPA|2011|d:dicate 2011", "c|DPA|2028", "c|DPA|4055", "c|DPA|4066|d:fine 66", "c|DPA|4088|d:fine 88", "c|DPA|4061|d:screet 4061", "c|DPA|4060|d:screet 4060", "c|DPA|6061|d:screet 6061", "c|DPA|4097|d:screet 4097", "c|DPA|4098", "c|DPA|4021", "c|Rode|NT5|nt5", "c|Rode|NT55|nt55", "c|Rode|NT1|nt1", "c|Rode|NT1-A|nt1a", "c|Rode|NT2-A|nt2a", "c|Rode|NT3", "c|Rode|NT4", "c|Rode|NT6", "c|Rode|M5", "c|Rode|M2", "c|Rode|M3", "c|Rode|NTG3", "c|Rode|NTG4+", "d|Rode|Procaster", "d|Rode|PodMic", "c|Rode|S1", "ra|Rode|NTR", "t|Rode|K2", "c|Earthworks|SR25", "c|Earthworks|SR314", "c|Earthworks|SR40V", "c|Earthworks|SR117", "c|Earthworks|DM20", "c|Earthworks|DM6", "c|Earthworks|PM40", "d|Telefunken|M80|m80", "d|Telefunken|M81|m81", "d|Telefunken|M82|m82", "c|Telefunken|M60|m60", "d|Telefunken|M80-SH|m80sh", "d|Telefunken|M81-SH|m81sh", "t|Telefunken|ELA M 251|ela m251", "d|Heil|PR 22|pr22", "d|Heil|PR 28|pr28", "d|Heil|PR 30|pr30", "d|Heil|PR 31BW|pr31", "d|Heil|PR 35|pr35", "d|Heil|PR 40|pr40", "d|Heil|PR 48|pr48", "r|Royer|R-121|r121|121", "ra|Royer|R-122|r122", "r|Royer|R-10|r10", "ra|Royer|R-122V", "r|AEA|R84|r84", "r|AEA|R92|r92", "r|AEA|R88", "ra|AEA|N22|n22", "ra|AEA|KU4", "r|Coles|4038|coles", "d|sE Electronics|V7|se v7", "d|sE Electronics|V7 X|v7x", "d|sE Electronics|V Beat|vbeat", "c|sE Electronics|sE8|se8", "c|sE Electronics|sE4400a", "d|Lewitt|MTP 440 DM|mtp440", "d|Lewitt|MTP 550 DM|mtp550", "c|Lewitt|MTP 940 CM|mtp940", "c|Lewitt|LCT 440 Pure|lct440", "c|Audio-Technica|AT2020|at2020", "c|Audio-Technica|AT2035|at2035", "c|Audio-Technica|AT4040|at4040", "c|Audio-Technica|AT4050|at4050", "c|Audio-Technica|AT4033|at4033", "c|Audio-Technica|AT4041|at4041", "c|Audio-Technica|AT4051|at4051", "c|Audio-Technica|AE3000|ae3000", "c|Audio-Technica|AE5400|ae5400", "d|Audio-Technica|AE6100|ae6100", "d|Audio-Technica|ATM650|atm650", "d|Audio-Technica|ATM230|atm230", "d|Audio-Technica|ATM250|atm250", "c|Audio-Technica|ATM350a|atm350", "c|Audio-Technica|ATM450|atm450", "c|Audio-Technica|ATM710|atm710", "d|Audio-Technica|ATM610a|atm610", "c|Audio-Technica|PRO 35|pro35", "c|Audio-Technica|PRO 37|pro37", "d|Audio-Technica|BP40|bp40", "c|Schoeps|CMC 6 MK4|cmc6|mk4 schoeps", "c|Schoeps|CCM 4|ccm4", "c|Schoeps|MK 41|mk41", "c|Josephson|e22S|e22", "c|Crown|PCC-160|pcc160", "c|Crown|PZM-30D|pzm", "c|Countryman|E6|e6", "c|Countryman|B6|b6", "c|Countryman|B3|b3", "c|Countryman|H6|h6", "c|Shure|TwinPlex TL47|tl47|twinplex", "c|Shure|TwinPlex TH53|th53", "c|Shure|Beta 53|beta53", "c|Shure|Beta 54|beta54", "c|Shure|WL185|wl185", "c|Shure|MX418|mx418", "c|Shure|MX412|mx412", "c|Sennheiser|ME 2|me2", "c|Sennheiser|ME 3|me3", "c|Sennheiser|ME 4|me4", "c|Sennheiser|MKE 1|mke1", "c|Sennheiser|HSP 2|hsp2", "c|Sennheiser|SL Headmic 1|headmic", "c|Sennheiser|MEG 14-40|meg14", "hf|Shure|ULXD2/SM58|ulxd2 58|ulx sm58", "hf|Shure|ULXD2/Beta 58A|ulxd2 b58|ulxd b58", "hf|Shure|ULXD2/Beta 87A|ulxd2 b87", "hf|Shure|ULXD2/KSM9|ulxd2 ksm9", "hf|Shure|ULXD2/KSM8|ulxd2 ksm8", "hf|Shure|ULXD1|ulxd1", "hf|Shure|AD2/KSM9|ad2 ksm9|axient ksm9", "hf|Shure|AD2/KSM8|ad2 ksm8", "hf|Shure|AD2/Beta 58A|ad2 b58|axient b58", "hf|Shure|AD2/SM58|ad2 58", "hf|Shure|AD1|axient ad1", "hf|Shure|ADX2|adx2", "hf|Shure|ADX1|adx1", "hf|Shure|QLXD2/SM58|qlxd2 58", "hf|Shure|QLXD2/Beta 58A|qlxd2 b58", "hf|Shure|QLXD1|qlxd1", "hf|Shure|SLXD2/SM58|slxd2 58", "hf|Shure|SLXD2/Beta 58A|slxd2 b58", "hf|Shure|SLXD1|slxd1", "hf|Shure|BLX2/SM58|blx2", "hf|Sennheiser|SKM 9000|skm9000", "hf|Sennheiser|SKM 6000|skm6000", "hf|Sennheiser|SK 9000|sk9000", "hf|Sennheiser|SK 6000|sk6000", "hf|Sennheiser|EW-DX SKM|ewdx skm|ew dx skm", "hf|Sennheiser|EW-DX SK|ewdx sk|ew dx sk", "hf|Sennheiser|EW-D SKM|ewd skm", "hf|Sennheiser|EW-D SK|ewd sk", "hf|Sennheiser|EW 500 G4 SKM|ew500 skm|g4 skm", "hf|Sennheiser|EW 500 G4 SK|ew500 sk|g4 sk", "hf|Sennheiser|EW 300 G4 SKM|ew300 skm", "hf|Sennheiser|EW 100 G4 SKM|ew100 skm", "hf|Sennheiser|SKM/MD 9235|md9235|9235", "hf|Sennheiser|SKM/MMD 935|mmd935", "hf|Sennheiser|SKM/MMD 945|mmd945", "hf|Sennheiser|SKM/MMK 965|mmk965", "hf|Sennheiser|SKM/KK 205|kk205", "hf|Sennheiser|SKM/Neumann KK 105|kk105", "hf|Sennheiser|SKM/Neumann KK 104|kk104", "hf|Sony|DWM-02N|dwm02", "hf|Sony|DWT-B03R|dwt", "hf|Wisycom|MTP40S|mtp40", "hf|Wisycom|MTH400|mth400", "hf|Lectrosonics|SSM|lectro ssm", "hf|Lectrosonics|HHa|lectro hh", "hf|Audio-Technica|ATW-T3202|atw", "hf|AKG|DMS 800|dms800", "dp|DI|DI passive|di passive|di p|dip", "da|DI|DI active|di active|di a|dia", "dp|DI|DI stéréo|di stereo|di st", "dp|Radial|JDI|jdi", "dp|Radial|JDI Stereo|jdi stereo", "dp|Radial|ProDI|pro di|prodi", "dp|Radial|ProD2|prod2|pro d2", "dp|Radial|ProAV1|proav1", "dp|Radial|ProAV2|proav2", "dp|Radial|Twin-Iso|twiniso", "dp|Radial|JDI Duplex|jdi duplex", "dp|Radial|StageBug SB-2|sb2|stagebug sb2", "da|Radial|J48|j48", "da|Radial|J48 Stereo|j48 stereo", "da|Radial|Pro48|pro48", "da|Radial|PZ-DI|pzdi", "da|Radial|JDX 48|jdx48|jdx", "da|Radial|JDV|jdv", "da|Radial|J33|j33", "dp|Radial|USB-Pro|usbpro|usb pro", "dp|Radial|USB-Mod|usbmod", "dp|Radial|SB-5|sb5", "da|BSS|AR-133|ar133|bss", "da|BSS|AR-116|ar116", "da|Klark Teknik|DN100|dn100", "da|Klark Teknik|DN200|dn200", "da|Countryman|Type 85|type85|countryman di", "da|Rupert Neve|RNDI|rndi", "da|Rupert Neve|RNDI-S|rndis", "dp|Palmer|PAN 01|pan01|palmer", "dp|Palmer|PAN 02|pan02", "da|Palmer|PAN 04|pan04", "da|Behringer|DI100|di100", "da|Behringer|DI20|di20", "dp|Behringer|DI400P|di400", "dp|Behringer|DI600P|di600", "dp|Whirlwind|IMP 2|imp2|whirlwind", "da|Whirlwind|Director|whirlwind director", "dp|Whirlwind|PC DI|pcdi", "da|LR Baggs|Para DI|para di|paradi", "da|Fishman|Platinum Pro EQ|platinum", "t|Avalon|U5|avalon", "t|A Designs|REDDI|reddi", "dp|Little Labs|Redeye|redeye", "l|Ligne|Ligne|line|xlr ligne|direct line", "l|Ligne|Click|clic", "l|Ligne|Playback|pb|play back|bande", "l|Ligne|Ordinateur|ordi|laptop|mac|pc", "l|Ligne|Carte son|interface|sound card", "l|Ligne|Sortie console|sortie table|console out", "l|Ligne|Talkback|tb|talk", "l|Ligne|Retour d'effet|fx return|fx ret", "l|Ligne|Ambient|ambiance", "l|Fractal|Axe-Fx III|axefx|axe fx", "l|Fractal|FM9|fm9", "l|Kemper|Kemper Profiler|kemper|profiler", "l|Neural DSP|Quad Cortex|quad cortex|qc", "l|Line 6|Helix|helix", "l|Line 6|HX Stomp|hx stomp", "l|Roland|SPD-SX|spd sx|spdsx", "l|Akai|MPC|mpc", "l|Ableton|Ableton Live|ableton"];
+var MIC_LIB=null;
+function _micNorm(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9+]/g,''); }
+function _micLib(){
+  if(MIC_LIB) return MIC_LIB;
+  MIC_LIB=_MIC_SRC.map(function(l){ var p=l.split('|'); return {t:p[0], b:p[1], m:p[2], k:[_micNorm(p[2]),_micNorm(p[1]+p[2])].concat(p.slice(3).map(_micNorm)).filter(Boolean)}; });
+  return MIC_LIB;
+}
+/* Référence exacte (nom tapé = modèle, marque + modèle ou alias) */
+function micFind(v){
+  var n=_micNorm(v); if(!n) return null;
+  var lib=_micLib();
+  for(var i=0;i<lib.length;i++){ if(lib[i].k.indexOf(n)>=0) return lib[i]; }
+  return null;
+}
+/* Suggestions : chaque mot tapé doit se retrouver (marque, modèle ou alias) ; le modèle qui
+   commence par la saisie passe devant, puis l'ordre de la bibliothèque (les plus courants d'abord) */
+function micSuggest(v, max){
+  var words=String(v||'').split(/\s+/).map(_micNorm).filter(Boolean); if(!words.length) return [];
+  var n=words.join(''), lib=_micLib(), out=[];
+  lib.forEach(function(e,idx){
+    var hay=e.k.concat([_micNorm(e.b)]);
+    if(!words.every(function(w){ return hay.some(function(k){ return k.indexOf(w)>=0; }); }) && !hay.some(function(k){ return k.indexOf(n)>=0; })) return;
+    var s=e.k[0].indexOf(n)===0 ? 0 : e.k.some(function(k){ return k.indexOf(n)===0; }) ? 1 : e.k.some(function(k){ return words.some(function(w){ return k.indexOf(w)===0; }); }) ? 2 : 3;
+    out.push({e:e, s:s, i:idx});
+  });
+  out.sort(function(a,b){ return a.s-b.s || a.i-b.i; });
+  return out.slice(0,max||8).map(function(x){ return x.e; });
+}
+
+/* Liste déroulante sous le champ (Micro/DI et ALT de l'input list) */
+var _micAc={inp:null, box:null, items:[], i:-1};
+function _micAcBox(){
+  if(_micAc.box) return _micAc.box;
+  var b=document.createElement('div'); b.className='mic-ac'; b.setAttribute('role','listbox');
+  b.addEventListener('mousedown',function(e){ e.preventDefault(); var it=e.target.closest('[data-i]'); if(it) _micAcPick(+it.dataset.i); });
+  document.body.appendChild(b); _micAc.box=b; return b;
+}
+function _micAcClose(){ if(_micAc.box) _micAc.box.style.display='none'; _micAc.items=[]; _micAc.i=-1; }
+function _micAcToken(inp){
+  /* ALT : on complète le dernier équivalent (séparés par /) */
+  var v=inp.value; if(inp.dataset.mac!=='alt') return {pre:'', q:v};
+  var k=v.lastIndexOf('/'); return k<0 ? {pre:'', q:v} : {pre:v.slice(0,k+1)+' ', q:v.slice(k+1).trim()};
+}
+function _micAcShow(inp){
+  var tk=_micAcToken(inp), list=tk.q.trim().length ? micSuggest(tk.q, 8) : [];
+  if(list.length===1 && _micNorm(list[0].m)===_micNorm(tk.q)) list=[];
+  _micAc.inp=inp; _micAc.items=list; _micAc.i=-1;
+  var b=_micAcBox();
+  if(!list.length){ b.style.display='none'; return; }
+  b.innerHTML=list.map(function(e,i){ return '<div class="mic-ac-i" role="option" data-i="'+i+'"><b>'+_oh(e.m)+'</b><span>'+_oh(e.b==='Ligne'||e.b==='DI'?'':e.b)+'</span><em class="mt-'+e.t+'">'+_oh(MIC_TYPES[e.t]||'')+(MIC_48V[e.t]?' · 48 V':'')+'</em></div>'; }).join('');
+  var r=inp.getBoundingClientRect(), w=Math.max(250, r.width);
+  b.style.display='block'; b.style.width=w+'px';
+  b.style.left=Math.max(8, Math.min(r.left, window.innerWidth-w-8))+'px';
+  var below=window.innerHeight-r.bottom, h=b.offsetHeight;
+  b.style.top=(below<h+12 && r.top>h+12 ? r.top-h-4 : r.bottom+4)+'px';
+}
+function _micAcPick(i){
+  var e=_micAc.items[i], inp=_micAc.inp; if(!e||!inp) return;
+  var tk=_micAcToken(inp);
+  inp.value=tk.pre+e.m;
+  _micAcClose();
+  inp.dispatchEvent(new Event('change',{bubbles:true}));
+}
+function _micAcMove(d){
+  var n=_micAc.items.length; if(!n) return;
+  _micAc.i=(_micAc.i+d+n)%n;
+  _micAc.box.querySelectorAll('.mic-ac-i').forEach(function(x,k){ x.classList.toggle('on', k===_micAc.i); if(k===_micAc.i) x.scrollIntoView({block:'nearest'}); });
+}
+document.addEventListener('input',function(e){ var t=e.target; if(t && t.dataset && t.dataset.mac) _micAcShow(t); });
+document.addEventListener('keydown',function(e){
+  var t=e.target; if(!t||!t.dataset||!t.dataset.mac||!_micAc.items.length||!_micAc.box||_micAc.box.style.display==='none') return;
+  if(e.key==='ArrowDown'){ e.preventDefault(); _micAcMove(1); }
+  else if(e.key==='ArrowUp'){ e.preventDefault(); _micAcMove(-1); }
+  else if((e.key==='Enter'||e.key==='Tab') && _micAc.i>=0){ e.preventDefault(); _micAcPick(_micAc.i); }
+  else if(e.key==='Escape'){ _micAcClose(); }
+},true);
+document.addEventListener('focusout',function(e){ if(e.target===_micAc.inp) setTimeout(_micAcClose,120); });
+window.addEventListener('scroll',function(){ if(_micAc.items.length) _micAcClose(); },true);
+
+/* Micro/DI modifié : enregistré, puis le +48 V suit la référence si elle est connue */
+function ilMicChange(inp){
+  var id=inp.dataset.id, v=inp.value;
+  scheduleSave(id,'mic',v);
+  var e=micFind(v), r=CHS.find(function(x){ return x.id===id; }); if(!e||!r) return;
+  var want=!!MIC_48V[e.t];
+  if(!!r.phantom===want) return;
+  r.phantom=want; scheduleSave(id,'phantom',want);
+  var cb=document.querySelector('tr[data-rid="'+(window.CSS&&CSS.escape?CSS.escape(id):id)+'"] td[data-col="phantom"] input');
+  if(cb) cb.checked=want;
+  toast(want ? '+48 V activé : '+e.m+' ('+MIC_TYPES[e.t].toLowerCase()+')' : '+48 V coupé : '+e.m+' ('+MIC_TYPES[e.t].toLowerCase()+')');
+  setTimeout(_ilStats,50);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   PATCH STAGEBOX — chaque voie pointe vers une entrée d'une boîte de scène
+   Boîtes : stage_data.il_boxes [{id,name,model,n}] (communes aux patchs du show).
+   Voie : custom_data._sb = 'idBoîte:entrée', _sbn = nom de la boîte (lu tel quel par le rider partagé).
+   ══════════════════════════════════════════════════════════════════ */
+var SB_MODELS=[
+  ['Allen & Heath DX168',16],['Allen & Heath DX164-W',16],['Allen & Heath DX32',32],['Allen & Heath AR2412',24],['Allen & Heath AR84',8],['Allen & Heath AB168',16],['Allen & Heath GX4816',48],['Allen & Heath DT168',16],['Allen & Heath DT164-W',16],['Allen & Heath DM32',32],['Allen & Heath DM48',48],['Allen & Heath DM64',64],
+  ['Yamaha Rio3224-D3',32],['Yamaha Rio1608-D3',16],['Yamaha Rio3224-D2',32],['Yamaha Rio1608-D2',16],['Yamaha Tio1608-D2',16],['Yamaha Rio3224-D',32],['Yamaha Rio1608-D',16],['Yamaha Ri8-D',8],
+  ['DiGiCo SD-Rack',56],['DiGiCo SD-Mini Rack',32],['DiGiCo D2-Rack',48],['DiGiCo D-Rack',32],
+  ['Midas DL16',16],['Midas DL32',32],['Midas DL151',24],['Midas DL231',24],['Midas DL251',48],['Midas DL431',24],
+  ['Behringer S16',16],['Behringer S32',32],['Behringer SD16',16],['Behringer SD8',8],
+  ['Soundcraft Mini Stagebox 16',16],['Soundcraft Mini Stagebox 32',32],['Soundcraft Compact Stagebox',32],
+  ['Avid Stage 16',16],['Avid Stage 64',64],['Avid S6L Stage 32',32],
+  ['SSL Network I/O SB 32.24',32],['SSL Network I/O SB 16.12',16],['SSL Network I/O SB 8.8',8],['SSL ML32.32',32],
+  ['Focusrite RedNet MP8R',8],
+  ['Multipaire 12',12],['Multipaire 16',16],['Multipaire 24',24],['Multipaire 32',32],['Multipaire 48',48],['Boîtier 8',8],['Boîtier 12',12]
+];
+function _sbBoxes(){
+  var b=CUR_SHOW&&CUR_SHOW.stage_data&&CUR_SHOW.stage_data.il_boxes;
+  return (Array.isArray(b)?b:[]).filter(function(x){ return x&&x.id; }).slice(0,16).map(function(x){
+    return {id:String(x.id).replace(/[^\w-]/g,'').slice(0,40), name:String(x.name||'SB').slice(0,8), model:String(x.model||'').slice(0,60), n:Math.max(1,Math.min(128,parseInt(x.n,10)||32))}; });
+}
+async function _sbSaveBoxes(list){
+  if(!CUR_SHOW) return;
+  CUR_SHOW.stage_data=Object.assign({},CUR_SHOW.stage_data||{v:2},{il_boxes:list});
+  await _sdPatch(CUR_SHOW,['il_boxes']);
+}
+function _sbPad(i){ return (i<10?'0':'')+i; }
+/* Entrée patchée d'une voie, si sa boîte existe encore */
+function sbOf(r){
+  var v=r&&r.custom_data&&r.custom_data._sb; if(!v) return null;
+  var p=String(v).split(':'), box=_sbBoxes().find(function(b){ return b.id===p[0]; }), i=parseInt(p[1],10);
+  return (box && i>=1 && i<=box.n) ? {box:box, i:i} : null;
+}
+function sbLabel(r){ var s=sbOf(r); return s ? s.box.name+'·'+_sbPad(s.i) : ''; }
+function _sbSet(r, box, i){
+  if(!r.custom_data) r.custom_data={};
+  saveCustomCell(r.id,'_sbn', box ? box.name : '');
+  saveCustomCell(r.id,'_sb', box ? box.id+':'+i : '');
+}
+/* Occupation : boîte -> entrée -> voie */
+function _sbOcc(){
+  var o={}; CHS.forEach(function(r){ var s=sbOf(r); if(s){ (o[s.box.id]=o[s.box.id]||{})[s.i]=r; } }); return o;
+}
+function sbCell(r){
+  var l=sbLabel(r);
+  return '<td data-col="patch" data-label="Patch"><button type="button" class="il-sb'+(l?'':' none')+'" data-id="'+_oh(r.id)+'" onclick="ilSbPick(this.dataset.id,this)" title="Entrée de stagebox">'+(l?_oh(l):'—')+'</button></td>';
+}
+
+/* Petit sélecteur : boîte, puis entrée (les entrées prises montrent leur voie) */
+var _sbPop=null;
+function _sbPopClose(){ if(_sbPop){ _sbPop.remove(); _sbPop=null; } document.removeEventListener('mousedown',_sbPopOut,true); }
+function _sbPopOut(e){ if(_sbPop && !_sbPop.contains(e.target) && !e.target.closest('.il-sb')) _sbPopClose(); }
+function ilSbPick(id, btn, boxId){
+  var boxes=_sbBoxes(), r=CHS.find(function(x){ return x.id===id; }); if(!r) return;
+  if(!boxes.length){ ilBoxesOpen(); return; }
+  var cur=sbOf(r), box=boxes.find(function(b){ return b.id===boxId; })||(cur&&cur.box)||boxes[0], occ=_sbOcc(), bo=occ[box.id]||{};
+  _sbPopClose();
+  var p=document.createElement('div'); p.className='sb-pop'; _sbPop=p;
+  var h='<div class="sb-pop-tabs">'+boxes.map(function(b){ var u=Object.keys(occ[b.id]||{}).length; return '<button type="button" data-box="'+_oh(b.id)+'" class="'+(b.id===box.id?'on':'')+'">'+_oh(b.name)+'<span>'+u+'/'+b.n+'</span></button>'; }).join('')+'</div><div class="sb-pop-grid">';
+  for(var i=1;i<=box.n;i++){ var o=bo[i], me=cur&&cur.box.id===box.id&&cur.i===i;
+    h+='<button type="button" data-in="'+i+'" class="'+(me?'me':o?'busy':'')+'" title="'+(o&&!me?'Entrée '+i+' : CH '+o.ch+' '+_oh(o.short_name||o.long_name||'')+' (échange)':'Entrée '+i)+'">'+i+(o&&!me?'<em>'+o.ch+'</em>':'')+'</button>'; }
+  h+='</div><div class="sb-pop-ft">'+(cur?'<button type="button" data-clear="1"><i class="ti ti-x"></i>Retirer</button>':'')+'<button type="button" data-manage="1"><i class="ti ti-settings"></i>Stageboxes</button></div>';
+  p.innerHTML=h; document.body.appendChild(p);
+  var rc=btn.getBoundingClientRect(), w=p.offsetWidth, hh=p.offsetHeight;
+  p.style.left=Math.max(8,Math.min(rc.left, window.innerWidth-w-8))+'px';
+  p.style.top=(window.innerHeight-rc.bottom<hh+10 && rc.top>hh+10 ? rc.top-hh-4 : rc.bottom+4)+'px';
+  p.addEventListener('click',function(e){
+    var t=e.target.closest('button'); if(!t) return;
+    if(t.dataset.box){ ilSbPick(id, btn, t.dataset.box); return; }
+    if(t.dataset.manage){ _sbPopClose(); ilBoxesOpen(); return; }
+    if(t.dataset.clear){ _sbSet(r,null); _sbPopClose(); renderTable(); return; }
+    var k=+t.dataset.in; if(!k) return;
+    var other=bo[k];
+    if(other && other.id!==r.id){ if(cur) _sbSet(other, cur.box, cur.i); else _sbSet(other, null); }
+    _sbSet(r, box, k); _sbPopClose(); renderTable();
+  });
+  setTimeout(function(){ document.addEventListener('mousedown',_sbPopOut,true); },0);
+}
+
+/* Patch automatique des voies non patchées : dans l'ordre des voies, en gardant
+   ensemble les voies qui se suivent avec la même source (une batterie ne se coupe pas
+   entre deux boîtes si elle tient entière dans la suivante). */
+function _sbAuto(){
+  var boxes=_sbBoxes(), occ=_sbOcc(), free=boxes.map(function(b){ var o=occ[b.id]||{}, f=[]; for(var i=1;i<=b.n;i++) if(!o[i]) f.push(i); return f; });
+  var todo=CHS.filter(function(r){ return !sbOf(r); }).sort(function(a,b){ return a.ch-b.ch; });
+  var runs=[], last=null;
+  todo.forEach(function(r){ var s=_micNorm(r.source); if(last && s && s===last.s && r.ch===last.rows[last.rows.length-1].ch+1) last.rows.push(r); else { last={s:s, rows:[r]}; runs.push(last); } });
+  var bi=0, done=0, left=0;
+  runs.forEach(function(run){
+    var n=run.rows.length;
+    if(free[bi] && free[bi].length<n){ for(var j=bi+1;j<boxes.length;j++){ if(free[j].length>=n){ bi=j; break; } } }
+    run.rows.forEach(function(r){
+      while(bi<boxes.length && !free[bi].length) bi++;
+      if(bi>=boxes.length){ left++; return; }
+      _sbSet(r, boxes[bi], free[bi].shift()); done++;
+    });
+  });
+  renderTable(); _ilBoxesRender();
+  toast(done ? done+' voie'+(done>1?'s':'')+' patchée'+(done>1?'s':'')+(left?' · '+left+' sans place':'') : (left?'Plus d\'entrée libre : ajoutez une stagebox':'Toutes les voies sont déjà patchées'));
+}
+function _sbClearAll(){
+  var n=CHS.filter(function(r){ return r.custom_data&&r.custom_data._sb; }).length; if(!n) return;
+  if(!confirm('Retirer le patch des '+n+' voies de ce patch ?')) return;
+  CHS.forEach(function(r){ if(r.custom_data&&r.custom_data._sb) _sbSet(r,null); });
+  renderTable(); _ilBoxesRender();
+}
+
+/* Fenêtre « Stageboxes » */
+function ilBoxesOpen(){
+  _sbPopClose();
+  var m=document.getElementById('sb-modal');
+  if(!m){ m=document.createElement('div'); m.id='sb-modal'; m.className='modal-ov'; document.body.appendChild(m);
+    m.addEventListener('click',function(e){ if(e.target===m) m.classList.remove('show'); }); }
+  m.innerHTML='<div class="modal-box sb-box"><div class="modal-head"><span class="modal-title">Stageboxes</span><button class="modal-close" type="button" onclick="document.getElementById(\'sb-modal\').classList.remove(\'show\')" aria-label="Fermer"><i class="ti ti-x"></i></button></div>'+
+    '<div class="modal-body"><p class="sb-lead">Les boîtes de scène du show. Chaque voie de l\'input list prend une entrée : colonne <b>Patch</b>, ou en un clic avec <b>Patcher</b>.</p><div id="sb-list"></div>'+
+    '<button type="button" class="sb-add" onclick="_sbAdd()"><i class="ti ti-plus"></i>Ajouter une stagebox</button>'+
+    '<datalist id="sb-models">'+SB_MODELS.map(function(x){ return '<option value="'+_oh(x[0])+'">'+x[1]+' entrées</option>'; }).join('')+'</datalist></div>'+
+    '<div class="modal-foot"><button class="btn" type="button" id="sb-clear" onclick="_sbClearAll()">Retirer le patch</button><span style="flex:1"></span><button class="btn pri" type="button" id="sb-auto" onclick="_sbAuto()"><i class="ti ti-wand"></i>Patcher les voies</button></div></div>';
+  m.classList.add('show');
+  _ilBoxesRender();
+  if(!_sbBoxes().length) _sbAdd();
+}
+function _ilBoxesRender(){
+  var el=document.getElementById('sb-list'); if(!el) return;
+  var boxes=_sbBoxes(), occ=_sbOcc(), tot=boxes.reduce(function(a,b){ return a+b.n; },0), un=CHS.filter(function(r){ return !sbOf(r); }).length;
+  el.innerHTML=boxes.map(function(b){ var u=Object.keys(occ[b.id]||{}).length;
+    return '<div class="sb-row" data-id="'+_oh(b.id)+'"><input class="ilinp sb-name" maxlength="8" value="'+_oh(b.name)+'" title="Nom court (étiquette)">'+
+      '<input class="ilinp sb-model" list="sb-models" value="'+_oh(b.model||'')+'" placeholder="Modèle (facultatif)">'+
+      '<label class="sb-n"><input class="ilinp" type="number" min="1" max="128" value="'+b.n+'"><span>entrées</span></label>'+
+      '<span class="sb-use'+(u>=b.n?' full':'')+'"><i style="width:'+Math.min(100,Math.round(u/b.n*100))+'%"></i><b>'+u+'/'+b.n+'</b></span>'+
+      '<button type="button" class="sb-del" title="Supprimer"><i class="ti ti-trash"></i></button></div>'; }).join('')+
+    (boxes.length?'<div class="sb-sum">'+tot+' entrées · '+(CHS.length-un)+' voie'+(CHS.length-un>1?'s':'')+' patchée'+(CHS.length-un>1?'s':'')+(un?' · <b>'+un+' à patcher</b>':'')+(CHS.length>tot?' · <b class="bad">'+(CHS.length-tot)+' voie'+(CHS.length-tot>1?'s':'')+' de trop</b>':'')+'</div>':'');
+  var a=document.getElementById('sb-auto'); if(a) a.disabled=!boxes.length||!un;
+  var c=document.getElementById('sb-clear'); if(c) c.style.visibility=CHS.some(function(r){ return r.custom_data&&r.custom_data._sb; })?'':'hidden';
+  if(!el._wired){ el._wired=1;
+    el.addEventListener('change',function(e){
+      var row=e.target.closest('.sb-row'); if(!row) return;
+      var list=_sbBoxes().map(function(b){ return Object.assign({},b); }), b=list.find(function(x){ return x.id===row.dataset.id; }); if(!b) return;
+      if(e.target.classList.contains('sb-name')){
+        var nm=String(e.target.value||'').replace(/[^\w\-+ ]/g,'').trim().slice(0,8)||b.name;
+        if(list.some(function(x){ return x!==b && x.name.toLowerCase()===nm.toLowerCase(); })){ toast('Ce nom est déjà pris'); e.target.value=b.name; return; }
+        b.name=nm; CHS.forEach(function(r){ var s=sbOf(r); if(s&&s.box.id===b.id) saveCustomCell(r.id,'_sbn',nm); });
+      } else if(e.target.classList.contains('sb-model')){
+        b.model=String(e.target.value||'').slice(0,60); var hit=SB_MODELS.find(function(x){ return x[0].toLowerCase()===b.model.toLowerCase(); }); if(hit) b.n=hit[1];
+      } else if(e.target.type==='number'){
+        b.n=Math.max(1,Math.min(128,parseInt(e.target.value,10)||b.n));
+      }
+      _sbSaveBoxes(list).then(function(){ renderTable(); _ilBoxesRender(); });
+    });
+    el.addEventListener('click',function(e){
+      var d=e.target.closest('.sb-del'); if(!d) return; var id=d.closest('.sb-row').dataset.id, used=CHS.filter(function(r){ var s=sbOf(r); return s&&s.box.id===id; });
+      if(used.length && !confirm('Supprimer cette stagebox ? '+used.length+' voie'+(used.length>1?'s perdent':' perd')+' son patch.')) return;
+      used.forEach(function(r){ _sbSet(r,null); });
+      var list=_sbBoxes().filter(function(b){ return b.id!==id; });
+      _sbSaveBoxes(list).then(function(){ if(!list.length){ visCol.delete('patch'); _saveILLayout(); } renderTable(); _ilBoxesRender(); });
+    });
+  }
+}
+function _sbAdd(){
+  var list=_sbBoxes().slice(); if(list.length>=16){ toast('16 stageboxes au plus'); return; }
+  var k=list.length+1; while(list.some(function(b){ return b.name==='SB'+k; })) k++;
+  var prev=list[list.length-1];
+  list.push({id:'sb'+Date.now().toString(36), name:'SB'+k, model:prev?prev.model:'', n:prev?prev.n:32});
+  _sbSaveBoxes(list).then(function(){
+    if(!visCol.has('patch')){ visCol.add('patch'); _saveILLayout(); if(typeof loadColChips==='function') loadColChips(); }
+    renderTable(); _ilBoxesRender();
+    var ins=document.querySelectorAll('#sb-list .sb-model'); if(ins.length) ins[ins.length-1].focus();
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   CONTRÔLE AVANT ENVOI — ce qui manque ou se contredit dans l'input list
+   ══════════════════════════════════════════════════════════════════ */
+function ilChecks(){
+  var out=[], chs=CHS||[];
+  var add=function(k,t,rows){ if(rows.length) out.push({k:k, t:t, rows:rows}); };
+  var byCh={}; chs.forEach(function(r){ (byCh[r.ch]=byCh[r.ch]||[]).push(r); });
+  add('dup','Numéro de voie en double', chs.filter(function(r){ return byCh[r.ch].length>1; }));
+  add('empty','Voie sans nom', chs.filter(function(r){ return !String(r.short_name||'').trim() && !String(r.long_name||'').trim() && !String(r.source||'').trim(); }));
+  add('nomic','Micro ou DI manquant', chs.filter(function(r){ return (String(r.short_name||'').trim()||String(r.long_name||'').trim()) && !String(r.mic||'').trim(); }));
+  add('48v','Statique ou DI active sans +48 V', chs.filter(function(r){ var e=micFind(r.mic); return e && MIC_48V[e.t] && !r.phantom; }));
+  add('rib','Ruban passif avec +48 V', chs.filter(function(r){ var e=micFind(r.mic); return e && e.t==='r' && r.phantom; }));
+  var boxes=_sbBoxes();
+  if(boxes.length){
+    add('nosb','Voie non patchée sur une stagebox', chs.filter(function(r){ return !sbOf(r); }));
+    var seen={}, dupsb=[]; chs.forEach(function(r){ var s=sbOf(r); if(!s) return; var k=s.box.id+':'+s.i; if(seen[k]){ dupsb.push(r); if(dupsb.indexOf(seen[k])<0) dupsb.push(seen[k]); } else seen[k]=r; });
+    add('dupsb','Même entrée de stagebox pour deux voies', dupsb);
+  }
+  return out;
+}
+function _ilChecksHtml(){
+  var c=ilChecks(), n=c.reduce(function(a,x){ return a+x.rows.length; },0);
+  return c.length ? '<button type="button" class="il-chk warn" onclick="ilChecksOpen(this)"><i class="ti ti-alert-triangle"></i>'+n+' point'+(n>1?'s':'')+' à vérifier</button>'
+    : '<span class="il-chk ok" title="Pas de voie en double, de micro manquant ni de +48 V oublié"><i class="ti ti-circle-check"></i>Liste prête</span>';
+}
+function ilChecksOpen(btn){
+  _sbPopClose();
+  var c=ilChecks(); if(!c.length) return;
+  var p=document.createElement('div'); p.className='sb-pop il-chk-pop'; _sbPop=p;
+  p.innerHTML=c.map(function(x){ return '<div class="il-chk-row"><b>'+_oh(x.t)+'</b><span>'+x.rows.slice(0,24).map(function(r){ return '<button type="button" data-id="'+_oh(r.id)+'">'+r.ch+'</button>'; }).join('')+(x.rows.length>24?'<em>+'+(x.rows.length-24)+'</em>':'')+'</span></div>'; }).join('');
+  document.body.appendChild(p);
+  var rc=btn.getBoundingClientRect(), w=p.offsetWidth, hh=p.offsetHeight;
+  p.style.left=Math.max(8,Math.min(rc.left, window.innerWidth-w-8))+'px';
+  p.style.top=(rc.top>hh+10 ? rc.top-hh-6 : rc.bottom+6)+'px';
+  p.addEventListener('click',function(e){
+    var t=e.target.closest('button[data-id]'); if(!t) return;
+    var tr=document.querySelector('tr[data-rid="'+(window.CSS&&CSS.escape?CSS.escape(t.dataset.id):t.dataset.id)+'"]'); if(!tr) return;
+    _sbPopClose(); tr.scrollIntoView({block:'center', behavior:'smooth'}); flashRow(t.dataset.id);
+  });
+  setTimeout(function(){ document.addEventListener('mousedown',_sbPopOut,true); },0);
+}
 
 /* ══════════════════════════════════════════════════════════════════
    BON DU LOUEUR — contrôle du matériel
@@ -28092,7 +28431,8 @@ function _svFs(imgId, title){
     /* Colonnes facultatives : affichées seulement si au moins un canal les renseigne */
     var _hfOf=function(r){return (r.custom_data&&r.custom_data._hf)||'';};
     var _altOf=function(r){return (r.custom_data&&r.custom_data._alt)||'';};
-    var hasHf=rows.some(function(r){return _hfOf(r);});
+    var _sbOfR=function(r){ var c=r.custom_data||{}, i=parseInt(String(c._sb||'').split(':')[1],10); return (c._sbn&&i>0)?String(c._sbn)+'·'+(i<10?'0':'')+i:''; };
+    var hasHf=rows.some(function(r){return _hfOf(r);}), hasSb=rows.some(function(r){return _sbOfR(r);});
     var hasSrc=rows.some(function(r){return r.source;}), hasNote=rows.some(function(r){return r.note;});
     var _customCols=(show.stage_data&&show.stage_data.il_custom_cols)||[];
     var _cvalOf=function(r,id){return (r.custom_data&&r.custom_data[id]);};
@@ -28109,7 +28449,7 @@ function _svFs(imgId, title){
       +'<span class="sv-grow"></span><span class="sv-count"><b>'+rows.length+'</b> canaux'
       +(rows.filter(function(r){return r.phantom;}).length?' · <b>'+rows.filter(function(r){return r.phantom;}).length+'</b> en 48 V':'')+'</span></div>';
     if(!rows.length) return h+_svEmpty('ti-list-numbers','Aucun canal dans ce patch','');
-    h+='<div class="sv-card"><table class="sv-tbl sv-il"><thead><tr><th class="c">CH</th><th>Nom</th>'+(hasSrc?'<th>Source</th>':'')+'<th>Micro / DI</th><th>Envois</th>'
+    h+='<div class="sv-card"><table class="sv-tbl sv-il"><thead><tr><th class="c">CH</th><th>Nom</th>'+(hasSrc?'<th>Source</th>':'')+(hasSb?'<th>Patch</th>':'')+'<th>Micro / DI</th><th>Envois</th>'
       +(hasHf?'<th>Fréq. HF</th>':'')+_visCustom.map(function(c){return '<th>'+esc(c.label||'')+'</th>';}).join('')+(hasNote?'<th>Pied / note</th>':'')+'</tr></thead><tbody>';
     var _C=_svChgFor('il'), _cc=function(r,ks){ var c=_C&&_C.cells[r.id]; if(!c) return ''; var hit=ks.filter(function(k){ return c[k]!==undefined; }); if(!hit.length) return ''; return ' sv-chgc" title="Avant : '+esc(hit.map(function(k){ return String(c[k]||'vide'); }).join(' · ')); };
     rows.forEach(function(r){
@@ -28118,6 +28458,7 @@ function _svFs(imgId, title){
       h+='<tr'+(_st?' class="sv-chg'+(_st==='new'?' new':'')+'"':'')+'><td class="sv-ch'+_cc(r,['ch'])+'"><b>'+r.ch+'</b></td>'
         +'<td class="sv-n'+_cc(r,['short_name','long_name'])+'"><b>'+esc(r.short_name||'')+'</b>'+(r.long_name?'<span>'+esc(r.long_name)+'</span>':'')+(_st?'<em class="sv-chg-t">'+(_st==='new'?'nouveau':'modifié')+'</em>':'')+'</td>'
         +(hasSrc?'<td class="sv-mu'+_cc(r,['source'])+'" data-l="Source">'+esc(r.source||'')+'</td>':'')
+        +(hasSb?'<td class="sv-mo'+_cc(r,['_sb'])+'" data-l="Patch">'+esc(_sbOfR(r))+'</td>':'')
         +'<td class="sv-mo'+_cc(r,['mic','_alt'])+'" data-l="Micro">'+esc(r.mic||'')+(_altOf(r)?'<span class="sv-alt" title="Remplacement accepté">ALT '+esc(_altOf(r))+'</span>':'')+'</td>'
         +'<td class="sv-tags'+_cc(r,['phantom','foh','mon','iem_group'])+'">'+tags+'</td>'
         +(hasHf?'<td class="sv-f'+_cc(r,['_hf'])+'" data-l="HF">'+esc(_hfOf(r))+'</td>':'')
@@ -29113,7 +29454,7 @@ function _svFs(imgId, title){
   var _SV_GAP=2*3600*1000, _svSeenKey='pf_seen_'+(linkId||'')+'_'+(show&&show.id||sid||riderId||'');
   var _svSecIn=function(k){ return allSections.indexOf(k)>=0; };
   function _svHash(str){ var h=5381; for(var i=0;i<str.length;i++){ h=((h<<5)+h+str.charCodeAt(i))|0; } return (h>>>0).toString(36)+'.'+str.length; }
-  var _SV_IL_F=[['ch','voie'],['short_name','nom court'],['long_name','nom'],['source','source'],['mic','micro'],['_alt','ALT'],['phantom','48V'],['foh','façade'],['mon','retours'],['iem_group','IEM'],['_hf','fréquence HF'],['note','pied / note']];
+  var _SV_IL_F=[['ch','voie'],['short_name','nom court'],['long_name','nom'],['source','source'],['mic','micro'],['_alt','ALT'],['_sb','patch'],['phantom','48V'],['foh','façade'],['mon','retours'],['iem_group','IEM'],['_hf','fréquence HF'],['note','pied / note']];
   var _SV_OUT_F=[['ch','sortie'],['short_name','nom court'],['long_name','nom'],['type','type'],['dest','destination'],['hf','fréquence HF'],['note','note']];
   var _SV_RF_F=[['n','nom'],['who','utilisateur'],['f','fréquence'],['band','bande'],['zone','zone'],['note','note']];
   function _svOutsAll(){
