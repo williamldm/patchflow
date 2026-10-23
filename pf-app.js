@@ -11908,6 +11908,9 @@ const SynPro = (() => {
     vp.addEventListener('pointerdown', function(e){
       if (e.button !== 0 && e.button !== 1) return;
       if (e.target.closest('#sp-ctool')) return;
+      /* Carte « synoptique vide » : ses boutons (import d'une session d'amplis, création depuis le show)
+         doivent recevoir leur clic, pas démarrer un déplacement de la vue qui le capterait */
+      if (e.target.closest('.sp-empty-card')) return;
 
       /* Belt-and-braces : a previous interaction's pointerup may have been
          missed (browser bug, release outside window, focus shift...). Clear
