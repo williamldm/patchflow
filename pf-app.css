@@ -5981,3 +5981,6 @@ button.il-chk.warn:hover{background:rgba(240,160,40,.24)}
 .mic-ac-i em.mt-c,.mic-ac-i em.mt-da,.mic-ac-i em.mt-ra,.mic-ac-i em.mt-pa{color:var(--ora)}
 .sb-row .ilinp{background:var(--surf2);border:1px solid var(--bdr2);border-radius:6px}
 .sb-row .ilinp:focus{border-color:var(--ora)}
+.il-chk-row b{display:flex;align-items:center;gap:8px}
+.il-chk-row button.il-chk-fix{margin-left:auto;min-width:0;height:22px;padding:0 9px;border:0;border-radius:999px;background:var(--ora);color:#fff;font:600 10.5px var(--f)}
+.il-chk-row button.il-chk-fix:hover{color:#fff;filter:brightness(1.08)}
