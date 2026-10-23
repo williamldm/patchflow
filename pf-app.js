@@ -149,6 +149,17 @@ var PF_GUEST=(function(){
     return true;
   }catch(e){ return false; }
 })();
+/* Essai : aucune écriture durable dans le navigateur. Préférences, caches, bibliothèques et images
+   restent en mémoire de la page et disparaissent à sa fermeture ; seul le brouillon passé à
+   l'inscription (allégé de ses images) est écrit, et effacé dès qu'il est repris. */
+if(PF_GUEST) (function(){
+  try{
+    var ls=window.localStorage, mem={}, S=Storage.prototype, oSet=S.setItem, oGet=S.getItem, oRem=S.removeItem, oKey=S.key, keep=/^pf_guest_draft$/;
+    S.setItem=function(k,v){ if(this===ls && !keep.test(k)){ mem[k]=String(v); return; } return oSet.call(this,k,v); };
+    S.getItem=function(k){ if(this===ls && Object.prototype.hasOwnProperty.call(mem,k)) return mem[k]; return oGet.call(this,k); };
+    S.removeItem=function(k){ if(this===ls && Object.prototype.hasOwnProperty.call(mem,k)){ delete mem[k]; return; } return oRem.call(this,k); };
+  }catch(e){}
+})();
 var PF_GUEST_TAB=(function(){ try{ return new URLSearchParams(location.search).get('essai')||''; }catch(e){ return ''; } })();
 var _GUEST_UID='00000000-0000-4000-8000-00000000e551', _GUEST_SHOW='00000000-0000-4000-8000-00000000e552';
 function _guestClient(){
@@ -238,11 +249,11 @@ var _guestEdits=0;
 function _guestAsk(why){
   var m=document.getElementById('guest-ask');
   if(!m){ m=document.createElement('div'); m.id='guest-ask'; m.className='modal-ov'; document.body.appendChild(m); m.addEventListener('click',function(e){ if(e.target===m) m.classList.remove('show'); }); }
-  var T={save:'Gardez votre travail', export:'Exportez et partagez votre travail', tab:'Toute l\'app, gratuitement', share:'Partagez par un lien toujours à jour', pro:'Créez d\'abord votre compte gratuit'}[why]||'Gardez votre travail';
+  var T={save:'Gardez votre travail', tab:'Toute l\'app, gratuitement', share:'Partagez par un lien toujours à jour', pro:'Créez d\'abord votre compte gratuit'}[why]||'Gardez votre travail';
   m.innerHTML='<div class="modal-box guest-box"><div class="modal-head"><span class="modal-title">'+T+'</span><button class="modal-close" type="button" onclick="document.getElementById(\'guest-ask\').classList.remove(\'show\')" aria-label="Fermer"><i class="ti ti-x"></i></button></div>'
     +'<div class="modal-body"><p class="guest-lead">Vous êtes en mode essai : rien n\'est enregistré. Avec un compte gratuit, ce que vous venez de préparer est gardé et vous pouvez :</p>'
-    +'<ul class="guest-ul"><li><i class="ti ti-device-floppy"></i>enregistrer vos shows et y revenir sur tous vos appareils</li><li><i class="ti ti-file-type-pdf"></i>exporter en PDF, en tableur et vers la console</li><li><i class="ti ti-link"></i>partager un lien en lecture seule, toujours à jour</li><li><i class="ti ti-users"></i>travailler à plusieurs, en direct</li></ul>'
-    +'<p class="guest-fine">Gratuit pour toujours, sans carte bancaire. Votre essai est repris dans votre premier show.</p></div>'
+    +'<ul class="guest-ul"><li><i class="ti ti-device-floppy"></i>enregistrer vos shows et y revenir sur tous vos appareils</li><li><i class="ti ti-folder"></i>ranger riders, plans et exports avec chaque show</li><li><i class="ti ti-link"></i>partager un lien en lecture seule, toujours à jour</li><li><i class="ti ti-users"></i>travailler à plusieurs, en direct</li></ul>'
+    +'<p class="guest-fine">Gratuit pour toujours, sans carte bancaire. Votre essai est repris dans votre premier show (sans les images de fond, à reposer).</p></div>'
     +'<div class="modal-foot"><button class="btn" type="button" onclick="document.getElementById(\'guest-ask\').classList.remove(\'show\')">Continuer l\'essai</button><span style="flex:1"></span><button class="btn pri" type="button" onclick="guestSignup()"><i class="ti ti-user-plus"></i>Créer mon compte gratuit</button></div></div>';
   m.classList.add('show');
 }
@@ -250,31 +261,34 @@ function _guestAsk(why){
 function _guestDraft(){
   var DB=window.__pfGuestDB; if(!DB) return null;
   var sh=DB.shows[0]||{}, strip=function(r){ r=JSON.parse(JSON.stringify(r)); ['id','show_id','created_at','updated_at','updated_by'].forEach(function(k){ delete r[k]; }); return r; };
-  return {v:1, at:Date.now(), show:{name:sh.name||'Mon show', venue:sh.venue||null, show_date:sh.show_date||null, stage_data:sh.stage_data||{v:2}, synoptique_data:sh.synoptique_data||null, out_data:sh.out_data||null, il_patches:sh.il_patches||null},
-    channels:DB.channels.filter(function(c){ return c.show_id===_GUEST_SHOW; }).map(strip), scenes:DB.show_scenes.filter(function(c){ return c.show_id===_GUEST_SHOW; }).map(strip)};
+  var lite=function(o){ return JSON.parse(JSON.stringify(o==null?null:o,function(k,v){ return (typeof v==='string' && v.length>2000 && /^data:/.test(v))?null:v; })); };
+  return {v:1, at:Date.now(), show:{name:sh.name||'Mon show', venue:sh.venue||null, show_date:sh.show_date||null, stage_data:lite(sh.stage_data||{v:2}), synoptique_data:lite(sh.synoptique_data), out_data:lite(sh.out_data), il_patches:lite(sh.il_patches)},
+    channels:DB.channels.filter(function(c){ return c.show_id===_GUEST_SHOW; }).map(strip).map(lite), scenes:DB.show_scenes.filter(function(c){ return c.show_id===_GUEST_SHOW; }).map(strip).map(lite)};
 }
 function guestSignup(){
   var d=_guestDraft(), kept=false;
   if(d && (d.channels.length || JSON.stringify(d.show.stage_data).length>20 || d.show.synoptique_data || d.show.out_data || d.scenes.length)){
-    try{ localStorage.setItem('pf_guest_draft', JSON.stringify(d)); kept=true; }catch(e){ try{ d.show.stage_data=Object.assign({},d.show.stage_data); ['site','band'].forEach(function(k){ var x=d.show.stage_data[k]; if(x&&x.bgImage) x.bgImage=null; }); localStorage.setItem('pf_guest_draft', JSON.stringify(d)); kept=true; }catch(e2){} }
+    try{ localStorage.setItem('pf_guest_draft', JSON.stringify(d)); kept=true; }catch(e){}
   }
   window.__pfGuestLeaving=true;
   location.href='app.html?signup=1&from=essai'+(kept?'&draft=1':'');
 }
+function _guestBarHide(){ var b=document.getElementById('guest-bar'); if(b) b.hidden=true; try{ sessionStorage.setItem('pf_guest_bar','0'); }catch(e){} }
 function _guestBoot(){
   document.documentElement.classList.add('pf-guest');
   var bar=document.createElement('div'); bar.className='guest-bar'; bar.id='guest-bar';
-  bar.innerHTML='<i class="ti ti-flask"></i><span><b>Mode essai</b><span class="guest-bar-x"> · sans compte, rien n\'est enregistré</span></span><button type="button" class="guest-bar-b" onclick="_guestAsk(\'save\')">Enregistrer</button><button type="button" class="guest-bar-p" onclick="guestSignup()">Créer un compte gratuit</button>';
+  bar.innerHTML='<i class="ti ti-flask"></i><span><b>Mode essai</b><span class="guest-bar-x"> · sans compte, rien n\'est enregistré</span></span><button type="button" class="guest-bar-b" onclick="_guestAsk(\'save\')">Enregistrer</button><button type="button" class="guest-bar-p" onclick="guestSignup()">Créer un compte gratuit</button><button type="button" class="guest-bar-c" onclick="_guestBarHide()" title="Masquer" aria-label="Masquer le bandeau"><i class="ti ti-x"></i></button>';
+  try{ if(sessionStorage.getItem('pf_guest_bar')==='0') bar.hidden=true; }catch(e){}
   document.body.appendChild(bar);
   /* Onglets ouverts dans l'essai ; les autres proposent le compte */
   var _go=window.goTab;
   /* Onglet hors essai : appel de l'utilisateur → invitation ; appel du programme (ouverture d'un show) → l'onglet de l'essai */
   window.goTab=function(id){ if(!_GUEST_TABS[id]){ var ev=window.event; if(ev&&ev.isTrusted) _guestAsk('tab'); else if(id==='overview'||id==='sessions') return _go.call(this,'inputlist',null); return; } return _go.apply(this,arguments); };
   /* Ce qui enregistre, exporte ou partage passe par le compte */
-  ['openPDFModal','exportRiderPdf','doExport','doCopyShareLink','copyILShareLink','copyRiderLink','copyLink','_createLink','inviteMember','newShow','ilAiImport','bpAiImport','festShare','_planExpShare','_planExpPdf','openRecapMatos','openPrep','openConsoleExports','exportCSV','showUpgradeModal'].forEach(function(n){
-    if(typeof window[n]==='function') window[n]=function(){ _guestAsk(n==='showUpgradeModal'?'pro':/Link|Share|invite/.test(n)?'share':'export'); };
+  /* Les exports restent libres ; partager, inviter, créer d'autres shows et l'import par IA passent par le compte */
+  ['doCopyShareLink','copyILShareLink','copyRiderLink','copyLink','_createLink','inviteMember','newShow','ilAiImport','bpAiImport','festShare','_planExpShare','showUpgradeModal'].forEach(function(n){
+    if(typeof window[n]==='function') window[n]=function(){ _guestAsk(n==='showUpgradeModal'?'pro':/Link|Share|invite/.test(n)?'share':'save'); };
   });
-  if(typeof SynPro!=='undefined' && SynPro.openExport) SynPro.openExport=function(){ _guestAsk('export'); };
   ['keydown'].forEach(function(ev){ document.addEventListener(ev,function(e){ if((e.metaKey||e.ctrlKey)&&(e.key==='s'||e.key==='S')){ e.preventDefault(); _guestAsk('save'); } },true); });
   document.addEventListener('change',function(){ _guestEdits++; },true);
   document.addEventListener('pointerup',function(e){ if(e.target.closest&&e.target.closest('#site-viewport,#bp-canvas-wrap,.syn-canvas,#syn-wrap')) _guestEdits++; },true);
