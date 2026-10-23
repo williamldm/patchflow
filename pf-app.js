@@ -8783,7 +8783,7 @@ async function _sdPatch(show, keys){
   return sb.from('shows').update({stage_data:sd}).eq('id',show.id);
 }
 /* Rubriques relues depuis le serveur quand un collègue a pu les changer, et le module à recharger */
-var _SD_LIVE=['racks','rack_groups','rf','road','festival'];
+var _SD_LIVE=['racks','rack_groups','rf','road','festival','bon','dem','bonchk','demlink','demreply'];
 async function _sdRefresh(force){
   if(!CUR_SHOW||_sdRpcOk===false) return;
   var now=Date.now(); if(!force&&now-_sdLastRefresh<15000) return; _sdLastRefresh=now;
@@ -8812,6 +8812,11 @@ async function _sdRefresh(force){
   if(changed.road&&typeof _rdReload==='function') _rdReload();
   if(changed.festival&&typeof festReload==='function') festReload();
   if(typeof _outRefresh==='function') _outRefresh(CUR_PATCH_ID);
+  if((changed.bon||changed.dem||changed.bonchk||changed.demlink||changed.demreply) && typeof renderBon==='function'){
+    var pb=document.getElementById('panel-bon'), ae=document.activeElement;
+    if(pb&&pb.classList.contains('on')&&!(ae&&pb.contains(ae)&&/INPUT|TEXTAREA|SELECT/.test(ae.tagName))) renderBon();
+  }
+  if(changed.demreply){ toast('Le loueur a répondu à la demande'); delete changed.demreply; }
   if(Object.keys(changed).length) toast('↻ Mis à jour par un collaborateur');
 }
 document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') _sdRefresh(); });
@@ -19819,15 +19824,28 @@ function ilChecksOpen(btn){
    de matériel (référence, désignation, quantité) sont gardées, sur cet
    appareil. L'en-tête du bon (client, adresse, téléphone) n'est pas lu.
    ══════════════════════════════════════════════════════════════════ */
-var BON=null, _bonShowId=null;
+var BON=null, _bonShowId=null, _bonSrc;
 function _bonKey(){ return 'pf_bon_'+((CUR_SHOW&&CUR_SHOW.id)||''); }
+/* Le bon est gardé dans la session (stage_data.bon) : tous les membres le voient, sur tous leurs appareils.
+   Un ancien bon resté dans ce navigateur est repris dans la session à la première ouverture. */
 function _bonLoad(){
-  var id=CUR_SHOW&&CUR_SHOW.id; if(_bonShowId===id) return BON;
-  _bonShowId=id; BON=null;
-  try{ var j=JSON.parse(localStorage.getItem(_bonKey())||'null'); if(j&&Array.isArray(j.items)) BON=j; }catch(e){}
+  var id=CUR_SHOW&&CUR_SHOW.id, sd=CUR_SHOW&&CUR_SHOW.stage_data, src=sd?sd.bon:null;
+  if(_bonShowId===id && _bonSrc===src) return BON;
+  _bonShowId=id; _bonSrc=src; BON=null;
+  if(src && Array.isArray(src.items)) BON=JSON.parse(JSON.stringify(src));
+  else if(id){
+    try{ var j=JSON.parse(localStorage.getItem(_bonKey())||'null'); if(j&&Array.isArray(j.items)){ BON=j; _bonSave(); localStorage.removeItem(_bonKey()); } }catch(e){}
+  }
   return BON;
 }
-function _bonSave(){ try{ if(BON) localStorage.setItem(_bonKey(),JSON.stringify(BON,function(k,v){ return k.charAt(0)==='_'?undefined:v; })); else localStorage.removeItem(_bonKey()); }catch(e){} }
+function _bonSave(){
+  if(!CUR_SHOW) return;
+  var sd=CUR_SHOW.stage_data=CUR_SHOW.stage_data||{v:2};
+  if(BON){ var c=JSON.parse(JSON.stringify(BON,function(k,v){ return k.charAt(0)==='_'?undefined:v; })); c.items=(c.items||[]).slice(0,800); sd.bon=c; }
+  else delete sd.bon;
+  _bonSrc=sd.bon;
+  Promise.resolve(_sdPatch(CUR_SHOW,['bon'])).then(function(r){ if(r&&r.error) toast('Bon non enregistré : '+(r.error.message||r.error)); });
+}
 function _bonNorm(t){ return String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,''); }
 
 /* Lecture du PDF : les textes sont regroupés par ligne (même hauteur), puis rangés en colonnes.
@@ -20210,15 +20228,8 @@ async function bonFile(inp){
   var f=inp.files&&inp.files[0]; if(!f) return;
   if(!_bonCanImport()){ showUpgradeModal('bon_loueur'); return; }
   toast('Lecture du bon…');
-  try{
-    var items=await _bonParse(await f.arrayBuffer());
-    if(!items.length){ toast('Aucune ligne de matériel trouvée dans ce PDF (bon scanné en image ?)'); return; }
-    /* Plan Gratuit : 3 sessions contrôlées par mois, comptées en base (la session déjà comptée repasse) */
-    if(!(await _usageTake('bon','bon_loueur'))) return;
-    _bonLoad(); BON={file:f.name, at:new Date().toISOString(), items:items, map:{}}; _bonSave(); _bonFreeMark();
-    toast('✓ Bon importé : '+items.length+' lignes de matériel');
-  }catch(e){ console.error('bonFile:',e); toast('Lecture du bon impossible : '+(e&&e.message||e)); }
-  if(BON && !document.getElementById('panel-bon')?.classList.contains('on')) goTab('bon',null); else _bonRefresh();
+  try{ await _bonImport(await _bonReadFile(f), f.name); }
+  catch(e){ console.error('bonFile:',e); toast('Lecture du bon impossible : '+(e&&e.message||e)); }
 }
 function bonClear(){ if(!confirm('Retirer le bon du loueur de cette session ?')) return; _bonLoad(); BON=null; _bonSave(); _bonRefresh(); }
 function bonSetMap(model,val){ var b=_bonLoad(); if(!b) return; b.map=b.map||{}; if(val) b.map[model]=val; else delete b.map[model]; _bonSave(); _bonRefresh(); }
@@ -20313,14 +20324,26 @@ function _bonLinesHtml(c){
    La liste à envoyer au loueur est calculée depuis les documents de la session (input list, output list,
    synoptique, plan de site), puis ajustée à la main : quantités, lignes écartées, lignes libres, remarques.
    Les réglages sont gardés par session dans le navigateur. */
-var BON_VIEW='ctrl', DEM=null, _demShowId=null;
+var BON_VIEW='ctrl', DEM=null, _demShowId=null, _demSrc, _demT=null;
+/* La demande est gardée dans la session (stage_data.dem), partagée avec les membres ; un ancien réglage
+   resté dans ce navigateur y est repris une fois. */
 function _demLoad(){
-  var id=CUR_SHOW&&CUR_SHOW.id; if(_demShowId===id && DEM) return DEM;
-  _demShowId=id; DEM={q:{},off:{},extra:[],note:''};
-  try{ var j=JSON.parse(localStorage.getItem('pf_dem_'+(id||''))||'null'); if(j&&typeof j==='object'){ DEM.q=j.q||{}; DEM.off=j.off||{}; DEM.extra=Array.isArray(j.extra)?j.extra:[]; DEM.note=String(j.note||''); } }catch(e){}
+  var id=CUR_SHOW&&CUR_SHOW.id, sd=CUR_SHOW&&CUR_SHOW.stage_data, src=sd?sd.dem:null;
+  if(_demShowId===id && _demSrc===src && DEM) return DEM;
+  _demShowId=id; _demSrc=src; DEM={q:{},off:{},extra:[],note:'',acc:{}};
+  var j=src, mig=false;
+  if(!j && id){ try{ j=JSON.parse(localStorage.getItem('pf_dem_'+id)||'null'); mig=!!j; }catch(e){} }
+  if(j&&typeof j==='object'){ DEM.q=Object.assign({},j.q||{}); DEM.off=Object.assign({},j.off||{}); DEM.extra=Array.isArray(j.extra)?j.extra.map(function(x){ return {n:String(x&&x.n||''),q:+(x&&x.q)||1}; }):[]; DEM.note=String(j.note||''); DEM.acc=Object.assign({},j.acc||{}); }
+  if(mig){ _demSave(); try{ localStorage.removeItem('pf_dem_'+id); }catch(e){} }
   return DEM;
 }
-function _demSave(){ try{ localStorage.setItem('pf_dem_'+((CUR_SHOW&&CUR_SHOW.id)||''),JSON.stringify(DEM)); }catch(e){} }
+function _demSave(){
+  if(!CUR_SHOW||!DEM) return;
+  var sd=CUR_SHOW.stage_data=CUR_SHOW.stage_data||{v:2};
+  sd.dem=JSON.parse(JSON.stringify(DEM)); _demSrc=sd.dem;
+  var show=CUR_SHOW; clearTimeout(_demT);
+  _demT=setTimeout(function(){ Promise.resolve(_sdPatch(show,['dem'])).then(function(r){ if(r&&r.error) toast('Demande non enregistrée : '+(r.error.message||r.error)); }); },600);
+}
 function _demBuild(){
   var D=_demLoad(), secs=[], chs=(typeof CHS!=='undefined'&&CHS)?CHS:[], outs=(typeof OUT_CHS!=='undefined'&&OUT_CHS)?OUT_CHS:[];
   var S=function(id,title,src,rows){ if(rows.length) secs.push({id:id,title:title,src:src,rows:rows}); };
@@ -20391,30 +20414,33 @@ function demAdd(){ var D=_demLoad(); D.extra.push({n:'',q:1}); _demSave(); rende
 function demExtra(i,f,val){ var D=_demLoad(), x=D.extra[i]; if(!x) return; if(f==='q') x.q=Math.max(1,Math.min(999,parseInt(val,10)||1)); else x.n=String(val).slice(0,120); _demSave(); }
 function demDel(i){ var D=_demLoad(); D.extra.splice(i,1); _demSave(); renderBon(); }
 function demNote(val){ _demLoad().note=String(val).slice(0,1500); _demSave(); }
-function demReset(){ if(!confirm('Revenir à la liste calculée ? Vos quantités, lignes écartées et lignes ajoutées seront effacées.')) return; _demLoad(); DEM={q:{},off:{},extra:[],note:''}; _demSave(); renderBon(); }
+function demReset(){ if(!confirm('Revenir à la liste calculée ? Vos quantités, lignes écartées et lignes ajoutées seront effacées.')) return; _demLoad(); DEM={q:{},off:{},extra:[],note:'',acc:{}}; _demSave(); renderBon(); }
 function _bonSwitchHtml(){
-  return '<div class="bonp-switch" role="tablist"><button type="button" class="'+(BON_VIEW==='ctrl'?'on':'')+'" onclick="bonView(\'ctrl\')"><i class="ti ti-clipboard-check"></i>Contrôler un bon reçu</button>'
-    +'<button type="button" class="'+(BON_VIEW==='dem'?'on':'')+'" onclick="bonView(\'dem\')"><i class="ti ti-send"></i>Demande au loueur</button></div>';
+  return '<div class="bonp-switch" role="tablist"><button type="button" class="'+(BON_VIEW==='dem'?'on':'')+'" onclick="bonView(\'dem\')"><i class="ti ti-send"></i><span>Demande<span class="bonp-sw-x"> au loueur</span></span></button>'
+    +'<button type="button" class="'+(BON_VIEW==='ctrl'?'on':'')+'" onclick="bonView(\'ctrl\')"><i class="ti ti-clipboard-check"></i><span>Contrôle<span class="bonp-sw-x"> du bon</span></span></button>'
+    +'<button type="button" class="'+(BON_VIEW==='chk'?'on':'')+'" onclick="bonView(\'chk\')"><i class="ti ti-checklist"></i>Pointage</button></div>';
 }
 function _demHtml(){
   var E=_bonE, d=_demBuild(), D=_demLoad();
   if(!d.secs.length && !D.extra.length) return '<div class="bonp-empty"><i class="ti ti-send"></i><b>Rien à demander pour l\'instant</b>'
     +'<span>La demande se remplit toute seule à partir de l\'input list (micros, DI, pieds), de l\'output list (retours, ears), du synoptique et du plan de site.</span>'
     +'<button type="button" class="btn pri" onclick="navIL(\'in\')"><i class="ti ti-list-numbers"></i>Ouvrir l\'input list</button></div>';
-  var h='<div class="bon-sum ok"><i class="ti ti-send"></i><span><b>'+d.lines+' ligne'+(d.lines>1?'s':'')+' à demander.</b> Ajustez les quantités, décochez ce que vous fournissez vous-même, puis exportez.</span>'
-    +'<em>Calculé depuis vos documents, mis à jour à chaque ouverture</em></div>';
+  var lk=_demLink();
+  var h='<div class="bon-sum ok"><i class="ti ti-send"></i><span><b>'+d.lines+' ligne'+(d.lines>1?'s':'')+' à demander.</b> Ajustez les quantités, décochez ce que vous fournissez vous-même, puis envoyez le lien au loueur ou exportez.</span>'
+    +'<em>'+(lk?'Lien loueur actif'+(_demChanged()?' · <b>la demande a changé depuis l\'envoi</b>':''):'Calculé depuis vos documents, partagé avec l\'équipe')+'</em></div>'+_demReplySum();
   d.secs.forEach(function(s){
     h+='<section class="ov-card bon-card"><div class="ov-card-hd"><h2>'+s.title+'</h2><span class="bon-reco-n">'+s.src+'</span></div><table class="bon-tbl dem-tbl"><tbody>'
       +s.rows.map(function(r){
         return '<tr class="'+(r.off?'off':'')+'"><td class="dem-ck"><input type="checkbox" class="cb" data-k="'+E(r.key)+'"'+(r.off?'':' checked')+' onchange="demToggle(this.dataset.k,this.checked)" title="Inclure dans la demande"></td>'
-          +'<td><b>'+E(r.name)+(r.adv?'<span class="bon-pill ext">Conseil</span>':'')+'</b>'+(r.det?'<span class="bon-hit w">'+E(r.det)+'</span>':'')+'</td>'
+          +'<td><b>'+E(r.name)+(r.adv?'<span class="bon-pill ext">Conseil</span>':'')+'</b>'+(r.det?'<span class="bon-hit w">'+E(r.det)+'</span>':'')+_demRepHtml(r.key)+'</td>'
           +'<td class="r"><input type="number" class="dem-q" min="0" max="999" value="'+r.qty+'" data-k="'+E(r.key)+'"'+(r.off?' disabled':'')+' onchange="demQty(this.dataset.k,this.value)" title="Calculé : '+r.auto+'"></td></tr>';
       }).join('')+'</tbody></table></section>';
   });
   h+='<section class="ov-card bon-card"><div class="ov-card-hd"><h2>Lignes ajoutées</h2><button class="ov-link" onclick="demAdd()">Ajouter une ligne</button></div>';
+  var xRep=function(i,x){ return _demRepHtml('x:'+i+':'+_bonNorm(x.n).slice(0,40)); };
   if(!D.extra.length) h+='<div class="ov-none">Console, multipaire, praticables, énergie… tout ce qui ne figure pas dans vos documents.</div>';
   else h+='<table class="bon-tbl dem-tbl"><tbody>'+D.extra.map(function(x,i){
-      return '<tr><td><input type="text" class="dem-xn" maxlength="120" placeholder="Désignation" value="'+E(x.n)+'" onchange="demExtra('+i+',\'n\',this.value)"></td>'
+      return '<tr><td><input type="text" class="dem-xn" maxlength="120" placeholder="Désignation" value="'+E(x.n)+'" onchange="demExtra('+i+',\'n\',this.value)">'+xRep(i,x)+'</td>'
         +'<td class="r"><input type="number" class="dem-q" min="1" max="999" value="'+(+x.q||1)+'" onchange="demExtra('+i+',\'q\',this.value)"></td>'
         +'<td class="dem-ck"><button type="button" class="ov-link" onclick="demDel('+i+')" title="Supprimer"><i class="ti ti-x"></i></button></td></tr>';
     }).join('')+'</tbody></table>';
@@ -20478,6 +20504,341 @@ async function demPdf(){
   }catch(e){ console.error('demPdf:',e); toast('Export impossible : '+(e&&e.message||e)); }
 }
 
+/* ══ Import du bon depuis d'autres sources que le PDF ══
+   Tout est lu dans le navigateur, sans service extérieur : tableur (Excel, CSV), texte collé depuis un e-mail,
+   photo ou scan (reconnaissance de texte faite sur l'appareil). Chaque source aboutit à la même liste
+   {ref, name, more, qty} que la lecture du PDF. */
+var _BON_NUM=/^\d{1,4}(?:[.,]\d{1,2})?$/;
+function _bonCellTxt(v){ return String(v==null?'':v).replace(/\s+/g,' ').trim(); }
+function _bonIsRef(t){ return /^[\/.]?[A-Z0-9][A-Z0-9\/.,+_-]{2,}$/.test(t) && /\d/.test(t) && !/^\d+([.,]\d+)?$/.test(t); }
+/* Tableau (lignes de cellules) : colonnes repérées sur la ligne de titres, sinon devinées */
+function _bonFromTable(rows){
+  rows=rows.map(function(r){ return (r||[]).map(_bonCellTxt); }).filter(function(r){ return r.some(Boolean); });
+  if(!rows.length) return [];
+  var H={ref:/^(r[ée]f(\.|[ée]rence)?|code|sku|n[°o]\s*(article)?|article\s*n)$/i, name:/(d[ée]signation|description|libell|produit|mat[ée]riel|^nom$|^name$|^item$|^article$)/i, qty:/^(qt[ée]s?\.?(\s*lou[ée]e)?|quantit[ée]s?|qty|quantity|nb|nombre|q)$/i};
+  var head=-1, col={};
+  for(var i=0;i<Math.min(rows.length,20) && head<0;i++){
+    var c={}; rows[i].forEach(function(t,j){ Object.keys(H).forEach(function(k){ if(c[k]==null && H[k].test(t)) c[k]=j; }); });
+    if(c.qty!=null && (c.name!=null || c.ref!=null)){ head=i; col=c; }
+  }
+  if(head<0){
+    /* Sans titres : la quantité est la colonne la plus souvent faite de petits nombres, la désignation la plus longue */
+    var w=Math.max.apply(null,rows.map(function(r){ return r.length; })), num=[], len=[], ref=[];
+    for(var j=0;j<w;j++){ num[j]=0; len[j]=0; ref[j]=0; rows.forEach(function(r){ var t=r[j]||''; if(_BON_NUM.test(t)) num[j]++; else { len[j]+=t.length; if(_bonIsRef(t)) ref[j]++; } }); }
+    col.qty=num.indexOf(Math.max.apply(null,num)); if(!num[col.qty]) return [];
+    var bestN=-1; len.forEach(function(l,j){ if(j!==col.qty && (bestN<0 || l>len[bestN])) bestN=j; }); col.name=bestN;
+    var bestR=-1; ref.forEach(function(n,j){ if(j!==col.qty && j!==col.name && n>rows.length/3 && (bestR<0 || n>ref[bestR])) bestR=j; }); if(bestR>=0) col.ref=bestR;
+  }
+  var out=[], last=null;
+  rows.slice(head+1).forEach(function(r){
+    var q=parseFloat(String(r[col.qty]||'').replace(',','.')), name=col.name!=null?r[col.name]||'':'', rf=col.ref!=null?r[col.ref]||'':'';
+    if(!(q>0) || !(name||rf)){ if(last && !q && name && !rf && !last.more && name.length<90) last.more=name; else last=null; return; }
+    if(/^(total|sous[- ]total|montant)/i.test(name)) return;
+    last={ref:rf, name:name||rf, more:'', qty:Math.round(q)}; out.push(last);
+  });
+  return out;
+}
+/* Texte libre (e-mail, reconnaissance de texte) : « 2 x SM58 », « SM58 x2 », « SM58 : 2 », « SM58      2 » */
+function _bonFromText(txt){
+  var lines=String(txt||'').replace(/\r/g,'').split('\n');
+  var tabbed=lines.filter(function(l){ return l.indexOf('\t')>=0; });
+  if(tabbed.length>=3 && tabbed.length>=lines.filter(function(l){ return l.trim(); }).length/2){
+    var t=_bonFromTable(lines.map(function(l){ return l.split('\t'); })); if(t.length) return t;
+  }
+  var out=[];
+  lines.forEach(function(l){
+    var s=l.replace(/^[\s>*•·\-–—]+/,'').replace(/\s+\d+[.,]\d{2}\s*(€|eur|ht|ttc)?.*$/i,'').replace(/\s+/g,' ').trim(), m, q=0, name='';
+    if(s.length<2 || /^(total|bonjour|cordialement|merci|objet|de :|à :|le .*a écrit)/i.test(s)) return;
+    if((m=s.match(/^(\d{1,4})\s*(?:x|×|\*|pcs?\.?|ex\.?|u\.?)?\s+(.{2,})$/i))){ q=+m[1]; name=m[2]; }
+    else if((m=s.match(/^(.{2,}?)\s*(?:x|×|\*|:|=|–|-)\s*(\d{1,4})\s*(?:pcs?\.?|ex\.?|u\.?|unit[ée]s?)?$/i))){ q=+m[2]; name=m[1]; }
+    else if((m=l.replace(/\t/g,'    ').match(/^\s*(.{2,}?)\s{3,}(\d{1,4})\s*$/))){ q=+m[2]; name=m[1].trim(); }
+    else if((m=s.match(/^(\S+\s.+?)\s(\d{1,4})$/)) && _bonIsRef(s.split(' ')[0])){ q=+m[2]; name=m[1]; }
+    if(!(q>0) || q>9999 || !/[a-z]/i.test(name)) return;
+    var p=name.split(' '), ref='';
+    if(p.length>1 && _bonIsRef(p[0])){ ref=p[0]; name=p.slice(1).join(' '); }
+    name=name.replace(/\s+/g,' ').trim();
+    out.push({ref:ref, name:name.replace(/[\s:;,.-]+$/,''), more:'', qty:q});
+  });
+  return out;
+}
+function _bonCsvRows(txt){
+  var first=String(txt).split('\n').slice(0,5).join('\n'), d=[';','\t',','].sort(function(a,b){ return first.split(b).length-first.split(a).length; })[0];
+  var rows=[], row=[], cur='', q=false;
+  for(var i=0;i<txt.length;i++){ var ch=txt[i];
+    if(q){ if(ch==='"'){ if(txt[i+1]==='"'){ cur+='"'; i++; } else q=false; } else cur+=ch; continue; }
+    if(ch==='"') q=true; else if(ch===d){ row.push(cur); cur=''; } else if(ch==='\n'){ row.push(cur); rows.push(row); row=[]; cur=''; } else if(ch!=='\r') cur+=ch; }
+  row.push(cur); rows.push(row);
+  return rows;
+}
+/* Reconnaissance de texte sur l'appareil (Tesseract, français) : photos et PDF scannés */
+var _ocrWorker=null;
+function _loadTesseract(){
+  if(window.Tesseract) return Promise.resolve(window.Tesseract);
+  return new Promise(function(res,rej){ var s=document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js'; s.crossOrigin='anonymous'; s.onload=function(){ res(window.Tesseract); }; s.onerror=function(){ rej(new Error('lecteur de texte indisponible')); }; document.head.appendChild(s); });
+}
+async function _bonOcr(images, onStep){
+  var T=await _loadTesseract();
+  if(!_ocrWorker) _ocrWorker=await T.createWorker('fra',1,{workerPath:'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js',corePath:'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.0',langPath:'https://cdn.jsdelivr.net/npm/@tesseract.js-data/fra/4.0.0_best_int'});
+  await _ocrWorker.setParameters({preserve_interword_spaces:'1'});
+  var txt='';
+  for(var i=0;i<images.length;i++){ if(onStep) onStep(i+1,images.length); var r=await _ocrWorker.recognize(images[i]); txt+=(r&&r.data&&r.data.text||'')+'\n'; }
+  return txt;
+}
+async function _bonPdfImages(buf){
+  var pdfjs=await _loadPdfJs(), pdf=await pdfjs.getDocument({data:buf, isEvalSupported:false}).promise, out=[];
+  for(var p=1;p<=Math.min(pdf.numPages,8);p++){
+    var pg=await pdf.getPage(p), vp=pg.getViewport({scale:2.2}), cv=document.createElement('canvas'); cv.width=vp.width; cv.height=vp.height;
+    await pg.render({canvasContext:cv.getContext('2d'), viewport:vp}).promise; out.push(cv);
+  }
+  return out;
+}
+/* Lit n'importe quel fichier de bon et renvoie ses lignes */
+async function _bonReadFile(f){
+  var n=(f.name||'').toLowerCase(), type=f.type||'';
+  if(/\.pdf$/.test(n) || type==='application/pdf'){
+    var buf=await f.arrayBuffer(), items=await _bonParse(buf.slice(0));
+    if(items.length) return items;
+    toast('PDF scanné : lecture du texte sur l\'appareil…');
+    return _bonFromText(await _bonOcr(await _bonPdfImages(buf), function(i,t){ toast('Lecture de la page '+i+' / '+t+'…'); }));
+  }
+  if(/\.(xlsx|xlsm|xls|ods)$/.test(n)){
+    var X=await _loadSheetJS(), wb=X.read(await f.arrayBuffer(),{type:'array'}), all=[];
+    wb.SheetNames.slice(0,6).forEach(function(s){ all=all.concat(_bonFromTable(X.utils.sheet_to_json(wb.Sheets[s],{header:1,raw:false,defval:''}))); });
+    return all;
+  }
+  if(/^image\//.test(type) || /\.(jpe?g|png|webp|heic)$/.test(n)){
+    toast('Lecture de la photo sur l\'appareil…');
+    return _bonFromText(await _bonOcr([f]));
+  }
+  var txt=await f.text();
+  if(/\.(csv|tsv)$/.test(n)){ var t=_bonFromTable(_bonCsvRows(txt)); if(t.length) return t; }
+  return _bonFromText(txt);
+}
+/* Enregistre un bon lu, quelle que soit sa source (compte du plan Gratuit compris) */
+async function _bonImport(items, name){
+  items=(items||[]).filter(function(i){ return i && i.qty>0 && (i.ref||i.name); }).slice(0,800);
+  if(!items.length){ toast('Aucune ligne de matériel avec une quantité n\'a été trouvée.'); return false; }
+  if(!(await _usageTake('bon','bon_loueur'))) return false;
+  _bonLoad(); BON={file:String(name||'Bon').slice(0,120), at:new Date().toISOString(), items:items, map:{}}; _bonSave(); _bonFreeMark();
+  toast('✓ Bon importé : '+items.length+' ligne'+(items.length>1?'s':'')+' de matériel');
+  if(!document.getElementById('panel-bon')?.classList.contains('on')) goTab('bon',null); else { BON_VIEW='ctrl'; _bonRefresh(); }
+  return true;
+}
+/* Coller le bon depuis un e-mail */
+function bonPaste(){
+  if(!_bonCanImport()){ showUpgradeModal('bon_loueur'); return; }
+  var m=document.getElementById('bon-paste');
+  if(!m){ m=document.createElement('div'); m.id='bon-paste'; m.className='modal-ov'; document.body.appendChild(m); m.addEventListener('click',function(e){ if(e.target===m) m.classList.remove('show'); }); }
+  m.innerHTML='<div class="modal-box bonx-box"><div class="modal-head"><span class="modal-title">Coller le bon</span><button class="modal-close" type="button" onclick="document.getElementById(\'bon-paste\').classList.remove(\'show\')" aria-label="Fermer"><i class="ti ti-x"></i></button></div>'
+    +'<div class="modal-body"><p class="bonx-lead">Copiez la liste depuis l\'e-mail ou le tableur du loueur. Une ligne par article, avec sa quantité : <code>2 x SM58</code>, <code>SM58 x2</code>, <code>DI BSS AR133 : 4</code>…</p>'
+    +'<textarea id="bon-paste-t" class="bonx-ta" placeholder="Collez ici"></textarea><div class="bonx-n" id="bon-paste-n"></div></div>'
+    +'<div class="modal-foot"><span style="flex:1"></span><button class="btn pri" type="button" id="bon-paste-ok" disabled><i class="ti ti-check"></i>Importer</button></div></div>';
+  m.classList.add('show');
+  var t=document.getElementById('bon-paste-t'), n=document.getElementById('bon-paste-n'), ok=document.getElementById('bon-paste-ok');
+  t.addEventListener('input',function(){ var it=_bonFromText(t.value); n.textContent=it.length?it.length+' ligne'+(it.length>1?'s':'')+' reconnue'+(it.length>1?'s':'')+' : '+it.slice(0,4).map(function(i){ return i.qty+' × '+(i.ref?i.ref+' ':'')+i.name; }).join(' · ')+(it.length>4?'…':''):''; ok.disabled=!it.length; });
+  ok.onclick=async function(){ if(await _bonImport(_bonFromText(t.value),'Bon collé le '+new Date().toLocaleDateString('fr-FR'))) m.classList.remove('show'); };
+  setTimeout(function(){ t.focus(); },50);
+}
+
+/* ══ Pointage à la livraison et au retour ══
+   Chaque ligne du bon (ou, sans bon, de la demande) est pointée : quantité reçue, articles HS.
+   stage_data.bonchk = {liv:{clé:{n,h,by,at}}, ret:{…}}. Un changement relit d'abord le pointage du serveur :
+   deux personnes peuvent pointer en même temps sans s'effacer. */
+var CHK_PHASE='liv', CHK_FILTER='todo', CHK_Q='';
+function _chkData(){ var sd=CUR_SHOW&&CUR_SHOW.stage_data; return (sd&&sd.bonchk&&typeof sd.bonchk==='object')?sd.bonchk:{}; }
+function _chkLines(){
+  var b=_bonLoad(), L=[], seen={};
+  var key=function(k){ k=k.slice(0,80); var o=k, i=2; while(seen[k]) k=o+'~'+(i++); seen[k]=1; return k; };
+  if(b){ b.items.forEach(function(i){ L.push({k:key('b:'+_bonNorm((i.ref||'')+'|'+i.name)), ref:i.ref||'', name:i.name, det:i.more||'', qty:i.qty}); }); return {src:'bon', lines:L}; }
+  var d=_demBuild();
+  d.secs.forEach(function(s){ s.rows.forEach(function(r){ if(!r.off && r.qty>0) L.push({k:key('d:'+r.key), ref:'', name:r.name, det:r.det||'', qty:r.qty, sec:s.title}); }); });
+  d.extra.forEach(function(x){ L.push({k:key('x:'+_bonNorm(x.n)), ref:'', name:String(x.n), det:'', qty:+x.q||1, sec:'Autres demandes'}); });
+  return {src:'dem', lines:L};
+}
+/* État d'une ligne pour la phase en cours (au retour, on attend ce qui a été reçu) */
+function _chkState(l, phase){
+  var D=_chkData(), liv=(D.liv||{})[l.k], v=(D[phase]||{})[l.k], exp=l.qty;
+  if(phase==='ret' && liv && liv.n!=null) exp=Math.max(0,(liv.n||0));
+  var n=v&&v.n!=null?v.n:null, h=v&&v.h||0;
+  var st=n==null?'todo':(n<exp?'miss':(h?'hs':'ok'));
+  return {exp:exp, n:n, h:h, st:st, by:v&&v.by||'', at:v&&v.at||0};
+}
+var _chkPend={}, _chkT=null;
+function _chkSet(k, val){
+  var sd=CUR_SHOW.stage_data=CUR_SHOW.stage_data||{v:2}, c=sd.bonchk=sd.bonchk&&typeof sd.bonchk==='object'?sd.bonchk:{}, ph=c[CHK_PHASE]=c[CHK_PHASE]||{};
+  var who=(typeof PROFILE!=='undefined'&&PROFILE&&PROFILE.full_name)||(ME&&ME.email)||'';
+  if(val){ val.by=String(who).slice(0,60); val.at=Date.now(); ph[k]=val; } else delete ph[k];
+  (_chkPend[CHK_PHASE]=_chkPend[CHK_PHASE]||{})[k]=val||null;
+  renderBon();
+  clearTimeout(_chkT); _chkT=setTimeout(_chkFlush,500);
+}
+async function _chkFlush(){
+  var show=CUR_SHOW, pend=_chkPend; _chkPend={}; if(!show) return;
+  var srv=null;
+  try{ var r=await sb.from('shows').select('stage_data->bonchk').eq('id',show.id).maybeSingle(); if(r&&!r.error&&r.data) srv=r.data.bonchk; }catch(e){}
+  var base=(srv&&typeof srv==='object')?srv:(show.stage_data.bonchk||{});
+  Object.keys(pend).forEach(function(ph){ var p=base[ph]=base[ph]||{}; Object.keys(pend[ph]).forEach(function(k){ if(pend[ph][k]) p[k]=pend[ph][k]; else delete p[k]; }); });
+  show.stage_data.bonchk=base;
+  var res=await _sdPatch(show,['bonchk']);
+  if(res&&res.error) toast('Pointage non enregistré : '+(res.error.message||res.error));
+  if(CUR_SHOW===show && document.getElementById('panel-bon')?.classList.contains('on') && BON_VIEW==='chk') renderBon();
+}
+function chkAct(k, a){
+  var c=_chkLines().lines.find(function(l){ return l.k===k; }); if(!c) return;
+  var s=_chkState(c, CHK_PHASE), n=s.n, h=s.h;
+  if(a==='ok'){ if(s.n===s.exp && !h){ _chkSet(k,null); return; } n=s.exp; h=0; }
+  else if(a==='plus'){ n=Math.min(9999,(n==null?0:n)+1); }
+  else if(a==='minus'){ n=Math.max(0,(n==null?s.exp:n)-1); }
+  else if(a==='zero'){ n=0; h=0; }
+  else if(a==='hs'){ if(n==null) n=s.exp; h=h>=Math.max(1,n)?0:h+1; }
+  _chkSet(k,{n:n,h:Math.min(h,n)});
+}
+function chkPhase(p){ CHK_PHASE=p; renderBon(); }
+function chkFilter(f){ CHK_FILTER=f; renderBon(); }
+function chkSearch(v){ CHK_Q=String(v||''); var q=_bonNorm(CHK_Q); document.querySelectorAll('.chk-row').forEach(function(r){ r.style.display=!q||r.dataset.s.indexOf(q)>=0?'':'none'; }); }
+function chkAllOk(){
+  var L=_chkLines().lines.filter(function(l){ return _chkState(l,CHK_PHASE).st==='todo'; }); if(!L.length) return;
+  if(!confirm('Marquer les '+L.length+' lignes restantes comme '+(CHK_PHASE==='ret'?'rendues':'reçues')+' au complet ?')) return;
+  L.forEach(function(l){ _chkSet(l.k,{n:_chkState(l,CHK_PHASE).exp,h:0}); });
+}
+function chkReset(){
+  if(!confirm('Effacer le pointage '+(CHK_PHASE==='ret'?'du retour':'de la livraison')+' ?')) return;
+  _chkLines().lines.forEach(function(l){ if(_chkState(l,CHK_PHASE).n!=null) _chkSet(l.k,null); });
+}
+function _chkReport(){
+  var C=_chkLines(), s=CUR_SHOW||{}, miss=[], hs=[], todo=0, ph=CHK_PHASE;
+  C.lines.forEach(function(l){ var x=_chkState(l,ph); var nm=(l.ref?l.ref+' · ':'')+l.name;
+    if(x.st==='todo') todo++;
+    if(x.n!=null && x.n<x.exp) miss.push((x.exp-x.n)+' × '+nm+' ('+(ph==='ret'?'rendu ':'reçu ')+x.n+' sur '+x.exp+')');
+    if(x.h) hs.push(x.h+' × '+nm); });
+  var t=(s.name||'Show')+(s.venue?' · '+s.venue:'')+(s.show_date?' · '+_pdfDateFr(_showDateISO(s.show_date)):'')+'\n'
+    +'Pointage '+(ph==='ret'?'du retour':'de la livraison')+' du '+new Date().toLocaleDateString('fr-FR')+'\n\n';
+  if(!miss.length && !hs.length) t+='Rien à signaler : tout le matériel pointé est '+(ph==='ret'?'rendu':'reçu')+' en bon état.\n';
+  if(miss.length) t+=(ph==='ret'?'Non rendu':'Manquant')+' :\n'+miss.map(function(x){ return '- '+x; }).join('\n')+'\n\n';
+  if(hs.length) t+='Hors service :\n'+hs.map(function(x){ return '- '+x; }).join('\n')+'\n\n';
+  if(todo) t+=todo+' ligne'+(todo>1?'s':'')+' non pointée'+(todo>1?'s':'')+'.\n';
+  return {t:t.trim(), n:miss.length+hs.length};
+}
+function chkReport(){
+  var r=_chkReport(), m=document.getElementById('bon-paste');
+  if(!m){ m=document.createElement('div'); m.id='bon-paste'; m.className='modal-ov'; document.body.appendChild(m); m.addEventListener('click',function(e){ if(e.target===m) m.classList.remove('show'); }); }
+  m.innerHTML='<div class="modal-box bonx-box"><div class="modal-head"><span class="modal-title">Rapport de pointage</span><button class="modal-close" type="button" onclick="document.getElementById(\'bon-paste\').classList.remove(\'show\')" aria-label="Fermer"><i class="ti ti-x"></i></button></div>'
+    +'<div class="modal-body"><textarea class="bonx-ta" id="chk-rep" readonly></textarea></div>'
+    +'<div class="modal-foot"><button class="btn" type="button" id="chk-rep-mail"><i class="ti ti-mail"></i>E-mail</button><span style="flex:1"></span><button class="btn pri" type="button" id="chk-rep-cp"><i class="ti ti-copy"></i>Copier</button></div></div>';
+  m.classList.add('show');
+  var ta=document.getElementById('chk-rep'); ta.value=r.t;
+  document.getElementById('chk-rep-cp').onclick=function(){ (navigator.clipboard?navigator.clipboard.writeText(r.t):Promise.reject()).then(function(){ toast('Rapport copié'); },function(){ ta.select(); document.execCommand('copy'); toast('Rapport copié'); }); };
+  document.getElementById('chk-rep-mail').onclick=function(){ location.href='mailto:?subject='+encodeURIComponent('Pointage '+(CHK_PHASE==='ret'?'retour':'livraison')+' · '+((CUR_SHOW&&CUR_SHOW.name)||''))+'&body='+encodeURIComponent(r.t.slice(0,1800)); };
+}
+function _chkHtml(){
+  var E=_bonE, C=_chkLines();
+  if(!C.lines.length) return '<div class="bonp-empty"><i class="ti ti-checklist"></i><b>Rien à pointer pour l\'instant</b><span>Importez le bon du loueur, ou préparez la demande : ses lignes servent de liste de pointage.</span>'
+    +'<button type="button" class="btn pri" onclick="bonView(\'ctrl\')"><i class="ti ti-upload"></i>Importer le bon</button></div>';
+  var rows=C.lines.map(function(l){ return {l:l, s:_chkState(l,CHK_PHASE)}; });
+  var cnt={todo:0, pb:0, all:rows.length}; rows.forEach(function(x){ if(x.s.st==='todo') cnt.todo++; if(x.s.st==='miss'||x.s.st==='hs') cnt.pb++; });
+  var done=rows.length-cnt.todo, pct=Math.round(done/rows.length*100);
+  var f=CHK_FILTER==='todo'&&!cnt.todo?'all':CHK_FILTER;
+  var vis=rows.filter(function(x){ return f==='all' || (f==='todo'&&x.s.st==='todo') || (f==='pb'&&(x.s.st==='miss'||x.s.st==='hs')); });
+  var lab={todo:'À pointer', ok:CHK_PHASE==='ret'?'Rendu':'Reçu', miss:CHK_PHASE==='ret'?'Non rendu':'Manquant', hs:'HS'};
+  var h='<div class="chk-top"><div class="chk-phase" role="tablist"><button type="button" class="'+(CHK_PHASE==='liv'?'on':'')+'" onclick="chkPhase(\'liv\')"><i class="ti ti-truck-delivery"></i>Livraison</button><button type="button" class="'+(CHK_PHASE==='ret'?'on':'')+'" onclick="chkPhase(\'ret\')"><i class="ti ti-truck-return"></i>Retour</button></div>'
+    +'<div class="chk-prog"><div><b>'+done+' / '+rows.length+'</b> ligne'+(rows.length>1?'s':'')+' pointée'+(done>1?'s':'')+(cnt.pb?' · <span class="bad">'+cnt.pb+' problème'+(cnt.pb>1?'s':'')+'</span>':'')+'<em>'+(C.src==='bon'?'d\'après le bon du loueur':'d\'après la demande au loueur')+'</em></div><span class="chk-bar"><i style="width:'+pct+'%"></i></span></div></div>'
+    +'<div class="chk-tools"><div class="chk-f">'+[['todo','À pointer',cnt.todo],['pb','Problèmes',cnt.pb],['all','Tout',cnt.all]].map(function(x){ return '<button type="button" class="'+(f===x[0]?'on':'')+'" onclick="chkFilter(\''+x[0]+'\')">'+x[1]+'<span>'+x[2]+'</span></button>'; }).join('')+'</div>'
+    +'<label class="chk-q"><i class="ti ti-search"></i><input type="search" placeholder="Chercher" value="'+E(CHK_Q)+'" oninput="chkSearch(this.value)"></label></div>';
+  h+='<div class="chk-list">'+(vis.length?vis.map(function(x){ var l=x.l, s=x.s;
+      return '<div class="chk-row st-'+s.st+'" data-k="'+E(l.k)+'" data-s="'+E(_bonNorm(l.ref+' '+l.name+' '+l.det))+'"><div class="chk-main"><b>'+E(l.name)+'</b><span>'+E([l.ref,l.det,l.sec].filter(Boolean).join(' · '))+'</span>'
+        +(s.st!=='todo'?'<em class="chk-st">'+lab[s.st]+(s.st==='miss'?' : '+(s.exp-s.n):'')+(s.h?' · '+s.h+' HS':'')+(s.by?' · '+E(s.by):'')+'</em>':'')+'</div>'
+        +'<div class="chk-ctl"><button type="button" data-a="minus" aria-label="Un de moins">−</button><span class="chk-n"><b>'+(s.n==null?'–':s.n)+'</b>/'+s.exp+'</span><button type="button" data-a="plus" aria-label="Un de plus">+</button>'
+        +'<button type="button" data-a="hs" class="chk-hs'+(s.h?' on':'')+'" title="Article hors service">HS'+(s.h?' '+s.h:'')+'</button>'
+        +'<button type="button" data-a="ok" class="chk-ok'+(s.st==='ok'?' on':'')+'" title="'+(CHK_PHASE==='ret'?'Tout rendu':'Tout reçu')+'"><i class="ti ti-check"></i></button></div></div>'; }).join('')
+      :'<div class="ov-none">'+(f==='pb'?'Aucun problème signalé.':'Tout est pointé.')+'</div>')+'</div>';
+  return h;
+}
+document.addEventListener('click',function(e){
+  var b=e.target.closest('.chk-row .chk-ctl button[data-a]'); if(!b) return;
+  chkAct(b.closest('.chk-row').dataset.k, b.dataset.a);
+});
+
+/* ══ Lien de demande pour le loueur ══
+   La demande est publiée dans la session (stage_data.demlink = {token, snap}) : le loueur l'ouvre sur
+   demande.html#jeton, sans compte, et répond ligne par ligne (disponible, équivalent, partiel, indisponible).
+   Sa réponse revient dans stage_data.demreply. Désactiver le lien retire les deux. */
+function _demSnap(){
+  var d=_demBuild(), s=CUR_SHOW||{}, L=[];
+  d.secs.forEach(function(sec){ sec.rows.forEach(function(r){ if(!r.off && r.qty>0) L.push({k:r.key, sec:sec.title, name:r.name, det:r.det||'', qty:r.qty}); }); });
+  _demLoad().extra.forEach(function(x,i){ if(!String(x&&x.n||'').trim()) return; L.push({k:'x:'+i+':'+_bonNorm(x.n).slice(0,40), sec:'Autres demandes', name:String(x.n), det:'', qty:+x.q||1}); });
+  return {show:{name:s.name||'', venue:s.venue||'', date:s.show_date?_pdfDateFr(_showDateISO(s.show_date)):''},
+    from:{name:(typeof PROFILE!=='undefined'&&PROFILE&&PROFILE.full_name)||'', co:(typeof _pdfBrand==='function'&&_pdfBrand().co)||''},
+    note:String(d.note||'').slice(0,1500), lines:L.slice(0,400)};
+}
+function _demToken(){ if(crypto.randomUUID) return crypto.randomUUID(); var b=crypto.getRandomValues(new Uint8Array(16)), h=''; b[6]=(b[6]&15)|64; b[8]=(b[8]&63)|128; for(var i=0;i<16;i++){ h+=(b[i]+256).toString(16).slice(1); if(i===3||i===5||i===7||i===9) h+='-'; } return h; }
+function _demLink(){ var sd=CUR_SHOW&&CUR_SHOW.stage_data; return sd&&sd.demlink&&sd.demlink.token?sd.demlink:null; }
+function _demReply(){ var sd=CUR_SHOW&&CUR_SHOW.stage_data; return sd&&sd.demreply&&typeof sd.demreply==='object'?sd.demreply:null; }
+function _demUrl(t){ return location.origin+'/demande.html#'+t; }
+function _demChanged(){ var l=_demLink(); if(!l||!l.snap) return false; var a=_demSnap(); return JSON.stringify([a.lines,a.note])!==JSON.stringify([l.snap.lines,l.snap.note]); }
+async function demPublish(){
+  if(!CUR_SHOW) return;
+  var snap=_demSnap(); if(!snap.lines.length){ toast('Aucune ligne à demander.'); return; }
+  var cur=_demLink(), tok=cur?cur.token:_demToken();
+  snap.v=((cur&&cur.snap&&cur.snap.v)||0)+1; snap.at=new Date().toISOString();
+  CUR_SHOW.stage_data=CUR_SHOW.stage_data||{v:2};
+  CUR_SHOW.stage_data.demlink={token:tok, snap:snap};
+  var r=await _sdPatch(CUR_SHOW,['demlink']);
+  if(r&&r.error){ toast('Lien non créé : '+(r.error.message||r.error)); return; }
+  renderBon(); demLinkOpen();
+}
+async function demUnpublish(){
+  if(!confirm('Désactiver le lien ? Le loueur ne pourra plus ouvrir la demande, et sa réponse sera effacée.')) return;
+  var sd=CUR_SHOW.stage_data; delete sd.demlink; delete sd.demreply;
+  await _sdPatch(CUR_SHOW,['demlink','demreply']);
+  var m=document.getElementById('bon-paste'); if(m) m.classList.remove('show');
+  renderBon();
+}
+function demLinkOpen(){
+  var l=_demLink(); if(!l){ demPublish(); return; }
+  var url=_demUrl(l.token), s=CUR_SHOW||{}, m=document.getElementById('bon-paste');
+  if(!m){ m=document.createElement('div'); m.id='bon-paste'; m.className='modal-ov'; document.body.appendChild(m); m.addEventListener('click',function(e){ if(e.target===m) m.classList.remove('show'); }); }
+  m.innerHTML='<div class="modal-box bonx-box"><div class="modal-head"><span class="modal-title">Lien pour le loueur</span><button class="modal-close" type="button" onclick="document.getElementById(\'bon-paste\').classList.remove(\'show\')" aria-label="Fermer"><i class="ti ti-x"></i></button></div>'
+    +'<div class="modal-body"><p class="bonx-lead">Le loueur ouvre la demande sans compte et répond ligne par ligne : disponible, équivalent proposé, quantité partielle ou indisponible. Sa réponse s\'affiche ici, dans la demande.</p>'
+    +'<div class="bonx-url"><input readonly id="dem-url"><button class="btn" type="button" id="dem-url-cp"><i class="ti ti-copy"></i>Copier</button></div>'
+    +'<p class="bonx-n">Version '+((l.snap&&l.snap.v)||1)+' · '+((l.snap&&l.snap.lines||[]).length)+' lignes'+(_demChanged()?' · <b>la demande a changé depuis</b>':'')+'</p></div>'
+    +'<div class="modal-foot"><button class="btn" type="button" onclick="demUnpublish()"><i class="ti ti-link-off"></i>Désactiver</button><span style="flex:1"></span>'
+    +(_demChanged()?'<button class="btn" type="button" onclick="demPublish()"><i class="ti ti-refresh"></i>Mettre à jour le lien</button>':'')
+    +'<button class="btn pri" type="button" id="dem-url-mail"><i class="ti ti-mail"></i>Envoyer par e-mail</button></div></div>';
+  m.classList.add('show');
+  document.getElementById('dem-url').value=url;
+  document.getElementById('dem-url-cp').onclick=function(){ (navigator.clipboard?navigator.clipboard.writeText(url):Promise.reject()).then(function(){ toast('Lien copié'); },function(){ var i=document.getElementById('dem-url'); i.select(); document.execCommand('copy'); toast('Lien copié'); }); };
+  document.getElementById('dem-url-mail').onclick=function(){ location.href='mailto:?subject='+encodeURIComponent('Demande de matériel · '+(s.name||''))+'&body='+encodeURIComponent('Bonjour,\n\nVoici notre demande de matériel pour '+(s.name||'le show')+(s.venue?' ('+s.venue+')':'')+'. Vous pouvez répondre ligne par ligne (disponibilité, équivalents) directement sur cette page :\n'+url+'\n\nMerci !'); };
+}
+/* Réponse du loueur pour une ligne de la demande */
+function _demRep(k){ var r=_demReply(); return r&&r.lines&&r.lines[k]||null; }
+var _DEM_RS={ok:['ok','Disponible'],alt:['alt','Équivalent'],part:['part','Partiel'],no:['no','Indisponible']};
+function _demRepHtml(k){
+  var x=_demRep(k), E=_bonE; if(!x||!_DEM_RS[x.s]) return '';
+  var D=_demLoad(), acc=D.acc&&D.acc[k];
+  return '<span class="dem-rep '+_DEM_RS[x.s][0]+'">'+_DEM_RS[x.s][1]+(x.s==='alt'&&x.alt?' : '+E(x.alt):'')+(x.s==='part'?' : '+(+x.q||0):'')+'</span>'
+    +(x.s==='alt'&&x.alt?(acc?'<span class="dem-acc"><i class="ti ti-check"></i>accepté</span>':'<button type="button" class="dem-acc-b" data-k="'+E(k)+'" onclick="demAccept(this.dataset.k)">Accepter</button>'):'')
+    +(x.c?'<span class="dem-rep-c">« '+E(x.c)+' »</span>':'');
+}
+/* Équivalent accepté : noté dans la demande ; pour un micro, il rejoint la colonne ALT des voies concernées
+   (le contrôle du bon le reconnaîtra) */
+function demAccept(k){
+  var x=_demRep(k); if(!x||!x.alt) return;
+  var D=_demLoad(); D.acc=D.acc||{}; D.acc[k]=String(x.alt).slice(0,60); _demSave();
+  if(/^mic:/.test(k) && typeof CHS!=='undefined'){
+    var nk=k.slice(4), n=0;
+    CHS.forEach(function(c){ if(_bonNorm(c.mic)===nk){ var cur=_ilAltList(_ilAltOf(c)); if(!cur.some(function(a){ return _bonNorm(a)===_bonNorm(x.alt); })){ cur.push(x.alt); saveCustomCell(c.id,'_alt',_ilAltClean(cur.join(' / '))); n++; } } });
+    if(n) toast('Équivalent accepté : ajouté en ALT sur '+n+' voie'+(n>1?'s':''));
+  } else toast('Équivalent accepté');
+  renderBon();
+}
+function _demReplySum(){
+  var r=_demReply(), l=_demLink(); if(!r||!r.lines) return '';
+  var c={ok:0,alt:0,part:0,no:0}; Object.keys(r.lines).forEach(function(k){ var s=r.lines[k]&&r.lines[k].s; if(c[s]!=null) c[s]++; });
+  var old=l&&l.snap&&r.v&&r.v<l.snap.v, E=_bonE, when=r.at?new Date(r.at).toLocaleString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'';
+  return '<div class="dem-rsum"><i class="ti ti-message-check"></i><div><b>Réponse du loueur'+(r.name?' · '+E(r.name):'')+'</b><span>'+[c.ok?c.ok+' disponible'+(c.ok>1?'s':''):'',c.alt?c.alt+' équivalent'+(c.alt>1?'s':''):'',c.part?c.part+' partiel'+(c.part>1?'s':''):'',c.no?c.no+' indisponible'+(c.no>1?'s':''):''].filter(Boolean).join(' · ')+(when?' · '+when:'')+(old?' · <b>répond à une version précédente</b>':'')+'</span>'
+    +(r.note?'<em>« '+E(r.note)+' »</em>':'')+(r.contact?'<em>Contact : '+E(r.contact)+'</em>':'')+'</div></div>';
+}
+
 /* Onglet « Bon du loueur » */
 function renderBon(){
   var root=document.getElementById('bon-root'); if(!root) return;
@@ -20487,26 +20848,33 @@ function renderBon(){
     return;
   }
   var hd=function(act){ return '<header class="bonp-head"><div><div class="bonp-eyebrow">'+E(CUR_SHOW.name||'')+'</div><h1>Bon du loueur</h1>'
-    +'<p>'+(BON_VIEW==='dem'?'Préparez la liste de matériel à envoyer au loueur, à partir de l\'input list, de l\'output list, du synoptique et du plan de site.'
+    +'<p>'+(BON_VIEW==='chk'?'Pointez le matériel à la livraison puis au retour, depuis un téléphone : ce qui manque ou est HS part dans le rapport pour le loueur.'
+         :BON_VIEW==='dem'?'Préparez la liste de matériel à envoyer au loueur, à partir de l\'input list, de l\'output list, du synoptique et du plan de site.'
          :'Contrôlez que le matériel de l\'input list, du synoptique et du plan de site figure sur le bon du loueur, en quantité suffisante.')+'</p></div>'
     +'<div class="bonp-act">'+act+'</div></header>'+_bonSwitchHtml(); };
   if(BON_VIEW==='dem'){
-    root.innerHTML=hd('<button class="btn" onclick="demReset()"><i class="ti ti-restore"></i>Recalculer</button><button class="btn pri" onclick="demPdf()"><i class="ti ti-file-type-pdf"></i>Exporter en PDF</button>')+_demHtml();
+    var lk=_demLink();
+    root.innerHTML=hd('<button class="btn" onclick="demReset()"><i class="ti ti-restore"></i>Recalculer</button><button class="btn" onclick="demPdf()"><i class="ti ti-file-type-pdf"></i>PDF</button>'
+      +'<button class="btn pri" onclick="demLinkOpen()"><i class="ti ti-link"></i>'+(lk?'Lien loueur'+(_demChanged()?' · à mettre à jour':''):'Envoyer au loueur')+'</button>')+_demHtml();
+    return;
+  }
+  if(BON_VIEW==='chk'){
+    root.innerHTML=hd('<button class="btn" onclick="chkReset()"><i class="ti ti-restore"></i>Effacer</button><button class="btn" onclick="chkAllOk()"><i class="ti ti-checks"></i>Tout '+(CHK_PHASE==='ret'?'rendu':'reçu')+'</button><button class="btn pri" onclick="chkReport()"><i class="ti ti-report"></i>Rapport</button>')+_chkHtml();
     return;
   }
   var c=_bonAll(), b=BON, can=_bonCanImport();
   if(!c){
     root.innerHTML=hd('')+_bonFreeHtml()+'<div class="bonp-empty"><i class="ti ti-clipboard-check"></i><b>Vérifiez le matériel avant le départ</b>'
-      +'<span>Importez le bon de préparation ou de livraison du loueur (PDF). Chaque document de la session est comparé au bon.</span>'
+      +'<span>Importez le bon de préparation ou de livraison du loueur : PDF, Excel ou CSV, photo ou scan, ou texte copié d\'un e-mail. Il est lu sur cet appareil, puis partagé avec l\'équipe de la session.</span>'
       +'<ul><li><i class="ti ti-list-numbers"></i><b>Input list</b> micros, DI et pieds de micro</li>'
       +'<li><i class="ti ti-topology-star"></i><b>Synoptique</b> consoles, stageboxes, amplis, enceintes, réseau</li>'
       +'<li><i class="ti ti-map-2"></i><b>Plan de site</b> diffusion, amplis, consoles, réseau</li></ul>'
-      +(can?'<button type="button" class="btn pri" onclick="bonPick()"><i class="ti ti-upload"></i>Importer le bon (PDF)</button>'
+      +(can?'<div class="bonp-imp"><button type="button" class="btn pri" onclick="bonPick()"><i class="ti ti-upload"></i>Importer un fichier</button><button type="button" class="btn" onclick="bonPaste()"><i class="ti ti-clipboard-text"></i>Coller le texte</button></div>'
            :'<button type="button" class="btn pri" onclick="showUpgradeModal(\'bon_loueur\')"><i class="ti ti-lock"></i>Contrôler aussi cette session</button>')+'</div>';
     return;
   }
   var h=hd('<span class="bon-file" title="'+E(b.file)+'"><i class="ti ti-file-text"></i>'+E(b.file)+'</span>'
-    +'<button class="btn" onclick="bonPick()"><i class="ti ti-refresh"></i>Remplacer</button><button class="btn" onclick="bonClear()"><i class="ti ti-trash"></i>Retirer</button>');
+    +'<button class="btn" onclick="bonPick()"><i class="ti ti-refresh"></i>Remplacer</button><button class="btn" onclick="bonPaste()" title="Coller le bon depuis un e-mail"><i class="ti ti-clipboard-text"></i>Coller</button><button class="btn" onclick="bonClear()"><i class="ti ti-trash"></i>Retirer</button>');
   h+=_bonFreeHtml()+_bonSumHtml(c)+_bonTilesHtml(c,true)+_bonRecoHtml(c);
   h+='<section class="ov-card bon-card" id="bon-sec-mics"><div class="ov-card-hd"><h2>Input list</h2><button class="ov-link" onclick="navIL(\'in\')">Ouvrir</button></div>'+_bonIlHtml(c)+'</section>';
   h+='<div class="bonp-two">'
@@ -20523,8 +20891,8 @@ function _bonCardHtml(){
   var hd='<section class="ov-card ov-span2 bon-card"><div class="ov-card-hd"><h2>Bon du loueur</h2>';
   var c=_bonAll();
   if(!c) return hd+'<button class="ov-link" onclick="goTab(\'bon\',null)">Ouvrir</button></div>'
-    +'<div class="bon-empty"><i class="ti ti-clipboard-check"></i><div><b>Vérifiez le matériel avant le départ</b><span>Importez le bon du loueur (PDF) : PatchFlow contrôle que le matériel de l\'input list, du synoptique et du plan de site y figure.</span></div>'
-    +'<button type="button" class="btn pri" onclick="bonPick()"><i class="ti ti-'+(_bonCanImport()?'upload':'lock')+'"></i>Importer le bon (PDF)</button></div></section>';
+    +'<div class="bon-empty"><i class="ti ti-clipboard-check"></i><div><b>Vérifiez le matériel avant le départ</b><span>Importez le bon du loueur (PDF, tableur, photo ou texte) : PatchFlow contrôle que le matériel de l\'input list, du synoptique et du plan de site y figure.</span></div>'
+    +'<button type="button" class="btn pri" onclick="bonPick()"><i class="ti ti-'+(_bonCanImport()?'upload':'lock')+'"></i>Importer le bon</button></div></section>';
   return hd+'<span class="bon-file" title="'+_bonE(BON.file)+'"><i class="ti ti-file-text"></i>'+_bonE(BON.file)+'</span><button class="ov-link" onclick="goTab(\'bon\',null)">Ouvrir le contrôle</button></div>'
     +_bonSumHtml(c)+_bonTilesHtml(c,false)+'</section>';
 }
@@ -26557,7 +26925,7 @@ function goTab(id,el){
   if(id==='rf' && typeof renderRf==='function') renderRf();
   if(id==='road' && typeof renderRoad==='function') renderRoad();
   if(id==='festival' && typeof renderFestival==='function') renderFestival();
-  if((id==='racks'||id==='rf'||id==='road'||id==='festival') && typeof _sdRefresh==='function') _sdRefresh(true);
+  if((id==='racks'||id==='rf'||id==='road'||id==='festival'||id==='bon') && typeof _sdRefresh==='function') _sdRefresh(true);
   if(id==='settings' && !document.querySelector('#panel-settings .set-sec.on')) setNav('profil');
   if(typeof _ilSelSync==='function') _ilSelSync();
   if(typeof _rfSelSync==='function') _rfSelSync();

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+<meta name="robots" content="noindex,nofollow"/>
+<meta name="referrer" content="no-referrer"/>
+<title>Demande de matériel · PatchFlow</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
+<link rel="preconnect" href="https://ofiiutcueoogmtdvaupg.supabase.co" crossorigin/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/>
+<style>
+:root{--bg:#f6f7f9;--surf:#fff;--surf2:#f0f2f5;--bdr:#e3e6eb;--txt:#151a22;--txt2:#4a5363;--muted:#7a8494;--ora:#ff6b1a;--ora-d:rgba(255,107,26,.1);--grn:#1f9d55;--red:#d93838;--amb:#c47a00;--f:'Archivo',system-ui,sans-serif;--m:'DM Mono',ui-monospace,monospace}
+@media (prefers-color-scheme:dark){:root{--bg:#0e1116;--surf:#161a21;--surf2:#1e232c;--bdr:#272d38;--txt:#eef1f5;--txt2:#b7bfcc;--muted:#8a93a3;--ora-d:rgba(255,107,26,.16)}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.45 var(--f);-webkit-font-smoothing:antialiased}
+.w{max-width:860px;margin:0 auto;padding:24px 16px 120px}
+.brand{display:flex;align-items:center;gap:8px;font:700 13px var(--f);color:var(--muted);letter-spacing:.02em;margin-bottom:18px}
+.brand i{color:var(--ora);font-size:18px}
+h1{margin:0 0 4px;font-size:26px;letter-spacing:-.01em}
+.meta{color:var(--txt2);font-size:14px;display:flex;flex-wrap:wrap;gap:6px 14px}
+.meta span{display:inline-flex;align-items:center;gap:5px}
+.note{margin:16px 0 0;padding:12px 14px;border-radius:10px;background:var(--surf);box-shadow:inset 0 0 0 1px var(--bdr);color:var(--txt2);white-space:pre-wrap}
+.intro{margin:18px 0 8px;padding:12px 14px;border-radius:10px;background:var(--ora-d);color:var(--txt);font-size:14px}
+.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:18px 0 6px}
+.bar .grow{flex:1}
+.btn{display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 14px;border:0;border-radius:9px;background:var(--surf);box-shadow:inset 0 0 0 1px var(--bdr);color:var(--txt);font:600 14px var(--f);cursor:pointer}
+.btn:hover{box-shadow:inset 0 0 0 1px var(--muted)}
+.btn.pri{background:var(--ora);box-shadow:none;color:#fff}
+.btn:disabled{opacity:.5;cursor:default}
+h2{margin:26px 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.ln{display:grid;grid-template-columns:52px 1fr;gap:4px 12px;padding:12px 14px;margin-bottom:8px;border-radius:12px;background:var(--surf);box-shadow:inset 0 0 0 1px var(--bdr)}
+.ln.s-ok{box-shadow:inset 3px 0 0 var(--grn),inset 0 0 0 1px var(--bdr)}.ln.s-alt{box-shadow:inset 3px 0 0 var(--ora),inset 0 0 0 1px var(--bdr)}.ln.s-part{box-shadow:inset 3px 0 0 var(--amb),inset 0 0 0 1px var(--bdr)}.ln.s-no{box-shadow:inset 3px 0 0 var(--red),inset 0 0 0 1px var(--bdr)}
+.q{grid-row:span 2;font:600 20px var(--m);color:var(--ora);text-align:right;padding-top:1px}
+.n b{font-weight:600}.n span{display:block;font-size:13px;color:var(--muted)}
+.ctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}
+.seg{display:inline-flex;border-radius:9px;background:var(--surf2);padding:3px;gap:2px;flex-wrap:wrap}
+.seg button{height:30px;padding:0 10px;border:0;border-radius:7px;background:transparent;color:var(--txt2);font:600 12.5px var(--f);cursor:pointer}
+.seg button.on[data-s=ok]{background:var(--grn);color:#fff}.seg button.on[data-s=alt]{background:var(--ora);color:#fff}.seg button.on[data-s=part]{background:var(--amb);color:#fff}.seg button.on[data-s=no]{background:var(--red);color:#fff}
+.in{height:32px;padding:0 10px;border:1px solid var(--bdr);border-radius:8px;background:var(--surf);color:var(--txt);font:14px var(--f);min-width:0}
+.in:focus{outline:none;border-color:var(--ora)}
+.in.alt{flex:1 1 180px}.in.qty{width:80px}.in.c{flex:1 1 220px}
+.foot{margin-top:28px;padding:16px;border-radius:12px;background:var(--surf);box-shadow:inset 0 0 0 1px var(--bdr);display:grid;gap:10px}
+.foot label{display:grid;gap:5px;font-size:13px;color:var(--muted)}
+.foot .in{height:38px;font-size:15px}
+textarea.in{height:90px;padding:8px 10px;resize:vertical}
+.send{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-top:1px solid var(--bdr)}
+.send .in2{max-width:860px;margin:0 auto;display:flex;align-items:center;gap:12px}
+.send .st{flex:1;font-size:13px;color:var(--muted)}
+.empty{text-align:center;padding:80px 16px;color:var(--muted)}
+.empty i{font-size:40px;color:var(--ora);display:block;margin-bottom:10px}
+.ok-msg{color:var(--grn);font-weight:600}
+@media (max-width:560px){.ln{grid-template-columns:30px 1fr;padding:12px}.q{font-size:17px}h1{font-size:22px}.ctl{grid-column:1/-1}.seg{display:grid;grid-template-columns:repeat(4,1fr);width:100%}.seg button{padding:0 2px;font-size:11.5px}.in.alt,.in.c{flex:1 1 100%}}
+</style>
+</head>
+<body>
+<div class="w" id="app"><div class="empty"><i class="ti ti-loader-2"></i>Chargement de la demande…</div></div>
+<div class="send" id="send" hidden><div class="in2"><span class="st" id="st"></span><button class="btn pri" id="go"><i class="ti ti-send"></i>Envoyer la réponse</button></div></div>
+<script>
+(function(){
+  var URL_='https://ofiiutcueoogmtdvaupg.supabase.co/rest/v1/rpc/', KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9maWl1dGN1ZW9vZ210ZHZhdXBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4NTA2NjcsImV4cCI6MjA5NDQyNjY2N30.PSZMkuq7GBJiQMhh5shH_tOZ6DAmA310K4c7au9e4mE';
+  var tok=(location.hash||'').slice(1).toLowerCase(), app=document.getElementById('app');
+  var E=function(t){ return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+  var rpc=function(fn,body){ return fetch(URL_+fn,{method:'POST',headers:{'apikey':KEY,'Authorization':'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){ return r.json().then(function(j){ if(!r.ok) throw new Error(j&&j.message||'Erreur '+r.status); return j; }); }); };
+  var none=function(msg){ app.innerHTML='<div class="empty"><i class="ti ti-link-off"></i>'+E(msg)+'</div>'; };
+  if(!/^[0-9a-f-]{36}$/.test(tok)){ none('Ce lien de demande est incomplet.'); return; }
+  var SNAP=null, REP={lines:{}}, DKEY='pf_demrep_'+tok, dirty=false;
+  rpc('pf_dem_get',{p_token:tok}).then(function(d){
+    if(!d||!d.snap){ none('Cette demande n\'est plus disponible : le lien a été désactivé.'); return; }
+    SNAP=d.snap; if(d.reply&&d.reply.lines) REP=d.reply;
+    try{ var dr=JSON.parse(localStorage.getItem(DKEY)||'null'); if(dr&&dr.v===SNAP.v&&dr.lines){ REP=dr; dirty=true; } }catch(e){}
+    REP.lines=REP.lines||{}; render();
+  }).catch(function(e){ none('Impossible de charger la demande ('+e.message+').'); });
+  function save(){ dirty=true; try{ localStorage.setItem(DKEY,JSON.stringify(Object.assign({},REP,{v:SNAP.v}))); }catch(e){} stat(); }
+  function stat(){
+    var L=SNAP.lines, n=L.filter(function(l){ return REP.lines[l.k]&&REP.lines[l.k].s; }).length, st=document.getElementById('st');
+    st.innerHTML=n+' / '+L.length+' ligne'+(L.length>1?'s':'')+' renseignée'+(n>1?'s':'')+(REP.at&&!dirty?' · <span class="ok-msg">réponse envoyée</span>':'');
+  }
+  function render(){
+    var s=SNAP.show||{}, f=SNAP.from||{}, by={}, order=[];
+    SNAP.lines.forEach(function(l){ if(!by[l.sec]){ by[l.sec]=[]; order.push(l.sec); } by[l.sec].push(l); });
+    var h='<div class="brand"><i class="ti ti-send"></i>DEMANDE DE MATÉRIEL</div><h1>'+E(s.name||'Show')+'</h1><div class="meta">'
+      +(s.date?'<span><i class="ti ti-calendar"></i>'+E(s.date)+'</span>':'')+(s.venue?'<span><i class="ti ti-map-pin"></i>'+E(s.venue)+'</span>':'')
+      +((f.name||f.co)?'<span><i class="ti ti-user"></i>'+E([f.name,f.co].filter(Boolean).join(' · '))+'</span>':'')+'</div>'
+      +(SNAP.note?'<div class="note">'+E(SNAP.note)+'</div>':'')
+      +'<div class="intro">Indiquez pour chaque ligne si elle est disponible, l\'équivalent que vous proposez, une quantité partielle ou une indisponibilité, puis envoyez. Vous pouvez revenir modifier votre réponse avec ce même lien.</div>'
+      +'<div class="bar"><span class="grow"></span><button class="btn" id="all"><i class="ti ti-checks"></i>Tout disponible</button></div>';
+    order.forEach(function(sec){
+      h+='<h2>'+E(sec)+'</h2>'+by[sec].map(function(l){ var x=REP.lines[l.k]||{};
+        return '<div class="ln s-'+E(x.s||'')+'" data-k="'+E(l.k)+'"><div class="q">'+(+l.qty||0)+'</div><div class="n"><b>'+E(l.name)+'</b>'+(l.det?'<span>'+E(l.det)+'</span>':'')+'</div>'
+          +'<div class="ctl"><div class="seg">'+[['ok','Disponible'],['alt','Équivalent'],['part','Partiel'],['no','Indisponible']].map(function(o){ return '<button type="button" data-s="'+o[0]+'" class="'+(x.s===o[0]?'on':'')+'">'+o[1]+'</button>'; }).join('')+'</div>'
+          +(x.s==='alt'?'<input class="in alt" data-f="alt" maxlength="120" placeholder="Modèle proposé" value="'+E(x.alt||'')+'">':'')
+          +(x.s==='part'?'<input class="in qty" data-f="q" type="number" min="0" max="9999" placeholder="Qté" value="'+E(x.q==null?'':x.q)+'">':'')
+          +'<input class="in c" data-f="c" maxlength="300" placeholder="Commentaire (facultatif)" value="'+E(x.c||'')+'"></div></div>'; }).join('');
+    });
+    h+='<div class="foot"><label>Société / nom<input class="in" id="nm" maxlength="80" value="'+E(REP.name||'')+'"></label><label>Contact (téléphone ou e-mail)<input class="in" id="ct" maxlength="120" value="'+E(REP.contact||'')+'"></label><label>Remarque générale<textarea class="in" id="nt" maxlength="2000">'+E(REP.note||'')+'</textarea></label></div>';
+    app.innerHTML=h; document.getElementById('send').hidden=false; stat();
+  }
+  app.addEventListener('click',function(e){
+    var b=e.target.closest('.seg button'); if(b){ var k=b.closest('.ln').dataset.k, x=REP.lines[k]=REP.lines[k]||{}; x.s=x.s===b.dataset.s?undefined:b.dataset.s; if(!x.s) delete REP.lines[k]; save(); render(); var f=document.querySelector('.ln[data-k="'+CSS.escape(k)+'"] .in.'+(x.s==='alt'?'alt':x.s==='part'?'qty':'zz')); if(f) f.focus(); return; }
+    if(e.target.closest('#all')){ SNAP.lines.forEach(function(l){ var x=REP.lines[l.k]=REP.lines[l.k]||{}; if(!x.s) x.s='ok'; }); save(); render(); }
+  });
+  app.addEventListener('input',function(e){
+    var t=e.target;
+    if(t.id==='nm') REP.name=t.value; else if(t.id==='ct') REP.contact=t.value; else if(t.id==='nt') REP.note=t.value;
+    else if(t.dataset.f){ var k=t.closest('.ln').dataset.k, x=REP.lines[k]=REP.lines[k]||{}; x[t.dataset.f]=t.value; }
+    save();
+  });
+  document.getElementById('go').addEventListener('click',function(){
+    var b=this; b.disabled=true;
+    rpc('pf_dem_reply',{p_token:tok,p_reply:{lines:REP.lines,name:REP.name||'',contact:REP.contact||'',note:REP.note||''}}).then(function(r){
+      REP.at=r&&r.at; dirty=false; try{ localStorage.removeItem(DKEY); }catch(e){} stat(); b.disabled=false; b.innerHTML='<i class="ti ti-check"></i>Réponse envoyée';
+      setTimeout(function(){ b.innerHTML='<i class="ti ti-send"></i>Envoyer la réponse'; },2500);
+    }).catch(function(e){ b.disabled=false; alert('Envoi impossible : '+e.message); });
+  });
+})();
+</script>
+</body>
+</html>
