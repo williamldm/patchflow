@@ -5907,3 +5907,14 @@ html[data-sv-theme="dark"],html[data-sv-theme="dark"] body{background:#0c0e12}
 .spl-adj-ang{display:flex;align-items:center;gap:4px;padding:0 6px;height:28px;border-radius:8px;background:#232a35}
 .spl-adj-ang input{width:44px;border:0;background:transparent;color:#fff;font:600 12px var(--m);text-align:right;outline:none}
 @media (max-width:900px){.spl-adj-tip{display:none}}
+
+/* Images superposées au fond du plan de site */
+#site-ovl{position:absolute;top:0;left:0;transform-origin:0 0;pointer-events:none}
+#site-ovl img{position:absolute;left:0;top:0;max-width:none;transform-origin:center;pointer-events:none;user-select:none}
+.spl-ov-list{display:flex;flex-direction:column;gap:3px;margin-top:5px}
+.spl-ov-row{display:flex;align-items:center;gap:5px;padding:3px 4px 3px 7px;border-radius:7px;background:var(--bg2,rgba(127,127,127,.08));font:500 10.5px/1.2 var(--f);color:var(--txt)}
+.spl-ov-row.off{opacity:.5}
+.spl-ov-row>.ti{font-size:12px;color:var(--ora)}
+.spl-ov-row span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.spl-ov-row button{width:22px;height:22px;display:flex;align-items:center;justify-content:center;border:0;border-radius:6px;background:transparent;color:var(--muted);cursor:pointer;font-size:13px;padding:0}
+.spl-ov-row button:hover{background:rgba(127,127,127,.15);color:var(--txt)}

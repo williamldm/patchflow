@@ -15758,6 +15758,27 @@ function _spLegend(ctx, rows, LS, SCALE, ch){
   });
 }
 
+/* Images superposées au fond du plan de site (calque entre le fond et les éléments) */
+function _spOverlayList(list){
+  return (Array.isArray(list)?list:[]).filter(function(o){ return o && typeof o.src==='string' && _safeImgSrc(o.src)===o.src && /^data:image\//.test(o.src)
+    && [o.x,o.y,o.w,o.h].every(function(v){ return Number.isFinite(+v); }) && +o.w>0 && +o.h>0; }).slice(0,12)
+    .map(function(o){ return {id:String(o.id||'').replace(/[^\w-]/g,'').slice(0,40)||('ov'+Math.random().toString(36).slice(2,8)), src:o.src, name:String(o.name||'Image').slice(0,60),
+      x:+o.x, y:+o.y, w:+o.w, h:+o.h, rot:Number.isFinite(+o.rot)?+o.rot:0, op:Number.isFinite(+o.op)?Math.max(5,Math.min(100,+o.op)):100, hidden:!!o.hidden}; });
+}
+function _spOverlayBox(o){
+  var a=(o.rot||0)*Math.PI/180, c=Math.abs(Math.cos(a)), s=Math.abs(Math.sin(a)), W=o.w*c+o.h*s, H=o.w*s+o.h*c;
+  return {x:o.x+o.w/2-W/2, y:o.y+o.h/2-H/2, w:W, h:H};
+}
+function _spDrawOverlays(ctx, list, imgs, wx, wy, SCALE){
+  (list||[]).forEach(function(o){
+    var im=imgs&&imgs[o.id]; if(!im||o.hidden) return;
+    ctx.save(); ctx.globalAlpha=(o.op==null?100:o.op)/100;
+    ctx.translate(wx(o.x+o.w/2), wy(o.y+o.h/2)); if(o.rot) ctx.rotate(o.rot*Math.PI/180);
+    try{ ctx.drawImage(im, -o.w/2*SCALE, -o.h/2*SCALE, o.w*SCALE, o.h*SCALE); }catch(e){}
+    ctx.restore();
+  });
+}
+
 function _spDrawSiteNode(ctx, el, ex, ey, SCALE, TS, opt){
   opt=opt||{}; TS=TS||1;
   var elTS=el.elTextScale||1;
@@ -16192,7 +16213,7 @@ const SitePlan = (() => {
     renderCablePicker(); renderCables(); renderLegend();
   }
 
-  let state = { elements:[], cables:[], bgImage:null, bgOpacity:100, bgRotation:0, view:{panX:60,panY:60,zoom:1}, selected:null, linkFrom:null, freePt1:null, drawPts:[], activeCableType:'xlr', textScale:1, legendScale:1, cableTextScale:1, cableMode:false, scale:null, measureOpts:{}, measures:[], tool:null, toolPts:[], toolCur:null, multi:[], areas:[], layersOff:{}, bgGeo:null, bgScale:1, symK:1 };
+  let state = { elements:[], cables:[], bgImage:null, bgOpacity:100, bgRotation:0, view:{panX:60,panY:60,zoom:1}, selected:null, linkFrom:null, freePt1:null, drawPts:[], activeCableType:'xlr', textScale:1, legendScale:1, cableTextScale:1, cableMode:false, scale:null, measureOpts:{}, measures:[], tool:null, toolPts:[], toolCur:null, multi:[], areas:[], layersOff:{}, bgGeo:null, bgScale:1, symK:1, overlays:[] };
   let dragging=null, panning=null, inited=false, resizing=null, _wpDrag=null, _wpAddCid=null, rotating=null, _mDrag=null, lasso=null, areaDrag=null, areaRsz=null;
 
   const $  = id => document.getElementById(id);
@@ -16296,6 +16317,8 @@ const SitePlan = (() => {
     if(nn){ nn.style.transform = tc; nn.style.setProperty('--spl-ts', state.textScale*_K()); nn.style.setProperty('--spl-k', _K()); }
     if(cc) cc.style.transform = tc;
     const mt = $('site-mt'); if(mt) mt.style.transform = tc;
+    const ovl = $('site-ovl'); if(ovl) ovl.style.transform = tc;
+    if(_ova) _ovaDraw();
     _mtRaf();
     if(bg){
       /* Le fond peut être pivoté autour de son propre centre. On compose la
@@ -17684,6 +17707,7 @@ const SitePlan = (() => {
 
     // Escape cancels link / free cable drawing
     document.addEventListener('keydown',e=>{
+      if(_ova&&host.offsetParent!==null){ const tn=e.target&&e.target.tagName; if(e.key==='Escape'){ _ovaEnd(false); e.preventDefault(); return; } if(e.key==='Enter'&&tn!=='INPUT'){ _ovaEnd(true); e.preventDefault(); return; } if(tn!=='INPUT') return; }
       if(_adj&&host.offsetParent!==null){ const tn=e.target&&e.target.tagName; if(e.key==='Escape'){ _adjEnd(false); e.preventDefault(); return; } if(e.key==='Enter'&&tn!=='INPUT'){ _adjApply(); e.preventDefault(); return; } if(tn!=='INPUT') return; }
       if(e.key==='Escape'&&_wpAddCid){ _setWpAddMode(null); return; }
       if(e.key==='Escape'&&state.tool&&host.offsetParent!==null){ if(state.toolPts.length){ state.toolPts=[]; renderMeasures(); _renderMTools(); } else stopTool(); e.preventDefault(); return; }
@@ -17977,6 +18001,8 @@ const SitePlan = (() => {
     if(!file) return;
     const dataUrl=await _bgFileToDataUrl(file);
     if(!dataUrl) return;
+    /* Fond satellite déjà posé : l'image vient par-dessus, le satellite et son échelle restent */
+    if(state.bgGeo){ _ovAdd(dataUrl, file.name); return; }
     state.bgImage=dataUrl;
     applyBg();
     saveSite();
@@ -17993,7 +18019,7 @@ const SitePlan = (() => {
       } else { img.onload=null; img.src='';img.style.display='none'; }
     }
     if(ctrl)ctrl.style.display=state.bgImage?'block':'none';
-    applyTransform();
+    applyTransform(); _renderOv();
   }
 
   function setBgOpacity(val) { state.bgOpacity=+val; const img=$('site-bg-img'); if(img)img.style.opacity=val/100; saveSite(); }
@@ -18012,6 +18038,137 @@ const SitePlan = (() => {
     if(d>180) d-=360;         // -179..180 (180 reste 180)
     setBgRotation(d);
   }
+  /* ══ Images superposées au fond ══
+     Un plan de masse, un plan d'implantation ou un visuel posé par-dessus la vue satellite :
+     déplacé, agrandi, pivoté et rendu transparent dans un mode d'ajustement ; hors de ce mode il
+     ne capte aucun clic. Il passe à l'export et dans le rider partagé. */
+  let _ova=null;
+  function _renderOv(){
+    const vp=$('site-viewport'), bg=$('site-bg-img'); if(!vp) return;
+    let box=$('site-ovl');
+    if(!box){ box=document.createElement('div'); box.id='site-ovl'; if(bg&&bg.nextSibling) vp.insertBefore(box, bg.nextSibling); else vp.appendChild(box); }
+    const list=state.overlays||[], have={};
+    list.forEach(o=>{
+      have[o.id]=1;
+      let im=box.querySelector(`img[data-id="${o.id}"]`);
+      if(!im){ im=document.createElement('img'); im.dataset.id=o.id; im.alt=''; im.draggable=false; box.appendChild(im); }
+      if(im.getAttribute('src')!==o.src) im.src=_safeImgSrc(o.src);
+      im.style.width=o.w+'px'; im.style.height=o.h+'px';
+      im.style.transform=`translate(${o.x}px,${o.y}px) rotate(${o.rot||0}deg)`;
+      im.style.opacity=(o.op==null?100:o.op)/100; im.style.display=o.hidden?'none':'';
+    });
+    box.querySelectorAll('img[data-id]').forEach(im=>{ if(!have[im.dataset.id]) im.remove(); });
+    box.style.transform=`translate(${state.view.panX}px,${state.view.panY}px) scale(${state.view.zoom})`;
+    const wr=$('site-ov-wrap'); if(wr) wr.style.display=(state.bgImage||list.length)?'':'none';
+    const ls=$('site-ov-list');
+    if(ls) ls.innerHTML=list.map((o,i)=>`<div class="spl-ov-row${o.hidden?' off':''}"><i class="ti ti-photo"></i><span title="${esc(o.name)}">${esc(o.name||('Image '+(i+1)))}</span>`+
+      `<button type="button" data-ov="eye" data-id="${o.id}" title="${o.hidden?'Afficher':'Masquer'}"><i class="ti ${o.hidden?'ti-eye-off':'ti-eye'}"></i></button>`+
+      `<button type="button" data-ov="adj" data-id="${o.id}" title="Déplacer, agrandir, pivoter, transparence"><i class="ti ti-adjustments"></i></button>`+
+      `<button type="button" data-ov="del" data-id="${o.id}" title="Retirer l'image"><i class="ti ti-trash"></i></button></div>`).join('');
+    if(ls && !ls._wired){ ls._wired=1; ls.addEventListener('click',e=>{
+      const b=e.target.closest('[data-ov]'); if(!b) return; const o=(state.overlays||[]).find(x=>x.id===b.dataset.id); if(!o) return;
+      if(b.dataset.ov==='eye'){ o.hidden=!o.hidden; saveSite(); _renderOv(); }
+      else if(b.dataset.ov==='adj'){ if(o.hidden){ o.hidden=false; _renderOv(); } adjustOverlay(o.id); }
+      else if(b.dataset.ov==='del'){ if(!confirm('Retirer cette image du plan ?')) return; state.overlays=state.overlays.filter(x=>x.id!==o.id); if(_ova&&_ova.id===o.id) _ovaEnd(false); saveSite(); _renderOv(); }
+    }); }
+  }
+  function addOverlay(){
+    if(!state.bgImage){ $('site-bg-file')?.click(); return; }
+    let f=$('site-ov-file');
+    if(!f){ f=document.createElement('input'); f.type='file'; f.id='site-ov-file'; f.accept='image/*,application/pdf'; f.style.display='none'; document.body.appendChild(f);
+      f.addEventListener('change',async()=>{ const file=f.files&&f.files[0]; f.value=''; if(!file) return; const url=await _bgFileToDataUrl(file); if(url) _ovAdd(url, file.name); }); }
+    f.click();
+  }
+  function _ovAdd(url, name){
+    if((state.overlays||[]).length>=12){ toast('12 images au plus sur un plan.'); return; }
+    const im=new Image();
+    im.onload=()=>{
+      const vp=$('site-viewport'), z=state.view.zoom||1, W=(vp&&vp.clientWidth)||1000, H=(vp&&vp.clientHeight)||700;
+      if(!Number.isFinite(+state.view.panX)||!Number.isFinite(+state.view.panY)) state.view={...state.view, panX:60, panY:60};
+      const ar=(im.naturalHeight||1)/(im.naturalWidth||1);
+      let w=W/z*0.5, h=w*ar; if(h>H/z*0.6){ h=H/z*0.6; w=h/ar; }
+      const cx=(W/2-state.view.panX)/z, cy=(H/2-state.view.panY)/z;
+      const o={id:'ov'+uid(), src:url, name:String(name||'Image').replace(/\.[a-z0-9]+$/i,'').slice(0,60), x:Math.round(cx-w/2), y:Math.round(cy-h/2), w:Math.round(w), h:Math.round(h), rot:0, op:70, hidden:false};
+      state.overlays=(state.overlays||[]).concat([o]); saveSite(); _renderOv();
+      adjustOverlay(o.id, true);
+    };
+    im.onerror=()=>toast('Image illisible');
+    im.src=url;
+  }
+  function adjustOverlay(id, fresh){
+    const o=(state.overlays||[]).find(x=>x.id===id); if(!o) return;
+    if(_adj) _adjEnd(false); if(_ova) _ovaEnd(true); if(state.tool) stopTool();
+    state.selected=null; state.multi=[]; renderNodes(); renderInspector();
+    _ova={id, orig:{...o}, fresh:!!fresh, drag:null};
+    const vp=$('site-viewport'); vp.classList.add('spl-bgadj');
+    let ov=$('spl-adj'); if(!ov){ ov=document.createElement('div'); ov.id='spl-adj'; vp.appendChild(ov); }
+    const p=SiteMeasure.ppm(getData());
+    ov.innerHTML=`<svg class="spl-adj-svg"><path class="spl-adj-rect" data-h="move"/><line class="spl-adj-stem"/><g class="spl-adj-hs"></g><g class="spl-adj-rot" data-h="rot"><circle r="13"/><path d="M-5 -1a5.5 5.5 0 1 0 2-4.2M-3 -7.5l0 3.6l3.6 0" fill="none"/></g></svg>`+
+      `<div class="spl-adj-bar"><span class="spl-adj-tip"><i class="ti ti-info-circle"></i>Glisser l'image pour la placer, les coins pour l'agrandir, la poignée ronde pour pivoter.</span>`+
+      `<label class="spl-adj-ang" title="Transparence"><i class="ti ti-sun"></i><input id="spl-ova-op" type="range" min="5" max="100" step="5" style="width:80px;accent-color:var(--ora)"></label>`+
+      (p?`<label class="spl-adj-ang" title="Largeur réelle de l'image"><i class="ti ti-ruler-measure"></i><input id="spl-ova-m" type="text" inputmode="decimal" autocomplete="off"><span>m</span></label>`:'')+
+      `<label class="spl-adj-ang" title="Angle"><i class="ti ti-rotate"></i><input id="spl-ova-deg" type="text" inputmode="decimal" autocomplete="off"><span>°</span></label>`+
+      `<button type="button" class="btn" data-a="del" title="Retirer l'image"><i class="ti ti-trash"></i></button>`+
+      `<button type="button" class="btn" data-a="no">Annuler</button><button type="button" class="btn pri" data-a="ok"><i class="ti ti-check"></i>Valider</button></div>`;
+    ov.querySelector('.spl-adj-hs').innerHTML=['nw','ne','se','sw'].map(h=>`<rect class="spl-adj-h" data-h="${h}" width="12" height="12"/>`).join('');
+    const bar=ov.querySelector('.spl-adj-bar');
+    bar.addEventListener('pointerdown',e=>e.stopPropagation());
+    bar.addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Escape') _ovaEnd(false); if(e.key==='Enter') e.target.blur(); });
+    const op=$('spl-ova-op'); op.addEventListener('input',()=>{ o.op=+op.value; _renderOv(); });
+    const dg=$('spl-ova-deg'); dg.addEventListener('change',()=>{ const v=parseFloat(String(dg.value).replace(',','.')); if(Number.isFinite(v)){ o.rot=((Math.round(v*10)/10)%360+540)%360-180; _renderOv(); _ovaDraw(); } });
+    const mm=$('spl-ova-m'); if(mm) mm.addEventListener('change',()=>{ const v=parseFloat(String(mm.value).replace(',','.')), pp=SiteMeasure.ppm(getData()); if(v>0&&pp){ const cx=o.x+o.w/2, cy=o.y+o.h/2, ar=o.h/o.w; o.w=Math.round(v*pp); o.h=Math.round(o.w*ar); o.x=Math.round(cx-o.w/2); o.y=Math.round(cy-o.h/2); _renderOv(); _ovaDraw(); } });
+    bar.addEventListener('click',e=>{
+      const a=e.target.closest('[data-a]'); if(!a) return;
+      if(a.dataset.a==='ok') _ovaEnd(true);
+      else if(a.dataset.a==='no') _ovaEnd(false);
+      else if(a.dataset.a==='del'){ state.overlays=state.overlays.filter(x=>x.id!==id); _ova=null; _ovaClose(); saveSite(); _renderOv(); }
+    });
+    ov.querySelector('svg').addEventListener('pointerdown',_ovaDown);
+    _ovaDraw();
+  }
+  function _ovaObj(){ return _ova && (state.overlays||[]).find(x=>x.id===_ova.id); }
+  function _ovaDraw(){
+    const ov=$('spl-adj'), o=_ovaObj(), vp=$('site-viewport'); if(!ov||!o||!vp) return;
+    const z=state.view.zoom, px=state.view.panX, py=state.view.panY, W=vp.clientWidth, H=vp.clientHeight;
+    const a=(o.rot||0)*Math.PI/180, co=Math.cos(a), si=Math.sin(a), cx=o.x+o.w/2, cy=o.y+o.h/2;
+    const S=(dx,dy)=>[px+(cx+dx*co-dy*si)*z, py+(cy+dx*si+dy*co)*z];
+    const C={nw:S(-o.w/2,-o.h/2), ne:S(o.w/2,-o.h/2), se:S(o.w/2,o.h/2), sw:S(-o.w/2,o.h/2)};
+    const svg=ov.querySelector('svg'); svg.setAttribute('width',W); svg.setAttribute('height',H);
+    ov.querySelector('.spl-adj-rect').setAttribute('d',`M${C.nw}L${C.ne}L${C.se}L${C.sw}Z`);
+    ov.querySelectorAll('.spl-adj-h').forEach(h=>{ const p=C[h.dataset.h]; h.setAttribute('x',p[0]-6); h.setAttribute('y',p[1]-6); });
+    const top=S(0,-o.h/2), rr=S(0,-o.h/2-34/z);
+    ov.querySelector('.spl-adj-rot').setAttribute('transform',`translate(${rr[0]},${rr[1]})`);
+    const st=ov.querySelector('.spl-adj-stem'); st.setAttribute('x1',rr[0]); st.setAttribute('y1',rr[1]); st.setAttribute('x2',top[0]); st.setAttribute('y2',top[1]);
+    const op=$('spl-ova-op'); if(op && document.activeElement!==op) op.value=o.op==null?100:o.op;
+    const dg=$('spl-ova-deg'); if(dg && document.activeElement!==dg) dg.value=String(o.rot||0).replace('.',',');
+    const mm=$('spl-ova-m'), pp=SiteMeasure.ppm(getData()); if(mm && pp && document.activeElement!==mm) mm.value=_N(o.w/pp,1);
+  }
+  function _ovaDown(e){
+    const t=e.target.closest('[data-h]'), o=_ovaObj(); if(!t||!o) return;
+    e.stopPropagation(); e.preventDefault();
+    const w=clientToWorld(e.clientX,e.clientY), cx=o.x+o.w/2, cy=o.y+o.h/2;
+    _ova.drag={h:t.dataset.h, w0:w, o0:{...o}, d0:Math.hypot(w.x-cx,w.y-cy)||1, a0:Math.atan2(w.y-cy,w.x-cx)};
+    const mv=ev=>{
+      const g=_ova&&_ova.drag, ob=_ovaObj(); if(!g||!ob) return;
+      const p=clientToWorld(ev.clientX,ev.clientY), o0=g.o0, ccx=o0.x+o0.w/2, ccy=o0.y+o0.h/2;
+      if(g.h==='move'){ ob.x=Math.round(o0.x+p.x-g.w0.x); ob.y=Math.round(o0.y+p.y-g.w0.y); }
+      else if(g.h==='rot'){ let v=o0.rot+(Math.atan2(p.y-ccy,p.x-ccx)-g.a0)*180/Math.PI; v=ev.shiftKey?Math.round(v/15)*15:Math.round(v*10)/10; ob.rot=((v%360)+540)%360-180; }
+      else { const k=Math.max(0.02, Math.hypot(p.x-ccx,p.y-ccy)/g.d0); ob.w=Math.max(8,Math.round(o0.w*k)); ob.h=Math.max(8,Math.round(o0.h*k)); ob.x=Math.round(ccx-ob.w/2); ob.y=Math.round(ccy-ob.h/2); }
+      _renderOv(); _ovaDraw();
+    };
+    const up=()=>{ window.removeEventListener('pointermove',mv); window.removeEventListener('pointerup',up); if(_ova) _ova.drag=null; };
+    window.addEventListener('pointermove',mv); window.addEventListener('pointerup',up);
+  }
+  function _ovaClose(){ const ov=$('spl-adj'); if(ov) ov.remove(); $('site-viewport')?.classList.remove('spl-bgadj'); applyTransform(); }
+  function _ovaEnd(keep){
+    if(!_ova) return;
+    const A=_ova; _ova=null;
+    const i=(state.overlays||[]).findIndex(x=>x.id===A.id);
+    if(!keep && i>=0){ if(A.fresh) state.overlays.splice(i,1); else state.overlays[i]=A.orig; }
+    _ovaClose(); saveSite(); _renderOv();
+    if(keep && A.fresh) toast('Image posée sur le plan. Retouches : bouton réglages dans la liste sous le fond.');
+  }
+
   /* ══ Pivoter / rogner le fond ══
      Une poignée ronde fait tourner le fond autour de son centre, un cadre le rogne. À la validation,
      rotation et rognage sont « cuits » dans l'image : l'échelle (px par mètre) ne bouge pas et tout ce
@@ -18024,7 +18181,7 @@ const SitePlan = (() => {
   }
   function adjustBg(){
     const d=_bgDims(); if(!state.bgImage || !d){ toast('Ajoutez d\'abord un fond (vue satellite, image ou PDF).'); return; }
-    if(state.tool) stopTool();
+    if(_ova) _ovaEnd(true); if(state.tool) stopTool();
     state.selected=null; state.multi=[];
     _adj={rot0:+state.bgRotation||0, rot:+state.bgRotation||0, crop:_rotBox(d, +state.bgRotation||0), touched:false, drag:null};
     const vp=$('site-viewport'); vp.classList.add('spl-bgadj');
@@ -18133,6 +18290,7 @@ const SitePlan = (() => {
     state.cables.forEach(cb=>{ if(cb.fromPt) cb.fromPt=T(cb.fromPt); if(cb.toPt) cb.toPt=T(cb.toPt); if(Array.isArray(cb.waypoints)) cb.waypoints=cb.waypoints.map(T); });
     state.measures=(state.measures||[]).map(m=>({...m, a:T(m.a), b:T(m.b)}));
     state.areas=(state.areas||[]).map(ar=>{ const n=T({x:ar.x+ar.w/2, y:ar.y+ar.h/2}); return {...ar, x:Math.round(n.x-ar.w/2), y:Math.round(n.y-ar.h/2)}; });
+    state.overlays=(state.overlays||[]).map(o=>{ const n=T({x:o.x+o.w/2, y:o.y+o.h/2}); let r=(o.rot||0)+dr; r=((r%360)+540)%360-180; return {...o, x:Math.round(n.x-o.w/2), y:Math.round(n.y-o.h/2), rot:Math.round(r*10)/10}; });
     if(state.scale){ state.scale={...state.scale, a:state.scale.a?T(state.scale.a):null, b:state.scale.b?T(state.scale.b):null}; }
     state.bgImage=url; state.bgRotation=0; state.bgScale=Math.round(c.w/c2.width*10000)/10000;
     state.view={...state.view, panX:state.view.panX+c.x*state.view.zoom, panY:state.view.panY+c.y*state.view.zoom};
@@ -18163,10 +18321,11 @@ const SitePlan = (() => {
       state.bgGeo=(data.bgGeo&&Number.isFinite(+data.bgGeo.lat)&&Number.isFinite(+data.bgGeo.lon))?{lat:+data.bgGeo.lat,lon:+data.bgGeo.lon,z:+data.bgGeo.z||0,src:'ign'}:null;
       if(state.scale) state.scale={ppm:+state.scale.ppm, m:+state.scale.m||0, a:state.scale.a?{x:+state.scale.a.x||0,y:+state.scale.a.y||0}:null, b:state.scale.b?{x:+state.scale.b.x||0,y:+state.scale.b.y||0}:null};
       state.symK=_symClamp(data.symK);
+      state.overlays=_spOverlayList(data.overlays);
       /* Plan posé sur un fond satellite avant la taille des symboles : on l'adapte d'office */
       if(data.symK==null && state.bgGeo){ const a=_symAuto(); if(a && a!==1) _setSymK(a, true); }
     } else {
-      state.scale=null; state.measureOpts={}; state.measures=[]; state.areas=[]; state.layersOff={}; state.bgGeo=null; state.bgScale=1; state.symK=1;
+      state.scale=null; state.measureOpts={}; state.measures=[]; state.areas=[]; state.layersOff={}; state.bgGeo=null; state.bgScale=1; state.symK=1; state.overlays=[];
       state.elements=[];state.cables=[];state.bgImage=null;state.bgOpacity=100;state.bgRotation=0;state.view={panX:60,panY:60,zoom:1};
     }
     if(Array.isArray(data?.cableTypes)){
@@ -18187,11 +18346,12 @@ const SitePlan = (() => {
     const ll=$('spl-leg-val');if(ll)ll.textContent=Math.round((state.legendScale||1)*100)+'%';
     const cl=$('spl-cab-val');if(cl)cl.textContent=Math.round((state.cableTextScale||1)*100)+'%';
     _symLbl();
-    applyBg(); applyTransform();
+    if(_ova) _ovaEnd(false);
+    applyBg(); applyTransform(); _renderOv();
     if(inited){ renderCablePicker(); render(); }
   }
 
-  function getData() { return {elements:state.elements,cables:state.cables,bgImage:state.bgImage,bgOpacity:state.bgOpacity,bgRotation:state.bgRotation||0,view:state.view,activeCableType:state.activeCableType,textScale:state.textScale,legendScale:state.legendScale,cableTextScale:state.cableTextScale,cableTypes:_usedCableTypes(),scale:state.scale||null,measureOpts:state.measureOpts||{},measures:state.measures||[],areas:state.areas||[],layersOff:state.layersOff||{},bgGeo:state.bgGeo||null,bgScale:+state.bgScale||1,symK:_K()}; }
+  function getData() { return {elements:state.elements,cables:state.cables,bgImage:state.bgImage,bgOpacity:state.bgOpacity,bgRotation:state.bgRotation||0,view:state.view,activeCableType:state.activeCableType,textScale:state.textScale,legendScale:state.legendScale,cableTextScale:state.cableTextScale,cableTypes:_usedCableTypes(),scale:state.scale||null,measureOpts:state.measureOpts||{},measures:state.measures||[],areas:state.areas||[],layersOff:state.layersOff||{},bgGeo:state.bgGeo||null,bgScale:+state.bgScale||1,symK:_K(),overlays:state.overlays||[]}; }
   /* Définition (libellé/couleur/trait) des types réellement utilisés, écrite
      dans le plan : les types personnalisés et les couleurs modifiées ne vivent
      sinon que dans le navigateur de leur auteur, et le lien partagé (ou un
@@ -18414,6 +18574,9 @@ const SitePlan = (() => {
           minX=_cx-_rw/2; minY=_cy-_rh/2; maxX=_cx+_rw/2; maxY=_cy+_rh/2;
         } else { minX=0; minY=0; maxX=_bw; maxY=_bh; }
       }
+      const _ovs=(state.overlays||[]).filter(o=>!o.hidden), _ovImgs={};
+      _ovs.forEach(o=>{ const im=document.querySelector(`#site-ovl img[data-id="${o.id}"]`); if(im&&im.complete&&im.naturalWidth) _ovImgs[o.id]=im;
+        const b=_spOverlayBox(o); minX=Math.min(minX,b.x); minY=Math.min(minY,b.y); maxX=Math.max(maxX,b.x+b.w); maxY=Math.max(maxY,b.y+b.h); });
       els.forEach(e=>{
         minX=Math.min(minX,e.x-40); minY=Math.min(minY,e.y-40);
         if(e.type==='text_lbl'){
@@ -18448,6 +18611,7 @@ const SitePlan = (() => {
         ctx.drawImage(bgImg, wx(0), wy(0), bgImg.naturalWidth*(+state.bgScale||1)*SCALE, bgImg.naturalHeight*(+state.bgScale||1)*SCALE);
         ctx.restore();
       }
+      _spDrawOverlays(ctx, _ovs, _ovImgs, wx, wy, SCALE);
       SiteMeasure.drawGrid(ctx, _D, wx, wy, minX, minY, maxX, maxY, SCALE);
       if(_notes) SiteMeasure.drawAreas(ctx, _D, wx, wy, SCALE, _SP_FONT);
       const drawArrow=(tx,ty,dx,dy,color,sz)=>{
@@ -18534,7 +18698,7 @@ const SitePlan = (() => {
     if(state.elements.length===0 && !state.bgImage){ cb(null); return; }
     _makeCanvas(cb);
   }
-  function hasContent(){ return state && (state.elements.length > 0 || !!state.bgImage); }
+  function hasContent(){ return state && (state.elements.length > 0 || !!state.bgImage || (state.overlays||[]).length > 0); }
 
   function uploadElementIcon(elId){
     _pickIconFile(async function(file){
@@ -18578,7 +18742,7 @@ const SitePlan = (() => {
     saveSite(); render(); renderInspector();
     setTimeout(function(){ uploadElementIcon(id); },80);
   }
-  return {openCableList,startTool,stopTool,cablePdfRows,openSatellite,addArea,toggleLayer,init,load,getData,loadBg,setBgOpacity,setBgRotation,rotateBg,clearBg,clear,zoom,setZoomPct,fitView,resetView,selectCable,exportPng,exportCanvas,exportCanvasSafe,hasContent,setActiveCableType,toggleCableMode,cancelDraw:()=>_cancelDraw(),setTextScale,setLegendScale,setCableTextScale,setSymScale,adjustBg,deleteCustomCableType,updateCableType,uploadElementIcon,clearElementIcon,adjImgPx,
+  return {openCableList,startTool,stopTool,cablePdfRows,openSatellite,addArea,toggleLayer,init,load,getData,loadBg,setBgOpacity,setBgRotation,rotateBg,clearBg,clear,zoom,setZoomPct,fitView,resetView,selectCable,exportPng,exportCanvas,exportCanvasSafe,hasContent,setActiveCableType,toggleCableMode,cancelDraw:()=>_cancelDraw(),setTextScale,setLegendScale,setCableTextScale,setSymScale,adjustBg,addOverlay,adjustOverlay,deleteCustomCableType,updateCableType,uploadElementIcon,clearElementIcon,adjImgPx,
     /* Exposés pour le rendu fidèle côté lien partagé (couleur + icône réelles
        de la palette, identiques à _makeCanvas). */
     itemMeta:function(t){var it=findItem(t); return {color:(it&&it.color)||'#5a6a80', icon:(it&&it.icon)||null, label:(it&&it.label)||t};},
@@ -28118,6 +28282,10 @@ function _svFs(imgId, title){
       bgI.src=siteData.bgImage;
     }
 
+    /* Images superposées au fond */
+    var _ovList=_spOverlayList(siteData.overlays).filter(function(o){ return !o.hidden; }), _ovImgs={};
+    _ovList.forEach(function(o){ pending++; var im=new Image(); im.onload=function(){ _ovImgs[o.id]=im; _tick(); }; im.onerror=_tick; im.src=o.src; });
+
     /* Si aucune image à charger, lancer directement */
     if(pending===0) _draw();
 
@@ -28138,9 +28306,10 @@ function _svFs(imgId, title){
 
     function _draw(){
       try{
-        if(!els.length&&!_bgImg){cb(null);return;}
+        if(!els.length&&!_bgImg&&!_ovList.length){cb(null);return;}
         /* Bounding box : taille réelle des éléments + place pour labels en-dessous */
         var minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+        _ovList.forEach(function(o){ var b=_spOverlayBox(o); minX=Math.min(minX,b.x); minY=Math.min(minY,b.y); maxX=Math.max(maxX,b.x+b.w); maxY=Math.max(maxY,b.y+b.h); });
         var _brotDeg=siteData.bgRotation||0, _brot=_brotDeg*Math.PI/180;
         if(_bgImg){
           var _RBS=(+siteData.bgScale>0&&+siteData.bgScale<=20)?+siteData.bgScale:1, _bw=_bgImg.naturalWidth*_RBS, _bh=_bgImg.naturalHeight*_RBS;
@@ -28189,6 +28358,7 @@ function _svFs(imgId, title){
           ctx.drawImage(_bgImg, wx(0), wy(0), _bgImg.naturalWidth*_RBS3*SCALE, _bgImg.naturalHeight*_RBS3*SCALE);
           ctx.restore();
         }
+        _spDrawOverlays(ctx, _ovList, _ovImgs, wx, wy, SCALE);
         SiteMeasure.drawGrid(ctx, siteData, wx, wy, minX, minY, maxX, maxY, SCALE);
         SiteMeasure.drawAreas(ctx, siteData, wx, wy, SCALE, _SP_FONT);
 

@@ -68,7 +68,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=4.70">
+<link rel="stylesheet" href="pf-app.css?v=4.71">
 </head>
 <body>
 
@@ -974,6 +974,10 @@ html.rider-boot #rider-splash{display:flex}
               </div>
               <button type="button" class="spl-bgadj-btn" onclick="SitePlan.adjustBg()" title="Faire tourner le fond et le rogner : les éléments posés suivent, l'échelle est conservée"><i class="ti ti-crop"></i>Pivoter / rogner le fond</button>
             </div>
+            <div id="site-ov-wrap" style="display:none">
+              <button type="button" class="spl-bgadj-btn" onclick="SitePlan.addOverlay()" title="Poser une image ou un PDF par-dessus le fond (plan de masse, implantation…) : le fond et son échelle restent"><i class="ti ti-layers-intersect"></i>Superposer une image</button>
+              <div id="site-ov-list" class="spl-ov-list"></div>
+            </div>
           </div>
           <!-- Cable type picker -->
           <div class="site-links">
@@ -1662,7 +1666,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=5.16"></script>
+<script src="pf-app.js?v=5.17"></script>
 <script src="pf-rf.js?v=1.16"></script>
 <script src="pf-road.js?v=1.2"></script>
 <script src="pf-fest.js?v=1.18"></script>
