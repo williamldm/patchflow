@@ -8783,7 +8783,7 @@ async function _sdPatch(show, keys){
   return sb.from('shows').update({stage_data:sd}).eq('id',show.id);
 }
 /* Rubriques relues depuis le serveur quand un collègue a pu les changer, et le module à recharger */
-var _SD_LIVE=['racks','rack_groups','rf','road','festival','bon','dem','bonchk','demlink','demreply'];
+var _SD_LIVE=['racks','rack_groups','rf','road','festival','bon','dem','bonchk','demlink','demreply','demseen','demconf'];
 async function _sdRefresh(force){
   if(!CUR_SHOW||_sdRpcOk===false) return;
   var now=Date.now(); if(!force&&now-_sdLastRefresh<15000) return; _sdLastRefresh=now;
@@ -8812,11 +8812,13 @@ async function _sdRefresh(force){
   if(changed.road&&typeof _rdReload==='function') _rdReload();
   if(changed.festival&&typeof festReload==='function') festReload();
   if(typeof _outRefresh==='function') _outRefresh(CUR_PATCH_ID);
-  if((changed.bon||changed.dem||changed.bonchk||changed.demlink||changed.demreply) && typeof renderBon==='function'){
+  if((changed.bon||changed.dem||changed.bonchk||changed.demlink||changed.demreply||changed.demseen||changed.demconf) && typeof renderBon==='function'){
     var pb=document.getElementById('panel-bon'), ae=document.activeElement;
     if(pb&&pb.classList.contains('on')&&!(ae&&pb.contains(ae)&&/INPUT|TEXTAREA|SELECT/.test(ae.tagName))) renderBon();
   }
   if(changed.demreply){ toast('Le loueur a répondu à la demande'); delete changed.demreply; }
+  if(changed.demconf){ toast('Le loueur a confirmé la réservation'); delete changed.demconf; }
+  if(changed.demseen){ delete changed.demseen; }
   if(Object.keys(changed).length) toast('↻ Mis à jour par un collaborateur');
 }
 document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') _sdRefresh(); });
@@ -20084,6 +20086,7 @@ function _bonCover(src, list, pool, map){
     var g=by[k]; if(!g){ g=by[k]={model:q.name, key:src+':'+k, need:0, alts:[], where:[]}; rows.push(g); }
     g.need+=q.qty;
     if(e.alt && _bonNorm(e.alt)!==k && g.alts.indexOf(e.alt)<0) g.alts.push(e.alt);
+    var acc=(typeof _demLoad==='function')&&(_demLoad().acc||{})[g.key]; if(acc && g.alts.indexOf(acc)<0) g.alts.push(acc);   /* équivalent accepté dans la demande */
     if(e.where && g.where.indexOf(e.where)<0) g.where.push(e.where);
   });
   pool.forEach(function(i){ i._l2=i.qty; });
@@ -20333,11 +20336,15 @@ var BON_VIEW='ctrl', DEM=null, _demShowId=null, _demSrc, _demT=null;
 function _demLoad(){
   var id=CUR_SHOW&&CUR_SHOW.id, sd=CUR_SHOW&&CUR_SHOW.stage_data, src=sd?sd.dem:null;
   if(_demShowId===id && _demSrc===src && DEM) return DEM;
-  _demShowId=id; _demSrc=src; DEM={q:{},off:{},extra:[],note:'',acc:{}};
+  _demShowId=id; _demSrc=src; DEM={q:{},off:{},extra:[],note:'',acc:{},eq:{},ln:{},log:{},to:{},rej:{},els:{},val:null};
   var j=src, mig=false;
   if(!j && id){ try{ j=JSON.parse(localStorage.getItem('pf_dem_'+id)||'null'); mig=!!j; }catch(e){} }
   var qn=function(o){ var r={}; if(o&&typeof o==='object') Object.keys(o).forEach(function(k){ r[k]=Math.max(0,Math.min(999,parseInt(o[k],10)||0)); }); return r; };
-  if(j&&typeof j==='object'){ DEM.q=qn(j.q); DEM.off=Object.assign({},j.off||{}); DEM.extra=Array.isArray(j.extra)?j.extra.map(function(x){ return {n:String(x&&x.n||''),q:+(x&&x.q)||1}; }):[]; DEM.note=String(j.note||''); DEM.acc={}; if(j.acc&&typeof j.acc==='object') Object.keys(j.acc).forEach(function(k){ DEM.acc[k]=String(j.acc[k]||'').slice(0,60); }); }
+  if(j&&typeof j==='object'){ DEM.q=qn(j.q); DEM.off=Object.assign({},j.off||{}); DEM.extra=Array.isArray(j.extra)?j.extra.slice(0,200).map(function(x,i){ return {id:String(x&&x.id||'').replace(/[^\w-]/g,'').slice(0,24)||('e'+i+'_'+_bonNorm(x&&x.n).slice(0,10)),n:String(x&&x.n||'').slice(0,120),q:Math.max(1,Math.min(999,parseInt(x&&x.q,10)||1))}; }):[]; DEM.note=String(j.note||''); DEM.acc={}; if(j.acc&&typeof j.acc==='object') Object.keys(j.acc).forEach(function(k){ DEM.acc[k]=String(j.acc[k]||'').slice(0,60); });
+    var flags=function(o){ var r={}; if(o&&typeof o==='object') Object.keys(o).forEach(function(k){ if(o[k]) r[k]=1; }); return r; };
+    var strs=function(o,n){ var r={}; if(o&&typeof o==='object') Object.keys(o).forEach(function(k){ if(o[k]!=null&&o[k]!=='') r[k]=String(o[k]).slice(0,n); }); return r; };
+    DEM.eq=flags(j.eq); DEM.rej=flags(j.rej); DEM.els=flags(j.els); DEM.ln=strs(j.ln,200); DEM.log=strs(j.log,400); DEM.to=strs(j.to,120);
+    DEM.val=(j.val&&typeof j.val==='object'&&Array.isArray(j.val.lines))?{v:parseInt(j.val.v,10)||0, at:String(j.val.at||''), lines:j.val.lines.slice(0,500).map(function(l){ return {k:String(l&&l.k||'').slice(0,90), name:String(l&&l.name||'').slice(0,160), was:String(l&&l.was||'').slice(0,160), qty:Math.max(0,parseInt(l&&l.qty,10)||0), sec:String(l&&l.sec||'').slice(0,60), tbc:!!(l&&l.tbc)}; })}:null; }
   if(mig){ _demSave(); try{ localStorage.removeItem('pf_dem_'+id); }catch(e){} }
   return DEM;
 }
@@ -20359,7 +20366,7 @@ function _demBuild(){
     var st=String(c.note||'').trim(); if(st){ var sk=_bonStandKind(st); sneed[sk]=(sneed[sk]||0)+1; }
   });
   var src=Object.keys(need).reduce(function(sum,k){ return sum+need[k].n; },0);
-  S('mics','Micros et DI','Input list',Object.keys(need).map(function(k){ var x=need[k]; return {key:'mic:'+k,name:x.name,det:'voie'+(x.ch.length>1?'s':'')+' '+x.ch.join(', ')+(x.alt.length?' · '+(x.alt.length===1&&/^(equivalent|équivalent)$/i.test(x.alt[0])?'ou équivalent':'équivalent accepté : '+x.alt.join(' / ')):''),qty:x.n}; })
+  S('mics','Micros et DI','Input list',Object.keys(need).map(function(k){ var x=need[k]; return {key:'mic:'+k,name:x.name,alts:x.alt,det:'voie'+(x.ch.length>1?'s':'')+' '+x.ch.join(', ')+(x.alt.length?' · '+(x.alt.length===1&&/^(equivalent|équivalent)$/i.test(x.alt[0])?'ou équivalent':'équivalent accepté : '+x.alt.join(' / ')):''),qty:x.n}; })
     .sort(function(a,b){ return b.qty-a.qty || a.name.localeCompare(b.name); }));
   var nStands=0;
   S('stands','Pieds de micro','Input list',['grand','petit','ronde','table','autre','pince'].filter(function(k){ return sneed[k]; }).map(function(k){ if(k!=='pince') nStands+=sneed[k]; return {key:'std:'+k,name:_BON_STAND[k],det:'',qty:sneed[k]}; }));
@@ -20414,42 +20421,201 @@ function _demBuild(){
 function bonView(v){ BON_VIEW=v; renderBon(); }
 function demQty(key,val){ var D=_demLoad(), n=Math.max(0,Math.min(999,parseInt(val,10)||0)); D.q[key]=n; _demSave(); }
 function demToggle(key,on){ var D=_demLoad(); if(on) delete D.off[key]; else D.off[key]=1; _demSave(); renderBon(); }
-function demAdd(){ var D=_demLoad(); D.extra.push({n:'',q:1}); _demSave(); renderBon(); var l=document.querySelectorAll('.dem-xn'); if(l.length) l[l.length-1].focus(); }
-function demExtra(i,f,val){ var D=_demLoad(), x=D.extra[i]; if(!x) return; if(f==='q') x.q=Math.max(1,Math.min(999,parseInt(val,10)||1)); else x.n=String(val).slice(0,120); _demSave(); }
-function demDel(i){ var D=_demLoad(); D.extra.splice(i,1); _demSave(); renderBon(); }
+function _demXid(){ return 'e'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function demAdd(){ var D=_demLoad(); D.extra.push({id:_demXid(),n:'',q:1}); _demSave(); renderBon(); var l=document.querySelectorAll('.dem-xn'); if(l.length) l[l.length-1].focus(); }
+function demExtra(id,f,val){ var D=_demLoad(), x=D.extra.find(function(e){ return e.id===id; }); if(!x) return; if(f==='q') x.q=Math.max(1,Math.min(999,parseInt(val,10)||1)); else x.n=String(val).slice(0,120); _demSave(); }
+function demDel(id){ var D=_demLoad(); D.extra=D.extra.filter(function(e){ return e.id!==id; }); _demSave(); renderBon(); }
 function demNote(val){ _demLoad().note=String(val).slice(0,1500); _demSave(); }
-function demReset(){ if(!confirm('Revenir à la liste calculée ? Vos quantités, lignes écartées et lignes ajoutées seront effacées.')) return; _demLoad(); DEM={q:{},off:{},extra:[],note:'',acc:{}}; _demSave(); renderBon(); }
+function demReset(){ if(!confirm('Revenir à la liste calculée ? Vos quantités, lignes écartées, options et lignes ajoutées seront effacées (la logistique est gardée).')) return; var D=_demLoad(), lg=D.log, to=D.to; DEM={q:{},off:{},extra:[],note:'',acc:{},eq:{},ln:{},log:lg,to:to,rej:{},els:{},val:null}; _demSave(); renderBon(); }
+/* Options par ligne : « ou équivalent » accepté, note pour le loueur */
+function demEq(k){ var D=_demLoad(); if(D.eq[k]) delete D.eq[k]; else D.eq[k]=1; _demSave(); renderBon(); }
+function demLn(k,val){ var D=_demLoad(), v=String(val||'').trim().slice(0,200); if(v) D.ln[k]=v; else delete D.ln[k]; _demSave(); }
+function demLnOpen(btn){ var td=btn.closest('td'), i=td&&td.querySelector('.dem-ln'); if(i){ i.hidden=false; i.focus(); } }
 function _bonSwitchHtml(){
   return '<div class="bonp-switch" role="tablist"><button type="button" class="'+(BON_VIEW==='dem'?'on':'')+'" onclick="bonView(\'dem\')"><i class="ti ti-send"></i><span>Demande<span class="bonp-sw-x"> au loueur</span></span></button>'
     +'<button type="button" class="'+(BON_VIEW==='ctrl'?'on':'')+'" onclick="bonView(\'ctrl\')"><i class="ti ti-clipboard-check"></i><span>Contrôle<span class="bonp-sw-x"> du bon</span></span></button>'
     +'<button type="button" class="'+(BON_VIEW==='chk'?'on':'')+'" onclick="bonView(\'chk\')"><i class="ti ti-checklist"></i>Pointage</button></div>';
 }
+
+/* ── Logistique : pré-remplie depuis le show et la feuille de route, modifiable ── */
+var _DEM_LOG=[['mode','Formule'],['out','Retrait / livraison'],['back','Retour / reprise'],['addr','Adresse'],['access','Accès et déchargement'],['site','Contact sur place'],['me','Demandeur'],['deadline','Réponse souhaitée avant']];
+function _demLogAuto(){
+  var sd=(CUR_SHOW&&CUR_SHOW.stage_data)||{}, rd=(sd.road&&typeof sd.road==='object')?sd.road:{}, s=CUR_SHOW||{};
+  var pp=Array.isArray(rd.people)?rd.people.filter(function(x){ return x&&typeof x==='object'&&(x.n||x.p); }):[];
+  var who=pp.find(function(x){ return /r[ée]gi|tech|son|prod|sc[eè]ne/i.test(String(x.r||'')); })||pp[0];
+  var pf=(typeof PROFILE!=='undefined'&&PROFILE)||{};
+  return {mode:'retrait', out:'', back:'', addr:String(rd.addr||s.venue||'').slice(0,200), access:String(rd.access||'').slice(0,400),
+    site:who?[who.n,who.r?'('+who.r+')':'',who.p].filter(Boolean).join(' ').slice(0,160):'',
+    me:[pf.full_name||'', (typeof ME!=='undefined'&&ME&&ME.email)||''].filter(Boolean).join(' · ').slice(0,160), deadline:''};
+}
+function _demLog(){ var D=_demLoad(), a=_demLogAuto(), o={}; _DEM_LOG.forEach(function(f){ var v=D.log&&D.log[f[0]]; o[f[0]]=(v!=null&&v!=='')?String(v):a[f[0]]; }); return o; }
+function demLog(f,val){ var D=_demLoad(); D.log=D.log||{}; D.log[f]=String(val||'').slice(0,f==='access'?400:200); _demSave(); if(f==='mode') renderBon(); }
+function _demFmtDT(v){ if(!v) return ''; var d=new Date(v); if(isNaN(d)) return String(v); return d.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'})+(String(v).indexOf('T')>0?' à '+d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''); }
+function _demLogHtml(){
+  var E=_bonE, L=_demLog(), liv=L.mode==='livraison', miss=[];
+  if(!L.out) miss.push(liv?'date de livraison':'date de retrait'); if(!L.back) miss.push(liv?'date de reprise':'date de retour'); if(liv&&!L.addr) miss.push('adresse'); if(!L.me) miss.push('vos coordonnées');
+  var inp=function(f,type,ph,max){ return '<input class="dem-li" type="'+type+'" data-f="'+f+'" value="'+E(L[f])+'" placeholder="'+E(ph)+'" maxlength="'+max+'" onchange="demLog(this.dataset.f,this.value)">'; };
+  return '<section class="ov-card bon-card dem-log'+(miss.length?' miss':'')+'"><div class="ov-card-hd"><h2>Logistique</h2><span class="bon-reco-n">'+(miss.length?'À compléter : '+miss.join(', '):'Complète')+'</span></div>'
+    +'<div class="dem-lg"><label class="w2"><span>Formule</span><div class="dem-seg"><button type="button" class="'+(!liv?'on':'')+'" onclick="demLog(\'mode\',\'retrait\')"><i class="ti ti-building-warehouse"></i>Retrait chez le loueur</button><button type="button" class="'+(liv?'on':'')+'" onclick="demLog(\'mode\',\'livraison\')"><i class="ti ti-truck-delivery"></i>Livraison sur place</button></div></label>'
+    +'<label class="'+(!L.out?'need':'')+'"><span>'+(liv?'Livraison':'Retrait')+'</span>'+inp('out','datetime-local','',20)+'</label>'
+    +'<label class="'+(!L.back?'need':'')+'"><span>'+(liv?'Reprise':'Retour')+'</span>'+inp('back','datetime-local','',20)+'</label>'
+    +'<label class="w2'+(liv&&!L.addr?' need':'')+'"><span>Adresse'+(liv?' de livraison':' du lieu')+'</span>'+inp('addr','text','Numéro, rue, ville',200)+'</label>'
+    +(liv?'<label class="w2"><span>Accès et déchargement</span>'+inp('access','text','Quai, hauteur, code, horaires d\'accès',400)+'</label>':'')
+    +'<label><span>Contact sur place</span>'+inp('site','text','Nom, rôle, téléphone',160)+'</label>'
+    +'<label class="'+(!L.me?'need':'')+'"><span>Vos coordonnées</span>'+inp('me','text','Nom, téléphone, e-mail',160)+'</label>'
+    +'<label><span>Réponse souhaitée avant</span>'+inp('deadline','date','',10)+'</label>'
+    +'</div><p class="dem-lg-src"><i class="ti ti-route"></i>Adresse, accès et contact repris de la feuille de route tant que vous ne les changez pas ici.</p></section>';
+}
+
+/* ── Suivi de l'échange ── */
+function _demStatus(){
+  var l=_demLink(); if(!l||!l.snap) return null;
+  var sd=CUR_SHOW.stage_data||{}, v=l.snap.v, rep=_demReply(), seen=sd.demseen, conf=sd.demconf;
+  var cur=function(x){ return x&&typeof x==='object'&&+x.v===+v; };
+  return [
+    {k:'sent', t:'Envoyée', d:l.snap.at, on:true, sub:'version '+v},
+    {k:'seen', t:'Consultée', d:cur(seen)&&seen.at, on:cur(seen)||cur(rep)},
+    {k:'rep', t:'Réponse reçue', d:rep&&rep.at, on:cur(rep), sub:rep&&!cur(rep)?'version '+(rep.v||'?'):''},
+    {k:'quote', t:'Devis', d:null, on:cur(rep)&&!!rep.quote, sub:rep&&rep.quote?'n° '+rep.quote:''},
+    {k:'ok', t:'Validée', d:l.ok&&l.ok.at, on:cur(l.ok)},
+    {k:'conf', t:'Réservation confirmée', d:conf&&conf.at, on:cur(conf), sub:cur(conf)&&conf.name?conf.name:''}
+  ];
+}
+function _demStatusHtml(){
+  var st=_demStatus(), E=_bonE; if(!st) return '';
+  var last=-1; st.forEach(function(s,i){ if(s.on) last=i; });
+  var nx=['Le loueur n\'a pas encore ouvert la demande.','Le loueur a ouvert la demande, réponse en attente.','Vérifiez la réponse, puis validez-la.','Vérifiez la réponse, puis validez-la.','En attente de la confirmation du loueur.','Le matériel est réservé.'][last]||'';
+  return '<div class="dem-st">'+st.map(function(s,i){ return '<div class="dem-st-i'+(s.on?' on':'')+(i===last?' cur':'')+'"><i class="ti '+(s.on?'ti-circle-check-filled':'ti-circle')+'"></i><b>'+s.t+'</b><span>'+E(s.sub||'')+(s.d?(s.sub?' · ':'')+_demFmtDT(s.d):'')+'</span></div>'; }).join('')
+    +'</div><p class="dem-st-n">'+nx+(_demChanged()?' <b>La demande a changé depuis l\'envoi : mettez le lien à jour.</b>':'')+'</p>';
+}
+
+/* ── Réponse du loueur, ligne par ligne ── */
+var DEM_F='all';
+var _DEM_RS={ok:['ok','Disponible'],alt:['alt','Équivalent'],part:['part','Partiel'],tbc:['tbc','À confirmer'],no:['no','Indisponible']};
+function _demRep(k){ var r=_demReply(); return r&&r.lines&&r.lines[k]||null; }
+/* « À revoir » : la quantité a changé depuis la réponse, ou la ligne a été modifiée dans une version plus récente */
+function _demRepState(k, qty){
+  var x=_demRep(k), r=_demReply(), l=_demLink(); if(!x||!_DEM_RS[x.s]) return null;
+  var qa=x.qa!=null?+x.qa:null;
+  if(qa==null && l&&l.snap){ var sl=(l.snap.lines||[]).find(function(z){ return z.k===k; }); if(sl) qa=+sl.qty; }
+  return {x:x, stale:qa!=null&&qa!==+qty, qa:qa};
+}
+function _demRepHtml(k, qty){
+  var R=_demRepState(k,qty), E=_bonE; if(!R) return '';
+  var x=R.x, D=_demLoad(), acc=D.acc&&D.acc[k], rej=D.rej&&D.rej[k], els=D.els&&D.els[k];
+  var h='<span class="dem-rep '+_DEM_RS[x.s][0]+'">'+_DEM_RS[x.s][1]+(x.s==='alt'&&x.alt?' : '+E(x.alt):'')+(x.q!=null&&(x.s==='part'||+x.q!==+qty)?' · '+(+x.q||0)+' dispo':'')+'</span>';
+  if(R.stale) h+='<span class="dem-rep rev" title="Le loueur a répondu pour '+R.qa+'">À revoir : répondu pour '+R.qa+'</span>';
+  if(x.s==='alt'&&x.alt){ h+=acc?'<span class="dem-acc"><i class="ti ti-check"></i>accepté</span><button type="button" class="dem-mini" data-k="'+E(k)+'" onclick="demAccept(this.dataset.k,0)">annuler</button>'
+      :rej?'<span class="dem-acc no"><i class="ti ti-x"></i>refusé</span><button type="button" class="dem-mini" data-k="'+E(k)+'" onclick="demAccept(this.dataset.k,0)">annuler</button>'
+      :'<button type="button" class="dem-acc-b" data-k="'+E(k)+'" onclick="demAccept(this.dataset.k,1)">Accepter</button><button type="button" class="dem-acc-b no" data-k="'+E(k)+'" onclick="demAccept(this.dataset.k,-1)">Refuser</button>'; }
+  if(x.s==='no'||x.s==='part'||(x.s==='alt'&&rej)) h+='<button type="button" class="dem-mini'+(els?' on':'')+'" data-k="'+E(k)+'" onclick="demElse(this.dataset.k)">'+(els?'<i class="ti ti-check"></i>':'')+'À trouver ailleurs</button>';
+  if(x.c) h+='<span class="dem-rep-c">« '+E(x.c)+' »</span>';
+  return h;
+}
+function _demRowCls(k, qty){ var R=_demRepState(k,qty); return R?(R.stale?'rev':R.x.s):'none'; }
+/* Équivalent accepté (1), refusé (-1) ou décision annulée (0). Accepté pour un micro : il rejoint la colonne ALT. */
+function demAccept(k, how){
+  var x=_demRep(k); if(!x||!x.alt) return;
+  var D=_demLoad(); D.acc=D.acc||{}; D.rej=D.rej||{};
+  delete D.acc[k]; delete D.rej[k];
+  if(how===1) D.acc[k]=String(x.alt).slice(0,60); else if(how===-1) D.rej[k]=1;
+  _demSave();
+  if(how===1 && /^mic:/.test(k) && typeof CHS!=='undefined'){
+    var nk=k.slice(4), n=0;
+    CHS.forEach(function(c){ if(_bonNorm(c.mic)===nk){ var cur=_ilAltList(_ilAltOf(c)); if(!cur.some(function(a){ return _bonNorm(a)===_bonNorm(x.alt); })){ cur.push(x.alt); saveCustomCell(c.id,'_alt',_ilAltClean(cur.join(' / '))); n++; } } });
+    toast(n?'Équivalent accepté : ajouté en ALT sur '+n+' voie'+(n>1?'s':''):'Équivalent accepté');
+  } else if(how===1) toast('Équivalent accepté : le contrôle du bon l\'acceptera');
+  renderBon();
+}
+function demElse(k){ var D=_demLoad(); D.els=D.els||{}; if(D.els[k]) delete D.els[k]; else D.els[k]=1; _demSave(); renderBon(); }
+function demFilter(f){ DEM_F=DEM_F===f?'all':f; renderBon(); }
+function _demReplySum(d){
+  var r=_demReply(), E=_bonE; if(!r||!r.lines) return '';
+  var c={ok:0,alt:0,part:0,tbc:0,no:0,none:0,rev:0};
+  d.secs.forEach(function(s){ s.rows.forEach(function(row){ if(row.off||!row.qty) return; c[_demRowCls(row.key,row.qty)]++; }); });
+  d.extra.forEach(function(x){ c[_demRowCls('x:'+x.id,+x.q||1)]++; });
+  var l=_demLink(), old=l&&l.snap&&r.v&&+r.v<+l.snap.v, when=r.at?_demFmtDT(r.at):'';
+  var chip=function(k,t,cls){ return c[k]?'<button type="button" class="dem-fc '+cls+(DEM_F===k?' on':'')+'" onclick="demFilter(\''+k+'\')"><b>'+c[k]+'</b>'+t+'</button>':''; };
+  var canVal=l&&!old&&!_demChanged(), done=l&&l.ok&&+l.ok.v===+l.snap.v;
+  return '<div class="dem-rsum"><div class="dem-rsum-h"><i class="ti ti-message-check"></i><div><b>Réponse du loueur'+(r.name?' · '+E(r.name):'')+'</b><span>'+when+(r.quote?' · devis n° '+E(r.quote):'')+(r.contact?' · '+E(r.contact):'')+(old?' · <b>répond à la version '+r.v+'</b>':'')+'</span>'
+    +(r.note?'<em>« '+E(r.note)+' »</em>':'')+'</div>'
+    +(canVal?(done?'<button type="button" class="btn" onclick="demValidate(0)"><i class="ti ti-arrow-back-up"></i>Annuler la validation</button>':'<button type="button" class="btn pri" onclick="demValidate(1)"><i class="ti ti-circle-check"></i>Valider la réponse</button>'):'')+'</div>'
+    +'<div class="dem-fcs">'+chip('ok','disponibles','ok')+chip('alt','équivalents','alt')+chip('part','partiels','part')+chip('tbc','à confirmer','tbc')+chip('no','indisponibles','no')+chip('rev','à revoir','rev')+chip('none','sans réponse','none')+'</div>'
+    +(Array.isArray(r.extra)&&r.extra.length?'<div class="dem-rx"><b>Ajouté par le loueur</b>'+r.extra.map(function(x){ return '<span>'+(+x.q||1)+' × '+E(x.n)+(x.c?' <em>'+E(x.c)+'</em>':'')+'</span>'; }).join('')+'</div>':'')
+    +'</div>';
+}
+/* Validation : la réponse devient la liste de référence (quantités confirmées, équivalents acceptés),
+   reprise par le contrôle du bon et par le pointage quand il n'y a pas de bon */
+async function demValidate(on){
+  var l=_demLink(); if(!l||!l.snap) return;
+  var D=_demLoad();
+  if(!on){ if(!confirm('Annuler la validation ? Le loueur ne pourra plus confirmer la réservation tant que vous n\'aurez pas revalidé.')) return; delete l.ok; D.val=null; _demSave(); await _sdPatch(CUR_SHOW,['demlink']); renderBon(); return; }
+  var r=_demReply()||{lines:{}}, lines=[], open=0;
+  (l.snap.lines||[]).forEach(function(sl){
+    var x=r.lines&&r.lines[sl.k], acc=D.acc&&D.acc[sl.k];
+    if(!x||x.s==='tbc') open++;
+    if(x&&x.s==='no') return;
+    if(x&&x.s==='alt'&&!acc) return;
+    /* Réponse donnée pour une autre quantité : on retient ce que le loueur a confirmé, à revoir avec lui */
+    var stale=x&&x.q==null&&x.qa!=null&&+x.qa!==+sl.qty;
+    var q=x&&x.q!=null?+x.q:stale?Math.min(+x.qa,+sl.qty):+sl.qty;
+    if(stale) open++;
+    if(q>0) lines.push({k:sl.k, name:(x&&x.s==='alt'&&acc)?acc:sl.name, was:(x&&x.s==='alt'&&acc)?sl.name:'', qty:q, sec:sl.sec, tbc:!x||x.s==='tbc'||stale});
+  });
+  (Array.isArray(r.extra)?r.extra:[]).forEach(function(x,i){ lines.push({k:'lx:'+i, name:String(x.n), qty:+x.q||1, sec:'Ajouté par le loueur'}); });
+  if(open && !confirm(open+' ligne'+(open>1?'s sont encore':' est encore')+' sans réponse, à confirmer ou à revoir. Valider quand même ?')) return;
+  D.val={v:l.snap.v, at:new Date().toISOString(), lines:lines.slice(0,500)}; _demSave();
+  l.ok={v:l.snap.v, at:D.val.at};
+  var res=await _sdPatch(CUR_SHOW,['demlink']);
+  if(res&&res.error){ toast('Validation non enregistrée : '+(res.error.message||res.error)); return; }
+  toast('Réponse validée : le loueur peut confirmer la réservation');
+  renderBon();
+}
+
 function _demHtml(){
   var E=_bonE, d=_demBuild(), D=_demLoad();
   if(!d.secs.length && !D.extra.length) return '<div class="bonp-empty"><i class="ti ti-send"></i><b>Rien à demander pour l\'instant</b>'
     +'<span>La demande se remplit toute seule à partir de l\'input list (micros, DI, pieds), de l\'output list (retours, ears), du synoptique et du plan de site.</span>'
     +'<button type="button" class="btn pri" onclick="navIL(\'in\')"><i class="ti ti-list-numbers"></i>Ouvrir l\'input list</button></div>';
-  var lk=_demLink();
-  var h='<div class="bon-sum ok"><i class="ti ti-send"></i><span><b>'+d.lines+' ligne'+(d.lines>1?'s':'')+' à demander.</b> Ajustez les quantités, décochez ce que vous fournissez vous-même, puis envoyez le lien au loueur ou exportez.</span>'
-    +'<em>'+(lk?'Lien loueur actif'+(_demChanged()?' · <b>la demande a changé depuis l\'envoi</b>':''):'Calculé depuis vos documents, partagé avec l\'équipe')+'</em></div>'+_demReplySum();
+  var lk=_demLink(), hasRep=!!_demReply();
+  var h=_demStatusHtml();
+  if(!lk) h+='<div class="bon-sum ok"><i class="ti ti-send"></i><span><b>'+d.lines+' ligne'+(d.lines>1?'s':'')+' à demander.</b> Ajustez les quantités, cochez « équivalent » quand un autre modèle convient, complétez la logistique, puis envoyez le lien au loueur.</span><em>Calculé depuis vos documents, partagé avec l\'équipe</em></div>';
+  h+=_demReplySum(d)+_demLogHtml();
+  var show=function(k,qty){ return DEM_F==='all' || _demRowCls(k,qty)===DEM_F; };
   d.secs.forEach(function(s){
+    var rows=s.rows.filter(function(r){ return !hasRep || show(r.key, r.off?0:r.qty) || r.off&&DEM_F==='all'; }); if(!rows.length) return;
     h+='<section class="ov-card bon-card"><div class="ov-card-hd"><h2>'+s.title+'</h2><span class="bon-reco-n">'+s.src+'</span></div><table class="bon-tbl dem-tbl"><tbody>'
-      +s.rows.map(function(r){
+      +rows.map(function(r){
+        var eq=!!(D.eq&&D.eq[r.key]) || !!(r.alts&&r.alts.length), note=(D.ln&&D.ln[r.key])||'';
         return '<tr class="'+(r.off?'off':'')+'"><td class="dem-ck"><input type="checkbox" class="cb" data-k="'+E(r.key)+'"'+(r.off?'':' checked')+' onchange="demToggle(this.dataset.k,this.checked)" title="Inclure dans la demande"></td>'
-          +'<td><b>'+E(r.name)+(r.adv?'<span class="bon-pill ext">Conseil</span>':'')+'</b>'+(r.det?'<span class="bon-hit w">'+E(r.det)+'</span>':'')+_demRepHtml(r.key)+'</td>'
+          +'<td><b>'+E(r.name)+(r.adv?'<span class="bon-pill ext">Conseil</span>':'')+'</b>'+(r.det?'<span class="bon-hit w">'+E(r.det)+'</span>':'')
+          +'<span class="dem-opts"><button type="button" class="dem-mini'+(eq?' on':'')+'" data-k="'+E(r.key)+'" onclick="demEq(this.dataset.k)"'+(r.alts&&r.alts.length?' disabled title="Équivalents de la colonne ALT de l\'input list"':' title="Un autre modèle convient"')+'>≈ équivalent'+(eq?' accepté':'')+'</button>'
+          +(note?'':'<button type="button" class="dem-mini" onclick="demLnOpen(this)"><i class="ti ti-pencil"></i>Note</button>')+'</span>'
+          +'<input class="dem-ln" type="text" maxlength="200" placeholder="Note pour le loueur (ex. avec pince, câble 10 m)" data-k="'+E(r.key)+'" value="'+E(note)+'"'+(note?'':' hidden')+' onchange="demLn(this.dataset.k,this.value)">'
+          +(r.off?'':_demRepHtml(r.key, r.qty))+'</td>'
           +'<td class="r"><input type="number" class="dem-q" min="0" max="999" value="'+r.qty+'" data-k="'+E(r.key)+'"'+(r.off?' disabled':'')+' onchange="demQty(this.dataset.k,this.value)" title="Calculé : '+r.auto+'"></td></tr>';
       }).join('')+'</tbody></table></section>';
   });
   h+='<section class="ov-card bon-card"><div class="ov-card-hd"><h2>Lignes ajoutées</h2><button class="ov-link" onclick="demAdd()">Ajouter une ligne</button></div>';
-  var xRep=function(i,x){ return _demRepHtml('x:'+i+':'+_bonNorm(x.n).slice(0,40)); };
   if(!D.extra.length) h+='<div class="ov-none">Console, multipaire, praticables, énergie… tout ce qui ne figure pas dans vos documents.</div>';
-  else h+='<table class="bon-tbl dem-tbl"><tbody>'+D.extra.map(function(x,i){
-      return '<tr><td><input type="text" class="dem-xn" maxlength="120" placeholder="Désignation" value="'+E(x.n)+'" onchange="demExtra('+i+',\'n\',this.value)">'+xRep(i,x)+'</td>'
-        +'<td class="r"><input type="number" class="dem-q" min="1" max="999" value="'+(+x.q||1)+'" onchange="demExtra('+i+',\'q\',this.value)"></td>'
-        +'<td class="dem-ck"><button type="button" class="ov-link" onclick="demDel('+i+')" title="Supprimer"><i class="ti ti-x"></i></button></td></tr>';
+  else h+='<table class="bon-tbl dem-tbl"><tbody>'+D.extra.map(function(x){
+      return '<tr><td><input type="text" class="dem-xn" maxlength="120" placeholder="Désignation" value="'+E(x.n)+'" data-id="'+E(x.id)+'" onchange="demExtra(this.dataset.id,\'n\',this.value)">'+_demRepHtml('x:'+x.id, +x.q||1)+'</td>'
+        +'<td class="r"><input type="number" class="dem-q" min="1" max="999" value="'+(+x.q||1)+'" data-id="'+E(x.id)+'" onchange="demExtra(this.dataset.id,\'q\',this.value)"></td>'
+        +'<td class="dem-ck"><button type="button" class="ov-link" data-id="'+E(x.id)+'" onclick="demDel(this.dataset.id)" title="Supprimer"><i class="ti ti-x"></i></button></td></tr>';
     }).join('')+'</tbody></table>';
-  h+='<div class="bon-lbl" style="margin-top:18px">Remarques pour le loueur</div><textarea class="dem-note" maxlength="1500" placeholder="Horaires de retrait et de retour, livraison, accès, contact sur place…" onchange="demNote(this.value)">'+E(D.note)+'</textarea></section>';
+  h+='<div class="bon-lbl" style="margin-top:18px">Remarques pour le loueur</div><textarea class="dem-note" maxlength="1500" placeholder="Horaires, consignes, précisions…" onchange="demNote(this.value)">'+E(D.note)+'</textarea></section>';
   return h;
+}
+/* Tableau de la demande et de la réponse, à ouvrir dans un tableur */
+function demCsv(){
+  var d=_demBuild(), D=_demLoad(), r=_demReply(), q=function(v){ v=String(v==null?'':v); return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; };
+  var out=[['Rubrique','Désignation','Qté','Équivalent accepté','Note','Réponse','Qté loueur','Équivalent proposé','Commentaire loueur']];
+  var add=function(sec,k,name,qty,eq,note){ var x=r&&r.lines&&r.lines[k]; out.push([sec,name,qty,eq,note,x&&_DEM_RS[x.s]?_DEM_RS[x.s][1]:'',x&&x.q!=null?x.q:'',x&&x.alt||'',x&&x.c||'']); };
+  d.secs.forEach(function(s){ s.rows.forEach(function(row){ if(row.off||!row.qty) return; add(s.title,row.key,row.name,row.qty,(row.alts&&row.alts.length)?row.alts.join(' / '):(D.eq&&D.eq[row.key]?'oui':''),(D.ln&&D.ln[row.key])||''); }); });
+  d.extra.forEach(function(x){ add('Autres demandes','x:'+x.id,x.n,+x.q||1,'',''); });
+  if(r&&Array.isArray(r.extra)) r.extra.forEach(function(x){ out.push(['Ajouté par le loueur',x.n,x.q,'','','','','',x.c||'']); });
+  var csv='﻿'+out.map(function(l){ return l.map(q).join(';'); }).join('\r\n');
+  dl(csv,'text/csv',(_pdfSlug((CUR_SHOW&&CUR_SHOW.name)||'')||'patchflow')+'-demande-materiel.csv');
 }
 /* PDF de la demande, à la charte des autres exports */
 async function demPdf(){
@@ -20468,7 +20634,16 @@ async function demPdf(){
     var who=(typeof PROFILE!=='undefined'&&PROFILE&&PROFILE.full_name)||'', mail=(typeof ME!=='undefined'&&ME&&ME.email)||'';
     var y=_pdfHead(doc,{acc:acc,pf:pf,brand:brand.co||'PatchFlow',docType:'Demande de matériel',title:title,sub:'',logo:logo,
       rightLines:['Édité le '+new Date().toLocaleDateString('fr-FR')],
-      meta:[['Lieu',s.venue],['Date',_pdfDateFr(_showDateISO(s.show_date))],['Demandé par',who],['Contact',mail]]})+3;
+      meta:(function(){ var lg=_demLog(), lv=lg.mode==='livraison';
+        return [['Lieu',s.venue],['Date',_pdfDateFr(_showDateISO(s.show_date))],[lv?'Livraison':'Retrait',_demFmtDT(lg.out)],[lv?'Reprise':'Retour',_demFmtDT(lg.back)]]; })()})+1;
+    /* Logistique : adresse, accès, contacts, date limite (une ligne chacun) */
+    var lgA=_demLog(), lgR=[['Adresse',lgA.addr],[lgA.mode==='livraison'?'Accès':'',lgA.mode==='livraison'?lgA.access:''],['Contact sur place',lgA.site],['Demandeur',lgA.me||[who,mail].filter(Boolean).join(' · ')],['Réponse souhaitée avant',_demFmtDT(lgA.deadline)]].filter(function(m){ return m[0]&&m[1]; });
+    lgR.forEach(function(m){ doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(K.muted[0],K.muted[1],K.muted[2]); doc.text(m[0].toUpperCase(),M,y+3,{charSpace:0.2});
+      doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(K.ink[0],K.ink[1],K.ink[2]); doc.splitTextToSize(String(m[1]),PW-2*M-44).forEach(function(t,i){ doc.text(t,M+44,y+3+i*4); y+=i?4:0; }); y+=5; });
+    if(lgR.length) y+=3;
+    var Dm=_demLoad(), Rp=_demReply(), RS={ok:'Disponible',alt:'Équivalent',part:'Partiel',tbc:'À confirmer',no:'Indisponible'};
+    var repTxt=function(k){ var x=Rp&&Rp.lines&&Rp.lines[k]; if(!x||!RS[x.s]) return ''; return RS[x.s]+(x.s==='alt'&&x.alt?' : '+x.alt+((Dm.acc||{})[k]?' (accepté)':''):'')+(x.q!=null&&x.s!=='ok'?' · '+x.q:'')+(x.c?' · '+x.c:''); };
+    var prec=function(k,det,alts){ return [det, (alts&&alts.length)?'ou équivalent : '+alts.join(' / '):((Dm.eq||{})[k]?'ou équivalent':''), (Dm.ln||{})[k]||''].filter(Boolean).join(' · '); };
     var put=function(t,sub){
       if(y>PH-BOT-28){ doc.addPage(); y=TOP; }
       doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(K.ink[0],K.ink[1],K.ink[2]); doc.text(t,M,y+4);
@@ -20476,19 +20651,20 @@ async function demPdf(){
       y+=6;
     };
     var tbl=function(body){
-      doc.autoTable({head:[['QTÉ','DÉSIGNATION','PRÉCISIONS']],body:body,startY:y,theme:'plain',margin:{left:M,right:M,top:TOP,bottom:BOT},
+      doc.autoTable({head:[['QTÉ','DÉSIGNATION','PRÉCISIONS'].concat(Rp?['RÉPONSE DU LOUEUR']:[])],body:body,startY:y,theme:'plain',margin:{left:M,right:M,top:TOP,bottom:BOT},
         styles:{font:'helvetica',fontSize:9,cellPadding:{top:1.7,bottom:1.7,left:1.8,right:1.8},textColor:K.ink,lineColor:K.line,lineWidth:{bottom:0.2},valign:'middle',overflow:'linebreak'},
         headStyles:{fontSize:6.5,fontStyle:'bold',textColor:K.muted,lineColor:K.ink,lineWidth:{bottom:0.35}},
-        columnStyles:{0:{halign:'right',fontStyle:'bold',textColor:acc,cellWidth:14},1:{fontStyle:'bold',cellWidth:(PW-2*M-14)*0.46},2:{textColor:K.txt2,fontSize:8}}});
+        columnStyles:{0:{halign:'right',fontStyle:'bold',textColor:acc,cellWidth:14},1:{fontStyle:'bold',cellWidth:(PW-2*M-14)*(Rp?0.34:0.46)},2:{textColor:K.txt2,fontSize:8},3:{fontSize:8}}});
       y=doc.lastAutoTable.finalY+7;
     };
     var total=0;
     d.secs.forEach(function(sec){
       var rows=sec.rows.filter(function(r){ return !r.off && r.qty>0; }); if(!rows.length) return;
       put(sec.title,'d\'après '+sec.src.toLowerCase());
-      tbl(rows.map(function(r){ total+=r.qty; return [String(r.qty),r.name,r.det||'']; }));
+      tbl(rows.map(function(r){ total+=r.qty; return [String(r.qty),r.name,prec(r.key,r.det,r.alts)].concat(Rp?[repTxt(r.key)]:[]); }));
     });
-    if(d.extra.length){ put('Autres demandes',''); tbl(d.extra.map(function(x){ total+=(+x.q||1); return [String(+x.q||1),String(x.n),'']; })); }
+    if(d.extra.length){ put('Autres demandes',''); tbl(d.extra.map(function(x){ total+=(+x.q||1); return [String(+x.q||1),String(x.n),''].concat(Rp?[repTxt('x:'+x.id)]:[]); })); }
+    if(Rp&&Array.isArray(Rp.extra)&&Rp.extra.length){ put('Ajouté par le loueur',''); tbl(Rp.extra.map(function(x){ return [String(+x.q||1),String(x.n),String(x.c||'')].concat(['']); })); }
     if(String(d.note).trim()){
       put('Remarques','');
       doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(K.txt2[0],K.txt2[1],K.txt2[2]);
@@ -20654,6 +20830,9 @@ function _chkLines(){
   var b=_bonLoad(), L=[], seen={};
   var key=function(k){ k=k.slice(0,80); var o=k, i=2; while(seen[k]) k=o+'~'+(i++); seen[k]=1; return k; };
   if(b){ b.items.forEach(function(i){ L.push({k:key('b:'+_bonNorm((i.ref||'')+'|'+i.name)), ref:i.ref||'', name:i.name, det:i.more||'', qty:i.qty}); }); return {src:'bon', lines:L}; }
+  /* Sans bon : la réponse validée du loueur (quantités confirmées, équivalents), sinon la demande */
+  var V=_demLoad().val;
+  if(V&&V.lines&&V.lines.length){ V.lines.forEach(function(l){ L.push({k:key('v:'+l.k), ref:'', name:l.name, det:[l.was?'à la place de '+l.was:'', l.tbc?'à confirmer par le loueur':''].filter(Boolean).join(' · '), qty:l.qty, sec:l.sec}); }); return {src:'val', lines:L}; }
   var d=_demBuild();
   d.secs.forEach(function(s){ s.rows.forEach(function(r){ if(!r.off && r.qty>0) L.push({k:key('d:'+r.key), ref:'', name:r.name, det:r.det||'', qty:r.qty, sec:s.title}); }); });
   d.extra.forEach(function(x){ L.push({k:key('x:'+_bonNorm(x.n)), ref:'', name:String(x.n), det:'', qty:+x.q||1, sec:'Autres demandes'}); });
@@ -20746,7 +20925,7 @@ function _chkHtml(){
   var vis=rows.filter(function(x){ return f==='all' || (f==='todo'&&x.s.st==='todo') || (f==='pb'&&(x.s.st==='miss'||x.s.st==='hs')); });
   var lab={todo:'À pointer', ok:CHK_PHASE==='ret'?'Rendu':'Reçu', miss:CHK_PHASE==='ret'?'Non rendu':'Manquant', hs:'HS'};
   var h='<div class="chk-top"><div class="chk-phase" role="tablist"><button type="button" class="'+(CHK_PHASE==='liv'?'on':'')+'" onclick="chkPhase(\'liv\')"><i class="ti ti-truck-delivery"></i>Livraison</button><button type="button" class="'+(CHK_PHASE==='ret'?'on':'')+'" onclick="chkPhase(\'ret\')"><i class="ti ti-truck-return"></i>Retour</button></div>'
-    +'<div class="chk-prog"><div><b>'+done+' / '+rows.length+'</b> ligne'+(rows.length>1?'s':'')+' pointée'+(done>1?'s':'')+(cnt.pb?' · <span class="bad">'+cnt.pb+' problème'+(cnt.pb>1?'s':'')+'</span>':'')+'<em>'+(C.src==='bon'?'d\'après le bon du loueur':'d\'après la demande au loueur')+'</em></div><span class="chk-bar"><i style="width:'+pct+'%"></i></span></div></div>'
+    +'<div class="chk-prog"><div><b>'+done+' / '+rows.length+'</b> ligne'+(rows.length>1?'s':'')+' pointée'+(done>1?'s':'')+(cnt.pb?' · <span class="bad">'+cnt.pb+' problème'+(cnt.pb>1?'s':'')+'</span>':'')+'<em>'+(C.src==='bon'?'d\'après le bon du loueur':C.src==='val'?'d\'après la réponse validée du loueur':'d\'après la demande au loueur')+'</em></div><span class="chk-bar"><i style="width:'+pct+'%"></i></span></div></div>'
     +'<div class="chk-tools"><div class="chk-f">'+[['todo','À pointer',cnt.todo],['pb','Problèmes',cnt.pb],['all','Tout',cnt.all]].map(function(x){ return '<button type="button" class="'+(f===x[0]?'on':'')+'" onclick="chkFilter(\''+x[0]+'\')">'+x[1]+'<span>'+x[2]+'</span></button>'; }).join('')+'</div>'
     +'<label class="chk-q"><i class="ti ti-search"></i><input type="search" placeholder="Chercher" value="'+E(CHK_Q)+'" oninput="chkSearch(this.value)"></label></div>';
   h+='<div class="chk-list">'+(vis.length?vis.map(function(x){ var l=x.l, s=x.s;
@@ -20764,84 +20943,78 @@ document.addEventListener('click',function(e){
 });
 
 /* ══ Lien de demande pour le loueur ══
-   La demande est publiée dans la session (stage_data.demlink = {token, snap}) : le loueur l'ouvre sur
-   demande.html#jeton, sans compte, et répond ligne par ligne (disponible, équivalent, partiel, indisponible).
-   Sa réponse revient dans stage_data.demreply. Désactiver le lien retire les deux. */
-function _demSnap(){
-  var d=_demBuild(), s=CUR_SHOW||{}, L=[];
-  d.secs.forEach(function(sec){ sec.rows.forEach(function(r){ if(!r.off && r.qty>0) L.push({k:r.key, sec:sec.title, name:r.name, det:r.det||'', qty:r.qty}); }); });
-  _demLoad().extra.forEach(function(x,i){ if(!String(x&&x.n||'').trim()) return; L.push({k:'x:'+i+':'+_bonNorm(x.n).slice(0,40), sec:'Autres demandes', name:String(x.n), det:'', qty:+x.q||1}); });
-  return {show:{name:s.name||'', venue:s.venue||'', date:s.show_date?_pdfDateFr(_showDateISO(s.show_date)):''},
-    from:{name:(typeof PROFILE!=='undefined'&&PROFILE&&PROFILE.full_name)||'', co:(typeof _pdfBrand==='function'&&_pdfBrand().co)||''},
-    note:String(d.note||'').slice(0,1500), lines:L.slice(0,400)};
-}
+   La demande est publiée dans la session (stage_data.demlink = {token, snap, ok}) : le loueur l'ouvre sur
+   demande.html#jeton, sans compte. Sa réponse revient dans demreply, sa consultation dans demseen, sa
+   confirmation de réservation dans demconf (fonctions pf_dem_*). Désactiver le lien retire le tout. */
 function _demToken(){ if(crypto.randomUUID) return crypto.randomUUID(); var b=crypto.getRandomValues(new Uint8Array(16)), h=''; b[6]=(b[6]&15)|64; b[8]=(b[8]&63)|128; for(var i=0;i<16;i++){ h+=(b[i]+256).toString(16).slice(1); if(i===3||i===5||i===7||i===9) h+='-'; } return h; }
-function _demLink(){ var sd=CUR_SHOW&&CUR_SHOW.stage_data; return sd&&sd.demlink&&sd.demlink.token?sd.demlink:null; }
+/* Ce que voit le loueur : désignations sans numéros de voies, équivalents acceptés, notes, logistique */
+function _demSnap(){
+  var d=_demBuild(), D=_demLoad(), s=CUR_SHOW||{}, L=[], lg=_demLog();
+  var clean=function(det){ return String(det||'').replace(/^voies?\s[\d,\s]+(·\s*)?/i,'').replace(/(·\s*)?(ou équivalent|équivalent accepté\s*:.*)$/i,'').replace(/^\s*·\s*|\s*·\s*$/g,'').trim(); };
+  d.secs.forEach(function(sec){ sec.rows.forEach(function(r){ if(r.off || !(r.qty>0)) return;
+    var alts=(r.alts||[]).filter(function(a){ return !/^(equivalent|équivalent)$/i.test(a); });
+    L.push({k:r.key, sec:sec.title, name:r.name, det:clean(r.det).slice(0,160), qty:r.qty, eq:!!(D.eq&&D.eq[r.key])||!!(r.alts&&r.alts.length), alts:alts.join(' / ').slice(0,120), note:(D.ln&&D.ln[r.key])||''}); }); });
+  d.extra.forEach(function(x){ L.push({k:'x:'+x.id, sec:'Autres demandes', name:String(x.n).slice(0,120), det:'', qty:+x.q||1, eq:false, alts:'', note:''}); });
+  var log={}; _DEM_LOG.forEach(function(f){ if(lg[f[0]]) log[f[0]]=String(lg[f[0]]).slice(0,400); });
+  return {show:{name:s.name||'', venue:s.venue||'', date:s.show_date?_pdfDateFr(_showDateISO(s.show_date)):''},
+    from:{name:(typeof PROFILE!=='undefined'&&PROFILE&&PROFILE.full_name)||'', co:(function(){ var c=(typeof _pdfBrand==='function'&&_pdfBrand().co)||''; return /^patchflow$/i.test(c)?'':c; })()},
+    to:{name:String(D.to&&D.to.name||'').slice(0,80)}, log:log, note:String(d.note||'').slice(0,1500), lines:L.slice(0,400)};
+}
+function _demLink(){ var sd=CUR_SHOW&&CUR_SHOW.stage_data; return sd&&sd.demlink&&sd.demlink.token&&sd.demlink.snap?sd.demlink:null; }
 function _demReply(){ var sd=CUR_SHOW&&CUR_SHOW.stage_data; return sd&&sd.demreply&&typeof sd.demreply==='object'?sd.demreply:null; }
 function _demUrl(t){ return location.origin+'/demande.html#'+t; }
-function _demChanged(){ var l=_demLink(); if(!l||!l.snap) return false; var a=_demSnap(); return JSON.stringify([a.lines,a.note])!==JSON.stringify([l.snap.lines,l.snap.note]); }
+var _demSig=function(a){ return JSON.stringify([(a.lines||[]).map(function(l){ return [l.k,l.name,l.qty,!!l.eq,l.alts||'',l.note||'']; }),a.note||'',a.log||{}]); };
+function _demChanged(){ var l=_demLink(); return !!(l && _demSig(_demSnap())!==_demSig(l.snap)); }
 async function demPublish(){
   if(!CUR_SHOW) return;
   var snap=_demSnap(); if(!snap.lines.length){ toast('Aucune ligne à demander.'); return; }
   var cur=_demLink(), tok=cur?cur.token:_demToken();
   snap.v=((cur&&cur.snap&&cur.snap.v)||0)+1; snap.at=new Date().toISOString();
+  /* Ce qui a changé depuis la version que le loueur a pu voir */
+  if(cur&&cur.snap){
+    var prev={}; (cur.snap.lines||[]).forEach(function(l){ prev[l.k]=l; });
+    snap.lines.forEach(function(l){ var p=prev[l.k]; if(!p) l.chg='new'; else if(+p.qty!==+l.qty){ l.chg='qty'; l.was=+p.qty; } else if(p.name!==l.name||!!p.eq!==!!l.eq||(p.note||'')!==(l.note||'')) l.chg='edit'; delete prev[l.k]; });
+    snap.removed=Object.keys(prev).map(function(k){ return prev[k].qty+' × '+prev[k].name; }).slice(0,60);
+  }
   CUR_SHOW.stage_data=CUR_SHOW.stage_data||{v:2};
   CUR_SHOW.stage_data.demlink={token:tok, snap:snap};
+  var D=_demLoad(); if(D.val){ D.val=null; _demSave(); }
   var r=await _sdPatch(CUR_SHOW,['demlink']);
   if(r&&r.error){ toast('Lien non créé : '+(r.error.message||r.error)); return; }
-  renderBon(); demLinkOpen();
+  renderBon(); demLinkOpen(true);
 }
 async function demUnpublish(){
   if(!confirm('Désactiver le lien ? Le loueur ne pourra plus ouvrir la demande, et sa réponse sera effacée.')) return;
-  var sd=CUR_SHOW.stage_data; delete sd.demlink; delete sd.demreply;
-  await _sdPatch(CUR_SHOW,['demlink','demreply']);
+  var sd=CUR_SHOW.stage_data; ['demlink','demreply','demseen','demconf'].forEach(function(k){ delete sd[k]; });
+  var D=_demLoad(); D.val=null; _demSave();
+  await _sdPatch(CUR_SHOW,['demlink','demreply','demseen','demconf']);
   var m=document.getElementById('bon-paste'); if(m) m.classList.remove('show');
   renderBon();
 }
-function demLinkOpen(){
+function demTo(f,val){ var D=_demLoad(); D.to=D.to||{}; D.to[f]=String(val||'').trim().slice(0,f==='mail'?120:80); _demSave(); }
+function demLinkOpen(fresh){
   var l=_demLink(); if(!l){ demPublish(); return; }
-  var url=_demUrl(l.token), s=CUR_SHOW||{}, m=document.getElementById('bon-paste');
+  var url=_demUrl(l.token), s=CUR_SHOW||{}, D=_demLoad(), E=_bonE, m=document.getElementById('bon-paste'), chg=_demChanged(), lg=_demLog();
   if(!m){ m=document.createElement('div'); m.id='bon-paste'; m.className='modal-ov'; document.body.appendChild(m); m.addEventListener('click',function(e){ if(e.target===m) m.classList.remove('show'); }); }
-  m.innerHTML='<div class="modal-box bonx-box"><div class="modal-head"><span class="modal-title">Lien pour le loueur</span><button class="modal-close" type="button" onclick="document.getElementById(\'bon-paste\').classList.remove(\'show\')" aria-label="Fermer"><i class="ti ti-x"></i></button></div>'
-    +'<div class="modal-body"><p class="bonx-lead">Le loueur ouvre la demande sans compte et répond ligne par ligne : disponible, équivalent proposé, quantité partielle ou indisponible. Sa réponse s\'affiche ici, dans la demande.</p>'
+  m.innerHTML='<div class="modal-box bonx-box"><div class="modal-head"><span class="modal-title">'+(fresh===true?'Lien prêt':'Lien pour le loueur')+'</span><button class="modal-close" type="button" onclick="document.getElementById(\'bon-paste\').classList.remove(\'show\')" aria-label="Fermer"><i class="ti ti-x"></i></button></div>'
+    +'<div class="modal-body"><p class="bonx-lead">Le loueur ouvre la demande sans compte et répond ligne par ligne : disponible, équivalent, quantité, à confirmer ou indisponible. Vous suivez ici chaque étape, jusqu\'à la réservation confirmée.</p>'
+    +'<div class="bonx-to"><label><span>Loueur</span><input class="dem-li" maxlength="80" placeholder="Nom du loueur" value="'+E(D.to&&D.to.name||'')+'" onchange="demTo(\'name\',this.value)"></label><label><span>E-mail</span><input class="dem-li" type="email" maxlength="120" placeholder="contact@loueur.fr" value="'+E(D.to&&D.to.mail||'')+'" onchange="demTo(\'mail\',this.value)" id="dem-to-mail"></label></div>'
     +'<div class="bonx-url"><input readonly id="dem-url"><button class="btn" type="button" id="dem-url-cp"><i class="ti ti-copy"></i>Copier</button></div>'
-    +'<p class="bonx-n">Version '+((l.snap&&l.snap.v)||1)+' · '+((l.snap&&l.snap.lines||[]).length)+' lignes'+(_demChanged()?' · <b>la demande a changé depuis</b>':'')+'</p></div>'
+    +'<p class="bonx-n">Version '+((l.snap&&l.snap.v)||1)+' · '+((l.snap&&l.snap.lines||[]).length)+' lignes'+(lg.deadline?' · réponse souhaitée avant le '+E(_demFmtDT(lg.deadline)):'')+(chg?' · <b>la demande a changé depuis</b>':'')+'</p></div>'
     +'<div class="modal-foot"><button class="btn" type="button" onclick="demUnpublish()"><i class="ti ti-link-off"></i>Désactiver</button><span style="flex:1"></span>'
-    +(_demChanged()?'<button class="btn" type="button" onclick="demPublish()"><i class="ti ti-refresh"></i>Mettre à jour le lien</button>':'')
+    +(chg?'<button class="btn" type="button" onclick="demPublish()"><i class="ti ti-refresh"></i>Mettre à jour le lien</button>':'')
     +'<button class="btn pri" type="button" id="dem-url-mail"><i class="ti ti-mail"></i>Envoyer par e-mail</button></div></div>';
   m.classList.add('show');
   document.getElementById('dem-url').value=url;
   document.getElementById('dem-url-cp').onclick=function(){ (navigator.clipboard?navigator.clipboard.writeText(url):Promise.reject()).then(function(){ toast('Lien copié'); },function(){ var i=document.getElementById('dem-url'); i.select(); document.execCommand('copy'); toast('Lien copié'); }); };
-  document.getElementById('dem-url-mail').onclick=function(){ location.href='mailto:?subject='+encodeURIComponent('Demande de matériel · '+(s.name||''))+'&body='+encodeURIComponent('Bonjour,\n\nVoici notre demande de matériel pour '+(s.name||'le show')+(s.venue?' ('+s.venue+')':'')+'. Vous pouvez répondre ligne par ligne (disponibilité, équivalents) directement sur cette page :\n'+url+'\n\nMerci !'); };
-}
-/* Réponse du loueur pour une ligne de la demande */
-function _demRep(k){ var r=_demReply(); return r&&r.lines&&r.lines[k]||null; }
-var _DEM_RS={ok:['ok','Disponible'],alt:['alt','Équivalent'],part:['part','Partiel'],no:['no','Indisponible']};
-function _demRepHtml(k){
-  var x=_demRep(k), E=_bonE; if(!x||!_DEM_RS[x.s]) return '';
-  var D=_demLoad(), acc=D.acc&&D.acc[k];
-  return '<span class="dem-rep '+_DEM_RS[x.s][0]+'">'+_DEM_RS[x.s][1]+(x.s==='alt'&&x.alt?' : '+E(x.alt):'')+(x.s==='part'?' : '+(+x.q||0):'')+'</span>'
-    +(x.s==='alt'&&x.alt?(acc?'<span class="dem-acc"><i class="ti ti-check"></i>accepté</span>':'<button type="button" class="dem-acc-b" data-k="'+E(k)+'" onclick="demAccept(this.dataset.k)">Accepter</button>'):'')
-    +(x.c?'<span class="dem-rep-c">« '+E(x.c)+' »</span>':'');
-}
-/* Équivalent accepté : noté dans la demande ; pour un micro, il rejoint la colonne ALT des voies concernées
-   (le contrôle du bon le reconnaîtra) */
-function demAccept(k){
-  var x=_demRep(k); if(!x||!x.alt) return;
-  var D=_demLoad(); D.acc=D.acc||{}; D.acc[k]=String(x.alt).slice(0,60); _demSave();
-  if(/^mic:/.test(k) && typeof CHS!=='undefined'){
-    var nk=k.slice(4), n=0;
-    CHS.forEach(function(c){ if(_bonNorm(c.mic)===nk){ var cur=_ilAltList(_ilAltOf(c)); if(!cur.some(function(a){ return _bonNorm(a)===_bonNorm(x.alt); })){ cur.push(x.alt); saveCustomCell(c.id,'_alt',_ilAltClean(cur.join(' / '))); n++; } } });
-    if(n) toast('Équivalent accepté : ajouté en ALT sur '+n+' voie'+(n>1?'s':''));
-  } else toast('Équivalent accepté');
-  renderBon();
-}
-function _demReplySum(){
-  var r=_demReply(), l=_demLink(); if(!r||!r.lines) return '';
-  var c={ok:0,alt:0,part:0,no:0}; Object.keys(r.lines).forEach(function(k){ var s=r.lines[k]&&r.lines[k].s; if(c[s]!=null) c[s]++; });
-  var old=l&&l.snap&&r.v&&r.v<l.snap.v, E=_bonE, when=r.at?new Date(r.at).toLocaleString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'';
-  return '<div class="dem-rsum"><i class="ti ti-message-check"></i><div><b>Réponse du loueur'+(r.name?' · '+E(r.name):'')+'</b><span>'+[c.ok?c.ok+' disponible'+(c.ok>1?'s':''):'',c.alt?c.alt+' équivalent'+(c.alt>1?'s':''):'',c.part?c.part+' partiel'+(c.part>1?'s':''):'',c.no?c.no+' indisponible'+(c.no>1?'s':''):''].filter(Boolean).join(' · ')+(when?' · '+when:'')+(old?' · <b>répond à une version précédente</b>':'')+'</span>'
-    +(r.note?'<em>« '+E(r.note)+' »</em>':'')+(r.contact?'<em>Contact : '+E(r.contact)+'</em>':'')+'</div></div>';
+  document.getElementById('dem-url-mail').onclick=function(){
+    var to=String((document.getElementById('dem-to-mail')||{}).value||'').trim(); if(!/^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/.test(to)) to='';
+    var body='Bonjour'+(D.to&&D.to.name?' '+D.to.name:'')+',\n\nVoici notre demande de matériel pour '+(s.name||'le show')+(s.venue?' ('+s.venue+')':'')+(s.show_date?', le '+_pdfDateFr(_showDateISO(s.show_date)):'')+'.\n'
+      +(lg.out?(lg.mode==='livraison'?'Livraison : ':'Retrait : ')+_demFmtDT(lg.out)+'\n':'')+(lg.back?(lg.mode==='livraison'?'Reprise : ':'Retour : ')+_demFmtDT(lg.back)+'\n':'')
+      +'\nVous pouvez répondre ligne par ligne (disponibilités, équivalents, quantités) directement sur cette page :\n'+url+'\n'
+      +(lg.deadline?'\nMerci de nous répondre avant le '+_demFmtDT(lg.deadline)+'.\n':'')+'\nMerci !';
+    location.href='mailto:'+encodeURIComponent(to).replace(/%40/g,'@')+'?subject='+encodeURIComponent('Demande de matériel · '+(s.name||''))+'&body='+encodeURIComponent(body);
+  };
 }
 
 /* Onglet « Bon du loueur » */
@@ -20859,8 +21032,8 @@ function renderBon(){
     +'<div class="bonp-act">'+act+'</div></header>'+_bonSwitchHtml(); };
   if(BON_VIEW==='dem'){
     var lk=_demLink();
-    root.innerHTML=hd('<button class="btn" onclick="demReset()"><i class="ti ti-restore"></i>Recalculer</button><button class="btn" onclick="demPdf()"><i class="ti ti-file-type-pdf"></i>PDF</button>'
-      +'<button class="btn pri" onclick="demLinkOpen()"><i class="ti ti-link"></i>'+(lk?'Lien loueur'+(_demChanged()?' · à mettre à jour':''):'Envoyer au loueur')+'</button>')+_demHtml();
+    root.innerHTML=hd('<button class="btn" onclick="demReset()" title="Revenir à la liste calculée"><i class="ti ti-restore"></i>Recalculer</button><button class="btn" onclick="demPdf()"><i class="ti ti-file-type-pdf"></i>PDF</button><button class="btn" onclick="demCsv()" title="Demande et réponse, pour un tableur"><i class="ti ti-table-export"></i>CSV</button>'
+      +'<button class="btn pri" onclick="demLinkOpen()"><i class="ti ti-'+(lk&&_demChanged()?'refresh':lk?'link':'send')+'"></i>'+(lk?(_demChanged()?'Mettre à jour le lien':'Lien loueur'):'Envoyer au loueur')+'</button>')+_demHtml();
     return;
   }
   if(BON_VIEW==='chk'){
@@ -20893,7 +21066,8 @@ function renderBon(){
 }
 /* Carte de la vue d'ensemble : l'état en un coup d'œil, le détail est dans l'onglet */
 function _bonCardHtml(){
-  var hd='<section class="ov-card ov-span2 bon-card"><div class="ov-card-hd"><h2>Bon du loueur</h2>';
+  var st=(typeof _demStatus==='function')?_demStatus():null, cur=null; if(st) st.forEach(function(x){ if(x.on) cur=x; });
+  var hd='<section class="ov-card ov-span2 bon-card"><div class="ov-card-hd"><h2>Bon du loueur</h2>'+(cur?'<button type="button" class="dem-ov" onclick="BON_VIEW=\'dem\';goTab(\'bon\',null)"><i class="ti ti-send"></i>Demande : '+cur.t.toLowerCase()+'</button>':'');
   var c=_bonAll();
   if(!c) return hd+'<button class="ov-link" onclick="goTab(\'bon\',null)">Ouvrir</button></div>'
     +'<div class="bon-empty"><i class="ti ti-clipboard-check"></i><div><b>Vérifiez le matériel avant le départ</b><span>Importez le bon du loueur (PDF, tableur, photo ou texte) : PatchFlow contrôle que le matériel de l\'input list, du synoptique et du plan de site y figure.</span></div>'
