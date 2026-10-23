@@ -4120,6 +4120,15 @@ function applyColVis(){
   updateColBtn();
 }
 function updateColBtn(){const b=document.getElementById('col-btn');if(b)b.innerHTML=`<i class="ti ti-columns"></i>Colonnes <span class="btn-count">${visCol.size}</span>`;}
+/* Menus de la barre de l'input / output list (Importer, Partager, Affichage) */
+function ilDdClose(){ document.querySelectorAll('.il-dd.open').forEach(function(d){ d.classList.remove('open'); }); }
+function ilDd(btn){
+  var d=btn.closest('.il-dd'), was=d.classList.contains('open');
+  ilDdClose(); if(typeof closeTplDd==='function') closeTplDd();
+  if(!was) d.classList.add('open');
+}
+document.addEventListener('mousedown',function(e){ if(!e.target.closest('.il-dd')) ilDdClose(); });
+document.addEventListener('keydown',function(e){ if(e.key==='Escape') ilDdClose(); });
 function colPreset(n){visCol=new Set(COL_PRESETS[n]||COLS.map(c=>c.id));_saveILLayout();applyColVis();loadColChips();toast(`✓ Vue "${n}" appliquée`);}
 function toggleColPanel(){const p=document.getElementById('col-panel');p.style.display=p.style.display==='none'||!p.style.display?'block':'none';if(p.style.display==='block'){loadColChips();_renderCustomColList();renderChNumSizes();}}
 
@@ -6192,7 +6201,8 @@ function ilAiImport(){
   document.getElementById('il-ai-file').click();
 }
 function _ilAiSetLoading(on){
-  const btn=document.getElementById('il-ai-btn'); if(!btn) return;
+  /* L'entrée IA est dans le menu Importer : c'est le bouton du menu qui montre l'analyse */
+  const it=document.getElementById('il-ai-btn'), btn=it&&(it.closest('.il-dd')?it.closest('.il-dd').querySelector('.btn'):it); if(!btn) return;
   if(on){ btn.disabled=true; btn.dataset.html=btn.innerHTML; btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .8s linear infinite"></i> Analyse…'; }
   else { btn.disabled=false; if(btn.dataset.html) btn.innerHTML=btn.dataset.html; }
 }

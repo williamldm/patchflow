@@ -68,7 +68,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=4.73">
+<link rel="stylesheet" href="pf-app.css?v=4.74">
 </head>
 <body>
 
@@ -336,7 +336,7 @@ html.rider-boot #rider-splash{display:flex}
 
       <div class="pbar il-bar">
         <label class="il-filter"><i class="ti ti-search"></i><input id="il-q" placeholder="Filtrer les canaux" oninput="_ilFilter()" autocomplete="off" aria-label="Filtrer la liste"/></label>
-        <!-- Entrées : tout est visible, rien dans un menu « Plus ». Ligne 1 : créer, importer, sortir. Ligne 2 : affichage. -->
+        <!-- Entrées : ligne 1 créer, importer, partager, exporter ; ligne 2 affichage. Menus nommés, pas de « Plus » fourre-tout. -->
         <span id="il-in-btns" style="display:contents">
           <div class="il-row a">
             <button class="btn pri" onclick="addRow()"><i class="ti ti-plus"></i>Canal</button>
@@ -355,23 +355,36 @@ html.rider-boot #rider-splash{display:flex}
                 <button type="button" class="tpl-dd-save" onclick="closeTplDd();saveAsTemplate()"><i class="ti ti-bookmark-plus"></i>Enregistrer la liste actuelle comme template</button>
               </div>
             </div>
-            <span class="il-sep"></span>
-            <span class="il-lbl">Importer</span>
-            <button class="btn" onclick="ilPdfImport()" title="Reprendre le patch d'un rider en PDF, page par page"><i class="ti ti-file-type-pdf"></i>PDF</button>
-            <button class="btn" onclick="importCSVClick()" title="Importer un fichier CSV"><i class="ti ti-table-import"></i>CSV</button>
-            <button class="btn" id="il-ai-btn" onclick="ilAiImport()" title="Photo, PDF scanné ou Word : la liste est lue par l'IA"><i class="ti ti-sparkles"></i>Par IA</button>
+            <div class="il-dd">
+              <button class="btn" type="button" onclick="ilDd(this)" aria-haspopup="menu"><i class="ti ti-file-import"></i>Importer<i class="ti ti-chevron-down il-chev"></i></button>
+              <div class="il-dd-menu" role="menu">
+                <button type="button" onclick="ilDdClose();ilPdfImport()"><i class="ti ti-file-type-pdf"></i><span><b>Rider PDF</b><em>Le patch d'un rider, page par page</em></span></button>
+                <button type="button" id="il-ai-btn" onclick="ilDdClose();ilAiImport()"><i class="ti ti-sparkles"></i><span><b>Photo ou document</b><em>Photo, PDF scanné ou Word, lu par l'IA</em></span></button>
+                <button type="button" onclick="ilDdClose();importCSVClick()"><i class="ti ti-table-import"></i><span><b>Fichier CSV</b><em>Export d'un tableur</em></span></button>
+              </div>
+            </div>
             <span class="il-bar-sp"></span>
             <button type="button" class="btn" data-undo="il" onclick="undoSection('il')" title="Annuler (Ctrl/⌘+Z)" style="display:none"><i class="ti ti-arrow-back-up"></i>Annuler</button>
-            <button class="btn" onclick="copyILShareLink()" title="Copier le lien de partage de cette input list"><i class="ti ti-link"></i>Lien de partage</button>
+            <div class="il-dd il-dd-r">
+              <button class="btn" type="button" onclick="ilDd(this)" aria-haspopup="menu"><i class="ti ti-share"></i>Partager<i class="ti ti-chevron-down il-chev"></i></button>
+              <div class="il-dd-menu" role="menu">
+                <button type="button" onclick="ilDdClose();copyILShareLink()"><i class="ti ti-link"></i><span><b>Copier le lien</b><em>Input list en ligne, toujours à jour</em></span></button>
+                <button type="button" id="il-stageplan-btn" onclick="ilDdClose();openStagePlanPicker()"><i class="ti ti-map-2"></i><span><b>Plan de scène lié</b><em>Celui qui s'ouvre depuis le lien</em></span></button>
+              </div>
+            </div>
             <button class="btn" id="il-exp-btn" onclick="openPDFModal('in')"><i class="ti ti-file-export"></i>Exporter</button>
           </div>
           <div class="il-row b">
-            <button class="btn" id="col-btn" onclick="toggleColPanel()"><i class="ti ti-columns"></i>Colonnes</button>
-            <button class="btn" id="il-group-btn" onclick="toggleILGroup()" aria-pressed="true" title="Regrouper les canaux qui se suivent par source"><i class="ti ti-list-tree"></i>Grouper par source</button>
-            <button class="btn" id="il-stageplan-btn" onclick="openStagePlanPicker()" title="Plan de scène ouvert depuis les liens partagés de cette liste"><i class="ti ti-map-2"></i>Plan de scène lié</button>
+            <div class="il-dd">
+              <button class="btn" type="button" onclick="ilDd(this)" aria-haspopup="menu"><i class="ti ti-layout-columns"></i>Affichage<i class="ti ti-chevron-down il-chev"></i></button>
+              <div class="il-dd-menu" role="menu">
+                <button type="button" onclick="ilDdClose();toggleColPanel()"><i class="ti ti-columns"></i><span><b>Colonnes</b><em>Choisir, réordonner, ajouter</em></span></button>
+                <button type="button" id="il-group-btn" onclick="toggleILGroup()" aria-pressed="true"><i class="ti ti-list-tree"></i><span><b>Grouper par source</b><em>Voies qui se suivent, par source</em></span><i class="ti ti-check il-dd-ck"></i></button>
+              </div>
+            </div>
             <button class="btn" id="il-sb-btn" onclick="ilBoxesOpen()" title="Boîtes de scène et patch des voies"><i class="ti ti-plug-connected"></i>Stageboxes</button>
             <span class="il-bar-sp"></span>
-            <button class="btn il-danger" onclick="clearAllRows()" title="Supprimer tous les canaux de ce patch"><i class="ti ti-trash"></i>Tout supprimer</button>
+            <button class="btn il-danger il-ico" onclick="clearAllRows()" title="Supprimer tous les canaux de ce patch" aria-label="Supprimer tous les canaux"><i class="ti ti-trash"></i></button>
           </div>
           <!-- Hidden file inputs -->
           <input type="file" id="csv-import-input" accept=".csv,.txt" style="display:none" onchange="importCSVLoad(this)">
@@ -382,16 +395,16 @@ html.rider-boot #rider-splash{display:flex}
           <div class="il-row a">
             <button class="btn pri" onclick="addOutRow()"><i class="ti ti-plus"></i>Sortie</button>
             <button class="btn" onclick="openOLAssist()" title="Saisir plusieurs sorties d'un coup"><i class="ti ti-wand"></i>Assistant</button>
-            <span class="il-sep"></span>
-            <span class="il-lbl">Importer</span>
-            <button class="btn" onclick="olPdfImport()" title="Reprendre les sorties d'un rider en PDF, page par page"><i class="ti ti-file-type-pdf"></i>PDF</button>
-            <button class="btn" onclick="importOutCSVClick()" title="Importer un fichier CSV"><i class="ti ti-table-import"></i>CSV</button>
+            <div class="il-dd">
+              <button class="btn" type="button" onclick="ilDd(this)" aria-haspopup="menu"><i class="ti ti-file-import"></i>Importer<i class="ti ti-chevron-down il-chev"></i></button>
+              <div class="il-dd-menu" role="menu">
+                <button type="button" onclick="ilDdClose();olPdfImport()"><i class="ti ti-file-type-pdf"></i><span><b>Rider PDF</b><em>Les sorties d'un rider, page par page</em></span></button>
+                <button type="button" onclick="ilDdClose();importOutCSVClick()"><i class="ti ti-table-import"></i><span><b>Fichier CSV</b><em>Export d'un tableur</em></span></button>
+              </div>
+            </div>
             <span class="il-bar-sp"></span>
             <button class="btn" id="out-exp-btn" onclick="openPDFModal('out')"><i class="ti ti-file-export"></i>Exporter</button>
-          </div>
-          <div class="il-row b">
-            <span class="il-bar-sp"></span>
-            <button class="btn il-danger" onclick="clearAllOutRows()" title="Supprimer toutes les sorties"><i class="ti ti-trash"></i>Tout supprimer</button>
+            <button class="btn il-danger il-ico" onclick="clearAllOutRows()" title="Supprimer toutes les sorties" aria-label="Supprimer toutes les sorties"><i class="ti ti-trash"></i></button>
           </div>
         </span>
       </div>
@@ -1667,7 +1680,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=5.19"></script>
+<script src="pf-app.js?v=5.20"></script>
 <script src="pf-rf.js?v=1.16"></script>
 <script src="pf-road.js?v=1.2"></script>
 <script src="pf-fest.js?v=1.18"></script>
