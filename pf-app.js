@@ -19832,7 +19832,10 @@ function _bonLoad(){
   var id=CUR_SHOW&&CUR_SHOW.id, sd=CUR_SHOW&&CUR_SHOW.stage_data, src=sd?sd.bon:null;
   if(_bonShowId===id && _bonSrc===src) return BON;
   _bonShowId=id; _bonSrc=src; BON=null;
-  if(src && Array.isArray(src.items)) BON=JSON.parse(JSON.stringify(src));
+  /* Données partagées : chaque champ est remis à son type (texte borné, quantité entière) avant usage */
+  if(src && Array.isArray(src.items)) BON={file:String(src.file||'Bon').slice(0,120), at:String(src.at||''),
+    items:src.items.filter(function(i){ return i&&typeof i==='object'; }).slice(0,800).map(function(i){ return {ref:String(i.ref||'').slice(0,80), name:String(i.name||'').slice(0,200), more:String(i.more||'').slice(0,200), qty:Math.max(0,Math.min(99999,parseInt(i.qty,10)||0)), sub:!!i.sub}; }),
+    map:(src.map&&typeof src.map==='object')?Object.keys(src.map).reduce(function(o,k){ o[String(k).slice(0,120)]=String(src.map[k]||'').slice(0,120); return o; },{}):{}};
   else if(id){
     try{ var j=JSON.parse(localStorage.getItem(_bonKey())||'null'); if(j&&Array.isArray(j.items)){ BON=j; _bonSave(); localStorage.removeItem(_bonKey()); } }catch(e){}
   }
@@ -20333,7 +20336,8 @@ function _demLoad(){
   _demShowId=id; _demSrc=src; DEM={q:{},off:{},extra:[],note:'',acc:{}};
   var j=src, mig=false;
   if(!j && id){ try{ j=JSON.parse(localStorage.getItem('pf_dem_'+id)||'null'); mig=!!j; }catch(e){} }
-  if(j&&typeof j==='object'){ DEM.q=Object.assign({},j.q||{}); DEM.off=Object.assign({},j.off||{}); DEM.extra=Array.isArray(j.extra)?j.extra.map(function(x){ return {n:String(x&&x.n||''),q:+(x&&x.q)||1}; }):[]; DEM.note=String(j.note||''); DEM.acc=Object.assign({},j.acc||{}); }
+  var qn=function(o){ var r={}; if(o&&typeof o==='object') Object.keys(o).forEach(function(k){ r[k]=Math.max(0,Math.min(999,parseInt(o[k],10)||0)); }); return r; };
+  if(j&&typeof j==='object'){ DEM.q=qn(j.q); DEM.off=Object.assign({},j.off||{}); DEM.extra=Array.isArray(j.extra)?j.extra.map(function(x){ return {n:String(x&&x.n||''),q:+(x&&x.q)||1}; }):[]; DEM.note=String(j.note||''); DEM.acc={}; if(j.acc&&typeof j.acc==='object') Object.keys(j.acc).forEach(function(k){ DEM.acc[k]=String(j.acc[k]||'').slice(0,60); }); }
   if(mig){ _demSave(); try{ localStorage.removeItem('pf_dem_'+id); }catch(e){} }
   return DEM;
 }
@@ -20658,10 +20662,11 @@ function _chkLines(){
 /* État d'une ligne pour la phase en cours (au retour, on attend ce qui a été reçu) */
 function _chkState(l, phase){
   var D=_chkData(), liv=(D.liv||{})[l.k], v=(D[phase]||{})[l.k], exp=l.qty;
-  if(phase==='ret' && liv && liv.n!=null) exp=Math.max(0,(liv.n||0));
-  var n=v&&v.n!=null?v.n:null, h=v&&v.h||0;
+  if(phase==='ret' && liv && liv.n!=null) exp=parseInt(liv.n,10)||0;
+  exp=Math.max(0,parseInt(exp,10)||0);
+  var n=v&&v.n!=null?Math.max(0,parseInt(v.n,10)||0):null, h=Math.max(0,parseInt(v&&v.h,10)||0);
   var st=n==null?'todo':(n<exp?'miss':(h?'hs':'ok'));
-  return {exp:exp, n:n, h:h, st:st, by:v&&v.by||'', at:v&&v.at||0};
+  return {exp:exp, n:n, h:h, st:st, by:String(v&&v.by||''), at:+(v&&v.at)||0};
 }
 var _chkPend={}, _chkT=null;
 function _chkSet(k, val){
