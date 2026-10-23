@@ -1384,9 +1384,9 @@ html.rider-boot #rider-splash{display:flex}
           <div class="xp-opt" id="pdf-orient-row">
             <div class="xp-opt-t"><b>Orientation</b><span id="pdf-orient-hint">Toutes les pages suivent ce choix</span></div>
             <div class="xp-seg">
-              <button type="button" id="pdf-orient-land" class="xp-seg-b on" onclick="setPdfOrient('landscape')">Paysage</button>
+              <button type="button" id="pdf-orient-auto" class="xp-seg-b on" onclick="setPdfOrient('auto')" title="L'orientation où le document sort le plus grand">Auto</button>
+              <button type="button" id="pdf-orient-land" class="xp-seg-b" onclick="setPdfOrient('landscape')">Paysage</button>
               <button type="button" id="pdf-orient-port" class="xp-seg-b" onclick="setPdfOrient('portrait')">Portrait</button>
-              <button type="button" id="pdf-orient-auto" class="xp-seg-b" onclick="setPdfOrient('auto')">Les deux</button>
             </div>
           </div>
           <div class="xp-opt" id="pdf-zoom-row" style="display:none">
@@ -1681,7 +1681,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=5.29"></script>
+<script src="pf-app.js?v=5.30"></script>
 <script src="pf-rf.js?v=1.16"></script>
 <script src="pf-road.js?v=1.2"></script>
 <script src="pf-fest.js?v=1.18"></script>

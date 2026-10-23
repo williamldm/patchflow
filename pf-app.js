@@ -398,7 +398,7 @@ let OUT_CHS=[];         // sorties du patch courant
 let OUT_DATA={};        // { [patch_id]: [...out_channels] }
 let _saveOutTimer=null;
 let _pdfExportType='in';          // 'in' | 'out'
-let _pdfOrient='landscape';       // orientation des plans visuels : 'landscape' | 'portrait'
+let _pdfOrient='auto';            // orientation des plans visuels : 'auto' (conseillée) | 'landscape' | 'portrait'
 let _pdfLogoDataUrl=null;         // base64 logo studio
 let _pdfBranding={co:'',site:'',color:'#ff6b1a',tagline:''};
 let _patchColReady=false;
@@ -5643,7 +5643,9 @@ function setPdfExportType(type){
   const creditRow = document.getElementById('pdf-credit-row');
   if(creditRow) creditRow.style.display = '';
   _pdfSyncCredit();
-  setPdfOrient(_pdfOrient); setPdfTextSize(_pdfTextSize);
+  /* Chaque export repart en « Auto » : l'orientation conseillée est calculée sur le document lui-même */
+  _pdfOrientBest=isVisual?_pdfBestOrient(type):null;
+  setPdfOrient('auto'); setPdfTextSize(_pdfTextSize);
   const textRow = document.getElementById('pdf-text-row');
   if(textRow) textRow.style.display = (type==='syno' && _pdfZoom) ? '' : 'none';
   const zc = document.getElementById('pdf-zoom'); if(zc) zc.checked = _pdfZoom;
@@ -5731,19 +5733,46 @@ function doExport(){
 }
 function pdfToFilesFromModal(){ if(_pdfExportType==='fest'){ closePDF(); festDoExport('pdf', true); return; } quickPdfToFiles(_pdfExportType); }
 function setPdfOrient(o){
-  _pdfOrient = (o==='portrait'||o==='auto') ? o : 'landscape';
+  _pdfOrient = (o==='portrait'||o==='landscape') ? o : 'auto';
   var l=document.getElementById('pdf-orient-land'), p=document.getElementById('pdf-orient-port'), a=document.getElementById('pdf-orient-auto');
   if(l) l.classList.toggle('on', _pdfOrient==='landscape');
   if(p) p.classList.toggle('on', _pdfOrient==='portrait');
   if(a) a.classList.toggle('on', _pdfOrient==='auto');
-  var h=document.getElementById('pdf-orient-hint'); if(h) h.textContent=_pdfOrient==='auto'?'Chaque page prend l\'orientation la plus lisible':'Toutes les pages suivent ce choix';
-  try{ localStorage.setItem('pf_pdf_orient',_pdfOrient); }catch(e){}
+  _pdfOrientHint();
+}
+/* Orientation conseillée : celle où le document sort le plus grand sur la page.
+   Synoptique : mesurée sur le schéma exporté ; plans : sur la forme du plan. */
+function _pdfBestOrient(type){
+  try{
+    var r=0;
+    if(type==='syno' && window.SynPro && SynPro.buildExportSvg){ var ex=SynPro.buildExportSvg({skipHeader:true, skipLegend:true}); if(ex&&ex.w&&ex.h) r=ex.w/ex.h; }
+    else if(type==='stage' && typeof BandPlan!=='undefined' && BandPlan.getData){ var d=BandPlan.getData(), b=_pdfBox((d.els||[]).map(function(e){ return [e.x,e.y,(e.w||60),(e.h||60)]; })); if(b) r=b; }
+    else if(type==='site' && typeof SitePlan!=='undefined' && SitePlan.getData){ var g=SitePlan.getData(), b2=_pdfBox((g.elements||[]).map(function(e){ return [e.x,e.y,(e.elSize||72),(e.elSize||72)]; })); if(b2) r=b2; }
+    if(!r) return null;
+    /* Cadre utile d'une page A4 (en-tête, pied et marges retirés) */
+    var area=function(w,h){ var dw=w, dh=dw/r; if(dh>h){ dh=h; dw=dh*r; } return dw*dh; };
+    var L=area(273,210-70), P=area(186,297-70);
+    return {o:P>L?'portrait':'landscape', gain:Math.round((Math.sqrt(Math.max(P,L)/Math.min(P,L))-1)*100)};
+  }catch(e){ return null; }
+}
+function _pdfBox(list){
+  if(!list.length) return 0;
+  var x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  list.forEach(function(b){ if(!isFinite(b[0])||!isFinite(b[1])) return; x0=Math.min(x0,b[0]); y0=Math.min(y0,b[1]); x1=Math.max(x1,b[0]+b[2]); y1=Math.max(y1,b[1]+b[3]); });
+  return (x1>x0&&y1>y0)?(x1-x0)/(y1-y0):0;
+}
+var _pdfOrientBest=null;
+function _pdfOrientHint(){
+  var h=document.getElementById('pdf-orient-hint'); if(!h) return;
+  var b=_pdfOrientBest, nm=function(o){ return o==='portrait'?'portrait':'paysage'; };
+  if(_pdfOrient==='auto') h.textContent=b?'Auto : '+nm(b.o)+(b.gain>=5?', '+b.gain+' % plus grand qu\'en '+nm(b.o==='portrait'?'landscape':'portrait'):', la forme la plus lisible'):'Chaque page prend l\'orientation la plus lisible';
+  else h.textContent=(b&&b.o!==_pdfOrient&&b.gain>=5)?'Conseillé : '+nm(b.o)+' ('+b.gain+' % plus grand)':'Toutes les pages suivent ce choix';
 }
 /* Taille du texte du synoptique dans le PDF : seuil à partir duquel des pages de détail agrandies sont ajoutées.
    'fit' = tout tenir sur la vue d'ensemble, sans page de détail. Valeur = millimètres par pixel du schéma. */
 var _pdfTextSize='normal';
 const _PDF_TEXT_MIN={normal:0.2, large:0.26, xlarge:0.33};
-try{ var _pts=localStorage.getItem('pf_pdf_text'); if(_PDF_TEXT_MIN[_pts]!==undefined) _pdfTextSize=_pts; var _po=localStorage.getItem('pf_pdf_orient'); if(_po==='portrait'||_po==='auto'||_po==='landscape') _pdfOrient=_po; }catch(e){}
+try{ var _pts=localStorage.getItem('pf_pdf_text'); if(_PDF_TEXT_MIN[_pts]!==undefined) _pdfTextSize=_pts; }catch(e){}
 /* Pages zoomées du synoptique : case à cocher à l'export. Cochée, le schéma est redécoupé en portions agrandies,
    toujours en paysage ; la taille du texte règle le niveau de zoom. */
 var _pdfZoom=false;
@@ -7836,7 +7865,7 @@ function _bpLoadJsPDF(){
    de lien de partage actif ». On crée une config par défaut (toutes les
    sections, comme le rider builder) sans écraser une config existante. */
 async function _ensureShareActive(){
-  if(!CUR_SHOW) return false;
+  if(!CUR_SHOW || PF_GUEST) return false;
   if(CUR_SHOW.stage_data && CUR_SHOW.stage_data.rider) return true;
   var cfg={ sections:['il','out','syno','stage','site'], title:CUR_SHOW.name||'', note:'', info:'', files:[] };
   var sd=Object.assign({}, CUR_SHOW.stage_data||{v:2}, {rider:cfg});
@@ -8272,6 +8301,7 @@ async function _pfLogoPng(color){
    (plan de scène, plan de site, synoptique) — plus de popup ni d'impression. */
 async function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand, opts){
   opts = opts || {};
+  if(PF_GUEST) shareUrl='';   /* essai sans compte : le show n'existe pas en ligne, pas de lien ni de QR */
   const inlineSvg = !!opts.inlineSvg;
   toast('Génération PDF…');
   try {
@@ -8287,7 +8317,7 @@ async function _openVisualPdf(docType, meta, dataUrl, shareUrl, brand, opts){
     /* Plans (fit) : l'orientation qui affiche le plan le plus grand, quelle que soit la forme de la scène.
        Cadre utile : page A4 moins les marges, l'en-tête et le pied (66 mm mesurés en tout). */
     let orientation = opts.orientation==='auto' ? (ratio<1?'portrait':'landscape') : (opts.orientation==='portrait') ? 'portrait' : 'landscape';
-    if(opts.fit){
+    if(opts.fit && opts.orientation==='auto'){
       const area=function(w,h){ let dw=w, dh=dw/ratio; if(dh>h){ dh=h; dw=dh*ratio; } return dw*dh; };
       orientation = area(186,297-66) > area(273,210-66) ? 'portrait' : 'landscape';
     }
@@ -8503,6 +8533,7 @@ function _pdfCreditTag(doc, pf, x, y, w, h){
   try{ doc.link(bx,by,bw,bh,{url:'https://patchflow.fr/?from=pdf'}); }catch(e){}
 }
 async function _openSynoPdf(meta, synHtml, shareUrl, brand){
+  if(PF_GUEST) shareUrl='';
   if(!window.SynPro || !SynPro.buildExportSvg){ toast('Module synoptique indisponible.'); return; }
   var ex;
   try{ ex=SynPro.buildExportSvg({skipHeader:true, skipLegend:true}); }catch(e){ toast('Erreur synoptique : '+e.message); return; }
@@ -8717,6 +8748,7 @@ function _ilColsForPdf(){
    net et sélectionnable, pagination correcte. Remplace l'ancien export par
    impression navigateur, et sert aussi à l'enregistrement dans Fichiers. */
 async function _openTablePdf(type, meta, brand, shareUrl){
+  if(PF_GUEST) shareUrl='';
   toast('Génération PDF…');
   try{
     var JsPDF=await _loadAutoTable();
