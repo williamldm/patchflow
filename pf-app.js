@@ -143,19 +143,20 @@ async function _pfDataClear(){
    ══════════════════════════════════════════════════════════════════ */
 var PF_GUEST=(function(){
   try{
-    var p=new URLSearchParams(location.search); if(!p.has('essai')) return false;
+    var p=new URLSearchParams(location.search); if(!p.has('essai') || !/\/app(\.html)?$/.test(location.pathname)) return false;
     var k='sb-'+SB_URL.split('//')[1].split('.')[0]+'-auth-token';
     if(localStorage.getItem(k)){ p.delete('essai'); history.replaceState(null,'',location.pathname+(p.toString()?'?'+p:'')+location.hash); return false; }
     return true;
   }catch(e){ return false; }
 })();
 /* Essai : aucune écriture durable dans le navigateur. Préférences, caches, bibliothèques et images
-   restent en mémoire de la page et disparaissent à sa fermeture ; seul le brouillon passé à
-   l'inscription (allégé de ses images) est écrit, et effacé dès qu'il est repris. */
+   restent en mémoire de la page et disparaissent à sa fermeture. Le brouillon passé à l'inscription
+   (allégé de ses images) va dans le stockage de l'onglet (sessionStorage) : il disparaît avec lui
+   et ne peut pas être repris par une autre personne qui se connecterait plus tard sur ce navigateur. */
 if(PF_GUEST) (function(){
   try{
-    var ls=window.localStorage, mem={}, S=Storage.prototype, oSet=S.setItem, oGet=S.getItem, oRem=S.removeItem, oKey=S.key, keep=/^pf_guest_draft$/;
-    S.setItem=function(k,v){ if(this===ls && !keep.test(k)){ mem[k]=String(v); return; } return oSet.call(this,k,v); };
+    var ls=window.localStorage, mem={}, S=Storage.prototype, oSet=S.setItem, oGet=S.getItem, oRem=S.removeItem;
+    S.setItem=function(k,v){ if(this===ls){ mem[k]=String(v); return; } return oSet.call(this,k,v); };
     S.getItem=function(k){ if(this===ls && Object.prototype.hasOwnProperty.call(mem,k)) return mem[k]; return oGet.call(this,k); };
     S.removeItem=function(k){ if(this===ls && Object.prototype.hasOwnProperty.call(mem,k)){ delete mem[k]; return; } return oRem.call(this,k); };
   }catch(e){}
@@ -268,7 +269,7 @@ function _guestDraft(){
 function guestSignup(){
   var d=_guestDraft(), kept=false;
   if(d && (d.channels.length || JSON.stringify(d.show.stage_data).length>20 || d.show.synoptique_data || d.show.out_data || d.scenes.length)){
-    try{ localStorage.setItem('pf_guest_draft', JSON.stringify(d)); kept=true; }catch(e){}
+    try{ sessionStorage.setItem('pf_guest_draft', JSON.stringify(d)); kept=true; }catch(e){}
   }
   window.__pfGuestLeaving=true;
   location.href='app.html?signup=1&from=essai'+(kept?'&draft=1':'');
@@ -306,17 +307,20 @@ function _guestBoot(){
 }
 /* Après l'inscription : l'essai gardé dans ce navigateur devient un vrai show */
 async function _guestImportDraft(){
-  var raw=null; try{ raw=localStorage.getItem('pf_guest_draft'); }catch(e){} if(!raw||!ME||PF_GUEST) return;
+  var raw=null; try{ raw=sessionStorage.getItem('pf_guest_draft'); }catch(e){} if(!raw||!ME||PF_GUEST) return;
   var d=null; try{ d=JSON.parse(raw); }catch(e){}
-  try{ localStorage.removeItem('pf_guest_draft'); }catch(e){}
-  if(!d||!d.show||Date.now()-(+d.at||0)>7*86400000) return;
+  try{ sessionStorage.removeItem('pf_guest_draft'); }catch(e){}
+  if(!d||!d.show||typeof d.show!=='object'||Date.now()-(+d.at||0)>3*3600000) return;
+  if(!confirm('Reprendre dans votre compte l\'essai fait sans compte'+(d.show.name?' (« '+String(d.show.name).slice(0,60)+' »)':'')+' ?')) return;
   try{
     var s=d.show, ins=await sb.from('shows').insert({name:String(s.name||'Mon show').slice(0,120), slug:'essai-'+Date.now(), owner_id:ME.id, venue:s.venue||null, show_date:s.show_date||null,
       stage_data:s.stage_data||{v:2}, synoptique_data:s.synoptique_data||null, out_data:s.out_data||null, il_patches:s.il_patches||null}).select().single();
     if(ins.error) throw ins.error;
     var show=ins.data;
-    if(Array.isArray(d.channels)&&d.channels.length){ var ci=await sb.from('channels').insert(d.channels.slice(0,256).map(function(c){ return Object.assign({},c,{show_id:show.id}); })); if(ci.error) console.warn('[essai] voies',ci.error); }
-    if(Array.isArray(d.scenes)&&d.scenes.length){ var si=await sb.from('show_scenes').insert(d.scenes.map(function(c){ return Object.assign({},c,{show_id:show.id}); })); if(si.error) console.warn('[essai] scènes',si.error); }
+    var pick=function(o,keys){ var r={}; keys.forEach(function(k){ if(o&&o[k]!==undefined) r[k]=o[k]; }); return r; };
+    var CH=['ch','short_name','long_name','source','mic','gain','phantom','iem_group','foh','mon','bc','note','custom_data','patch_id'];
+    if(Array.isArray(d.channels)&&d.channels.length){ var ci=await sb.from('channels').insert(d.channels.slice(0,256).filter(function(c){ return c&&typeof c==='object'; }).map(function(c){ return Object.assign(pick(c,CH),{show_id:show.id}); })); if(ci.error) console.warn('[essai] voies',ci.error); }
+    if(Array.isArray(d.scenes)&&d.scenes.length){ var si=await sb.from('show_scenes').insert(d.scenes.slice(0,20).filter(function(c){ return c&&typeof c==='object'; }).map(function(c){ return Object.assign(pick(c,['type','name','data','position']),{show_id:show.id}); })); if(si.error) console.warn('[essai] scènes',si.error); }
     SHOWS.unshift(show); try{ renderSPShows(); }catch(e){} try{ if(typeof renderSessions==='function') renderSessions(); }catch(e){}
     await switchShow(show.id);
     toast('✓ Votre essai est enregistré dans « '+show.name+' »');
@@ -471,6 +475,7 @@ function authPwHint(inp){
 }
 /* Google ne s'affiche que s'il est activé dans le projet Supabase (réglages publics de l'authentification) */
 async function _authProviders(){
+  if(PF_GUEST) return;
   try{
     var r=await fetch(SB_URL+'/auth/v1/settings',{headers:{apikey:SB_KEY}}), j=await r.json(), ext=(j&&j.external)||{}, any=false;
     document.querySelectorAll('.auth-social-btn[data-provider]').forEach(function(b){ var on=ext[b.dataset.provider]===true; b.hidden=!on; if(on) any=true; });
