@@ -20450,7 +20450,8 @@ function _demLogAuto(){
 }
 function _demLog(){ var D=_demLoad(), a=_demLogAuto(), o={}; _DEM_LOG.forEach(function(f){ var v=D.log&&D.log[f[0]]; o[f[0]]=(v!=null&&v!=='')?String(v):a[f[0]]; }); return o; }
 function demLog(f,val){ var D=_demLoad(); D.log=D.log||{}; D.log[f]=String(val||'').slice(0,f==='access'?400:200); _demSave(); if(f==='mode') renderBon(); }
-function _demFmtDT(v){ if(!v) return ''; var d=new Date(v); if(isNaN(d)) return String(v); return d.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'})+(String(v).indexOf('T')>0?' à '+d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''); }
+/* Toujours une date formatée (ou rien) : jamais la valeur brute, qui peut venir des données partagées */
+function _demFmtDT(v){ if(!v) return ''; var d=new Date(String(v)); if(isNaN(d)) return ''; return d.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'})+(String(v).indexOf('T')>0?' à '+d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''); }
 function _demLogHtml(){
   var E=_bonE, L=_demLog(), liv=L.mode==='livraison', miss=[];
   if(!L.out) miss.push(liv?'date de livraison':'date de retrait'); if(!L.back) miss.push(liv?'date de reprise':'date de retour'); if(liv&&!L.addr) miss.push('adresse'); if(!L.me) miss.push('vos coordonnées');
@@ -20537,7 +20538,7 @@ function _demReplySum(d){
   var l=_demLink(), old=l&&l.snap&&r.v&&+r.v<+l.snap.v, when=r.at?_demFmtDT(r.at):'';
   var chip=function(k,t,cls){ return c[k]?'<button type="button" class="dem-fc '+cls+(DEM_F===k?' on':'')+'" onclick="demFilter(\''+k+'\')"><b>'+c[k]+'</b>'+t+'</button>':''; };
   var canVal=l&&!old&&!_demChanged(), done=l&&l.ok&&+l.ok.v===+l.snap.v;
-  return '<div class="dem-rsum"><div class="dem-rsum-h"><i class="ti ti-message-check"></i><div><b>Réponse du loueur'+(r.name?' · '+E(r.name):'')+'</b><span>'+when+(r.quote?' · devis n° '+E(r.quote):'')+(r.contact?' · '+E(r.contact):'')+(old?' · <b>répond à la version '+r.v+'</b>':'')+'</span>'
+  return '<div class="dem-rsum"><div class="dem-rsum-h"><i class="ti ti-message-check"></i><div><b>Réponse du loueur'+(r.name?' · '+E(r.name):'')+'</b><span>'+when+(r.quote?' · devis n° '+E(r.quote):'')+(r.contact?' · '+E(r.contact):'')+(old?' · <b>répond à la version '+(parseInt(r.v,10)||0)+'</b>':'')+'</span>'
     +(r.note?'<em>« '+E(r.note)+' »</em>':'')+'</div>'
     +(canVal?(done?'<button type="button" class="btn" onclick="demValidate(0)"><i class="ti ti-arrow-back-up"></i>Annuler la validation</button>':'<button type="button" class="btn pri" onclick="demValidate(1)"><i class="ti ti-circle-check"></i>Valider la réponse</button>'):'')+'</div>'
     +'<div class="dem-fcs">'+chip('ok','disponibles','ok')+chip('alt','équivalents','alt')+chip('part','partiels','part')+chip('tbc','à confirmer','tbc')+chip('no','indisponibles','no')+chip('rev','à revoir','rev')+chip('none','sans réponse','none')+'</div>'
@@ -21000,7 +21001,7 @@ function demLinkOpen(fresh){
     +'<div class="modal-body"><p class="bonx-lead">Le loueur ouvre la demande sans compte et répond ligne par ligne : disponible, équivalent, quantité, à confirmer ou indisponible. Vous suivez ici chaque étape, jusqu\'à la réservation confirmée.</p>'
     +'<div class="bonx-to"><label><span>Loueur</span><input class="dem-li" maxlength="80" placeholder="Nom du loueur" value="'+E(D.to&&D.to.name||'')+'" onchange="demTo(\'name\',this.value)"></label><label><span>E-mail</span><input class="dem-li" type="email" maxlength="120" placeholder="contact@loueur.fr" value="'+E(D.to&&D.to.mail||'')+'" onchange="demTo(\'mail\',this.value)" id="dem-to-mail"></label></div>'
     +'<div class="bonx-url"><input readonly id="dem-url"><button class="btn" type="button" id="dem-url-cp"><i class="ti ti-copy"></i>Copier</button></div>'
-    +'<p class="bonx-n">Version '+((l.snap&&l.snap.v)||1)+' · '+((l.snap&&l.snap.lines||[]).length)+' lignes'+(lg.deadline?' · réponse souhaitée avant le '+E(_demFmtDT(lg.deadline)):'')+(chg?' · <b>la demande a changé depuis</b>':'')+'</p></div>'
+    +'<p class="bonx-n">Version '+(parseInt(l.snap&&l.snap.v,10)||1)+' · '+((l.snap&&l.snap.lines||[]).length)+' lignes'+(lg.deadline?' · réponse souhaitée avant le '+E(_demFmtDT(lg.deadline)):'')+(chg?' · <b>la demande a changé depuis</b>':'')+'</p></div>'
     +'<div class="modal-foot"><button class="btn" type="button" onclick="demUnpublish()"><i class="ti ti-link-off"></i>Désactiver</button><span style="flex:1"></span>'
     +(chg?'<button class="btn" type="button" onclick="demPublish()"><i class="ti ti-refresh"></i>Mettre à jour le lien</button>':'')
     +'<button class="btn pri" type="button" id="dem-url-mail"><i class="ti ti-mail"></i>Envoyer par e-mail</button></div></div>';
