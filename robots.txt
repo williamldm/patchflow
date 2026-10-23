@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /app.html
+Disallow: /rider.html
+Disallow: /demande.html
+Disallow: /tests/
+Disallow: /supabase/
+
+Sitemap: https://patchflow.fr/sitemap.xml

@@ -144,7 +144,8 @@ p{text-wrap:pretty}
 .hero{padding:clamp(48px,7vw,96px) 0 clamp(72px,9vw,128px)}
 .hero-grid{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:48px;align-items:end;margin-bottom:clamp(44px,6vw,80px)}
 .hero .lede{margin-bottom:28px}
-.ctas{display:flex;align-items:center;gap:26px;flex-wrap:wrap;margin-bottom:18px}
+.ctas{display:flex;align-items:center;gap:14px 26px;flex-wrap:wrap;margin-bottom:18px}
+.tools-try{margin-top:8px}.tools-try a{color:var(--acc-ink);font-weight:600;text-decoration:none}.tools-try a:hover{text-decoration:underline}
 
 /* ── Output list : texte à gauche, capture qui sort du cadre à droite ── */
 .split-sec{overflow:hidden}
@@ -725,9 +726,11 @@ html[data-view=mobile] .notes h3{margin-top:0}
         <p class="lede">Patch, plans, racks et liaisons HF d'une date au même endroit, gratuitement. Un lien pour le régisseur, le loueur et le groupe, toujours à jour.</p>
         <div class="ctas">
           <a class="btn btn-lg" href="app.html?signup=1&amp;from=landing">Créer un compte gratuit</a>
+          <a class="btn btn-lg btn-ghost" href="app.html?essai=input">Essayer sans compte</a>
           <a class="more" href="#partage">Voir un rider partagé <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10h12M11 5l5 5-5 5"/></svg></a>
         </div>
         <p class="fine">Gratuit pour toujours, sans carte bancaire · options Pro si vous en avez besoin · sans cookie ni traceur</p>
+        <p class="fine tools-try">Sans compte, tout de suite : <a href="/input-list">input list</a> · <a href="/plan-de-scene">plan de scène</a> · <a href="/plan-de-site">plan de site</a> · <a href="/synoptique">synoptique</a></p>
       </div>
     </div>
 
@@ -1413,6 +1416,10 @@ html[data-view=mobile] .notes h3{margin-top:0}
     </a>
     <nav aria-label="Liens de bas de page">
       <a href="app.html">Ouvrir l'app</a>
+      <a href="/input-list">Input list</a>
+      <a href="/plan-de-scene">Plan de scène</a>
+      <a href="/plan-de-site">Plan de site</a>
+      <a href="/synoptique">Synoptique</a>
       <a href="#tarifs">Tarifs</a>
       <a href="#questions">Questions</a>
       <a href="mailto:contact@patchflow.fr">Contact</a>

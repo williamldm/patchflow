@@ -6122,3 +6122,23 @@ button.il-chk.warn:hover{background:rgba(240,160,40,.24)}
 .dem-rsum .dem-rsum-h>.btn{flex:none}
 .dem-rsum .dem-fcs,.dem-rsum .dem-rx{display:flex;flex-direction:row;flex-wrap:wrap}
 .dem-rsum{box-shadow:inset 3px 0 0 var(--ora),inset 0 0 0 1px var(--bdr)!important;border:0!important}
+
+/* ── Mode essai sans compte ── */
+.guest-bar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:9500;display:flex;align-items:center;gap:10px;max-width:calc(100vw - 24px);padding:7px 7px 7px 14px;border-radius:999px;background:#151a22;color:#e9edf3;box-shadow:0 10px 32px rgba(0,0,0,.35);font:500 13px var(--f)}
+.guest-bar>.ti{font-size:17px;color:var(--ora)}
+.guest-bar b{font-weight:700}
+.guest-bar button{height:32px;padding:0 13px;border:0;border-radius:999px;font:600 12.5px var(--f);cursor:pointer;white-space:nowrap}
+.guest-bar-b{background:rgba(255,255,255,.1);color:#fff}
+.guest-bar-b:hover{background:rgba(255,255,255,.18)}
+.guest-bar-p{background:var(--ora);color:#fff}
+@media (max-width:640px){.guest-bar-x,.guest-bar-b{display:none}.guest-bar{bottom:calc(72px + env(safe-area-inset-bottom))}}
+.pf-guest .tab[data-tab]:not([data-tab=inputlist]):not([data-tab=stage]):not([data-tab=synoptique]){opacity:.38}
+.pf-guest .tab[data-tab]:not([data-tab=inputlist]):not([data-tab=stage]):not([data-tab=synoptique]) .ti{filter:grayscale(1)}
+.guest-box{max-width:500px}
+.guest-lead{margin:0 0 12px;font-size:14px;line-height:1.5;color:var(--txt2)}
+.guest-ul{list-style:none;margin:0 0 14px;padding:0;display:grid;gap:9px}
+.guest-ul li{display:flex;gap:10px;align-items:center;font-size:14px;color:var(--txt)}
+.guest-ul .ti{font-size:18px;color:var(--ora)}
+.guest-fine{margin:0;font-size:12.5px;color:var(--muted)}
+/* Essai : pas d'indicateur « enregistré », rien ne l'est */
+.pf-guest .il-save,.pf-guest [id$="save-status"],.pf-guest [id$="-saved"]{display:none!important}

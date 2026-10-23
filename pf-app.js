@@ -132,7 +132,184 @@ async function _pfDataClear(){
   try{ if(window.caches) await caches.delete(PF_DATA); }catch(e){}
 }
 
-const sb = _inPasswordRecovery
+/* ══════════════════════════════════════════════════════════════════
+   MODE ESSAI SANS COMPTE (app.html?essai=input|output|scene|site|synoptique)
+   Input list, output list, plan de scène, plan de site et synoptique s'utilisent sans compte.
+   Rien ne quitte le navigateur : « sb » est remplacé par une petite base en mémoire qui imite
+   les appels Supabase de l'app (lecture, ajout, modification, suppression, filtres, tri).
+   Enregistrer, exporter, partager → proposition de créer un compte ; l'essai est alors gardé
+   dans ce navigateur et versé dans un vrai show après l'inscription.
+   Une session déjà ouverte sur l'appareil l'emporte : l'app s'ouvre normalement.
+   ══════════════════════════════════════════════════════════════════ */
+var PF_GUEST=(function(){
+  try{
+    var p=new URLSearchParams(location.search); if(!p.has('essai')) return false;
+    var k='sb-'+SB_URL.split('//')[1].split('.')[0]+'-auth-token';
+    if(localStorage.getItem(k)){ p.delete('essai'); history.replaceState(null,'',location.pathname+(p.toString()?'?'+p:'')+location.hash); return false; }
+    return true;
+  }catch(e){ return false; }
+})();
+var PF_GUEST_TAB=(function(){ try{ return new URLSearchParams(location.search).get('essai')||''; }catch(e){ return ''; } })();
+var _GUEST_UID='00000000-0000-4000-8000-00000000e551', _GUEST_SHOW='00000000-0000-4000-8000-00000000e552';
+function _guestClient(){
+  var now=new Date().toISOString(), seq=0;
+  var nid=function(){ if(crypto.randomUUID) return crypto.randomUUID(); seq++; return '00000000-0000-4000-8000-'+(Date.now()+seq).toString(16).padStart(12,'0').slice(-12); };
+  var clone=function(v){ return v==null?v:JSON.parse(JSON.stringify(v)); };
+  var DB={profiles:[{id:_GUEST_UID, full_name:'', role:'', company:'', contact:'', plan:'free', shared_links:[], email:''}],
+    shows:[{id:_GUEST_SHOW, name:'Mon show', slug:'essai', owner_id:_GUEST_UID, created_at:now, updated_at:now, venue:null, show_date:null, stage_data:{v:2}, synoptique_data:null, out_data:null, il_patches:null}],
+    show_members:[], channels:[], show_scenes:[]};
+  window.__pfGuestDB=DB;
+  var NOACC={message:'Créez un compte gratuit pour utiliser cette fonction.', code:'guest'};
+  function Q(t){ this.t=t; this.op=null; this.f=[]; this.ord=[]; this.lim=null; this.off=0; this.one=0; this.cols='*'; this.head=false; this.cnt=false; this.pl=null; this.conf='id'; }
+  var P=Q.prototype, cmp=function(fn){ return function(c,v){ this.f.push(function(r){ return fn(r[c],v); }); return this; }; };
+  P.select=function(c,o){ if(!this.op) this.op='select'; this.cols=c||'*'; if(o&&o.head) this.head=true; if(o&&o.count) this.cnt=true; return this; };
+  P.insert=function(p){ this.op='insert'; this.pl=p; return this; };
+  P.upsert=function(p,o){ this.op='upsert'; this.pl=p; if(o&&o.onConflict) this.conf=o.onConflict.split(',')[0]; return this; };
+  P.update=function(p){ this.op='update'; this.pl=p; return this; };
+  P['delete']=function(){ this.op='delete'; return this; };
+  P.eq=cmp(function(a,b){ return String(a)===String(b); }); P.neq=cmp(function(a,b){ return String(a)!==String(b); });
+  P.gt=cmp(function(a,b){ return a>b; }); P.gte=cmp(function(a,b){ return a>=b; }); P.lt=cmp(function(a,b){ return a<b; }); P.lte=cmp(function(a,b){ return a<=b; });
+  P['in']=cmp(function(a,b){ return (b||[]).map(String).indexOf(String(a))>=0; });
+  P.is=cmp(function(a,b){ return b===null?a==null:a===b; });
+  P.like=P.ilike=cmp(function(a,b){ return new RegExp('^'+String(b).replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/%/g,'.*')+'$','i').test(String(a||'')); });
+  P.match=function(o){ var s=this; Object.keys(o||{}).forEach(function(k){ s.eq(k,o[k]); }); return this; };
+  P.or=P.not=P.filter=P.contains=P.containedBy=P.overlaps=P.textSearch=P.abortSignal=P.returns=P.throwOnError=function(){ return this; };
+  P.order=function(c,o){ this.ord.push([c,!(o&&o.ascending===false)]); return this; };
+  P.limit=function(n){ this.lim=n; return this; };
+  P.range=function(a,b){ this.off=a; this.lim=b-a+1; return this; };
+  P.single=function(){ this.one=2; return this; }; P.maybeSingle=function(){ this.one=1; return this; };
+  P._rows=function(){ var s=this; return (DB[this.t]||(DB[this.t]=[])).filter(function(r){ return s.f.every(function(fn){ return fn(r); }); }); };
+  P._shape=function(r){
+    if(this.cols==='*'||!/->/.test(this.cols)) return clone(r);
+    var o={}; this.cols.split(',').forEach(function(c){ c=c.trim(); var m=c.split('->'); if(m.length>1){ var v=r[m[0]]; for(var i=1;i<m.length;i++) v=v&&v[m[i].replace(/^>/,'')]; o[m[m.length-1].replace(/^>/,'')]=clone(v); } else o[c]=clone(r[c]); });
+    return o;
+  };
+  P._exec=function(){
+    var s=this, T=DB[this.t]||(DB[this.t]=[]), data=null;
+    if(this.op==='insert'||this.op==='upsert'){
+      data=[].concat(this.pl||[]).map(function(x){
+        x=clone(x)||{};
+        if(s.op==='upsert'){ var ex=T.find(function(r){ return x[s.conf]!=null && String(r[s.conf])===String(x[s.conf]); }); if(ex){ Object.assign(ex,x,{updated_at:new Date().toISOString()}); return ex; } }
+        var row=Object.assign({id:nid(), created_at:new Date().toISOString()}, s.t==='channels'?{custom_data:{}}:{}, x); T.push(row); return row;
+      });
+    } else if(this.op==='update'){ var pl=clone(this.pl)||{}; data=this._rows(); data.forEach(function(r){ Object.assign(r,pl); }); }
+    else if(this.op==='delete'){ var del=this._rows(); DB[this.t]=T.filter(function(r){ return del.indexOf(r)<0; }); data=del; }
+    else data=this._rows();
+    if(this.op==='select'||this.op==null){
+      data=data.slice(); this.ord.forEach(function(o){ data.sort(function(a,b){ var x=a[o[0]], y=b[o[0]]; return (x>y?1:x<y?-1:0)*(o[1]?1:-1); }); });
+      var n=data.length; if(this.lim!=null) data=data.slice(this.off,this.off+this.lim);
+      if(this.head) return {data:null,count:n,error:null,status:200};
+      data=data.map(function(r){ return s._shape(r); });
+      if(this.one){ if(!data.length) return this.one===2?{data:null,error:{code:'PGRST116',message:'Aucune ligne'}}:{data:null,error:null}; return {data:data[0],error:null,count:this.cnt?n:null}; }
+      return {data:data,error:null,count:this.cnt?n:null,status:200};
+    }
+    data=data.map(function(r){ return clone(r); });
+    if(this.one) data=data[0]||null;
+    return {data:data,error:null,status:200};
+  };
+  P.then=function(ok,ko){ var r; try{ r=this._exec(); }catch(e){ r={data:null,error:{message:String(e&&e.message||e)}}; } return Promise.resolve(r).then(ok,ko); };
+  var patch=function(col){ return function(a){ var sh=DB.shows.find(function(x){ return x.id===a.p_show; }); if(!sh) return {data:null,error:{message:'show introuvable'}};
+    var cur=(sh[col]&&typeof sh[col]==='object')?sh[col]:{}; Object.keys(a.p_patch||{}).forEach(function(k){ if(a.p_patch[k]===null) delete cur[k]; else cur[k]=clone(a.p_patch[k]); }); sh[col]=cur; return {data:null,error:null}; }; };
+  var RPC={pf_stage_patch:patch('stage_data'), pf_out_patch:patch('out_data')};
+  var chan={on:function(){ return chan; }, subscribe:function(cb){ if(typeof cb==='function') setTimeout(function(){ cb('SUBSCRIBED'); },0); return chan; }, unsubscribe:function(){}, send:function(){ return Promise.resolve('ok'); }, track:function(){ return Promise.resolve('ok'); }, presenceState:function(){ return {}; }};
+  var user={id:_GUEST_UID, email:'', user_metadata:{}, app_metadata:{}};
+  var cbs=[];
+  return {
+    from:function(t){ return new Q(t); },
+    rpc:function(n,a){ var r=RPC[n]?RPC[n](a||{}):{data:null,error:null}; return Object.assign(Promise.resolve(r),{single:function(){ return this; },maybeSingle:function(){ return this; }}); },
+    channel:function(){ return chan; }, removeChannel:function(){ return Promise.resolve(); }, removeAllChannels:function(){ return Promise.resolve(); },
+    functions:{invoke:function(){ return Promise.resolve({data:null,error:NOACC}); }},
+    storage:{from:function(){ var e=function(){ return Promise.resolve({data:null,error:NOACC}); }; return {upload:e,download:e,remove:e,list:e,createSignedUrl:e,getPublicUrl:function(){ return {data:{publicUrl:''}}; }}; }},
+    auth:{
+      getSession:function(){ return Promise.resolve({data:{session:null},error:null}); },
+      getUser:function(){ return Promise.resolve({data:{user:user},error:null}); },
+      onAuthStateChange:function(cb){ cbs.push(cb); var go=function(){ cb('INITIAL_SESSION',{user:user}); }; if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(go,0); }); else setTimeout(go,0); return {data:{subscription:{unsubscribe:function(){}}}}; },
+      signOut:function(){ location.href='/'; return Promise.resolve({error:null}); },
+      updateUser:function(){ return Promise.resolve({data:{user:user},error:null}); },
+      signInWithPassword:function(){ return Promise.resolve({data:null,error:NOACC}); }, signUp:function(){ return Promise.resolve({data:null,error:NOACC}); },
+      signInWithOAuth:function(){ return Promise.resolve({data:null,error:NOACC}); }, resetPasswordForEmail:function(){ return Promise.resolve({data:null,error:NOACC}); },
+      refreshSession:function(){ return Promise.resolve({data:{session:null},error:null}); }
+    }
+  };
+}
+/* ── Interface du mode essai ── */
+var _GUEST_TABS={inputlist:1, stage:1, synoptique:1};
+var _guestEdits=0;
+function _guestAsk(why){
+  var m=document.getElementById('guest-ask');
+  if(!m){ m=document.createElement('div'); m.id='guest-ask'; m.className='modal-ov'; document.body.appendChild(m); m.addEventListener('click',function(e){ if(e.target===m) m.classList.remove('show'); }); }
+  var T={save:'Gardez votre travail', export:'Exportez et partagez votre travail', tab:'Toute l\'app, gratuitement', share:'Partagez par un lien toujours à jour', pro:'Créez d\'abord votre compte gratuit'}[why]||'Gardez votre travail';
+  m.innerHTML='<div class="modal-box guest-box"><div class="modal-head"><span class="modal-title">'+T+'</span><button class="modal-close" type="button" onclick="document.getElementById(\'guest-ask\').classList.remove(\'show\')" aria-label="Fermer"><i class="ti ti-x"></i></button></div>'
+    +'<div class="modal-body"><p class="guest-lead">Vous êtes en mode essai : rien n\'est enregistré. Avec un compte gratuit, ce que vous venez de préparer est gardé et vous pouvez :</p>'
+    +'<ul class="guest-ul"><li><i class="ti ti-device-floppy"></i>enregistrer vos shows et y revenir sur tous vos appareils</li><li><i class="ti ti-file-type-pdf"></i>exporter en PDF, en tableur et vers la console</li><li><i class="ti ti-link"></i>partager un lien en lecture seule, toujours à jour</li><li><i class="ti ti-users"></i>travailler à plusieurs, en direct</li></ul>'
+    +'<p class="guest-fine">Gratuit pour toujours, sans carte bancaire. Votre essai est repris dans votre premier show.</p></div>'
+    +'<div class="modal-foot"><button class="btn" type="button" onclick="document.getElementById(\'guest-ask\').classList.remove(\'show\')">Continuer l\'essai</button><span style="flex:1"></span><button class="btn pri" type="button" onclick="guestSignup()"><i class="ti ti-user-plus"></i>Créer mon compte gratuit</button></div></div>';
+  m.classList.add('show');
+}
+/* Garde l'essai dans ce navigateur, puis ouvre l'inscription : il sera versé dans un vrai show */
+function _guestDraft(){
+  var DB=window.__pfGuestDB; if(!DB) return null;
+  var sh=DB.shows[0]||{}, strip=function(r){ r=JSON.parse(JSON.stringify(r)); ['id','show_id','created_at','updated_at','updated_by'].forEach(function(k){ delete r[k]; }); return r; };
+  return {v:1, at:Date.now(), show:{name:sh.name||'Mon show', venue:sh.venue||null, show_date:sh.show_date||null, stage_data:sh.stage_data||{v:2}, synoptique_data:sh.synoptique_data||null, out_data:sh.out_data||null, il_patches:sh.il_patches||null},
+    channels:DB.channels.filter(function(c){ return c.show_id===_GUEST_SHOW; }).map(strip), scenes:DB.show_scenes.filter(function(c){ return c.show_id===_GUEST_SHOW; }).map(strip)};
+}
+function guestSignup(){
+  var d=_guestDraft(), kept=false;
+  if(d && (d.channels.length || JSON.stringify(d.show.stage_data).length>20 || d.show.synoptique_data || d.show.out_data || d.scenes.length)){
+    try{ localStorage.setItem('pf_guest_draft', JSON.stringify(d)); kept=true; }catch(e){ try{ d.show.stage_data=Object.assign({},d.show.stage_data); ['site','band'].forEach(function(k){ var x=d.show.stage_data[k]; if(x&&x.bgImage) x.bgImage=null; }); localStorage.setItem('pf_guest_draft', JSON.stringify(d)); kept=true; }catch(e2){} }
+  }
+  window.__pfGuestLeaving=true;
+  location.href='app.html?signup=1&from=essai'+(kept?'&draft=1':'');
+}
+function _guestBoot(){
+  document.documentElement.classList.add('pf-guest');
+  var bar=document.createElement('div'); bar.className='guest-bar'; bar.id='guest-bar';
+  bar.innerHTML='<i class="ti ti-flask"></i><span><b>Mode essai</b><span class="guest-bar-x"> · sans compte, rien n\'est enregistré</span></span><button type="button" class="guest-bar-b" onclick="_guestAsk(\'save\')">Enregistrer</button><button type="button" class="guest-bar-p" onclick="guestSignup()">Créer un compte gratuit</button>';
+  document.body.appendChild(bar);
+  /* Onglets ouverts dans l'essai ; les autres proposent le compte */
+  var _go=window.goTab;
+  /* Onglet hors essai : appel de l'utilisateur → invitation ; appel du programme (ouverture d'un show) → l'onglet de l'essai */
+  window.goTab=function(id){ if(!_GUEST_TABS[id]){ var ev=window.event; if(ev&&ev.isTrusted) _guestAsk('tab'); else if(id==='overview'||id==='sessions') return _go.call(this,'inputlist',null); return; } return _go.apply(this,arguments); };
+  /* Ce qui enregistre, exporte ou partage passe par le compte */
+  ['openPDFModal','exportRiderPdf','doExport','doCopyShareLink','copyILShareLink','copyRiderLink','copyLink','_createLink','inviteMember','newShow','ilAiImport','bpAiImport','festShare','_planExpShare','_planExpPdf','openRecapMatos','openPrep','openConsoleExports','exportCSV','showUpgradeModal'].forEach(function(n){
+    if(typeof window[n]==='function') window[n]=function(){ _guestAsk(n==='showUpgradeModal'?'pro':/Link|Share|invite/.test(n)?'share':'export'); };
+  });
+  if(typeof SynPro!=='undefined' && SynPro.openExport) SynPro.openExport=function(){ _guestAsk('export'); };
+  ['keydown'].forEach(function(ev){ document.addEventListener(ev,function(e){ if((e.metaKey||e.ctrlKey)&&(e.key==='s'||e.key==='S')){ e.preventDefault(); _guestAsk('save'); } },true); });
+  document.addEventListener('change',function(){ _guestEdits++; },true);
+  document.addEventListener('pointerup',function(e){ if(e.target.closest&&e.target.closest('#site-viewport,#bp-canvas-wrap,.syn-canvas,#syn-wrap')) _guestEdits++; },true);
+  window.addEventListener('beforeunload',function(e){ if(_guestEdits && !window.__pfGuestLeaving){ e.preventDefault(); e.returnValue=''; } });
+  /* Premier écran : celui choisi depuis la page d'accueil ou la page d'outil */
+  var t=PF_GUEST_TAB, tries=0;
+  (function open(){
+    if((typeof CUR_SHOW==='undefined'||!CUR_SHOW) && tries++<60){ setTimeout(open,100); return; }
+    try{
+      if(t==='output') navIL('out'); else if(t==='scene') navPlan('scene'); else if(t==='site') navPlan('site'); else if(t==='synoptique') _go('synoptique',null); else navIL('in');
+    }catch(e){ try{ _go('inputlist',null); }catch(e2){} }
+  })();
+  /* Après quelques minutes de travail, une seule invitation douce */
+  setTimeout(function(){ if(_guestEdits>=6 && !document.querySelector('.modal-ov.show')) _guestAsk('save'); },240000);
+}
+/* Après l'inscription : l'essai gardé dans ce navigateur devient un vrai show */
+async function _guestImportDraft(){
+  var raw=null; try{ raw=localStorage.getItem('pf_guest_draft'); }catch(e){} if(!raw||!ME||PF_GUEST) return;
+  var d=null; try{ d=JSON.parse(raw); }catch(e){}
+  try{ localStorage.removeItem('pf_guest_draft'); }catch(e){}
+  if(!d||!d.show||Date.now()-(+d.at||0)>7*86400000) return;
+  try{
+    var s=d.show, ins=await sb.from('shows').insert({name:String(s.name||'Mon show').slice(0,120), slug:'essai-'+Date.now(), owner_id:ME.id, venue:s.venue||null, show_date:s.show_date||null,
+      stage_data:s.stage_data||{v:2}, synoptique_data:s.synoptique_data||null, out_data:s.out_data||null, il_patches:s.il_patches||null}).select().single();
+    if(ins.error) throw ins.error;
+    var show=ins.data;
+    if(Array.isArray(d.channels)&&d.channels.length){ var ci=await sb.from('channels').insert(d.channels.slice(0,256).map(function(c){ return Object.assign({},c,{show_id:show.id}); })); if(ci.error) console.warn('[essai] voies',ci.error); }
+    if(Array.isArray(d.scenes)&&d.scenes.length){ var si=await sb.from('show_scenes').insert(d.scenes.map(function(c){ return Object.assign({},c,{show_id:show.id}); })); if(si.error) console.warn('[essai] scènes',si.error); }
+    SHOWS.unshift(show); try{ renderSPShows(); }catch(e){} try{ if(typeof renderSessions==='function') renderSessions(); }catch(e){}
+    await switchShow(show.id);
+    toast('✓ Votre essai est enregistré dans « '+show.name+' »');
+  }catch(e){ console.error('[essai]',e); toast('Votre essai n\'a pas pu être repris : '+(e&&e.message||e)); }
+}
+
+const sb = PF_GUEST ? _guestClient() : _inPasswordRecovery
   ? supabase.createClient(SB_URL, SB_KEY, {
       auth: {
         persistSession: false,
@@ -501,7 +678,7 @@ sb.auth.onAuthStateChange(async(event,session)=>{
     return;
   }
   ME=session.user;
-  try{ localStorage.setItem('pf_last_uid', ME.id); }catch(e){}
+  if(!PF_GUEST) try{ localStorage.setItem('pf_last_uid', ME.id); }catch(e){}
   document.getElementById('auth-wrap').className='auth-wrap';
   document.getElementById('app').className='show';
   /* N'initialiser qu'UNE fois par utilisateur. onAuthStateChange refire
@@ -512,7 +689,7 @@ sb.auth.onAuthStateChange(async(event,session)=>{
   if(window._appInitDone && window._appInitUser===ME.id) return;
   window._appInitDone=true; window._appInitUser=ME.id;
   initApp();
-  setTimeout(_pfInstNudge, 20000);
+  if(PF_GUEST) _guestBoot(); else setTimeout(_pfInstNudge, 20000);
 });
 
 async function doResetPassword(){
@@ -723,6 +900,7 @@ async function initApp(){
     }
     loadColChips();
     initStage();
+    if(!PF_GUEST) _guestImportDraft();
   }catch(e){
     console.error('initApp error:',e);
     var isTimeout=e.message==='timeout';
@@ -756,7 +934,7 @@ async function loadProfile(){
   }
   PROFILE=data||{id:ME.id,full_name:ME.email,role:'FOH Engineer'};
   if(!PROFILE.plan) console.warn('[PatchFlow] plan manquant — verifiez la colonne plan dans Supabase profiles.');
-  document.getElementById('u-name').textContent=PROFILE.full_name||ME.email;
+  document.getElementById('u-name').textContent=PF_GUEST?'Mode essai':(PROFILE.full_name||ME.email);
   document.getElementById('u-email').textContent=ME.email;
   _refreshAllAvatars();
   _refreshPlanBadge();

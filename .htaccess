@@ -15,6 +15,11 @@
   # migrations SQL et le serveur de dev n'ont rien à faire en ligne → 404.
   RewriteRule ^supabase(/|$) - [R=404,NC,L]
   RewriteRule \.(py|ts|sql|md|ya?ml|toml|sh|lock|log|bak|env|ini|conf)$ - [R=404,NC,L]
+
+  # Pages d'outil : adresse propre (/plan-de-scene), l'ancienne en .html y renvoie
+  RewriteCond %{THE_REQUEST} \s/(plan-de-scene|input-list|plan-de-site|synoptique)\.html[\s?] [NC]
+  RewriteRule ^ /%1 [R=301,L]
+  RewriteRule ^(plan-de-scene|input-list|plan-de-site|synoptique)/?$ $1.html [NC,L]
 </IfModule>
 
 # Filet de sécurité si mod_rewrite était indisponible.
