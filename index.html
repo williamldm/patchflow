@@ -33,6 +33,7 @@
 "url":"https://patchflow.fr/","image":"https://patchflow.fr/img/lp-hero-il.jpg?v=3",
 "offers":[{"@type":"Offer","name":"Gratuit","price":"0","priceCurrency":"EUR"},{"@type":"Offer","name":"Pro mensuel","price":"11.99","priceCurrency":"EUR"},{"@type":"Offer","name":"Pro annuel","price":"119","priceCurrency":"EUR"}]}
 </script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Je peux essayer sans créer de compte ?", "acceptedAnswer": {"@type": "Answer", "text": "Oui. L'input list, l'output list, le plan de scène, le plan de site et le synoptique s'ouvrent sans inscription, et vous pouvez exporter en PDF. Rien n'est enregistré : quand vous créez votre compte gratuit, votre essai est repris dans votre premier show."}}, {"@type": "Question", "name": "Je peux l'utiliser sans payer ?", "acceptedAnswer": {"@type": "Answer", "text": "Oui, sans carte bancaire et sans limite de durée. Le plan Gratuit couvre 8 shows actifs de 48 canaux : input list, output list, plans de scène et de site, synoptique, racks, liaisons HF, 3 collaborateurs par show, 10 liens de partage, 3 exports console et 3 contrôles du bon du loueur par mois, et des PDF avec la mention PatchFlow. Vous passez Pro le jour où vous enchaînez les dates."}}, {"@type": "Question", "name": "L'abonnement Pro est-il déductible ?", "acceptedAnswer": {"@type": "Answer", "text": "Oui, si vous l'utilisez pour votre activité. Pour une société, une association ou un indépendant au régime réel, c'est une charge professionnelle, comme vos autres logiciels. Si vous êtes intermittent et que vous déclarez vos frais réels plutôt que l'abattement de 10 %, il compte parmi vos frais professionnels : en formule annuelle, il vous revient à environ 8,83 € par mois dans la tranche à 11 %, et 6,94 € par mois dans la tranche à 30 %. En micro-entreprise, les frais ne se déduisent pas un par un : ils sont couverts par l'abattement forfaitaire. Chaque paiement donne lieu à une facture au nom de votre compte, à retrouver dans Paramètres, Facturation. Votre comptable confirmera selon votre situation."}}, {"@type": "Question", "name": "Je peux tester le Pro avant de payer ?", "acceptedAnswer": {"@type": "Answer", "text": "Oui. Le premier mois de Pro est offert pour un premier abonnement : toutes les fonctions sont ouvertes. Une carte est demandée à l'inscription, mais rien n'est prélevé avant la fin du mois. Si vous résiliez d'ici là, vous ne payez rien et vous repassez en Gratuit, sans perdre vos sessions."}}, {"@type": "Question", "name": "Comment fonctionne le lien de partage ?", "acceptedAnswer": {"@type": "Answer", "text": "Dans l'onglet Équipe, vous cochez les sections à montrer et vous copiez le lien. Le destinataire l'ouvre sans compte, en lecture seule, et voit toujours la dernière version. Vous pouvez créer un lien par destinataire et le supprimer à tout moment."}}, {"@type": "Question", "name": "Que deviennent mes données et celles de mes clients ?", "acceptedAnswer": {"@type": "Answer", "text": "Elles restent à vous. Le site ne pose aucun cookie, n'utilise aucun outil de mesure d'audience et n'affiche pas de publicité : pas de bandeau à accepter, et rien n'est revendu. Chaque membre ne voit que les shows où il est invité, avec le rôle que vous lui donnez, et un lien partagé ne montre que les sections cochées. La base de données est hébergée dans l'Union européenne (Irlande) et les échanges sont chiffrés. Vous pouvez tout exporter, et supprimer votre compte avec toutes ses données depuis les paramètres."}}, {"@type": "Question", "name": "Est-ce que ça marche sur téléphone ?", "acceptedAnswer": {"@type": "Answer", "text": "Oui pour consulter : input list, output list, fichiers et plans zoomables au doigt, ainsi que les liens partagés. L'édition des plans reste plus confortable sur ordinateur, où vous avez la place de travailler."}}, {"@type": "Question", "name": "Je peux reprendre mon patch Excel ?", "acceptedAnswer": {"@type": "Answer", "text": "Oui. L'import CSV charge votre patch en une fois, et l'export CSV vous le rend à tout moment. En Pro, l'assistant IA peut aussi reprendre une input list existante depuis un PDF, une photo ou un document Word."}}, {"@type": "Question", "name": "Plusieurs configurations pour un même show ?", "acceptedAnswer": {"@type": "Answer", "text": "Oui, en Pro. Les multi-patchs gèrent les variantes (A/B, plateau festival, version acoustique) et chaque plan peut exister en plusieurs versions dans le même show."}}]}</script>
 <style>
 /* ══════════════════════════════════════════════════════════════════
    PatchFlow — page d'accueil
@@ -119,6 +120,29 @@ p{text-wrap:pretty}
 .band{background:var(--bg2)}
 .head{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:48px;align-items:end;margin-bottom:clamp(36px,5vw,64px)}
 .head .lede{max-width:46ch;padding-bottom:6px}
+
+/* ── Essai sans compte ── */
+.try-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px}
+.try-card{display:flex;flex-direction:column;border-radius:14px;background:var(--card);box-shadow:0 0 0 1px var(--rule);overflow:hidden;transition:box-shadow .15s,transform .15s}
+.try-card:hover{box-shadow:0 0 0 1.5px var(--acc),0 18px 40px -20px rgba(18,19,23,.3);transform:translateY(-2px)}
+.try-shot{display:block;aspect-ratio:16/10;background:var(--night);overflow:hidden}
+.try-shot img{width:100%;height:100%;object-fit:cover;object-position:left top}
+.try-shot img.zoom{transform:scale(1.75);transform-origin:60% 50%}
+.try-in{display:flex;flex-direction:column;gap:6px;padding:16px 16px 18px;flex:1}
+.try-in h3{font-size:17px}
+.try-in p{font-size:14.5px;color:var(--ink2);line-height:1.5;flex:1}
+.try-a{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:8px}
+.try-a .btn{height:38px;padding:0 16px;font-size:14.5px}
+.try-a .more{font-size:14px}
+.try-notes{list-style:none;display:flex;flex-wrap:wrap;gap:10px 28px;margin-top:28px;font-size:15px;color:var(--ink2)}
+.try-notes b{color:var(--ink)}
+@media(max-width:1100px){.try-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:760px){.try-grid{grid-template-columns:1fr 1fr}.try-in p{font-size:13.5px}}
+.try-desk{display:none}
+@media(max-width:480px){.try-grid{grid-template-columns:1fr;gap:10px}.try-card{flex-direction:row}.try-shot{width:104px;flex:none;aspect-ratio:auto}
+  .try-in{padding:12px 14px;gap:3px}.try-in h3{font-size:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}.try-in p{font-size:13px}
+  .try-a{margin-top:6px;gap:12px}.try-a .btn{height:34px;padding:0 13px;font-size:13.5px}.try-a .more{font-size:13px}
+  .try-desk{display:inline;font-size:11px;font-weight:600;color:var(--ink3);background:var(--bg2);padding:1px 7px;border-radius:99px}}
 
 /* ── Captures d'écran ─────────────────────────────────────────────
    Le produit est montré tel quel : cadre sombre de l'app, bord net,
@@ -687,6 +711,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
     </a>
     <nav class="menu" aria-label="Sections">
       <a href="#fonctions">Fonctionnalités</a>
+      <a href="#essai">Essai</a>
       <a href="#materiel">Matériel</a>
       <a href="#festival">Festival</a>
       <a href="#partage">Partage</a>
@@ -703,6 +728,7 @@ html[data-view=mobile] .notes h3{margin-top:0}
   </div>
   <div class="drawer" id="drawer">
     <a href="#fonctions" data-m="0">Fonctionnalités</a>
+    <a href="#essai">Essai sans compte</a>
     <a href="#materiel" data-m="2">Matériel</a>
     <a href="#festival">Festival</a>
     <a href="#partage">Partage</a>
@@ -798,6 +824,49 @@ html[data-view=mobile] .notes h3{margin-top:0}
   </div>
 </section>
 
+
+<!-- ══════════ ESSAI SANS COMPTE ══════════ -->
+<section class="chapter try" id="essai">
+  <div class="w">
+    <div class="head">
+      <div><p class="kicker">Essai sans compte</p><h2>Essayez tout de suite, sans inscription.</h2></div>
+      <p class="lede">Ouvrez un outil, travaillez librement et exportez en PDF. Rien à installer, rien n'est enregistré. Le jour où vous voulez garder et partager votre travail, un compte gratuit le reprend tel quel.</p>
+    </div>
+    <div class="try-grid">
+      <article class="try-card">
+        <a class="try-shot" href="app.html?essai=input" aria-label="Essayer : Input list"><picture><source type="image/avif" srcset="img/lp-hero-il.avif"/><img src="img/lp-hero-il.jpg" width="2880" height="1640" loading="lazy" decoding="async" alt=""/></picture></a>
+        <div class="try-in"><h3>Input list</h3><p>Voies, micros, +48 V, pieds, stageboxes. Importez le PDF du rider.</p>
+          <div class="try-a"><a class="btn" href="app.html?essai=input">Essayer</a><a class="more" href="/input-list">En savoir plus <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10h12M11 5l5 5-5 5"/></svg></a></div></div>
+      </article>
+      <article class="try-card">
+        <a class="try-shot" href="app.html?essai=output" aria-label="Essayer : Output list"><picture><source type="image/avif" srcset="img/lp-output.avif"/><img src="img/lp-output.jpg" width="2880" height="1560" loading="lazy" decoding="async" alt=""/></picture></a>
+        <div class="try-in"><h3>Output list</h3><p>Retours, ears, subs et matrices, avec leurs fréquences HF.</p>
+          <div class="try-a"><a class="btn" href="app.html?essai=output">Essayer</a><a class="more" href="/input-list">En savoir plus <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10h12M11 5l5 5-5 5"/></svg></a></div></div>
+      </article>
+      <article class="try-card">
+        <a class="try-shot" href="app.html?essai=scene" aria-label="Essayer : Plan de scène"><picture><source type="image/avif" srcset="img/lp-plan-scene.avif"/><img class="zoom" src="img/lp-plan-scene.jpg" width="2880" height="1760" loading="lazy" decoding="async" alt=""/></picture></a>
+        <div class="try-in"><h3>Plan de scène<span class="try-desk">sur ordinateur</span></h3><p>Musiciens, retours et backline, avec les voies du patch.</p>
+          <div class="try-a"><a class="btn" href="app.html?essai=scene">Essayer</a><a class="more" href="/plan-de-scene">En savoir plus <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10h12M11 5l5 5-5 5"/></svg></a></div></div>
+      </article>
+      <article class="try-card">
+        <a class="try-shot" href="app.html?essai=site" aria-label="Essayer : Plan de site"><picture><source type="image/avif" srcset="img/lp-plan-site.avif"/><img class="zoom" src="img/lp-plan-site.jpg" width="2880" height="1760" loading="lazy" decoding="async" alt=""/></picture></a>
+        <div class="try-in"><h3>Plan de site<span class="try-desk">sur ordinateur</span></h3><p>À l'échelle sur fond satellite, câbles mesurés, délais calculés.</p>
+          <div class="try-a"><a class="btn" href="app.html?essai=site">Essayer</a><a class="more" href="/plan-de-site">En savoir plus <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10h12M11 5l5 5-5 5"/></svg></a></div></div>
+      </article>
+      <article class="try-card">
+        <a class="try-shot" href="app.html?essai=synoptique" aria-label="Essayer : Synoptique"><picture><source type="image/avif" srcset="img/lp-plan-syno.avif"/><img class="zoom" src="img/lp-plan-syno.jpg" width="2880" height="1760" loading="lazy" decoding="async" alt=""/></picture></a>
+        <div class="try-in"><h3>Synoptique<span class="try-desk">sur ordinateur</span></h3><p>Consoles, stageboxes, amplis, réseau et adresses IP.</p>
+          <div class="try-a"><a class="btn" href="app.html?essai=synoptique">Essayer</a><a class="more" href="/synoptique">En savoir plus <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10h12M11 5l5 5-5 5"/></svg></a></div></div>
+      </article>
+    </div>
+    <ul class="try-notes">
+      <li><b>Gratuit</b> et sans carte bancaire</li>
+      <li><b>Export PDF</b> possible dès l'essai</li>
+      <li><b>Votre essai est repris</b> à la création du compte</li>
+      <li><b>Lien partagé</b>, racks, HF et feuille de route avec un compte</li>
+    </ul>
+  </div>
+</section>
 
 <!-- ══════════ TÉLÉPHONE : les fonctionnalités en quatre onglets (remplace les sections détaillées) ══════════ -->
 <section class="mtour" id="decouvrir" aria-label="Fonctionnalités">
@@ -1336,6 +1405,10 @@ html[data-view=mobile] .notes h3{margin-top:0}
     </div>
     <div class="faq">
       <details>
+        <summary>Je peux essayer sans créer de compte&nbsp;?<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg></summary>
+        <p>Oui. L'input list, l'output list, le plan de scène, le plan de site et le synoptique s'ouvrent sans inscription, et vous pouvez exporter en PDF. Rien n'est enregistré&nbsp;: quand vous créez votre compte gratuit, votre essai est repris dans votre premier show.</p>
+      </details>
+      <details>
         <summary>Je peux l'utiliser sans payer&nbsp;?<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg></summary>
         <p>Oui, sans carte bancaire et sans limite de durée. Le plan Gratuit couvre 8 shows actifs de 48 canaux&nbsp;: input list, output list, plans de scène et de site, synoptique, racks, liaisons HF, 3 collaborateurs par show, 10 liens de partage, 3 exports console et 3 contrôles du bon du loueur par mois, et des PDF avec la mention PatchFlow. Vous passez Pro le jour où vous enchaînez les dates.</p>
       </details>
@@ -1395,9 +1468,9 @@ html[data-view=mobile] .notes h3{margin-top:0}
     <p class="lede">Montez le patch, posez les plans, envoyez le lien. Le plan Gratuit suffit pour préparer une date entière.</p>
     <div class="ctas" style="justify-content:center">
       <a class="btn btn-lg" href="app.html?signup=1&amp;from=landing">Créer un compte gratuit</a>
-      <a class="btn btn-lg btn-ghost" href="#tarifs">Ce que le Pro ajoute</a>
+      <a class="btn btn-lg btn-ghost" href="app.html?essai=input">Essayer sans compte</a>
     </div>
-    <p class="fine">Gratuit pour toujours · sans carte bancaire · sans cookie ni traceur</p>
+    <p class="fine">Gratuit pour toujours · sans carte bancaire · sans cookie ni traceur · <a href="#tarifs" style="color:inherit">ce que le Pro ajoute</a></p>
   </div>
 </section>
 
@@ -1449,8 +1522,8 @@ html[data-view=mobile] .notes h3{margin-top:0}
   var links=[].slice.call(document.querySelectorAll('.menu a[href^="#"]'));
   var secs=links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
   function spy(){
-    var y=window.scrollY+140, cur=-1;
-    secs.forEach(function(s,i){ if(s && s.getBoundingClientRect().top+window.scrollY<=y) cur=i; });
+    var y=window.scrollY+140, cur=-1, best=-Infinity;
+    secs.forEach(function(s,i){ var t=s?s.getBoundingClientRect().top+window.scrollY:Infinity; if(t<=y && t>best){ best=t; cur=i; } });
     links.forEach(function(a,i){ a.setAttribute('aria-current', i===cur?'true':'false'); });
   }
   window.addEventListener('scroll',spy,{passive:true}); window.addEventListener('resize',spy); spy();
