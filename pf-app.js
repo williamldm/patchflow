@@ -258,15 +258,84 @@ function _guestAsk(why){
     +'<div class="modal-foot"><button class="btn" type="button" onclick="document.getElementById(\'guest-ask\').classList.remove(\'show\')">Continuer l\'essai</button><span style="flex:1"></span><button class="btn pri" type="button" onclick="guestSignup()"><i class="ti ti-user-plus"></i>Créer mon compte gratuit</button></div></div>';
   m.classList.add('show');
 }
+/* ── Aperçu des modules réservés au compte ── */
+var _GUEST_PREVIEW={
+  rf:['ti-antenna','Liaisons HF','Plan de fréquences, intermodulations, calibration sur téléphone et export Wireless Workbench.'],
+  racks:['ti-server-2','Racks','Racks 19 pouces dessinés à l\'unité, poids et consommation, dossier PDF prêt pour le loueur.'],
+  road:['ti-route','Feuille de route','Horaires, lieu, contacts et logistique de la date, sur le téléphone de toute l\'équipe.'],
+  bon:['ti-clipboard-check','Bon du loueur','Demande au loueur, réponse ligne par ligne, contrôle du bon et pointage à la livraison et au retour.'],
+  festival:['ti-confetti','Mode festival','Plusieurs groupes sur une même scène, patchs et changements de plateau.'],
+  overview:['ti-layout-dashboard','Vue d\'ensemble','Toute la date d\'un coup d\'œil : patch, plans, HF, racks, matériel.'],
+  team:['ti-link','Partage et équipe','Un lien toujours à jour pour la salle, le loueur et le groupe ; vos collègues en direct.'],
+  fichiers:['ti-folder','Fichiers','Riders, plans et show files rangés avec chaque show.'],
+  showfiles:['ti-folder','Fichiers','Riders, plans et show files rangés avec chaque show.']
+};
+var _guestSeeded={};
+function _guestDemo(k){
+  var id=function(){ return Math.random().toString(36).slice(2,10); };
+  if(k==='rf') return {v:1,zones:['Plateau'],ch:[
+    {id:id(),n:'Voix lead',kind:'mic',tx:'hh',f:518250,mk:'Shure',mdl:'AD4Q',ser:'AD',band:'G57',dev:'AD4Q 1',zone:'Plateau',lk:true},
+    {id:id(),n:'Choeur',kind:'mic',tx:'hh',f:521400,mk:'Shure',mdl:'AD4Q',ser:'AD',band:'G57',dev:'AD4Q 1',zone:'Plateau',lk:true},
+    {id:id(),n:'Gtr 1',kind:'mic',tx:'bp',f:606125,mk:'Shure',mdl:'ULXD4Q',ser:'ULXD',band:'K51',dev:'ULXD4Q',zone:'Plateau',lk:true},
+    {id:id(),n:'IEM chant',kind:'iem',f:626125,mk:'Shure',mdl:'PSM1000',ser:'PSM1000',band:'L8E',dev:'P10T 1',zone:'Plateau',lk:true},
+    {id:id(),n:'IEM batterie',kind:'iem',f:631000,mk:'Shure',mdl:'PSM1000',ser:'PSM1000',band:'L8E',dev:'P10T 1',zone:'Plateau',lk:true},
+    {id:id(),n:'IEM claviers',kind:'iem',f:633750,mk:'Shure',mdl:'PSM1000',ser:'PSM1000',band:'L8E',dev:'P10T 2',zone:'Plateau',lk:true}]};
+  if(k==='racks') return [{id:'r'+id(),name:'Rack HF plateau',units:12,bays:1,depth:600,items:[
+    {id:id(),n:'Shure UA844+ (distribution d\'antennes)',h:1,u:12,kind:'rx',side:'f',kg:2.5,w:20},
+    {id:id(),n:'Shure AD4Q',h:1,u:11,kind:'rx',side:'f',kg:5.9,w:75},{id:id(),n:'Shure ULXD4Q',h:1,u:10,kind:'rx',side:'f',kg:4.6,w:50},
+    {id:id(),n:'Shure PSM1000 P10T',h:1,u:9,kind:'rx',side:'f',kg:4.5,w:45},{id:id(),n:'Shure PSM1000 P10T',h:1,u:8,kind:'rx',side:'f',kg:4.5,w:45},
+    {id:id(),n:'Bandeau de prises',h:1,u:1,kind:'pdu',side:'f',kg:1.2,w:0}]}];
+  if(k==='road') return {v:1, sched:[{id:id(),t:'09:00',l:'Arrivée équipe',n:''},{id:id(),t:'10:00',l:'Déchargement',n:'Quai arrière'},{id:id(),t:'14:00',l:'Balances',n:''},{id:id(),t:'20:30',l:'Concert',n:''}],
+    people:[{id:id(),r:'Régisseur général',n:'Camille',p:'',m:''},{id:id(),r:'Son façade',n:'Alex',p:'',m:''}], addr:'La Grange, 12 rue du Port', access:'Quai arrière, hauteur 1,20 m', parking:'', hotel:'', meals:'', loges:'', wifi:'', notes:''};
+  return null;
+}
+/* L'exemple n'est posé que dans l'aperçu (jamais dans la base de l'essai ni dans le brouillon d'inscription) */
+function _guestSeed(tab){
+  var key={rf:'rf',racks:'racks',road:'road'}[tab]; if(!key||!CUR_SHOW) return;
+  var sd=CUR_SHOW.stage_data=CUR_SHOW.stage_data||{v:2}, cur=sd[key];
+  var empty=!cur||(key==='racks'&&!cur.length)||(key==='rf'&&!(cur.ch&&cur.ch.length))||(key==='road'&&!((cur.sched||[]).length||(cur.people||[]).length||cur.addr));
+  if(!empty) return;
+  _guestSeeded[key]={had:Object.prototype.hasOwnProperty.call(sd,key), was:cur};
+  sd[key]=_guestDemo(key);
+  if(key==='rf'&&typeof RF!=='undefined') RF.showId=null;
+  if(key==='racks'&&typeof RK!=='undefined') RK.showId=null;
+  if(key==='road'&&typeof RD!=='undefined') RD.showId=null;
+}
+function _guestLock(tab){
+  var info=_GUEST_PREVIEW[tab], pn=document.getElementById('panel-'+tab); if(!info||!pn) return;
+  pn.classList.add('guest-locked');
+  var ov=document.createElement('div'); ov.className='guest-lock'; ov.id='guest-lock';
+  ov.innerHTML='<div class="guest-lock-card"><span class="guest-lock-ic"><i class="ti '+info[0]+'"></i></span><b>'+info[1]+'</b><p>'+info[2]+'</p>'
+    +'<p class="guest-lock-fine">'+(_guestSeeded.rf||_guestSeeded.racks||_guestSeeded.road?'Ci-dessous, un exemple. ':'')+'Disponible avec un compte gratuit, sans carte bancaire. Votre essai est repris.</p>'
+    +'<div class="guest-lock-a"><button type="button" class="btn pri" onclick="guestSignup()"><i class="ti ti-user-plus"></i>Créer mon compte gratuit</button><button type="button" class="btn" onclick="navIL(\'in\')">Revenir à l\'essai</button></div></div>';
+  pn.appendChild(ov);
+}
+function _guestUnlock(){
+  document.querySelectorAll('.guest-lock').forEach(function(e){ e.remove(); });
+  document.querySelectorAll('.guest-locked').forEach(function(e){ e.classList.remove('guest-locked'); });
+  if(!CUR_SHOW) return;
+  var sd=CUR_SHOW.stage_data||{}, DB=window.__pfGuestDB, dsd=DB&&DB.shows[0]&&DB.shows[0].stage_data;
+  Object.keys(_guestSeeded).forEach(function(k){
+    var o=_guestSeeded[k]; if(o.had) sd[k]=o.was; else delete sd[k];
+    if(dsd){ if(o.had) dsd[k]=o.was; else delete dsd[k]; }      /* au cas où le module aurait enregistré l'exemple */
+    if(k==='rf'&&typeof RF!=='undefined') RF.showId=null;
+    if(k==='racks'&&typeof RK!=='undefined') RK.showId=null;
+    if(k==='road'&&typeof RD!=='undefined') RD.showId=null;
+  });
+  _guestSeeded={};
+}
 /* Garde l'essai dans ce navigateur, puis ouvre l'inscription : il sera versé dans un vrai show */
 function _guestDraft(){
   var DB=window.__pfGuestDB; if(!DB) return null;
-  var sh=DB.shows[0]||{}, strip=function(r){ r=JSON.parse(JSON.stringify(r)); ['id','show_id','created_at','updated_at','updated_by'].forEach(function(k){ delete r[k]; }); return r; };
+  /* Le show en cours (l'essai, ou le show d'exemple ouvert depuis l'essai) */
+  var sid=(typeof CUR_SHOW!=='undefined'&&CUR_SHOW&&DB.shows.some(function(x){ return x.id===CUR_SHOW.id; }))?CUR_SHOW.id:_GUEST_SHOW;
+  var sh=DB.shows.find(function(x){ return x.id===sid; })||DB.shows[0]||{}, strip=function(r){ r=JSON.parse(JSON.stringify(r)); ['id','show_id','created_at','updated_at','updated_by'].forEach(function(k){ delete r[k]; }); return r; };
   var lite=function(o){ return JSON.parse(JSON.stringify(o==null?null:o,function(k,v){ return (typeof v==='string' && v.length>2000 && /^data:/.test(v))?null:v; })); };
   return {v:1, at:Date.now(), show:{name:sh.name||'Mon show', venue:sh.venue||null, show_date:sh.show_date||null, stage_data:lite(sh.stage_data||{v:2}), synoptique_data:lite(sh.synoptique_data), out_data:lite(sh.out_data), il_patches:lite(sh.il_patches)},
-    channels:DB.channels.filter(function(c){ return c.show_id===_GUEST_SHOW; }).map(strip).map(lite), scenes:DB.show_scenes.filter(function(c){ return c.show_id===_GUEST_SHOW; }).map(strip).map(lite)};
+    channels:DB.channels.filter(function(c){ return c.show_id===sid; }).map(strip).map(lite), scenes:DB.show_scenes.filter(function(c){ return c.show_id===sid; }).map(strip).map(lite)};
 }
 function guestSignup(){
+  _guestUnlock();
   var d=_guestDraft(), kept=false;
   if(d && (d.channels.length || JSON.stringify(d.show.stage_data).length>20 || d.show.synoptique_data || d.show.out_data || d.scenes.length)){
     try{ sessionStorage.setItem('pf_guest_draft', JSON.stringify(d)); kept=true; }catch(e){}
@@ -283,8 +352,17 @@ function _guestBoot(){
   document.body.appendChild(bar);
   /* Onglets ouverts dans l'essai ; les autres proposent le compte */
   var _go=window.goTab;
-  /* Onglet hors essai : appel de l'utilisateur → invitation ; appel du programme (ouverture d'un show) → l'onglet de l'essai */
-  window.goTab=function(id){ if(!_GUEST_TABS[id]){ var ev=window.event; if(ev&&ev.isTrusted) _guestAsk('tab'); else if(id==='overview'||id==='sessions') return _go.call(this,'inputlist',null); return; } return _go.apply(this,arguments); };
+  /* Onglet hors essai : appel du programme (ouverture d'un show) → l'onglet de l'essai ; clic de l'utilisateur →
+     le module s'ouvre en aperçu verrouillé (rempli d'un exemple s'il est vide), avec l'invitation au compte */
+  window.goTab=function(id,el){
+    if(_GUEST_TABS[id]){ _guestUnlock(); return _go.apply(this,arguments); }
+    var ev=window.event;
+    if(!(ev&&ev.isTrusted)){ if(id==='overview'||id==='sessions') return _go.call(this,'inputlist',null); return; }
+    if(!_GUEST_PREVIEW[id]){ _guestAsk('tab'); return; }
+    _guestUnlock(); _guestSeed(id);
+    try{ _go.call(this,id,el); }catch(e){ console.warn('[essai] aperçu',e); }
+    _guestLock(id);
+  };
   /* Ce qui enregistre, exporte ou partage passe par le compte */
   /* Les exports restent libres ; partager, inviter, créer d'autres shows et l'import par IA passent par le compte */
   ['doCopyShareLink','copyILShareLink','copyRiderLink','copyLink','_createLink','inviteMember','newShow','ilAiImport','bpAiImport','festShare','_planExpShare','showUpgradeModal'].forEach(function(n){

@@ -6132,7 +6132,7 @@ button.il-chk.warn:hover{background:rgba(240,160,40,.24)}
 .guest-bar-b:hover{background:rgba(255,255,255,.18)}
 .guest-bar-p{background:var(--ora);color:#fff}
 @media (max-width:640px){.guest-bar-x,.guest-bar-b{display:none}.guest-bar{bottom:calc(72px + env(safe-area-inset-bottom))}}
-.pf-guest .tab[data-tab]:not([data-tab=inputlist]):not([data-tab=stage]):not([data-tab=synoptique]){opacity:.38}
+.pf-guest .tab[data-tab]:not([data-tab=inputlist]):not([data-tab=stage]):not([data-tab=synoptique]){opacity:.62}
 .pf-guest .tab[data-tab]:not([data-tab=inputlist]):not([data-tab=stage]):not([data-tab=synoptique]) .ti{filter:grayscale(1)}
 .guest-box{max-width:500px}
 .guest-lead{margin:0 0 12px;font-size:14px;line-height:1.5;color:var(--txt2)}
@@ -6146,3 +6146,13 @@ button.il-chk.warn:hover{background:rgba(240,160,40,.24)}
 .guest-bar-c{width:32px;padding:0!important;background:transparent;color:#9aa3b2;display:flex;align-items:center;justify-content:center}
 .guest-bar-c:hover{color:#fff;background:rgba(255,255,255,.1)}
 .guest-bar-c .ti{font-size:15px}
+/* Essai : aperçu verrouillé d'un module réservé au compte */
+.pf-guest .panel.guest-locked{position:relative;min-height:calc(100vh - 60px);overflow:hidden}
+.pf-guest .panel.guest-locked>*:not(.guest-lock){pointer-events:none;user-select:none;filter:saturate(.85)}
+.guest-lock{position:absolute;inset:0;z-index:50;display:flex;justify-content:center;align-items:flex-start;padding:16vh 20px 40px;background:linear-gradient(180deg,color-mix(in srgb,var(--bg) 25%,transparent) 0%,color-mix(in srgb,var(--bg) 70%,transparent) 55%,var(--bg) 100%);backdrop-filter:blur(1.5px)}
+.guest-lock-card{position:sticky;top:16vh;max-width:440px;display:grid;justify-items:center;gap:10px;padding:26px 28px;border-radius:18px;background:var(--surf);box-shadow:0 0 0 1px var(--bdr2),0 24px 60px rgba(0,0,0,.35);text-align:center}
+.guest-lock-ic{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:rgba(255,107,26,.12);color:var(--ora);font-size:26px}
+.guest-lock-card b{font-size:18px;font-weight:700;color:var(--txt)}
+.guest-lock-card p{margin:0;font-size:13.5px;line-height:1.5;color:var(--txt2)}
+.guest-lock-card .guest-lock-fine{font-size:12px;color:var(--muted)}
+.guest-lock-a{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:6px}
