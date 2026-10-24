@@ -18,7 +18,7 @@ self.addEventListener('install', function(e){
         var urls = [], re = /(?:src|href)="([^"]+)"/g, m;
         while((m = re.exec(html))){
           var u = m[1];
-          if(/^\/?pf-[\w-]+\.(js|css)\?v=/.test(u) || u === '/favicon.svg') urls.push(new URL(u, PAGE).href);
+          if(/^\/?pf-[\w-]+\.(js|css)\?v=/.test(u) || /^\/favicon\.svg(\?|$)/.test(u)) urls.push(new URL(u, PAGE).href);
           else if(CDN.test(u) && !/^https:\/\/[^/]+\/?$/.test(u)) urls.push(u);
         }
         return c.put(PAGE, res).then(function(){
