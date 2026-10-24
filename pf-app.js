@@ -5729,9 +5729,14 @@ function setPdfExportType(type){
   const zc = document.getElementById('pdf-zoom'); if(zc) zc.checked = _pdfZoom;
   // Hide link/recap checkboxes for visual plans
   const foot1 = document.getElementById('pdf-checks');
-  if(foot1) foot1.style.display = (isTable||isFest) ? '' : 'none';
+  if(foot1) foot1.style.display = (isTable||isFest||isVisual) ? '' : 'none';
   const recapLbl = document.getElementById('pdf-recap-label');
-  if(recapLbl) recapLbl.style.display = isFest ? 'none' : '';
+  if(recapLbl) recapLbl.style.display = isTable ? '' : 'none';
+  /* Lien partagé + QR : coché d'office à chaque export ; en essai, impossible (le show n'est pas en ligne) */
+  const lk=document.getElementById('pdf-incl-link'), lkLbl=document.getElementById('pdf-link-label'), lkNote=document.getElementById('pdf-link-note');
+  if(lk){ lk.checked=!PF_GUEST; lk.disabled=!!PF_GUEST; }
+  if(lkLbl) lkLbl.classList.toggle('off', !!PF_GUEST);
+  if(lkNote){ lkNote.hidden=!PF_GUEST; if(PF_GUEST) lkNote.innerHTML='<i class="ti ti-lock"></i><span>Pas disponible en mode essai : le show n\'est pas enregistré en ligne. <button type="button" class="xp-inline" onclick="closePDF();guestSignup()">Créer un compte gratuit</button> pour partager un lien toujours à jour.</span>'; }
   // Hide toggle row entirely if only one option visible
   const toggleRow = document.getElementById('pdf-type-row');
   if(toggleRow) toggleRow.style.display = _pdfVisibleTypes.length <= 1 ? 'none' : '';
@@ -5810,6 +5815,8 @@ function doExport(){
   closePDF();
 }
 function pdfToFilesFromModal(){ if(_pdfExportType==='fest'){ closePDF(); festDoExport('pdf', true); return; } quickPdfToFiles(_pdfExportType); }
+/* Lien partagé et QR dans le PDF : case cochée, et jamais en essai */
+function _pdfWantLink(){ var c=document.getElementById('pdf-incl-link'); return !PF_GUEST && !(c && c.checked===false); }
 function setPdfOrient(o){
   _pdfOrient = (o==='portrait'||o==='landscape') ? o : 'auto';
   var l=document.getElementById('pdf-orient-land'), p=document.getElementById('pdf-orient-port'), a=document.getElementById('pdf-orient-auto');
@@ -8142,14 +8149,14 @@ async function doPDF(toFiles){
       toast('Plan de scène vide (live:0 · sauvé:'+_saved+' · scène:'+(CUR_SCENES.stage||'-')+')');
       return;
     }
-    await _ensureShareActive(); /* activer le partage (rider) AVANT de générer le lien/QR — sinon « pas de lien actif » */
+    var _lnk=_pdfWantLink(); if(_lnk) await _ensureShareActive(); /* activer le partage (rider) AVANT de générer le lien/QR — sinon « pas de lien actif » */
     _makeBpCanvas(function(cv){
       try{
         if(!cv){toast('Plan de scène : canvas vide.');return;}
         var dataUrl;
         try{ dataUrl=cv.toDataURL('image/png'); }
         catch(corsErr){ toast('Erreur export (image CORS) : '+corsErr.message); console.error('stage pdf toDataURL:',corsErr); return; }
-        const shareUrl=_riderBase()+'?view='+(CUR_SHOW?.id||'')+'&tab=stage';
+        const shareUrl=_lnk?_riderBase()+'?view='+(CUR_SHOW?.id||'')+'&tab=stage':'';
         _openVisualPdf('Plan de scene', meta, dataUrl, shareUrl, brand, {orientation:_pdfOrient, fit:true, rows:cv.bpInfo||[]}).catch(function(e){toast('Erreur PDF : '+e.message);console.error('_openVisualPdf:',e);});
       }catch(e){toast('Erreur export PDF : '+e.message);console.error('stage pdf cb:',e);}
     },{noInfo:true, tight:true});
@@ -8162,14 +8169,14 @@ async function doPDF(toFiles){
       if(!_s2&&SHOW_SCENES.site&&SHOW_SCENES.site.length){var _sc2=SHOW_SCENES.site.find(function(s){return s.id===CUR_SCENES.site;});_s2=_sc2&&_sc2.data&&_sc2.data.site||null;}
       if(_s2) SitePlan.load(_s2);
     }
-    await _ensureShareActive(); /* activer le partage (rider) AVANT de générer le lien/QR */
+    var _lnk2=_pdfWantLink(); if(_lnk2) await _ensureShareActive(); /* activer le partage (rider) AVANT de générer le lien/QR */
     SitePlan.exportCanvas(function(cv){
       try{
         if(!cv){toast('Plan de site vide — rien à exporter.');return;}
         var dataUrl;
         try{ dataUrl=cv.toDataURL('image/png'); }
         catch(corsErr){ toast('Erreur export (image CORS) : '+corsErr.message); console.error('site pdf toDataURL:',corsErr); return; }
-        const shareUrl=_riderBase()+'?view='+(CUR_SHOW?.id||'')+'&tab=site';
+        const shareUrl=_lnk2?_riderBase()+'?view='+(CUR_SHOW?.id||'')+'&tab=site':'';
         _openVisualPdf('Plan de site', meta, dataUrl, shareUrl, brand, {orientation:_pdfOrient, fit:true, cables:SitePlan.cablePdfRows()}).catch(function(e){toast('Erreur PDF : '+e.message);console.error('_openVisualPdf:',e);});
       }catch(e){toast('Erreur export PDF : '+e.message);console.error('site pdf cb:',e);}
     });
@@ -8181,14 +8188,14 @@ async function doPDF(toFiles){
     if(!synEl||!synEl.children.length){toast('Synoptique vide — rien à exporter.');return;}
     const svgEl = document.getElementById('sp-edges');
     const synHtml = (svgEl?svgEl.outerHTML:'') + synEl.innerHTML;
-    await _ensureShareActive(); /* activer le partage (rider) AVANT de générer le lien/QR */
-    const shareUrl = _riderBase()+'?view='+(CUR_SHOW?.id||'')+'&tab=syno';
+    const _lnk3=_pdfWantLink(); if(_lnk3) await _ensureShareActive(); /* activer le partage (rider) AVANT de générer le lien/QR */
+    const shareUrl = _lnk3 ? _riderBase()+'?view='+(CUR_SHOW?.id||'')+'&tab=syno' : '';
     _openSynoPdf(meta, synHtml, shareUrl, brand);
     return;
   }
 
   /* ── Table-based (Input / Output / Both) ── */
-  const _inclLink  = document.getElementById('pdf-incl-link')?.checked !== false;
+  const _inclLink  = _pdfWantLink();
   const _inclRecap = document.getElementById('pdf-incl-recap')?.checked === true;
   if(_inclRecap && !canDo('recap_matos')){showUpgradeModal('recap_matos');return;}
   /* Le lien/QR intégré au PDF doit pointer vers la vue correspondant AU document
