@@ -48,3 +48,15 @@
 
 # Fichiers locaux de la CLI Supabase (identifiants du projet) : jamais versionnés
 supabase/.temp/
+
+# Skills de l'utilisateur, pour les retrouver dans les sessions cloud (le reste de .claude/ reste local)
+!.claude/
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/pro-graphic-designer/
+!.claude/skills/pro-graphic-designer/**
+!.claude/skills/worldbuilder-writing/
+!.claude/skills/worldbuilder-writing/**
+!.claude/skills/security-advisor/
+!.claude/skills/security-advisor/**
