@@ -101,10 +101,27 @@ p{text-wrap:pretty}
 .logo span{font-size:19px;font-weight:750;font-stretch:108%;letter-spacing:-.03em}
 .logo em{font-style:normal;color:var(--acc)}
 .menu{display:flex;gap:4px;flex:1}
-.menu a{position:relative;padding:8px 12px;border-radius:8px;font-size:15px;font-weight:550;color:var(--ink2);text-decoration:none;transition:color .15s,background .15s}
-.menu a:hover{color:var(--ink);background:rgba(18,19,23,.05)}
-.menu a[aria-current=true]{color:var(--ink)}
-.menu a[aria-current=true]::after{content:"";position:absolute;left:12px;right:12px;bottom:2px;height:2px;border-radius:2px;background:var(--acc)}
+.menu>a,.dd-b{position:relative;padding:8px 12px;border-radius:8px;font:550 15px var(--f);color:var(--ink2);text-decoration:none;transition:color .15s,background .15s}
+.menu>a:hover,.dd-b:hover,.dd.open .dd-b{color:var(--ink);background:rgba(18,19,23,.05)}
+.menu [aria-current=true]{color:var(--ink)}
+.menu [aria-current=true]::after{content:"";position:absolute;left:12px;right:12px;bottom:2px;height:2px;border-radius:2px;background:var(--acc)}
+.dd{position:relative}
+.dd-b{display:inline-flex;align-items:center;gap:5px;border:0;background:none;cursor:pointer}
+.dd-b svg{width:15px;height:15px;transition:transform .2s}
+.dd.open .dd-b svg{transform:rotate(180deg)}
+.dd-p{position:absolute;left:-12px;top:calc(100% + 10px);width:560px;padding:10px;border-radius:16px;background:var(--card);
+  box-shadow:0 0 0 1px var(--rule),0 24px 48px -16px rgba(18,19,23,.22);opacity:0;visibility:hidden;translate:0 -4px;transition:opacity .15s,translate .15s,visibility .15s}
+.dd.open .dd-p{opacity:1;visibility:visible;translate:none}
+.dd-g{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px}
+.dd-g a{display:flex;gap:12px;align-items:flex-start;padding:11px 12px;border-radius:10px;text-decoration:none;color:var(--ink)}
+.dd-g a:hover,.dd-g a:focus-visible{background:var(--bg)}
+.dd-g svg{flex:none;width:34px;height:34px;padding:7px;border-radius:9px;background:var(--bg2);color:var(--acc-ink)}
+.dd-g b{display:block;font-size:15px;font-weight:650;line-height:1.3}
+.dd-g small{display:block;font-size:13.5px;color:var(--ink3);line-height:1.35;margin-top:2px}
+.dd-g .tag{margin-left:6px;vertical-align:1px}
+.dd-all{display:flex;align-items:center;gap:8px;margin:6px 2px 0;padding:11px 12px 6px;border-top:1px solid var(--rule);font-size:14px;font-weight:600;color:var(--ink2);text-decoration:none}
+.dd-all:hover{color:var(--acc-ink)}
+.dd-all svg{width:16px;height:16px}
 .top-act{display:flex;align-items:center;gap:22px}
 .signin{font-size:15px;font-weight:600;text-decoration:none;color:var(--ink2)}
 .signin:hover{color:var(--ink)}
@@ -380,7 +397,6 @@ html[data-view=mobile] .notes h3{margin-top:0}
 .card:hover .card-img img{transform:scale(1.04)}
 
 /* ── Adaptations ─────────────────────────────────────────────────── */
-@media(max-width:1240px){ .top-in{gap:20px} .menu a{padding:8px 9px;font-size:14.5px} .signin{white-space:nowrap} .menu a[href="#questions"]{display:none} }
 @media(max-width:1024px){
   .menu,.top-act{display:none}
   .burger{display:flex}
@@ -729,13 +745,16 @@ html[data-view=mobile] .notes h3{margin-top:0}
       <span>Patch<em>Flow</em></span>
     </a>
     <nav class="menu" aria-label="Sections">
-      <a href="#fonctions">Fonctionnalités</a>
-      <a href="#essai">Essai</a>
-      <a href="#materiel">Matériel</a>
-      <a href="#festival">Festival</a>
-      <a href="#partage">Partage</a>
-      <a href="#tarifs">Tarifs</a>
-      <a href="#questions">Questions</a>
+      <div class="dd" id="dd">
+        <button type="button" class="dd-b" aria-expanded="false" aria-controls="dd-p" data-spy="fonctions input output rider-import plans materiel festival partage preparation">Fonctionnalités<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8l4 4 4-4"/></svg></button>
+        <div class="dd-p" id="dd-p">
+          <div class="dd-g"><a href="#input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg><span><b>Input et output list</b><small>Micros, +48&nbsp;V, stageboxes, retours</small></span></a><a href="#plans"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg><span><b>Plans</b><small>Scène, site, synoptique</small></span></a><a href="#materiel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16M4 15h16M8 6h.01M8 12h.01M8 18h.01"/></svg><span><b>Matériel</b><small>Racks, HF, demande au loueur</small></span></a><a href="#festival"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span><b>Festival <span class="tag">Pro</span></b><small>Tous les groupes d'une scène</small></span></a><a href="#partage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg><span><b>Partage</b><small>Un lien à jour, ouvert sans compte</small></span></a><a href="#preparation"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4v6M6 14v6M12 4v2M12 10v10M18 4v9M18 17v3"/><circle cx="6" cy="12" r="2"/><circle cx="12" cy="8" r="2"/><circle cx="18" cy="15" r="2"/></svg><span><b>Console et équipe</b><small>Exports, fichiers, rôles</small></span></a></div>
+          <a class="dd-all" href="#fonctions">Tout en un coup d'œil <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10h12M11 5l5 5-5 5"/></svg></a>
+        </div>
+      </div>
+      <a href="#essai" data-spy="essai">Essai sans compte</a>
+      <a href="#tarifs" data-spy="tarifs">Tarifs</a>
+      <a href="#questions" data-spy="questions">Questions</a>
     </nav>
     <div class="top-act">
       <a class="signin" href="app.html">Se connecter</a>
@@ -748,9 +767,6 @@ html[data-view=mobile] .notes h3{margin-top:0}
   <div class="drawer" id="drawer">
     <a href="#fonctions" data-m="0">Fonctionnalités</a>
     <a href="#essai">Essai sans compte</a>
-    <a href="#materiel" data-m="2">Matériel</a>
-    <a href="#festival">Festival</a>
-    <a href="#partage">Partage</a>
     <a href="#tarifs">Tarifs</a>
     <a href="#questions">Questions</a>
     <div class="act">
@@ -1599,12 +1615,31 @@ html[data-view=mobile] .notes h3{margin-top:0}
   drawer.addEventListener('click',function(e){ if(e.target.closest('a')) setDrawer(false); });
 
   /* Sommaire : l'entrée de la section en cours de lecture */
-  var links=[].slice.call(document.querySelectorAll('.menu a[href^="#"]'));
-  var secs=links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+  /* Chaque entrée couvre une ou plusieurs sections (data-spy) : « Fonctionnalités » reste allumé de la vue d'ensemble à la console */
+  var links=[].slice.call(document.querySelectorAll('.menu [data-spy]'));
+  var secs=[]; links.forEach(function(a,i){ a.getAttribute('data-spy').split(' ').forEach(function(id){ var el=document.getElementById(id); if(el) secs.push([el,i]); }); });
   function spy(){
     var y=window.scrollY+140, cur=-1, best=-Infinity;
-    secs.forEach(function(s,i){ var t=s?s.getBoundingClientRect().top+window.scrollY:Infinity; if(t<=y && t>best){ best=t; cur=i; } });
+    secs.forEach(function(x){ if(!x[0].getClientRects().length) return; var t=x[0].getBoundingClientRect().top+window.scrollY; if(t<=y && t>best){ best=t; cur=x[1]; } });
+    /* Après la FAQ (auteur, fin de page), plus rien n'est allumé */
+    var end=document.getElementById('auteur'); if(end&&end.getBoundingClientRect().top+window.scrollY<=y) cur=-1;
     links.forEach(function(a,i){ a.setAttribute('aria-current', i===cur?'true':'false'); });
+  }
+
+  /* Menu Fonctionnalités : survol à la souris, clic au doigt ou au clavier, Échap et clic ailleurs pour fermer */
+  var dd=document.getElementById('dd');
+  if(dd){
+    var ddb=dd.querySelector('.dd-b'), ddt=0, hover=window.matchMedia('(hover: hover)').matches;
+    function ddSet(o){ clearTimeout(ddt); dd.classList.toggle('open',o); ddb.setAttribute('aria-expanded',o?'true':'false'); }
+    ddb.addEventListener('click',function(){ ddSet(hover&&dd.matches(':hover')?true:!dd.classList.contains('open')); });
+    if(hover){
+      dd.addEventListener('mouseenter',function(){ ddSet(true); });
+      dd.addEventListener('mouseleave',function(){ ddt=setTimeout(function(){ ddSet(false); },180); });
+    }
+    dd.addEventListener('click',function(e){ if(e.target.closest('.dd-p a')) ddSet(false); });
+    document.addEventListener('click',function(e){ if(!dd.contains(e.target)) ddSet(false); });
+    document.addEventListener('keydown',function(e){ if(e.key==='Escape'&&dd.classList.contains('open')){ ddSet(false); ddb.focus(); } });
+    dd.addEventListener('focusout',function(e){ if(!dd.contains(e.relatedTarget)) ddSet(false); });
   }
   window.addEventListener('scroll',spy,{passive:true}); window.addEventListener('resize',spy); spy();
 
