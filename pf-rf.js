@@ -869,7 +869,7 @@ function _rfSave(){
   RF.t = setTimeout(async function(){
     try {
       if(typeof setSaving === 'function') setSaving(true);
-      var r = await sb.from('shows').update({ stage_data: show.stage_data }).eq('id', show.id);
+      var r = await _sdPatch(show, ['rf']);
       if(r && r.error) toast('RF non enregistré : ' + r.error.message);
     } catch(e){ toast('RF non enregistré : ' + (e && e.message || e)); }
     if(typeof setSaving === 'function') setSaving(false);
@@ -1403,7 +1403,15 @@ function rfQuick(k, v){
   }
   _rfSave(); _rfPaintTable();
 }
+/* Plan Gratuit : calcul des fréquences jusqu'à 16 liaisons dans le show. La saisie, l'import, le spectre et le scan restent libres. */
+function _rfCalcOk(){
+  var n = (RF.data && RF.data.ch || []).length, lim = typeof planLimit === 'function' ? planLimit('rf_calc_max') : Infinity;
+  if(n <= lim) return true;
+  if(typeof showUpgradeModal === 'function') showUpgradeModal('rf_calc');
+  return false;
+}
 function rfQuickCalc(){
+  if(!_rfCalcOk()) return;
   var d = RF.data, sc = _rfQuickScope();
   var P = _rfCoPlan(function(c){ return !!sc.ids[c.id]; }), n = 0;
   if(!P.todo){ toast('Rien à calculer : ces fréquences sont verrouillées.'); return; }
@@ -1935,6 +1943,7 @@ function rfCoord(){
   if(!CUR_SHOW) return;
   _rfLoad();
   if(!RF.data.ch.length){ toast('Aucun canal : importez un show ou créez vos canaux d\'abord.'); return; }
+  if(!_rfCalcOk()) return;
   RF.co = { scope:RF.fz ? 'z:' + RF.fz : 'all', sp:false, lock:false };
   _rfCoordModal();
 }
@@ -2105,6 +2114,7 @@ function rfCoordReset(){
 }
 function rfCoordApply(){
   if(!RF.co || !CUR_SHOW) return;
+  if(!_rfCalcOk()) return;
   var P = _rfCoPlan(), d = RF.data, n = 0;
   if(!P.res.placed) return;
   _rfSnapshot('Avant le calcul des fréquences');
@@ -2372,9 +2382,11 @@ function rfWwbPick(){
   i.onchange = function(){ if(i.files && i.files[0]) rfWwbFile(i.files[0]); };
   i.click();
 }
-function rfWwbFile(file){
+async function rfWwbFile(file){
   if(!file || !RF.data) return;
   if(file.size > 25e6){ _rfImportErr('Fichier trop volumineux (25 Mo au maximum).'); return; }
+  /* Export vers Wireless Workbench : compté avec les exports console (3 shows par mois en Gratuit) */
+  if(typeof _usageTake === 'function' && !(await _usageTake('export', 'console_export'))) return;
   var r = new FileReader(), names = !!(RF.wwb && RF.wwb.names);
   r.onerror = function(){ _rfImportErr('Lecture du fichier impossible.'); };
   r.onload = function(){
@@ -2400,6 +2412,8 @@ function rfWwbFile(file){
 async function rfWwbLists(){
   var lists = _rfFreqLists(RF.data.ch);
   if(!lists.length){ toast('Aucune fréquence à exporter.'); return; }
+  /* Export vers Wireless Workbench : compté avec les exports console (3 shows par mois en Gratuit) */
+  if(typeof _usageTake === 'function' && !(await _usageTake('export', 'console_export'))) return;
   try {
     var Zip = await _loadJSZip(), z = new Zip();
     lists.forEach(function(l){ z.file(l.name, l.text); });
@@ -2881,6 +2895,7 @@ function rfMobCalDrop(k){
 /* Même calcul que la bande « Fréquences » de l'ordinateur, sur tous les canaux libres, au niveau choisi */
 function rfMobCalRun(){
   var g = RF.cal, d = RF.data; if(!g) return;
+  if(!_rfCalcOk()) return;
   var mode = _rfLvl(d.coord.mode);
   d.ch.forEach(function(c){ if(!(c.lk && c.f)) c.cm = ''; });
   d.coord.mode = mode;

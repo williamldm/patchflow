@@ -1,13 +1,23 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
+<meta name="robots" content="noindex"/>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
 <script>/* iOS zoome automatiquement sur tout champ < 16px et ne dézoome pas : on
    l'en empêche (iOS laisse quand même zoomer au pincement). Android n'est pas concerné. */
 (function(){var m=document.querySelector('meta[name=viewport]');if(m&&(/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)))m.setAttribute('content','width=device-width,initial-scale=1,maximum-scale=1');})();</script>
 <title>PatchFlow</title>
-<link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg?v=3"/>
+<link rel="icon" type="image/png" sizes="96x96" href="/img/favicon-96.png?v=3"/>
+<!-- Application installable (ordinateur, téléphone) et utilisable sans réseau : voir sw-app.js -->
+<link rel="manifest" href="/app.webmanifest"/>
+<meta name="theme-color" content="#0b0d12"/>
+<link rel="apple-touch-icon" href="/img/apple-touch-icon.png"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-title" content="PatchFlow"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <!-- Preconnect aux CDN critiques pour réduire la latence sur connexion lente -->
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -60,7 +70,7 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Tabler icons en async (les icônes sont essentielles mais pas bloquantes pour la 1re peinture) -->
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/></noscript>
-<link rel="stylesheet" href="pf-app.css?v=4.21">
+<link rel="stylesheet" href="pf-app.css?v=4.81">
 </head>
 <body>
 
@@ -211,6 +221,7 @@ html.rider-boot #rider-splash{display:flex}
         <div class="nav-sec">Patch</div>
         <div class="tab" data-tab="inputlist" data-mode="in" onclick="navIL('in')" title="Input list"><i class="ti ti-list-numbers"></i><span class="tab-l">Input list</span><span class="tab-n" id="nav-n-in"></span></div>
         <div class="tab" data-tab="inputlist" data-mode="out" onclick="navIL('out')" title="Output list"><i class="ti ti-arrow-bar-to-right"></i><span class="tab-l">Output list</span><span class="tab-n" id="nav-n-out"></span></div>
+        <div class="tab" data-tab="festival" onclick="goTab('festival',this)" title="Mode festival : programme et changements de plateau"><i class="ti ti-calendar-time"></i><span class="tab-l">Festival</span><span class="tab-n" id="nav-n-fest"></span></div>
         <div class="nav-sec">Plans</div>
         <div class="tab" data-tab="stage" data-mode="scene" onclick="navPlan('scene')" title="Plan de scène"><i class="ti ti-layout-board"></i><span class="tab-l">Plan de scène</span></div>
         <div class="tab" data-tab="stage" data-mode="site" onclick="navPlan('site')" title="Plan de site"><i class="ti ti-map-2"></i><span class="tab-l">Plan de site</span></div>
@@ -256,6 +267,7 @@ html.rider-boot #rider-splash{display:flex}
           <div class="user-dd-item" onclick="closeUD();openPlanModal()"><i class="ti ti-credit-card"></i>Mon abonnement</div>
           <div class="user-dd-item" onclick="closeUD();openPortal()"><i class="ti ti-receipt"></i>Facturation</div>
           <div class="user-dd-item" onclick="closeUD();openSupport()"><i class="ti ti-headset"></i>Support</div>
+          <div class="user-dd-item" id="u-inst-item" onclick="closeUD();pfInstall()"><i class="ti ti-download"></i>Installer l'application</div>
           <div class="user-dd-item adm-only" style="display:none" onclick="closeUD();goTab('admin',null)"><i class="ti ti-shield-lock"></i>Administration</div>
           <div class="user-dd-sep"></div>
           <div class="user-dd-lbl">Thème</div>
@@ -289,6 +301,7 @@ html.rider-boot #rider-splash{display:flex}
               </div>
               <button class="btn ghost" id="sess-trash-btn" onclick="openTrashModal()" title="Supprimés récemment" style="display:none"><i class="ti ti-trash"></i><span id="sess-trash-count" class="sess-trash-count" style="display:none"></span></button>
               <button class="btn" onclick="createSessFolder()" title="Créer un dossier pour regrouper des sessions"><i class="ti ti-folder-plus"></i>Dossier</button>
+              <span class="plan-quota" id="sess-quota" hidden></span>
               <button class="btn pri" onclick="newShow()"><i class="ti ti-plus"></i>Nouveau show</button>
             </div>
           </div>
@@ -325,7 +338,7 @@ html.rider-boot #rider-splash{display:flex}
 
       <div class="pbar il-bar">
         <label class="il-filter"><i class="ti ti-search"></i><input id="il-q" placeholder="Filtrer les canaux" oninput="_ilFilter()" autocomplete="off" aria-label="Filtrer la liste"/></label>
-        <!-- Entrées : tout est visible, rien dans un menu « Plus ». Ligne 1 : créer, importer, sortir. Ligne 2 : affichage. -->
+        <!-- Entrées : ligne 1 créer, importer, partager, exporter ; ligne 2 affichage. Menus nommés, pas de « Plus » fourre-tout. -->
         <span id="il-in-btns" style="display:contents">
           <div class="il-row a">
             <button class="btn pri" onclick="addRow()"><i class="ti ti-plus"></i>Canal</button>
@@ -344,22 +357,36 @@ html.rider-boot #rider-splash{display:flex}
                 <button type="button" class="tpl-dd-save" onclick="closeTplDd();saveAsTemplate()"><i class="ti ti-bookmark-plus"></i>Enregistrer la liste actuelle comme template</button>
               </div>
             </div>
-            <span class="il-sep"></span>
-            <span class="il-lbl">Importer</span>
-            <button class="btn" onclick="ilPdfImport()" title="Reprendre le patch d'un rider en PDF, page par page"><i class="ti ti-file-type-pdf"></i>PDF</button>
-            <button class="btn" onclick="importCSVClick()" title="Importer un fichier CSV"><i class="ti ti-table-import"></i>CSV</button>
-            <button class="btn" id="il-ai-btn" onclick="ilAiImport()" title="Photo, PDF scanné ou Word : la liste est lue par l'IA"><i class="ti ti-sparkles"></i>Par IA</button>
+            <div class="il-dd">
+              <button class="btn" type="button" onclick="ilDd(this)" aria-haspopup="menu"><i class="ti ti-file-import"></i>Importer<i class="ti ti-chevron-down il-chev"></i></button>
+              <div class="il-dd-menu" role="menu">
+                <button type="button" onclick="ilDdClose();ilPdfImport()"><i class="ti ti-file-type-pdf"></i><span><b>Rider PDF</b><em>Le patch d'un rider, page par page</em></span></button>
+                <button type="button" id="il-ai-btn" onclick="ilDdClose();ilAiImport()"><i class="ti ti-sparkles"></i><span><b>Photo ou document</b><em>Photo, PDF scanné ou Word, lu par l'IA</em></span></button>
+                <button type="button" onclick="ilDdClose();importCSVClick()"><i class="ti ti-table-import"></i><span><b>Fichier CSV</b><em>Export d'un tableur</em></span></button>
+              </div>
+            </div>
             <span class="il-bar-sp"></span>
             <button type="button" class="btn" data-undo="il" onclick="undoSection('il')" title="Annuler (Ctrl/⌘+Z)" style="display:none"><i class="ti ti-arrow-back-up"></i>Annuler</button>
-            <button class="btn" onclick="copyILShareLink()" title="Copier le lien de partage de cette input list"><i class="ti ti-link"></i>Lien de partage</button>
+            <div class="il-dd il-dd-r">
+              <button class="btn" type="button" onclick="ilDd(this)" aria-haspopup="menu"><i class="ti ti-share"></i>Partager<i class="ti ti-chevron-down il-chev"></i></button>
+              <div class="il-dd-menu" role="menu">
+                <button type="button" onclick="ilDdClose();copyILShareLink()"><i class="ti ti-link"></i><span><b>Copier le lien</b><em>Input list en ligne, toujours à jour</em></span></button>
+                <button type="button" id="il-stageplan-btn" onclick="ilDdClose();openStagePlanPicker()"><i class="ti ti-map-2"></i><span><b>Plan de scène lié</b><em>Celui qui s'ouvre depuis le lien</em></span></button>
+              </div>
+            </div>
             <button class="btn" id="il-exp-btn" onclick="openPDFModal('in')"><i class="ti ti-file-export"></i>Exporter</button>
           </div>
           <div class="il-row b">
-            <button class="btn" id="col-btn" onclick="toggleColPanel()"><i class="ti ti-columns"></i>Colonnes</button>
-            <button class="btn" id="il-group-btn" onclick="toggleILGroup()" aria-pressed="true" title="Regrouper les canaux qui se suivent par source"><i class="ti ti-list-tree"></i>Grouper par source</button>
-            <button class="btn" id="il-stageplan-btn" onclick="openStagePlanPicker()" title="Plan de scène ouvert depuis les liens partagés de cette liste"><i class="ti ti-map-2"></i>Plan de scène lié</button>
+            <div class="il-dd">
+              <button class="btn" type="button" onclick="ilDd(this)" aria-haspopup="menu"><i class="ti ti-layout-columns"></i>Affichage<i class="ti ti-chevron-down il-chev"></i></button>
+              <div class="il-dd-menu" role="menu">
+                <button type="button" onclick="ilDdClose();toggleColPanel()"><i class="ti ti-columns"></i><span><b>Colonnes</b><em>Choisir, réordonner, ajouter</em></span></button>
+                <button type="button" id="il-group-btn" onclick="toggleILGroup()" aria-pressed="true"><i class="ti ti-list-tree"></i><span><b>Grouper par source</b><em>Voies qui se suivent, par source</em></span><i class="ti ti-check il-dd-ck"></i></button>
+              </div>
+            </div>
+            <button class="btn" id="il-sb-btn" onclick="ilBoxesOpen()" title="Boîtes de scène et patch des voies"><i class="ti ti-plug-connected"></i>Stageboxes</button>
             <span class="il-bar-sp"></span>
-            <button class="btn il-danger" onclick="clearAllRows()" title="Supprimer tous les canaux de ce patch"><i class="ti ti-trash"></i>Tout supprimer</button>
+            <button class="btn il-danger il-ico" onclick="clearAllRows()" title="Supprimer tous les canaux de ce patch" aria-label="Supprimer tous les canaux"><i class="ti ti-trash"></i></button>
           </div>
           <!-- Hidden file inputs -->
           <input type="file" id="csv-import-input" accept=".csv,.txt" style="display:none" onchange="importCSVLoad(this)">
@@ -370,16 +397,16 @@ html.rider-boot #rider-splash{display:flex}
           <div class="il-row a">
             <button class="btn pri" onclick="addOutRow()"><i class="ti ti-plus"></i>Sortie</button>
             <button class="btn" onclick="openOLAssist()" title="Saisir plusieurs sorties d'un coup"><i class="ti ti-wand"></i>Assistant</button>
-            <span class="il-sep"></span>
-            <span class="il-lbl">Importer</span>
-            <button class="btn" onclick="olPdfImport()" title="Reprendre les sorties d'un rider en PDF, page par page"><i class="ti ti-file-type-pdf"></i>PDF</button>
-            <button class="btn" onclick="importOutCSVClick()" title="Importer un fichier CSV"><i class="ti ti-table-import"></i>CSV</button>
+            <div class="il-dd">
+              <button class="btn" type="button" onclick="ilDd(this)" aria-haspopup="menu"><i class="ti ti-file-import"></i>Importer<i class="ti ti-chevron-down il-chev"></i></button>
+              <div class="il-dd-menu" role="menu">
+                <button type="button" onclick="ilDdClose();olPdfImport()"><i class="ti ti-file-type-pdf"></i><span><b>Rider PDF</b><em>Les sorties d'un rider, page par page</em></span></button>
+                <button type="button" onclick="ilDdClose();importOutCSVClick()"><i class="ti ti-table-import"></i><span><b>Fichier CSV</b><em>Export d'un tableur</em></span></button>
+              </div>
+            </div>
             <span class="il-bar-sp"></span>
             <button class="btn" id="out-exp-btn" onclick="openPDFModal('out')"><i class="ti ti-file-export"></i>Exporter</button>
-          </div>
-          <div class="il-row b">
-            <span class="il-bar-sp"></span>
-            <button class="btn il-danger" onclick="clearAllOutRows()" title="Supprimer toutes les sorties"><i class="ti ti-trash"></i>Tout supprimer</button>
+            <button class="btn il-danger il-ico" onclick="clearAllOutRows()" title="Supprimer toutes les sorties" aria-label="Supprimer toutes les sorties"><i class="ti ti-trash"></i></button>
           </div>
         </span>
       </div>
@@ -619,6 +646,7 @@ html.rider-boot #rider-splash{display:flex}
                 </div></div>
               <div class="sub-plans-grid" id="sub-plans-grid"></div>
               <p class="set-fine" id="sub-fine">1 mois de Pro offert pour un premier abonnement · sans engagement · résiliable à tout moment</p>
+              <p class="set-fine" id="sub-tax">Une facture à chaque paiement, dans Facturation : l'abonnement est une dépense professionnelle, déductible selon votre statut. Intermittent aux frais réels : environ 6,94 à 8,83 € par mois après impôt en formule annuelle (tranches à 30 % et 11 %).</p>
             </div>
 
             <!-- Stockage en option (Pro) -->
@@ -686,6 +714,9 @@ html.rider-boot #rider-splash{display:flex}
     <div class="panel" id="panel-road">
       <div id="road-root"></div>
     </div>
+    <div class="panel" id="panel-festival">
+      <div id="fest-root"></div>
+    </div>
     <div class="panel" id="panel-rf">
       <div id="rf-root"></div>
     </div>
@@ -695,7 +726,7 @@ html.rider-boot #rider-splash{display:flex}
     </div>
 
     <div class="panel" id="panel-bon">
-      <input type="file" id="bon-file" accept="application/pdf,.pdf" hidden onchange="bonFile(this)">
+      <input type="file" id="bon-file" accept="application/pdf,.pdf,.xlsx,.xls,.xlsm,.ods,.csv,.tsv,.txt,text/csv,text/plain,image/*" hidden onchange="bonFile(this)">
       <div id="bon-root"></div>
     </div>
 
@@ -705,9 +736,9 @@ html.rider-boot #rider-splash{display:flex}
         <button type="button" class="btn sm sfx-univ" onclick="dlFile('univ')" title="Toutes les voies dans un tableau, à ouvrir dans un tableur"><i class="ti ti-file-spreadsheet"></i>CSV universel</button>
       </header>
       <div id="sf-pro-banner" class="sfx-pro">
-        <i class="ti ti-lock"></i>
-        <div>Les <b>exports console</b> font partie du plan <b>Pro</b> : noms, couleurs, patch, gains et +48&nbsp;V chargés directement dans la console.</div>
-        <button type="button" class="btn pri sm" onclick="showUpgradeModal('console_export')">Passer Pro</button>
+        <i class="ti ti-gift"></i>
+        <div id="sf-pro-txt">Plan Gratuit : <b>3 shows exportés par mois</b>, tous formats confondus (consoles et Wireless Workbench).</div>
+        <button type="button" class="btn sm" onclick="showUpgradeModal('console_export')">Illimité en Pro</button>
       </div>
       <div class="sfx-bar">
         <div class="sfx-tabs" id="sf-tabs" role="tablist" aria-label="Console"></div>
@@ -727,8 +758,8 @@ html.rider-boot #rider-splash{display:flex}
             <button type="button" id="sp-zoom-in" title="Zoom +"><i class="ti ti-plus"></i></button>
             <button type="button" id="sp-fit" title="Ajuster"><i class="ti ti-arrows-maximize"></i></button>
           </div>
+          <button type="button" class="btn ghost sm" id="sp-ips" onclick="SynPro.openIpList()" title="Adresses IP, VLAN et firmware des équipements"><i class="ti ti-network"></i><span>Adresses IP</span></button>
           <button type="button" class="btn ghost sm" id="sp-conf"><i class="ti ti-settings"></i>Marque &amp; réseaux</button>
-          <button type="button" class="btn ghost sm" id="sp-import" onclick="LinusImport.pick()" title="Créer le synoptique à partir d'une session LINUS Control (Coda Audio)"><i class="ti ti-file-import"></i>Session LINUS</button>
           <button type="button" class="btn ghost sm pf-fs-btn" onclick="pfFullscreen('syno')" title="Plein écran (Échap pour quitter)"><i class="ti ti-maximize"></i><span>Plein écran</span></button>
           <button type="button" class="btn sm" id="sp-export" onclick="SynPro.openExport()"><i class="ti ti-file-export"></i>Exporter</button>
           <span id="sp-save-status" style="font-size:10px;font-family:var(--m);display:flex;align-items:center;gap:4px;color:var(--muted)"></span>
@@ -741,6 +772,9 @@ html.rider-boot #rider-splash{display:flex}
             <div class="sp-pal-hd"><i class="ti ti-box"></i>Bibliothèque</div>
             <div class="sp-bg-box">
               <input type="file" id="sp-bg-file" accept="image/*,application/pdf" style="display:none" onchange="SynPro.loadBg(this)"/>
+              <button type="button" class="bp-tool sp-amp-tool" onclick="AmpImport.open()" title="Créer le synoptique depuis une session d'amplis : CODA LINUS Control, d&amp;b ArrayCalc / R1, ou un tableau pour les autres marques"><i class="ti ti-file-import" style="color:var(--ora)"></i>Session d'amplis<span>LINUS · d&amp;b · tableau</span></button>
+              <button type="button" class="bp-tool sp-amp-tool" onclick="SynFromShow.open()" title="Console, stageboxes, HF, retours et diffusion repris de l'input list, de l'output list, des racks, de la HF et du plan de site"><i class="ti ti-wand" style="color:var(--ora)"></i>Depuis le show<span>patch · racks · HF · sorties</span></button>
+              <button type="button" class="bp-tool" onclick="SynPro.addZone()" title="Cadre nommé : Régie FOH, Plateau, Retours… Il emmène son contenu quand on le déplace"><i class="ti ti-border-corners"></i>Zone</button>
               <button type="button" class="bp-tool" onclick="document.getElementById('sp-bg-file').click()" title="Image ou PDF (1re page utilisée comme fond)"><i class="ti ti-photo"></i>Image ou PDF de fond</button>
               <div id="sp-bg-controls" style="display:none">
                 <div class="sp-bg-row">
@@ -787,12 +821,12 @@ html.rider-boot #rider-splash{display:flex}
             </div>
           </div>
           <div class="sp-inspector" id="sp-inspector-wrap">
-            <div class="sp-insp-hd"><i class="ti ti-adjustments"></i>Propriétés</div>
+            <div class="sp-insp-hd"><i class="ti ti-adjustments"></i><span class="pi-t">Propriétés</span><button type="button" class="pi-x" onclick="planInspClose(this)" title="Fermer (Échap)" aria-label="Fermer les propriétés"><i class="ti ti-x"></i></button></div>
             <div id="sp-inspector" style="padding:12px;flex:1;overflow-y:auto"><p class="sp-insp-empty">Glissez un équipement depuis la palette sur le plan.<br><br>Pour relier : survolez un équipement et tirez depuis l'un de ses points vers un autre équipement.</p></div>
           </div>
         </div>
         <div class="sp-hintbar">
-          <i class="ti ti-info-circle"></i> Glissez un équipement &middot; Tirez une liaison depuis les points d'un équipement &middot; Tirez les petits ronds d'une liaison pour faire un angle &middot; Clic droit sur une liaison : options
+          <i class="ti ti-info-circle"></i> Glissez un équipement &middot; Tirez une liaison depuis ses points &middot; Maj + clic ou Maj + glisser : sélection multiple &middot; Clic sur la légende : isoler un réseau &middot; Clic droit sur une liaison : options
         </div>
       </div>
     </div>
@@ -855,6 +889,7 @@ html.rider-boot #rider-splash{display:flex}
             <button class="pmb" id="pmb-site" onclick="setPlanMode('site')"><i class="ti ti-map-2"></i> Site</button>
           </div>
           <button type="button" class="btn ghost sm" id="plan-undo-btn" data-undo="stage" onclick="undoActiveSection()" title="Annuler (Ctrl/⌘+Z)" style="display:none"><i class="ti ti-arrow-back-up"></i></button>
+          <button type="button" class="btn ghost sm" id="plan-set-btn" onclick="planInspSettings()" title="Taille du texte et des objets, dimensions de la scène, légende"><i class="ti ti-adjustments-horizontal"></i><span>Réglages du plan</span></button>
           <button type="button" class="btn ghost sm pf-fs-btn" onclick="pfFullscreen('plan')" title="Plein écran (Échap pour quitter)"><i class="ti ti-maximize"></i><span>Plein écran</span></button>
           <button class="btn sm" id="plan-exp-wrap" onclick="_planExpPdf()" style="display:none"><i class="ti ti-file-export"></i>Exporter</button>
           <button class="btn ghost sm" onclick="clearCurrentPlan()"><i class="ti ti-trash"></i></button>
@@ -876,6 +911,7 @@ html.rider-boot #rider-splash{display:flex}
           <div class="bp-pal-tools">
             <input type="file" id="bp-bg-file" accept="image/*" style="display:none" onchange="BandPlan.loadBg(this)"/>
             <input type="file" id="bp-ai-file" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none" onchange="bpAiHandleFile(this)"/>
+            <button class="bp-tool" id="bp-il-btn" onclick="bpFromIL()" title="Placer les musiciens, instruments et retours à partir de l'input list et de l'output list"><i class="ti ti-list-details" style="color:var(--ora)"></i>Depuis l'input list</button>
             <button class="bp-tool" id="bp-ai-btn" onclick="bpAiImport()"><i class="ti ti-sparkles" style="color:var(--ora)"></i>Adapter un plan (IA)</button>
             <button class="bp-tool" onclick="document.getElementById('bp-bg-file').click()"><i class="ti ti-photo"></i>Image de fond</button>
             <button class="bp-tool" id="bp-stage-toggle-btn" onclick="BandPlan.toggleStageBg()"><i class="ti ti-eye-off"></i> Masquer la scène</button>
@@ -911,7 +947,7 @@ html.rider-boot #rider-splash{display:flex}
           </div>
         </div>
         <div class="bp-insp" id="bp-insp">
-          <div class="bp-insp-hd"><i class="ti ti-adjustments"></i>Propriétés</div>
+          <div class="bp-insp-hd"><i class="ti ti-adjustments"></i><span class="pi-t">Propriétés</span><button type="button" class="pi-x" onclick="planInspClose(this)" title="Fermer (Échap)" aria-label="Fermer les propriétés"><i class="ti ti-x"></i></button></div>
           <div id="bp-insp-body">
             <div class="bp-insp-empty"><i class="ti ti-pointer"></i><span>Cliquez un élément du plan pour le régler, ou glissez-en un depuis la bibliothèque.</span></div>
           </div>
@@ -932,14 +968,7 @@ html.rider-boot #rider-splash{display:flex}
                 <button class="spl-ts-btn" onclick="BandPlan.setNodeScale(1)">+</button>
               </div>
             </div>
-            <div class="bp-insp-footer-row">
-              <span>Scène</span>
-              <div style="display:flex;gap:3px;align-items:center">
-                <button class="spl-ts-btn" onclick="BandPlan.setStageScale(-1)">−</button>
-                <span id="bp-ss-val" style="font-size:9px;font-family:var(--m);color:var(--muted);min-width:28px;text-align:center">100%</span>
-                <button class="spl-ts-btn" onclick="BandPlan.setStageScale(1)">+</button>
-              </div>
-            </div>
+            <div class="bp-insp-footer-row bp-stage-row" id="bp-stage-row"></div>
           </div>
         </div>
       </div>
@@ -951,6 +980,7 @@ html.rider-boot #rider-splash{display:flex}
           <div class="site-pal-hd"><i class="ti ti-box"></i>Bibliothèque</div>
           <div class="bp-pal-tools">
             <input type="file" id="site-bg-file" accept="image/*,application/pdf" style="display:none" onchange="SitePlan.loadBg(this)"/>
+            <button class="bp-tool sp-amp-tool" onclick="SitePlan.openSatellite()" title="Vue aérienne de l'IGN autour d'une adresse : le plan est mis à l'échelle tout seul"><i class="ti ti-world" style="color:var(--ora)"></i>Vue satellite<span>IGN · déjà à l'échelle</span></button>
             <button class="bp-tool" onclick="document.getElementById('site-bg-file').click()" title="Image ou PDF (1re page utilisée comme fond)"><i class="ti ti-photo"></i>Image ou PDF de fond</button>
             <div id="site-bg-controls" style="display:none">
               <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)">
@@ -958,12 +988,11 @@ html.rider-boot #rider-splash{display:flex}
                 <input type="range" id="site-bg-opacity" min="5" max="100" value="100" style="flex:1;accent-color:var(--ora)" oninput="SitePlan.setBgOpacity(this.value)"/>
                 <button onclick="SitePlan.clearBg()" title="Retirer l'image de fond" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0">&#x2715;</button>
               </div>
-              <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);margin-top:5px">
-                <i class="ti ti-rotate" style="font-size:11px"></i>
-                <input type="range" id="site-bg-rotation" min="-180" max="180" value="0" step="1" style="flex:1;accent-color:var(--ora)" oninput="SitePlan.setBgRotation(this.value)"/>
-                <span id="site-bg-rot-val" style="font-family:var(--m);font-size:9px;min-width:30px;text-align:right">0&deg;</span>
-                <button onclick="SitePlan.rotateBg(90)" title="Pivoter de 90&deg;" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0"><i class="ti ti-rotate-clockwise"></i></button>
-              </div>
+              <button type="button" class="spl-bgadj-btn" onclick="SitePlan.adjustBg()" title="Faire tourner le fond et le rogner : les éléments posés suivent, l'échelle est conservée"><i class="ti ti-crop"></i>Pivoter / rogner le fond</button>
+            </div>
+            <div id="site-ov-wrap" style="display:none">
+              <button type="button" class="spl-bgadj-btn" onclick="SitePlan.addOverlay()" title="Poser une image ou un PDF par-dessus le fond (plan de masse, implantation…) : le fond et son échelle restent"><i class="ti ti-layers-intersect"></i>Superposer une image</button>
+              <div id="site-ov-list" class="spl-ov-list"></div>
             </div>
           </div>
           <!-- Cable type picker -->
@@ -993,11 +1022,21 @@ html.rider-boot #rider-splash{display:flex}
         </div>
         <!-- Inspecteur droit -->
         <div class="site-insp-col">
-          <div class="site-insp-hd"><i class="ti ti-adjustments"></i>Propriétés</div>
+          <div class="site-insp-hd"><i class="ti ti-adjustments"></i><span class="pi-t">Propriétés</span><button type="button" class="pi-x" onclick="planInspClose(this)" title="Fermer (Échap)" aria-label="Fermer les propriétés"><i class="ti ti-x"></i></button></div>
           <div class="site-insp" id="site-inspector">
             <p class="syn-insp-empty" style="color:var(--muted);font-size:11px;text-align:center;padding:24px 16px;line-height:1.5">Cliquez un élément.<br/><br/>Pour relier : « Tracer une liaison » à gauche, ou survolez un élément et cliquez sa pastille <i class="ti ti-plug-connected"></i>.</p>
           </div>
           <div class="site-insp-footer">
+            <div id="site-measure-set" class="spl-ms"></div>
+            <div class="spl-ms-h"><i class="ti ti-typography"></i>Textes</div>
+            <div class="site-insp-footer-row">
+              <span>Symboles <button type="button" id="spl-sym-auto" class="spl-sym-auto" style="display:none" onclick="SitePlan.setSymScale('auto')" title="Adapter à l'étendue du fond satellite">Adapter</button></span>
+              <div style="display:flex;gap:3px;align-items:center">
+                <button class="spl-ts-btn" onclick="SitePlan.setSymScale(-1)" title="Symboles plus petits">−</button>
+                <span id="spl-sym-val" style="font-size:9px;font-family:var(--m);color:var(--muted);min-width:28px;text-align:center">100%</span>
+                <button class="spl-ts-btn" onclick="SitePlan.setSymScale(1)" title="Symboles plus grands">+</button>
+              </div>
+            </div>
             <div class="site-insp-footer-row">
               <span>Texte global</span>
               <div style="display:flex;gap:3px;align-items:center">
@@ -1030,135 +1069,93 @@ html.rider-boot #rider-splash{display:flex}
     <!-- TEAM -->
     <div class="panel" id="panel-team">
       <div class="pbar"><span class="ptitle"><i class="ti ti-link" style="color:var(--ora)"></i>Partage &amp; équipe<span class="ptitle-sep">/</span><span id="sn-team" style="color:var(--txt2)">…</span></span></div>
+      <div class="sh-intro">
+        <div class="sh-mode"><i class="ti ti-link"></i><div><b>Partager en lecture seule</b><span>Un lien par destinataire&nbsp;: régie, loueur, accueil… Ils l'ouvrent sans compte et voient toujours la dernière version.</span></div></div>
+        <div class="sh-mode"><i class="ti ti-users"></i><div><b>Inviter pour modifier</b><span>Les membres de l'équipe ont un compte et travaillent sur le show avec vous, en direct.</span></div></div>
+      </div>
       <div class="sh-grid">
-        <!-- Le rider : ce que verront les destinataires -->
+        <div class="sh-main">
+        <!-- 1. Ce que voient les destinataires -->
         <section class="slink-box sh-card" id="rider-builder">
-          <div class="sh-card-hd"><h2>Rider à partager</h2><p>Choisissez ce que verront vos destinataires. Ils ouvrent le lien sans compte, en lecture seule, toujours à jour.</p></div>
+          <div class="sh-card-hd sh-hd-row"><span class="sh-step">1</span><div class="sh-hd-t"><h2>Ce que voient les destinataires</h2><p>Cochez les rubriques à partager. Les liens créés ensuite reprennent cette sélection.</p></div>
+            <button class="btn ghost sm" id="rider-pdf-btn" onclick="exportRiderPdf()" title="PDF imprimable avec les rubriques cochées"><i class="ti ti-file-type-pdf"></i>PDF du rider</button></div>
         <div id="rider-gate-msg" class="slink-pro-gate" style="display:none">
           <i class="ti ti-lock"></i>
-          <span>La création de liens rider est réservée aux abonnés <strong>Pro</strong>.
+          <span>Le partage est réservé aux abonnés <strong>Pro</strong>.
             <button onclick="showUpgradeModal('share_link')" style="background:none;border:none;color:var(--ora);cursor:pointer;font-size:11px;padding:0 0 0 4px;font-family:var(--f);text-decoration:underline">Passer Pro</button>
           </span>
         </div>
         <div id="rider-builder-inner">
-          <div class="slink-sep sh-first">Sections</div>
+          <div class="sh-presets" id="rider-presets"><span>Préréglages</span>
+            <button type="button" onclick="riderPreset('accueil')">Accueil technique</button>
+            <button type="button" onclick="riderPreset('loueur')">Loueur</button>
+            <button type="button" onclick="riderPreset('artiste')">Artiste</button>
+            <button type="button" onclick="riderPreset('tout')">Tout</button>
+          </div>
           <div class="slink-sections" id="rider-sections">
-            <button class="slink-check" id="sc-road" onclick="selectRiderSection('road')" title="Horaires, lieu et contacts de la date">
-              <i class="ti ti-route"></i>Feuille de route
-            </button>
-            <button class="slink-check checked" id="sc-il" onclick="selectRiderSection('il')">
-              <i class="ti ti-list-numbers"></i>Input List
-            </button>
-            <button class="slink-check" id="sc-out" onclick="selectRiderSection('out')">
-              <i class="ti ti-list-letters"></i>Output List
-            </button>
-            <button class="slink-check" id="sc-syno" onclick="selectRiderSection('syno')">
-              <i class="ti ti-topology-star"></i>Synoptique
-            </button>
-            <button class="slink-check" id="sc-stage" onclick="selectRiderSection('stage')">
-              <i class="ti ti-map-2"></i>Plan de scène
-            </button>
-            <button class="slink-check" id="sc-site" onclick="selectRiderSection('site')">
-              <i class="ti ti-building-stadium"></i>Plan de site
-            </button>
-            <button class="slink-check" id="sc-racks" onclick="selectRiderSection('racks')">
-              <i class="ti ti-server"></i>Racks
-            </button>
-            <button class="slink-check" id="sc-rf" onclick="selectRiderSection('rf')">
-              <i class="ti ti-antenna"></i>Liaisons HF
-            </button>
-            <button class="slink-check" id="sc-cloud" onclick="selectRiderSection('cloud')" style="display:none">
-              <i class="ti ti-cloud"></i>Fichiers cloud <span style="font-size:9px;font-family:var(--m);color:var(--ora);margin-left:2px">Pro</span>
-            </button>
+            <button type="button" class="slink-check" id="sc-road" onclick="selectRiderSection('road')" title="Horaires, lieu et contacts de la date"><i class="ti ti-route"></i><span class="sc-t">Feuille de route<small class="sc-n" id="scn-road"></small></span></button>
+            <button type="button" class="slink-check" id="sc-il" onclick="selectRiderSection('il')"><i class="ti ti-list-numbers"></i><span class="sc-t">Input list<small class="sc-n" id="scn-il"></small></span></button>
+            <button type="button" class="slink-check" id="sc-out" onclick="selectRiderSection('out')"><i class="ti ti-list-letters"></i><span class="sc-t">Output list<small class="sc-n" id="scn-out"></small></span></button>
+            <button type="button" class="slink-check" id="sc-stage" onclick="selectRiderSection('stage')"><i class="ti ti-map-2"></i><span class="sc-t">Plan de scène<small class="sc-n" id="scn-stage"></small></span></button>
+            <button type="button" class="slink-check" id="sc-site" onclick="selectRiderSection('site')"><i class="ti ti-building-stadium"></i><span class="sc-t">Plan de site<small class="sc-n" id="scn-site"></small></span></button>
+            <button type="button" class="slink-check" id="sc-syno" onclick="selectRiderSection('syno')"><i class="ti ti-topology-star"></i><span class="sc-t">Synoptique<small class="sc-n" id="scn-syno"></small></span></button>
+            <button type="button" class="slink-check" id="sc-racks" onclick="selectRiderSection('racks')"><i class="ti ti-server"></i><span class="sc-t">Racks<small class="sc-n" id="scn-racks"></small></span></button>
+            <button type="button" class="slink-check" id="sc-rf" onclick="selectRiderSection('rf')"><i class="ti ti-antenna"></i><span class="sc-t">Liaisons HF<small class="sc-n" id="scn-rf"></small></span></button>
+            <button type="button" class="slink-check" id="sc-fest" onclick="selectRiderSection('fest')" style="display:none"><i class="ti ti-calendar-time"></i><span class="sc-t">Festival<small class="sc-n" id="scn-fest"></small></span></button>
+            <button type="button" class="slink-check" id="sc-cloud" onclick="selectRiderSection('cloud')" style="display:none"><i class="ti ti-cloud"></i><span class="sc-t">Fichiers cloud<small class="sc-n" id="scn-cloud"></small></span></button>
           </div>
-          <!-- Pro : titre / note / infos -->
-          <div id="rider-meta-block">
-            <div class="slink-sep"><i class="ti ti-pencil" style="font-size:10px"></i>Informations du rider</div>
-            <div class="rider-meta-field">
-              <label>Titre</label>
-              <input class="rider-meta-inp" id="rider-title" placeholder="ex: Rider FOH — Festival d'été 2026">
+          <details class="sh-more" id="rider-more">
+            <summary><i class="ti ti-chevron-right"></i>Titre, note et fichiers joints<span>facultatif</span></summary>
+            <div class="sh-more-in">
+              <div id="rider-meta-block">
+                <div class="rider-meta-field"><label for="rider-title">Titre</label><input class="rider-meta-inp" id="rider-title" placeholder="ex : Rider FOH — Festival d'été 2026"></div>
+                <div class="rider-meta-field"><label for="rider-note">Note</label><textarea class="rider-meta-ta" id="rider-note" rows="2" placeholder="Instructions, contacts, remarques…"></textarea></div>
+                <div class="rider-meta-field"><label for="rider-info">Infos complémentaires</label><input class="rider-meta-inp" id="rider-info" placeholder="ex : Son FOH : Yamaha CL5 — Mon : Avid SC48"></div>
+              </div>
+              <div id="rider-files-block">
+                <div class="slink-sep">Fichiers joints <span style="font-size:9px;color:var(--ora);font-family:var(--m);margin-left:4px;text-transform:none;letter-spacing:0">Pro</span></div>
+                <div id="rider-studio-gate" class="rider-studio-gate" style="display:none">
+                  <i class="ti ti-sparkles"></i>
+                  <span>La sélection de fichiers est réservée aux abonnés <strong>Pro</strong>.
+                    <button onclick="showUpgradeModal('storage')" style="background:none;border:none;color:var(--ora);cursor:pointer;font-size:11px;padding:0 0 0 4px;font-family:var(--f);text-decoration:underline">Passer Pro</button>
+                  </span>
+                </div>
+                <div id="rider-file-list" style="display:none;max-height:180px;overflow-y:auto"></div>
+              </div>
             </div>
-            <div class="rider-meta-field">
-              <label>Note</label>
-              <textarea class="rider-meta-ta" id="rider-note" rows="2" placeholder="Instructions, contacts, remarques…"></textarea>
-            </div>
-            <div class="rider-meta-field">
-              <label>Infos complémentaires</label>
-              <input class="rider-meta-inp" id="rider-info" placeholder="ex: Son FOH: Yamaha CL5 — Mon: Avid SC48">
-            </div>
-          </div>
-          <!-- Pro : fichiers cloud -->
-          <div id="rider-files-block">
-            <div class="slink-sep"><i class="ti ti-paperclip" style="font-size:10px"></i>Fichiers joints <span style="font-size:9px;color:var(--ora);font-family:var(--m);margin-left:4px">Pro</span></div>
-            <div id="rider-studio-gate" class="rider-studio-gate" style="display:none">
-              <i class="ti ti-sparkles"></i>
-              <span>La sélection de fichiers est réservée aux abonnés <strong>Pro</strong>.
-                <button onclick="showUpgradeModal('storage')" style="background:none;border:none;color:var(--ora);cursor:pointer;font-size:11px;padding:0 0 0 4px;font-family:var(--f);text-decoration:underline">Passer Pro</button>
-              </span>
-            </div>
-            <div id="rider-file-list" style="display:none;max-height:180px;overflow-y:auto"></div>
-          </div>
-          <!-- Export PDF rider complet -->
-          <div class="sh-foot">
-            <button class="btn ghost" id="rider-pdf-btn" onclick="exportRiderPdf()" style="width:100%;justify-content:center;gap:7px">
-              <i class="ti ti-file-type-pdf" style="color:#ef4444;font-size:14px"></i>Exporter PDF rider
-            </button>
-            <div style="font-size:9.5px;color:var(--muted);font-family:var(--m);text-align:center;margin-top:5px;line-height:1.4">
-              Génère un PDF imprimable avec toutes les sections cochées ci-dessus
-            </div>
-          </div>
+          </details>
         </div>
         </section>
+        <!-- 2. Les liens : un par destinataire -->
+        <section class="sh-card" id="rider-links-card">
+          <div class="sh-card-hd sh-hd-row"><span class="sh-step">2</span><div class="sh-hd-t"><h2>Liens de partage</h2><p>Un lien par destinataire. «&nbsp;Mettre à jour&nbsp;» applique à un lien la sélection ci-dessus.</p></div><span class="sh-quota" id="rider-quota"></span></div>
+          <div class="link-create">
+            <input id="link-form-name" placeholder="Nom du lien : Régie façade, Loueur…" maxlength="60" autocomplete="off" onkeydown="if(event.key==='Enter')_createLink()">
+            <button class="btn pri" id="link-create-btn" onclick="_createLink()"><i class="ti ti-plus"></i>Créer le lien</button>
+          </div>
+          <div class="link-sugg" id="link-sugg"></div>
+          <div id="rider-legacy"></div>
+          <div class="links-mgr" id="links-mgr-list"></div>
+        </section>
+        </div>
         <div class="sh-side">
-          <!-- Les liens : un par destinataire -->
-          <section class="sh-card" id="rider-links-card">
-            <div class="sh-card-hd"><h2>Liens de partage</h2><p>Un lien par destinataire : régie, backline, groupe…</p></div>
-          <!-- Free : bouton unique + lien -->
-          <div id="rider-free-link-block">
-            <button class="btn pri" id="rider-gen-btn" onclick="generateRiderLink()" style="width:100%"><i class="ti ti-link"></i>Générer le lien</button>
-            <div id="rider-quota" style="display:none;font-size:10px;font-family:var(--m);color:var(--muted);text-align:center;margin-top:6px"></div>
-            <div id="rider-link-row" style="display:none;margin-top:10px">
-              <div class="slink-row">
-                <div class="slink-url" id="slink-url"></div>
-                <button class="btn sm slink-wa" onclick="_waShareFree()"><i class="ti ti-brand-whatsapp"></i>WhatsApp</button>
-                <button class="btn blu sm" onclick="copyRiderLink()"><i class="ti ti-copy"></i>Copier</button>
-              </div>
-              <div style="font-size:10px;color:var(--grn);font-family:var(--m);margin-top:6px;display:none" id="rider-saved-ok"><i class="ti ti-check"></i> Lien sauvegardé</div>
-            </div>
-          </div>
-          <!-- Pro : gestionnaire de liens multiples -->
-          <div id="rider-pro-links-block" style="display:none">
-            <div class="links-mgr" id="links-mgr-list"></div>
-            <button class="link-new-btn" onclick="_openNewLinkForm()" id="link-new-btn" style="margin-top:6px">
-              <i class="ti ti-plus"></i>Nouveau lien
-            </button>
-            <div id="link-new-form" class="link-form" style="display:none">
-              <div class="link-form-title"><i class="ti ti-link"></i>Nommer ce lien</div>
-              <div style="font-size:10px;color:var(--muted);margin-bottom:8px">Le lien reprend les sections et les informations choisies dans « Rider à partager ».</div>
-              <input id="link-form-name" placeholder="ex: Lien FOH, Lien Backline, Lien Client…" maxlength="60"/>
-              <div style="display:flex;gap:8px">
-                <button class="btn pri sm" onclick="_createLink()" style="flex:1;background:var(--ora);color:#000;border-color:var(--ora)"><i class="ti ti-check"></i>Créer le lien</button>
-                <button class="btn ghost sm" onclick="_closeNewLinkForm()" style="flex:1">Annuler</button>
-              </div>
-            </div>
-          </div>
-          </section>
           <!-- L'équipe : qui travaille sur le show -->
           <section class="sh-card" id="team-card">
-            <div class="sh-card-hd"><h2>Équipe</h2><p>Les membres modifient le show avec vous, en direct.</p></div>
+            <div class="sh-card-hd sh-hd-row"><span class="sh-step sh-step-t"><i class="ti ti-users"></i></span><div class="sh-hd-t"><h2>Équipe</h2><p>Les membres modifient le show avec vous, en direct.</p></div></div>
       <div id="team-grid" class="team-grid"><div class="loading"><div class="spinner"></div>Chargement…</div></div>
       <div id="team-quota" class="team-quota"></div>
       <div class="invite-box">
         <i class="ti ti-mail" style="color:var(--muted);font-size:15px;flex-shrink:0"></i>
         <input class="inv-inp" id="inv-email" type="email" placeholder="Inviter par e-mail…" list="inv-email-list" autocomplete="off" onkeydown="if(event.key==='Enter'&&!window._inviting)inviteMember()"/>
         <datalist id="inv-email-list"></datalist>
-        <select class="pdf-inp" id="inv-role" style="width:148px;padding:4px 7px;flex-shrink:0">
+        <select class="pdf-inp" id="inv-role" style="width:148px;padding:4px 7px;flex-shrink:0" onchange="_invRoleHelp()">
           <option value="admin">Administrateur</option>
           <option value="editor" selected>Éditeur</option>
           <option value="viewer">Lecture seule</option>
         </select>
         <button class="btn pri" id="inv-btn" onclick="inviteMember()"><i class="ti ti-send"></i>Inviter</button>
       </div>
+      <div class="inv-role-help" id="inv-role-help"></div>
       <div id="inv-msg" style="display:none;font-size:11px;padding:7px 12px;border-radius:6px;margin-top:8px;line-height:1.5"></div>
       <div id="contacts-bar" class="contacts-bar"></div>
           </section>
@@ -1172,30 +1169,42 @@ html.rider-boot #rider-splash{display:flex}
   <nav class="bottom-nav" aria-label="Navigation">
     <div class="bottom-nav-inner">
       <button class="bn-tab on" id="bn-sessions" onclick="goTab('sessions',null)"><i class="ti ti-calendar-event"></i><span>Sessions</span></button>
+      <button class="bn-tab" id="bn-overview" onclick="goTab('overview',null)"><i class="ti ti-layout-dashboard"></i><span>Aperçu</span></button>
       <button class="bn-tab" id="bn-inputlist" onclick="goTab('inputlist',null)"><i class="ti ti-list-numbers"></i><span>Patch</span></button>
       <button class="bn-tab" id="bn-stage" onclick="goTab('stage',null)"><i class="ti ti-map-2"></i><span>Plans</span></button>
-      <button class="bn-tab" id="bn-fichiers" onclick="goTab('fichiers',null)"><i class="ti ti-cloud"></i><span>Fichiers</span></button>
       <button class="bn-tab" id="bn-more" onclick="mobMore(true)" aria-haspopup="dialog"><i class="ti ti-grid-dots"></i><span>Plus</span></button>
     </div>
   </nav>
   <div class="mob-more" id="mob-more" onclick="if(event.target===this)mobMore(false)">
     <div class="mob-more-sheet" role="dialog" aria-label="Toutes les rubriques">
       <div class="mob-more-grip" onclick="mobMore(false)"></div>
-      <div class="mob-more-show" id="mob-more-show"></div>
-      <div class="mob-more-grid">
-        <button type="button" data-tab="overview" onclick="mobMore(false);goTab('overview',null)"><i class="ti ti-layout-dashboard"></i><span>Vue d'ensemble</span></button>
-        <button type="button" data-tab="inputlist" data-mode="out" onclick="mobMore(false);navIL('out')"><i class="ti ti-arrow-bar-to-right"></i><span>Output list</span></button>
-        <button type="button" data-tab="synoptique" onclick="mobMore(false);goTab('synoptique',null)"><i class="ti ti-topology-star"></i><span>Synoptique</span></button>
-        <button type="button" data-tab="stage" data-mode="scene" onclick="mobMore(false);navPlan('scene')"><i class="ti ti-layout-board"></i><span>Plan de scène</span></button>
-        <button type="button" data-tab="stage" data-mode="site" onclick="mobMore(false);navPlan('site')"><i class="ti ti-map-2"></i><span>Plan de site</span></button>
-        <button type="button" data-tab="racks" onclick="mobMore(false);goTab('racks',null)"><i class="ti ti-server"></i><span>Racks</span></button>
-        <button type="button" data-tab="rf" onclick="mobMore(false);goTab('rf',null)"><i class="ti ti-antenna"></i><span>RF</span></button>
-        <button type="button" data-tab="road" onclick="mobMore(false);goTab('road',null)"><i class="ti ti-route"></i><span>Feuille de route</span></button>
-        <button type="button" data-tab="showfiles" onclick="mobMore(false);goTab('showfiles',null)"><i class="ti ti-adjustments-alt"></i><span>Exports console</span></button>
-        <button type="button" data-tab="bon" onclick="mobMore(false);goTab('bon',null)"><i class="ti ti-clipboard-check"></i><span>Bon du loueur</span></button>
-        <button type="button" data-tab="team" onclick="mobMore(false);goTab('team',null)"><i class="ti ti-link"></i><span>Partage et équipe</span></button>
-        <button type="button" data-tab="settings" onclick="mobMore(false);openProfile()"><i class="ti ti-settings"></i><span>Paramètres</span></button>
-        <button type="button" data-tab="admin" class="adm-only" style="display:none" onclick="mobMore(false);goTab('admin',null)"><i class="ti ti-shield-lock"></i><span>Administration</span></button>
+      <button type="button" class="mm-show" id="mob-more-show" onclick="mobMore(false);goTab('overview',null)"></button>
+      <section class="mm-grp mm-patch"><h3><i class="ti ti-list-numbers"></i>Patch</h3><div class="mm-grid">
+          <button type="button" data-tab="inputlist" data-mode="in" onclick="mobMore(false);navIL('in')"><span class="mm-ic"><i class="ti ti-list-numbers"></i></span><span>Input list</span></button>
+          <button type="button" data-tab="inputlist" data-mode="out" onclick="mobMore(false);navIL('out')"><span class="mm-ic"><i class="ti ti-arrow-bar-to-right"></i></span><span>Output list</span></button>
+          <button type="button" data-tab="festival" onclick="mobMore(false);goTab('festival',null)"><span class="mm-ic"><i class="ti ti-calendar-time"></i></span><span>Festival</span></button>
+          <button type="button" data-tab="showfiles" onclick="mobMore(false);goTab('showfiles',null)"><span class="mm-ic"><i class="ti ti-adjustments-alt"></i></span><span>Exports console</span></button>
+      </div></section>
+      <section class="mm-grp mm-plans"><h3><i class="ti ti-map-2"></i>Plans</h3><div class="mm-grid">
+          <button type="button" data-tab="stage" data-mode="scene" onclick="mobMore(false);navPlan('scene')"><span class="mm-ic"><i class="ti ti-layout-board"></i></span><span>Plan de scène</span></button>
+          <button type="button" data-tab="stage" data-mode="site" onclick="mobMore(false);navPlan('site')"><span class="mm-ic"><i class="ti ti-map-2"></i></span><span>Plan de site</span></button>
+          <button type="button" data-tab="synoptique" onclick="mobMore(false);goTab('synoptique',null)"><span class="mm-ic"><i class="ti ti-topology-star"></i></span><span>Synoptique</span></button>
+      </div></section>
+      <section class="mm-grp mm-gear"><h3><i class="ti ti-server"></i>Matériel</h3><div class="mm-grid">
+          <button type="button" data-tab="racks" onclick="mobMore(false);goTab('racks',null)"><span class="mm-ic"><i class="ti ti-server"></i></span><span>Racks</span></button>
+          <button type="button" data-tab="rf" onclick="mobMore(false);goTab('rf',null)"><span class="mm-ic"><i class="ti ti-antenna"></i></span><span>Liaisons HF</span></button>
+          <button type="button" data-tab="bon" onclick="mobMore(false);goTab('bon',null)"><span class="mm-ic"><i class="ti ti-clipboard-check"></i></span><span>Bon du loueur</span></button>
+      </div></section>
+      <section class="mm-grp mm-prod"><h3><i class="ti ti-route"></i>Production</h3><div class="mm-grid">
+          <button type="button" data-tab="road" onclick="mobMore(false);goTab('road',null)"><span class="mm-ic"><i class="ti ti-route"></i></span><span>Feuille de route</span></button>
+          <button type="button" data-tab="fichiers" onclick="mobMore(false);goTab('fichiers',null)"><span class="mm-ic"><i class="ti ti-cloud"></i></span><span>Fichiers</span></button>
+          <button type="button" data-tab="team" onclick="mobMore(false);goTab('team',null)"><span class="mm-ic"><i class="ti ti-link"></i></span><span>Partage et équipe</span></button>
+      </div></section>
+      <div class="mm-acc">
+        <button type="button" data-tab="settings" onclick="mobMore(false);openProfile()"><i class="ti ti-settings"></i><span>Paramètres</span><i class="ti ti-chevron-right"></i></button>
+        <button type="button" onclick="mobMore(false);openPlanModal()"><i class="ti ti-credit-card"></i><span>Abonnement</span><i class="ti ti-chevron-right"></i></button>
+        <button type="button" onclick="mobMore(false);openSupport()"><i class="ti ti-headset"></i><span>Support</span><i class="ti ti-chevron-right"></i></button>
+        <button type="button" data-tab="admin" class="adm-only" style="display:none" onclick="mobMore(false);goTab('admin',null)"><i class="ti ti-shield-lock"></i><span>Administration</span><i class="ti ti-chevron-right"></i></button>
       </div>
     </div>
   </div>
@@ -1356,6 +1365,8 @@ html.rider-boot #rider-splash{display:flex}
           <button type="button" id="pdf-exp-syno"  class="xp-seg-b"    onclick="setPdfExportType('syno')">Synoptique</button>
         </div>
       </div>
+      <!-- Mode festival : quoi exporter -->
+      <div id="pdf-fest-row" class="fx-box" style="display:none"></div>
       <!-- Format (listes seulement) -->
       <div class="xp-row" id="pdf-fmt-row">
         <span class="xp-lbl">Format</span>
@@ -1374,9 +1385,9 @@ html.rider-boot #rider-splash{display:flex}
           <div class="xp-opt" id="pdf-orient-row">
             <div class="xp-opt-t"><b>Orientation</b><span id="pdf-orient-hint">Toutes les pages suivent ce choix</span></div>
             <div class="xp-seg">
-              <button type="button" id="pdf-orient-land" class="xp-seg-b on" onclick="setPdfOrient('landscape')">Paysage</button>
+              <button type="button" id="pdf-orient-auto" class="xp-seg-b on" onclick="setPdfOrient('auto')" title="L'orientation où le document sort le plus grand">Auto</button>
+              <button type="button" id="pdf-orient-land" class="xp-seg-b" onclick="setPdfOrient('landscape')">Paysage</button>
               <button type="button" id="pdf-orient-port" class="xp-seg-b" onclick="setPdfOrient('portrait')">Portrait</button>
-              <button type="button" id="pdf-orient-auto" class="xp-seg-b" onclick="setPdfOrient('auto')">Les deux</button>
             </div>
           </div>
           <div class="xp-opt" id="pdf-zoom-row" style="display:none">
@@ -1446,7 +1457,8 @@ html.rider-boot #rider-splash{display:flex}
           </div>
         </details>
         <div class="xp-checks" id="pdf-checks">
-          <label><input type="checkbox" class="cb" id="pdf-incl-link" checked/>Inclure le lien vers la version à jour</label>
+          <label id="pdf-link-label"><input type="checkbox" class="cb" id="pdf-incl-link" checked/><span>Lien partagé et QR code<em class="xp-link-sub">la version toujours à jour, ouverte sans compte</em></span></label>
+          <p class="xp-link-note" id="pdf-link-note" hidden></p>
           <label id="pdf-recap-label"><input type="checkbox" class="cb" id="pdf-incl-recap"/>Ajouter le récap matériel<span class="exp-pro">Pro</span></label>
         </div>
       </div>
@@ -1455,6 +1467,10 @@ html.rider-boot #rider-splash{display:flex}
         <span class="xp-lbl">Autres documents</span>
         <button type="button" class="xp-link" onclick="closePDF();openRecapMatos()">Récap matériel<i class="ti ti-arrow-right"></i></button>
         <button type="button" class="xp-link" onclick="closePDF();openPrep()">Bon de préparation<i class="ti ti-arrow-right"></i></button>
+      </div>
+      <div class="xp-more" id="pdf-fest-share-row" style="display:none">
+        <span class="xp-lbl">Partager</span>
+        <button type="button" class="xp-link" onclick="closePDF();festShare()">Lien de partage : programme et patch, sans compte<i class="ti ti-arrow-right"></i></button>
       </div>
       <div class="xp-more" id="pdf-share-row" style="display:none">
         <span class="xp-lbl">Partager</span>
@@ -1667,9 +1683,10 @@ html.rider-boot #rider-splash{display:flex}
 <!-- Version figée + empreinte SRI : une version compromise publiée sur npm
      ne serait pas exécutée (le navigateur refuse un fichier dont l'empreinte diffère). -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js" integrity="sha384-JBR+x8blGwjDRO63aHCGiZMD4VNiTR4ZUGA+N6ZKLf3zNt1fK8IBpcgPaMrxqWBp" crossorigin="anonymous"></script>
-<script src="pf-app.js?v=4.61"></script>
-<script src="pf-rf.js?v=1.14"></script>
-<script src="pf-road.js?v=1.0"></script>
+<script src="pf-app.js?v=5.33"></script>
+<script src="pf-rf.js?v=1.16"></script>
+<script src="pf-road.js?v=1.2"></script>
+<script src="pf-fest.js?v=1.18"></script>
 <!-- Mobile read-only viewers — outside panels so position:fixed works correctly -->
 <div class="mob-plan-ov" id="mob-syno-ov">
   <div class="mob-plan-bar">

@@ -6,12 +6,24 @@
 !.htaccess
 !app.html
 !rider.html
+!demande.html
+!plan-de-scene.html
+!input-list.html
+!plan-de-site.html
+!synoptique.html
+!pf-seo.css
+!robots.txt
+!sitemap.xml
 !pf-app.js
 !pf-sq5-blank.dat
 !pf-dm7-blank.dm7f
 !pf-app.css
 !pf-rf.js
 !pf-road.js
+!pf-fest.js
+!sw-rider.js
+!sw-app.js
+!app.webmanifest
 !pf-rf-catalog.json
 !tests/
 !tests/rf.html
@@ -25,6 +37,7 @@
 !mentions-legales.html
 !cgv.html
 !favicon.svg
+!favicon.ico
 !img/
 !img/*
 !serve.py
@@ -35,3 +48,15 @@
 
 # Fichiers locaux de la CLI Supabase (identifiants du projet) : jamais versionnés
 supabase/.temp/
+
+# Skills de l'utilisateur, pour les retrouver dans les sessions cloud (le reste de .claude/ reste local)
+!.claude/
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/pro-graphic-designer/
+!.claude/skills/pro-graphic-designer/**
+!.claude/skills/worldbuilder-writing/
+!.claude/skills/worldbuilder-writing/**
+!.claude/skills/security-advisor/
+!.claude/skills/security-advisor/**

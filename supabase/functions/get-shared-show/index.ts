@@ -118,6 +118,27 @@ function publicRoad(road: any) {
     .map((x: any) => ({ id: str(x.id, 24), r: str(x.r, 60), n: str(x.n, 60), p: str(x.p, 30), m: str(x.m, 120) }));
   return o;
 }
+/* Programme du festival (mode festival) : repris dans la section feuille de route. Seulement le nom
+   du groupe (celui de son input list), le jour, les heures et la note ; aucun identifiant interne. */
+function publicFest(f: any, patches: any) {
+  if (!f || typeof f !== 'object' || !Array.isArray(f.slots)) return null;
+  const names = new Map<string, string>();
+  (Array.isArray(patches) ? patches : []).forEach((p: any) => {
+    if (p && typeof p === 'object') names.set(String(p.id ?? ''), String(p.name ?? '').slice(0, 60));
+  });
+  const time = (v: unknown) => /^\d{1,2}:\d{2}$/.test(String(v ?? '')) ? String(v) : '';
+  const day = (v: unknown) => /^\d{4}-\d{2}-\d{2}$/.test(String(v ?? '')) ? String(v) : '';
+  const byDay = new Map<string, Array<Record<string, string>>>();
+  f.slots.slice(0, 120).forEach((x: any) => {
+    const n = x && typeof x === 'object' ? names.get(String(x.pid ?? '')) : '';
+    if (!n) return;
+    const d = day(x.day);
+    if (!byDay.has(d)) byDay.set(d, []);
+    byDay.get(d)!.push({ n, a: time(x.start), b: time(x.end), o: String(x.note ?? '').slice(0, 120) });
+  });
+  if (!byDay.size) return null;
+  return { days: [...byDay.entries()].map(([d, s]) => ({ d, s })) };
+}
 function scopeToSections(
   show: Record<string, any>,
   channels: unknown[],
@@ -138,9 +159,23 @@ function scopeToSections(
   }
   if (sec.has('rf')) { const rf = publicRf(sd.rf); if (rf) stage_data.rf = rf; }
   /* Feuille de route : section à cocher explicitement (elle contient des numéros de téléphone) */
-  if (sec.has('road')) { const road = publicRoad(sd.road); if (road) stage_data.road = road; }
+  if (sec.has('road')) {
+    const road = publicRoad(sd.road); if (road) stage_data.road = road;
+    const fest = publicFest(sd.festival, show.il_patches); if (fest) stage_data.festival = fest;
+  }
+  /* Festival : programme (créneaux reliés aux input lists) ; il lui faut toutes les voies et toutes les sorties */
+  if (sec.has('fest') && sd.festival && typeof sd.festival === 'object' && Array.isArray(sd.festival.slots)) {
+    const id = (v: unknown) => /^[A-Za-z0-9_-]{1,64}$/.test(String(v ?? '')) ? String(v) : '';
+    const tm = (v: unknown) => /^\d{1,2}:\d{2}$/.test(String(v ?? '')) ? String(v) : '';
+    const dy = (v: unknown) => /^\d{4}-\d{2}-\d{2}$/.test(String(v ?? '')) ? String(v) : '';
+    stage_data.festival = {
+      slots: sd.festival.slots.slice(0, 120).filter((x: any) => x && id(x.id) && id(x.pid))
+        .map((x: any) => ({ id: id(x.id), pid: id(x.pid), day: dy(x.day), start: tm(x.start), end: tm(x.end), note: String(x.note ?? '').slice(0, 120) })),
+      house: id(sd.festival.house), cmp: sd.festival.cmp === 'house' ? 'house' : 'prev',
+    };
+  }
   // Le plan de scène affiche les numéros/noms de canaux liés aux éléments.
-  const needChannels = sec.has('il') || sec.has('stage');
+  const needChannels = sec.has('il') || sec.has('stage') || sec.has('fest');
   if (needChannels && sd.chs) stage_data.chs = sd.chs;
   return {
     show: {
@@ -148,7 +183,7 @@ function scopeToSections(
       stage_data,
       synoptique_data: sec.has('syno') ? show.synoptique_data : null,
       il_patches: needChannels ? show.il_patches : null,
-      out_data: sec.has('out') ? show.out_data : null,
+      out_data: (sec.has('out') || sec.has('fest')) ? show.out_data : null,
     },
     channels: needChannels ? channels : [],
     scenes: (scenes || []).filter((s) => sec.has(String(s.type))),

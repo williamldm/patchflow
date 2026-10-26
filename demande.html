@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+<meta name="robots" content="noindex,nofollow"/>
+<meta name="referrer" content="no-referrer"/>
+<title>Demande de matériel · PatchFlow</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg?v=3"/>
+<link rel="icon" type="image/png" sizes="96x96" href="/img/favicon-96.png?v=3"/>
+<link rel="apple-touch-icon" href="/img/apple-touch-icon.png"/>
+<link rel="preconnect" href="https://ofiiutcueoogmtdvaupg.supabase.co" crossorigin/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" integrity="sha384-hs5SINUk7GPohxRis+rS7grpSWEbtOIJ3sRoseBKg3CDPIKpG55RfSenbvA6ALOt" crossorigin="anonymous"/>
+<style>
+:root{--bg:#f6f7f9;--surf:#fff;--surf2:#f0f2f5;--bdr:#e3e6eb;--txt:#151a22;--txt2:#4a5363;--muted:#7a8494;--ora:#ff6b1a;--ora-d:rgba(255,107,26,.1);--grn:#1f9d55;--red:#d93838;--amb:#c47a00;--blu:#3f74c9;--f:'Archivo',system-ui,sans-serif;--m:'DM Mono',ui-monospace,monospace}
+@media (prefers-color-scheme:dark){:root{--bg:#0e1116;--surf:#161a21;--surf2:#1e232c;--bdr:#272d38;--txt:#eef1f5;--txt2:#b7bfcc;--muted:#8a93a3;--ora-d:rgba(255,107,26,.16);--blu:#6f9be6}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.45 var(--f);-webkit-font-smoothing:antialiased}
+.w{max-width:880px;margin:0 auto;padding:24px 16px 130px}
+.brand{display:flex;align-items:center;gap:8px;font:700 12.5px var(--f);color:var(--muted);letter-spacing:.04em;margin-bottom:14px}
+.brand i{color:var(--ora);font-size:18px}
+.brand .v{margin-left:auto;font:500 12px var(--m);letter-spacing:0}
+h1{margin:0 0 4px;font-size:26px;letter-spacing:-.01em}
+.meta{color:var(--txt2);font-size:14px;display:flex;flex-wrap:wrap;gap:6px 14px}
+.meta span{display:inline-flex;align-items:center;gap:5px}
+.lg{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin:16px 0 0}
+.lg div{padding:10px 12px;border-radius:10px;background:var(--surf);box-shadow:inset 0 0 0 1px var(--bdr)}
+.lg b{display:flex;align-items:center;gap:5px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:3px}
+.lg span{font-size:14px;white-space:pre-wrap}
+.lg .dl{box-shadow:inset 3px 0 0 var(--ora),inset 0 0 0 1px var(--bdr)}
+.note{margin:10px 0 0;padding:12px 14px;border-radius:10px;background:var(--surf);box-shadow:inset 0 0 0 1px var(--bdr);color:var(--txt2);white-space:pre-wrap}
+.ban{margin:14px 0 0;padding:12px 14px;border-radius:10px;font-size:14px;display:flex;gap:10px;align-items:flex-start}
+.ban i{font-size:18px;margin-top:1px}
+.ban.info{background:var(--ora-d)}
+.ban.chg{background:rgba(196,122,0,.12)}.ban.chg i{color:var(--amb)}
+.ban.okv{background:rgba(31,157,85,.12)}.ban.okv i{color:var(--grn)}
+.ban .btn{margin-left:auto;flex:none}
+.ban ul{margin:6px 0 0;padding-left:18px;color:var(--txt2);font-size:13px}
+.bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:18px 0 6px}
+.bar .grow{flex:1}
+.cnt{font-size:13px;color:var(--txt2)}.cnt b{font-family:var(--m);color:var(--txt)}
+.btn{display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 14px;border:0;border-radius:9px;background:var(--surf);box-shadow:inset 0 0 0 1px var(--bdr);color:var(--txt);font:600 14px var(--f);cursor:pointer;white-space:nowrap}
+.btn:hover{box-shadow:inset 0 0 0 1px var(--muted)}
+.btn.pri{background:var(--ora);box-shadow:none;color:#fff}
+.btn.sm{height:32px;padding:0 11px;font-size:13px}
+.btn.on{box-shadow:inset 0 0 0 1.5px var(--ora);color:var(--ora)}
+.btn:disabled{opacity:.5;cursor:default}
+h2{margin:24px 0 8px;font-size:12.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.ln{display:grid;grid-template-columns:52px 1fr;gap:4px 12px;padding:12px 14px;margin-bottom:8px;border-radius:12px;background:var(--surf);box-shadow:inset 0 0 0 1px var(--bdr)}
+.ln.s-ok{box-shadow:inset 3px 0 0 var(--grn),inset 0 0 0 1px var(--bdr)}.ln.s-alt{box-shadow:inset 3px 0 0 var(--ora),inset 0 0 0 1px var(--bdr)}.ln.s-part{box-shadow:inset 3px 0 0 var(--amb),inset 0 0 0 1px var(--bdr)}.ln.s-tbc{box-shadow:inset 3px 0 0 var(--blu),inset 0 0 0 1px var(--bdr)}.ln.s-no{box-shadow:inset 3px 0 0 var(--red),inset 0 0 0 1px var(--bdr)}
+.q{grid-row:span 2;font:600 20px var(--m);color:var(--ora);text-align:right;padding-top:1px}
+.n b{font-weight:600}.n .d{display:block;font-size:13px;color:var(--muted)}
+.tg{display:inline-flex;align-items:center;gap:4px;margin:4px 6px 0 0;padding:1px 8px;border-radius:999px;font:600 11.5px var(--f);background:var(--surf2);color:var(--txt2)}
+.tg.eq{background:rgba(31,157,85,.12);color:var(--grn)}.tg.new,.tg.qty,.tg.edit{background:rgba(196,122,0,.14);color:var(--amb)}
+.tn{display:block;margin-top:4px;font-size:13px;color:var(--txt2)}.tn i{color:var(--muted)}
+.ctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}
+.seg{display:inline-flex;border-radius:9px;background:var(--surf2);padding:3px;gap:2px;flex-wrap:wrap}
+.seg button{height:30px;padding:0 10px;border:0;border-radius:7px;background:transparent;color:var(--txt2);font:600 12.5px var(--f);cursor:pointer}
+.seg button.on[data-s=ok]{background:var(--grn);color:#fff}.seg button.on[data-s=alt]{background:var(--ora);color:#fff}.seg button.on[data-s=part]{background:var(--amb);color:#fff}.seg button.on[data-s=tbc]{background:var(--blu);color:#fff}.seg button.on[data-s=no]{background:var(--red);color:#fff}
+.in{height:32px;padding:0 10px;border:1px solid var(--bdr);border-radius:8px;background:var(--surf);color:var(--txt);font:14px var(--f);min-width:0}
+.in:focus{outline:none;border-color:var(--ora)}
+.in.alt{flex:1 1 180px}.in.qty{width:84px}.in.c{flex:1 1 220px}
+.ql{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;color:var(--muted)}
+.ex{display:grid;grid-template-columns:70px 1fr 1fr 34px;gap:6px;margin-bottom:6px}
+.ex .in{height:36px}
+.ex button{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:16px}
+.foot{margin-top:24px;padding:16px;border-radius:12px;background:var(--surf);box-shadow:inset 0 0 0 1px var(--bdr);display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.foot label{display:grid;gap:5px;font-size:13px;color:var(--muted)}
+.foot label.w2{grid-column:1/-1}
+.foot .in{height:38px;font-size:15px}
+textarea.in{height:90px;padding:8px 10px;resize:vertical}
+.send{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-top:1px solid var(--bdr)}
+.send .in2{max-width:880px;margin:0 auto;display:flex;align-items:center;gap:10px}
+.send .st{flex:1;font-size:13px;color:var(--muted)}
+.empty{text-align:center;padding:80px 16px;color:var(--muted)}
+.empty i{font-size:40px;color:var(--ora);display:block;margin-bottom:10px}
+.ok-msg{color:var(--grn);font-weight:600}
+.sx{display:none}
+@media (max-width:600px){.ln{grid-template-columns:30px 1fr;padding:12px}.q{font-size:17px}h1{font-size:22px}.ctl{grid-column:1/-1}.seg{display:grid;grid-template-columns:repeat(5,1fr);width:100%}.seg button{padding:0 2px;font-size:11px}.sl{display:none}.sx{display:inline}.in.alt,.in.c{flex:1 1 100%}.foot{grid-template-columns:1fr}.ex{grid-template-columns:56px 1fr 30px}.ex .in.c{grid-column:2/3}.send .in2 .btn.sm{display:none}}
+@media print{.send,.bar,.ex button,#addx,.seg button:not(.on){display:none!important}body{background:#fff;color:#000}.ln,.lg div,.foot,.note{box-shadow:inset 0 0 0 1px #ccc;break-inside:avoid}.w{padding:0}.in{border:0;padding:0}}
+</style>
+</head>
+<body>
+<div class="w" id="app"><div class="empty"><i class="ti ti-loader-2"></i>Chargement de la demande…</div></div>
+<div class="send" id="send" hidden><div class="in2"><span class="st" id="st"></span><button class="btn sm" id="pr" title="Imprimer ou enregistrer en PDF"><i class="ti ti-printer"></i></button><button class="btn sm" id="csv" title="Télécharger en CSV"><i class="ti ti-table-export"></i></button><button class="btn pri" id="go"><i class="ti ti-send"></i>Envoyer la réponse</button></div></div>
+<script>
+(function(){
+  var URL_='https://ofiiutcueoogmtdvaupg.supabase.co/rest/v1/rpc/', KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9maWl1dGN1ZW9vZ210ZHZhdXBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4NTA2NjcsImV4cCI6MjA5NDQyNjY2N30.PSZMkuq7GBJiQMhh5shH_tOZ6DAmA310K4c7au9e4mE';
+  var tok=(location.hash||'').slice(1).toLowerCase(), app=document.getElementById('app');
+  var E=function(t){ return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+  var rpc=function(fn,body){ return fetch(URL_+fn,{method:'POST',headers:{'apikey':KEY,'Authorization':'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){ return r.text().then(function(t){ var j=null; try{ j=t?JSON.parse(t):null; }catch(e){} if(!r.ok) throw new Error(j&&j.message||'Erreur '+r.status); return j; }); }); };
+  var none=function(msg){ app.innerHTML='<div class="empty"><i class="ti ti-link-off"></i>'+E(msg)+'</div>'; };
+  var fdt=function(v){ if(!v) return ''; var d=new Date(v); if(isNaN(d)) return String(v); return d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+(String(v).indexOf('T')>0?' à '+d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''); };
+  var ST=[['ok','Disponible','Dispo'],['alt','Équivalent','Équiv.'],['part','Partiel','Partiel'],['tbc','À confirmer','À conf.'],['no','Indisponible','Indispo']];
+  if(!/^[0-9a-f-]{36}$/.test(tok)){ none('Ce lien de demande est incomplet.'); return; }
+  var SNAP=null, OK=null, CONF=null, REP={lines:{},extra:[]}, SENT=null, DKEY='pf_demrep_'+tok, dirty=false, ONLY=false;
+  rpc('pf_dem_get',{p_token:tok}).then(function(d){
+    if(!d||!d.snap){ none('Cette demande n\'est plus disponible : le lien a été désactivé.'); return; }
+    SNAP=d.snap; OK=d.ok||null; CONF=d.conf||null; SNAP.lines=Array.isArray(SNAP.lines)?SNAP.lines:[];
+    if(d.reply&&d.reply.lines){ SENT=d.reply; REP=JSON.parse(JSON.stringify(d.reply)); }
+    try{ var dr=JSON.parse(localStorage.getItem(DKEY)||'null'); if(dr&&dr.v===SNAP.v&&dr.lines){ REP=dr; dirty=true; } }catch(e){}
+    REP.lines=REP.lines||{}; REP.extra=Array.isArray(REP.extra)?REP.extra:[];
+    render();
+    rpc('pf_dem_seen',{p_token:tok}).catch(function(){});
+  }).catch(function(e){ none('Impossible de charger la demande ('+e.message+').'); });
+  function save(){ dirty=true; try{ localStorage.setItem(DKEY,JSON.stringify(Object.assign({},REP,{v:SNAP.v}))); }catch(e){} stat(); }
+  function done(){ return SNAP.lines.filter(function(l){ return REP.lines[l.k]&&REP.lines[l.k].s; }).length; }
+  function stat(){
+    var n=done(), L=SNAP.lines.length, st=document.getElementById('st'), cur=SENT&&+SENT.v===+SNAP.v;
+    st.innerHTML='<b>'+n+'</b> / '+L+' ligne'+(L>1?'s':'')+' traitée'+(n>1?'s':'')+(cur&&!dirty?' · <span class="ok-msg">réponse envoyée</span>':dirty?' · non envoyé':'');
+    var c=document.querySelector('.cnt'); if(c) c.innerHTML='<b>'+n+'</b> / '+L+' traitées';
+  }
+  function changed(){ return SNAP.lines.filter(function(l){ return l.chg; }); }
+  function render(){
+    var s=SNAP.show||{}, f=SNAP.from||{}, lg=SNAP.log||{}, liv=lg.mode==='livraison', by={}, order=[], ch=changed(), oldRep=SENT&&+SENT.v<+SNAP.v;
+    SNAP.lines.forEach(function(l){ if(ONLY&&!l.chg) return; if(!by[l.sec]){ by[l.sec]=[]; order.push(l.sec); } by[l.sec].push(l); });
+    var card=function(icon,t,v,cls){ return v?'<div class="'+(cls||'')+'"><b><i class="ti '+icon+'"></i>'+t+'</b><span>'+E(v)+'</span></div>':''; };
+    var h='<div class="brand"><i class="ti ti-send"></i>DEMANDE DE MATÉRIEL<span class="v">v'+E(SNAP.v||1)+'</span></div><h1>'+E(s.name||'Show')+'</h1><div class="meta">'
+      +(s.date?'<span><i class="ti ti-calendar"></i>'+E(s.date)+'</span>':'')+(s.venue?'<span><i class="ti ti-map-pin"></i>'+E(s.venue)+'</span>':'')
+      +((f.name||f.co)?'<span><i class="ti ti-user"></i>'+E([f.name,f.co].filter(Boolean).join(' · '))+'</span>':'')+'</div>'
+      +'<div class="lg">'+card(liv?'ti-truck-delivery':'ti-building-warehouse',liv?'Livraison':'Retrait chez vous',fdt(lg.out))+card('ti-truck-return',liv?'Reprise':'Retour',fdt(lg.back))
+      +card('ti-map-pin',liv?'Adresse de livraison':'Lieu',lg.addr)+(liv?card('ti-forklift','Accès et déchargement',lg.access):'')
+      +card('ti-phone','Contact sur place',lg.site)+card('ti-user','Demandeur',lg.me)+card('ti-clock','Réponse souhaitée avant',fdt(lg.deadline),'dl')+'</div>'
+      +(SNAP.note?'<div class="note">'+E(SNAP.note)+'</div>':'');
+    if(CONF&&+CONF.v===+SNAP.v) h+='<div class="ban okv"><i class="ti ti-circle-check"></i><div><b>Réservation confirmée</b>'+(CONF.at?' le '+E(fdt(CONF.at)):'')+'. Merci !</div></div>';
+    else if(OK&&+OK.v===+SNAP.v) h+='<div class="ban okv"><i class="ti ti-circle-check"></i><div><b>Le technicien a validé votre réponse.</b> Confirmez la réservation une fois le devis accepté.</div><button class="btn pri sm" id="conf"><i class="ti ti-calendar-check"></i>Confirmer la réservation</button></div>';
+    if(oldRep&&(ch.length||(SNAP.removed||[]).length)) h+='<div class="ban chg"><i class="ti ti-alert-triangle"></i><div><b>La demande a changé depuis votre réponse</b> : '+ch.length+' ligne'+(ch.length>1?'s':'')+' nouvelle'+(ch.length>1?'s':'')+' ou modifiée'+(ch.length>1?'s':'')+((SNAP.removed||[]).length?', '+SNAP.removed.length+' retirée'+(SNAP.removed.length>1?'s':''):'')+'.'+((SNAP.removed||[]).length?'<ul>'+SNAP.removed.map(function(x){ return '<li>Retiré : '+E(x)+'</li>'; }).join('')+'</ul>':'')+'</div></div>';
+    else if(!SENT) h+='<div class="ban info"><i class="ti ti-info-circle"></i><div>Indiquez pour chaque ligne si elle est disponible, l\'équivalent proposé, la quantité que vous pouvez fournir, ou si c\'est à confirmer. Commencez par « Tout disponible » puis traitez les exceptions. Vous pourrez revenir modifier votre réponse avec ce même lien.</div></div>';
+    h+='<div class="bar"><span class="cnt"></span><span class="grow"></span>'+(ch.length?'<button class="btn sm'+(ONLY?' on':'')+'" id="only"><i class="ti ti-filter"></i>Lignes modifiées ('+ch.length+')</button>':'')+'<button class="btn sm" id="all"><i class="ti ti-checks"></i>Tout disponible</button></div>';
+    order.forEach(function(sec){
+      h+='<h2>'+E(sec)+'</h2>'+by[sec].map(function(l){ var x=REP.lines[l.k]||{};
+        var tags=(l.eq?'<span class="tg eq"><i class="ti ti-arrows-exchange"></i>Équivalent accepté'+(l.alts?' : '+E(l.alts):'')+'</span>':'')
+          +(l.chg==='new'?'<span class="tg new">Nouveau</span>':l.chg==='qty'?'<span class="tg qty">Quantité : '+E(l.was)+' → '+E(l.qty)+'</span>':l.chg==='edit'?'<span class="tg edit">Modifié</span>':'');
+        return '<div class="ln s-'+E(x.s||'')+'" data-k="'+E(l.k)+'"><div class="q">'+(+l.qty||0)+'</div><div class="n"><b>'+E(l.name)+'</b>'+(l.det?'<span class="d">'+E(l.det)+'</span>':'')+(tags?'<div>'+tags+'</div>':'')+(l.note?'<span class="tn"><i class="ti ti-message"></i> '+E(l.note)+'</span>':'')+'</div>'
+          +'<div class="ctl"><div class="seg">'+ST.map(function(o){ return '<button type="button" data-s="'+o[0]+'" class="'+(x.s===o[0]?'on':'')+'"><span class="sl">'+o[1]+'</span><span class="sx">'+o[2]+'</span></button>'; }).join('')+'</div>'
+          +(x.s==='alt'?'<input class="in alt" data-f="alt" maxlength="120" placeholder="Modèle proposé" value="'+E(x.alt||'')+'">':'')
+          +(x.s&&x.s!=='no'?'<label class="ql">Qté<input class="in qty" data-f="q" type="number" min="0" max="9999" placeholder="'+(+l.qty||0)+'" value="'+E(x.q==null?'':x.q)+'"></label>':'')
+          +'<input class="in c" data-f="c" maxlength="300" placeholder="Commentaire (facultatif)" value="'+E(x.c||'')+'"></div></div>'; }).join('');
+    });
+    h+='<h2>Vous ajoutez</h2><div id="exs">'+REP.extra.map(function(x,i){ return '<div class="ex" data-i="'+i+'"><input class="in" data-x="q" type="number" min="1" max="9999" value="'+E(x.q||1)+'"><input class="in" data-x="n" maxlength="120" placeholder="Désignation" value="'+E(x.n||'')+'"><input class="in c" data-x="c" maxlength="200" placeholder="Commentaire" value="'+E(x.c||'')+'"><button type="button" data-del="'+i+'" title="Retirer"><i class="ti ti-x"></i></button></div>'; }).join('')+'</div>'
+      +'<button class="btn sm" id="addx"><i class="ti ti-plus"></i>Ajouter une ligne (câblage, spares…)</button>';
+    h+='<div class="foot"><label>Société / nom<input class="in" id="nm" maxlength="80" value="'+E(REP.name||'')+'"></label><label>Contact (téléphone ou e-mail)<input class="in" id="ct" maxlength="120" value="'+E(REP.contact||'')+'"></label>'
+      +'<label>N° de devis (facultatif)<input class="in" id="qt" maxlength="60" value="'+E(REP.quote||'')+'"></label><label class="w2">Remarque générale<textarea class="in" id="nt" maxlength="2000">'+E(REP.note||'')+'</textarea></label></div>';
+    app.innerHTML=h; document.getElementById('send').hidden=false; stat();
+  }
+  app.addEventListener('click',function(e){
+    var b=e.target.closest('.seg button');
+    if(b){ var k=b.closest('.ln').dataset.k, x=REP.lines[k]=REP.lines[k]||{}; x.s=x.s===b.dataset.s?undefined:b.dataset.s; if(!x.s) delete REP.lines[k]; save(); render();
+      var f=document.querySelector('.ln[data-k="'+CSS.escape(k)+'"] '+(x.s==='alt'?'.in.alt':x.s==='part'?'.in.qty':'.zz')); if(f) f.focus(); return; }
+    if(e.target.closest('#all')){ SNAP.lines.forEach(function(l){ var x=REP.lines[l.k]=REP.lines[l.k]||{}; if(!x.s) x.s='ok'; }); save(); render(); return; }
+    if(e.target.closest('#only')){ ONLY=!ONLY; render(); return; }
+    if(e.target.closest('#addx')){ if(REP.extra.length>=40) return; REP.extra.push({q:1,n:'',c:''}); save(); render(); var l=document.querySelectorAll('.ex .in[data-x=n]'); if(l.length) l[l.length-1].focus(); return; }
+    var d=e.target.closest('[data-del]'); if(d){ REP.extra.splice(+d.dataset.del,1); save(); render(); return; }
+    if(e.target.closest('#conf')){ var nm=REP.name||prompt('Votre nom ou société :')||''; e.target.closest('#conf').disabled=true;
+      rpc('pf_dem_confirm',{p_token:tok,p_name:nm}).then(function(r){ CONF=r; render(); }).catch(function(err){ alert('Confirmation impossible : '+err.message); render(); }); }
+  });
+  app.addEventListener('input',function(e){
+    var t=e.target;
+    if(t.id==='nm') REP.name=t.value; else if(t.id==='ct') REP.contact=t.value; else if(t.id==='nt') REP.note=t.value; else if(t.id==='qt') REP.quote=t.value;
+    else if(t.dataset.x){ var i=+t.closest('.ex').dataset.i; if(REP.extra[i]) REP.extra[i][t.dataset.x]=t.value; }
+    else if(t.dataset.f){ var k=t.closest('.ln').dataset.k, x=REP.lines[k]=REP.lines[k]||{}; x[t.dataset.f]=t.value; }
+    save();
+  });
+  document.getElementById('go').addEventListener('click',function(){
+    var b=this; b.disabled=true;
+    var lines={}; Object.keys(REP.lines).forEach(function(k){ var x=REP.lines[k]; if(!x||!x.s) return; lines[k]={s:x.s,alt:x.alt||'',c:x.c||''}; if(x.q!==''&&x.q!=null) lines[k].q=String(parseInt(x.q,10)||0); });
+    rpc('pf_dem_reply',{p_token:tok,p_reply:{lines:lines,extra:REP.extra.filter(function(x){ return String(x.n||'').trim(); }).map(function(x){ return {n:x.n,q:String(parseInt(x.q,10)||1),c:x.c||''}; }),name:REP.name||'',contact:REP.contact||'',quote:REP.quote||'',note:REP.note||''}}).then(function(r){
+      SENT=r; dirty=false; try{ localStorage.removeItem(DKEY); }catch(e){} b.disabled=false; b.innerHTML='<i class="ti ti-check"></i>Réponse envoyée'; stat();
+      setTimeout(function(){ b.innerHTML='<i class="ti ti-send"></i>Envoyer la réponse'; },2500);
+    }).catch(function(e){ b.disabled=false; alert('Envoi impossible : '+e.message); });
+  });
+  document.getElementById('pr').addEventListener('click',function(){ window.print(); });
+  document.getElementById('csv').addEventListener('click',function(){
+    var q=function(v){ v=String(v==null?'':v); return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }, L=[['Rubrique','Désignation','Qté demandée','Équivalent accepté','Note','Réponse','Qté','Équivalent proposé','Commentaire']];
+    SNAP.lines.forEach(function(l){ var x=REP.lines[l.k]||{}, s=ST.find(function(o){ return o[0]===x.s; }); L.push([l.sec,l.name,l.qty,l.eq?(l.alts||'oui'):'',l.note||'',s?s[1]:'',x.q||'',x.alt||'',x.c||'']); });
+    REP.extra.forEach(function(x){ if(String(x.n||'').trim()) L.push(['Ajouté par le loueur',x.n,'','','','',x.q||1,'',x.c||'']); });
+    var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['﻿'+L.map(function(r){ return r.map(q).join(';'); }).join('\r\n')],{type:'text/csv'})); a.download='demande-materiel.csv'; document.body.appendChild(a); a.click(); a.remove();
+  });
+})();
+</script>
+</body>
+</html>

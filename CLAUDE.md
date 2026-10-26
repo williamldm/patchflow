@@ -11,6 +11,10 @@ Application web (français) pour techniciens son/scène : input lists, patchs, r
 - `pf-app.js` fait ~1,5 Mo : utiliser `grep -a` (le fichier est vu comme binaire) et lire par plages de lignes.
 - `.gitignore` ignore tout par défaut : tout nouveau fichier à versionner doit être ajouté en `!nom`.
 
+## Skills
+- `.claude/skills/` est versionné (pro-graphic-designer, worldbuilder-writing, security-advisor) pour être disponibles dans les sessions cloud ; le reste de `.claude/` est ignoré. Un nouveau skill se déclare dans `.gitignore` comme les autres fichiers.
+- `pro-graphic-designer` cite `/mnt/skills/user/worldbuilder-writing/SKILL.md` : en cloud, lire `.claude/skills/worldbuilder-writing/SKILL.md`.
+
 ## Lancer / tester
 - `python3 serve.py` puis ouvrir `http://127.0.0.1:7821/app.html` (Chromium + Playwright sont préinstallés dans le cloud pour les captures).
 - Captures téléphone sans compte : `node tests/shot.js demo /tmp/rf "rfMobCal()"` (Supabase simulé, show de démo tiré de `tests/rf-fixtures.js`).

@@ -15,6 +15,11 @@
   # migrations SQL et le serveur de dev n'ont rien à faire en ligne → 404.
   RewriteRule ^supabase(/|$) - [R=404,NC,L]
   RewriteRule \.(py|ts|sql|md|ya?ml|toml|sh|lock|log|bak|env|ini|conf)$ - [R=404,NC,L]
+
+  # Pages d'outil : adresse propre (/plan-de-scene), l'ancienne en .html y renvoie
+  RewriteCond %{THE_REQUEST} \s/(plan-de-scene|input-list|plan-de-site|synoptique)\.html[\s?] [NC]
+  RewriteRule ^ /%1 [R=301,L]
+  RewriteRule ^(plan-de-scene|input-list|plan-de-site|synoptique)/?$ $1.html [NC,L]
 </IfModule>
 
 # Filet de sécurité si mod_rewrite était indisponible.
@@ -43,7 +48,7 @@
   # 'wasm-unsafe-eval' : la lecture d'image (OCR) des PDF scannés tourne en WebAssembly.
   # Il n'autorise que le WebAssembly, pas eval().
   <FilesMatch "\.html?$">
-    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.sheetjs.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; connect-src 'self' data: blob: https://ofiiutcueoogmtdvaupg.supabase.co wss://ofiiutcueoogmtdvaupg.supabase.co https://*.backblazeb2.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.sheetjs.com; frame-src 'self' blob: https://*.backblazeb2.com; worker-src 'self' blob: https://cdnjs.cloudflare.com; child-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests"
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.sheetjs.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; connect-src 'self' data: blob: https://data.geopf.fr https://ofiiutcueoogmtdvaupg.supabase.co wss://ofiiutcueoogmtdvaupg.supabase.co https://*.backblazeb2.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.sheetjs.com; frame-src 'self' blob: https://*.backblazeb2.com; worker-src 'self' blob: https://cdnjs.cloudflare.com; child-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests"
   </FilesMatch>
 </IfModule>
 
@@ -70,6 +75,14 @@
     Header set Cache-Control "public, max-age=31536000, immutable"
   </FilesMatch>
 
+  # Service worker du rider : jamais mis en cache (sinon une mise à jour n'arriverait pas)
+  <Files "sw-rider.js">
+    Header set Cache-Control "no-cache, must-revalidate, max-age=0"
+  </Files>
+  <FilesMatch "^(sw-app\.js|app\.webmanifest)$">
+    Header set Cache-Control "no-cache, must-revalidate, max-age=0"
+  </FilesMatch>
+
   # Images (captures de la page d'accueil, icônes) : non versionnées → une
   # semaine seulement. Pour remplacer une image tout de suite, changer son nom.
   <FilesMatch "\.(avif|jpe?g|png|svg|webp)$">
@@ -80,6 +93,7 @@
 # Type MIME des images AVIF (absent des configurations Apache anciennes)
 <IfModule mod_mime.c>
   AddType image/avif .avif
+  AddType application/manifest+json .webmanifest
 </IfModule>
 
 # mod_pagespeed (o2switch) : ne pas réécrire nos en-têtes de cache, pour
