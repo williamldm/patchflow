@@ -312,13 +312,17 @@ p{text-wrap:pretty}
 .final .fine{color:var(--nt2);margin-top:20px}
 .final .btn-ghost{color:#fff;box-shadow:inset 0 0 0 1.5px #3a4252}
 .final .btn-ghost:hover{background:var(--night2);box-shadow:inset 0 0 0 1.5px #5a6375}
-.foot{border-top:1px solid var(--nrule);padding:36px 0 44px}
-.foot-in{display:flex;align-items:center;gap:28px;flex-wrap:wrap}
+.foot{border-top:1px solid var(--nrule);padding:48px 0 28px}
+.foot-in{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,3fr);gap:40px;align-items:start}
 .foot .logo span{color:#fff}
-.foot nav{display:flex;gap:24px;flex-wrap:wrap;margin-left:auto}
-.foot nav a{font-size:14.5px;color:var(--nt2);text-decoration:none}
-.foot nav a:hover{color:#fff}
-.foot small{display:block;width:100%;font-size:13.5px;color:#8a93a5}
+.foot-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:32px}
+.foot-h{margin:0 0 12px;font-size:12px;font-weight:650;letter-spacing:.08em;text-transform:uppercase;color:#fff}
+.foot-cols a{display:block;padding:5px 0;font-size:14.5px;color:var(--nt2);text-decoration:none}
+.foot-cols a:hover{color:#fff}
+.foot-bot{margin-top:36px}
+.foot-bot small{padding-top:20px;border-top:1px solid var(--nrule)}
+.foot small{display:block;font-size:13.5px;color:#8a93a5}
+@media(max-width:760px){.foot-in{grid-template-columns:1fr;gap:28px}.foot-cols{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 20px}.foot-cols>div:last-child{grid-column:1/-1}}
 
 /* ── Format de l'app : ordinateur ou mobile ───────────────────────────
    Sans JavaScript, le format suit l'écran ; le sélecteur l'impose ensuite
@@ -447,7 +451,6 @@ html[data-view=mobile] .notes h3{margin-top:0}
   .mphone picture,.mphone img{border-radius:31px}
   .seg{display:flex;width:100%}
   .seg button{flex:1;padding:10px 8px;font-size:14.5px}
-  .foot nav{margin-left:0;width:100%;gap:20px}
   .shot{border-radius:10px}
   .bleed{width:100%}
   .js .bleed{translate:0 26px}
@@ -1583,22 +1586,9 @@ html[data-view=mobile] .notes h3{margin-top:0}
       <svg viewBox="38 38 124 124" fill="none" aria-hidden="true"><path d="M70 60 C100 60 100 140 130 140" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round"/><path d="M130 60 C100 60 100 140 70 140" stroke="#FF6B2B" stroke-width="14" stroke-linecap="round" opacity="0.45"/><circle cx="60" cy="60" r="14" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="60" r="5" fill="#FF6B2B"/><circle cx="140" cy="60" r="14" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="60" r="5" fill="#FF6B2B"/><circle cx="60" cy="140" r="14" stroke="#FF6B2B" stroke-width="10"/><circle cx="60" cy="140" r="5" fill="#FF6B2B"/><circle cx="140" cy="140" r="14" stroke="#FF6B2B" stroke-width="10"/><circle cx="140" cy="140" r="5" fill="#FF6B2B"/></svg>
       <span>Patch<em>Flow</em></span>
     </a>
-    <nav aria-label="Liens de bas de page">
-      <a href="app.html">Ouvrir l'app</a>
-      <a href="/input-list">Input list</a>
-      <a href="/plan-de-scene">Plan de scène</a>
-      <a href="/plan-de-site">Plan de site</a>
-      <a href="/synoptique">Synoptique</a>
-      <a href="#tarifs">Tarifs</a>
-      <a href="#questions">Questions</a>
-      <a href="mailto:contact@patchflow.fr">Contact</a>
-      <a href="cgu.html">Conditions d'utilisation</a>
-      <a href="cgv.html">Conditions de vente</a>
-      <a href="confidentialite.html">Confidentialité</a>
-      <a href="mentions-legales.html">Mentions légales</a>
-    </nav>
-    <small>© 2026 PatchFlow — conçu par William Lopes Da Mota, technicien, pour les techniciens.</small>
+    <nav class="foot-cols" aria-label="Liens de bas de page"><div><p class="foot-h">Outils</p><a href="/input-list">Input list</a><a href="/plan-de-scene">Plan de scène</a><a href="/plan-de-site">Plan de site</a><a href="/synoptique">Synoptique</a></div><div><p class="foot-h">PatchFlow</p><a href="/app.html">Ouvrir l'app</a><a href="#tarifs">Tarifs</a><a href="#questions">Questions</a><a href="mailto:contact@patchflow.fr">Contact</a></div><div><p class="foot-h">Informations légales</p><a href="/cgu.html">Conditions d'utilisation</a><a href="/cgv.html">Conditions de vente</a><a href="/confidentialite.html">Confidentialité</a><a href="/mentions-legales.html">Mentions légales</a></div></nav>
   </div>
+  <div class="w foot-bot"><small>© 2026 PatchFlow</small></div>
 </footer>
 
 <script>
