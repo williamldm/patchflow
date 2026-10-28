@@ -252,10 +252,10 @@ function _guestAsk(why){
   if(!m){ m=document.createElement('div'); m.id='guest-ask'; m.className='modal-ov'; document.body.appendChild(m); m.addEventListener('click',function(e){ if(e.target===m) m.classList.remove('show'); }); }
   var T={save:'Gardez votre travail', tab:'Toute l\'app, gratuitement', share:'Partagez par un lien toujours à jour', pro:'Créez d\'abord votre compte gratuit'}[why]||'Gardez votre travail';
   m.innerHTML='<div class="modal-box guest-box"><div class="modal-head"><span class="modal-title">'+T+'</span><button class="modal-close" type="button" onclick="document.getElementById(\'guest-ask\').classList.remove(\'show\')" aria-label="Fermer"><i class="ti ti-x"></i></button></div>'
-    +'<div class="modal-body"><p class="guest-lead">Vous êtes en mode essai : rien n\'est enregistré. Avec un compte gratuit, ce que vous venez de préparer est gardé et vous pouvez :</p>'
+    +'<div class="modal-body"><p class="guest-lead">Vous êtes en accès libre : rien n\'est enregistré. Avec un compte gratuit, ce que vous venez de préparer est gardé et vous pouvez :</p>'
     +'<ul class="guest-ul"><li><i class="ti ti-device-floppy"></i>enregistrer vos shows et y revenir sur tous vos appareils</li><li><i class="ti ti-folder"></i>ranger riders, plans et exports avec chaque show</li><li><i class="ti ti-link"></i>partager un lien en lecture seule, toujours à jour</li><li><i class="ti ti-users"></i>travailler à plusieurs, en direct</li></ul>'
-    +'<p class="guest-fine">Gratuit pour toujours, sans carte bancaire. Votre essai est repris dans votre premier show (sans les images de fond, à reposer).</p></div>'
-    +'<div class="modal-foot"><button class="btn" type="button" onclick="document.getElementById(\'guest-ask\').classList.remove(\'show\')">Continuer l\'essai</button><span style="flex:1"></span><button class="btn pri" type="button" onclick="guestSignup()"><i class="ti ti-user-plus"></i>Créer mon compte gratuit</button></div></div>';
+    +'<p class="guest-fine">Gratuit pour toujours, sans carte bancaire. Votre travail est repris dans votre premier show (sans les images de fond, à reposer).</p></div>'
+    +'<div class="modal-foot"><button class="btn" type="button" onclick="document.getElementById(\'guest-ask\').classList.remove(\'show\')">Continuer sans compte</button><span style="flex:1"></span><button class="btn pri" type="button" onclick="guestSignup()"><i class="ti ti-user-plus"></i>Créer mon compte gratuit</button></div></div>';
   m.classList.add('show');
 }
 /* ── Aperçu des modules réservés au compte ── */
@@ -306,8 +306,8 @@ function _guestLock(tab){
   pn.classList.add('guest-locked');
   var ov=document.createElement('div'); ov.className='guest-lock'; ov.id='guest-lock';
   ov.innerHTML='<div class="guest-lock-card"><span class="guest-lock-ic"><i class="ti '+info[0]+'"></i></span><b>'+info[1]+'</b><p>'+info[2]+'</p>'
-    +'<p class="guest-lock-fine">'+(_guestSeeded.rf||_guestSeeded.racks||_guestSeeded.road?'Ci-dessous, un exemple. ':'')+'Disponible avec un compte gratuit, sans carte bancaire. Votre essai est repris.</p>'
-    +'<div class="guest-lock-a"><button type="button" class="btn pri" onclick="guestSignup()"><i class="ti ti-user-plus"></i>Créer mon compte gratuit</button><button type="button" class="btn" onclick="navIL(\'in\')">Revenir à l\'essai</button></div></div>';
+    +'<p class="guest-lock-fine">'+(_guestSeeded.rf||_guestSeeded.racks||_guestSeeded.road?'Ci-dessous, un exemple. ':'')+'Disponible avec un compte gratuit, sans carte bancaire. Votre travail est repris.</p>'
+    +'<div class="guest-lock-a"><button type="button" class="btn pri" onclick="guestSignup()"><i class="ti ti-user-plus"></i>Créer mon compte gratuit</button><button type="button" class="btn" onclick="navIL(\'in\')">Revenir à l\'accès libre</button></div></div>';
   pn.appendChild(ov);
 }
 function _guestUnlock(){
@@ -347,7 +347,7 @@ function _guestBarHide(){ var b=document.getElementById('guest-bar'); if(b) b.hi
 function _guestBoot(){
   document.documentElement.classList.add('pf-guest');
   var bar=document.createElement('div'); bar.className='guest-bar'; bar.id='guest-bar';
-  bar.innerHTML='<i class="ti ti-flask"></i><span><b>Mode essai</b><span class="guest-bar-x"> · sans compte, rien n\'est enregistré</span></span><button type="button" class="guest-bar-b" onclick="_guestAsk(\'save\')">Enregistrer</button><button type="button" class="guest-bar-p" onclick="guestSignup()">Créer un compte gratuit</button><button type="button" class="guest-bar-c" onclick="_guestBarHide()" title="Masquer" aria-label="Masquer le bandeau"><i class="ti ti-x"></i></button>';
+  bar.innerHTML='<i class="ti ti-flask"></i><span><b>Accès libre</b><span class="guest-bar-x"> · sans compte, rien n\'est enregistré</span></span><button type="button" class="guest-bar-b" onclick="_guestAsk(\'save\')">Enregistrer</button><button type="button" class="guest-bar-p" onclick="guestSignup()">Créer un compte gratuit</button><button type="button" class="guest-bar-c" onclick="_guestBarHide()" title="Masquer" aria-label="Masquer le bandeau"><i class="ti ti-x"></i></button>';
   try{ if(sessionStorage.getItem('pf_guest_bar')==='0') bar.hidden=true; }catch(e){}
   document.body.appendChild(bar);
   /* Onglets ouverts dans l'essai ; les autres proposent le compte */
@@ -389,7 +389,7 @@ async function _guestImportDraft(){
   var d=null; try{ d=JSON.parse(raw); }catch(e){}
   try{ sessionStorage.removeItem('pf_guest_draft'); }catch(e){}
   if(!d||!d.show||typeof d.show!=='object'||Date.now()-(+d.at||0)>3*3600000) return;
-  if(!confirm('Reprendre dans votre compte l\'essai fait sans compte'+(d.show.name?' (« '+String(d.show.name).slice(0,60)+' »)':'')+' ?')) return;
+  if(!confirm('Reprendre dans votre compte le travail fait sans compte'+(d.show.name?' (« '+String(d.show.name).slice(0,60)+' »)':'')+' ?')) return;
   try{
     var s=d.show, ins=await sb.from('shows').insert({name:String(s.name||'Mon show').slice(0,120), slug:'essai-'+Date.now(), owner_id:ME.id, venue:s.venue||null, show_date:s.show_date||null,
       stage_data:s.stage_data||{v:2}, synoptique_data:s.synoptique_data||null, out_data:s.out_data||null, il_patches:s.il_patches||null}).select().single();
@@ -401,8 +401,8 @@ async function _guestImportDraft(){
     if(Array.isArray(d.scenes)&&d.scenes.length){ var si=await sb.from('show_scenes').insert(d.scenes.slice(0,20).filter(function(c){ return c&&typeof c==='object'; }).map(function(c){ return Object.assign(pick(c,['type','name','data','position']),{show_id:show.id}); })); if(si.error) console.warn('[essai] scènes',si.error); }
     SHOWS.unshift(show); try{ renderSPShows(); }catch(e){} try{ if(typeof renderSessions==='function') renderSessions(); }catch(e){}
     await switchShow(show.id);
-    toast('✓ Votre essai est enregistré dans « '+show.name+' »');
-  }catch(e){ console.error('[essai]',e); toast('Votre essai n\'a pas pu être repris : '+(e&&e.message||e)); }
+    toast('✓ Votre travail est enregistré dans « '+show.name+' »');
+  }catch(e){ console.error('[essai]',e); toast('Votre travail n\'a pas pu être repris : '+(e&&e.message||e)); }
 }
 
 const sb = PF_GUEST ? _guestClient() : _inPasswordRecovery
@@ -1031,7 +1031,7 @@ async function loadProfile(){
   }
   PROFILE=data||{id:ME.id,full_name:ME.email,role:'FOH Engineer'};
   if(!PROFILE.plan) console.warn('[PatchFlow] plan manquant — verifiez la colonne plan dans Supabase profiles.');
-  document.getElementById('u-name').textContent=PF_GUEST?'Mode essai':(PROFILE.full_name||ME.email);
+  document.getElementById('u-name').textContent=PF_GUEST?'Accès libre':(PROFILE.full_name||ME.email);
   document.getElementById('u-email').textContent=ME.email;
   _refreshAllAvatars();
   _refreshPlanBadge();
@@ -5736,7 +5736,7 @@ function setPdfExportType(type){
   const lk=document.getElementById('pdf-incl-link'), lkLbl=document.getElementById('pdf-link-label'), lkNote=document.getElementById('pdf-link-note');
   if(lk){ lk.checked=!PF_GUEST; lk.disabled=!!PF_GUEST; }
   if(lkLbl) lkLbl.classList.toggle('off', !!PF_GUEST);
-  if(lkNote){ lkNote.hidden=!PF_GUEST; if(PF_GUEST) lkNote.innerHTML='<i class="ti ti-lock"></i><span>Pas disponible en mode essai : le show n\'est pas enregistré en ligne. <button type="button" class="xp-inline" onclick="closePDF();guestSignup()">Créer un compte gratuit</button> pour partager un lien toujours à jour.</span>'; }
+  if(lkNote){ lkNote.hidden=!PF_GUEST; if(PF_GUEST) lkNote.innerHTML='<i class="ti ti-lock"></i><span>Pas disponible en accès libre : le show n\'est pas enregistré en ligne. <button type="button" class="xp-inline" onclick="closePDF();guestSignup()">Créer un compte gratuit</button> pour partager un lien toujours à jour.</span>'; }
   // Hide toggle row entirely if only one option visible
   const toggleRow = document.getElementById('pdf-type-row');
   if(toggleRow) toggleRow.style.display = _pdfVisibleTypes.length <= 1 ? 'none' : '';
