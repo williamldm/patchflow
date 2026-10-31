@@ -6416,7 +6416,7 @@ function _vtLabel(ctx,text,cx,y,SC,TS){
 /* Étiquette de canal, à cheval sur le coin haut droit : entrée en orange, sortie à l'encre */
 function _vtChBadge(ctx,chNum,nodeW,nodeTop,SC,opts){
   SC=SC||1; opts=opts||{};
-  var out=!!opts.out, badge=(opts.prefix||(out?'OUT ':'CH '))+chNum;
+  var out=!!opts.out, badge=(opts.prefix!=null?opts.prefix:(out?'OUT ':'CH '))+chNum;
   var fs=19*SC, bh=30*SC, pad=10*SC;
   ctx.font='700 '+fs+'px Archivo, sans-serif';
   var bw=ctx.measureText(badge).width+pad*2;
